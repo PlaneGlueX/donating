@@ -1,0 +1,210 @@
+# inventory.sk: the fixed inventory. Players can't move any item; scripts place everything.
+#
+# Layout (hotbar number the player sees -> Skript "slot N of player's inventory"):
+#   hotbar 1-5 -> slots 0-4    equipped weapons and consumables (only shop.sk changes these)
+#   hotbar 6-8 -> slots 5-7    quest items
+#   hotbar 9   -> slot 8       phone (while driving it becomes the car key)
+#   upper      -> slots 9-35   ammo, locked in place (WeaponMechanics still takes ammo from here)
+#   armor      -> slots 36-39  helmet / vest from the gear shop
+#   offhand    -> slot 40      heist bag
+#
+# Every lock runs at priority highest. WeaponMechanics reads the drop (Q) and swap-hand (F) keys at
+# LOW priority and ignores events that are already cancelled, so it always sees them first (its guns
+# reload on Q). Never cancel these events at lowest/low. Other scripts' handlers without a priority
+# run at Skript's default (high), which is also before these locks, so menus can still read clicks.
+# Bypass: permission donating.inventory.bypass, or creative/spectator mode (for building).
+#
+# keep_inventory is always on: nothing ever drops on death. death.sk decides what is lost.
+#
+# Rules for other scripts (from WeaponMechanics' source):
+#   - Give guns one at a time into a fixed slot: wm give <player> <weapon> 1 {slot:N}
+#   - Never put ammo in the hotbar (WeaponMechanics takes ammo from slots 0-35).
+#   - Never use Ammo_Switch_Trigger, Unload_Ammo_On_Reload or converter checks: they add items.
+#   - Every weapon needs Info.Cancel.Drop_Item and Info.Cancel.Swap_Hands set to true.
+
+on load:
+	# 1.21.11 renamed game rules: keepInventory is now keep_inventory.
+	execute console command "gamerule keep_inventory true"
+
+function bypassesLock(p: player) :: boolean:
+	if {_p} has permission "donating.inventory.bypass":
+		return true
+	if gamemode of {_p} is creative:
+		return true
+	if gamemode of {_p} is spectator:
+		return true
+	return false
+
+# ---------- Layout items ----------
+
+function phoneItem() :: item:
+	return tagItem(paper named "&fPhone" with lore "&7Right-click to open", "phone")
+
+function bagItem(tier: number) :: item:
+	set {_name} to cfg("bag::%{_tier}%::name")
+	set {_capacity} to cfg("bag::%{_tier}%::capacity")
+	return tagItem(leather named "&6%{_name}%" with lore "&7Holds up to %formatMoney({_capacity})% of loot", "bag:%{_tier}%")
+
+# Puts the phone and the owned bag in their slots. Run on join, respawn, and after anything that
+# resets the inventory. Overwrites slots 8 and 40.
+function applyLayout(p: player):
+	set slot 8 of {_p}'s inventory to phoneItem()
+	set {_tier} to getData({_p}, "bag-tier")
+	if {_tier} is set:
+		if {_tier} > 0:
+			set offhand tool of {_p} to bagItem({_tier})
+			stop
+	set offhand tool of {_p} to air
+
+on join:
+	applyLayout(player)
+
+on respawn:
+	wait 1 tick
+	applyLayout(player)
+
+# ---------- Locks ----------
+
+# Any click in any open inventory: pick up, place, shift-click, number keys, the offhand key,
+# double-click collect, drop keys inside the inventory, clicking outside.
+on inventory click with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+on inventory drag with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# F key outside the inventory. The bag never leaves the offhand.
+on swap hand items with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# Q / Ctrl+Q outside the inventory.
+on player drop with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# Middle-click pick block/entity: in survival it moves a matching item (e.g. ammo) into the hotbar.
+on player pick item with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# Recipe book: clicking a recipe auto-fills the 2x2 crafting grid from the inventory, and closing
+# the inventory puts those items back in the first free slot (found in a playtest: stone moved
+# from the upper inventory to hotbar 2).
+on recipe book click with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# Loot never enters the inventory. This event only fires when the player has room, so bag.sk
+# must pick up dropped duffels with SkBee's "on player attempt item pickup" instead.
+on player pick up with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# Trap (dispenser) and cop arrows can't be collected.
+on arrow pickup with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# Right-clicking an entity can hand it the held item: item frames, armor stands, allays (with an
+# empty hand they take the offhand bag), villager trades, horse/llama chests, saddles, leads.
+# Players and Citizens NPCs (metadata "NPC", any body type) stay clickable for shops.
+# MTVehicles cars are armor stands: its handler runs at MONITOR, ignores cancellation and handles
+# car entry itself, so this cancel doesn't block getting in (retest with 2.5.9).
+on right click on entity with priority highest:
+	event-entity is not a player
+	event-entity does not have metadata "NPC"
+	bypassesLock(player) is false
+	cancel event
+
+# GUIs that move items without an inventory click: the lectern "Take Book" button, and villager
+# trade selection (auto-moves matching items, e.g. any feather = every gun). The right-click
+# locks already stop players opening them; this is the backstop.
+on inventory open with priority highest:
+	bypassesLock(player) is false
+	set {_t} to type of event-inventory
+	if {_t} is merchant inventory:
+		cancel event
+	else if {_t} is lectern inventory:
+		cancel event
+
+# Blocks that take or give items on right-click: decorated pots and 1.21.9+ shelves (swap the held
+# item, powered shelves swap whole hotbar rows), chiseled bookshelves, potted plants (give the plant),
+# lecterns, jukeboxes, composters, campfires, trial vaults.
+on right click with priority highest:
+	event-block is set
+	bypassesLock(player) is false
+	set {_type} to "%type of event-block%"
+	if {_type} contains "shelf":
+		cancel event
+	else if {_type} contains "pot":
+		cancel event
+	else if {_type} contains "lectern":
+		cancel event
+	else if {_type} contains "jukebox":
+		cancel event
+	else if {_type} contains "composter":
+		cancel event
+	else if {_type} contains "campfire":
+		cancel event
+	else if {_type} contains "vault":
+		cancel event
+
+# Placing a block would take it out of a locked slot.
+on place with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
+# The gamerule above only covers the overworld; this keeps the layout in every world.
+on death of player:
+	keep the inventory and experience
+	clear drops
+
+# ---------- Watchdog ----------
+# If anything ever moves the phone (slot 8) or the bag (slot 40) despite the locks, swap it back.
+# It only swaps, never deletes, so an unexpected move can't destroy or duplicate an item.
+
+function swapSlots(p: player, a: number, b: number):
+	set {_itemA} to slot {_a} of {_p}'s inventory
+	set {_itemB} to slot {_b} of {_p}'s inventory
+	set slot {_a} of {_p}'s inventory to {_itemB}
+	set slot {_b} of {_p}'s inventory to {_itemA}
+
+# Slot holding an item whose id starts with `prefix`, or -1.
+function findTagged(p: player, prefix: text) :: number:
+	loop integers from 0 to 40:
+		if itemId(slot loop-value of {_p}'s inventory) starts with {_prefix}:
+			return loop-value
+	return -1
+
+function repairLayout(p: player):
+	# Slot 8 holds the phone, or later the car key; any of our items there is left alone.
+	if itemId(slot 8 of {_p}'s inventory) is "":
+		set {_at} to findTagged({_p}, "phone")
+		if {_at} >= 0:
+			swapSlots({_p}, {_at}, 8)
+		else if slot 8 of {_p}'s inventory is air:
+			set slot 8 of {_p}'s inventory to phoneItem()
+	set {_tier} to getData({_p}, "bag-tier")
+	if {_tier} is set:
+		if {_tier} > 0:
+			if itemId(offhand tool of {_p}) does not start with "bag:":
+				set {_at} to findTagged({_p}, "bag:")
+				if {_at} >= 0:
+					swapSlots({_p}, {_at}, 40)
+				else if offhand tool of {_p} is air:
+					set offhand tool of {_p} to bagItem({_tier})
+
+on inventory slot change:
+	set {_slot} to index of event-slot
+	if {_slot} is 8:
+		set {_check} to true
+	else if {_slot} is 40:
+		set {_check} to true
+	{_check} is set
+	bypassesLock(player) is false
+	wait 1 tick
+	player is online
+	repairLayout(player)

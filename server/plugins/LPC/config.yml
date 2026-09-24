@@ -1,0 +1,40 @@
+# LPC Configuration
+# https://luckperms.net/wiki/Prefixes,-Suffixes-&-Meta
+#
+# Placeholders:
+# {message} - the chat message
+# {name} - the player's name
+# {displayname} - the player's display name / nickname
+# {world} - the world name of the player's current world
+# {prefix} - the player's highest priority prefix
+# {suffix} - the player's highest priority suffix
+# {prefixes} - the player's prefixes sorted by the highest priority
+# {suffixes} - the player's suffixes sorted by the highest priority
+# {username-color} - the player's or the group's username color
+# {message-color} - the player's or the group's message color
+#
+# Color codes: Use & for colors (&a, &b, etc.) and &#rrggbb for hex colors.
+# Permissions: lpc.reload, lpc.clearchat, lpc.debug, lpc.colorcodes, lpc.rgbcodes
+#
+# Commands:
+#   /lpc reload - Reload configuration
+#   /lpc clear - Clear chat for all players
+#   /lpc debug <player> - Show resolved prefix/suffix info for a player
+#
+# More information: https://www.spigotmc.org/resources/68965
+
+chat-format: "{prefix}{name}&r: {message}"
+
+# Examples:
+# chat-format: "[{world}] {prefix}{name}&r: {message}"
+# chat-format: "{prefix}{name}{suffix}&r: {message}"
+# chat-format: "{prefix}{username-color}{name}&r: {message-color}{message}"
+
+# Per-group chat format. Overrides chat-format for the specified group.
+# YAML note: group names must be indented with exactly 2 spaces.
+group-formats:
+#  default: "{prefix}{name}&r: {message}"
+#  admin: "&c[Admin] {prefix}{name}&r: {message}"
+
+# Message shown after /lpc clear
+clear-chat-message: "&7Chat has been cleared by a staff member."

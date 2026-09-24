@@ -1,0 +1,43 @@
+# zz-testkit.sk: LOCAL TEST HELPERS ONLY. Never upload to Minehut.
+# Console commands the bot scenarios use to set up a known inventory.
+
+# A known layout: test sword in hotbar 1, test ammo in the first upper slot, a tier-2 bag.
+command /zztestkit <player>:
+	executable by: console
+	trigger:
+		set {_p} to arg-1
+		clear {_p}'s inventory
+		setData({_p}, "bag-tier", 2)
+		applyLayout({_p})
+		set slot 0 of {_p}'s inventory to tagItem(iron sword named "&fTest Sword", "test:sword")
+		set slot 9 of {_p}'s inventory to tagItem(32 gold nuggets named "&eTest Ammo", "test:ammo")
+		set slot 10 of {_p}'s inventory to tagItem(32 gold nuggets named "&eTest Ammo", "test:ammo")
+		# A block item in the upper inventory: middle-click on a stone block would pull it into the hotbar.
+		set slot 20 of {_p}'s inventory to stone
+		send "testkit ready for %{_p}%" to console
+
+# One line with every non-empty slot: "slot=material xcount [id]" (slot 40 = offhand, 36-39 = armor).
+command /zzdump <player>:
+	executable by: console
+	trigger:
+		set {_p} to arg-1
+		set {_out} to ""
+		loop integers from 0 to 40:
+			set {_i} to slot loop-value of {_p}'s inventory
+			if {_i} is not air:
+				set {_out} to "%{_out}%%loop-value%=%type of {_i}% x%item amount of {_i}% [%itemId({_i})%] | "
+		set {_c} to cursor slot of {_p}
+		send "DUMP %{_out}%cursor=%{_c}%"
+
+# LuckPerms answers asynchronously, so its own replies never come back over RCON.
+command /zzperm <player> <text>:
+	executable by: console
+	trigger:
+		send "PERM %arg-2% for %arg-1%: %whether arg-1 has permission arg-2%"
+
+command /zzclear <player>:
+	executable by: console
+	trigger:
+		clear arg-1's inventory
+		deleteData(arg-1, "bag-tier")
+		applyLayout(arg-1)

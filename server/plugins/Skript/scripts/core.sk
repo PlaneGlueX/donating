@@ -1,0 +1,182 @@
+# core.sk: shared settings, money formatting, player data and helper functions.
+#
+# SETTINGS: every tunable number is in loadSettings() below.
+# Skript options ({@x}) only work inside the file that defines them, so shared numbers live in
+# memory-only {-cfg::*} variables instead. Read them with {-cfg::bag::1::capacity} or cfg("bag::1::capacity").
+# After editing a number: /sk reload core
+#
+# PLAYER DATA: saved per player under {data::<uuid>::<key>} (Skript stores player UUIDs in variable names).
+#   Balance is NOT a variable: it's the EssentialsX economy through Vault ("balance of player").
+#   Keys used so far:
+#     first-join   date of first join
+#     passive      true while in passive mode
+#     bounty       current bounty ($)
+#     bag-tier     bag tier the player owns and carries (0 = no bag)
+
+on load:
+	loadSettings()
+
+function loadSettings():
+	delete {-cfg::*}
+
+	# ---------- Messages ----------
+	# &r after bold matters: Skript's formatter keeps bold across later color codes.
+	set {-cfg::prefix} to "&6&lDONATING&r &8» &7"
+
+	# ---------- Timers (decided in CLAUDE.md unless marked PROPOSAL) ----------
+	set {-cfg::afk::after} to 5 minutes
+	set {-cfg::chat::cooldown} to 2 seconds # PROPOSAL
+	set {-cfg::combat::tag} to 15 seconds # PROPOSAL (combat-tag length isn't set yet)
+	set {-cfg::combat::player-hit-priority} to 5 seconds
+	set {-cfg::pvp::spawn-shield} to 10 seconds
+	set {-cfg::passive::switch-cooldown} to 10 minutes
+	set {-cfg::bounty::repeat-kill-window} to 15 minutes
+	set {-cfg::duffel::despawn} to 2 minutes
+	set {-cfg::alarm::warning} to 20 seconds
+	set {-cfg::alarm::wave-interval} to 10 seconds
+	set {-cfg::alarm::max-cops} to 6
+	set {-cfg::alarm::chase-radius} to 100
+	set {-cfg::car::idle-despawn} to 5 minutes
+	set {-cfg::car::other-car-despawn} to 1 minute
+	set {-cfg::lockpick::max-fails} to 3
+
+	# ---------- Multipliers (decided) ----------
+	set {-cfg::passive::payout-multiplier} to 0.75
+	set {-cfg::bounty::robbery-share} to 0.10
+
+	# ---------- Death loss: L = min(B × p, C) ----------
+	# p per heist difficulty. Player/trap deaths: 1-5%. Cop deaths: 5-10%.
+	# Deaths outside a heist use difficulty 1 and the player's bag capacity.
+	set {-cfg::difficulty::1::name} to "Easy"
+	set {-cfg::difficulty::1::p} to 0.01
+	set {-cfg::difficulty::1::cop-p} to 0.05
+	set {-cfg::difficulty::2::name} to "Medium"
+	set {-cfg::difficulty::2::p} to 0.02
+	set {-cfg::difficulty::2::cop-p} to 0.06
+	set {-cfg::difficulty::3::name} to "Hard"
+	set {-cfg::difficulty::3::p} to 0.035
+	set {-cfg::difficulty::3::cop-p} to 0.08
+	set {-cfg::difficulty::4::name} to "Advanced"
+	set {-cfg::difficulty::4::p} to 0.05
+	set {-cfg::difficulty::4::cop-p} to 0.10
+
+	# ---------- Money: ALL PROPOSALS, waiting for the owner ----------
+	set {-cfg::money::start} to 500
+	# Bag tiers: capacity = the most loot value ($) the bag holds.
+	set {-cfg::bag::1::name} to "Gym Bag"
+	set {-cfg::bag::1::capacity} to 2000
+	set {-cfg::bag::1::price} to 0
+	set {-cfg::bag::2::name} to "Duffel Bag"
+	set {-cfg::bag::2::capacity} to 6000
+	set {-cfg::bag::2::price} to 7500
+	set {-cfg::bag::3::name} to "Hockey Bag"
+	set {-cfg::bag::3::capacity} to 15000
+	set {-cfg::bag::3::price} to 30000
+	set {-cfg::bag::4::name} to "Armored Duffel"
+	set {-cfg::bag::4::capacity} to 40000
+	set {-cfg::bag::4::price} to 120000
+	set {-cfg::bag::5::name} to "Vault Bag"
+	set {-cfg::bag::5::capacity} to 100000
+	set {-cfg::bag::5::price} to 400000
+	# Default loot pool per difficulty (each heist can override its own).
+	set {-cfg::difficulty::1::loot-pool} to 3000
+	set {-cfg::difficulty::2::loot-pool} to 12000
+	set {-cfg::difficulty::3::loot-pool} to 40000
+	set {-cfg::difficulty::4::loot-pool} to 120000
+	set {-cfg::bounty::per-kill} to 250
+	set {-cfg::bounty::kill-cap} to 25000
+	set {-cfg::bounty::min-placed} to 1000
+
+	set {-cfg::loaded} to true
+
+# Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script
+# asks before core.sk's own load event has run (possible at server start).
+function cfg(key: text) :: object:
+	if {-cfg::loaded} is not set:
+		loadSettings()
+	return {-cfg::%{_key}%}
+
+# ---------- Money ----------
+
+# 1234567.8 -> "$1,234,567" (whole dollars, rounded down).
+function formatMoney(amount: number) :: text:
+	set {_n} to floor(abs({_amount}))
+	set {_out} to ""
+	while {_n} >= 1000:
+		set {_chunk} to "%mod({_n}, 1000)%"
+		while length of {_chunk} < 3:
+			set {_chunk} to "0%{_chunk}%"
+		set {_out} to ",%{_chunk}%%{_out}%"
+		set {_n} to floor({_n} / 1000)
+	if {_amount} <= -1:
+		return "-$%{_n}%%{_out}%"
+	return "$%{_n}%%{_out}%"
+
+# 1234567 -> "$1.2M", 15300 -> "$15.3K", 950 -> "$950". For tight spaces like the sidebar.
+function formatMoneyShort(amount: number) :: text:
+	set {_a} to abs({_amount})
+	if {_a} >= 1000000000:
+		set {_out} to "%floor({_a} / 100000000) / 10%B"
+	else if {_a} >= 1000000:
+		set {_out} to "%floor({_a} / 100000) / 10%M"
+	else if {_a} >= 1000:
+		set {_out} to "%floor({_a} / 100) / 10%K"
+	else:
+		set {_out} to "%floor({_a})%"
+	if {_amount} <= -1:
+		return "-$%{_out}%"
+	return "$%{_out}%"
+
+# Balance changes go through these so nothing can push a balance below $0.
+function giveMoney(p: offline player, amount: number):
+	add {_amount} to balance of {_p}
+
+# Takes up to `amount`; returns how much was actually taken.
+function takeMoney(p: offline player, amount: number) :: number:
+	set {_taken} to min({_amount}, balance of {_p})
+	if {_taken} > 0:
+		remove {_taken} from balance of {_p}
+		return {_taken}
+	return 0
+
+# ---------- Player data ----------
+
+function getData(p: offline player, key: text) :: object:
+	return {data::%{_p}%::%{_key}%}
+
+function setData(p: offline player, key: text, value: object):
+	set {data::%{_p}%::%{_key}%} to {_value}
+
+function deleteData(p: offline player, key: text):
+	delete {data::%{_p}%::%{_key}%}
+
+# ---------- Messages ----------
+
+# Sends a message with the server prefix. Color codes (&a, &7...) in `text` work.
+function msg(p: player, text: text):
+	send formatted colored "%cfg("prefix")%%{_text}%" to {_p}
+
+function broadcastMsg(text: text):
+	broadcast formatted colored "%cfg("prefix")%%{_text}%"
+
+# ---------- Custom items ----------
+# Every custom item carries a hidden id in its custom data, e.g. "phone", "bag:2".
+# Never use a diamond hoe for custom items: it's MTVehicles' car item.
+
+function tagItem(i: item, id: text) :: item:
+	set string tag "donating_id" of custom nbt of {_i} to {_id}
+	return {_i}
+
+# The item's id, or "" for items without one.
+function itemId(i: item) :: text:
+	set {_id} to string tag "donating_id" of custom nbt of {_i}
+	if {_id} is set:
+		return {_id}
+	return ""
+
+# ---------- Permissions ----------
+
+function isStaff(p: player) :: boolean:
+	if {_p} has permission "donating.staff":
+		return true
+	return false

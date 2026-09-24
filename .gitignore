@@ -1,0 +1,40 @@
+# Donating: track scripts, configs, tools, bots and docs. Not runtime data or third-party binaries.
+# Plugin jars are re-downloaded (and hash-checked) with tools\fetch.ps1 from tools\downloads.json.
+
+# ---------- server: only hand-edited configs and Skripts ----------
+/server/*
+!/server/bukkit.yml
+!/server/spigot.yml
+!/server/config/
+# server.properties holds the local RCON password and offline-mode settings: never commit it.
+
+!/server/plugins/
+/server/plugins/*
+!/server/plugins/Skript/
+/server/plugins/Skript/*
+!/server/plugins/Skript/config.sk
+!/server/plugins/Skript/scripts/
+/server/plugins/Skript/scripts/-examples/
+/server/plugins/Skript/scripts/--*
+!/server/plugins/Essentials/
+/server/plugins/Essentials/*
+!/server/plugins/Essentials/config.yml
+!/server/plugins/TAB/
+/server/plugins/TAB/*
+!/server/plugins/TAB/config.yml
+!/server/plugins/LPC/
+/server/plugins/LPC/*
+!/server/plugins/LPC/config.yml
+!/server/plugins/WeaponMechanics/
+/server/plugins/WeaponMechanics/*
+!/server/plugins/WeaponMechanics/config.yml
+
+# ---------- tools / bots / downloads ----------
+/tools/node/
+/bots/node_modules/
+/extras/
+
+# ---------- misc ----------
+*.log
+*.jar
+*.zip

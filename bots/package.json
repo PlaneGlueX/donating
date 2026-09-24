@@ -1,0 +1,11 @@
+{
+  "name": "donating-test-bots",
+  "private": true,
+  "description": "Mineflayer bots for the LOCAL Donating test server only",
+  "scripts": {
+    "test:join": "node run.js join"
+  },
+  "dependencies": {
+    "mineflayer": "^4.39.0"
+  }
+}
