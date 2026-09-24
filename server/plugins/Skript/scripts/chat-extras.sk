@@ -1,0 +1,127 @@
+# chat-extras.sk: chat cooldown, @mentions, staff chat, /broadcast and rotating tips.
+#
+# LPC formats chat at HIGHEST priority, after these handlers (Skript's default is high). LPC strips
+# & color codes from players without lpc.colorcodes but keeps § codes, so a mention is colored with
+# § codes inside a raw (unparsed) text component: players still can't color their own text or add
+# <tags>. Player text only goes through `colored` in staff chat and /broadcast (staff only;
+# `colored` allows colors but never click/hover tags). Never use `formatted` on player text.
+#
+# Uses rankedName() from join-quit.sk.
+
+on load:
+	# The section sign, for colors that survive LPC's & stripping.
+	set {-chat::s} to character from codepoint 167
+	loadTips()
+	set {-tip::last} to now
+
+on quit:
+	delete {-chat::last::%player%}
+	delete {-chat::staff-mode::%player%}
+
+on chat:
+	# Staff chat mode (/sc): the message goes to staff only.
+	if {-chat::staff-mode::%player%} is set:
+		if isStaff(player) is true:
+			cancel event
+			# MiniMessage text: typed <tags> stay escaped (literal), & colors still work.
+			staffChat(player, "%message%")
+			stop
+		delete {-chat::staff-mode::%player%}
+
+	# Cooldown between messages (staff are exempt).
+	if isStaff(player) is false:
+		set {_cooldown} to cfg("chat::cooldown")
+		if {-chat::last::%player%} is set:
+			if difference between {-chat::last::%player%} and now < {_cooldown}:
+				cancel event
+				msg(player, "&cSlow down! &7Wait a moment before chatting again.")
+				stop
+		set {-chat::last::%player%} to now
+
+	# @mentions: the name turns lime for everyone, and the mentioned player hears a ping.
+	set {_text} to legacyText(message)
+	{_text} contains "@"
+	loop all players:
+		set {_name} to name of loop-player
+		if {_text} contains "@%{_name}%":
+			# \b: "@Bob" must not match inside "@Bobby".
+			set {_before} to {_text}
+			regex replace "(?i)@%{_name}%\b" in {_text} with "%{-chat::s}%a@%{_name}%%{-chat::s}%r"
+			if {_text} is not {_before}:
+				set {_changed} to true
+				if loop-player is not player:
+					add loop-player to {_pinged::*}
+	{_changed} is set
+	set message to raw {_text}
+	# Sounds run on the main thread (chat events are async; code after a wait runs synced).
+	wait 1 tick
+	loop {_pinged::*}:
+		if loop-value is online:
+			play sound "entity.experience_orb.pickup" with volume 0.8 and pitch 1.5 to loop-value
+
+# ---------- Staff chat ----------
+
+function staffChat(from: player, text: text):
+	loop all players:
+		if isStaff(loop-player) is true:
+			send colored "&c[Staff] %rankedName({_from})%&8: &f%{_text}%" to loop-player
+	send "[Staff] %{_from}%: %{_text}%" to console
+
+# /sc <message> sends one message to staff; /sc alone toggles staff chat mode.
+command /staffchat [<text>]:
+	aliases: /sc
+	description: Talk to staff only.
+	permission: donating.staff
+	permission message: &cYou can't use staff chat.
+	executable by: players
+	trigger:
+		if arg-1 is set:
+			staffChat(player, arg-1)
+			stop
+		if {-chat::staff-mode::%player%} is set:
+			delete {-chat::staff-mode::%player%}
+			msg(player, "Staff chat &coff&7: your messages go to everyone again.")
+		else:
+			set {-chat::staff-mode::%player%} to true
+			msg(player, "Staff chat &aon&7: your messages go to staff only. &e/sc&7 turns it off.")
+
+# ---------- /broadcast ----------
+# Replaces EssentialsX's /broadcast and /bc.
+
+command /broadcast <text>:
+	aliases: /bc
+	description: Announce something to everyone.
+	permission: donating.staff
+	permission message: &cYou can't broadcast.
+	trigger:
+		broadcastMsg("&e%arg-1%")
+		play sound "block.note_block.pling" with volume 0.6 to all players
+
+# ---------- Rotating tips ----------
+# One tip every cfg("chat::tip-interval"), in order, only while someone is online.
+# {-tips::*} holds only the tips (its size is the tip count); the timer lives in {-tip::*}.
+
+function loadTips():
+	delete {-tips::*}
+	add "Loot goes into your bag (offhand), and it sells by itself when you reach the base." to {-tips::*}
+	add "Dying drops your bag. Anyone nearby can grab your loot." to {-tips::*}
+	add "Get out before the heist timer hits 0, or you lose what you took there." to {-tips::*}
+	add "Guns are yours for good once bought. Only ammo and consumables run out." to {-tips::*}
+	add "Passive mode (phone) keeps other robbers off you, but heists pay less." to {-tips::*}
+	add "Type @name in chat to ping a player." to {-tips::*}
+	add "New here? Type /help for the basics." to {-tips::*}
+
+function sendTip():
+	add 1 to {-tip::next}
+	if {-tip::next} > size of {-tips::*}:
+		set {-tip::next} to 1
+	send colored "&e&lTIP&r &8» &7%{-tips::%{-tip::next}%}%" to all players
+
+every 1 minute:
+	if number of all players is 0:
+		stop
+	set {_interval} to cfg("chat::tip-interval")
+	if difference between {-tip::last} and now < {_interval}:
+		stop
+	set {-tip::last} to now
+	sendTip()

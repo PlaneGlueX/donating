@@ -61,3 +61,22 @@ command /zzcfg <text>:
 	executable by: console
 	trigger:
 		send "CFG %arg-1% = %cfg(arg-1)%"
+
+# afk.sk: pretend the player's last activity was 10 minutes ago (AFK within 10 seconds).
+command /zzafk <player>:
+	executable by: console
+	trigger:
+		set {-afk::last::%arg-1%} to 10 minutes ago
+		send "AFKSET %arg-1%"
+
+command /zzafkstate <player>:
+	executable by: console
+	trigger:
+		send "AFK %arg-1%: %isAfk(arg-1)%"
+
+# chat-extras.sk: send the next rotating tip now.
+command /zztip:
+	executable by: console
+	trigger:
+		sendTip()
+		send "TIP SENT"

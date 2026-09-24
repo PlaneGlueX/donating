@@ -27,6 +27,7 @@ function loadSettings():
 	# ---------- Timers (decided in CLAUDE.md unless marked PROPOSAL) ----------
 	set {-cfg::afk::after} to 5 minutes
 	set {-cfg::chat::cooldown} to 2 seconds # PROPOSAL
+	set {-cfg::chat::tip-interval} to 5 minutes # PROPOSAL
 	set {-cfg::combat::tag} to 15 seconds # PROPOSAL (combat-tag length isn't set yet)
 	set {-cfg::combat::player-hit-priority} to 5 seconds
 	set {-cfg::pvp::spawn-shield} to 10 seconds
@@ -167,6 +168,11 @@ function msg(p: player, text: text):
 
 function broadcastMsg(text: text):
 	broadcast colored "%cfg("prefix")%%{_text}%"
+
+# A text component (e.g. the chat message) as a string with § codes, keeping < and & as typed.
+# Putting it in a string ("%message%") gives MiniMessage text instead, where "<" becomes "\<".
+function legacyText(t: text) :: text:
+	return {_t}
 
 # ---------- Custom items ----------
 # Every custom item carries a hidden id in its custom data, e.g. "phone", "bag:2".

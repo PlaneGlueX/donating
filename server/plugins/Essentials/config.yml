@@ -182,6 +182,8 @@ overridden-commands:
 disabled-commands:
   #- nick
   #- clear
+  # Donating: afk.sk owns /afk.
+  - afk
 
 # Whether Essentials should show detailed command usages.
 # If set to false, Essentials will collapse all usages in to one single usage message.

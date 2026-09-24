@@ -176,6 +176,12 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - `colored "..."` turns `&` codes (also from variables) into colors with Skript's safe parser (colors, bold, gradients, reset). `formatted` parses every tag, including click/hover/run-command, so never use it on text that may contain player input (checked in the 2.16.2 source; core.sk's `msg()` switched from `formatted colored` to `colored` in the cloud session, untested). Bold carries over later color codes: put `&r` after bold text.
 - Join/quit messages and titles take text components: `set join message to colored "..."`; `delete` hides it. `prefix of player` reads the LuckPerms prefix through Vault's chat hook.
 - A Skript command replaces another plugin's command with the same name (Skript overwrites the command map entry), e.g. join-quit.sk's `/help` replaces EssentialsX's.
+- Checked in the Skript 2.16.2 / LPC 3.7.2 source (cloud session, untested in-game):
+  - `on chat` is Paper's async AsyncChatEvent; `message` is a text component. `"%message%"` gives MiniMessage text (`<` becomes `\<`); `legacyText(message)` (core.sk) gives the typed text with § codes. `raw "..."` makes an unparsed text component. Adding a string to a component parses the string (colors and tags) and nests it under the last part's style, so don't build messages from player text that way.
+  - LPC formats chat at HIGHEST (after Skript's high) with a legacy round trip: it strips `&` codes for players without `lpc.colorcodes` but keeps `§` codes. chat-extras.sk colors mentions with `§` inside `raw` text for that reason.
+  - A `wait` inside an async event is allowed; the code after it runs on the main thread.
+  - A condition written as its own line jumps to what comes after the section it's in: at the top of a trigger it stops the trigger, inside a loop it skips to the next pass (like `continue`), inside an `if` block it skips the rest of that block.
+  - `regex replace "(?i)..." in {_text} with "..."` exists (Skript 2.10+). `on player turn around` fires on head rotation only; `on press of any input key` fires on movement keys (also while driving). `player` works in `on command` (empty for console commands).
 - A list literal needs `and`/`or` (`loop 1, 2 and 3:`), otherwise Skript warns.
 - JVM: `-XX:G1RSetUpdatingPauseIntervalMillis` no longer exists on Java 21 (the JVM refuses to start).
 - Handlers without a priority run at Skript's `plugin priority: high`, not normal. `listen to cancelled events by default: false`: a handler doesn't run if an earlier plugin already cancelled the event.
@@ -271,7 +277,7 @@ Phase 3 (advanced heists), already downloaded to `extras\phase3\` because CI bui
 - Sentinel 2.9.4-SNAPSHOT build 534: https://ci.citizensnpcs.co/job/Sentinel/ (linked from the GitHub README)
 
 Config notes (applied locally 2026-09-24; copy these files to Minehut):
-- EssentialsX: `auto-afk: -1` and AFK broadcasts off (Skript handles AFK). Keep `custom-join-message: "none"` and `custom-quit-message: "none"` (an empty string also hides Skript's messages). `min-money: 0`. No EssentialsX Chat (LPC formats chat). Also `newbies: announce-format: ''` and `kit: ''` (players start with nothing). When afk.sk exists, add `afk` to EssentialsX `disabled-commands`.
+- EssentialsX: `auto-afk: -1` and AFK broadcasts off (Skript handles AFK). Keep `custom-join-message: "none"` and `custom-quit-message: "none"` (an empty string also hides Skript's messages). `min-money: 0`. No EssentialsX Chat (LPC formats chat). Also `newbies: announce-format: ''` and `kit: ''` (players start with nothing). `disabled-commands: afk` (afk.sk owns /afk; added in the cloud session). chat-extras.sk replaces EssentialsX's `/broadcast` and `/bc`.
 - LPC: one format pulling prefixes from LuckPerms; no per-group formats (the default `{prefix}{name}&r: {message}` already does this).
 - TAB: header/footer + sidebar; the heist board uses a display condition (`%donating_in_heist%=yes`, listed first). Belowname and TAB's boss bar stay off (belowname is broken on 26.1 clients; Skript runs the boss bar).
 - WeaponMechanics `config.yml`: `Resource_Pack_Download.Enabled: false` and `Automatically_Send_To_Player: false`.
@@ -332,8 +338,9 @@ Later:
 
 ## Status (2026-09-24, cloud session on branch `claude/dreamy-mendel-ouutfb`)
 - Code review of core.sk + inventory.sk done (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later (chat, staff chat) could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` now logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New design rules went into "Fixed-inventory rules for later scripts" (consumable leftovers, entity-placing items, tridents, boats/minecarts).
-- Written, untested: join-quit.sk, bot scenario `join-quit`, a cake check in `inventory-lock`, test helpers `/zzforget`, `/zzbal`, `/zzcfg`. PLAYTEST.md items 25–30 list what to run.
-- Next locally: merge the branch, `/sk reload scripts`, run PLAYTEST 25–30, fix anything that fails.
+- Written, untested: join-quit.sk, chat-extras.sk, afk.sk (scripts 2–4 in the build order), bot scenarios `join-quit`, `chat-extras`, `afk`, a cake check in `inventory-lock`, test helpers `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, EssentialsX `disabled-commands: afk`. PLAYTEST.md items 25–34 list what to run.
+- Choices made without the owner (easy to change): the first join pays `cfg("money::start")`; AFK only notifies the player (no broadcast); pushes (water, pistons) don't count as activity; tips every 5 minutes (PROPOSAL) and only while someone is online; the tip and /help texts.
+- Next locally: merge PR https://github.com/PlaneGlueX/donating/pull/1, restart the server, `/sk reload scripts`, run PLAYTEST 25–34, fix anything that fails. Then phone.sk (script 6; inventory.sk, script 5, is done).
 
 ## Cloud and local sessions
 - Repo: https://github.com/PlaneGlueX/donating (private), branch `main`. `.gitignore` keeps out jars, the world, logs, LuckPerms/CoreProtect data, `server.properties` (RCON password), `tools\node` and `bots\node_modules`.

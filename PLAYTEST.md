@@ -53,9 +53,9 @@ Every check compares the full server-side inventory (all 41 slots + cursor) befo
 
 ## Cloud session 2026-09-24: written but untested (run these locally first)
 
-The cloud session couldn't run a server, so everything below is "untested (cloud)". Its Skript syntax was checked by hand against the Skript 2.16.2 source only. Changed: core.sk (`msg`/`broadcastMsg` use `colored`, not `formatted`; `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0), inventory.sk (cakes locked, respawn skips players who left), new join-quit.sk, new zz-testkit helpers (`/zzforget`, `/zzbal`, `/zzcfg`).
+The cloud session couldn't run a server, so everything below is "untested (cloud)". Its Skript syntax was checked by hand against the Skript 2.16.2 source only. Changed: core.sk (`msg`/`broadcastMsg` use `colored`, not `formatted`; `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0; new `legacyText()` and `chat::tip-interval`), inventory.sk (cakes locked, respawn skips players who left), new join-quit.sk, chat-extras.sk and afk.sk, EssentialsX `disabled-commands: afk`, new zz-testkit helpers (`/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`).
 
-25. **Everything loads.** `/sk reload scripts`: core, inventory, join-quit and zz-testkit load with no errors or warnings. If join-quit fails on `prefix of`, Skript didn't hook Vault's chat (LuckPerms provides it).
+25. **Everything loads.** `/sk reload scripts`: core, inventory, join-quit, chat-extras, afk and zz-testkit load with no errors or warnings. If join-quit fails on `prefix of`, Skript didn't hook Vault's chat (LuckPerms provides it). Restart the server once so EssentialsX picks up `disabled-commands`.
     - Result: TODO (untested, cloud)
 26. **Inventory lock still holds** (`bots\run.js inventory-lock`, now 41 checks): adds "right-click cake holding a candle" (the lock keeps the candle) and its bypass control (without the lock the candle is used up).
     - Result: TODO (untested, cloud)
@@ -67,6 +67,14 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
     - Result: TODO (untested, cloud)
 30. **Join/quit look right in the real client:** gray brackets, green `+` / red `-`, the owner prefix in dark red, the welcome title and sound on a first join (use `/zzforget Explosde` from the console first; it resets your balance to $0).
     - Result: HUMAN / TODO
+31. **Chat extras** (`bots\run.js chat-extras`, 20 checks): a second message within `chat::cooldown` is blocked with "Slow down!" (staff exempt); `hey @chatb, look` shows `@ChatB` in lime to everyone (the text after it isn't lime) and pings ChatB only; `@ChatBx` pings nobody; `&cred <bold>big</bold> @ChatB` stays uncolored and literal; `/sc` and `/broadcast` are refused without `donating.staff`; `/sc msg` and staff chat mode reach staff only; `/bc` reaches everyone with the prefix; `/zztip` sends a tip.
+    - Result: TODO (untested, cloud). Needs chat-extras.sk, core.sk and join-quit.sk (for `rankedName`) loaded.
+32. **AFK** (`bots\run.js afk`, 10 checks): AFK within 10 s of `/zzafk` (last activity set 10 minutes back) with a message; idle position packets don't end it; looking around, `/afk`, chatting, any command, and a movement key each end it; `/afk` toggles.
+    - Result: TODO (untested, cloud). If only the movement-key check fails, Mineflayer may not send input packets; check with the real client instead (item 33).
+33. **AFK while driving and in water (real client):** `/afk`, then hold W in a car (after MTVehicles): AFK ends. Stand in a water stream without touching anything for 5 minutes: you still go AFK.
+    - Result: HUMAN / TODO
+34. **EssentialsX /afk is off:** `/afk` shows afk.sk's message ("You're now AFK"), not EssentialsX's.
+    - Result: TODO (untested, cloud)
 
 ## Needs a human (owner)
 
