@@ -61,6 +61,7 @@ on join:
 
 on respawn:
 	wait 1 tick
+	player is online
 	applyLayout(player)
 
 # ---------- Locks ----------
@@ -132,7 +133,8 @@ on inventory open with priority highest:
 
 # Blocks that take or give items on right-click: decorated pots and 1.21.9+ shelves (swap the held
 # item, powered shelves swap whole hotbar rows), chiseled bookshelves, potted plants (give the plant),
-# lecterns, jukeboxes, composters, campfires, trial vaults.
+# lecterns, jukeboxes, composters, campfires, trial vaults, cakes (a candle on a cake is not a block
+# place event in Paper, and WeaponMechanics' default grenades are candles).
 on right click with priority highest:
 	event-block is set
 	bypassesLock(player) is false
@@ -150,6 +152,8 @@ on right click with priority highest:
 	else if {_type} contains "campfire":
 		cancel event
 	else if {_type} contains "vault":
+		cancel event
+	else if {_type} contains "cake":
 		cancel event
 
 # Placing a block would take it out of a locked slot.

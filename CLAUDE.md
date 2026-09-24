@@ -173,7 +173,9 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 ### Verified in Skript 2.16.2 + SkBee 3.25.4 (loaded on the local server)
 - `on inventory click with priority highest:`, `on swap hand items with priority highest:`, `on drop with priority highest:`, `on inventory drag:` all parse.
 - SkBee custom data on item variables: `set string tag "donating_id" of custom nbt of {_i} to "phone"` (read back with `string tag "donating_id" of custom nbt of {_i}`).
-- `send formatted colored "..."` turns `&` codes from variables into colors, but bold carries over later color codes: put `&r` after bold text.
+- `colored "..."` turns `&` codes (also from variables) into colors with Skript's safe parser (colors, bold, gradients, reset). `formatted` parses every tag, including click/hover/run-command, so never use it on text that may contain player input (checked in the 2.16.2 source; core.sk's `msg()` switched from `formatted colored` to `colored` in the cloud session, untested). Bold carries over later color codes: put `&r` after bold text.
+- Join/quit messages and titles take text components: `set join message to colored "..."`; `delete` hides it. `prefix of player` reads the LuckPerms prefix through Vault's chat hook.
+- A Skript command replaces another plugin's command with the same name (Skript overwrites the command map entry), e.g. join-quit.sk's `/help` replaces EssentialsX's.
 - A list literal needs `and`/`or` (`loop 1, 2 and 3:`), otherwise Skript warns.
 - JVM: `-XX:G1RSetUpdatingPauseIntervalMillis` no longer exists on Java 21 (the JVM refuses to start).
 - Handlers without a priority run at Skript's `plugin priority: high`, not normal. `listen to cancelled events by default: false`: a handler doesn't run if an earlier plugin already cancelled the event.
@@ -210,6 +212,10 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Dropped duffels (bag.sk): spawn a normal item entity with the normal pickup delay and handle it in SkBee `on player attempt item pickup` (cancel, move loot to the bag, remove the entity). Plain `on pick up` doesn't fire when the inventory is full.
 - death.sk: spawn the duffel entity itself instead of adding it to the drops (inventory.sk clears drops). inventory.sk already keeps the inventory on every death; death.sk clears slots 0-4 and 9-35 and handles the bag.
 - Staff get `donating.inventory.bypass` true explicitly; the default group has it false.
+- Consumables must not leave a leftover item (potion → glass bottle, stew → bowl, honey → bottle, or any 1.21.2+ `use_remainder`): the player couldn't remove it from slots 1–5. Use items without one, or clear the slot in `on consume`.
+- Never sell or give items that place entities (armor stands, boats, minecarts, item frames, paintings, end crystals, spawn eggs): they skip the block place event the lock cancels. No tridents either: a thrown trident can't be picked up again (arrow pickup is locked).
+- A candle on a cake is an EntityChangeBlockEvent in Paper, not a place event, so inventory.sk also cancels right-clicks on cakes (WeaponMechanics' default grenades are candles).
+- The entity right-click lock also stops players boarding boats, minecarts and horses. Exempt those types if the map ever uses them.
 
 ## Default rules (adjustable)
 - Heist tools bought in shops (drill, safe tools) are consumables in slots 1–5. Quest items (contract lockpicks) go in slots 6–8.
@@ -270,11 +276,13 @@ Config notes (applied locally 2026-09-24; copy these files to Minehut):
 - TAB: header/footer + sidebar; the heist board uses a display condition (`%donating_in_heist%=yes`, listed first). Belowname and TAB's boss bar stay off (belowname is broken on 26.1 clients; Skript runs the boss bar).
 - WeaponMechanics `config.yml`: `Resource_Pack_Download.Enabled: false` and `Automatically_Send_To_Player: false`.
 - Skript `config.sk`: default database `pattern: (?!-).*` so `{-...}` variables stay in memory only; `backups to keep: 24`.
+- EssentialsX `starting-balance: 0` stays: join-quit.sk gives `cfg("money::start")` on the first join, so the number lives in core.sk with the other money values.
+- Server-list text (MOTD): set it in the Minehut dashboard. Minehut's proxy answers server-list pings, and the server is asleep when nobody's on, so a Skript ping handler would never be seen. PROPOSAL (the owner hasn't picked one): line 1 `&6&lDONATING &8» &7Heists, cars & bounties`, line 2 `&fRob banks, dodge traps, outrun the cops`.
 
 ## Skripts (build in this order)
 Phase 1 (core, inventory, heists, PvP):
 1. core.sk: shared settings (options block with all numbers), money formatting, player data, helper functions
-2. join-quit.sk: join/quit messages with rank prefix, first join, server-list text, /help
+2. join-quit.sk: join/quit messages with rank prefix, first join, /help (server-list text goes in the Minehut dashboard, see Config notes)
 3. chat-extras.sk: chat cooldown, @mention highlight (lime) + sound, staff chat, /broadcast, rotating tips
 4. afk.sk: 5-minute AFK detection (refresh on every move/chat/command), /afk; AFK players earn nothing
 5. inventory.sk: the fixed inventory layout above; blocks every way items move (number keys, shift-click, drag, swap-hand, drop, death drops); runs after WeaponMechanics
@@ -320,13 +328,17 @@ Later:
 - Checklist items 1-6 done, except the two SpigotMC jars (MTVehicles 2.5.9, KoyaRobbery 1.2.2) that the owner downloads by hand.
 - core.sk and inventory.sk built and passing: `bots\run.js inventory-lock` (39 checks), `wm-reload` (5), `join` (4), plus a computer-use playtest with the real 26.3 client. Results in PLAYTEST.md.
 - After the last test run, inventory.sk also got: `keep the inventory and experience` on every death (the gamerule only covers the overworld), a Citizens NPC exemption on the entity right-click lock, and an `on inventory open` backstop for merchant/lectern GUIs. The default group has `donating.inventory.bypass` = false (otherwise ops bypass the lock). All loaded clean and the 39 checks passed.
-- Not finished: an adversarial code review of core.sk + inventory.sk (workflow `review-core-inventory`) was interrupted by a restart. Rerun it when convenient; it only reads code.
-- Waiting on the owner: money numbers (PROPOSAL values in core.sk), the helmet/vest question, whether death loses only the bag's loot or the bag itself too, the Nether/End and mob-spawning settings for Minehut, and skript-worldguard.
-- Next: join-quit.sk (script 2 in the build order).
+- Waiting on the owner: money numbers (PROPOSAL values in core.sk), the helmet/vest question, whether death loses only the bag's loot or the bag itself too, the Nether/End and mob-spawning settings for Minehut, skript-worldguard, and the MOTD text.
+
+## Status (2026-09-24, cloud session on branch `claude/dreamy-mendel-ouutfb`)
+- Code review of core.sk + inventory.sk done (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later (chat, staff chat) could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` now logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New design rules went into "Fixed-inventory rules for later scripts" (consumable leftovers, entity-placing items, tridents, boats/minecarts).
+- Written, untested: join-quit.sk, bot scenario `join-quit`, a cake check in `inventory-lock`, test helpers `/zzforget`, `/zzbal`, `/zzcfg`. PLAYTEST.md items 25–30 list what to run.
+- Next locally: merge the branch, `/sk reload scripts`, run PLAYTEST 25–30, fix anything that fails.
 
 ## Cloud and local sessions
 - Repo: https://github.com/PlaneGlueX/donating (private), branch `main`. `.gitignore` keeps out jars, the world, logs, LuckPerms/CoreProtect data, `server.properties` (RCON password), `tools\node` and `bots\node_modules`.
 - A **cloud session** works on the repo, not on this PC. It can write and review Skripts, configs, docs and bot scenarios. It can't run the local test server, the Windows tools (`tools\*.ps1`, portable Node), bots against the local server, or computer-use playtests. Mark anything it writes but can't test as "untested (cloud)" in PLAYTEST.md.
+- Cloud network (checked 2026-09-24): GitHub works, so a cloud session can read the Skript, SkBee and Paper source to check syntax (`git clone --depth 1 --branch 2.16.2 https://github.com/SkriptLang/Skript`). papermc.io, piston-data.mojang.com, cdn.modrinth.com, download.luckperms.net and skunity.com (its online parser) were blocked. The owner allowed skunity.com mid-session but it stayed blocked; domain changes probably only apply to sessions started afterwards. With Paper, Mojang, Modrinth and LuckPerms allowed, a cloud session could run a Linux copy of the test server (it would need the EULA accepted for that copy too).
 - Before ending a cloud session: commit and push everything to `main` (or a branch, and say which in this section).
 - **Back to local** (e.g. when cloud credits run out): open this folder in a local Code session and run `git pull` (merge the branch if the cloud used one). Then `tools\fetch.ps1` restores any missing jars, `tools\start-server.ps1` starts the server, and `/sk reload scripts` plus the bot scenarios test what the cloud wrote.
 - The local folder is inside OneDrive. If git ever reports a corrupt object or index lock, pause OneDrive sync and retry.

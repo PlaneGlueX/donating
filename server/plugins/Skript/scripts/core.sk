@@ -12,6 +12,7 @@
 #     passive      true while in passive mode
 #     bounty       current bounty ($)
 #     bag-tier     bag tier the player owns and carries (0 = no bag)
+#   Server stats (saved): {stats::unique-joins} = players who ever joined (join-quit.sk).
 
 on load:
 	loadSettings()
@@ -91,10 +92,15 @@ function loadSettings():
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script
 # asks before core.sk's own load event has run (possible at server start).
+# A missing key is logged to the console, so a typo shows up instead of an empty value.
+# For settings that are optional on purpose (e.g. a per-heist override), read {-cfg::...} directly.
 function cfg(key: text) :: object:
 	if {-cfg::loaded} is not set:
 		loadSettings()
-	return {-cfg::%{_key}%}
+	set {_value} to {-cfg::%{_key}%}
+	if {_value} is not set:
+		send "[Donating] Missing setting: %{_key}%" to console
+	return {_value}
 
 # ---------- Money ----------
 
@@ -129,7 +135,8 @@ function formatMoneyShort(amount: number) :: text:
 
 # Balance changes go through these so nothing can push a balance below $0.
 function giveMoney(p: offline player, amount: number):
-	add {_amount} to balance of {_p}
+	if {_amount} > 0:
+		add {_amount} to balance of {_p}
 
 # Takes up to `amount`; returns how much was actually taken.
 function takeMoney(p: offline player, amount: number) :: number:
@@ -153,11 +160,13 @@ function deleteData(p: offline player, key: text):
 # ---------- Messages ----------
 
 # Sends a message with the server prefix. Color codes (&a, &7...) in `text` work.
+# `colored` only parses safe tags (colors, bold, reset...). Never use `formatted` on text that can
+# contain player input: it also parses click/hover tags, so a player could plant a clickable command.
 function msg(p: player, text: text):
-	send formatted colored "%cfg("prefix")%%{_text}%" to {_p}
+	send colored "%cfg("prefix")%%{_text}%" to {_p}
 
 function broadcastMsg(text: text):
-	broadcast formatted colored "%cfg("prefix")%%{_text}%"
+	broadcast colored "%cfg("prefix")%%{_text}%"
 
 # ---------- Custom items ----------
 # Every custom item carries a hidden id in its custom data, e.g. "phone", "bag:2".

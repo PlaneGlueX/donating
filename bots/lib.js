@@ -9,15 +9,16 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 // Joins the server and resolves once the bot has spawned.
 // Every chat/system/action-bar line and every title lands in bot.log for later checks.
+// `motd` keeps the formatting as § codes (e.g. "§6§lDONATING§r"), for color checks.
 function join (username, { timeoutMs = 30000 } = {}) {
   return new Promise((resolve, reject) => {
     const bot = mineflayer.createBot({ host: HOST, port: PORT, username, version: VERSION, auth: 'offline' })
     bot.log = []
-    const record = (kind, text) => {
-      bot.log.push({ t: Date.now(), kind, text })
+    const record = (kind, text, motd = '') => {
+      bot.log.push({ t: Date.now(), kind, text, motd })
       if (process.env.BOT_VERBOSE) console.error(`[${username}] ${kind}: ${text}`)
     }
-    bot.on('message', (msg, position) => record(position, msg.toString()))
+    bot.on('message', (msg, position) => record(position, msg.toString(), msg.toMotd()))
     bot.on('title', (text, type) => record(`title:${type}`, String(text)))
     bot.on('kicked', reason => record('kicked', typeof reason === 'string' ? reason : JSON.stringify(reason)))
     bot.on('error', err => record('error', err.message))

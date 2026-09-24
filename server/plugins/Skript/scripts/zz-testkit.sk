@@ -41,3 +41,23 @@ command /zzclear <player>:
 		clear arg-1's inventory
 		deleteData(arg-1, "bag-tier")
 		applyLayout(arg-1)
+
+# Forgets a player's saved data and balance, so their next join counts as a first join.
+command /zzforget <offline player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::*}
+		set balance of arg-1 to 0
+		send "FORGET %arg-1%"
+
+# Balance as a plain number (EssentialsX's own /balance formats it).
+command /zzbal <offline player>:
+	executable by: console
+	trigger:
+		send "BAL %arg-1%: %floor(balance of arg-1)%"
+
+# One setting from core.sk, e.g. /zzcfg money::start
+command /zzcfg <text>:
+	executable by: console
+	trigger:
+		send "CFG %arg-1% = %cfg(arg-1)%"

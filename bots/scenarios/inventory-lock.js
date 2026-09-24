@@ -22,9 +22,11 @@ module.exports = async ({ check }) => {
 
   // Runs one action and checks the server-side inventory is exactly what it was before,
   // and that no item appeared on the ground (an unchanged inventory plus a dropped item is a dupe).
-  const expectUnchanged = async (label, action) => {
+  // `setup` (optional) changes the test kit before the "before" snapshot.
+  const expectUnchanged = async (label, action, setup) => {
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`)
     await rcon.cmd(`zztestkit ${NAME}`)
+    if (setup) await setup()
     await rcon.cmd('minecraft:kill @e[type=item]')
     await sleep(400)
     const before = await snapshot()
@@ -180,6 +182,22 @@ module.exports = async ({ check }) => {
       await bot.activateEntity(allay)
     })
 
+    // A candle on a cake is not a block place event in Paper; WeaponMechanics' default grenades are candles.
+    const cakePos = p.offset(2, 0, 2)
+    const placeCake = async () => {
+      await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} air`)
+      await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} cake`)
+      await sleep(300)
+    }
+    const holdCandle = () => rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.1 with red_candle`)
+    const candleOnCake = async () => {
+      await placeCake()
+      bot.setQuickBarSlot(1)
+      await sleep(200)
+      await clickBlock(cakePos)
+    }
+    await expectUnchanged('right-click cake holding a candle', candleOnCake, holdCandle)
+
     await expectUnchanged('arrow on the ground is not picked up', async () => {
       await rcon.cmd(`execute at ${NAME} run summon arrow ~ ~0.5 ~ {pickup:1b,Tags:["zztest"]}`)
       await sleep(1500)
@@ -188,8 +206,9 @@ module.exports = async ({ check }) => {
 
     // Positive controls: with the bypass permission the same actions DO move items,
     // which proves the tests above really exercise those paths.
-    const withBypass = async (label, action) => {
+    const withBypass = async (label, action, setup) => {
       await rcon.cmd(`zztestkit ${NAME}`)
+      if (setup) await setup()
       await rcon.cmd(`lp user ${NAME} permission set donating.inventory.bypass true`)
       await sleep(1200)
       const before = await snapshot()
@@ -234,6 +253,8 @@ module.exports = async ({ check }) => {
       await sleep(200)
       await bot.activateEntity(allay)
     })
+    await withBypass('right-click cake uses up the candle', candleOnCake, holdCandle)
+    await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} air`)
     await rcon.cmd('minecraft:kill @e[tag=zztest]')
 
     // Watchdog: if something moves the bag or phone anyway, it is swapped back.
