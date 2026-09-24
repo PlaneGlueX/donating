@@ -337,7 +337,7 @@ Later:
 - Waiting on the owner: money numbers (PROPOSAL values in core.sk), the helmet/vest question, whether death loses only the bag's loot or the bag itself too, the Nether/End and mob-spawning settings for Minehut, skript-worldguard, and the MOTD text.
 
 ## Status (2026-09-24, cloud session): START HERE in the next local session
-Everything from the cloud session is on branch `claude/dreamy-mendel-ouutfb` (draft PR https://github.com/PlaneGlueX/donating/pull/1, 2 commits on top of `main`). None of it has run on a server yet.
+Everything from the cloud session is on branch `claude/dreamy-mendel-ouutfb` (draft PR https://github.com/PlaneGlueX/donating/pull/1, on top of `main`). None of it has run on a server yet.
 
 What it did:
 - Code review of core.sk + inventory.sk (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New rules went into "Fixed-inventory rules for later scripts".
