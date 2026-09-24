@@ -5,6 +5,8 @@ Results: PASS / FAIL / TODO (not run yet) / HUMAN (needs the owner in-game).
 Tester: `bot` (Mineflayer), `rcon` (console), `cu` (Claude with computer use), `owner`.
 Rerun the bot checks any time: `tools\node\node.exe bots\run.js <scenario>` (server running, `zz-testkit.sk` loaded).
 
+**Start here (next local session):** the cloud session left items 25–34 untested. Follow the handoff steps in CLAUDE.md (Status, cloud session), then run items 25 → 34 in order and write each result under its item.
+
 ## Setup (local server)
 
 1. **Paper boots on 1 GB with no plugins.** Run `tools\start-server.ps1`; the log shows `Done (...)`.
@@ -55,20 +57,31 @@ Every check compares the full server-side inventory (all 41 slots + cursor) befo
 
 The cloud session couldn't run a server, so everything below is "untested (cloud)". Its Skript syntax was checked by hand against the Skript 2.16.2 source only. Changed: core.sk (`msg`/`broadcastMsg` use `colored`, not `formatted`; `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0; new `legacyText()` and `chat::tip-interval`), inventory.sk (cakes locked, respawn skips players who left), new join-quit.sk, chat-extras.sk and afk.sk, EssentialsX `disabled-commands: afk`, new zz-testkit helpers (`/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`).
 
-25. **Everything loads.** `/sk reload scripts`: core, inventory, join-quit, chat-extras, afk and zz-testkit load with no errors or warnings. If join-quit fails on `prefix of`, Skript didn't hook Vault's chat (LuckPerms provides it). Restart the server once so EssentialsX picks up `disabled-commands`.
+25. **Everything loads.** Restart the server (EssentialsX reads `disabled-commands` at startup); the log shows core, inventory, join-quit, chat-extras, afk and zz-testkit loading with no errors or warnings. Fix them in that order with `/sk reload <script>`.
+    - Lines most likely to fail, with a fallback for each (never switch player text to `formatted`):
+      - core.sk `send colored "..."` in `msg()`: if colors show as raw `&7`, `colored` isn't parsing the inserted text. Find another safe-parser way; `formatted` is only OK for text the server wrote.
+      - join-quit.sk `prefix of {_p}`: fails if Skript didn't hook Vault's chat (LuckPerms provides it). Fallback: the LuckPerms prefix through skript-placeholders (needs `/papi ecloud download LuckPerms`).
+      - join-quit.sk `set join message to colored "..."`: if it's rejected, a plain string also works (Skript turns it into a component with the safe parser).
+      - chat-extras.sk `character from codepoint 167`: fallback is a literal `§` in the string.
+      - chat-extras.sk `legacyText(message)`: if Skript won't pass the message as text, use `set {_text} to "%message%"` plus `replace all "\<" with "<" in {_text}` (MiniMessage escapes `<`).
+      - chat-extras.sk `regex replace "..." in {_text} with "..."`: the other word order is `regex replace "..." with "..." in {_text}`.
+      - chat-extras.sk `set message to raw {_text}`: if it's rejected, drop the lime highlight and keep the ping. Don't use `colored` there (it would let players color their text).
+      - afk.sk `on press of any input key`: if it doesn't parse, use `on player move` (AFK pools would then count as activity).
+      - afk.sk `on command` with `player is set`: fallback `sender is a player`.
+      - zz-testkit.sk `set balance of arg-1 to 0`: fallback `execute console command "eco set %arg-1% 0"`.
     - Result: TODO (untested, cloud)
 26. **Inventory lock still holds** (`bots\run.js inventory-lock`, now 41 checks): adds "right-click cake holding a candle" (the lock keeps the candle) and its bypass control (without the lock the candle is used up).
     - Result: TODO (untested, cloud)
 27. **Earlier scenarios still pass** after the `msg()` change: `bots\run.js join`, `bots\run.js wm-reload`.
     - Result: TODO (untested, cloud)
 28. **Join/quit** (`bots\run.js join-quit`, 15 checks): a first join shows `[+] Name joined for the first time (#N)` to others, gives the new player the welcome title, the welcome message and `cfg("money::start")` once; a quit shows `[-] Name`; a rejoin with a LuckPerms prefix shows `[+] [Test] Name` with no welcome and no second payout; `/help` and `/help 2` show the how-to-play page; no vanilla "joined/left the game" lines; no raw `&` codes or `<tags>`; the prefix's bold doesn't leak into `msg()` text.
-    - Result: TODO (untested, cloud)
+    - Result: TODO (untested, cloud). If the start money is paid twice, check EssentialsX `starting-balance` is still 0. If the prefix check fails but the rest passes, LuckPerms' reply was slow: raise the 2-second wait after `meta setprefix`.
 29. **Missing settings are reported.** `tools\rcon.ps1 "zzcfg no::such::key"`, then `logs\latest.log` shows `[Donating] Missing setting: no::such::key`.
     - Result: TODO (untested, cloud)
 30. **Join/quit look right in the real client:** gray brackets, green `+` / red `-`, the owner prefix in dark red, the welcome title and sound on a first join (use `/zzforget Explosde` from the console first; it resets your balance to $0).
     - Result: HUMAN / TODO
 31. **Chat extras** (`bots\run.js chat-extras`, 20 checks): a second message within `chat::cooldown` is blocked with "Slow down!" (staff exempt); `hey @chatb, look` shows `@ChatB` in lime to everyone (the text after it isn't lime) and pings ChatB only; `@ChatBx` pings nobody; `&cred <bold>big</bold> @ChatB` stays uncolored and literal; `/sc` and `/broadcast` are refused without `donating.staff`; `/sc msg` and staff chat mode reach staff only; `/bc` reaches everyone with the prefix; `/zztip` sends a tip.
-    - Result: TODO (untested, cloud). Needs chat-extras.sk, core.sk and join-quit.sk (for `rankedName`) loaded.
+    - Result: TODO (untested, cloud). Needs chat-extras.sk, core.sk and join-quit.sk (for `rankedName`) loaded. If the mention isn't lime but the ping works, check that LPC still keeps `§` codes (its `processMessage` only strips `&` codes).
 32. **AFK** (`bots\run.js afk`, 10 checks): AFK within 10 s of `/zzafk` (last activity set 10 minutes back) with a message; idle position packets don't end it; looking around, `/afk`, chatting, any command, and a movement key each end it; `/afk` toggles.
     - Result: TODO (untested, cloud). If only the movement-key check fails, Mineflayer may not send input packets; check with the real client instead (item 33).
 33. **AFK while driving and in water (real client):** `/afk`, then hold W in a car (after MTVehicles): AFK ends. Stand in a water stream without touching anything for 5 minutes: you still go AFK.

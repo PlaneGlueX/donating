@@ -35,7 +35,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde. The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 
 ## Workflow
@@ -336,17 +336,29 @@ Later:
 - After the last test run, inventory.sk also got: `keep the inventory and experience` on every death (the gamerule only covers the overworld), a Citizens NPC exemption on the entity right-click lock, and an `on inventory open` backstop for merchant/lectern GUIs. The default group has `donating.inventory.bypass` = false (otherwise ops bypass the lock). All loaded clean and the 39 checks passed.
 - Waiting on the owner: money numbers (PROPOSAL values in core.sk), the helmet/vest question, whether death loses only the bag's loot or the bag itself too, the Nether/End and mob-spawning settings for Minehut, skript-worldguard, and the MOTD text.
 
-## Status (2026-09-24, cloud session on branch `claude/dreamy-mendel-ouutfb`)
-- Code review of core.sk + inventory.sk done (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later (chat, staff chat) could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` now logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New design rules went into "Fixed-inventory rules for later scripts" (consumable leftovers, entity-placing items, tridents, boats/minecarts).
-- Written, untested: join-quit.sk, chat-extras.sk, afk.sk (scripts 2–4 in the build order), bot scenarios `join-quit`, `chat-extras`, `afk`, a cake check in `inventory-lock`, test helpers `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, EssentialsX `disabled-commands: afk`. PLAYTEST.md items 25–34 list what to run.
-- Choices made without the owner (easy to change): the first join pays `cfg("money::start")`; AFK only notifies the player (no broadcast); pushes (water, pistons) don't count as activity; tips every 5 minutes (PROPOSAL) and only while someone is online; the tip and /help texts.
-- Next locally: merge PR https://github.com/PlaneGlueX/donating/pull/1, restart the server, `/sk reload scripts`, run PLAYTEST 25–34, fix anything that fails. Then phone.sk (script 6; inventory.sk, script 5, is done).
+## Status (2026-09-24, cloud session): START HERE in the next local session
+Everything from the cloud session is on branch `claude/dreamy-mendel-ouutfb` (draft PR https://github.com/PlaneGlueX/donating/pull/1, 2 commits on top of `main`). None of it has run on a server yet.
+
+What it did:
+- Code review of core.sk + inventory.sk (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New rules went into "Fixed-inventory rules for later scripts".
+- Wrote, untested: join-quit.sk, chat-extras.sk, afk.sk (scripts 2–4), core.sk additions (`legacyText()`, `chat::tip-interval`), bot scenarios `join-quit` (15 checks), `chat-extras` (20), `afk` (10), a cake check in `inventory-lock` (now 41), `colorOf()` + message `motd`/`json` in `bots\lib.js`, test helpers `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, and EssentialsX `disabled-commands: afk`.
+- Choices made without the owner (easy to change): the first join pays `cfg("money::start")`; going AFK only tells that player (no broadcast); being pushed (water, pistons) doesn't count as activity; tips every 5 minutes (PROPOSAL) and only while someone is online; the tip and /help texts.
+
+Handoff steps for the local session (in order):
+1. Get the branch: `git fetch origin`, then `git checkout claude/dreamy-mendel-ouutfb`. Test and fix on the branch so `main` stays at the last tested state. The Skripts and configs are tracked in place (`server\plugins\...`), so the checkout updates the server's files directly; there's nothing to copy.
+2. No new jars or npm packages: `tools\fetch.ps1` should report everything present, and `bots\node_modules` stays as is (still Mineflayer 4.39.0).
+3. Restart the server (`tools\stop-server.ps1`, then `tools\start-server.ps1`): EssentialsX only reads `disabled-commands` at startup, and the three new scripts load. Read the Skript part of `server\logs\latest.log`.
+4. Fix load errors one script at a time in this order: core → inventory → join-quit → chat-extras → afk (chat-extras calls `rankedName()` from join-quit and `legacyText()` from core, so it can't load before them). Run `/sk reload <script>` after each fix. PLAYTEST.md item 25 lists the lines most likely to fail and a fallback for each.
+5. Run the bot scenarios in PLAYTEST.md order (items 26–32), fix and rerun until they pass, and write each result under its item. Then the human checks (items 30, 33, 34, and 23).
+6. Expect this once: local players who haven't joined since the update (Explosde and the older bots) count as a first join and get the $500 start money on their next join.
+7. When everything passes: commit on the branch, push, then merge PR #1 on GitHub (or `git checkout main`, `git merge claude/dreamy-mendel-ouutfb`, `git push`). Rewrite this Status section. (A cloud check-in routine watches the PR hourly and stops by itself once it's merged or closed.)
+8. Next script: phone.sk (script 6; inventory.sk, script 5, is done). Its garage, passive and bounty buttons need scripts that don't exist yet, so build the menu with a stats page and placeholder buttons that the later scripts fill in. Ask the owner the helmet/vest and bag-loss questions before shop.sk and death.sk.
 
 ## Cloud and local sessions
 - Repo: https://github.com/PlaneGlueX/donating (private), branch `main`. `.gitignore` keeps out jars, the world, logs, LuckPerms/CoreProtect data, `server.properties` (RCON password), `tools\node` and `bots\node_modules`.
 - A **cloud session** works on the repo, not on this PC. It can write and review Skripts, configs, docs and bot scenarios. It can't run the local test server, the Windows tools (`tools\*.ps1`, portable Node), bots against the local server, or computer-use playtests. Mark anything it writes but can't test as "untested (cloud)" in PLAYTEST.md.
 - Cloud network (checked 2026-09-24): GitHub works, so a cloud session can read the Skript, SkBee and Paper source to check syntax (`git clone --depth 1 --branch 2.16.2 https://github.com/SkriptLang/Skript`). papermc.io, piston-data.mojang.com, cdn.modrinth.com, download.luckperms.net and skunity.com (its online parser) were blocked. The owner allowed skunity.com mid-session but it stayed blocked; domain changes probably only apply to sessions started afterwards. With Paper, Mojang, Modrinth and LuckPerms allowed, a cloud session could run a Linux copy of the test server (it would need the EULA accepted for that copy too).
-- Before ending a cloud session: commit and push everything to `main` (or a branch, and say which in this section).
+- Before ending a cloud session: commit and push everything to `main` (or a branch, and say which in this section). The 2026-09-24 cloud session used branch `claude/dreamy-mendel-ouutfb` (PR #1); see its Status section for the handoff steps.
 - **Back to local** (e.g. when cloud credits run out): open this folder in a local Code session and run `git pull` (merge the branch if the cloud used one). Then `tools\fetch.ps1` restores any missing jars, `tools\start-server.ps1` starts the server, and `/sk reload scripts` plus the bot scenarios test what the cloud wrote.
 - The local folder is inside OneDrive. If git ever reports a corrupt object or index lock, pause OneDrive sync and retry.
 
