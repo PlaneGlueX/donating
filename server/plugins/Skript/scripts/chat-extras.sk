@@ -86,16 +86,26 @@ command /staffchat [<text>]:
 			msg(player, "Staff chat &aon&7: your messages go to staff only. &e/sc&7 turns it off.")
 
 # ---------- /broadcast ----------
-# Replaces EssentialsX's /broadcast and /bc.
+# Replaces EssentialsX's /broadcast and /bc. /bc is its own command, not an alias: Skript takes
+# over another plugin's command name but not its alias, so "aliases: /bc" still ran EssentialsX's.
+
+function staffBroadcast(text: text):
+	broadcastMsg("&e%{_text}%")
+	play sound "block.note_block.pling" with volume 0.6 to all players
 
 command /broadcast <text>:
-	aliases: /bc
 	description: Announce something to everyone.
 	permission: donating.staff
 	permission message: &cYou can't broadcast.
 	trigger:
-		broadcastMsg("&e%arg-1%")
-		play sound "block.note_block.pling" with volume 0.6 to all players
+		staffBroadcast(arg-1)
+
+command /bc <text>:
+	description: Announce something to everyone.
+	permission: donating.staff
+	permission message: &cYou can't broadcast.
+	trigger:
+		staffBroadcast(arg-1)
 
 # ---------- Rotating tips ----------
 # One tip every cfg("chat::tip-interval"), in order, only while someone is online.

@@ -69,25 +69,29 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
       - afk.sk `on press of any input key`: if it doesn't parse, use `on player move` (AFK pools would then count as activity).
       - afk.sk `on command` with `player is set`: fallback `sender is a player`.
       - zz-testkit.sk `set balance of arg-1 to 0`: fallback `execute console command "eco set %arg-1% 0"`.
-    - Result: TODO (untested, cloud)
+    - Result: PASS (rcon, 2026-09-24, local). "All scripts loaded without errors", 6 scripts, no warnings on the first start. None of the fallbacks were needed.
 26. **Inventory lock still holds** (`bots\run.js inventory-lock`, now 41 checks): adds "right-click cake holding a candle" (the lock keeps the candle) and its bypass control (without the lock the candle is used up).
-    - Result: TODO (untested, cloud)
+    - Result: PASS (bot, 2026-09-24, local). 41/41.
 27. **Earlier scenarios still pass** after the `msg()` change: `bots\run.js join`, `bots\run.js wm-reload`.
-    - Result: TODO (untested, cloud)
+    - Result: PASS (bot, 2026-09-24, local). join 4/4, wm-reload 5/5. TestBot1 has stone tools in hotbar 1-4 from its first join, before `newbies.kit` was set to ''. A brand-new player (KitCheck15) gets only the phone, so it's leftover data, not a bug.
 28. **Join/quit** (`bots\run.js join-quit`, 15 checks): a first join shows `[+] Name joined for the first time (#N)` to others, gives the new player the welcome title, the welcome message and `cfg("money::start")` once; a quit shows `[-] Name`; a rejoin with a LuckPerms prefix shows `[+] [Test] Name` with no welcome and no second payout; `/help` and `/help 2` show the how-to-play page; no vanilla "joined/left the game" lines; no raw `&` codes or `<tags>`; the prefix's bold doesn't leak into `msg()` text.
-    - Result: TODO (untested, cloud). If the start money is paid twice, check EssentialsX `starting-balance` is still 0. If the prefix check fails but the rest passes, LuckPerms' reply was slow: raise the 2-second wait after `meta setprefix`.
+    - Result: PASS (bot, 2026-09-24, local). 15/15 after a test fix. The welcome title arrived, but Mineflayer's `title` event logged 1.21 NBT titles as "[object Object]"; `bots\lib.js` now decodes the title packets itself. If the start money is paid twice, check EssentialsX `starting-balance` is still 0. If the prefix check fails but the rest passes, LuckPerms' reply was slow: raise the 2-second wait after `meta setprefix`.
 29. **Missing settings are reported.** `tools\rcon.ps1 "zzcfg no::such::key"`, then `logs\latest.log` shows `[Donating] Missing setting: no::such::key`.
-    - Result: TODO (untested, cloud)
+    - Result: PASS (rcon, 2026-09-24, local).
 30. **Join/quit look right in the real client:** gray brackets, green `+` / red `-`, the owner prefix in dark red, the welcome title and sound on a first join (use `/zzforget Explosde` from the console first; it resets your balance to $0).
     - Result: HUMAN / TODO
 31. **Chat extras** (`bots\run.js chat-extras`, 20 checks): a second message within `chat::cooldown` is blocked with "Slow down!" (staff exempt); `hey @chatb, look` shows `@ChatB` in lime to everyone (the text after it isn't lime) and pings ChatB only; `@ChatBx` pings nobody; `&cred <bold>big</bold> @ChatB` stays uncolored and literal; `/sc` and `/broadcast` are refused without `donating.staff`; `/sc msg` and staff chat mode reach staff only; `/bc` reaches everyone with the prefix; `/zztip` sends a tip.
-    - Result: TODO (untested, cloud). Needs chat-extras.sk, core.sk and join-quit.sk (for `rankedName`) loaded. If the mention isn't lime but the ping works, check that LPC still keeps `§` codes (its `processMessage` only strips `&` codes).
+    - Result: PASS (bot, 2026-09-24, local). 20/20 after one script fix and two test fixes:
+      - Script: `/bc` still ran EssentialsX's broadcast ("denied access"): Skript's `aliases:` don't take over another plugin's alias. `/bc` is now its own command.
+      - Test: Mineflayer showed the typed text instead of what the client sees (LPC's format and the lime mention come as unsigned content). `bots\lib.js` now records that.
+      - Test: `colorOf` didn't look inside a translation's arguments (player chat is translate "%s"). The "text after the mention is not lime" check also passed without finding the text; it now has to find it.
+    - Needs chat-extras.sk, core.sk and join-quit.sk (for `rankedName`) loaded. If the mention isn't lime but the ping works, check that LPC still keeps `§` codes (its `processMessage` only strips `&` codes).
 32. **AFK** (`bots\run.js afk`, 10 checks): AFK within 10 s of `/zzafk` (last activity set 10 minutes back) with a message; idle position packets don't end it; looking around, `/afk`, chatting, any command, and a movement key each end it; `/afk` toggles.
-    - Result: TODO (untested, cloud). If only the movement-key check fails, Mineflayer may not send input packets; check with the real client instead (item 33).
+    - Result: TODO (not run yet locally). If only the movement-key check fails, Mineflayer may not send input packets; check with the real client instead (item 33).
 33. **AFK while driving and in water (real client):** `/afk`, then hold W in a car (after MTVehicles): AFK ends. Stand in a water stream without touching anything for 5 minutes: you still go AFK.
     - Result: HUMAN / TODO
 34. **EssentialsX /afk is off:** `/afk` shows afk.sk's message ("You're now AFK"), not EssentialsX's.
-    - Result: TODO (untested, cloud)
+    - Result: TODO (not run yet locally)
 
 ## Needs a human (owner)
 

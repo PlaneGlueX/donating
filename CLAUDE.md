@@ -175,7 +175,8 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - SkBee custom data on item variables: `set string tag "donating_id" of custom nbt of {_i} to "phone"` (read back with `string tag "donating_id" of custom nbt of {_i}`).
 - `colored "..."` turns `&` codes (also from variables) into colors with Skript's safe parser (colors, bold, gradients, reset). `formatted` parses every tag, including click/hover/run-command, so never use it on text that may contain player input (checked in the 2.16.2 source; core.sk's `msg()` switched from `formatted colored` to `colored` in the cloud session, untested). Bold carries over later color codes: put `&r` after bold text.
 - Join/quit messages and titles take text components: `set join message to colored "..."`; `delete` hides it. `prefix of player` reads the LuckPerms prefix through Vault's chat hook.
-- A Skript command replaces another plugin's command with the same name (Skript overwrites the command map entry), e.g. join-quit.sk's `/help` replaces EssentialsX's.
+- A Skript command replaces another plugin's command with the same name (Skript overwrites the command map entry), e.g. join-quit.sk's `/help` replaces EssentialsX's. Its `aliases:` don't: `/broadcast` with `aliases: /bc` still ran EssentialsX's `/bc` (verified locally). Make each name its own command.
+- Mineflayer (bots\lib.js handles both): player chat changed by a plugin (LPC's format, mentions) arrives as unsigned content, which the real client shows; Mineflayer keeps it in `msg.unsigned`. Its `title` event turns 1.21 NBT titles into `[object Object]`, so lib.js decodes the title packets itself.
 - Checked in the Skript 2.16.2 / LPC 3.7.2 source (cloud session, untested in-game):
   - `on chat` is Paper's async AsyncChatEvent; `message` is a text component. `"%message%"` gives MiniMessage text (`<` becomes `\<`); `legacyText(message)` (core.sk) gives the typed text with § codes. `raw "..."` makes an unparsed text component. Adding a string to a component parses the string (colors and tags) and nests it under the last part's style, so don't build messages from player text that way.
   - LPC formats chat at HIGHEST (after Skript's high) with a legacy round trip: it strips `&` codes for players without `lpc.colorcodes` but keeps `§` codes. chat-extras.sk colors mentions with `§` inside `raw` text for that reason.
@@ -337,7 +338,9 @@ Later:
 - Waiting on the owner: money numbers (PROPOSAL values in core.sk), the helmet/vest question, whether death loses only the bag's loot or the bag itself too, the Nether/End and mob-spawning settings for Minehut, skript-worldguard, and the MOTD text.
 
 ## Status (2026-09-24, cloud session): START HERE in the next local session
-Everything from the cloud session is on branch `claude/dreamy-mendel-ouutfb` (draft PR https://github.com/PlaneGlueX/donating/pull/1, on top of `main`). None of it has run on a server yet.
+Everything from the cloud session is on branch `claude/dreamy-mendel-ouutfb` (draft PR https://github.com/PlaneGlueX/donating/pull/1, on top of `main`).
+
+Local progress (2026-09-24, handoff steps 1–4 done, step 5 partly): all 6 scripts loaded with no errors or warnings on the first start. Passing on the local server: inventory-lock 41/41, join 4/4, wm-reload 5/5, join-quit 15/15, chat-extras 20/20, and PLAYTEST item 29. Fixed: `/bc` (see PLAYTEST item 31) and two bot-harness bugs in `bots\lib.js`. Still to run: `bots\run.js afk` (item 32), item 34, then the human checks (30, 33, 23). Steps 6–8 below still apply.
 
 What it did:
 - Code review of core.sk + inventory.sk (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New rules went into "Fixed-inventory rules for later scripts".

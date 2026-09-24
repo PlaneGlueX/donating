@@ -19,8 +19,21 @@ function join (username, { timeoutMs = 30000 } = {}) {
       bot.log.push({ t: Date.now(), kind, text, motd, json })
       if (process.env.BOT_VERBOSE) console.error(`[${username}] ${kind}: ${text}`)
     }
-    bot.on('message', (msg, position) => record(position, msg.toString(), msg.toMotd(), msg.json))
-    bot.on('title', (text, type) => record(`title:${type}`, String(text)))
+    // Player chat: when a plugin changes the message (LPC's format, mentions), the server sends the
+    // result as unsigned content, which is what the real client shows. Mineflayer keeps it in
+    // msg.unsigned and the typed text in msg itself.
+    bot.on('message', (msg, position) => {
+      const shown = msg.unsigned || msg
+      record(position, shown.toString(), shown.toMotd(), shown.json)
+    })
+    // Mineflayer's own 'title' event passes 1.21's NBT titles on as raw objects ("[object Object]"),
+    // so the title packets are decoded here the same way chat messages are.
+    const title = (type, raw) => {
+      const msg = require('prismarine-chat')(bot.registry).fromNotch(raw)
+      record(`title:${type}`, msg.toString(), msg.toMotd(), msg.json)
+    }
+    bot._client.on('set_title_text', packet => title('title', packet.text))
+    bot._client.on('set_title_subtitle', packet => title('subtitle', packet.text))
     bot.on('kicked', reason => record('kicked', typeof reason === 'string' ? reason : JSON.stringify(reason)))
     bot.on('error', err => record('error', err.message))
 
@@ -52,8 +65,11 @@ function colorOf (json, needle, inherited = null) {
   if (json == null) return undefined
   if (typeof json === 'string') return json.includes(needle) ? inherited : undefined
   const color = json.color || inherited
-  if (typeof json.text === 'string' && json.text.includes(needle)) return color
-  for (const child of json.extra || []) {
+  // Text from NBT components can arrive under an empty key instead of "text".
+  const text = typeof json.text === 'string' ? json.text : json['']
+  if (typeof text === 'string' && text.includes(needle)) return color
+  // `with` holds a translation's arguments: player chat is a translate "%s" with the message inside.
+  for (const child of [...(json.with || []), ...(json.extra || [])]) {
     const found = colorOf(child, needle, color)
     if (found !== undefined) return found
   }

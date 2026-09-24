@@ -58,7 +58,8 @@ module.exports = async ({ check }) => {
     check('mention shows the real name', Boolean(mention), texts(b, t).join(' | '))
     const json = mention ? JSON.stringify(mention.json) : 'no line'
     check('mention is lime', mention && colorOf(mention.json, '@ChatB') === 'green', json)
-    check('text after the mention is not lime', mention && colorOf(mention.json, ', look') !== 'green', json)
+    const afterColor = mention ? colorOf(mention.json, ', look') : undefined
+    check('text after the mention is not lime', afterColor !== undefined && afterColor !== 'green', `${afterColor} | ${json}`)
     check('the mentioned player hears a ping', heard(b, t).length > 0, JSON.stringify(heard(b, t)))
     check('the sender hears no ping', heard(a, t).length === 0, JSON.stringify(heard(a, t)))
 
