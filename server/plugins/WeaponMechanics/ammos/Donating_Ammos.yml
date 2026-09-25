@@ -1,0 +1,25 @@
+# Donating: ammo sold at gun shops (shop.sk). WeaponMechanics matches ammo items only by their
+# weaponmechanics:ammo-name tag (= the key below); shop.sk builds the items itself and puts them in
+# the upper inventory (slots 9-35), never with /wm giveammo (it uses addItem: hotbar first).
+# Never add Magazine_Item (one magazine refills the whole mag) or Ammo_Converter_Check.
+Donating_Light:
+  Item_Ammo:
+    Bullet_Item:
+      Type: "IRON_NUGGET"
+      Name: "<yellow>Light Rounds"
+      Lore:
+        - "<gray>Pistols and SMGs. Buy them at a gun shop."
+Donating_Shells:
+  Item_Ammo:
+    Bullet_Item:
+      Type: "COPPER_NUGGET"
+      Name: "<yellow>Shotgun Shells"
+      Lore:
+        - "<gray>Shotguns. Buy them at a gun shop."
+Donating_Rifle:
+  Item_Ammo:
+    Bullet_Item:
+      Type: "GOLD_NUGGET"
+      Name: "<yellow>Rifle Rounds"
+      Lore:
+        - "<gray>Rifles. Buy them at a gun shop."

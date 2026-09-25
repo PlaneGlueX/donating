@@ -64,6 +64,13 @@ command /zzcfg <text>:
 	trigger:
 		send "CFG %arg-1% = %cfg(arg-1)%"
 
+# Changes a number setting until the next loadSettings() (tests put the old value back).
+command /zzcfgset <text> <number>:
+	executable by: console
+	trigger:
+		set {-cfg::%arg-1%} to arg-2
+		send "CFGSET %arg-1% = %arg-2%"
+
 # afk.sk: pretend the player's last activity was 10 minutes ago (AFK within 10 seconds).
 command /zzafk <player>:
 	executable by: console
@@ -170,3 +177,88 @@ command /zzshieldoff <player>:
 	trigger:
 		delete {-pvp::shield::%arg-1%}
 		send "SHIELDOFF %arg-1%"
+
+# shop.sk: WeaponMechanics items and ammo in the inventory: "WM <slot>=<title>:<loaded>x<amount> | ...
+# ammo <type>=<rounds> ...".
+command /zzwm <player>:
+	executable by: console
+	trigger:
+		set {_out} to ""
+		loop integers from 0 to 40:
+			set {_i} to slot loop-value of arg-1's inventory
+			set {_w} to wmTitle({_i})
+			if {_w} is not "":
+				set {_out} to "%{_out}%%loop-value%=%{_w}%:%wmLoaded({_i})%x%item amount of {_i}% | "
+		loop {-cfg::shop::ammo::*}:
+			set {_out} to "%{_out}%ammo %loop-value%=%ammoCount(arg-1, loop-value)% "
+		send "WM %{_out}%"
+
+command /zzammo <player> <text> <number>:
+	executable by: console
+	trigger:
+		send "AMMO added %addAmmo(arg-1, arg-2, arg-3)%"
+
+# Forgets shop data: unlocks, saved loadout, bags; closes the shop.
+command /zzshopreset <player>:
+	executable by: console
+	trigger:
+		loop {-cfg::shop::weapons::*}:
+			deleteData(arg-1, "wpn::%loop-value%")
+		loop integers from 1 to 5:
+			deleteData(arg-1, "loadout::%loop-value%")
+			deleteData(arg-1, "loadout::%loop-value%::count")
+		deleteData(arg-1, "loadout::saved")
+		deleteData(arg-1, "bag-tier")
+		deleteData(arg-1, "bag-best")
+		close arg-1's inventory
+		clearShopState(arg-1)
+		send "SHOPRESET %arg-1%"
+
+# Fills slots <from>..<to> with stone (full-inventory tests).
+command /zzfill <player> <number> <number>:
+	executable by: console
+	trigger:
+		loop integers from arg-2 to arg-3:
+			set slot loop-value of arg-1's inventory to stone
+		send "FILLED %arg-1%"
+
+command /zzshop <player>:
+	executable by: console
+	trigger:
+		set {_s} to {-shop::status::%arg-1%}
+		set {_c} to {-shop::confirm::%arg-1%}
+		send "SHOP open=%{-shop::kind::%arg-1%}% tab=%{-shop::tab::%arg-1%}% gen=%{-shop::gen::%arg-1%}% confirm=%{_c}% status=%{_s}%"
+
+command /zztag <player>:
+	executable by: console
+	trigger:
+		tagCombat(arg-1, "trap")
+		send "TAGGED %arg-1%"
+
+# bounty.sk: a player's bounty, adding to it (like bag.sk's robbery sales), and the same-IP check
+# (every local bot shares 127.0.0.1).
+command /zzbounty <offline player> [<number>] [<text>]:
+	executable by: console
+	trigger:
+		if arg-2 is set:
+			set {_added} to addBounty(arg-1, arg-2, arg-3 ? "robbery")
+			send "BOUNTYADD %arg-1% %{_added}%"
+		set {_k} to getData(arg-1, "bounty-kills")
+		send "BOUNTY %arg-1% %getBounty(arg-1)% kills=%{_k}%"
+
+command /zzbountyreset <offline player>:
+	executable by: console
+	trigger:
+		clearBounty(arg-1)
+		delete {data::%arg-1%::bounty-last::*}
+		deleteData(arg-1, "bounty-payout")
+		send "BOUNTYRESET %arg-1%"
+
+command /zzbountyip <text>:
+	executable by: console
+	trigger:
+		if arg-1 is "off":
+			set {-cfg::bounty::ip-check} to false
+		else:
+			set {-cfg::bounty::ip-check} to true
+		send "BOUNTYIP %{-cfg::bounty::ip-check}%"

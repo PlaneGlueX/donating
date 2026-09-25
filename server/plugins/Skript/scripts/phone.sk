@@ -10,8 +10,8 @@
 # Apps menu (3 rows, slot numbers 0-26):
 #   11 stats           13 passive mode       15 garage
 #   21 bounties        23 how to play        26 close
-# Garage and bounties are placeholders: when garage.sk and bounty.sk exist, replace their "coming
-# soon" lines in phoneButton() with calls to those scripts' menus.
+# Garage is a placeholder: when garage.sk exists, replace its "coming soon" line in phoneButton()
+# with a call to its menu. Bounties shows bounty.sk's list in chat.
 #
 # Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
 # runs at Skript's default priority, before inventory.sk's lock (CLAUDE.md: GUI menus).
@@ -70,7 +70,7 @@ function openPhone(p: player):
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
 	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars. Coming soon.", "phone:garage")
-	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7Who's wanted, and placing bounties. Coming soon.", "phone:bounties")
+	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
 	set slot 23 of {_gui} to tagItem(book named "&aHow to play" with lore "&7Heists, your bag, passive mode.", "phone:help")
 	set slot 26 of {_gui} to tagItem(barrier named "&cClose", "phone:close")
 	set {-phone::gui::%{_p}%} to {_gui}
@@ -125,7 +125,7 @@ function phoneButton(p: player, slot: number):
 		msg({_p}, "The garage is coming soon.")
 	else if {_slot} is 21:
 		close {_p}'s inventory
-		msg({_p}, "Bounties are coming soon.")
+		showBounties({_p})
 	else if {_slot} is 23:
 		close {_p}'s inventory
 		showHelp({_p})
