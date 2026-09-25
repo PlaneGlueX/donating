@@ -1,0 +1,121 @@
+# combat-log.sk: combat tags and combat logging (CLAUDE.md, Death and combat).
+#
+# A player is combat-tagged for cfg("combat::tag") after:
+#   - hurting another player, or being hurt by one
+#   - being hurt by a cop (Citizens NPC, metadata "NPC")
+#   - being hurt by a trap (traps.sk calls tagCombat(victim, "trap"))
+# and for as long as they're wanted (cops.sk gives the temporary permission "donating.wanted").
+# Damage that another script cancelled (passive players, safe zones, EssentialsX's teleport
+# protection) doesn't tag: the handler runs at priority monitor and skips cancelled events.
+#
+# Logging out while tagged kills the player (a normal logout or a timeout; a kick doesn't: server
+# restarts and staff kicks). The death is credited to:
+#   1. a player who hit you in the last cfg("combat::player-hit-priority") (5 s)
+#   2. otherwise the cops, if you're wanted
+#   3. otherwise whatever hurt you last (a player, a cop or a trap)
+# deathCause(p) gives that credit: "player:<uuid>", "cop", "trap" or "" (tagged only for attacking).
+# death.sk and bounty.sk read it; it's also saved as the player's data "last-combat-log".
+#
+# While tagged: no teleport commands (cfg "combat::blocked-commands"), no passive switch (pvp.sk).
+# Later: no entering safe zones (pvp.sk), and hud.sk shows the time left.
+#
+# Memory only, per player: {-combat::at::<p>} when the tag last started or refreshed,
+# {-combat::by::<p>} who hurt them last, {-combat::player::<p>} / {-combat::playerat::<p>} the last
+# player who hurt them and when.
+
+function isWanted(p: player) :: boolean:
+	if {_p} has permission "donating.wanted":
+		return true
+	return false
+
+function isCombatTagged(p: player) :: boolean:
+	if isWanted({_p}) is true:
+		return true
+	if {-combat::at::%{_p}%} is set:
+		if difference between {-combat::at::%{_p}%} and now < cfg("combat::tag"):
+			return true
+	return false
+
+# Starts or refreshes the tag. source: who hurt them ("player:<uuid>", "cop", "trap"), or "" when
+# they're tagged for attacking.
+function tagCombat(p: player, source: text):
+	set {_was} to isCombatTagged({_p})
+	set {-combat::at::%{_p}%} to now
+	if {_source} is not "":
+		set {-combat::by::%{_p}%} to {_source}
+		if {_source} starts with "player:":
+			set {-combat::player::%{_p}%} to {_source}
+			set {-combat::playerat::%{_p}%} to now
+	if {_was} is false:
+		send action bar "&cIn combat! Logging out now kills you." to {_p}
+
+function clearCombat(p: player):
+	delete {-combat::at::%{_p}%}
+	delete {-combat::by::%{_p}%}
+	delete {-combat::player::%{_p}%}
+	delete {-combat::playerat::%{_p}%}
+
+# Who a death right now would be credited to (see the top of this file).
+function deathCause(p: player) :: text:
+	if {-combat::playerat::%{_p}%} is set:
+		if difference between {-combat::playerat::%{_p}%} and now < cfg("combat::player-hit-priority"):
+			return {-combat::player::%{_p}%}
+	if isWanted({_p}) is true:
+		return "cop"
+	if isCombatTagged({_p}) is true:
+		if {-combat::by::%{_p}%} is set:
+			return {-combat::by::%{_p}%}
+	return ""
+
+# ---------- Tagging ----------
+
+on damage of player with priority monitor:
+	attacker is a player
+	attacker is not victim
+	if attacker has metadata "NPC":
+		tagCombat(victim, "cop")
+	else:
+		tagCombat(victim, "player:%uuid of attacker%")
+		tagCombat(attacker, "")
+
+# Tells players when their tag runs out (wanted players stay tagged until the cops lose them).
+every second:
+	loop all players:
+		{-combat::at::%loop-player%} is set
+		isCombatTagged(loop-player) is false
+		clearCombat(loop-player)
+		send action bar "&aYou're out of combat." to loop-player
+
+on death of player with priority monitor:
+	clearCombat(victim)
+
+# ---------- Rules while tagged ----------
+
+on command:
+	player is set
+	isCombatTagged(player) is true
+	player does not have permission "donating.combat.bypass"
+	# "essentials:spawn" counts as "spawn".
+	set {_parts::*} to command split at ":"
+	set {_cmd} to last element of {_parts::*} in lower case
+	{-cfg::combat::blocked-commands::*} contains {_cmd}
+	cancel event
+	msg(player, "&cYou can't use /%{_cmd}% while in combat.")
+
+# ---------- Logging out ----------
+
+on quit:
+	player is alive
+	isCombatTagged(player) is true
+	# A kick isn't a combat log: server restarts, staff kicks.
+	quit reason is not kicked
+	set {_cause} to deathCause(player)
+	setData(player, "last-combat-log", {_cause})
+	broadcastMsg("&c%name of player% logged out in combat and died.")
+	# death.sk credits the death from this.
+	set {-combat::logout::%player%} to {_cause}
+	kill player
+	delete {-combat::logout::%player%}
+
+on quit with priority monitor:
+	clearCombat(player)

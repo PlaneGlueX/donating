@@ -1,0 +1,123 @@
+# pvp.sk: PvP rules: passive mode (switching, and no PvP for or against passive players), safe zones
+# and the spawn shield.
+#
+# Switch rules (CLAUDE.md, Default rules):
+#   - cfg("passive::switch-cooldown") between switches (saved, so relogging doesn't skip it)
+#   - no going passive while you have a bounty
+#   - not while combat-tagged (combat-log.sk)
+# Still to add when bag.sk exists: not while carrying loot. Add it to passiveBlockReason().
+# nav.sk's setPassive() does the switch itself: map/compass visibility and the message.
+
+# ---------- Passive players and PvP ----------
+# No player damage to or from a passive player: melee, arrows and WeaponMechanics guns (its damage
+# goes through this event with the shooter as attacker; checked by bots\run.js pvp). Cops are
+# Citizens NPCs (metadata "NPC") and traps aren't players, so both still hurt passive players.
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	if isPassive(victim) is true:
+		cancel event
+		send action bar "&aThat player is in passive mode." to attacker
+	else if isPassive(attacker) is true:
+		cancel event
+		send action bar "&aYou're in passive mode: you can't hurt players." to attacker
+
+# ---------- Safe zones ----------
+# Every WorldGuard region whose id starts with cfg("pvp::safe-prefix") ("safe") is a safe zone, e.g.
+# "safe_spawn", "safe_base". Make one with WorldEdit's wand + /rg define safe_base, then
+# /rg flag safe_base passthrough allow (like every Donating region: without it WorldGuard itself
+# blocks PvP, doors and NPC clicks inside for everyone who isn't a region member). In a safe zone:
+#   - no player hurts another there (either player inside); cops and traps still can
+#   - combat-tagged and wanted players can't walk, ride or teleport in: WorldGuard pushes them back
+#     (skript-worldguard's enter event, cancelled). Respawning inside one is always allowed.
+# So a wanted robber can't reach the base (and sell) until they lose the cops (CLAUDE.md, Default rules).
+
+function isSafeZone(l: location) :: boolean:
+	set {_prefix} to cfg("pvp::safe-prefix")
+	loop regions at {_l}:
+		if name of loop-value starts with {_prefix}:
+			return true
+	return false
+
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	if isSafeZone(location of victim) is true:
+		cancel event
+		send action bar "&aNo fighting in safe zones." to attacker
+	else if isSafeZone(location of attacker) is true:
+		cancel event
+		send action bar "&aNo fighting in safe zones." to attacker
+
+on region enter:
+	isCombatTagged(player) is true
+	name of the worldguard region starts with cfg("pvp::safe-prefix")
+	cancel event
+	send action bar "&cYou can't enter a safe zone while in combat." to player
+
+# ---------- Spawn shield ----------
+# For cfg("pvp::spawn-shield") after joining or respawning, other players can't hurt you. Attacking a
+# player ends your own shield (the hit still lands if they aren't shielded). Cops and traps ignore it.
+# Memory only: {-pvp::shield::<p>} = when it started.
+
+function hasSpawnShield(p: player) :: boolean:
+	if {-pvp::shield::%{_p}%} is set:
+		if difference between {-pvp::shield::%{_p}%} and now < cfg("pvp::spawn-shield"):
+			return true
+	return false
+
+on join:
+	set {-pvp::shield::%player%} to now
+
+on respawn:
+	set {-pvp::shield::%player%} to now
+
+on quit:
+	delete {-pvp::shield::%player%}
+
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	delete {-pvp::shield::%attacker%}
+	hasSpawnShield(victim) is true
+	cancel event
+	send action bar "&eThat player just spawned: they're protected for a few seconds." to attacker
+
+# ---------- Switching passive mode ----------
+
+# "" when the player may switch now, otherwise the reason to show them.
+function passiveBlockReason(p: player) :: text:
+	if isCombatTagged({_p}) is true:
+		return "You can't switch passive mode while in combat."
+	set {_last} to getData({_p}, "passive-switched")
+	if {_last} is set:
+		set {_since} to difference between {_last} and now
+		set {_cooldown} to cfg("passive::switch-cooldown")
+		if {_since} < {_cooldown}:
+			set {_minutes} to ceil(({_cooldown} - {_since}) / 1 minute)
+			if {_minutes} is 1:
+				return "You can switch passive mode again in 1 minute."
+			return "You can switch passive mode again in %{_minutes}% minutes."
+	if isPassive({_p}) is false:
+		set {_bounty} to getData({_p}, "bounty")
+		if {_bounty} is set:
+			if {_bounty} > 0:
+				return "You can't go passive while you have a bounty."
+	return ""
+
+# The phone's passive button. Tells the player why if they can't switch right now.
+function togglePassive(p: player):
+	set {_why} to passiveBlockReason({_p})
+	if {_why} is not "":
+		msg({_p}, "&c%{_why}%")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	setData({_p}, "passive-switched", now)
+	if isPassive({_p}) is true:
+		setPassive({_p}, false)
+	else:
+		setPassive({_p}, true)
+	play sound "block.note_block.chime" with volume 0.6 to {_p}

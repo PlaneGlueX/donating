@@ -9,6 +9,7 @@ command /zztestkit <player>:
 		clear {_p}'s inventory
 		setData({_p}, "bag-tier", 2)
 		applyLayout({_p})
+		applyMapVisibility({_p})
 		set slot 0 of {_p}'s inventory to tagItem(iron sword named "&fTest Sword", "test:sword")
 		set slot 9 of {_p}'s inventory to tagItem(32 gold nuggets named "&eTest Ammo", "test:ammo")
 		set slot 10 of {_p}'s inventory to tagItem(32 gold nuggets named "&eTest Ammo", "test:ammo")
@@ -41,3 +42,131 @@ command /zzclear <player>:
 		clear arg-1's inventory
 		deleteData(arg-1, "bag-tier")
 		applyLayout(arg-1)
+		applyMapVisibility(arg-1)
+
+# Forgets a player's saved data and balance, so their next join counts as a first join.
+command /zzforget <offline player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::*}
+		set balance of arg-1 to 0
+		send "FORGET %arg-1%"
+
+# Balance as a plain number (EssentialsX's own /balance formats it).
+command /zzbal <offline player>:
+	executable by: console
+	trigger:
+		send "BAL %arg-1%: %floor(balance of arg-1)%"
+
+# One setting from core.sk, e.g. /zzcfg money::start
+command /zzcfg <text>:
+	executable by: console
+	trigger:
+		send "CFG %arg-1% = %cfg(arg-1)%"
+
+# afk.sk: pretend the player's last activity was 10 minutes ago (AFK within 10 seconds).
+command /zzafk <player>:
+	executable by: console
+	trigger:
+		set {-afk::last::%arg-1%} to 10 minutes ago
+		send "AFKSET %arg-1%"
+
+command /zzafkstate <player>:
+	executable by: console
+	trigger:
+		send "AFK %arg-1%: %isAfk(arg-1)%"
+
+# Player data: /zzdata <player> <key> shows it, "... <key> <number>" sets it, "... <key> none" deletes it.
+command /zzdata <offline player> <text> [<text>]:
+	executable by: console
+	trigger:
+		if arg-3 is "none":
+			deleteData(arg-1, arg-2)
+		else if arg-3 is set:
+			setData(arg-1, arg-2, arg-3 parsed as number)
+		send "DATA %arg-1% %arg-2% = %getData(arg-1, arg-2)%"
+
+# nav.sk: turn passive mode on or off directly (the phone button goes through pvp.sk's rules).
+command /zzpassive <player> <text>:
+	executable by: console
+	trigger:
+		if arg-2 is "on":
+			setPassive(arg-1, true)
+		else:
+			setPassive(arg-1, false)
+		send "PASSIVE %arg-1%: %isPassive(arg-1)%"
+
+# Phone: the player's phone map id (DonatingPhone metadata), the map id on the slot-8 phone, and
+# whether the big map is open.
+command /zzphone <player>:
+	executable by: console
+	trigger:
+		set {_meta} to metadata value "donating_phone_map" of arg-1
+		set {_slot} to int tag "minecraft:map_id" of nbt of slot 8 of arg-1's inventory
+		set {_open} to false
+		if arg-1 has scoreboard tag "donating_phone_open":
+			set {_open} to true
+		send "ZZPHONE %arg-1% meta=%{_meta}% slot8=%{_slot}% open=%{_open}% offhand=%type of offhand tool of arg-1%"
+
+# Navigation: hide or show entities with a scoreboard tag for one player (per-player waypoints).
+command /zzhide <player> <text>:
+	executable by: console
+	trigger:
+		set {_n} to 0
+		loop all entities:
+			if loop-entity has scoreboard tag arg-2:
+				hide loop-entity from arg-1
+				add 1 to {_n}
+		send "HIDDEN %{_n}% from %arg-1%"
+
+command /zzshow <player> <text>:
+	executable by: console
+	trigger:
+		set {_n} to 0
+		loop all entities:
+			if loop-entity has scoreboard tag arg-2:
+				reveal loop-entity to arg-1
+				add 1 to {_n}
+		send "SHOWN %{_n}% to %arg-1%"
+
+# chat-extras.sk: send the next rotating tip now.
+command /zztip:
+	executable by: console
+	trigger:
+		sendTip()
+		send "TIP SENT"
+
+# combat-log.sk: the player's combat state, and ending a tag now (the loop tells them within a second).
+command /zzcombat <player>:
+	executable by: console
+	trigger:
+		set {_cause} to deathCause(arg-1)
+		send "COMBAT %arg-1% tagged=%isCombatTagged(arg-1)% wanted=%isWanted(arg-1)% cause=%{_cause}%"
+
+command /zzcombatend <player>:
+	executable by: console
+	trigger:
+		set {-combat::at::%arg-1%} to 1 hour ago
+		delete {-combat::playerat::%arg-1%}
+		send "COMBATEND %arg-1%"
+
+# pvp.sk: a cuboid WorldGuard region in the main world (safe zones are regions named safe...), and
+# the spawn shield state. Remove a region with: rg remove -w world <id>
+command /zzregion <text> <number> <number> <number> <number> <number> <number>:
+	executable by: console
+	trigger:
+		set {_w} to world "world"
+		create a cuboid region named arg-1 in {_w} between location(arg-2, arg-3, arg-4, {_w}) and location(arg-5, arg-6, arg-7, {_w})
+		send "REGION %arg-1% made"
+
+command /zzshield <player>:
+	executable by: console
+	trigger:
+		send "SHIELD %arg-1% %hasSpawnShield(arg-1)% safe=%isSafeZone(location of arg-1)%"
+
+# Ends the spawn shield now (tests that aren't about it).
+command /zzshieldoff <player>:
+	executable by: console
+	trigger:
+		delete {-pvp::shield::%arg-1%}
+		send "SHIELDOFF %arg-1%"

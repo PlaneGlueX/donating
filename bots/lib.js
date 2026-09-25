@@ -9,16 +9,38 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 // Joins the server and resolves once the bot has spawned.
 // Every chat/system/action-bar line and every title lands in bot.log for later checks.
+// `motd` keeps the formatting as § codes (e.g. "§6§lDONATING§r"), `json` the component tree
+// (see colorOf), for color checks.
 function join (username, { timeoutMs = 30000 } = {}) {
   return new Promise((resolve, reject) => {
     const bot = mineflayer.createBot({ host: HOST, port: PORT, username, version: VERSION, auth: 'offline' })
     bot.log = []
-    const record = (kind, text) => {
-      bot.log.push({ t: Date.now(), kind, text })
+    const record = (kind, text, motd = '', json = null) => {
+      bot.log.push({ t: Date.now(), kind, text, motd, json })
       if (process.env.BOT_VERBOSE) console.error(`[${username}] ${kind}: ${text}`)
     }
-    bot.on('message', (msg, position) => record(position, msg.toString()))
-    bot.on('title', (text, type) => record(`title:${type}`, String(text)))
+    // Player chat: when a plugin changes the message (LPC's format, mentions), the server sends the
+    // result as unsigned content, which is what the real client shows. Mineflayer keeps it in
+    // msg.unsigned and the typed text in msg itself.
+    bot.on('message', (msg, position) => {
+      const shown = msg.unsigned || msg
+      record(position, shown.toString(), shown.toMotd(), shown.json)
+    })
+    // Mineflayer's own 'title' event passes 1.21's NBT titles on as raw objects ("[object Object]"),
+    // so the title packets are decoded here the same way chat messages are.
+    const decode = (kind, raw) => {
+      const msg = require('prismarine-chat')(bot.registry).fromNotch(raw)
+      record(kind, msg.toString(), msg.toMotd(), msg.json)
+    }
+    const title = (type, raw) => decode(`title:${type}`, raw)
+    // Action bars come in their own packet in 1.21, which Mineflayer ignores. Same kind as the
+    // old chat-position action bar ("game_info").
+    bot._client.on('action_bar', packet => decode('game_info', packet.text))
+    bot._client.on('set_title_text', packet => title('title', packet.text))
+    bot._client.on('set_title_subtitle', packet => title('subtitle', packet.text))
+    // When server.properties sets a resource pack, the server waits for the client's answer before
+    // letting it in, and Mineflayer never answers. Bots decline it (the pack isn't required).
+    bot._client.on('add_resource_pack', packet => bot._client.write('resource_pack_receive', { uuid: packet.uuid, result: 1 }))
     bot.on('kicked', reason => record('kicked', typeof reason === 'string' ? reason : JSON.stringify(reason)))
     bot.on('error', err => record('error', err.message))
 
@@ -44,6 +66,23 @@ async function waitForMessage (bot, pattern, timeoutMs = 5000) {
   throw new Error(`no message matching ${pattern} within ${timeoutMs} ms`)
 }
 
+// Color of the text containing `needle` in a message's component tree, as the client shows it
+// (a color is inherited from parents only, never from earlier siblings). null = default color.
+function colorOf (json, needle, inherited = null) {
+  if (json == null) return undefined
+  if (typeof json === 'string') return json.includes(needle) ? inherited : undefined
+  const color = json.color || inherited
+  // Text from NBT components can arrive under an empty key instead of "text".
+  const text = typeof json.text === 'string' ? json.text : json['']
+  if (typeof text === 'string' && text.includes(needle)) return color
+  // `with` holds a translation's arguments: player chat is a translate "%s" with the message inside.
+  for (const child of [...(json.with || []), ...(json.extra || [])]) {
+    const found = colorOf(child, needle, color)
+    if (found !== undefined) return found
+  }
+  return undefined
+}
+
 // Compact snapshot of the player inventory: slot -> "name xcount".
 // Slots: 5-8 armor, 9-35 upper inventory, 36-44 hotbar (1-9), 45 offhand.
 function inventorySnapshot (bot) {
@@ -63,4 +102,4 @@ function quit (bot) {
   })
 }
 
-module.exports = { join, sleep, messagesSince, waitForMessage, inventorySnapshot, quit, HOST, PORT, VERSION }
+module.exports = { join, sleep, messagesSince, waitForMessage, colorOf, inventorySnapshot, quit, HOST, PORT, VERSION }

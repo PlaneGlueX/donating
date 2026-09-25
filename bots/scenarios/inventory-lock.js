@@ -14,7 +14,7 @@ module.exports = async ({ check }) => {
   const bot = await join(NAME)
   // Every non-empty slot (0-40) plus the cursor, from zz-testkit.sk's /zzdump.
   const snapshot = async () => (await rcon.cmd(`zzdump ${NAME}`)).trim()
-  const PHONE = /(^|\| )8=paper x1 \[phone\]/
+  const PHONE = /(^| )8=filled map x1 \[phone\]/
   const BAG = /(^|\| )40=leather x1 \[bag:2\]/
   const dig = status => bot._client.write('block_dig', { status, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
 
@@ -22,9 +22,11 @@ module.exports = async ({ check }) => {
 
   // Runs one action and checks the server-side inventory is exactly what it was before,
   // and that no item appeared on the ground (an unchanged inventory plus a dropped item is a dupe).
-  const expectUnchanged = async (label, action) => {
+  // `setup` (optional) changes the test kit before the "before" snapshot.
+  const expectUnchanged = async (label, action, setup) => {
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`)
     await rcon.cmd(`zztestkit ${NAME}`)
+    if (setup) await setup()
     await rcon.cmd('minecraft:kill @e[type=item]')
     await sleep(400)
     const before = await snapshot()
@@ -180,6 +182,22 @@ module.exports = async ({ check }) => {
       await bot.activateEntity(allay)
     })
 
+    // A candle on a cake is not a block place event in Paper; WeaponMechanics' default grenades are candles.
+    const cakePos = p.offset(2, 0, 2)
+    const placeCake = async () => {
+      await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} air`)
+      await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} cake`)
+      await sleep(300)
+    }
+    const holdCandle = () => rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.1 with red_candle`)
+    const candleOnCake = async () => {
+      await placeCake()
+      bot.setQuickBarSlot(1)
+      await sleep(200)
+      await clickBlock(cakePos)
+    }
+    await expectUnchanged('right-click cake holding a candle', candleOnCake, holdCandle)
+
     await expectUnchanged('arrow on the ground is not picked up', async () => {
       await rcon.cmd(`execute at ${NAME} run summon arrow ~ ~0.5 ~ {pickup:1b,Tags:["zztest"]}`)
       await sleep(1500)
@@ -188,8 +206,9 @@ module.exports = async ({ check }) => {
 
     // Positive controls: with the bypass permission the same actions DO move items,
     // which proves the tests above really exercise those paths.
-    const withBypass = async (label, action) => {
+    const withBypass = async (label, action, setup) => {
       await rcon.cmd(`zztestkit ${NAME}`)
+      if (setup) await setup()
       await rcon.cmd(`lp user ${NAME} permission set donating.inventory.bypass true`)
       await sleep(1200)
       const before = await snapshot()
@@ -234,6 +253,8 @@ module.exports = async ({ check }) => {
       await sleep(200)
       await bot.activateEntity(allay)
     })
+    await withBypass('right-click cake uses up the candle', candleOnCake, holdCandle)
+    await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} air`)
     await rcon.cmd('minecraft:kill @e[tag=zztest]')
 
     // Watchdog: if something moves the bag or phone anyway, it is swapped back.
@@ -248,7 +269,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`item replace entity ${NAME} hotbar.8 with air`)
     await sleep(800)
     const afterPhoneMove = await snapshot()
-    check('watchdog puts a moved phone back in hotbar 9', PHONE.test(afterPhoneMove) && !/(^|\| )20=paper/.test(afterPhoneMove), afterPhoneMove)
+    check('watchdog puts a moved phone back in hotbar 9', PHONE.test(afterPhoneMove) && !/(^|\| )20=filled map/.test(afterPhoneMove), afterPhoneMove)
 
     // Items on the ground can't be picked up.
     await rcon.cmd(`zztestkit ${NAME}`)
@@ -262,7 +283,8 @@ module.exports = async ({ check }) => {
     check('ground item stays on the ground', /passed/i.test(stillThere), stillThere)
     await rcon.cmd('minecraft:kill @e[type=item,tag=zztest]')
 
-    // Death drops nothing (keepInventory) and the layout is back after respawn.
+    // Death drops nothing (keepInventory) and the phone is back after respawn. The bag is lost on
+    // death (death.sk, checked by bots\run.js death), so the offhand stays empty.
     await rcon.cmd(`zztestkit ${NAME}`)
     await rcon.cmd('minecraft:kill @e[type=item]')
     await sleep(300)
@@ -276,7 +298,7 @@ module.exports = async ({ check }) => {
     check('death drops no items', !/passed/i.test(drops), `before death: ${beforeDeath} | after: ${drops} | ${what}`)
     const afterDeath = await snapshot()
     check('phone back in hotbar 9 after respawn', PHONE.test(afterDeath), afterDeath)
-    check('bag back in offhand after respawn', BAG.test(afterDeath), afterDeath)
+    check('no bag after respawn (lost on death, death.sk)', !BAG.test(afterDeath) && !/(^| )40=/.test(afterDeath), afterDeath)
 
     // Ops are still locked (the default group sets donating.inventory.bypass to false; an
     // unregistered permission would otherwise default to true for ops).

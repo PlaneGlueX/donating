@@ -235,7 +235,7 @@ disable hooks:
 		grief prevention: false
 		precious stones: false
 		residence: false
-		worldguard: false
+		worldguard: true # Donating: skript-worldguard (official addon) replaces this deprecated hook
 # Controls whether Skript should attempt to hook into the plugins listed above.
 # If you change a setting here while the server is running, a restart is required for that change to take effect.
 # Do note that some addons may stop Skript from hooking into a plugin, even if the plugin's hook is not disabled here.

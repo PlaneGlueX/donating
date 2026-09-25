@@ -28,11 +28,16 @@
 !/server/plugins/WeaponMechanics/
 /server/plugins/WeaponMechanics/*
 !/server/plugins/WeaponMechanics/config.yml
+!/server/plugins/WorldGuard/
+/server/plugins/WorldGuard/*
+!/server/plugins/WorldGuard/config.yml
 
 # ---------- tools / bots / downloads ----------
 /tools/node/
 /bots/node_modules/
 /extras/
+/plugin/build/
+# The phone plugin source (plugin/src, plugin/resources) is tracked; the built jar is not (*.jar below).
 
 # ---------- misc ----------
 *.log

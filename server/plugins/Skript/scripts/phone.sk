@@ -1,0 +1,161 @@
+# phone.sk: the phone's controls and its apps menu. The DonatingPhone plugin draws the screen; nav.sk
+# decides who shows up on it.
+#   - Hold the phone (hotbar 9): a GPS map that follows you (small, next to the bag).
+#   - Right-click: opens the big map (the whole city). The bag leaves the offhand while it's open,
+#     because a map only shows big and centered with an empty offhand. Right-click again, switch
+#     slots, press F, die or leave: it closes and the bag comes back.
+#   - F (swap-hand key): the apps menu below.
+# The plugin reads the scoreboard tag "donating_phone_open" to know which view to draw.
+#
+# Apps menu (3 rows, slot numbers 0-26):
+#   11 stats           13 passive mode       15 garage
+#   21 bounties        23 how to play        26 close
+# Garage and bounties are placeholders: when garage.sk and bounty.sk exist, replace their "coming
+# soon" lines in phoneButton() with calls to those scripts' menus.
+#
+# Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
+# runs at Skript's default priority, before inventory.sk's lock (CLAUDE.md: GUI menus).
+# Memory only: {-phone::gui::<uuid>} = the player's open apps menu, {-phone::clicked::<uuid>} = last
+# right-click.
+
+on right click:
+	itemId(player's tool) is "phone"
+	# Skript's click event also covers entities: NPC shops, other players and cars must still work.
+	clicked entity is not set
+	cancel event
+	# One right-click on a block can arrive as two clicks (block, then air), and holding the button
+	# repeats the click every 0.2 s: every click restarts the 0.3 s wait, so it toggles once.
+	set {_last} to {-phone::clicked::%player%}
+	set {-phone::clicked::%player%} to now
+	if {_last} is set:
+		if difference between {_last} and now < 0.3 seconds:
+			stop
+	if player has scoreboard tag "donating_phone_open":
+		closePhoneMap(player)
+	else:
+		openPhoneMap(player)
+
+# The tag first, so inventory.sk's watchdog doesn't put the bag straight back. Only the bag leaves
+# the offhand: anything else there (staff with the inventory bypass) stays, and the map stays small.
+function openPhoneMap(p: player):
+	add "donating_phone_open" to scoreboard tags of {_p}
+	if itemId(offhand tool of {_p}) starts with "bag:":
+		set offhand tool of {_p} to air
+	play sound "item.book.page_turn" with volume 0.6 to {_p}
+
+# Does nothing when the big map isn't open.
+function closePhoneMap(p: player):
+	{_p} has scoreboard tag "donating_phone_open"
+	remove "donating_phone_open" from scoreboard tags of {_p}
+	if offhand tool of {_p} is air:
+		applyBag({_p})
+	play sound "item.book.page_turn" with volume 0.4 and pitch 0.8 to {_p}
+
+on held item change:
+	closePhoneMap(player)
+
+# F with the phone in hand: the apps menu. Runs before inventory.sk's lock (priority highest), which
+# cancels F for everyone else. WeaponMechanics only reads F for guns.
+on swap hand items:
+	itemId(player's tool) is "phone"
+	cancel event
+	closePhoneMap(player)
+	openPhone(player)
+
+function openPhone(p: player):
+	set {_gui} to chest inventory with 3 rows named "&8Phone"
+	set {_pane} to gray stained glass pane named "&r"
+	loop 27 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set slot 11 of {_gui} to phoneStats({_p})
+	set slot 13 of {_gui} to phonePassive({_p})
+	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars. Coming soon.", "phone:garage")
+	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7Who's wanted, and placing bounties. Coming soon.", "phone:bounties")
+	set slot 23 of {_gui} to tagItem(book named "&aHow to play" with lore "&7Heists, your bag, passive mode.", "phone:help")
+	set slot 26 of {_gui} to tagItem(barrier named "&cClose", "phone:close")
+	set {-phone::gui::%{_p}%} to {_gui}
+	open {_gui} to {_p}
+	play sound "item.book.page_turn" with volume 0.6 to {_p}
+
+# Player head with the player's stats.
+function phoneStats(p: player) :: item:
+	add "&7Name: %rankedName({_p})%" to {_l::*}
+	add "&7Balance: &a%formatMoney(balance of {_p})%" to {_l::*}
+	set {_bounty} to getData({_p}, "bounty")
+	if {_bounty} is not set:
+		set {_bounty} to 0
+	add "&7Bounty: &c%formatMoney({_bounty})%" to {_l::*}
+	set {_tier} to getData({_p}, "bag-tier")
+	if {_tier} is set:
+		if {_tier} > 0:
+			set {_bagName} to cfg("bag::%{_tier}%::name")
+			set {_capacity} to cfg("bag::%{_tier}%::capacity")
+			set {_bag} to "&6%{_bagName}% &8(holds %formatMoney({_capacity})%)"
+	if {_bag} is not set:
+		set {_bag} to "&8none yet"
+	add "&7Bag: %{_bag}%" to {_l::*}
+	if isPassive({_p}) is true:
+		add "&7Passive mode: &aon" to {_l::*}
+	else:
+		add "&7Passive mode: &coff" to {_l::*}
+	set {_played} to time played of {_p}
+	set {_hours} to floor({_played} / 1 hour)
+	set {_minutes} to mod(floor({_played} / 1 minute), 60)
+	add "&7Time played: &f%{_hours}%h %{_minutes}%m" to {_l::*}
+	set {_first} to getData({_p}, "first-join")
+	if {_first} is set:
+		set {_since} to {_first} formatted as "MMM d, yyyy"
+		add "&7Playing since: &f%{_since}%" to {_l::*}
+	return tagItem(skull of {_p} named "&fYour stats" with lore {_l::*}, "phone:stats")
+
+function phonePassive(p: player) :: item:
+	set {_multiplier} to cfg("passive::payout-multiplier")
+	set {_cut} to round((1 - {_multiplier}) * 100)
+	if isPassive({_p}) is true:
+		return tagItem(lime dye named "&aPassive mode: ON" with lore "&7Other robbers can't hurt you, and you" and "&7show up on everyone's map and compass." and "&7Heists pay %{_cut}%%% less." and "&eClick to turn it off.", "phone:passive")
+	return tagItem(gray dye named "&7Passive mode: OFF" with lore "&7Turn it on: no PvP, heists pay %{_cut}%%% less," and "&7and you show up on everyone's map and compass." and "&eClick to turn it on.", "phone:passive")
+
+function phoneButton(p: player, slot: number):
+	if {_slot} is 13:
+		# Close first: chat is hidden while a menu is open, and togglePassive's message matters.
+		close {_p}'s inventory
+		togglePassive({_p})
+	else if {_slot} is 15:
+		close {_p}'s inventory
+		msg({_p}, "The garage is coming soon.")
+	else if {_slot} is 21:
+		close {_p}'s inventory
+		msg({_p}, "Bounties are coming soon.")
+	else if {_slot} is 23:
+		close {_p}'s inventory
+		showHelp({_p})
+	else if {_slot} is 26:
+		close {_p}'s inventory
+
+on inventory click:
+	{-phone::gui::%player%} is set
+	player's current inventory is {-phone::gui::%player%}
+	cancel event
+	event-inventory is {-phone::gui::%player%}
+	set {_slot} to index of event-slot
+	# The button runs a tick later, after the click is done. Only while the menu is still open, so a
+	# second click queued in the same tick (spam, lag) doesn't run a button twice.
+	wait 1 tick
+	player is online
+	{-phone::gui::%player%} is set
+	phoneButton(player, {_slot})
+
+on inventory drag:
+	{-phone::gui::%player%} is set
+	player's current inventory is {-phone::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-phone::gui::%player%} is set
+	event-inventory is {-phone::gui::%player%}
+	delete {-phone::gui::%player%}
+
+on quit:
+	closePhoneMap(player)
+	delete {-phone::gui::%player%}
+	delete {-phone::clicked::%player%}

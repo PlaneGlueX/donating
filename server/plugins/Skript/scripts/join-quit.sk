@@ -1,0 +1,66 @@
+# join-quit.sk: join and quit messages with the rank prefix, the first join, and /help.
+#
+# Server-list text (MOTD) is not set here: on Minehut the proxy answers server-list pings, so the
+# MOTD comes from the Minehut dashboard (text in CLAUDE.md, Deploy notes).
+#
+# EssentialsX settings this relies on: custom-join-message and custom-quit-message stay "none"
+# (an empty string would hide these messages too), newbies.announce-format '' and newbies.kit ''
+# (this script welcomes new players), starting-balance 0 (the start money is cfg("money::start")).
+#
+# Data: {data::<uuid>::first-join} = date of the first join; {stats::unique-joins} counts players.
+
+# "&4[Owner] &fExplosde": the LuckPerms prefix (read through Vault) and the name.
+# Other scripts can use this wherever a name is shown with its rank.
+function rankedName(p: player) :: text:
+	set {_prefix} to prefix of {_p}
+	if {_prefix} is not set:
+		return "&f%{_p}%"
+	if {_prefix} is "":
+		return "&f%{_p}%"
+	if {_prefix} ends with " ":
+		return "%{_prefix}%&r&f%{_p}%"
+	return "%{_prefix}%&r &f%{_p}%"
+
+on join:
+	if getData(player, "first-join") is set:
+		set join message to colored "&8[&a+&8] %rankedName(player)%"
+		stop
+	setData(player, "first-join", now)
+	add 1 to {stats::unique-joins}
+	set join message to colored "&8[&a+&8] %rankedName(player)% &7joined for the first time &8(#%{stats::unique-joins}%)"
+	set {_start} to cfg("money::start")
+	giveMoney(player, {_start})
+	# Let the client finish loading, or the title and sound get lost.
+	wait 1 second
+	player is online
+	send title "&6&lDONATING" with subtitle "&7Welcome, robber!" to player for 4 seconds
+	play sound "entity.player.levelup" with volume 0.6 to player
+	if {_start} > 0:
+		msg(player, "Welcome to Donating! You start with &a%formatMoney({_start})%&7.")
+	else:
+		msg(player, "Welcome to Donating!")
+	msg(player, "Type &e/help&7 to learn how heists work.")
+
+on quit:
+	set quit message to colored "&8[&c-&8] %rankedName(player)%"
+
+# ---------- /help ----------
+# Replaces EssentialsX's /help. Update the lines when a script adds a player command or changes a rule.
+
+function showHelp(p: player):
+	send colored "%cfg("prefix")%&fHow to play" to {_p}
+	send colored "&8• &eHeists: &7rob buildings for loot. Watch for traps: lasers, pressure plates, cameras, collapsing floors." to {_p}
+	send colored "&8• &eYour bag &7(offhand) holds the loot, not your inventory. The XP bar shows how full it is." to {_p}
+	send colored "&8• &eGet out &7before the heist timer hits 0, or you lose what you took there." to {_p}
+	send colored "&8• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
+	send colored "&8• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
+	send colored "&8• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
+	send colored "&8• &ePhone &7(hotbar 9): garage, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}
+
+# The optional text swallows things like "/help 2" instead of showing a usage error.
+command /help [<text>]:
+	description: How to play Donating.
+	usage: /help
+	executable by: players
+	trigger:
+		showHelp(player)

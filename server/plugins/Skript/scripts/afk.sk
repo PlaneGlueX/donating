@@ -1,0 +1,71 @@
+# afk.sk: a player goes AFK after cfg("afk::after") (5 minutes) with no activity; /afk toggles it.
+#
+# Activity: looking around, pressing a movement key (this also covers driving a car, which fires
+# no move events), chatting, any command. Being pushed (water, pistons, other players) doesn't count,
+# so AFK pools don't work.
+# AFK players earn nothing: payout scripts must check isAfk(player).
+# EssentialsX: auto-afk is -1 and "afk" is in disabled-commands; this script owns /afk.
+#
+# Memory only: {-afk::last::<uuid>} = last activity, {-afk::is::<uuid>} = true while AFK.
+
+function isAfk(p: player) :: boolean:
+	if {-afk::is::%{_p}%} is set:
+		return true
+	return false
+
+function setAfk(p: player):
+	set {-afk::is::%{_p}%} to true
+	msg({_p}, "You're now &eAFK&7. You won't earn anything until you're back.")
+
+# Records activity and ends AFK if needed.
+function markActive(p: player):
+	set {-afk::last::%{_p}%} to now
+	if {-afk::is::%{_p}%} is set:
+		delete {-afk::is::%{_p}%}
+		msg({_p}, "Welcome back! You're no longer AFK.")
+
+on join:
+	set {-afk::last::%player%} to now
+	delete {-afk::is::%player%}
+
+on quit:
+	delete {-afk::last::%player%}
+	delete {-afk::is::%player%}
+
+# These fire constantly, so they only write the time and call the function when AFK ends.
+on player turn around:
+	set {-afk::last::%player%} to now
+	if {-afk::is::%player%} is set:
+		markActive(player)
+
+on press of any input key:
+	set {-afk::last::%player%} to now
+	if {-afk::is::%player%} is set:
+		markActive(player)
+
+on chat:
+	markActive(player)
+
+# /afk itself is skipped here, or it would end AFK right before turning it on.
+on command:
+	player is set
+	command is not "afk"
+	markActive(player)
+
+command /afk:
+	description: Mark yourself as away.
+	executable by: players
+	trigger:
+		if isAfk(player) is true:
+			markActive(player)
+		else:
+			setAfk(player)
+
+every 10 seconds:
+	set {_after} to cfg("afk::after")
+	loop all players:
+		if {-afk::is::%loop-player%} is not set:
+			if {-afk::last::%loop-player%} is not set:
+				set {-afk::last::%loop-player%} to now
+			else if difference between {-afk::last::%loop-player%} and now >= {_after}:
+				setAfk(loop-player)
