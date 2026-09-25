@@ -1,7 +1,13 @@
-# phone.sk: the phone menu. The phone (hotbar 9) is also the city GPS map (nav.sk): hold it to see
-# the map, right-click it to open this menu.
+# phone.sk: the phone's controls and its apps menu. The DonatingPhone plugin draws the screen; nav.sk
+# decides who shows up on it.
+#   - Hold the phone (hotbar 9): a GPS map that follows you (small, next to the bag).
+#   - Right-click: opens the big map (the whole city). The bag leaves the offhand while it's open,
+#     because a map only shows big and centered with an empty offhand. Right-click again, switch
+#     slots, press F, die or leave: it closes and the bag comes back.
+#   - F (swap-hand key): the apps menu below.
+# The plugin reads the scoreboard tag "donating_phone_open" to know which view to draw.
 #
-# Menu (3 rows, slot numbers 0-26):
+# Apps menu (3 rows, slot numbers 0-26):
 #   11 stats           13 passive mode       15 garage
 #   21 bounties        23 how to play        26 close
 # Garage and bounties are placeholders: when garage.sk and bounty.sk exist, replace their "coming
@@ -9,21 +15,49 @@
 #
 # Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
 # runs at Skript's default priority, before inventory.sk's lock (CLAUDE.md: GUI menus).
-# Memory only: {-phone::gui::<uuid>} = the player's open phone menu, {-phone::opened::<uuid>} = when.
+# Memory only: {-phone::gui::<uuid>} = the player's open apps menu, {-phone::clicked::<uuid>} = last
+# right-click.
 
 on right click:
 	itemId(player's tool) is "phone"
 	# Skript's click event also covers entities: NPC shops, other players and cars must still work.
 	clicked entity is not set
 	cancel event
-	# One right-click on a block can arrive as two clicks (block, then air): open once.
-	if {-phone::opened::%player%} is set:
-		if difference between {-phone::opened::%player%} and now < 0.3 seconds:
+	# One right-click on a block can arrive as two clicks (block, then air): toggle once.
+	if {-phone::clicked::%player%} is set:
+		if difference between {-phone::clicked::%player%} and now < 0.3 seconds:
 			stop
+	set {-phone::clicked::%player%} to now
+	if player has scoreboard tag "donating_phone_open":
+		closePhoneMap(player)
+	else:
+		openPhoneMap(player)
+
+# The tag first, so inventory.sk's watchdog doesn't put the bag straight back.
+function openPhoneMap(p: player):
+	add "donating_phone_open" to scoreboard tags of {_p}
+	set offhand tool of {_p} to air
+	play sound "item.book.page_turn" with volume 0.6 to {_p}
+
+# Does nothing when the big map isn't open.
+function closePhoneMap(p: player):
+	{_p} has scoreboard tag "donating_phone_open"
+	remove "donating_phone_open" from scoreboard tags of {_p}
+	applyBag({_p})
+	play sound "item.book.page_turn" with volume 0.4 and pitch 0.8 to {_p}
+
+on held item change:
+	closePhoneMap(player)
+
+# F with the phone in hand: the apps menu. Runs before inventory.sk's lock (priority highest), which
+# cancels F for everyone else. WeaponMechanics only reads F for guns.
+on swap hand items:
+	itemId(player's tool) is "phone"
+	cancel event
+	closePhoneMap(player)
 	openPhone(player)
 
 function openPhone(p: player):
-	set {-phone::opened::%{_p}%} to now
 	set {_gui} to chest inventory with 3 rows named "&8Phone"
 	set {_pane} to gray stained glass pane named "&r"
 	loop 27 times:
@@ -117,5 +151,6 @@ on inventory close:
 	delete {-phone::gui::%player%}
 
 on quit:
+	closePhoneMap(player)
 	delete {-phone::gui::%player%}
-	delete {-phone::opened::%player%}
+	delete {-phone::clicked::%player%}

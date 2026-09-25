@@ -8,13 +8,6 @@
 !/server/config/
 # server.properties holds the local RCON password and offline-mode settings: never commit it.
 
-# The world stays out, except our own datapack (upload it to world/datapacks on Minehut).
-!/server/world/
-/server/world/*
-!/server/world/datapacks/
-/server/world/datapacks/*
-!/server/world/datapacks/donating/
-
 !/server/plugins/
 /server/plugins/*
 !/server/plugins/Skript/
@@ -35,11 +28,16 @@
 !/server/plugins/WeaponMechanics/
 /server/plugins/WeaponMechanics/*
 !/server/plugins/WeaponMechanics/config.yml
+!/server/plugins/WorldGuard/
+/server/plugins/WorldGuard/*
+!/server/plugins/WorldGuard/config.yml
 
 # ---------- tools / bots / downloads ----------
 /tools/node/
 /bots/node_modules/
 /extras/
+/plugin/build/
+# The phone plugin source (plugin/src, plugin/resources) is tracked; the built jar is not (*.jar below).
 
 # ---------- misc ----------
 *.log

@@ -1,0 +1,27 @@
+# The city the phones show: one locked map, or a grid of locked maps of the same scale that sit side by
+# side (like a map wall). One line per row, north to south; each row lists its maps west to east.
+#   One map:        city-maps: [[12]]
+#   2 x 2 maps:     city-maps: [[12, 13], [14, 15]]
+# Their named banners become labels. After changing this or adding banners: /dphone
+city-maps: [[0]]
+# How many phone maps to keep, one per online player (their ids are in pool.yml, made automatically).
+pool-size: 16
+# Held phone: screen pixels per city-map pixel (2 = zoomed in 2x).
+zoom: 2
+# Held phone re-centers once you're this many screen pixels from the middle.
+follow-step: 4
+# Big map (right-click): the whole city is shrunk to fit the screen. The camera turns down to this
+# pitch when it opens (a map held in both hands only faces you at about 50 degrees down; 0 = never).
+open-pitch: 70
+# Big map cursor: screen pixels it moves per degree you turn your head.
+cursor-speed: 3.0
+# A passive player's name shows while the cursor is this close to their arrow (screen pixels).
+hover-radius: 6
+# Smaller arrows on the big map (the resource pack draws them; without the pack they'd show as
+# jungle temple / swamp hut icons, so set false if the pack isn't used).
+small-arrows: true
+# Scoreboard tags that Skript sets (nav.sk, phone.sk).
+passive-tag: donating_passive
+open-tag: donating_phone_open
+# Bottom line on the held phone (ASCII only; "" = none).
+hint: "R-click: map  F: apps"

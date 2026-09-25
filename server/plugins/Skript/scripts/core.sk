@@ -47,9 +47,7 @@ function loadSettings():
 	set {-cfg::bounty::robbery-share} to 0.10
 
 	# ---------- Navigation (nav.sk) ----------
-	# The city GPS map every phone shows. 0 is the local test map; set the real id once the city
-	# map is made (see CLAUDE.md, Navigation).
-	set {-cfg::nav::map-id} to 0
+	# The city map the phones show is set in pluginsDonatingPhoneconfig.yml (city-map), not here.
 	# How far a passive player's green locator-bar dot reaches (blocks). Non-passive players send none.
 	set {-cfg::nav::passive-range} to 100000
 

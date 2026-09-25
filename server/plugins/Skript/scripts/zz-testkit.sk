@@ -96,6 +96,18 @@ command /zzpassive <player> <text>:
 			setPassive(arg-1, false)
 		send "PASSIVE %arg-1%: %isPassive(arg-1)%"
 
+# Phone: the player's phone map id (DonatingPhone metadata), the map id on the slot-8 phone, and
+# whether the big map is open.
+command /zzphone <player>:
+	executable by: console
+	trigger:
+		set {_meta} to metadata value "donating_phone_map" of arg-1
+		set {_slot} to int tag "minecraft:map_id" of nbt of slot 8 of arg-1's inventory
+		set {_open} to false
+		if arg-1 has scoreboard tag "donating_phone_open":
+			set {_open} to true
+		send "ZZPHONE %arg-1% meta=%{_meta}% slot8=%{_slot}% open=%{_open}% offhand=%type of offhand tool of arg-1%"
+
 # Navigation: hide or show entities with a scoreboard tag for one player (per-player waypoints).
 command /zzhide <player> <text>:
 	executable by: console

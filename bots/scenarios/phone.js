@@ -1,8 +1,10 @@
-// phone.sk + pvp.sk: right-clicking the phone opens the phone menu. Nothing in the menu can be taken
-// (not even with the inventory bypass), the stats show the player's numbers, the passive button
-// follows pvp.sk's rules (switch cooldown, no going passive with a bounty), and right-clicking an
-// entity or a block with the phone behaves (entities keep working, blocks don't react).
+// phone.sk + pvp.sk: F (swap-hand key) with the phone opens the apps menu; right-click toggles the big
+// map instead (phone-map.js checks the map itself). Nothing in the menu can be taken (not even with
+// the inventory bypass), the stats show the player's numbers, the passive button follows pvp.sk's
+// rules (switch cooldown, no going passive with a bounty), and right-clicking an entity or a block
+// with the phone behaves (entities keep working, blocks don't react, the map toggles once).
 // Runs on its own glass platform in the sky and removes everything it placed.
+const { Vec3 } = require('vec3')
 const { join, sleep, messagesSince, quit } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -26,8 +28,11 @@ module.exports = async ({ check }) => {
     const text = t => messagesSince(bot, t).map(m => m.text).join(' | ')
     const loreText = item => ((item && item.customLore) || []).map(l => ChatMessage.fromNotch(l).toString()).join(' / ')
 
-    // Right-clicks the phone (or something else with it) and resolves with the menu window, or null.
-    const openMenu = async (how = () => bot.activateItem(), waitMs = 3000) => {
+    // F key (swap hands): the player-action packet a real client sends.
+    const pressF = () => bot._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
+    const phone = async () => (await rcon.cmd(`zzphone ${NAME}`)).trim()
+    // Presses F with the phone (or does something else with it) and resolves with the menu window, or null.
+    const openMenu = async (how = pressF, waitMs = 3000) => {
       bot.setQuickBarSlot(8)
       await sleep(300)
       const opened = new Promise(resolve => {
@@ -59,8 +64,13 @@ module.exports = async ({ check }) => {
     await sleep(1000)
 
     // ---------- Opening and contents ----------
-    let w = await openMenu()
-    check('right-clicking the phone opens the menu', w && JSON.stringify(w.title).includes('Phone'), w ? 'Phone menu' : 'no window')
+    let w = await openMenu(() => bot.activateItem(), 1500)
+    check('right-clicking the phone opens no menu', !w, w ? JSON.stringify(w.title).slice(0, 80) : 'no window')
+    check('...it opens the big map instead', / open=true/.test(await phone()), await phone())
+    if (w) bot.closeWindow(w)
+    w = await openMenu()
+    check('F with the phone opens the apps menu', w && JSON.stringify(w.title).includes('Phone'), w ? 'Phone menu' : 'no window')
+    check('...and closes the big map', / open=false/.test(await phone()), await phone())
     if (!w) return
     const at = s => (w.slots[s] ? w.slots[s].name : 'empty')
     const layout = [11, 13, 15, 21, 23, 26].map(s => `${s}=${at(s)}`).join(' ')
@@ -165,28 +175,27 @@ module.exports = async ({ check }) => {
       }
       await bot.lookAt(e.position.offset(0, 1, 0), true)
       w = await openMenu(() => bot.activateEntity(e), 1500)
-      check(`right-clicking a ${kind} with the phone opens no menu`, !w || !JSON.stringify(w.title).includes('Phone'), w ? JSON.stringify(w.title).slice(0, 80) : 'no window')
+      check(`right-clicking a ${kind} with the phone opens no menu or map`, (!w || !JSON.stringify(w.title).includes('Phone')) && / open=false/.test(await phone()), w ? JSON.stringify(w.title).slice(0, 80) : await phone())
       if (w) bot.closeWindow(w)
     }
     await rcon.cmd('minecraft:kill @e[tag=zztest]')
 
     await rcon.cmd(`setblock ${LEVER.x} ${LEVER.y} ${LEVER.z} lever[face=floor]`)
     await sleep(500)
-    let opens = 0
-    const count = () => { opens++ }
-    bot.on('windowOpen', count)
     w = await openMenu(async () => {
-      await bot.activateBlock(bot.blockAt(new (require('vec3').Vec3)(LEVER.x, LEVER.y, LEVER.z)))
+      await bot.activateBlock(bot.blockAt(new Vec3(LEVER.x, LEVER.y, LEVER.z)))
       // A real client also sends a use-item click after a block click that did nothing.
       await sleep(100)
       bot.activateItem()
-    })
+    }, 1500)
     await sleep(800)
-    bot.removeListener('windowOpen', count)
     const lever = await rcon.cmd(`execute if block ${LEVER.x} ${LEVER.y} ${LEVER.z} lever[powered=false]`)
-    check('right-clicking a lever with the phone opens the menu once', Boolean(w) && opens === 1, `window ${Boolean(w)}, opened ${opens}x`)
+    check('right-clicking a lever with the phone toggles the map once (block + air click)', !w && / open=true/.test(await phone()), `window ${Boolean(w)}, ${await phone()}`)
     check('...and does not flip the lever', /passed/i.test(lever), lever)
     if (w) bot.closeWindow(w)
+    bot.activateItem()
+    await sleep(600)
+    check('right-clicking again closes the map', / open=false/.test(await phone()), await phone())
   } finally {
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`).catch(() => {})
     await rcon.cmd(`zzpassive ${NAME} off`).catch(() => {})

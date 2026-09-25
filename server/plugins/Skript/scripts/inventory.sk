@@ -5,7 +5,7 @@
 #   hotbar 6-8 -> slots 5-7    quest items
 #   hotbar 9   -> slot 8       phone (while driving it becomes the car key)
 #   upper      -> slots 9-35   ammo, locked in place (WeaponMechanics still takes ammo from here)
-#   armor      -> slots 36-39  36 boots = map cloak (nav.sk), 38 vest / 39 helmet from the gear shop
+#   armor      -> slots 36-39  38 vest / 39 helmet from the gear shop (boots stay empty)
 #   offhand    -> slot 40      heist bag
 #
 # Every lock runs at priority highest. WeaponMechanics reads the drop (Q) and swap-hand (F) keys at
@@ -37,10 +37,14 @@ function bypassesLock(p: player) :: boolean:
 
 # ---------- Layout items ----------
 
-# The phone is the city GPS map (cfg "nav::map-id"); nav.sk decides who shows up on it.
-function phoneItem() :: item:
-	set {_i} to filled map named "&fPhone" with lore "&7Hold it to see the map" and "&7Right-click to open"
-	set int tag "minecraft:map_id" of nbt of {_i} to cfg("nav::map-id")
+# The phone is a filled map with the player's own phone map id. The DonatingPhone plugin picks it on
+# join (player metadata "donating_phone_map") and draws the screen (phone.sk: controls). Without the
+# plugin the phone gets no map id and shows nothing, so nobody's position can leak.
+function phoneItem(p: player) :: item:
+	set {_i} to filled map named "&fPhone" with lore "&7Right-click: open the map" and "&7F: apps"
+	set {_id} to metadata value "donating_phone_map" of {_p}
+	if {_id} is set:
+		set int tag "minecraft:map_id" of nbt of {_i} to {_id}
 	return tagItem({_i}, "phone")
 
 function bagItem(tier: number) :: item:
@@ -49,9 +53,15 @@ function bagItem(tier: number) :: item:
 	return tagItem(leather named "&6%{_name}%" with lore "&7Holds up to %formatMoney({_capacity})% of loot", "bag:%{_tier}%")
 
 # Puts the phone and the owned bag in their slots. Run on join, respawn, and after anything that
-# resets the inventory. Overwrites slots 8 and 40.
+# resets the inventory. Overwrites slots 8 and 40, and closes the phone's big map.
 function applyLayout(p: player):
-	set slot 8 of {_p}'s inventory to phoneItem()
+	remove "donating_phone_open" from scoreboard tags of {_p}
+	set slot 8 of {_p}'s inventory to phoneItem({_p})
+	applyBag({_p})
+
+# The owned bag in the offhand (slot 40), or nothing. phone.sk takes it out while the big map is
+# open (a map only shows big and centered with an empty offhand) and puts it back with this.
+function applyBag(p: player):
 	set {_tier} to getData({_p}, "bag-tier")
 	if {_tier} is set:
 		if {_tier} > 0:
@@ -137,8 +147,8 @@ on inventory open with priority highest:
 # Blocks that take or give items on right-click: decorated pots and 1.21.9+ shelves (swap the held
 # item, powered shelves swap whole hotbar rows), chiseled bookshelves, potted plants (give the plant),
 # lecterns, jukeboxes, composters, campfires, trial vaults, cakes (a candle on a cake is not a block
-# place event in Paper, and WeaponMechanics' default grenades are candles), banners (the phone is a
-# map: clicking a banner with it adds or removes that banner's label on everyone's map).
+# place event in Paper, and WeaponMechanics' default grenades are candles), banners (clicking one with
+# a copy of the city map adds or removes that banner's label on every phone; staff do that on purpose).
 on right click with priority highest:
 	event-block is set
 	bypassesLock(player) is false
@@ -196,7 +206,9 @@ function repairLayout(p: player):
 		if {_at} >= 0:
 			swapSlots({_p}, {_at}, 8)
 		else if slot 8 of {_p}'s inventory is air:
-			set slot 8 of {_p}'s inventory to phoneItem()
+			set slot 8 of {_p}'s inventory to phoneItem({_p})
+	# The offhand is empty on purpose while the phone's big map is open (phone.sk).
+	{_p} does not have scoreboard tag "donating_phone_open"
 	set {_tier} to getData({_p}, "bag-tier")
 	if {_tier} is set:
 		if {_tier} > 0:

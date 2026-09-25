@@ -38,6 +38,9 @@ function join (username, { timeoutMs = 30000 } = {}) {
     bot._client.on('action_bar', packet => decode('game_info', packet.text))
     bot._client.on('set_title_text', packet => title('title', packet.text))
     bot._client.on('set_title_subtitle', packet => title('subtitle', packet.text))
+    // When server.properties sets a resource pack, the server waits for the client's answer before
+    // letting it in, and Mineflayer never answers. Bots decline it (the pack isn't required).
+    bot._client.on('add_resource_pack', packet => bot._client.write('resource_pack_receive', { uuid: packet.uuid, result: 1 }))
     bot.on('kicked', reason => record('kicked', typeof reason === 'string' ? reason : JSON.stringify(reason)))
     bot.on('error', err => record('error', err.message))
 
