@@ -126,14 +126,14 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         img = null;
         pois.clear();
         for (State s : states.values()) s.drawn = Long.MIN_VALUE; // redraw everyone
-        loadCity(c);
+        // The pool lives in pool.yml, so the plugin never rewrites the owner's config.yml.
+        File poolFile = new File(getDataFolder(), "pool.yml");
+        YamlConfiguration saved = YamlConfiguration.loadConfiguration(poolFile);
+        loadCity(c, saved.getIntegerList("pool"));
 
         World poolWorld = world != null ? world : Bukkit.getWorlds().get(0);
         List<Integer> cityIds = new ArrayList<>();
         if (tiles != null) for (MapView[] row : tiles) for (MapView t : row) cityIds.add(t.getId());
-        // The pool lives in pool.yml, so the plugin never rewrites the owner's config.yml.
-        File poolFile = new File(getDataFolder(), "pool.yml");
-        YamlConfiguration saved = YamlConfiguration.loadConfiguration(poolFile);
         List<Integer> ids = new ArrayList<>();
         for (int id : saved.getIntegerList("pool")) if (!cityIds.contains(id) && !ids.contains(id) && Bukkit.getMap(id) != null) ids.add(id);
         while (ids.size() < Math.max(1, c.getInt("pool-size", 16))) ids.add(Bukkit.createMap(poolWorld).getId());
@@ -153,7 +153,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     }
 
     /** city-maps: rows of map ids (north to south), each row west to east. Old configs: city-map: <id>. */
-    private void loadCity(FileConfiguration c) {
+    private void loadCity(FileConfiguration c, List<Integer> poolIds) {
         tiles = null;
         world = null;
         List<List<Integer>> rows = new ArrayList<>();
@@ -171,6 +171,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         for (int r = 0; r < rows.size(); r++) {
             if (rows.get(r).size() != cols) { getLogger().warning("city-maps: every row needs " + cols + " maps: phones stay blank."); return; }
             for (int col = 0; col < cols; col++) {
+                if (poolIds.contains(rows.get(r).get(col))) { getLogger().warning("city map " + rows.get(r).get(col) + " is one of the phone maps (pool.yml), not a city map: phones stay blank."); return; }
                 MapView v = Bukkit.getMap(rows.get(r).get(col));
                 if (v == null) { getLogger().warning("city map " + rows.get(r).get(col) + " has no map file: phones stay blank."); return; }
                 t[r][col] = v;
@@ -309,10 +310,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
     /** Turns the camera down to open-pitch, keeping the direction the player faces. */
     private void lookDown(Player p) {
+        // The client turns toward this point from its own eye position, which is ahead of the
+        // server's copy when the player moves: a far point makes that difference not matter.
         Location eye = p.getEyeLocation();
-        double yaw = Math.toRadians(eye.getYaw()), pitch = Math.toRadians(openPitch);
-        p.lookAt(eye.getX() - Math.sin(yaw) * Math.cos(pitch), eye.getY() - Math.sin(pitch),
-                eye.getZ() + Math.cos(yaw) * Math.cos(pitch), LookAnchor.EYES);
+        double yaw = Math.toRadians(eye.getYaw()), pitch = Math.toRadians(openPitch), far = 1000;
+        p.lookAt(eye.getX() - Math.sin(yaw) * Math.cos(pitch) * far, eye.getY() - Math.sin(pitch) * far,
+                eye.getZ() + Math.cos(yaw) * Math.cos(pitch) * far, LookAnchor.EYES);
     }
 
     /** /dphone: reload. /dphone status <player>: one line for tests and staff. */

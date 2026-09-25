@@ -198,12 +198,15 @@ module.exports = async ({ check }) => {
     check('right-clicking again closes the map', / open=false/.test(await phone()), await phone())
     // Holding the button: the client repeats the click every 4 ticks (0.2 s).
     await sleep(600)
+    // Checked after every repeat: the old debounce opened, closed and opened again (0, 0.4, 0.8 s).
+    const during = []
     for (let i = 0; i < 6; i++) {
       bot.activateItem()
-      await sleep(200)
+      await sleep(100)
+      during.push(/ open=true/.test(await phone()))
+      await sleep(100)
     }
-    await sleep(300)
-    check('holding right-click opens the map once (no flicker)', / open=true/.test(await phone()), await phone())
+    check('holding right-click opens the map once (no flicker)', during.every(Boolean), `open after each repeat: ${during}`)
     await sleep(400)
     bot.activateItem()
     await sleep(500)

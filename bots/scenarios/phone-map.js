@@ -228,17 +228,18 @@ module.exports = async ({ check }) => {
     check('after switching, viewer sees only the new passive player', all(w.of(VIEW), p => greenAt(p, 10, 0)), `${w.of(VIEW).filter(p => greenAt(p, 10, 0)).length}/${w.of(VIEW).length} packets; last ${lastIcons(w.of(VIEW))}`)
 
     // ---------- Moving ----------
-    // A walks 20 blocks east in 1-block steps: its view re-centers every few blocks (not every
-    // step), its arrow stays near the middle, and nobody else gets pixels from it.
+    // A walks 20 blocks east in 1-block steps, slower than the map updates (every 0.25 s), so a
+    // map that redrew on every step would show it: the view re-centers every few blocks only, its
+    // arrow stays near the middle, and nobody else gets pixels from it.
     for (const name of [VIEW, A, B]) packets[name] = []
     for (let i = 1; i <= 20; i++) {
       await rcon.cmd(`minecraft:tp ${A} ${spot[A][0] - 10 + i} ${Y} ${spot[A][1]}`)
-      await sleep(100)
+      await sleep(350)
     }
     await sleep(600)
     const step = 4 / zoom * unit // blocks between re-centers (follow-step 4 screen pixels)
     const patches = packets[A].filter(p => p.cols).length
-    check('the held map follows you in steps, not every move', patches >= 20 / step / 2 && patches <= 20 / step * 1.5 + 1, `${patches} pixel packets for 20 blocks (step ${step})`)
+    check('the held map follows you in steps, not every move', patches >= 0.7 * 20 / step && patches <= 1.3 * 20 / step, `${patches} pixel packets for 20 blocks (step ${step}: ${20 / step} expected)`)
     check('...and your arrow stays near the middle', all(packets[A].filter(p => p.icons), centered), JSON.stringify(packets[A].filter(p => p.icons).map(p => own(p)[0]).slice(-3)))
     check('other players moving sends you no pixels', packets[VIEW].every(p => !p.cols), `${packets[VIEW].filter(p => p.cols).length} pixel packets`)
 
@@ -256,6 +257,28 @@ module.exports = async ({ check }) => {
     check('the camera tilts down once', faced[VIEW] === 1, `${faced[VIEW]} look-at packets`)
     await sleep(1500)
     check('the camera is tilted down', Math.abs(conv.toNotchianPitch(bot.entity.pitch) - 70) <= 2, `pitch ${conv.toNotchianPitch(bot.entity.pitch).toFixed(1)}`)
+    // Opening while walking: the tilt is still 70 degrees and keeps the direction (it aims far away).
+    await rightClick() // close
+    await rcon.cmd(`minecraft:tp ${VIEW} ${spot[VIEW][0]} ${Y} ${spot[VIEW][1]} 0 0`) // walks south on the platform (B stands 10 blocks away)
+    await sleep(600)
+    const yawBefore = conv.toNotchianYaw(bot.entity.yaw)
+    bot.setControlState('forward', true)
+    bot.setControlState('sprint', true)
+    await sleep(400)
+    bot.activateItem()
+    await sleep(600)
+    bot.setControlState('forward', false)
+    bot.setControlState('sprint', false)
+    const walkPitch = conv.toNotchianPitch(bot.entity.pitch)
+    const walkYaw = conv.toNotchianYaw(bot.entity.yaw)
+    check('opening while sprinting still tilts to 70 degrees the same way', (await isOpen(VIEW)) && Math.abs(walkPitch - 70) <= 2 && Math.abs(((walkYaw - yawBefore + 540) % 360) - 180) <= 2, `pitch ${walkPitch.toFixed(1)}, yaw ${yawBefore.toFixed(1)} -> ${walkYaw.toFixed(1)}`)
+    await rightClick() // close
+    await rcon.cmd(`minecraft:tp ${VIEW} ${spot[VIEW][0]} ${Y} ${spot[VIEW][1]} 0 0`)
+    await sleep(800)
+    packets[VIEW] = []
+    faced[VIEW] = 0
+    await rightClick() // open again, standing, for the checks below
+    await sleep(1500)
     let cur = await cursorOf(VIEW)
     check('the cursor starts in the middle', cur[0] === 64 && cur[1] === 64 && screen[VIEW][64 * 128 + 64] === 34, `cursor ${cur}, pixel ${screen[VIEW][64 * 128 + 64]}`)
     share = match(VIEW, expected(W / 2, H / 2, f), 128, [64, 64])
