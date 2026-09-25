@@ -5,7 +5,7 @@
 #   hotbar 6-8 -> slots 5-7    quest items
 #   hotbar 9   -> slot 8       phone (while driving it becomes the car key)
 #   upper      -> slots 9-35   ammo, locked in place (WeaponMechanics still takes ammo from here)
-#   armor      -> slots 36-39  helmet / vest from the gear shop
+#   armor      -> slots 36-39  36 boots = map cloak (nav.sk), 38 vest / 39 helmet from the gear shop
 #   offhand    -> slot 40      heist bag
 #
 # Every lock runs at priority highest. WeaponMechanics reads the drop (Q) and swap-hand (F) keys at
@@ -37,8 +37,11 @@ function bypassesLock(p: player) :: boolean:
 
 # ---------- Layout items ----------
 
+# The phone is the city GPS map (cfg "nav::map-id"); nav.sk decides who shows up on it.
 function phoneItem() :: item:
-	return tagItem(paper named "&fPhone" with lore "&7Right-click to open", "phone")
+	set {_i} to filled map named "&fPhone" with lore "&7Hold it to see the map" and "&7Right-click to open"
+	set int tag "minecraft:map_id" of nbt of {_i} to cfg("nav::map-id")
+	return tagItem({_i}, "phone")
 
 function bagItem(tier: number) :: item:
 	set {_name} to cfg("bag::%{_tier}%::name")
@@ -134,7 +137,8 @@ on inventory open with priority highest:
 # Blocks that take or give items on right-click: decorated pots and 1.21.9+ shelves (swap the held
 # item, powered shelves swap whole hotbar rows), chiseled bookshelves, potted plants (give the plant),
 # lecterns, jukeboxes, composters, campfires, trial vaults, cakes (a candle on a cake is not a block
-# place event in Paper, and WeaponMechanics' default grenades are candles).
+# place event in Paper, and WeaponMechanics' default grenades are candles), banners (the phone is a
+# map: clicking a banner with it adds or removes that banner's label on everyone's map).
 on right click with priority highest:
 	event-block is set
 	bypassesLock(player) is false
@@ -154,6 +158,8 @@ on right click with priority highest:
 	else if {_type} contains "vault":
 		cancel event
 	else if {_type} contains "cake":
+		cancel event
+	else if {_type} contains "banner":
 		cancel event
 
 # Placing a block would take it out of a locked slot.

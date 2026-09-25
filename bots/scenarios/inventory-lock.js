@@ -14,7 +14,7 @@ module.exports = async ({ check }) => {
   const bot = await join(NAME)
   // Every non-empty slot (0-40) plus the cursor, from zz-testkit.sk's /zzdump.
   const snapshot = async () => (await rcon.cmd(`zzdump ${NAME}`)).trim()
-  const PHONE = /(^|\| )8=paper x1 \[phone\]/
+  const PHONE = /(^| )8=filled map x1 \[phone\]/
   const BAG = /(^|\| )40=leather x1 \[bag:2\]/
   const dig = status => bot._client.write('block_dig', { status, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
 
@@ -269,7 +269,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`item replace entity ${NAME} hotbar.8 with air`)
     await sleep(800)
     const afterPhoneMove = await snapshot()
-    check('watchdog puts a moved phone back in hotbar 9', PHONE.test(afterPhoneMove) && !/(^|\| )20=paper/.test(afterPhoneMove), afterPhoneMove)
+    check('watchdog puts a moved phone back in hotbar 9', PHONE.test(afterPhoneMove) && !/(^|\| )20=filled map/.test(afterPhoneMove), afterPhoneMove)
 
     // Items on the ground can't be picked up.
     await rcon.cmd(`zztestkit ${NAME}`)

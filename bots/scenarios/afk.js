@@ -58,10 +58,12 @@ module.exports = async ({ check }) => {
     await sleep(800)
     check('a command ends AFK', await state() === false)
 
+    // Mineflayer only sends the 1.21.2+ player_input packet for sneaking, so send W directly,
+    // the way the real client does when the key goes down and up.
     const wasAfk = await goAfk()
-    bot.setControlState('forward', true)
+    bot._client.write('player_input', { inputs: { forward: true } })
     await sleep(400)
-    bot.setControlState('forward', false)
+    bot._client.write('player_input', { inputs: {} })
     await sleep(800)
     check('pressing a movement key ends AFK', wasAfk && await state() === false)
   } finally {

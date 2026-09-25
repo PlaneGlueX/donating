@@ -46,6 +46,13 @@ function loadSettings():
 	set {-cfg::passive::payout-multiplier} to 0.75
 	set {-cfg::bounty::robbery-share} to 0.10
 
+	# ---------- Navigation (nav.sk) ----------
+	# The city GPS map every phone shows. 0 is the local test map; set the real id once the city
+	# map is made (see CLAUDE.md, Navigation).
+	set {-cfg::nav::map-id} to 0
+	# How far a passive player's green locator-bar dot reaches (blocks). Non-passive players send none.
+	set {-cfg::nav::passive-range} to 100000
+
 	# ---------- Death loss: L = min(B × p, C) ----------
 	# p per heist difficulty. Player/trap deaths: 1-5%. Cop deaths: 5-10%.
 	# Deaths outside a heist use difficulty 1 and the player's bag capacity.

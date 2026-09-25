@@ -9,6 +9,7 @@ command /zztestkit <player>:
 		clear {_p}'s inventory
 		setData({_p}, "bag-tier", 2)
 		applyLayout({_p})
+		applyMapVisibility({_p})
 		set slot 0 of {_p}'s inventory to tagItem(iron sword named "&fTest Sword", "test:sword")
 		set slot 9 of {_p}'s inventory to tagItem(32 gold nuggets named "&eTest Ammo", "test:ammo")
 		set slot 10 of {_p}'s inventory to tagItem(32 gold nuggets named "&eTest Ammo", "test:ammo")
@@ -41,6 +42,7 @@ command /zzclear <player>:
 		clear arg-1's inventory
 		deleteData(arg-1, "bag-tier")
 		applyLayout(arg-1)
+		applyMapVisibility(arg-1)
 
 # Forgets a player's saved data and balance, so their next join counts as a first join.
 command /zzforget <offline player>:
@@ -73,6 +75,37 @@ command /zzafkstate <player>:
 	executable by: console
 	trigger:
 		send "AFK %arg-1%: %isAfk(arg-1)%"
+
+# nav.sk: turn passive mode on or off (pvp.sk will add the real toggle's rules).
+command /zzpassive <player> <text>:
+	executable by: console
+	trigger:
+		if arg-2 is "on":
+			setPassive(arg-1, true)
+		else:
+			setPassive(arg-1, false)
+		send "PASSIVE %arg-1%: %isPassive(arg-1)%"
+
+# Navigation: hide or show entities with a scoreboard tag for one player (per-player waypoints).
+command /zzhide <player> <text>:
+	executable by: console
+	trigger:
+		set {_n} to 0
+		loop all entities:
+			if loop-entity has scoreboard tag arg-2:
+				hide loop-entity from arg-1
+				add 1 to {_n}
+		send "HIDDEN %{_n}% from %arg-1%"
+
+command /zzshow <player> <text>:
+	executable by: console
+	trigger:
+		set {_n} to 0
+		loop all entities:
+			if loop-entity has scoreboard tag arg-2:
+				reveal loop-entity to arg-1
+				add 1 to {_n}
+		send "SHOWN %{_n}% to %arg-1%"
 
 # chat-extras.sk: send the next rotating tip now.
 command /zztip:

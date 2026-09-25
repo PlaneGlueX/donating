@@ -79,7 +79,8 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 29. **Missing settings are reported.** `tools\rcon.ps1 "zzcfg no::such::key"`, then `logs\latest.log` shows `[Donating] Missing setting: no::such::key`.
     - Result: PASS (rcon, 2026-09-24, local).
 30. **Join/quit look right in the real client:** gray brackets, green `+` / red `-`, the owner prefix in dark red, the welcome title and sound on a first join (use `/zzforget Explosde` from the console first; it resets your balance to $0).
-    - Result: HUMAN / TODO
+    - Result: PASS (cu, 2026-09-24) for everything visible: `[+]` green and `[-]` red in gray brackets, `[Owner]` in dark red, first-join line with `(#21)`, "DONATING / Welcome, robber!" title, "You start with $500" (green) and "/help" (yellow). The sound needs a human: HUMAN / TODO.
+    - Note: players with `essentials.motd` (the owner has `*`) also get EssentialsX's MOTD on join ("Type /list to see who else is online", but /list is denied to players). Regular players don't. Decide whether to empty EssentialsX's `motd.txt`.
 31. **Chat extras** (`bots\run.js chat-extras`, 20 checks): a second message within `chat::cooldown` is blocked with "Slow down!" (staff exempt); `hey @chatb, look` shows `@ChatB` in lime to everyone (the text after it isn't lime) and pings ChatB only; `@ChatBx` pings nobody; `&cred <bold>big</bold> @ChatB` stays uncolored and literal; `/sc` and `/broadcast` are refused without `donating.staff`; `/sc msg` and staff chat mode reach staff only; `/bc` reaches everyone with the prefix; `/zztip` sends a tip.
     - Result: PASS (bot, 2026-09-24, local). 20/20 after one script fix and two test fixes:
       - Script: `/bc` still ran EssentialsX's broadcast ("denied access"): Skript's `aliases:` don't take over another plugin's alias. `/bc` is now its own command.
@@ -87,11 +88,29 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
       - Test: `colorOf` didn't look inside a translation's arguments (player chat is translate "%s"). The "text after the mention is not lime" check also passed without finding the text; it now has to find it.
     - Needs chat-extras.sk, core.sk and join-quit.sk (for `rankedName`) loaded. If the mention isn't lime but the ping works, check that LPC still keeps `§` codes (its `processMessage` only strips `&` codes).
 32. **AFK** (`bots\run.js afk`, 10 checks): AFK within 10 s of `/zzafk` (last activity set 10 minutes back) with a message; idle position packets don't end it; looking around, `/afk`, chatting, any command, and a movement key each end it; `/afk` toggles.
-    - Result: TODO (not run yet locally). If only the movement-key check fails, Mineflayer may not send input packets; check with the real client instead (item 33).
+    - Result: PASS (bot, 2026-09-24, local). 10/10 after a test fix: Mineflayer only sends the 1.21.2+ `player_input` packet for sneaking, so the movement-key check now sends W as a raw `player_input` packet, the way the real client does. That also proves `on press of any input key` works.
 33. **AFK while driving and in water (real client):** `/afk`, then hold W in a car (after MTVehicles): AFK ends. Stand in a water stream without touching anything for 5 minutes: you still go AFK.
-    - Result: HUMAN / TODO
+    - Result (water): PASS (cu, 2026-09-24). While AFK, flowing water pushed the player (z −656.0 → −655.6) and AFK stayed on. The owner also went AFK on their own after 5 idle minutes during the session.
+    - Result (driving): TODO (MTVehicles not installed yet)
 34. **EssentialsX /afk is off:** `/afk` shows afk.sk's message ("You're now AFK"), not EssentialsX's.
-    - Result: TODO (not run yet locally)
+    - Result: PASS (cu, 2026-09-24). Typed `/afk` twice in the real client: "Welcome back! You're no longer AFK." then "You're now AFK. You won't earn anything until you're back." Nothing from EssentialsX.
+
+## Navigation: no minimap mod (2026-09-24)
+
+35. **Shader minimap plugin** (NMinimap 1.0.8-quickfix-2: a corner minimap drawn by the resource pack's core shader, no client mod).
+    - Result: FAIL (cu) on the owner's 26.3 client. 26.3 compiles pack shaders to SPIR-V and rejects the plugin's shader ("invalid directive: moj_import"), so the whole server pack fails to load ("Resource reload failed"). Without the shader, the plugin's hidden map frame covers the screen. Removed from the server; the jars are kept in `extras\nminimap-test` for a retest if it ever supports 26.3.
+36. **Locator bar POIs** (the 1.21.6+ bar above the hotbar): invisible marker armor stands with `waypoint_transmit_range` show as dots in their own color, bigger when closer.
+    - Result: PASS (cu). Red/blue/green dots at 50/200/600 blocks. A POI in an unloaded chunk disappears (it needs a force-loaded chunk). Hiding the stand from one player (Skript `hide … from player`) hides only their dot.
+37. **Bag meter vs locator bar:** with waypoints, the XP level number (bag %) stays visible above the locator bar and the XP fill bar is hidden; with no waypoints, the fill bar comes back.
+    - Result: PASS (cu). So inside heists, hide the POIs from that player to show the full bag meter.
+38. **Phone as a GPS map:** a filled map held in hotbar 9 shows the area, map icons, and named banner labels ("Bank").
+    - Result: PASS (cu). Everyone carrying the same map shows as a white arrow on it.
+39. **Passive players on the map** (`bots\run.js map-visibility`, 23 checks): everyone's phone is the same map. Non-passive players wear the map cloak (boots slot) and are missing from other players' maps but still see themselves. Passive players show up for everyone and get a green locator-bar dot. Turning passive on/off tells the player. The cloak survives clicks and death. A phone click on a banner doesn't add a map label (the bypass control does).
+    - Result: PASS (bot, 2026-09-24). 23/23. Every map packet in each 3-second window agreed (for example 12/12 with the passive player, 0/12 with the non-passive one). All earlier scenarios still pass with the map phone.
+40. **Same in the real client:** a passive bot and a non-passive bot stand inside the map.
+    - Result: PASS (cu). Only the passive bot's arrow shows, plus your own; the passive bot is a green dot on the locator bar. `zzpassive Explosde on` printed "Passive mode on. Other players can now see you on their map and compass."
+41. **How it feels (human):** is the map and compass enough to find your way, and can you tell passive players apart (vanilla arrows can't carry a name)?
+    - Result: HUMAN / TODO
 
 ## Needs a human (owner)
 

@@ -1,0 +1,55 @@
+# nav.sk: the phone's GPS map, and who shows up on it and on the locator bar.
+#
+# Every phone is the same vanilla filled map (cfg "nav::map-id"), so every player carrying a phone
+# is an arrow on everyone's map. Vanilla leaves a player off OTHER players' maps while they wear an
+# item from the #minecraft:map_invisibility_equipment tag in an armor slot (vanilla: carved pumpkin).
+# The datapack in world\datapacks\donating adds the map cloak's item type (structure void) to that
+# tag. The server rebuilds each viewer's markers right before sending that viewer's map, so:
+#   - non-passive players wear the map cloak in the boots slot: gone from other players' maps,
+#     but they still see their own arrow
+#   - passive players don't wear it: everyone sees their arrow (vanilla can't add a name label)
+# Locator bar (the 1.21.6+ bar above the hotbar): players send no waypoint unless passive, then a
+# green dot. Without this, vanilla shows every player to everyone.
+#
+# pvp.sk will own passive mode's rules (switch cooldown, combat tag, bounties) and call setPassive().
+
+function isPassive(p: offline player) :: boolean:
+	if getData({_p}, "passive") is true:
+		return true
+	return false
+
+# Structure void: never used anywhere else, can't be placed from an armor slot, and nothing is drawn
+# on the player's feet (it has no armor model).
+function mapCloak() :: item:
+	set {_i} to structure void named "&7Map cloak" with lore "&8Other players can't see you on their map." and "&8Turn on passive mode (phone) to show up."
+	return tagItem({_i}, "map-cloak")
+
+# Puts a player's map and locator-bar visibility in line with their passive state.
+function applyMapVisibility(p: player):
+	if isPassive({_p}) is true:
+		if itemId(boots of {_p}) is "map-cloak":
+			set boots of {_p} to air
+		execute console command "attribute %{_p}% minecraft:waypoint_transmit_range base set %cfg("nav::passive-range")%"
+		execute console command "waypoint modify %{_p}% color green"
+	else:
+		set boots of {_p} to mapCloak()
+		execute console command "attribute %{_p}% minecraft:waypoint_transmit_range base set 0"
+
+# Turns passive mode on or off and tells the player who can see them now.
+function setPassive(p: player, on: boolean):
+	if {_on} is true:
+		setData({_p}, "passive", true)
+		applyMapVisibility({_p})
+		msg({_p}, "Passive mode &aon&7. Other players can now see you on their map and compass.")
+	else:
+		deleteData({_p}, "passive")
+		applyMapVisibility({_p})
+		msg({_p}, "Passive mode &coff&7. You're hidden from other players' maps again.")
+
+on join:
+	applyMapVisibility(player)
+
+on respawn:
+	wait 1 tick
+	player is online
+	applyMapVisibility(player)

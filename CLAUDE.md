@@ -35,8 +35,15 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`). Never upload them.
-- Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde. The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`). Never upload them.
+- Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
+- Computer-use tips (verified 2026-09-24):
+  - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
+  - Windows "Click to Do" can steal focus; bring `javaw` forward with Win32 SetForegroundWindow, or click in the game window.
+  - Synthetic Escape didn't close the chat box; Enter on an empty chat line does. Check the chat box is closed before pressing number keys (they get typed into chat).
+  - To see a player's crosshair target, place a block with `execute as Explosde at @s anchored eyes positioned ^ ^ ^1.6 run setblock ~ ~ ~ ...`.
+  - Screenshots for the owner: the computer-use screenshot saves weren't findable. Capture DPI-aware (SetProcessDPIAware, the screen is 1920x1200 physical) and crop out the Claude window floating on the right.
+- `tools\serve-pack.js <pack.zip> [port]`: serves a resource pack on 127.0.0.1 for the local client (Workflow step 7). Plugins that rebuild their pack on start change its hash; leave `resource-pack-sha1` empty locally.
 
 ## Workflow
 1. **Local test server first**: set up Paper 1.21.11 in `.\server` with the same plugins and configs planned for Minehut. Check Java 21 is installed.
@@ -93,7 +100,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Boss bar: heist name + escape countdown. Turns red on alarm: "Cops in 20s", then wave number + next wave timer.
 - Sidebar: TAB switches to a heist board inside heists (heist name, difficulty, what you'd lose if you died now, bag value / size, robbers inside, loot spots left, wanted status).
 - Action bar for quick events; combat-tag messages take priority. Titles and sounds for big moments.
-- Extras: arrow pointing to the exit, then to the base while carrying loot; glow on loot spots you can still rob.
+- Extras: arrow pointing to the exit, then to the base while carrying loot (a locator-bar waypoint, see Navigation); glow on loot spots you can still rob.
 
 ### Weapons, gear and inventory
 - Players start with nothing. Shops sell some melee weapons, mostly guns (WeaponMechanics), ammo, consumables, helmets and armor vests.
@@ -127,6 +134,18 @@ Read this whole file before doing anything. It is the agreed plan from the owner
   - Grow from player kills and robberies. Killing the same player again within 15 minutes doesn't add to your bounty.
   - A bounty stays until a player kills you, then goes to that player.
   - You can't go passive while you have a bounty. Passive players can't gain one, and nobody can place one on them.
+
+### Navigation: no minimap mod (decided 2026-09-24)
+- GTA and Jailbreak have a corner minimap, which needs a client mod. Shader-based "vanilla minimap" plugins break on client updates (NMinimap fails on 26.3 and takes the whole server pack down with it), so Donating uses two vanilla features instead:
+  - Locator bar (the 1.21.6+ bar above the hotbar) as a compass: POI dots (bank, shops, base, open heists, later your car or a GPS target), colored per type, bigger when closer.
+  - The phone (hotbar 9) is the city GPS map: hold it to see the map, POI icons and named labels, and yourself.
+- Passive players show up on everyone's map (white arrow) and as a green dot on everyone's locator bar. Non-passive players never show on other players' maps or locator bars (they still see themselves). Turning passive on tells the player they're visible now; turning it off tells them they're hidden again.
+- Owner's wish, not possible in vanilla: a green NAME next to passive players on the map (vanilla player arrows have no label). Options, waiting for the owner:
+  - Cautious (built): plain white arrows.
+  - Realistic: a tiny custom plugin (~90 lines, a green arrow with a green name for passive players; a proof of concept was compiled in the session scratchpad but not installed). Needs the owner's OK (it's a Java plugin).
+  - A skript-reflect hack calling Paper internals: untested on Skript 2.16 and fragile across Paper builds.
+- Inside heists, hide the POI waypoints from that player (Skript `hide … from player`) so the XP bar shows the full bag meter; show the exit / base waypoint as needed.
+- Other orientation ideas (not built): district names on the action bar when entering areas (WorldGuard regions), street signs, a big wall map at the base.
 
 ### Cars (MTVehicles)
 - You can only drive car models you own. No stealing other players' cars (one plate per car keeps ownership clean for trading).
@@ -191,7 +210,8 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 
 ### Minecraft 1.21.11 / Paper gotchas (verified)
 - Game rules were renamed to snake_case: `keep_inventory`, `spawn_mobs`, `advance_time`, `show_advancement_messages`. The old camelCase names fail with "Incorrect argument".
-- EssentialsX replaces `/kill`, `/item`, `/list`, `/help`. From the console use `minecraft:kill @e[...]` and `minecraft:item replace ...`.
+- EssentialsX replaces `/kill`, `/item`, `/list`, `/help`, `/tp`, `/xp`. From the console use `minecraft:kill @e[...]`, `minecraft:item replace ...`, `minecraft:tp` and `minecraft:experience`.
+- Some bot scenarios kill every non-player entity to clean up, so hand-placed test entities (like POI armor stands) don't survive a test run.
 - LuckPerms runs commands async, so its replies never come back over RCON; check permissions with `/zzperm <player> <node>`.
 - `data get entity` output is truncated with "..." for big NBT. Use `/zzdump <player>` for inventories.
 - The recipe book moves items into the 2x2 crafting grid without an inventory click (closing puts them in the first free hotbar slot). Blocked with `on recipe book click` (found in the computer-use playtest; bots can't send it).
@@ -208,7 +228,18 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Its `Weapon_Info_Display.Action_Bar` fights hud.sk's action bar; turn it off or route ammo info elsewhere when building hud.sk. Keep `Show_Ammo_In.Exp_*` off (the XP bar is the bag meter).
 - WM keys (PDC): `weaponmechanics:weapon-title`, `weaponmechanics:ammo-left`, `weaponmechanics:ammo-name`.
 
+### Navigation (verified 2026-09-24 in the Paper 1.21.11 jar with javap, with bots, and in the 26.3 client)
+- Maps: every player carrying a copy of the same map id (anywhere in the inventory) is a white arrow on everyone's copy. `MapItemSavedData.tickCarriedBy` adds all carriers, then removes other carriers wearing an item from `#minecraft:map_invisibility_equipment` in an armor slot (hands don't count), but never the viewer itself. `ServerPlayer.doTick` runs that pass right before sending that player's map packet, so the hiding is per viewer and never flickers (12/12 packets in the bot test). Vanilla's tag only holds carved_pumpkin; our datapack (`server\world\datapacks\donating`) adds `minecraft:structure_void`, the map cloak (boots slot).
+- Player arrows never get a name (the server passes null). Item `map_decorations` entries are copied into the shared map data once (null name, never moved or removed until a restart). Named banners clicked with a map become labeled markers for everyone (saved with the map). That's why inventory.sk locks banner right-clicks; staff with bypass can still add labels.
+- Paper also drops a player's arrow for a viewer who can't see that player (`Player#canSee`), but that hides the player's body too; don't use it for maps.
+- The phone's `minecraft:map_id` is set with SkBee: `set int tag "minecraft:map_id" of nbt of {_i} to N`. A map_id with no data file shows an empty map. Locked maps (cartography table + glass pane) keep their pixels but still show arrows, icons and labels.
+- Map files: `world\data\map_<id>.dat` (gzip NBT; fields at their default, like `scale: 0`, are left out). `idcounts.dat` holds the next id.
+- Locator bar: any living entity (armor stands too) with `waypoint_transmit_range` > 0 is a waypoint for players within min(transmit, receive range). Players transmit 6e7 by default, so vanilla shows every player to everyone; nav.sk sets 0 unless passive. `waypoint modify <entity> color <color>` sets the dot color; custom icons need a resource pack (`waypoint_style`), untested. A waypoint entity is only tracked while its chunk is loaded: far POIs need `forceload`. Paper checks `CraftPlayer#canSee`, so Skript's `hide <entity> from <player>` removes one player's dot only.
+- XP bar vs locator bar: while a player has any waypoint, the locator bar replaces the XP fill bar (the level number stays visible above it). With no waypoints the fill bar is back.
+- Shader minimaps (NMinimap and similar): 26.3 compiles pack shaders to SPIR-V; old `#moj_import` shaders fail and the client rejects the whole server pack.
+
 ### Fixed-inventory rules for later scripts
+- The boots slot (Skript slot 36) holds the map cloak for non-passive players. Never sell boots or put anything else there.
 - The bag item must be unusable from the offhand: not placeable, edible, equippable, throwable, not a bundle/map/book/bucket. It's leather for now (item model later).
 - Never put equippable items (armor, heads, pumpkins) in the hotbar: right-click hot-swaps them with worn armor, and Skript can't cancel that event. Shops set helmets/vests straight into armor slots.
 - GUI menus: handle clicks at the default priority (they run before the lock's `highest` cancel); use `on any inventory click` if another plugin may cancel first.
@@ -282,6 +313,8 @@ Config notes (applied locally 2026-09-24; copy these files to Minehut):
 - LPC: one format pulling prefixes from LuckPerms; no per-group formats (the default `{prefix}{name}&r: {message}` already does this).
 - TAB: header/footer + sidebar; the heist board uses a display condition (`%donating_in_heist%=yes`, listed first). Belowname and TAB's boss bar stay off (belowname is broken on 26.1 clients; Skript runs the boss bar).
 - WeaponMechanics `config.yml`: `Resource_Pack_Download.Enabled: false` and `Automatically_Send_To_Player: false`.
+- Datapack: upload `server\world\datapacks\donating\` to `world/datapacks/donating/` on Minehut (it's needed for passive-only map visibility), then restart. `datapack list enabled` should show `file/donating`.
+- City GPS map (when the city exists): make a map covering the city (scale 2-3), fill it in by flying over the city holding it (or draw it), lock it in a cartography table, put named banners on it with a bypassed staff account, then set `nav::map-id` in core.sk to its id. The `world\data\map_<id>.dat` file goes to Minehut with the world.
 - Skript `config.sk`: default database `pattern: (?!-).*` so `{-...}` variables stay in memory only; `backups to keep: 24`.
 - EssentialsX `starting-balance: 0` stays: join-quit.sk gives `cfg("money::start")` on the first join, so the number lives in core.sk with the other money values.
 - Server-list text (MOTD): set it in the Minehut dashboard. Minehut's proxy answers server-list pings, and the server is asleep when nobody's on, so a Skript ping handler would never be seen. PROPOSAL (the owner hasn't picked one): line 1 `&6&lDONATING &8» &7Heists, cars & bounties`, line 2 `&fRob banks, dodge traps, outrun the cops`.
@@ -293,7 +326,8 @@ Phase 1 (core, inventory, heists, PvP):
 3. chat-extras.sk: chat cooldown, @mention highlight (lime) + sound, staff chat, /broadcast, rotating tips
 4. afk.sk: 5-minute AFK detection (refresh on every move/chat/command), /afk; AFK players earn nothing
 5. inventory.sk: the fixed inventory layout above; blocks every way items move (number keys, shift-click, drag, swap-hand, drop, death drops); runs after WeaponMechanics
-6. phone.sk: phone menu (garage, stats, passive toggle, bounties)
+6. phone.sk: phone menu (garage, stats, passive toggle, bounties). The phone is the GPS map; right-click opens the menu.
+6b. nav.sk (built early, 2026-09-24): who shows on the phone map and the locator bar (passive players only), `setPassive()` with its messages. Later: POI waypoints, heist exit/base waypoints, the city map id
 7. shop.sk: gun shop (unlock-once weapons, loadout editing, saved loadout, ammo); other shops (consumables, heist tools, bags, helmets and vests)
 8. death.sk: bag drop as one duffel, clears equipped weapons/consumables/ammo, balance loss formula, respawn
 9. combat-log.sk: last-damager tracking, wanted = cop tag, 5-second player-hit priority
@@ -340,7 +374,8 @@ Later:
 ## Status (2026-09-24, cloud session): START HERE in the next local session
 Everything from the cloud session is on branch `claude/dreamy-mendel-ouutfb` (draft PR https://github.com/PlaneGlueX/donating/pull/1, on top of `main`).
 
-Local progress (2026-09-24, handoff steps 1–4 done, step 5 partly): all 6 scripts loaded with no errors or warnings on the first start. Passing on the local server: inventory-lock 41/41, join 4/4, wm-reload 5/5, join-quit 15/15, chat-extras 20/20, and PLAYTEST item 29. Fixed: `/bc` (see PLAYTEST item 31) and two bot-harness bugs in `bots\lib.js`. Still to run: `bots\run.js afk` (item 32), item 34, then the human checks (30, 33, 23). Steps 6–8 below still apply.
+Local progress (2026-09-24, handoff steps 1–5 done): all scripts load with no errors or warnings. Passing on the local server: inventory-lock 41/41, join 4/4, wm-reload 5/5, join-quit 15/15, chat-extras 20/20, afk 10/10, map-visibility 23/23, plus PLAYTEST items 29, 30 (visible parts), 33 (water), 34 in the real client. Fixed: `/bc` (item 31), three bot-harness bugs (`bots\lib.js` chat/titles, afk's movement key). Left for a human: item 23 (feel of the lock), the first-join sound (30), driving (33, needs MTVehicles), 41 (map feel).
+Added in the same session at the owner's request: navigation without a minimap (see "Navigation" in Game design and Verified notes): nav.sk, the map phone, the map-cloak datapack, banner lock, `tools\serve-pack.js`. Waiting on the owner: the green-name plugin question (Navigation), whether to empty EssentialsX's `motd.txt` (PLAYTEST 30 note). PR #1 isn't merged yet: the owner decides (step 7). Not finished: an adversarial code review of the navigation changes (workflow `review-nav-passive-map`) was stopped to save tokens; rerun it before building on nav.sk. Steps 6–8 below still apply.
 
 What it did:
 - Code review of core.sk + inventory.sk (read against the Skript 2.16.2 and Paper 1.21.11 source). Fixed: `msg()`/`broadcastMsg()` used `formatted`, so player text passed in later could plant clickable commands (now `colored`); a candle on a cake got past the place lock (cakes added to the right-click lock); `cfg()` logs missing keys; `giveMoney` ignores amounts <= 0; the respawn handler skips players who left. New rules went into "Fixed-inventory rules for later scripts".
