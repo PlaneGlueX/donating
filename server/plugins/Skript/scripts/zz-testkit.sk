@@ -227,3 +227,31 @@ command /zztag <player>:
 	trigger:
 		tagCombat(arg-1, "trap")
 		send "TAGGED %arg-1%"
+
+# bounty.sk: a player's bounty, adding to it (like bag.sk's robbery sales), and the same-IP check
+# (every local bot shares 127.0.0.1).
+command /zzbounty <offline player> [<number>] [<text>]:
+	executable by: console
+	trigger:
+		if arg-2 is set:
+			set {_added} to addBounty(arg-1, arg-2, arg-3 ? "robbery")
+			send "BOUNTYADD %arg-1% %{_added}%"
+		set {_k} to getData(arg-1, "bounty-kills")
+		send "BOUNTY %arg-1% %getBounty(arg-1)% kills=%{_k}%"
+
+command /zzbountyreset <offline player>:
+	executable by: console
+	trigger:
+		clearBounty(arg-1)
+		delete {data::%arg-1%::bounty-last::*}
+		deleteData(arg-1, "bounty-payout")
+		send "BOUNTYRESET %arg-1%"
+
+command /zzbountyip <text>:
+	executable by: console
+	trigger:
+		if arg-1 is "off":
+			set {-cfg::bounty::ip-check} to false
+		else:
+			set {-cfg::bounty::ip-check} to true
+		send "BOUNTYIP %{-cfg::bounty::ip-check}%"

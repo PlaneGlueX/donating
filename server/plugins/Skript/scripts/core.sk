@@ -100,6 +100,8 @@ function loadSettings():
 	set {-cfg::bounty::per-kill} to 250
 	set {-cfg::bounty::kill-cap} to 25000
 	set {-cfg::bounty::min-placed} to 1000
+	# No bounty payout (or kill bounty) between players on the same IP address (alts).
+	set {-cfg::bounty::ip-check} to true
 
 	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
 	# Purchases at or above this price need a second click within the window.

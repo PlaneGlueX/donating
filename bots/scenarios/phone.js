@@ -119,7 +119,7 @@ module.exports = async ({ check }) => {
     t = Date.now()
     closing = closed()
     await click(21, 0, 0)
-    check('bounties button closes the menu and says coming soon', (await closing) && /Bounties are coming soon/.test(text(t)), text(t))
+    check('bounties button closes the menu and lists bounties', (await closing) && /Bounties \(players online\)/.test(text(t)) && /Place one: \/bounty/.test(text(t)), text(t))
 
     // ---------- Passive button ----------
     w = await openMenu()

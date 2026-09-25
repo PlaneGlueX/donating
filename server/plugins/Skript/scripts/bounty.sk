@@ -1,0 +1,171 @@
+# bounty.sk: bounties (CLAUDE.md, PvP, passive mode, bounties; Default rules).
+#   - Killing a player adds cfg("bounty::per-kill") to the killer's bounty. Bounty from kills is
+#     capped at cfg("bounty::kill-cap"); killing the same player again within
+#     cfg("bounty::repeat-kill-window") adds nothing.
+#   - Robberies: bag.sk calls addBounty(p, sale value × cfg("bounty::robbery-share"), "robbery").
+#   - Players can place a bounty on someone else: /bounty <player> <amount>, at least
+#     cfg("bounty::min-placed"). The money is taken from the placer.
+#   - A bounty stays until a player kills you (combat logs count, credited by combat-log.sk), then the
+#     killer is paid all of it and it's gone. Cop and trap deaths leave it.
+#   - Passive players can't gain, claim or place bounties, and nobody can place one on them.
+#   - No payout (and no kill bounty) between players on the same IP (alts), while
+#     cfg("bounty::ip-check") is true.
+#
+# Data: "bounty" = the whole bounty ($), "bounty-kills" = the part that came from kills (for the cap),
+# "bounty-last::<victim uuid>" = when this player last got kill bounty for that victim,
+# "bounty-payout" = money waiting for a killer who was offline at the claim (paid on join).
+# The death cause comes from death.sk (data "last-death-cause"); this runs after it (priority monitor).
+
+function getBounty(p: offline player) :: number:
+	set {_b} to getData({_p}, "bounty")
+	if {_b} is set:
+		return {_b}
+	return 0
+
+# Adds to a player's bounty (never for passive players). Returns what was added.
+function addBounty(p: offline player, amount: number, source: text) :: number:
+	if isPassive({_p}) is true:
+		return 0
+	set {_add} to floor({_amount})
+	if {_source} is "kill":
+		set {_kills} to getData({_p}, "bounty-kills")
+		if {_kills} is not set:
+			set {_kills} to 0
+		set {_add} to max(0, min({_add}, cfg("bounty::kill-cap") - {_kills}))
+		setData({_p}, "bounty-kills", {_kills} + {_add})
+	if {_add} <= 0:
+		return 0
+	setData({_p}, "bounty", getBounty({_p}) + {_add})
+	return {_add}
+
+function clearBounty(p: offline player):
+	deleteData({_p}, "bounty")
+	deleteData({_p}, "bounty-kills")
+
+# The online player with this uuid text, if any.
+function playerByUuid(u: text) :: player:
+	loop all players:
+		if "%uuid of loop-player%" is {_u}:
+			return loop-player
+
+function sameIp(a: player, b: player) :: boolean:
+	if cfg("bounty::ip-check") is not true:
+		return false
+	if ip of {_a} is ip of {_b}:
+		return true
+	return false
+
+on death of player with priority monitor:
+	set {_cause} to getData(victim, "last-death-cause")
+	{_cause} is set
+	{_cause} starts with "player:"
+	set {_ku} to last element of ({_cause} split at ":")
+	set {_vu} to "%uuid of victim%"
+	{_ku} is not {_vu}
+	set {_killer} to playerByUuid({_ku})
+	# (Nested ifs with stop: a condition line inside an if block would only skip that block.)
+	if {_killer} is set:
+		if sameIp({_killer}, victim) is true:
+			stop
+		if isPassive({_killer}) is true:
+			stop
+	set {_vname} to name of victim
+	# 1. The victim's bounty goes to the killer.
+	set {_bounty} to getBounty(victim)
+	if {_bounty} > 0:
+		clearBounty(victim)
+		set {_money} to formatMoney({_bounty})
+		if {_killer} is set:
+			giveMoney({_killer}, {_bounty})
+			set {_kname} to name of {_killer}
+			broadcastMsg("&6%{_kname}% claimed %{_vname}%'s %{_money}% bounty!")
+		else:
+			set {_owed} to {data::%{_ku}%::bounty-payout}
+			if {_owed} is not set:
+				set {_owed} to 0
+			set {data::%{_ku}%::bounty-payout} to {_owed} + {_bounty}
+			broadcastMsg("&6%{_vname}%'s %{_money}% bounty was claimed.")
+	# 2. The killer's own bounty grows (not twice for the same victim within the window).
+	{_killer} is set
+	set {_last} to getData({_killer}, "bounty-last::%{_vu}%")
+	if {_last} is set:
+		if difference between {_last} and now < cfg("bounty::repeat-kill-window"):
+			stop
+	setData({_killer}, "bounty-last::%{_vu}%", now)
+	set {_added} to addBounty({_killer}, cfg("bounty::per-kill"), "kill")
+	{_added} > 0
+	set {_total} to formatMoney(getBounty({_killer}))
+	msg({_killer}, "&cYour bounty is now %{_total}%.")
+
+on join:
+	set {_pay} to getData(player, "bounty-payout")
+	{_pay} is set
+	deleteData(player, "bounty-payout")
+	giveMoney(player, {_pay})
+	set {_money} to formatMoney({_pay})
+	msg(player, "&6You were paid %{_money}% for a bounty you claimed.")
+
+# ---------- Placing bounties ----------
+
+command /bounty [<offline player>] [<number>]:
+	trigger:
+		if arg-1 is not set:
+			showBounties(player)
+			stop
+		if arg-2 is not set:
+			set {_min} to formatMoney(cfg("bounty::min-placed"))
+			msg(player, "&7Place a bounty: /bounty <player> <amount> (at least %{_min}%).")
+			stop
+		placeBounty(player, arg-1, arg-2)
+
+function placeBounty(p: player, target: offline player, amount: number):
+	set {_amount} to floor({_amount})
+	set {_tname} to name of {_target}
+	if "%uuid of {_target}%" is "%uuid of {_p}%":
+		msg({_p}, "&cYou can't put a bounty on yourself.")
+		stop
+	if isPassive({_p}) is true:
+		msg({_p}, "&cPassive players can't place bounties.")
+		stop
+	if {_target} has not played before:
+		if {_target} is not online:
+			msg({_p}, "&cNobody called %{_tname}% has played here.")
+			stop
+	if isPassive({_target}) is true:
+		msg({_p}, "&c%{_tname}% is in passive mode: no bounties on them.")
+		stop
+	if {_amount} < cfg("bounty::min-placed"):
+		set {_min} to formatMoney(cfg("bounty::min-placed"))
+		msg({_p}, "&cA bounty is at least %{_min}%.")
+		stop
+	set {_money} to formatMoney({_amount})
+	if chargeMoney({_p}, {_amount}) is false:
+		msg({_p}, "&cYou don't have %{_money}%.")
+		stop
+	addBounty({_target}, {_amount}, "placed")
+	set {_total} to formatMoney(getBounty({_target}))
+	set {_pname} to name of {_p}
+	msg({_p}, "You put %{_money}% on %{_tname}%. Their bounty is now %{_total}%.")
+	set {_tp} to playerByUuid("%uuid of {_target}%")
+	if {_tp} is set:
+		msg({_tp}, "&c%{_pname}% put %{_money}% on your head. Your bounty is %{_total}%.")
+
+# The phone's Bounties app and /bounty: the biggest bounties of players online.
+function showBounties(p: player):
+	loop all players:
+		set {_b} to getBounty(loop-player)
+		{_b} > 0
+		set {_list::%loop-player%} to {_b}
+	msg({_p}, "&6Bounties (players online):")
+	set {_n} to 0
+	loop sorted indices of {_list::*} in descending order:
+		{_n} < 10
+		add 1 to {_n}
+		set {_who} to playerByUuid(loop-value)
+		set {_name} to name of {_who}
+		set {_money} to formatMoney({_list::%loop-value%})
+		send colored "&7 %{_n}%. &f%{_name}% &c%{_money}%" to {_p}
+	if {_n} is 0:
+		send colored "&7 Nobody online has a bounty." to {_p}
+	set {_min} to formatMoney(cfg("bounty::min-placed"))
+	send colored "&7Place one: &f/bounty <player> <amount> &7(at least %{_min}%)" to {_p}

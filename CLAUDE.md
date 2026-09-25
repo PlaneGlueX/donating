@@ -35,7 +35,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests, and `donating.wanted` **false**, or `*` makes staff count as wanted, which means always combat-tagged); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`, `/zzwm`, `/zzammo`, `/zzshopreset`, `/zzfill`, `/zzshop`, `/zztag`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`, `/zzwm`, `/zzammo`, `/zzshopreset`, `/zzfill`, `/zzshop`, `/zztag`, `/zzbounty`, `/zzbountyreset`, `/zzbountyip`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 - Computer-use tips (verified 2026-09-24):
   - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
@@ -238,6 +238,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Skript 2.16's gamerule expression changed; `execute console command "gamerule keep_inventory true"` is the reliable way.
 
 ### Minecraft 1.21.11 / Paper gotchas (verified)
+- EssentialsX's spawn-on-respawn is a teleport, so its teleport protection also covers the first 4 s after respawning (tests wait 5 s before hitting a respawned bot).
 - Game rules were renamed to snake_case: `keep_inventory`, `spawn_mobs`, `advance_time`, `show_advancement_messages`. The old camelCase names fail with "Incorrect argument".
 - EssentialsX `teleport-invulnerability: 4`: for 4 s after ANY command teleport (also `minecraft:tp` and Skript teleports) the player can't hit or be hit by players. Good as spawn/escape protection; remember it in tests and for heist teleports.
 - New players can't be hurt until their client says it has loaded; Mineflayer never says so, so bot hits land only about 6 s after joining.
@@ -387,7 +388,7 @@ Phase 1 (core, inventory, heists, PvP):
 8. death.sk (built 2026-09-25): clears hotbar 1-5, ammo, helmet and vest; the bag is lost (data `bag-tier` = the bag you carry, deleted; `bag-best` = the highest tier unlocked, kept); balance loss L = min(B × p, C) with cop-p for cop deaths; saves `last-death-cause` / `last-death-loss`; tells a combat-logger on their next join. Still to add: the loot duffel (bag.sk), heist difficulty and loot pool (heists.sk fills `deathDifficulty` / `deathLootPool`).
 9. combat-log.sk (built 2026-09-25): combat tag (15 s PROPOSAL) on player/cop/trap damage, wanted = tagged (permission `donating.wanted`), logout while tagged = death credited by `deathCause()` (5-second player-hit priority, then cops, then last damager), no teleport commands or passive switch while tagged. traps.sk calls `tagCombat(victim, "trap")`; death.sk and bounty.sk read `deathCause()` and the data `last-combat-log`.
 10. pvp.sk (2026-09-25: passive switching with the cooldown, bounty and combat-tag rules; no PvP for or against passive players; safe zones; the spawn shield). Still to add: the loot check in `passiveBlockReason()` (bag.sk), PvP-only heists (heists.sk).
-11. bounty.sk: bounty from kills and robberies, placed bounties, claims, passive immunity, anti-farming
+11. bounty.sk (built 2026-09-25): kills add $250 (PROPOSAL) to the killer's bounty, capped at $25,000 from kills, not twice for the same victim within 15 min; `addBounty(p, value × robbery-share, "robbery")` for bag.sk's sales; `/bounty <player> <amount>` places one (at least $1,000, paid by the placer); the next player kill (or a combat log credited to a player) pays the killer all of it; passive players can't gain, claim or place bounties, and nobody can place one on them; no payout or kill bounty between same-IP players (`bounty::ip-check`). The phone's Bounties app and `/bounty` list the biggest bounties online.
 12. heists.sk: heist list, open/closed timers, cooldowns, rank requirements, escape countdown, alarms (advanced heists), room resets, status holograms
 13. traps.sk: lasers, pressure plates, cameras, collapsing floors
 14. loot.sk: KoyaRobbery-style loot spots, tools, progress bars
@@ -424,9 +425,9 @@ Later:
 Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged 2026-09-25, owner's go-ahead). Work on a new branch per task and merge it when its tests pass.
 
 Built and passing on the local server (details and results in PLAYTEST.md):
-- Scripts 1-10 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav, shop, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk).
+- Scripts 1-11 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav, shop, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk), bounty.
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 32, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 40 = 289 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 32, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 40, bounty 19 = 308 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:
@@ -435,7 +436,7 @@ Waiting on the owner:
 - When building bag.sk: does a duffel pickup with too little room take nothing or as much as fits?
 - The two SpigotMC jars (MTVehicles 2.5.9, KoyaRobbery 1.2.2).
 
-Next in the build order: bounty.sk (script 11), then heists.sk, traps.sk, loot.sk and bag.sk (the duffel). The shop's prices and catalogue are PROPOSALs (owner questions in PLAYTEST 59) (the helmet/vest and bag-loss answers are in Death and combat).
+Next in the build order: heists.sk (script 12), traps.sk, loot.sk and bag.sk (the duffel; it calls `addBounty` for robbery sales). The shop's prices and catalogue are PROPOSALs (owner questions in PLAYTEST 59) (the helmet/vest and bag-loss answers are in Death and combat).
 
 History: the first local session (2026-09-24) set up the server and built core.sk + inventory.sk; a cloud session wrote join-quit, chat-extras and afk on branch `claude/dreamy-mendel-ouutfb`; the second local session tested and fixed them, added navigation (locator bar + the map phone), phone.sk, pvp.sk and the phone plugin, then merged the branch.
 

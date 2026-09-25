@@ -172,6 +172,13 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 60. **Shops in the real client (human):** the menus look right (titles, lore, the glint on the selected weapon and active tab, the status line), the mannequin keeper, the reload feel with bought ammo, helmet/vest look, the bag appears in the offhand, whether the confirm click and Restore are clear.
     - Result: HUMAN / TODO
 
+## bounty.sk: bounties (2026-09-25)
+
+61. **Bounties** (`bots\run.js bounty`, 19 checks; kills with `/damage <victim> 1000 minecraft:player_attack by <killer>`, the same damage event as a hit): a kill adds $250 to the killer (not the victim), not again for the same victim within 15 min; killing someone with a bounty pays the killer all of it, everyone is told, and the killer gets their own kill bounty; kill bounty stops at $25,000; a robbery adds to it, not for passive players; placing $1,000 (paid by the placer), and not on yourself, below $1,000, without the money, on a passive player, or by a passive player; /bounty lists the biggest bounties online; same IP: no payout and no kill bounty; a non-player death leaves the bounty; logging out in combat hands it to the player who hit you. The phone's Bounties button shows the list (phone 32/32).
+    - Result: PASS (bot, 2026-09-25). 19/19.
+62. **Bounties (owner):** $250 per kill, the $25,000 cap from kills, $1,000 minimum to place, whether a claim should be announced to everyone (it is now).
+    - Result: OWNER / TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.
