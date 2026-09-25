@@ -28,10 +28,14 @@ function join (username, { timeoutMs = 30000 } = {}) {
     })
     // Mineflayer's own 'title' event passes 1.21's NBT titles on as raw objects ("[object Object]"),
     // so the title packets are decoded here the same way chat messages are.
-    const title = (type, raw) => {
+    const decode = (kind, raw) => {
       const msg = require('prismarine-chat')(bot.registry).fromNotch(raw)
-      record(`title:${type}`, msg.toString(), msg.toMotd(), msg.json)
+      record(kind, msg.toString(), msg.toMotd(), msg.json)
     }
+    const title = (type, raw) => decode(`title:${type}`, raw)
+    // Action bars come in their own packet in 1.21, which Mineflayer ignores. Same kind as the
+    // old chat-position action bar ("game_info").
+    bot._client.on('action_bar', packet => decode('game_info', packet.text))
     bot._client.on('set_title_text', packet => title('title', packet.text))
     bot._client.on('set_title_subtitle', packet => title('subtitle', packet.text))
     bot.on('kicked', reason => record('kicked', typeof reason === 'string' ? reason : JSON.stringify(reason)))

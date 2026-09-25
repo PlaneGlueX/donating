@@ -1,0 +1,58 @@
+# pvp.sk: PvP rules. So far: switching passive mode, and passive players can't hurt or be hurt by
+# other players. Safe zones and the spawn shield come later (they need WorldGuard regions).
+#
+# Switch rules (CLAUDE.md, Default rules):
+#   - cfg("passive::switch-cooldown") between switches (saved, so relogging doesn't skip it)
+#   - no going passive while you have a bounty
+# Still to add when their scripts exist: not while combat-tagged (combat-log.sk), not while carrying
+# loot (bag.sk). Add them to passiveBlockReason().
+# nav.sk's setPassive() does the switch itself: map/compass visibility and the message.
+
+# ---------- Passive players and PvP ----------
+# No player damage to or from a passive player: melee, arrows and WeaponMechanics guns (its damage
+# goes through this event with the shooter as attacker; checked by bots\run.js pvp). Cops are
+# Citizens NPCs (metadata "NPC") and traps aren't players, so both still hurt passive players.
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	if isPassive(victim) is true:
+		cancel event
+		send action bar "&aThat player is in passive mode." to attacker
+	else if isPassive(attacker) is true:
+		cancel event
+		send action bar "&aYou're in passive mode: you can't hurt players." to attacker
+
+# ---------- Switching passive mode ----------
+
+# "" when the player may switch now, otherwise the reason to show them.
+function passiveBlockReason(p: player) :: text:
+	set {_last} to getData({_p}, "passive-switched")
+	if {_last} is set:
+		set {_since} to difference between {_last} and now
+		set {_cooldown} to cfg("passive::switch-cooldown")
+		if {_since} < {_cooldown}:
+			set {_minutes} to ceil(({_cooldown} - {_since}) / 1 minute)
+			if {_minutes} is 1:
+				return "You can switch passive mode again in 1 minute."
+			return "You can switch passive mode again in %{_minutes}% minutes."
+	if isPassive({_p}) is false:
+		set {_bounty} to getData({_p}, "bounty")
+		if {_bounty} is set:
+			if {_bounty} > 0:
+				return "You can't go passive while you have a bounty."
+	return ""
+
+# The phone's passive button. Tells the player why if they can't switch right now.
+function togglePassive(p: player):
+	set {_why} to passiveBlockReason({_p})
+	if {_why} is not "":
+		msg({_p}, "&c%{_why}%")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	setData({_p}, "passive-switched", now)
+	if isPassive({_p}) is true:
+		setPassive({_p}, false)
+	else:
+		setPassive({_p}, true)
+	play sound "block.note_block.chime" with volume 0.6 to {_p}

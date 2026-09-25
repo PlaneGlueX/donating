@@ -132,21 +132,28 @@ module.exports = async ({ check }) => {
     }
     await rcon.cmd(`setblock ${bannerPos.x} ${bannerPos.y} ${bannerPos.z} red_banner{CustomName:'Zz'}`)
     await sleep(500)
-    const clickBanner = async () => {
-      bots[B].setQuickBarSlot(8)
+    // Hotbar 9 is the phone (right-click opens the phone menu); hotbar 1 gets a plain copy of the
+    // map, the way staff label the city map, to test inventory.sk's banner lock on its own.
+    await rcon.cmd(`minecraft:item replace entity ${B} hotbar.0 with filled_map[map_id=${mapId}]`)
+    const clickBanner = async hotbar => {
+      bots[B].setQuickBarSlot(hotbar)
       await sleep(300)
       try { await bots[B].activateBlock(bots[B].blockAt(bannerPos)) } catch (err) { /* checked below */ }
       await sleep(800)
+      if (bots[B].currentWindow) bots[B].closeWindow(bots[B].currentWindow)
     }
-    await clickBanner()
+    await clickBanner(8)
     let l = await label()
     check('a phone click on a banner adds no map label', l.got > 0 && !l.shown, `${l.got} packets, label ${l.shown}`)
+    await clickBanner(0)
+    l = await label()
+    check('a plain map copy adds no label either (banner lock)', l.got > 0 && !l.shown, `${l.got} packets, label ${l.shown}`)
     await rcon.cmd(`lp user ${B} permission set donating.inventory.bypass true`)
     await sleep(1500)
-    await clickBanner()
+    await clickBanner(0)
     l = await label()
-    check('control (bypass): the same click adds the label', l.shown, `${l.got} packets, label ${l.shown}`)
-    await clickBanner() // toggles the label off again
+    check('control (bypass, plain map copy): the click adds the label', l.shown, `${l.got} packets, label ${l.shown}`)
+    await clickBanner(0) // toggles the label off again
     await rcon.cmd(`lp user ${B} permission unset donating.inventory.bypass`)
     await rcon.cmd(`setblock ${bannerPos.x} ${bannerPos.y} ${bannerPos.z} air`)
   } finally {

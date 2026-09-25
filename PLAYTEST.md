@@ -112,6 +112,20 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 41. **How it feels (human):** is the map and compass enough to find your way, and can you tell passive players apart (vanilla arrows can't carry a name)?
     - Result: HUMAN / TODO
 
+## phone.sk + pvp.sk: the phone menu and passive switching
+
+42. **Phone menu** (`bots\run.js phone`, 26 checks): right-clicking the phone (hotbar 9) opens the menu with stats (head), passive, garage, bounties, help and close. Clicking, shift-clicking and number keys can't take or move anything (also with the inventory bypass). Garage and bounties say "coming soon". The passive button closes the menu, turns passive on and tells the player. Switching again right away is refused ("again in 10 minutes"). Going passive with a bounty is refused. Help shows the help page. Right-clicking a lever with the phone opens the menu once and doesn't flip the lever.
+    - Result: PASS (bot, 2026-09-24). 26/26 after the review fixes: right-clicking an armor stand or villager with the phone opens no menu (NPC shops and cars keep working), a double click on the passive button runs it once, garage/bounties close the menu before replying, the stats show the real numbers (bounty $500 after setting it), the bypass is confirmed active before the bypass checks, and the test runs on its own sky platform. map-visibility is now 24/24: its banner-label control uses a plain copy of the map, because a phone right-click opens the menu.
+43. **Phone menu in the real client:** looks right; the stats tooltip is readable.
+    - Result: PASS (cu, 2026-09-24). Tooltip: "Your stats / Name: [Owner] Explosde / Balance: $500 / Bounty: $0 / Bag: none yet / Passive mode: off / Time played: 2h 27m / Playing since: Sep 24, 2026", in the intended colors.
+44. **How the phone feels (human):** is right-click to open natural? Do the icons make sense? Holding the phone (the map) and right-clicking a door or button opens the phone instead of using the block: OK, or should blocks win?
+    - Result: HUMAN / TODO (the phone is being redesigned around the owner's custom plugin; see CLAUDE.md, Navigation)
+
+## pvp.sk: passive players and PvP
+
+45. **Passive players can't hurt or be hurt by players** (`bots\run.js pvp`, 10 checks). Each blocked case has a positive control: between two non-passive players the same punch does damage and the same AK-47 burst kills. A punch or a gun does nothing to a passive player, and a passive player's punch or gun does nothing to others; the attacker gets an action-bar reason. A passive player still takes non-player damage (traps).
+    - Result: PASS (bot, 2026-09-24). 10/10. Found on the way: EssentialsX `teleport-invulnerability: 4` blocks all PvP for 4 s after any command teleport; bots can't be hurt for about 6 s after joining; an AK-47 burst kills in under half a second (the target respawns at full health, so the test counts deaths); WeaponMechanics damage goes through the damage event with the shooter as attacker, so Skript can cancel it. Bots now record 1.21 action bars (their own packet, which Mineflayer ignored).
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

@@ -76,7 +76,17 @@ command /zzafkstate <player>:
 	trigger:
 		send "AFK %arg-1%: %isAfk(arg-1)%"
 
-# nav.sk: turn passive mode on or off (pvp.sk will add the real toggle's rules).
+# Player data: /zzdata <player> <key> shows it, "... <key> <number>" sets it, "... <key> none" deletes it.
+command /zzdata <offline player> <text> [<text>]:
+	executable by: console
+	trigger:
+		if arg-3 is "none":
+			deleteData(arg-1, arg-2)
+		else if arg-3 is set:
+			setData(arg-1, arg-2, arg-3 parsed as number)
+		send "DATA %arg-1% %arg-2% = %getData(arg-1, arg-2)%"
+
+# nav.sk: turn passive mode on or off directly (the phone button goes through pvp.sk's rules).
 command /zzpassive <player> <text>:
 	executable by: console
 	trigger:

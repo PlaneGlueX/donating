@@ -35,7 +35,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 - Computer-use tips (verified 2026-09-24):
   - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
@@ -113,8 +113,11 @@ Read this whole file before doing anything. It is the agreed plan from the owner
   - Offhand: the bag.
 
 ### Death and combat
-- Every death (player, trap, or cop) drops your whole bag as one duffel on the ground.
+- Every death (player, trap, or cop) drops the loot in your bag as one duffel on the ground (decided 2026-09-24):
+  - Only the loot drops. The bag itself is lost too (it never drops, nobody can take it), but its tier stays unlocked: buy a new one of that tier at the shop.
+  - Someone picking up the duffel only gets it if their own bag has enough room (owner: "it only picks up if they have enough space in their own bag"). Confirm with the owner when building bag.sk whether that means all-or-nothing or "as much as fits".
 - You also lose your equipped weapons, consumables and all ammo. Nothing drops for other players; weapons stay unlocked.
+- Helmets and vests are lost on death and bought again (decided 2026-09-24). They don't drop.
 - Balance loss: L = min(B × p, C)
   - B = balance.
   - p = heist difficulty %: player/trap deaths 1–5%, cop deaths 5–10%.
@@ -140,11 +143,13 @@ Read this whole file before doing anything. It is the agreed plan from the owner
   - Locator bar (the 1.21.6+ bar above the hotbar) as a compass: POI dots (bank, shops, base, open heists, later your car or a GPS target), colored per type, bigger when closer.
   - The phone (hotbar 9) is the city GPS map: hold it to see the map, POI icons and named labels, and yourself.
 - Passive players show up on everyone's map (white arrow) and as a green dot on everyone's locator bar. Non-passive players never show on other players' maps or locator bars (they still see themselves). Turning passive on tells the player they're visible now; turning it off tells them they're hidden again.
-- Owner's wish, not possible in vanilla: a green NAME next to passive players on the map (vanilla player arrows have no label). Options, waiting for the owner:
-  - Cautious (built): plain white arrows.
-  - Realistic: a tiny custom plugin (~90 lines, a green arrow with a green name for passive players; a proof of concept was compiled in the session scratchpad but not installed). Needs the owner's OK (it's a Java plugin).
-  - A skript-reflect hack calling Paper internals: untested on Skript 2.16 and fragile across Paper builds.
-- Inside heists, hide the POI waypoints from that player (Skript `hide … from player`) so the XP bar shows the full bag meter; show the exit / base waypoint as needed.
+- Custom phone plugin: APPROVED by the owner (2026-09-24), the one exception to "no Java plugins". The owner's vision:
+  - The phone in hand is a player-centered map (the screen follows you, like a phone GPS).
+  - Right-click the phone: the full view of the city map.
+  - Buttons or side buttons around the map (resource pack or otherwise), so the phone does its other jobs too (stats, passive, garage, bounties, help), not only the map.
+  - Passive players: a green arrow with a green name on the map; non-passive players don't show on other players' maps.
+  Keep the plugin small and driven from Skript (commands, scoreboard tags or PDC), with the game rules in Skript. Design: "Phone plugin" below, once built.
+- Inside heists the XP fill bar (bag meter) needs zero waypoints for that player. Hiding POI entities isn't enough (passive players are waypoints too, and hiding a player hides their body). Instead set the robber's own `waypoint_receive_range` base to 0 on heist entry and back to 6e7 on exit, death and join (verified: ServerPlayer.onAttributeUpdated re-adds the player to the waypoint manager at once). That also takes a passive robber off everyone's bar while inside. An exit/base waypoint and the fill bar can't show together; only the level number (bag %) shows in both.
 - Other orientation ideas (not built): district names on the action bar when entering areas (WorldGuard regions), street signs, a big wall map at the base.
 
 ### Cars (MTVehicles)
@@ -187,7 +192,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - SkBee structures can save and paste heist rooms for resets.
 - Shared numbers: Skript options (`{@x}`) only work in the file that defines them, so all settings live in `loadSettings()` in core.sk as memory-only `{-cfg::*}` variables. Other scripts read `{-cfg::key}` or `cfg("key")`.
 - Placeholders from skript-placeholders must be named `prefix_identifier` (e.g. `%donating_rank%`); current PlaceholderAPI rejects bare names. Install it as a plugin, not as a PAPI expansion.
-- Skript's WorldGuard region hooks are deprecated (warning at startup); the official skript-worldguard addon replaces them. Decide before building pvp.sk/heists.sk.
+- WorldGuard in Skript: skript-worldguard 1.0.1 (official addon, installed 2026-09-24, owner decision). Skript's own deprecated hook is off (`config.sk`: disable hooks → regions → worldguard: true). Open upstream issues to watch: #44 region detection, #34 blocks of region.
 
 ### Verified in Skript 2.16.2 + SkBee 3.25.4 (loaded on the local server)
 - `on inventory click with priority highest:`, `on swap hand items with priority highest:`, `on drop with priority highest:`, `on inventory drag:` all parse.
@@ -210,6 +215,8 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 
 ### Minecraft 1.21.11 / Paper gotchas (verified)
 - Game rules were renamed to snake_case: `keep_inventory`, `spawn_mobs`, `advance_time`, `show_advancement_messages`. The old camelCase names fail with "Incorrect argument".
+- EssentialsX `teleport-invulnerability: 4`: for 4 s after ANY command teleport (also `minecraft:tp` and Skript teleports) the player can't hit or be hit by players. Good as spawn/escape protection; remember it in tests and for heist teleports.
+- New players can't be hurt until their client says it has loaded; Mineflayer never says so, so bot hits land only about 6 s after joining.
 - EssentialsX replaces `/kill`, `/item`, `/list`, `/help`, `/tp`, `/xp`. From the console use `minecraft:kill @e[...]`, `minecraft:item replace ...`, `minecraft:tp` and `minecraft:experience`.
 - Some bot scenarios kill every non-player entity to clean up, so hand-placed test entities (like POI armor stands) don't survive a test run.
 - LuckPerms runs commands async, so its replies never come back over RCON; check permissions with `/zzperm <player> <node>`.
@@ -230,16 +237,23 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 
 ### Navigation (verified 2026-09-24 in the Paper 1.21.11 jar with javap, with bots, and in the 26.3 client)
 - Maps: every player carrying a copy of the same map id (anywhere in the inventory) is a white arrow on everyone's copy. `MapItemSavedData.tickCarriedBy` adds all carriers, then removes other carriers wearing an item from `#minecraft:map_invisibility_equipment` in an armor slot (hands don't count), but never the viewer itself. `ServerPlayer.doTick` runs that pass right before sending that player's map packet, so the hiding is per viewer and never flickers (12/12 packets in the bot test). Vanilla's tag only holds carved_pumpkin; our datapack (`server\world\datapacks\donating`) adds `minecraft:structure_void`, the map cloak (boots slot).
-- Player arrows never get a name (the server passes null). Item `map_decorations` entries are copied into the shared map data once (null name, never moved or removed until a restart). Named banners clicked with a map become labeled markers for everyone (saved with the map). That's why inventory.sk locks banner right-clicks; staff with bypass can still add labels.
+- Player arrows never get a name (the server passes null). Item `map_decorations` entries are copied into the shared map data once (null name, never moved or removed until a restart). Named banners clicked with a map become labeled markers for everyone (saved with the map). That's why inventory.sk locks banner right-clicks; staff with bypass can still add labels with a plain copy of the map (not the phone).
 - Paper also drops a player's arrow for a viewer who can't see that player (`Player#canSee`), but that hides the player's body too; don't use it for maps.
 - The phone's `minecraft:map_id` is set with SkBee: `set int tag "minecraft:map_id" of nbt of {_i} to N`. A map_id with no data file shows an empty map. Locked maps (cartography table + glass pane) keep their pixels but still show arrows, icons and labels.
 - Map files: `world\data\map_<id>.dat` (gzip NBT; fields at their default, like `scale: 0`, are left out). `idcounts.dat` holds the next id.
 - Locator bar: any living entity (armor stands too) with `waypoint_transmit_range` > 0 is a waypoint for players within min(transmit, receive range). Players transmit 6e7 by default, so vanilla shows every player to everyone; nav.sk sets 0 unless passive. `waypoint modify <entity> color <color>` sets the dot color; custom icons need a resource pack (`waypoint_style`), untested. A waypoint entity is only tracked while its chunk is loaded: far POIs need `forceload`. Paper checks `CraftPlayer#canSee`, so Skript's `hide <entity> from <player>` removes one player's dot only.
-- XP bar vs locator bar: while a player has any waypoint, the locator bar replaces the XP fill bar (the level number stays visible above it). With no waypoints the fill bar is back.
+- XP bar vs locator bar: while a player has any waypoint, the locator bar replaces the XP fill bar (the level number stays visible above it), except for 5 s after each XP change. With no waypoints the fill bar is back.
+- Never put the phone's map id in an item frame: framed maps run the marker pass without adding player arrows, so nearby cloaked viewers lose their own arrow for a few ticks, and a frame marker shows on every phone. A wall map must be a separate map id. ("Never flickers" above only covers copies in inventories.)
+- A player who carries no copy of the map id is dropped from it. So the car key (while driving) must be a filled_map with the same `minecraft:map_id` (another donating_id), or the phone stays in slot 8 and the key goes elsewhere.
+- Locking a map in a cartography table creates a NEW map id (the original stays unlocked). Use the locked copy's id for `nav::map-id`, or every holder keeps repainting the unlocked one.
+- Held maps render two-handed (big, centered) only with an empty offhand. Players with a bag see the phone one-handed (small, lower corner). Design the phone screen for one-handed size.
+- Locator bar: vanilla hides a player's dot while they sneak, are invisible, or wear a head/skull or carved pumpkin (a HEAD-slot `waypoint_transmit_range_hide` modifier).
 - Shader minimaps (NMinimap and similar): 26.3 compiles pack shaders to SPIR-V; old `#moj_import` shaders fail and the client rejects the whole server pack.
 
 ### Fixed-inventory rules for later scripts
 - The boots slot (Skript slot 36) holds the map cloak for non-passive players. Never sell boots or put anything else there.
+- No armor or cosmetic item may use carved_pumpkin, structure_void, or player/mob heads as its base item: they change map or locator-bar visibility. Build hats and helmets on a neutral base with item_model / equippable components.
+- Known limit of Skript's click event: all `on right click` triggers share one tracker, and a second click event in the same tick (hacked client or a lag burst) skips every Skript click lock. Keep shelves, decorated pots, chiseled bookshelves, cakes and banners out of players' reach, or cover them with a WorldGuard region that denies `interact`/`use` (WorldGuard's own listener doesn't depend on Skript).
 - The bag item must be unusable from the offhand: not placeable, edible, equippable, throwable, not a bundle/map/book/bucket. It's leather for now (item model later).
 - Never put equippable items (armor, heads, pumpkins) in the hotbar: right-click hot-swaps them with worn armor, and Skript can't cancel that event. Shops set helmets/vests straight into armor slots.
 - GUI menus: handle clicks at the default priority (they run before the lock's `highest` cancel); use `on any inventory click` if another plugin may cancel first.
@@ -265,13 +279,11 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Wanted counts as combat-tagged, and combat-tagged players can't enter safe zones, so you can't reach the base to sell until you lose the cops.
 - Passive mode: robbery payouts −25%, can't enter PvP-only heists, can't place or claim bounties, 10-minute switch cooldown, can't switch while combat-tagged or carrying loot.
 - Spawn shield: 10 seconds after respawn/join, ends if you attack.
-- Dropped duffel: picking it up moves loot into your bag up to your capacity; the rest stays. Despawns after 2 minutes.
+- Dropped duffel: only loot (never the bag). Pickup needs room in your own bag (see Death and combat). Despawns after 2 minutes.
 - Deaths outside a heist use the easiest tier's % and your bag cap.
 - Quick-time challenge: a menu minigame (click when the marker lines up); 3 failed attempts break the lockpick.
 - Money values (heist payouts, bag sizes, prices) aren't set yet. Proposed numbers are in `loadSettings()` in core.sk, marked PROPOSAL, waiting for the owner.
 
-## Open question
-- Helmets and vests: unlocked once like guns (re-equip after death at a shop), or lost on death and bought again like ammo? Ask before building gear.
 
 ## Monetization rules
 - Cosmetics only (car wraps, bag skins, trails, titles, ranks with cosmetic perks). Never sell cash, guns, bags or anything that gives an advantage.
@@ -292,6 +304,7 @@ Installed and verified loading (2026-09-24):
 - Skript **2.16.2** (changed from 2.16.1: drop-in bug-fix release; fixes event-location in the pick-up event, which duffel pickup needs)
 - SkBee 3.25.4: https://modrinth.com/plugin/skbee (needs Skript 2.15+, MC 1.21.11+)
 - skript-placeholders 1.7.1: https://github.com/APickledWalrus/skript-placeholders/releases
+- skript-worldguard 1.0.1: https://github.com/SkriptLang/skript-worldguard/releases (needs Skript 2.14+; replaces Skript's deprecated WorldGuard hook)
 - WeaponMechanics 4.3.1: https://github.com/WeaponMechanics/WeaponMechanics/releases (repo moved from MechanicsMain)
 - MechanicsCore 4.3.1: https://github.com/WeaponMechanics/MechanicsCore/releases (own repo now)
 - PacketEvents **2.13.0**: https://modrinth.com/plugin/packetevents (required by WeaponMechanics, needs 2.12.1+; 2.14.0 was 1 day old, so it was skipped)
@@ -314,7 +327,7 @@ Config notes (applied locally 2026-09-24; copy these files to Minehut):
 - TAB: header/footer + sidebar; the heist board uses a display condition (`%donating_in_heist%=yes`, listed first). Belowname and TAB's boss bar stay off (belowname is broken on 26.1 clients; Skript runs the boss bar).
 - WeaponMechanics `config.yml`: `Resource_Pack_Download.Enabled: false` and `Automatically_Send_To_Player: false`.
 - Datapack: upload `server\world\datapacks\donating\` to `world/datapacks/donating/` on Minehut (it's needed for passive-only map visibility), then restart. `datapack list enabled` should show `file/donating`.
-- City GPS map (when the city exists): make a map covering the city (scale 2-3), fill it in by flying over the city holding it (or draw it), lock it in a cartography table, put named banners on it with a bypassed staff account, then set `nav::map-id` in core.sk to its id. The `world\data\map_<id>.dat` file goes to Minehut with the world.
+- City GPS map (when the city exists): make a map covering the city (scale 2-3), fill it in by flying over the city holding it (or draw it), lock it in a cartography table, put named banners on it (a staff account with the inventory bypass, holding a plain copy of the map: the phone opens its menu instead), then set `nav::map-id` in core.sk to its id. The `world\data\map_<id>.dat` file goes to Minehut with the world.
 - Skript `config.sk`: default database `pattern: (?!-).*` so `{-...}` variables stay in memory only; `backups to keep: 24`.
 - EssentialsX `starting-balance: 0` stays: join-quit.sk gives `cfg("money::start")` on the first join, so the number lives in core.sk with the other money values.
 - Server-list text (MOTD): set it in the Minehut dashboard. Minehut's proxy answers server-list pings, and the server is asleep when nobody's on, so a Skript ping handler would never be seen. PROPOSAL (the owner hasn't picked one): line 1 `&6&lDONATING &8» &7Heists, cars & bounties`, line 2 `&fRob banks, dodge traps, outrun the cops`.
@@ -326,12 +339,12 @@ Phase 1 (core, inventory, heists, PvP):
 3. chat-extras.sk: chat cooldown, @mention highlight (lime) + sound, staff chat, /broadcast, rotating tips
 4. afk.sk: 5-minute AFK detection (refresh on every move/chat/command), /afk; AFK players earn nothing
 5. inventory.sk: the fixed inventory layout above; blocks every way items move (number keys, shift-click, drag, swap-hand, drop, death drops); runs after WeaponMechanics
-6. phone.sk: phone menu (garage, stats, passive toggle, bounties). The phone is the GPS map; right-click opens the menu.
+6. phone.sk (built 2026-09-24): phone menu: stats, passive toggle (pvp.sk rules), how to play, close; garage and bounties are "coming soon" placeholders for garage.sk / bounty.sk. The phone is the GPS map; right-click opens the menu.
 6b. nav.sk (built early, 2026-09-24): who shows on the phone map and the locator bar (passive players only), `setPassive()` with its messages. Later: POI waypoints, heist exit/base waypoints, the city map id
 7. shop.sk: gun shop (unlock-once weapons, loadout editing, saved loadout, ammo); other shops (consumables, heist tools, bags, helmets and vests)
 8. death.sk: bag drop as one duffel, clears equipped weapons/consumables/ammo, balance loss formula, respawn
 9. combat-log.sk: last-damager tracking, wanted = cop tag, 5-second player-hit priority
-10. pvp.sk: safe zones, spawn shield, passive mode and its limits
+10. pvp.sk: safe zones, spawn shield, passive mode and its limits (started 2026-09-24: passive switching with the cooldown and bounty rules; add combat-tag and loot checks to `passiveBlockReason()`)
 11. bounty.sk: bounty from kills and robberies, placed bounties, claims, passive immunity, anti-farming
 12. heists.sk: heist list, open/closed timers, cooldowns, rank requirements, escape countdown, alarms (advanced heists), room resets, status holograms
 13. traps.sk: lasers, pressure plates, cameras, collapsing floors
@@ -390,7 +403,7 @@ Handoff steps for the local session (in order):
 5. Run the bot scenarios in PLAYTEST.md order (items 26–32), fix and rerun until they pass, and write each result under its item. Then the human checks (items 30, 33, 34, and 23).
 6. Expect this once: local players who haven't joined since the update (Explosde and the older bots) count as a first join and get the $500 start money on their next join.
 7. When everything passes: commit on the branch, push, then merge PR #1 on GitHub (or `git checkout main`, `git merge claude/dreamy-mendel-ouutfb`, `git push`). Rewrite this Status section. (A cloud check-in routine watches the PR hourly and stops by itself once it's merged or closed.)
-8. Next script: phone.sk (script 6; inventory.sk, script 5, is done). Its garage, passive and bounty buttons need scripts that don't exist yet, so build the menu with a stats page and placeholder buttons that the later scripts fill in. Ask the owner the helmet/vest and bag-loss questions before shop.sk and death.sk.
+8. phone.sk is done (2026-09-24, PLAYTEST 42-44). Next in the build order: shop.sk needs the helmet/vest answer, death.sk needs the bag-loss answer, pvp.sk safe zones need the skript-worldguard decision. Ask the owner those before building them; combat-log.sk (script 9) can start without them.
 
 ## Cloud and local sessions
 - Repo: https://github.com/PlaneGlueX/donating (private), branch `main`. `.gitignore` keeps out jars, the world, logs, LuckPerms/CoreProtect data, `server.properties` (RCON password), `tools\node` and `bots\node_modules`.
