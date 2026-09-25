@@ -4,8 +4,8 @@
 # Switch rules (CLAUDE.md, Default rules):
 #   - cfg("passive::switch-cooldown") between switches (saved, so relogging doesn't skip it)
 #   - no going passive while you have a bounty
-# Still to add when their scripts exist: not while combat-tagged (combat-log.sk), not while carrying
-# loot (bag.sk). Add them to passiveBlockReason().
+#   - not while combat-tagged (combat-log.sk)
+# Still to add when bag.sk exists: not while carrying loot. Add it to passiveBlockReason().
 # nav.sk's setPassive() does the switch itself: map/compass visibility and the message.
 
 # ---------- Passive players and PvP ----------
@@ -27,6 +27,8 @@ on damage of player:
 
 # "" when the player may switch now, otherwise the reason to show them.
 function passiveBlockReason(p: player) :: text:
+	if isCombatTagged({_p}) is true:
+		return "You can't switch passive mode while in combat."
 	set {_last} to getData({_p}, "passive-switched")
 	if {_last} is set:
 		set {_since} to difference between {_last} and now

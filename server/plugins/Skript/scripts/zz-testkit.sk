@@ -135,3 +135,17 @@ command /zztip:
 	trigger:
 		sendTip()
 		send "TIP SENT"
+
+# combat-log.sk: the player's combat state, and ending a tag now (the loop tells them within a second).
+command /zzcombat <player>:
+	executable by: console
+	trigger:
+		set {_cause} to deathCause(arg-1)
+		send "COMBAT %arg-1% tagged=%isCombatTagged(arg-1)% wanted=%isWanted(arg-1)% cause=%{_cause}%"
+
+command /zzcombatend <player>:
+	executable by: console
+	trigger:
+		set {-combat::at::%arg-1%} to 1 hour ago
+		delete {-combat::playerat::%arg-1%}
+		send "COMBATEND %arg-1%"

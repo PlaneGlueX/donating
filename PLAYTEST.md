@@ -140,6 +140,13 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 50. **How the phone feels (human):** zoom level of the held phone, how often the view re-centers, the camera tilt to 70° when opening, cursor speed (3 pixels per degree), whether F is easy to find for the apps, whether the small arrows are big enough. Players without a bag hold every map two-handed (big, only readable when looking down).
     - Result: HUMAN / TODO
 
+## combat-log.sk: combat tags and combat logging (2026-09-25)
+
+51. **Combat tags and logging** (`bots\run.js combat-log`, 18 checks): a punch tags both players, credited to the attacker, and both get the warning. While tagged, /spawn is refused and the phone's passive button says "not in combat" (controls: /spawn isn't refused out of combat). The tag runs out with "You're out of combat". A hit pvp.sk cancels (passive target) tags nobody; dying clears the tag. A wanted player (permission `donating.wanted`) counts as tagged, credited to the cops unless a player hit them in the last 5 s. Logging out while tagged kills you: credited to the cops (wanted, player hit more than 5 s ago) or to the player who hit you, saved as data `last-combat-log`, announced to everyone; after coming back you're respawned, untagged, with the phone. A kick while tagged and an untagged logout don't kill.
+    - Result: PASS (bot, 2026-09-25). 18/18. Found: the owner group's `*` also grants `donating.wanted`, so staff counted as wanted (tagged all the time); the group now has `donating.wanted` false. Default players can't use /spawn at all ("You do not have access to that command").
+52. **Combat log in the real client (human):** get hit by someone, log out within 15 s, log back in: the death screen, the announcement in chat. Is 15 s (PROPOSAL, `combat::tag` in core.sk) the right length?
+    - Result: HUMAN / TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

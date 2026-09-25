@@ -33,9 +33,9 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Memory baseline: about 435 MB live heap after a full GC with all Phase 1 plugins, no players, 3 worlds loaded.
 - Nether and End are off locally (`allow-nether=false` in server.properties, `allow-end: false` in bukkit.yml) to save RAM. Recommended for Minehut too (the owner hasn't decided).
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
-- Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
+- Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests, and `donating.wanted` **false**, or `*` makes staff count as wanted, which means always combat-tagged); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 - Computer-use tips (verified 2026-09-24):
   - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
@@ -368,7 +368,7 @@ Phase 1 (core, inventory, heists, PvP):
 6b. nav.sk (built early, 2026-09-24): who shows on the phone map (the `donating_passive` tag) and the locator bar (passive players only), `setPassive()` with its messages. Later: POI waypoints, heist exit/base waypoints
 7. shop.sk: gun shop (unlock-once weapons, loadout editing, saved loadout, ammo); other shops (consumables, heist tools, bags, helmets and vests)
 8. death.sk: bag drop as one duffel, clears equipped weapons/consumables/ammo, balance loss formula, respawn
-9. combat-log.sk: last-damager tracking, wanted = cop tag, 5-second player-hit priority
+9. combat-log.sk (built 2026-09-25): combat tag (15 s PROPOSAL) on player/cop/trap damage, wanted = tagged (permission `donating.wanted`), logout while tagged = death credited by `deathCause()` (5-second player-hit priority, then cops, then last damager), no teleport commands or passive switch while tagged. traps.sk calls `tagCombat(victim, "trap")`; death.sk and bounty.sk read `deathCause()` and the data `last-combat-log`.
 10. pvp.sk: safe zones, spawn shield, passive mode and its limits (started 2026-09-24: passive switching with the cooldown and bounty rules; add combat-tag and loot checks to `passiveBlockReason()`)
 11. bounty.sk: bounty from kills and robberies, placed bounties, claims, passive immunity, anti-farming
 12. heists.sk: heist list, open/closed timers, cooldowns, rank requirements, escape countdown, alarms (advanced heists), room resets, status holograms
@@ -407,9 +407,9 @@ Later:
 Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged 2026-09-25, owner's go-ahead). Work on a new branch per task and merge it when its tests pass.
 
 Built and passing on the local server (details and results in PLAYTEST.md):
-- Scripts 1-6 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav. pvp.sk started (passive switching, no PvP for or against passive players).
+- Scripts 1-6, 6b and 9: core, join-quit, chat-extras, afk, inventory, phone, nav, combat-log. pvp.sk started (passive switching, no PvP for or against passive players).
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 30, phone-map 46, pvp 10 = 181 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 30, phone-map 46, pvp 10, combat-log 18 = 199 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:
@@ -418,7 +418,7 @@ Waiting on the owner:
 - When building bag.sk: does a duffel pickup with too little room take nothing or as much as fits?
 - The two SpigotMC jars (MTVehicles 2.5.9, KoyaRobbery 1.2.2).
 
-Next in the build order: combat-log.sk (script 9), then pvp.sk's safe zones and spawn shield (skript-worldguard is installed), shop.sk and death.sk (the helmet/vest and bag-loss answers are in Death and combat).
+Next in the build order: pvp.sk's safe zones and spawn shield (skript-worldguard is installed), shop.sk and death.sk (the helmet/vest and bag-loss answers are in Death and combat).
 
 History: the first local session (2026-09-24) set up the server and built core.sk + inventory.sk; a cloud session wrote join-quit, chat-extras and afk on branch `claude/dreamy-mendel-ouutfb`; the second local session tested and fixed them, added navigation (locator bar + the map phone), phone.sk, pvp.sk and the phone plugin, then merged the branch.
 

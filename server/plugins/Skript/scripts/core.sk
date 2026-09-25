@@ -30,6 +30,8 @@ function loadSettings():
 	set {-cfg::chat::tip-interval} to 5 minutes # PROPOSAL
 	set {-cfg::combat::tag} to 15 seconds # PROPOSAL (combat-tag length isn't set yet)
 	set {-cfg::combat::player-hit-priority} to 5 seconds
+	# Commands a combat-tagged player can't use (combat-log.sk), without the slash.
+	set {-cfg::combat::blocked-commands::*} to "spawn", "home", "homes", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp" and "hub"
 	set {-cfg::pvp::spawn-shield} to 10 seconds
 	set {-cfg::passive::switch-cooldown} to 10 minutes
 	set {-cfg::bounty::repeat-kill-window} to 15 minutes
@@ -47,7 +49,7 @@ function loadSettings():
 	set {-cfg::bounty::robbery-share} to 0.10
 
 	# ---------- Navigation (nav.sk) ----------
-	# The city map the phones show is set in pluginsDonatingPhoneconfig.yml (city-map), not here.
+	# The city map the phones show is set in plugins\DonatingPhone\config.yml (city-maps), not here.
 	# How far a passive player's green locator-bar dot reaches (blocks). Non-passive players send none.
 	set {-cfg::nav::passive-range} to 100000
 
