@@ -112,7 +112,10 @@ on quit:
 	set {_cause} to deathCause(player)
 	setData(player, "last-combat-log", {_cause})
 	broadcastMsg("&c%name of player% logged out in combat and died.")
+	# death.sk credits the death from this.
+	set {-combat::logout::%player%} to {_cause}
 	kill player
+	delete {-combat::logout::%player%}
 
 on quit with priority monitor:
 	clearCombat(player)

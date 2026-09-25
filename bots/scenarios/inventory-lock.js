@@ -283,7 +283,8 @@ module.exports = async ({ check }) => {
     check('ground item stays on the ground', /passed/i.test(stillThere), stillThere)
     await rcon.cmd('minecraft:kill @e[type=item,tag=zztest]')
 
-    // Death drops nothing (keepInventory) and the layout is back after respawn.
+    // Death drops nothing (keepInventory) and the phone is back after respawn. The bag is lost on
+    // death (death.sk, checked by bots\run.js death), so the offhand stays empty.
     await rcon.cmd(`zztestkit ${NAME}`)
     await rcon.cmd('minecraft:kill @e[type=item]')
     await sleep(300)
@@ -297,7 +298,7 @@ module.exports = async ({ check }) => {
     check('death drops no items', !/passed/i.test(drops), `before death: ${beforeDeath} | after: ${drops} | ${what}`)
     const afterDeath = await snapshot()
     check('phone back in hotbar 9 after respawn', PHONE.test(afterDeath), afterDeath)
-    check('bag back in offhand after respawn', BAG.test(afterDeath), afterDeath)
+    check('no bag after respawn (lost on death, death.sk)', !BAG.test(afterDeath) && !/(^| )40=/.test(afterDeath), afterDeath)
 
     // Ops are still locked (the default group sets donating.inventory.bypass to false; an
     // unregistered permission would otherwise default to true for ops).

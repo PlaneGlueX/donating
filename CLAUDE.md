@@ -287,7 +287,8 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - EssentialsX: `allow-direct-hat: false` (done). Keep essentials.hat/give/item/more/kit/invsee/enderchest/workbench/anvil/repair/condense/exp/keepinv and virtual GUIs out of the default group.
 - Never use Skript `give ... to player` / `add ... to player's inventory`, `/wm give` without `{slot:N}`, `/wm giveammo`, or EssentialsX kits: they fill the first free slot, hotbar first. Always `set slot N of player's inventory`.
 - Dropped duffels (bag.sk): spawn a normal item entity with the normal pickup delay and handle it in SkBee `on player attempt item pickup` (cancel, move loot to the bag, remove the entity). Plain `on pick up` doesn't fire when the inventory is full.
-- death.sk: spawn the duffel entity itself instead of adding it to the drops (inventory.sk clears drops). inventory.sk already keeps the inventory on every death; death.sk clears slots 0-4 and 9-35 and handles the bag.
+- death.sk: spawn the duffel entity itself instead of adding it to the drops (inventory.sk clears drops). inventory.sk keeps the inventory on every death; death.sk (it loads first) clears slots 0-4, 9-35, the helmet and the vest, and the bag. A Skript function isn't run when one of its arguments is missing (e.g. the `attacker` of a fall), so death.sk works out the cause inside the event.
+- The bag: data `bag-tier` is the bag you carry (death deletes it), `bag-best` the highest tier you unlocked. shop.sk sells a new bag of any tier up to `bag-best` (price for a replacement: owner to decide).
 - Staff get `donating.inventory.bypass` true explicitly; the default group has it false.
 - Consumables must not leave a leftover item (potion → glass bottle, stew → bowl, honey → bottle, or any 1.21.2+ `use_remainder`): the player couldn't remove it from slots 1–5. Use items without one, or clear the slot in `on consume`.
 - Never sell or give items that place entities (armor stands, boats, minecarts, item frames, paintings, end crystals, spawn eggs): they skip the block place event the lock cancels. No tridents either: a thrown trident can't be picked up again (arrow pickup is locked).
@@ -369,7 +370,7 @@ Phase 1 (core, inventory, heists, PvP):
 6. phone.sk (built 2026-09-24, controls reworked 2026-09-25 for the phone plugin): right-click toggles the big map, F opens the apps menu: stats, passive toggle (pvp.sk rules), how to play, close; garage and bounties are "coming soon" placeholders for garage.sk / bounty.sk.
 6b. nav.sk (built early, 2026-09-24): who shows on the phone map (the `donating_passive` tag) and the locator bar (passive players only), `setPassive()` with its messages. Later: POI waypoints, heist exit/base waypoints
 7. shop.sk: gun shop (unlock-once weapons, loadout editing, saved loadout, ammo); other shops (consumables, heist tools, bags, helmets and vests)
-8. death.sk: bag drop as one duffel, clears equipped weapons/consumables/ammo, balance loss formula, respawn
+8. death.sk (built 2026-09-25): clears hotbar 1-5, ammo, helmet and vest; the bag is lost (data `bag-tier` = the bag you carry, deleted; `bag-best` = the highest tier unlocked, kept); balance loss L = min(B × p, C) with cop-p for cop deaths; saves `last-death-cause` / `last-death-loss`; tells a combat-logger on their next join. Still to add: the loot duffel (bag.sk), heist difficulty and loot pool (heists.sk fills `deathDifficulty` / `deathLootPool`).
 9. combat-log.sk (built 2026-09-25): combat tag (15 s PROPOSAL) on player/cop/trap damage, wanted = tagged (permission `donating.wanted`), logout while tagged = death credited by `deathCause()` (5-second player-hit priority, then cops, then last damager), no teleport commands or passive switch while tagged. traps.sk calls `tagCombat(victim, "trap")`; death.sk and bounty.sk read `deathCause()` and the data `last-combat-log`.
 10. pvp.sk (2026-09-25: passive switching with the cooldown, bounty and combat-tag rules; no PvP for or against passive players; safe zones; the spawn shield). Still to add: the loot check in `passiveBlockReason()` (bag.sk), PvP-only heists (heists.sk).
 11. bounty.sk: bounty from kills and robberies, placed bounties, claims, passive immunity, anti-farming
@@ -409,9 +410,9 @@ Later:
 Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged 2026-09-25, owner's go-ahead). Work on a new branch per task and merge it when its tests pass.
 
 Built and passing on the local server (details and results in PLAYTEST.md):
-- Scripts 1-6, 6b, 9 and 10: core, join-quit, chat-extras, afk, inventory, phone, nav, combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk).
+- Scripts 1-6, 6b and 8-10: core, join-quit, chat-extras, afk, inventory, phone, nav, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk).
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 30, phone-map 46, pvp 10, combat-log 18, safezone 14 = 213 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 32, phone-map 47, pvp 10, combat-log 18, safezone 14, death 11 = 227 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:
@@ -420,7 +421,7 @@ Waiting on the owner:
 - When building bag.sk: does a duffel pickup with too little room take nothing or as much as fits?
 - The two SpigotMC jars (MTVehicles 2.5.9, KoyaRobbery 1.2.2).
 
-Next in the build order: shop.sk and death.sk (the helmet/vest and bag-loss answers are in Death and combat).
+Next in the build order: shop.sk (gun shop, gear, bags; needs the money numbers or keeps the PROPOSALs), then bag.sk for the duffel (the helmet/vest and bag-loss answers are in Death and combat).
 
 History: the first local session (2026-09-24) set up the server and built core.sk + inventory.sk; a cloud session wrote join-quit, chat-extras and afk on branch `claude/dreamy-mendel-ouutfb`; the second local session tested and fixed them, added navigation (locator bar + the map phone), phone.sk, pvp.sk and the phone plugin, then merged the branch.
 

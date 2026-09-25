@@ -312,15 +312,17 @@ module.exports = async ({ check }) => {
       bot._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
       await sleep(900)
     }, async () => { if (bot.currentWindow) bot.closeWindow(bot.currentWindow); await sleep(300) })
-    await closesOn('dying', async () => {
-      await rcon.cmd(`minecraft:kill ${VIEW}`)
-      await sleep(2500)
-    }, async () => {
-      await rcon.cmd(`minecraft:tp ${VIEW} ${spot[VIEW][0]} ${Y} ${spot[VIEW][1]} 0 0`)
-      bot.setQuickBarSlot(8)
-      await sleep(300)
-    })
+    // Dying closes it too, but the bag is lost on death (death.sk): the offhand stays empty.
     await sleep(400)
+    await rightClick()
+    const openedBeforeDeath = await isOpen(VIEW)
+    await rcon.cmd(`minecraft:kill ${VIEW}`)
+    await sleep(2500)
+    check('dying closes the big map (and the bag is lost, death.sk)', openedBeforeDeath && !(await isOpen(VIEW)) && (await bag(VIEW)) === 'air', `${openedBeforeDeath ? 'opened' : 'did not open'}; ${await zz(VIEW)}`)
+    await rcon.cmd(`minecraft:tp ${VIEW} ${spot[VIEW][0]} ${Y} ${spot[VIEW][1]} 0 0`)
+    await rcon.cmd(`zztestkit ${VIEW}`) // a new bag, as if bought again
+    bot.setQuickBarSlot(8)
+    await sleep(700)
     await rightClick()
     const openBefore = await isOpen(VIEW)
     await quit(bot)

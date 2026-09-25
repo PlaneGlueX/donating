@@ -1,0 +1,92 @@
+# death.sk: what a death costs (CLAUDE.md, Death and combat). Every death, whatever caused it:
+#   - lost: equipped weapons and consumables (hotbar 1-5), all ammo (upper inventory), the helmet and
+#     the vest, and the bag. The bag's tier stays unlocked (data "bag-best"): buy a new one at the shop.
+#   - kept: quest items (hotbar 6-8) and the phone. Weapons stay unlocked (shop.sk).
+#   - the bag's loot drops as one duffel: bag.sk, later (dropBagLoot at the death spot).
+#   - balance: L = min(B × p, C)
+#       B = balance
+#       p = the heist difficulty's p, or its cop-p for cop deaths
+#       C = min(bag capacity, the heist's loot pool); no bag: C = 0, nothing is lost
+#     Outside heists: difficulty 1 and C = the bag capacity. heists.sk will tell deaths inside a heist
+#     apart (deathDifficulty / deathLootPool below); until then every death counts as outside.
+#   Lost balance disappears (a money sink).
+# Cop deaths: killed by a cop (Citizens NPC, metadata "NPC"), or a combat log credited to the cops.
+# The cause is saved as data "last-death-cause": "player:<uuid>", "cop" or "other" (bounty.sk).
+#
+# Runs before inventory.sk's death handler (scripts load alphabetically), which keeps the inventory,
+# so what this clears is gone and the rest stays. The respawn's applyLayout puts the phone back and
+# leaves the offhand empty (no bag).
+
+# Hooks for heists.sk: the difficulty and loot pool of the heist the player died in (1 / none outside).
+function deathDifficulty(p: player) :: number:
+	return 1
+
+function deathLootPool(p: player) :: number:
+	return -1
+
+# L = min(B × p, C), whole dollars.
+function deathLoss(p: player, cause: text) :: number:
+	set {_d} to deathDifficulty({_p})
+	if {_cause} is "cop":
+		set {_share} to cfg("difficulty::%{_d}%::cop-p")
+	else:
+		set {_share} to cfg("difficulty::%{_d}%::p")
+	set {_cap} to 0
+	set {_tier} to getData({_p}, "bag-tier")
+	if {_tier} is set:
+		if {_tier} > 0:
+			set {_cap} to cfg("bag::%{_tier}%::capacity")
+	set {_pool} to deathLootPool({_p})
+	if {_pool} >= 0:
+		set {_cap} to min({_cap}, {_pool})
+	return floor(min((balance of {_p}) * {_share}, {_cap}))
+
+on death of player:
+	# Who or what caused it: "player:<uuid>", "cop" or "other". (Inline: a function isn't called at
+	# all when an argument is missing, like the attacker of a fall.)
+	set {_cause} to "other"
+	if {-combat::logout::%victim%} is set:
+		# A combat log: combat-log.sk saved deathCause() right before killing the player.
+		if {-combat::logout::%victim%} is not "":
+			set {_cause} to {-combat::logout::%victim%}
+	else if attacker is a player:
+		if attacker has metadata "NPC":
+			set {_cause} to "cop"
+		else if attacker is not victim:
+			set {_cause} to "player:%uuid of attacker%"
+	setData(victim, "last-death-cause", {_cause})
+	set {_taken} to takeMoney(victim, deathLoss(victim, {_cause}))
+	setData(victim, "last-death-loss", {_taken})
+	# Equipped weapons and consumables, ammo, helmet and vest.
+	loop integers from 0 to 4:
+		set slot loop-value of victim's inventory to air
+	loop integers from 9 to 35:
+		set slot loop-value of victim's inventory to air
+	set helmet of victim to air
+	set chestplate of victim to air
+	# The bag: gone, but its tier stays unlocked.
+	set {_tier} to getData(victim, "bag-tier")
+	if {_tier} is set:
+		if {_tier} > 0:
+			set {_best} to getData(victim, "bag-best")
+			if {_best} is not set:
+				setData(victim, "bag-best", {_tier})
+			else if {_tier} > {_best}:
+				setData(victim, "bag-best", {_tier})
+	deleteData(victim, "bag-tier")
+	set offhand tool of victim to air
+	if {-combat::logout::%victim%} is set:
+		# They're logging out: tell them when they're back.
+		setData(victim, "combat-log-notice", true)
+	else if {_taken} > 0:
+		msg(victim, "&cYou died and lost %formatMoney({_taken})%.")
+
+on join:
+	getData(player, "combat-log-notice") is true
+	deleteData(player, "combat-log-notice")
+	set {_taken} to getData(player, "last-death-loss")
+	if {_taken} is set:
+		if {_taken} > 0:
+			msg(player, "&cYou logged out in combat, so you died and lost %formatMoney({_taken})%.")
+			stop
+	msg(player, "&cYou logged out in combat, so you died.")

@@ -154,6 +154,13 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 54. **Safe zones in the real client (human):** how the push-back at the edge feels while tagged, and whether the messages are clear.
     - Result: HUMAN / TODO
 
+## death.sk: what a death costs (2026-09-25)
+
+55. **Death losses** (`bots\run.js death`, 11 checks; deaths outside heists): after a /kill the sword (hotbar 1), ammo, a block from the upper inventory, the helmet, the vest and the bag are gone; the quest item (hotbar 6) and the phone stay; `bag-tier` is gone and `bag-best` = 2. Balance: min(100000 × 1%, 6000) = $1,000 with "You died and lost $1,000"; the bag caps it (min(1,000,000 × 1%, 6000) = $6,000); no bag loses nothing. Killed by a player (`/damage ... by`): credited to that player. A wanted player logging out: a cop death at 5% ($5,000), and on coming back "You logged out in combat, so you died and lost $5,000".
+    - Result: PASS (bot, 2026-09-25). 11/11. inventory-lock's death check now expects no bag after respawn.
+56. **Death in the real client (human):** the loss message, and whether losing the bag feels fair (buying it again is shop.sk's job).
+    - Result: HUMAN / TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.
