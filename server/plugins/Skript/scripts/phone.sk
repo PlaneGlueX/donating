@@ -23,27 +23,32 @@ on right click:
 	# Skript's click event also covers entities: NPC shops, other players and cars must still work.
 	clicked entity is not set
 	cancel event
-	# One right-click on a block can arrive as two clicks (block, then air): toggle once.
-	if {-phone::clicked::%player%} is set:
-		if difference between {-phone::clicked::%player%} and now < 0.3 seconds:
-			stop
+	# One right-click on a block can arrive as two clicks (block, then air), and holding the button
+	# repeats the click every 0.2 s: every click restarts the 0.3 s wait, so it toggles once.
+	set {_last} to {-phone::clicked::%player%}
 	set {-phone::clicked::%player%} to now
+	if {_last} is set:
+		if difference between {_last} and now < 0.3 seconds:
+			stop
 	if player has scoreboard tag "donating_phone_open":
 		closePhoneMap(player)
 	else:
 		openPhoneMap(player)
 
-# The tag first, so inventory.sk's watchdog doesn't put the bag straight back.
+# The tag first, so inventory.sk's watchdog doesn't put the bag straight back. Only the bag leaves
+# the offhand: anything else there (staff with the inventory bypass) stays, and the map stays small.
 function openPhoneMap(p: player):
 	add "donating_phone_open" to scoreboard tags of {_p}
-	set offhand tool of {_p} to air
+	if itemId(offhand tool of {_p}) starts with "bag:":
+		set offhand tool of {_p} to air
 	play sound "item.book.page_turn" with volume 0.6 to {_p}
 
 # Does nothing when the big map isn't open.
 function closePhoneMap(p: player):
 	{_p} has scoreboard tag "donating_phone_open"
 	remove "donating_phone_open" from scoreboard tags of {_p}
-	applyBag({_p})
+	if offhand tool of {_p} is air:
+		applyBag({_p})
 	play sound "item.book.page_turn" with volume 0.4 and pitch 0.8 to {_p}
 
 on held item change:

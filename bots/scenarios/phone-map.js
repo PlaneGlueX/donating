@@ -119,6 +119,9 @@ module.exports = async ({ check }) => {
     const readIds = async () => {
       for (const name of [VIEW, A, B]) mapOf[name] = Number(((await status(name)).match(/map=(\d+)/) || [])[1])
     }
+    // The checks count green arrows, so nobody else online may be passive.
+    const passiveOnline = (await rcon.cmd('execute if entity @a[tag=donating_passive]')).trim()
+    check('no other passive players are online (the checks count green arrows)', /Test failed/.test(passiveOnline), passiveOnline)
     for (const name of [VIEW, A, B]) {
       bots[name] = await join(name)
       listen(name)
@@ -146,11 +149,16 @@ module.exports = async ({ check }) => {
 
     // ---------- Held screen ----------
     const bot = bots[VIEW]
+    bot.setQuickBarSlot(8) // the held view is drawn somewhere else first
+    await rcon.cmd(`minecraft:tp ${VIEW} ${spot[VIEW][0]} ${Y} ${spot[VIEW][1] + 10} 0 0`)
+    await sleep(800)
     bot.setQuickBarSlot(0)
     await sleep(800)
     packets[VIEW] = []
+    // Pocketed, VIEW moves 10 blocks (several re-centers of a held view): nothing may be drawn.
+    await rcon.cmd(`minecraft:tp ${VIEW} ${spot[VIEW][0]} ${Y} ${spot[VIEW][1]} 0 0`)
     await sleep(1500)
-    check('no pixels are sent while the phone is in the pocket', packets[VIEW].every(p => !p.cols), `${packets[VIEW].filter(p => p.cols).length} pixel packets`)
+    check('no pixels are sent while the phone is in the pocket (even when you move)', packets[VIEW].length > 0 && packets[VIEW].every(p => !p.cols), `${packets[VIEW].filter(p => p.cols).length} pixel packets of ${packets[VIEW].length}`)
     packets[VIEW] = []
     let t = Date.now()
     bot.setQuickBarSlot(8)
@@ -354,7 +362,11 @@ module.exports = async ({ check }) => {
       if (bots[B].currentWindow) bots[B].closeWindow(bots[B].currentWindow)
     }
     await clickBanner(8)
-    check('a phone click on a banner adds no label', (await pois()) === 0 && (await isOpen(B)), `${await pois()} labels; ${await zz(B)}`)
+    // The phone's own map (a pool map) must not get the banner either.
+    await rcon.cmd('save-all flush')
+    const phoneMap = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', `map_${mapOf[B]}.dat`)))).parsed).data
+    const phoneBanners = (phoneMap.banners || []).length
+    check('a phone click on a banner toggles the map and adds no label anywhere', phoneBanners === 0 && (await pois()) === 0 && (await isOpen(B)), `${phoneBanners} banners on the phone's map ${mapOf[B]}; ${await pois()} city labels; ${await zz(B)}`)
     await clickBanner(0) // also switches slots, which closes B's big map
     check('a plain map copy adds no label either (banner lock)', (await pois()) === 0, `${await pois()} labels`)
     await rcon.cmd(`lp user ${B} permission set donating.inventory.bypass true`)

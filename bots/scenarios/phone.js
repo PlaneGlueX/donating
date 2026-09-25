@@ -196,6 +196,18 @@ module.exports = async ({ check }) => {
     bot.activateItem()
     await sleep(600)
     check('right-clicking again closes the map', / open=false/.test(await phone()), await phone())
+    // Holding the button: the client repeats the click every 4 ticks (0.2 s).
+    await sleep(600)
+    for (let i = 0; i < 6; i++) {
+      bot.activateItem()
+      await sleep(200)
+    }
+    await sleep(300)
+    check('holding right-click opens the map once (no flicker)', / open=true/.test(await phone()), await phone())
+    await sleep(400)
+    bot.activateItem()
+    await sleep(500)
+    check('...and a new click after letting go closes it', / open=false/.test(await phone()), await phone())
   } finally {
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`).catch(() => {})
     await rcon.cmd(`zzpassive ${NAME} off`).catch(() => {})
