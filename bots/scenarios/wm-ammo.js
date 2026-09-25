@@ -85,13 +85,17 @@ module.exports = async ({ check }) => {
     // ---------- Two stacks ----------
     await fresh()
     await give('AK_47', '{slot:0,ammo:0}')
-    await rcon.cmd(`zzammo ${NAME} rifle 10`)
-    await rcon.cmd(`zzfill ${NAME} 10 19`) // the next ammo stack lands in slot 20
-    await rcon.cmd(`zzammo ${NAME} rifle 64`)
-    await rcon.cmd(`minecraft:item replace entity ${NAME} container.10 with air`)
+    // WeaponMechanics walks slots 0-35 and takes a magazine from the first stack big enough, so the
+    // small stack goes first: 10 rounds in slot 9, 64 in slot 20.
+    await rcon.cmd(`zzfill ${NAME} 9 19`)
+    await rcon.cmd(`zzammo ${NAME} rifle 64`) // lands in slot 20
+    await rcon.cmd(`minecraft:item replace entity ${NAME} container.9 with air`)
+    await rcon.cmd(`zzammo ${NAME} rifle 10`) // slot 20 is full: lands in slot 9
+    const stacks = (await rcon.cmd(`zzdump ${NAME}`)).trim()
     dig(4)
     await sleep(4500)
-    check('a reload takes rounds from several stacks', (await loaded(0)) === 30 && (await ammo('rifle')) === 44, await wm())
+    const after = (await rcon.cmd(`zzdump ${NAME}`)).trim()
+    check('a reload takes rounds from several stacks', /(^DUMP |\| )9=gold nugget x10 /.test(stacks) && /(^DUMP |\| )20=gold nugget x64 /.test(stacks) && (await loaded(0)) === 30 && !/(^DUMP |\| )9=gold nugget/.test(after) && /(^DUMP |\| )20=gold nugget x44 /.test(after), `before ${stacks}; after ${after}`)
 
     // ---------- Stims ----------
     await fresh()

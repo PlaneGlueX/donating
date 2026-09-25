@@ -19,6 +19,7 @@ const AMMO_ROW = { light: 19, shells: 28, rifle: 37 } // +pack = row + 2, +5 pac
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
+  const CONFIRM = Number(((await rcon.cmd('zzcfg shop::confirm-above')).match(/= (\d+)/) || [])[1]) || 1000
   let bot = null
   try {
     await rcon.cmd(`forceload add ${CHUNKS}`)
@@ -128,18 +129,24 @@ module.exports = async ({ check }) => {
     await click(HOT(2))
     line = await wm()
     check('clicking it again takes it out and gives the 5 rounds back', !/50_GS/.test(line) && (await ammo('light')) === 5, line)
+    before = await bal()
     await click(CELL[0])
     await click(HOT(0))
-    check('equipping it again is free and empty', /(^WM |\| )0=50_GS:0x1/.test(await wm()), await wm())
+    check('equipping it again is free and empty', /(^WM |\| )0=50_GS:0x1/.test(await wm()) && (await bal()) === before, `${await wm()}; ${before} -> ${await bal()}`)
 
     // ---------- Stims ----------
     await tab('items')
+    // A lower confirm limit for this part: the shift-fill ($400) must ask first, then go through.
+    await rcon.cmd('zzcfgset shop::confirm-above 300')
     before = await bal()
-    await click(CELL[0])
-    await click(CELL[0], 1) // shift: fill to 3
+    await click(CELL[0]) // $200: under the limit, bought at once
+    await click(CELL[0], 1) // shift: 2 more for $400
+    const stimArmedBuy = /Click again/.test(await shop()) && (await bal()) === before - 200
+    await click(CELL[0], 1)
+    await rcon.cmd(`zzcfgset shop::confirm-above ${CONFIRM}`)
     await click(CELL[0])
     line = await wm()
-    check('Stims: one stack, up to 3; the 4th is refused with no charge', /Stim:0x3/.test(line) && (await bal()) === before - 600 && /carry 3/.test(await shop()), `${line}; ${before} -> ${await bal()}; ${await shop()}`)
+    check('Stims: one stack, up to 3 (a buy over the confirm limit asks, then goes through); the 4th is refused with no charge', stimArmedBuy && /Stim:0x3/.test(line) && (await bal()) === before - 600 && /carry 3/.test(await shop()), `armed ${stimArmedBuy}; ${line}; ${before} -> ${await bal()}; ${await shop()}`)
     const stimSlot = Number((line.match(/(\d+)=Stim/) || [])[1])
     await click(HOT(stimSlot))
     const stimArmed = /Stim/.test(await wm())
@@ -163,6 +170,15 @@ module.exports = async ({ check }) => {
     await click(6) // restore: 2 Stims $400 + 3 magazines x 30 rifle rounds x $3 = $670
     line = await wm()
     check('restore: AK-47 back in hotbar 1, 2 Stims in hotbar 2, 90 rifle rounds, $670', /(^WM |\| )0=AK_47:0x1/.test(line) && /1=Stim:0x2/.test(line) && (await ammo('rifle')) === 90 && (await bal()) === 4330, `${line}; ${await bal()}`)
+    // The saved Stims already carried in another slot: no second stack (only the ammo is bought).
+    await rcon.cmd(`zzclear ${NAME}`)
+    await rcon.cmd(`wm give ${NAME} AK_47 1 {slot:0,ammo:0}`)
+    await rcon.cmd(`wm give ${NAME} Stim 2 {slot:2}`)
+    await open()
+    before = await bal()
+    await click(6)
+    line = await wm()
+    check('restore with the Stims in another slot: no second stack, only ammo is paid ($270)', (line.match(/Stim/g) || []).length === 1 && /2=Stim:0x2/.test(line) && (await ammo('rifle')) === 90 && (await bal()) === before - 270, `${line}; ${before} -> ${await bal()}`)
     bot.closeWindow(bot.currentWindow)
     await rcon.cmd(`minecraft:kill ${NAME}`)
     await sleep(2000)
@@ -201,11 +217,13 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`zzpassive ${NAME} off`)
 
     await tab('weapons')
+    await rcon.cmd(`eco set ${NAME} 1000`) // enough for the knife ($150), so a handled click would buy it
     before = await bal()
     const beforeDump = await dump()
-    await click(WPN.Combat_Knife, 2, 0) // number key 1 on a button
-    await click(55) // a click in the player's own inventory (window slot 55 = upper inventory)
-    check('number keys and clicks below the shop do nothing', (await bal()) === before && (await dump()) === beforeDump && (await data('wpn::Combat_Knife')) !== 'true', `${await bal()}; ${await dump()}`)
+    const beforeShop = await shop() // gen= counts handled clicks
+    await click(WPN.Combat_Knife, 2, 0) // number key 1 on the knife's buy button
+    await click(54 + WPN.Combat_Knife) // the same index in the player's own inventory (window slot 73)
+    check('number keys and clicks below the shop do nothing', (await bal()) === before && (await dump()) === beforeDump && (await data('wpn::Combat_Knife')) !== 'true' && (await shop()) === beforeShop, `${await bal()}; ${await dump()}; ${beforeShop} -> ${await shop()}`)
     await rcon.cmd(`lp user ${NAME} permission set donating.inventory.bypass true`)
     let perm = ''
     for (let i = 0; i < 12 && !/: true/.test(perm); i++) { await sleep(500); perm = await rcon.cmd(`zzperm ${NAME} donating.inventory.bypass`) }

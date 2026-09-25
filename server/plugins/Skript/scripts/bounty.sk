@@ -139,7 +139,7 @@ function placeBounty(p: player, target: offline player, amount: number):
 		msg({_p}, "&cA bounty is at least %{_min}%.")
 		stop
 	set {_money} to formatMoney({_amount})
-	if chargeMoney({_p}, {_amount}) is false:
+	if chargeMoney({_p}, {_amount}) is not true:
 		msg({_p}, "&cYou don't have %{_money}%.")
 		stop
 	addBounty({_target}, {_amount}, "placed")

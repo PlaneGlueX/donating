@@ -35,7 +35,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests, and `donating.wanted` **false**, or `*` makes staff count as wanted, which means always combat-tagged); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`, `/zzwm`, `/zzammo`, `/zzshopreset`, `/zzfill`, `/zzshop`, `/zztag`, `/zzbounty`, `/zzbountyreset`, `/zzbountyip`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzcfgset`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`, `/zzwm`, `/zzammo`, `/zzshopreset`, `/zzfill`, `/zzshop`, `/zztag`, `/zzbounty`, `/zzbountyreset`, `/zzbountyip`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 - Computer-use tips (verified 2026-09-24):
   - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
@@ -267,7 +267,9 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Data: `wpn::<W>` (unlocked weapon), `loadout::<n>` + `::count` + `loadout::saved` (Save button), `bag-tier` / `bag-best`. Equipped weapons, loaded rounds, ammo and gear live only in the inventory (death.sk clears them).
 - Every purchase: check, charge (`chargeMoney` in core.sk: all or nothing, compares the balance before and after), grant, verify, refund if the grant failed, all in one call with no wait; logged to `plugins\Skript\logs\shop.log`.
 - One action per drawn screen: each click is handled a tick later and only if the screen generation is unchanged, so a same-tick double click buys once (tested). Clicks on the player's own inventory, number keys and double clicks do nothing; every click is cancelled, also for staff with the bypass.
-- Buys of $1,000 or more (PROPOSAL `shop::confirm-above`), throwing Stims away, replacing worn gear and swapping bags need a second click within 5 s.
+- Buys of $1,000 or more (PROPOSAL `shop::confirm-above`), throwing Stims away, replacing worn gear and swapping bags need a second click within 5 s. The confirm key is the button's action + the price, so it must match the action shopAction compares against.
+- One stack per consumable: Save keeps each consumable once, and Restore only refills the saved slot when that consumable isn't carried in another slot.
+- Purchases check `chargeMoney(...) is not true` (fail closed): a missing price setting means the call never runs, and `is false` would then let the buy through for free.
 - `auditWeapons()` on join and when a shop opens: removes WeaponMechanics items outside hotbar 1-5, second copies, weapons that aren't unlocked, and trims consumable stacks over the max (not for staff with the bypass).
 - Shopkeepers are Paper 1.21.9+ mannequins (look like players, no AI, no locator-bar dot). No shopping while combat-tagged or wanted, and getting hurt into combat closes an open shop.
 - Adding a gun later: pick it from WeaponMechanics' list, add `Reload.Ammo` (an existing or new ammo type in Donating_Ammos.yml) and `Swap_Hands: true` to its file, add its `wpn::<W>::*` settings and its title to `shop::weapons` in core.sk, then add it to bots\scenarios\wm-ammo.js.
@@ -427,7 +429,7 @@ Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged
 Built and passing on the local server (details and results in PLAYTEST.md):
 - Scripts 1-11 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav, shop, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk), bounty.
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 32, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 40, bounty 19 = 308 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 32, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 41, bounty 19 = 309 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:

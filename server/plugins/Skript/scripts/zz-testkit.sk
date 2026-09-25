@@ -64,6 +64,13 @@ command /zzcfg <text>:
 	trigger:
 		send "CFG %arg-1% = %cfg(arg-1)%"
 
+# Changes a number setting until the next loadSettings() (tests put the old value back).
+command /zzcfgset <text> <number>:
+	executable by: console
+	trigger:
+		set {-cfg::%arg-1%} to arg-2
+		send "CFGSET %arg-1% = %arg-2%"
+
 # afk.sk: pretend the player's last activity was 10 minutes ago (AFK within 10 seconds).
 command /zzafk <player>:
 	executable by: console

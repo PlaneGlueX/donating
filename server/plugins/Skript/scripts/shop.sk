@@ -636,7 +636,7 @@ function buyWeapon(p: player, w: text):
 	if needsConfirm({_p}, "buy:%{_w}%", {_price}, false) is true:
 		stop
 	# No wait from here on: check, charge, grant and verify in one call.
-	if chargeMoney({_p}, {_price}) is false:
+	if chargeMoney({_p}, {_price}) is not true:
 		set {_money} to formatMoney({_price})
 		shopFail({_p}, "The %{_name}% costs %{_money}%.")
 		stop
@@ -714,6 +714,10 @@ function saveLoadout(p: player):
 		set {_i} to slot (loop-value - 1) of {_p}'s inventory
 		set {_id} to loadoutId({_i})
 		deleteData({_p}, "loadout::%loop-value%::count")
+		# One entry per consumable (Restore refills that one stack).
+		if {_id} starts with "con:":
+			if loadoutSlotOf({_p}, {_id}) < loop-value - 1:
+				set {_id} to ""
 		if {_id} is "":
 			deleteData({_p}, "loadout::%loop-value%")
 		else:
@@ -742,6 +746,16 @@ function restoreCost(p: player) :: number:
 # Consumables Restore adds in hotbar n (1-5).
 function restoreConNeed(p: player, n: number) :: number:
 	set {_id} to getData({_p}, "loadout::%{_n}%")
+	# One stack per consumable: nothing when it's carried in another slot, or saved again in a lower
+	# slot (Save keeps one per consumable; this also covers loadouts saved before that).
+	set {_at} to loadoutSlotOf({_p}, {_id})
+	if {_at} >= 0:
+		if {_at} is not {_n} - 1:
+			return 0
+	loop integers from 1 to 5:
+		loop-value < {_n}
+		getData({_p}, "loadout::%loop-value%") is {_id}
+		return 0
 	set {_count} to getData({_p}, "loadout::%{_n}%::count")
 	set {_w} to last element of ({_id} split at ":")
 	set {_max} to cfg("con::%{_w}%::max")
@@ -792,7 +806,7 @@ function restoreLoadout(p: player):
 		stop
 	if needsConfirm({_p}, "restore", {_cost}, false) is true:
 		stop
-	if chargeMoney({_p}, {_cost}) is false:
+	if chargeMoney({_p}, {_cost}) is not true:
 		shopFail({_p}, "Restoring costs %{_money}%.")
 		stop
 	set {_short} to 0
@@ -840,7 +854,7 @@ function buyAmmo(p: player, type: text, amount: text):
 	set {_price} to {_n} * cfg("ammo::%{_type}%::price")
 	if needsConfirm({_p}, "ammo:%{_type}%:%{_amount}%", {_price}, false) is true:
 		stop
-	if chargeMoney({_p}, {_price}) is false:
+	if chargeMoney({_p}, {_price}) is not true:
 		set {_money} to formatMoney({_price})
 		shopFail({_p}, "That costs %{_money}%.")
 		stop
@@ -873,9 +887,9 @@ function buyConsumable(p: player, w: text, shift: boolean):
 		shopFail({_p}, "You can carry %{_max}% %{_name}%s.")
 		stop
 	set {_price} to {_n} * cfg("con::%{_w}%::price")
-	if needsConfirm({_p}, "con:%{_w}%:%{_n}%", {_price}, false) is true:
+	if needsConfirm({_p}, "con:%{_w}%", {_price}, false) is true:
 		stop
-	if chargeMoney({_p}, {_price}) is false:
+	if chargeMoney({_p}, {_price}) is not true:
 		set {_money} to formatMoney({_price})
 		shopFail({_p}, "That costs %{_money}%.")
 		stop
@@ -916,7 +930,7 @@ function buyGear(p: player, id: text):
 			set {_money} to formatMoney({_price})
 			shopStatus({_p}, "&eClick again: %{_money}%, replaces what you wear (no refund).")
 		stop
-	if chargeMoney({_p}, {_price}) is false:
+	if chargeMoney({_p}, {_price}) is not true:
 		set {_money} to formatMoney({_price})
 		shopFail({_p}, "The %{_name}% costs %{_money}%.")
 		stop
@@ -962,7 +976,7 @@ function buyBag(p: player, t: number):
 			set {_money} to formatMoney({_price})
 			shopStatus({_p}, "&eClick again: %{_money}%, your current bag is thrown away.")
 		stop
-	if chargeMoney({_p}, {_price}) is false:
+	if chargeMoney({_p}, {_price}) is not true:
 		set {_money} to formatMoney({_price})
 		shopFail({_p}, "The %{_name}% costs %{_money}%.")
 		stop
@@ -1029,6 +1043,12 @@ command /dshopkeeper [<text>] [<text>]:
 			if {shop::keepers::%{_id}%} is not set:
 				msg(player, "&cNo shopkeeper %{_id}%.")
 				stop
+			# minecraft:kill only reaches loaded entities: keep the record until someone is near it.
+			set {_loc} to {shop::keeper::%{_id}%::loc}
+			if {_loc} is set:
+				if chunk at {_loc} is not loaded:
+					msg(player, "&cGo near shopkeeper %{_id}% first: its chunk isn't loaded.")
+					stop
 			# minecraft:kill also removes invulnerable entities.
 			execute console command "minecraft:kill @e[tag=shopk_%{_id}%]"
 			delete {shop::keepers::%{_id}%}
