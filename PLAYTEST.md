@@ -147,6 +147,13 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 52. **Combat log in the real client (human):** get hit by someone, log out within 15 s, log back in: the death screen, the announcement in chat. Is 15 s (PROPOSAL, `combat::tag` in core.sk) the right length?
     - Result: HUMAN / TODO
 
+## pvp.sk: safe zones and the spawn shield (2026-09-25)
+
+53. **Safe zones and spawn shield** (`bots\r`, 14 checks, test region `safe_ztest` with `passthrough allow`): a punch outside safe zones hurts (control); no hurting a player inside a safe zone, or anyone from inside one, with pvp.sk's message; those cancelled hits tag nobody. A combat-tagged player can't walk or teleport into a safe zone (pushed back, with a message); an untagged one walks in. A respawned player is shielded: no hurting them for 10 s, then hits land. Attacking ends your own shield and the hit lands, so the other player can hit back.
+    - Result: PASS (bot, 2026-09-25). 14/14. Found: without `passthrough allow` WorldGuard blocks the hit itself ("Hey! Sorry, but you can't PvP here.") because regions protect against non-members by default; that also blocks doors and NPC clicks, so every Donating region gets `passthrough allow`. pvp and combat-log tests now switch the spawn shield off in their setup.
+54. **Safe zones in the real client (human):** how the push-back at the edge feels while tagged, and whether the messages are clear.
+    - Result: HUMAN / TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

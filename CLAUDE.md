@@ -35,7 +35,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests, and `donating.wanted` **false**, or `*` makes staff count as wanted, which means always combat-tagged); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 - Computer-use tips (verified 2026-09-24):
   - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
@@ -213,6 +213,8 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - SkBee structures can save and paste heist rooms for resets.
 - Shared numbers: Skript options (`{@x}`) only work in the file that defines them, so all settings live in `loadSettings()` in core.sk as memory-only `{-cfg::*}` variables. Other scripts read `{-cfg::key}` or `cfg("key")`.
 - Placeholders from skript-placeholders must be named `prefix_identifier` (e.g. `%donating_rank%`); current PlaceholderAPI rejects bare names. Install it as a plugin, not as a PAPI expansion.
+- WorldGuard regions: every region protects by default, so non-members can't PvP (WorldGuard checks the target's spot and says "Hey! Sorry, but you can't PvP here."), use doors or buttons, or click entities (NPC shops) inside it (verified 2026-09-25). Every Donating region (safe zones, heists, districts) gets `/rg flag <id> passthrough allow`, and Skript owns the rules. Safe zones are regions whose id starts with "safe" (pvp.sk).
+- skript-worldguard syntax (1.0.1, from its jar): `on region enter:` / `on region exit:` (cancellable: WorldGuard pushes the player back; also teleports), event value `the worldguard region`, `name of <region>` = its id, `regions at <location>`, `create a cuboid region named <id> in <world> between <loc> and <loc>`.
 - WorldGuard in Skript: skript-worldguard 1.0.1 (official addon, installed 2026-09-24, owner decision). Skript's own deprecated hook is off (`config.sk`: disable hooks → regions → worldguard: true). Open upstream issues to watch: #44 region detection, #34 blocks of region.
 
 ### Verified in Skript 2.16.2 + SkBee 3.25.4 (loaded on the local server)
@@ -369,7 +371,7 @@ Phase 1 (core, inventory, heists, PvP):
 7. shop.sk: gun shop (unlock-once weapons, loadout editing, saved loadout, ammo); other shops (consumables, heist tools, bags, helmets and vests)
 8. death.sk: bag drop as one duffel, clears equipped weapons/consumables/ammo, balance loss formula, respawn
 9. combat-log.sk (built 2026-09-25): combat tag (15 s PROPOSAL) on player/cop/trap damage, wanted = tagged (permission `donating.wanted`), logout while tagged = death credited by `deathCause()` (5-second player-hit priority, then cops, then last damager), no teleport commands or passive switch while tagged. traps.sk calls `tagCombat(victim, "trap")`; death.sk and bounty.sk read `deathCause()` and the data `last-combat-log`.
-10. pvp.sk: safe zones, spawn shield, passive mode and its limits (started 2026-09-24: passive switching with the cooldown and bounty rules; add combat-tag and loot checks to `passiveBlockReason()`)
+10. pvp.sk (2026-09-25: passive switching with the cooldown, bounty and combat-tag rules; no PvP for or against passive players; safe zones; the spawn shield). Still to add: the loot check in `passiveBlockReason()` (bag.sk), PvP-only heists (heists.sk).
 11. bounty.sk: bounty from kills and robberies, placed bounties, claims, passive immunity, anti-farming
 12. heists.sk: heist list, open/closed timers, cooldowns, rank requirements, escape countdown, alarms (advanced heists), room resets, status holograms
 13. traps.sk: lasers, pressure plates, cameras, collapsing floors
@@ -407,9 +409,9 @@ Later:
 Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged 2026-09-25, owner's go-ahead). Work on a new branch per task and merge it when its tests pass.
 
 Built and passing on the local server (details and results in PLAYTEST.md):
-- Scripts 1-6, 6b and 9: core, join-quit, chat-extras, afk, inventory, phone, nav, combat-log. pvp.sk started (passive switching, no PvP for or against passive players).
+- Scripts 1-6, 6b, 9 and 10: core, join-quit, chat-extras, afk, inventory, phone, nav, combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk).
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 30, phone-map 46, pvp 10, combat-log 18 = 199 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 30, phone-map 46, pvp 10, combat-log 18, safezone 14 = 213 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:
@@ -418,7 +420,7 @@ Waiting on the owner:
 - When building bag.sk: does a duffel pickup with too little room take nothing or as much as fits?
 - The two SpigotMC jars (MTVehicles 2.5.9, KoyaRobbery 1.2.2).
 
-Next in the build order: pvp.sk's safe zones and spawn shield (skript-worldguard is installed), shop.sk and death.sk (the helmet/vest and bag-loss answers are in Death and combat).
+Next in the build order: shop.sk and death.sk (the helmet/vest and bag-loss answers are in Death and combat).
 
 History: the first local session (2026-09-24) set up the server and built core.sk + inventory.sk; a cloud session wrote join-quit, chat-extras and afk on branch `claude/dreamy-mendel-ouutfb`; the second local session tested and fixed them, added navigation (locator bar + the map phone), phone.sk, pvp.sk and the phone plugin, then merged the branch.
 

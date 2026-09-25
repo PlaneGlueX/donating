@@ -53,6 +53,8 @@ module.exports = async ({ check }) => {
     const reset = async () => {
       await rcon.cmd(`minecraft:tp ${A} 562.5 ${Y} 565.5 -90 0`)
       await rcon.cmd(`minecraft:tp ${B} 565.5 ${Y} 565.5 90 0`)
+      // pvp.sk's spawn shield (10 s after joining or respawning) isn't what this test is about.
+      for (const name of [A, B]) await rcon.cmd(`zzshieldoff ${name}`)
       for (const name of [A, B]) await rcon.cmd(`minecraft:effect give ${name} minecraft:instant_health 1 10 true`)
       await sleep(5000)
     }

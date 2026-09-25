@@ -149,3 +149,24 @@ command /zzcombatend <player>:
 		set {-combat::at::%arg-1%} to 1 hour ago
 		delete {-combat::playerat::%arg-1%}
 		send "COMBATEND %arg-1%"
+
+# pvp.sk: a cuboid WorldGuard region in the main world (safe zones are regions named safe...), and
+# the spawn shield state. Remove a region with: rg remove -w world <id>
+command /zzregion <text> <number> <number> <number> <number> <number> <number>:
+	executable by: console
+	trigger:
+		set {_w} to world "world"
+		create a cuboid region named arg-1 in {_w} between location(arg-2, arg-3, arg-4, {_w}) and location(arg-5, arg-6, arg-7, {_w})
+		send "REGION %arg-1% made"
+
+command /zzshield <player>:
+	executable by: console
+	trigger:
+		send "SHIELD %arg-1% %hasSpawnShield(arg-1)% safe=%isSafeZone(location of arg-1)%"
+
+# Ends the spawn shield now (tests that aren't about it).
+command /zzshieldoff <player>:
+	executable by: console
+	trigger:
+		delete {-pvp::shield::%arg-1%}
+		send "SHIELDOFF %arg-1%"
