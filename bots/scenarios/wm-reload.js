@@ -17,7 +17,7 @@ module.exports = async ({ check }) => {
   try {
     await sleep(1000)
     // Leftover persistent mobs near spawn would kill the bot mid-test.
-    await rcon.cmd('minecraft:kill @e[type=!player]')
+    await rcon.cmd('minecraft:kill @e[type=!player,tag=!donating_shop]') // not the shopkeepers
     await sleep(200)
     await rcon.cmd('minecraft:kill @e[type=item]') // loot from the mobs killed above
     await rcon.cmd(`gamemode survival ${NAME}`)
@@ -36,6 +36,8 @@ module.exports = async ({ check }) => {
     const afterShot = await ammoLeft()
     check('right click shoots (ammo goes down)', typeof afterShot === 'number' && afterShot < 5, `ammo: ${afterShot}`)
 
+    // Guns reload only from ammo items (shop.sk builds them; bots\run.js wm-ammo covers the details).
+    await rcon.cmd(`zzammo ${NAME} rifle 64`)
     const pressedAt = Date.now()
     dig(4) // Q = reload
     await sleep(4500) // Reload_Duration is 57 ticks

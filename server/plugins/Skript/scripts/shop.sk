@@ -1,0 +1,1065 @@
+# shop.sk: the shops (CLAUDE.md, Weapons, gear and inventory). Prices and the catalogue are PROPOSALs
+# in core.sk (Shops section).
+#
+# Shops: gun (weapons, loadout, ammo, consumables), gear (helmets, vests), bag (bag tiers), tools
+# (heist tools: coming soon). A shopkeeper is any entity with the scoreboard tags "donating_shop" and
+# "shop_<kind>" (staff: /dshopkeeper add <kind>, a mannequin); Citizens NPCs later run the console
+# command "dshop open <p> <kind>" (never with -p).
+#
+# Rules this script keeps:
+#   - Weapons are unlocked once (data wpn::<W>) and equipped for free into hotbar 1-5 (slots 0-4).
+#     A gun is given EMPTY ({ammo:0}): a new WeaponMechanics gun starts with a full magazine.
+#     Moving a weapon swaps slots (it keeps its loaded rounds); unequipping puts the rounds back.
+#   - Ammo lives only in slots 9-35 (WeaponMechanics reads 0-35 except the held slot; the hotbar stays
+#     ammo-free), built here with the weaponmechanics:ammo-name tag, never with /wm giveammo.
+#   - Helmets and vests go straight into the armor slots; the bag into the offhand (applyBag).
+#   - Every purchase checks, charges, grants and verifies in one call with no wait; a failed grant is
+#     refunded. Purchases are logged to plugins\Skript\logs\shop.log.
+#   - Every click in a shop is cancelled (also for staff), and each drawn screen accepts one action:
+#     a second click from the same tick finds the screen already used (the generation counter).
+#   - Buys of cfg("shop::confirm-above") or more, and anything that throws something away, need a
+#     second click within cfg("shop::confirm-window").
+#   - No shopping while combat-tagged or wanted (shopkeepers stand in safe zones anyway).
+#   - auditWeapons() (on join and when a shop opens) removes weapons that shouldn't exist: outside
+#     hotbar 1-5, second copies, not unlocked, consumable stacks over the max.
+#   - The shop never touches slots 5-8 (quest items, phone/car key) or items it doesn't know.
+#
+# Saved loadout: "Save loadout" stores what's in hotbar 1-5 (data loadout::<n>); "Restore loadout"
+# equips the saved weapons (free) and buys cfg("shop::restock-mags") magazines per saved gun plus the
+# saved consumables, in one payment.
+#
+# Memory only, per player: {-shop::gui::<p>} the open shop, ::kind, ::rows, ::tab, ::gen (screen
+# generation), ::act::<p>::<slot> (the action of each button), ::sel (selected weapon), ::confirm /
+# ::confirmat (armed confirmation), ::status (the status line).
+
+# ---------- Items ----------
+
+# A stack of `n` rounds. Built the same way every time, so stacks merge.
+function ammoItem(type: text, n: number) :: item:
+	set {_base} to cfg("ammo::%{_type}%::item")
+	set {_name} to cfg("ammo::%{_type}%::name")
+	set {_wm} to cfg("ammo::%{_type}%::wm")
+	set {_i} to {_base} named "&e%{_name}%" with lore "&7Loaded when you reload (Q)." and "&8Lost when you die."
+	set item amount of {_i} to {_n}
+	set {_i} to tagItem({_i}, "ammo:%{_type}%")
+	set string tag "PublicBukkitValues;weaponmechanics:ammo-name" of custom nbt of {_i} to {_wm}
+	return {_i}
+
+function ammoCount(p: player, type: text) :: number:
+	set {_have} to 0
+	loop integers from 9 to 35:
+		if itemId(slot loop-value of {_p}'s inventory) is "ammo:%{_type}%":
+			add item amount of slot loop-value of {_p}'s inventory to {_have}
+	return {_have}
+
+# How many more rounds fit: stack space in slots 9-35, capped at the type's max.
+function ammoRoom(p: player, type: text) :: number:
+	set {_room} to 0
+	set {_have} to 0
+	loop integers from 9 to 35:
+		set {_i} to slot loop-value of {_p}'s inventory
+		if {_i} is air:
+			add 64 to {_room}
+		else if itemId({_i}) is "ammo:%{_type}%":
+			set {_a} to item amount of {_i}
+			add {_a} to {_have}
+			add 64 - {_a} to {_room}
+	set {_max} to cfg("ammo::%{_type}%::max")
+	return max(0, min({_room}, {_max} - {_have}))
+
+# Slots 9-35 only: first tops up stacks of this type, then fills empty slots. Returns how many fit.
+function addAmmo(p: player, type: text, rounds: number) :: number:
+	set {_left} to {_rounds}
+	loop integers from 9 to 35:
+		{_left} > 0
+		itemId(slot loop-value of {_p}'s inventory) is "ammo:%{_type}%"
+		set {_have} to item amount of slot loop-value of {_p}'s inventory
+		set {_add} to min(64 - {_have}, {_left})
+		{_add} > 0
+		set slot loop-value of {_p}'s inventory to ammoItem({_type}, {_have} + {_add})
+		remove {_add} from {_left}
+	loop integers from 9 to 35:
+		{_left} > 0
+		slot loop-value of {_p}'s inventory is air
+		set {_add} to min(64, {_left})
+		set slot loop-value of {_p}'s inventory to ammoItem({_type}, {_add})
+		remove {_add} from {_left}
+	return {_rounds} - {_left}
+
+# "wpn:<W>" for weapons we sell, "con:<W>" for consumables, "" for anything else.
+function loadoutId(i: item) :: text:
+	set {_w} to wmTitle({_i})
+	if {_w} is "":
+		return ""
+	if {-cfg::con::%{_w}%::price} is set:
+		return "con:%{_w}%"
+	return "wpn:%{_w}%"
+
+# First empty slot among hotbar 1-5 (slots 0-4), or -1.
+function freeLoadoutSlot(p: player) :: number:
+	loop integers from 0 to 4:
+		if slot loop-value of {_p}'s inventory is air:
+			return loop-value
+	return -1
+
+# Slot 0-4 holding this loadout id, or -1.
+function loadoutSlotOf(p: player, id: text) :: number:
+	loop integers from 0 to 4:
+		if loadoutId(slot loop-value of {_p}'s inventory) is {_id}:
+			return loop-value
+	return -1
+
+# Gives weapon W into an empty slot 0-4; guns come empty. True when it landed.
+function equipWeapon(p: player, w: text, slot: number) :: boolean:
+	if slot {_slot} of {_p}'s inventory is not air:
+		return false
+	set {_n} to name of {_p}
+	set {_data} to "{slot:%{_slot}%}"
+	if {-cfg::wpn::%{_w}%::ammo} is set:
+		set {_data} to "{slot:%{_slot}%,ammo:0}"
+	execute console command "wm give %{_n}% %{_w}% 1 %{_data}%"
+	if wmTitle(slot {_slot} of {_p}'s inventory) is {_w}:
+		return true
+	send "[Donating] shop: wm give %{_w}% to %{_n}% (slot %{_slot}%) failed" to console
+	return false
+
+# Takes the gun out and gives its loaded rounds back (both in one call: no window for a dupe).
+function unequipGun(p: player, slot: number):
+	set {_i} to slot {_slot} of {_p}'s inventory
+	set {_w} to wmTitle({_i})
+	set {_loaded} to wmLoaded({_i})
+	set slot {_slot} of {_p}'s inventory to air
+	set {_type} to {-cfg::wpn::%{_w}%::ammo}
+	{_type} is set
+	{_loaded} > 0
+	set {_back} to addAmmo({_p}, {_type}, {_loaded})
+	if {_back} < {_loaded}:
+		set {_lost} to {_loaded} - {_back}
+		shopStatus({_p}, "&c%{_lost}% loaded rounds didn't fit in your ammo slots and were lost.")
+
+# Removes weapons that shouldn't exist (see the top of this file). Not for staff with the bypass.
+function auditWeapons(p: player):
+	bypassesLock({_p}) is false
+	loop integers from 0 to 40:
+		set {_i} to slot loop-value of {_p}'s inventory
+		set {_w} to wmTitle({_i})
+		{_w} is not ""
+		set {_bad} to ""
+		if loop-value > 4:
+			set {_bad} to "outside hotbar 1-5"
+		else if {_seen::%{_w}%} is set:
+			set {_bad} to "second copy"
+		else if {-cfg::con::%{_w}%::price} is set:
+			set {_max} to cfg("con::%{_w}%::max")
+			if item amount of {_i} > {_max}:
+				set item amount of {_i} to {_max}
+				set slot loop-value of {_p}'s inventory to {_i}
+				shopLog({_p}, "audit trimmed %{_w}% in slot %loop-value% to %{_max}%", 0)
+		else if getData({_p}, "wpn::%{_w}%") is not true:
+			set {_bad} to "not unlocked"
+		set {_seen::%{_w}%} to true
+		{_bad} is not ""
+		set slot loop-value of {_p}'s inventory to air
+		shopLog({_p}, "audit removed %{_w}% from slot %loop-value% (%{_bad}%)", 0)
+
+# ---------- Shop state ----------
+
+# plugins\Skript\logs\shop.log
+function shopLog(p: player, what: text, price: number):
+	set {_bal} to floor(balance of {_p})
+	log "%name of {_p}% %uuid of {_p}% %{_what}% price=%{_price}% balance=%{_bal}%" to "shop"
+
+function shopStatus(p: player, text: text):
+	set {-shop::status::%{_p}%} to {_text}
+
+function shopOk(p: player, text: text):
+	shopStatus({_p}, "&a%{_text}%")
+	play sound "entity.experience_orb.pickup" with volume 0.5 to {_p}
+
+function shopFail(p: player, text: text):
+	shopStatus({_p}, "&c%{_text}%")
+	play sound "entity.villager.no" with volume 0.6 to {_p}
+
+# "" when the player may shop now, otherwise why not.
+function shopBlockReason(p: player) :: text:
+	if {_p} is not alive:
+		return "You can't shop right now."
+	if isCombatTagged({_p}) is true:
+		return "You can't shop while in combat."
+	return ""
+
+# Hook for bag.sk: the loot value in the carried bag. The bag can't be swapped while it holds loot.
+function shopBagLoot(p: player) :: number:
+	return 0
+
+# Highest bag tier unlocked (older data may only have bag-tier).
+function bestBag(p: player) :: number:
+	set {_best} to 0
+	set {_a} to getData({_p}, "bag-best")
+	if {_a} is set:
+		set {_best} to max({_best}, {_a})
+	set {_b} to getData({_p}, "bag-tier")
+	if {_b} is set:
+		set {_best} to max({_best}, {_b})
+	return {_best}
+
+# True = this click only armed the confirmation (the caller stops). The price is part of the key, so
+# a changed price asks again. force: always ask, whatever the price.
+function needsConfirm(p: player, act: text, price: number, force: boolean) :: boolean:
+	if {_force} is false:
+		if {_price} < cfg("shop::confirm-above"):
+			return false
+	set {_key} to "%{_act}%@%{_price}%"
+	if {-shop::confirm::%{_p}%} is {_key}:
+		if difference between {-shop::confirmat::%{_p}%} and now < cfg("shop::confirm-window"):
+			delete {-shop::confirm::%{_p}%}
+			return false
+	set {-shop::confirm::%{_p}%} to {_key}
+	set {-shop::confirmat::%{_p}%} to now
+	set {_money} to formatMoney({_price})
+	shopStatus({_p}, "&eClick again to pay %{_money}%.")
+	if {_price} <= 0:
+		shopStatus({_p}, "&eClick again to confirm.")
+	play sound "block.note_block.pling" with volume 0.6 to {_p}
+	return true
+
+function clearShopState(p: player):
+	delete {-shop::gui::%{_p}%}
+	delete {-shop::kind::%{_p}%}
+	delete {-shop::rows::%{_p}%}
+	delete {-shop::tab::%{_p}%}
+	delete {-shop::gen::%{_p}%}
+	delete {-shop::act::%{_p}%::*}
+	delete {-shop::sel::%{_p}%}
+	delete {-shop::confirm::%{_p}%}
+	delete {-shop::confirmat::%{_p}%}
+	delete {-shop::status::%{_p}%}
+
+# ---------- Opening ----------
+
+function openShop(p: player, kind: text):
+	# One click can arrive twice (main/off hand, interact/interact-at): open once. Only while that
+	# shop really is open, so stale state can never lock a player out.
+	if {-shop::gui::%{_p}%} is set:
+		if {-shop::kind::%{_p}%} is {_kind}:
+			if {_p}'s current inventory is {-shop::gui::%{_p}%}:
+				stop
+	set {_why} to shopBlockReason({_p})
+	if {_why} is not "":
+		msg({_p}, "&c%{_why}%")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	closePhoneMap({_p})
+	auditWeapons({_p})
+	set {_rows} to 3
+	if {_kind} is "gun":
+		set {_rows} to 6
+	set {_title} to cfg("shop::%{_kind}%::title")
+	set {_gui} to chest inventory with {_rows} rows named "&8%{_title}%"
+	clearShopState({_p})
+	set {-shop::gui::%{_p}%} to {_gui}
+	set {-shop::kind::%{_p}%} to {_kind}
+	set {-shop::rows::%{_p}%} to {_rows}
+	set {-shop::tab::%{_p}%} to "loadout"
+	set {-shop::gen::%{_p}%} to 0
+	renderShop({_p})
+	open {_gui} to {_p}
+	play sound "block.chest.open" with volume 0.5 to {_p}
+
+on right click on entity:
+	event-entity has scoreboard tag "donating_shop"
+	event-entity does not have metadata "NPC"
+	cancel event
+	loop "gun", "gear", "bag" and "tools":
+		if event-entity has scoreboard tag "shop_%loop-value%":
+			openShop(player, loop-value)
+			stop
+
+# ---------- Drawing ----------
+
+# A button: the item plus the action it runs.
+function button(p: player, slot: number, i: item, act: text):
+	set slot {_slot} of {-shop::gui::%{_p}%} to {_i}
+	set {-shop::act::%{_p}%::%{_slot}%} to {_act}
+
+function glint(i: item) :: item:
+	set boolean tag "minecraft:enchantment_glint_override" of nbt of {_i} to true
+	return {_i}
+
+function renderShop(p: player):
+	set {_gui} to {-shop::gui::%{_p}%}
+	{_gui} is set
+	delete {-shop::act::%{_p}%::*}
+	set {_pane} to black stained glass pane named "&r"
+	set {_cells} to {-shop::rows::%{_p}%} * 9
+	loop {_cells} times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {_bal} to formatMoney(balance of {_p})
+	set slot 0 of {_gui} to tagItem(gold ingot named "&6Balance: %{_bal}%", "shopicon:balance")
+	set {_status} to {-shop::status::%{_p}%}
+	if {_status} is not set:
+		set {_status} to "&7Pick something."
+	set {_above} to formatMoney(cfg("shop::confirm-above"))
+	set slot 4 of {_gui} to tagItem(book named {_status} with lore "&8Buys of %{_above}% or more need a second click.", "shopicon:status")
+	button({_p}, 8, tagItem(barrier named "&cClose", "shopicon:close"), "close")
+	set {_kind} to {-shop::kind::%{_p}%}
+	if {_kind} is "gun":
+		renderGun({_p})
+	else if {_kind} is "gear":
+		renderGear({_p})
+	else if {_kind} is "bag":
+		renderBag({_p})
+	else:
+		renderTools({_p})
+
+# Content cells of the gun shop (rows 2-4, columns 2-8).
+function gunCells() :: numbers:
+	return 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42 and 43
+
+# What a hotbar slot holds, as a line for lore.
+function slotText(p: player, slot: number) :: text:
+	set {_i} to slot {_slot} of {_p}'s inventory
+	if {_i} is air:
+		return "&8empty"
+	set {_id} to loadoutId({_i})
+	if {_id} starts with "wpn:":
+		set {_w} to wmTitle({_i})
+		set {_name} to cfg("wpn::%{_w}%::name")
+		if {-cfg::wpn::%{_w}%::mag} is set:
+			set {_loaded} to wmLoaded({_i})
+			set {_mag} to cfg("wpn::%{_w}%::mag")
+			return "&f%{_name}% &7(%{_loaded}%/%{_mag}% loaded)"
+		return "&f%{_name}%"
+	if {_id} starts with "con:":
+		set {_w} to wmTitle({_i})
+		set {_name} to cfg("con::%{_w}%::name")
+		set {_n} to item amount of {_i}
+		return "&f%{_name}% &7x%{_n}%"
+	return "&7something else"
+
+function renderGun(p: player):
+	set {_gui} to {-shop::gui::%{_p}%}
+	# Save / restore.
+	loop integers from 0 to 4:
+		set {_line} to slotText({_p}, loop-value)
+		add "&7Hotbar %loop-value + 1%: %{_line}%" to {_save::*}
+	add "&eClick to save this as your loadout." to {_save::*}
+	button({_p}, 2, tagItem(writable book named "&aSave loadout" with lore {_save::*}, "shopicon:save"), "save")
+	set {_cost} to restoreCost({_p})
+	if getData({_p}, "loadout::saved") is true:
+		set {_money} to formatMoney({_cost})
+		add "&7Equips your saved weapons (free) and buys" to {_rest::*}
+		set {_mags} to cfg("shop::restock-mags")
+		add "&7the saved Stims and %{_mags}% magazines per gun." to {_rest::*}
+		add "&eCosts now: %{_money}%" to {_rest::*}
+		button({_p}, 6, tagItem(recovery compass named "&aRestore loadout" with lore {_rest::*}, "shopicon:restore"), "restore")
+	else:
+		set slot 6 of {_gui} to tagItem(recovery compass named "&7Restore loadout" with lore "&8No saved loadout yet.", "shopicon:restore")
+	# Hotbar mirror (hotbar 1-5 = slots 11-15).
+	loop integers from 0 to 4:
+		set {_n} to loop-value
+		set {_i} to slot {_n} of {_p}'s inventory
+		set {_line} to slotText({_p}, {_n})
+		set {_hot} to "Hotbar %{_n} + 1%"
+		if {_i} is air:
+			set {_icon} to light gray stained glass pane named "&7%{_hot}%: empty" with lore "&8Select a weapon, then click here."
+		else:
+			set {_icon} to feather named "&f%{_hot}%" with lore {_line} and "&8Click: take out or put your selection here."
+		button({_p}, 11 + {_n}, tagItem({_icon}, "shopicon:hot"), "hot:%{_n}%")
+	# Tabs.
+	set {_tab} to {-shop::tab::%{_p}%}
+	set {_t1} to chest named "&fLoadout" with lore "&7Your weapons: put them in hotbar 1-5."
+	set {_t2} to feather named "&fWeapons" with lore "&7Buy weapons (once, then free to equip)."
+	set {_t3} to iron nugget named "&fAmmo" with lore "&7Rounds for your guns."
+	set {_t4} to lightning rod named "&fItems" with lore "&7Stims and heist tools."
+	if {_tab} is "loadout":
+		set {_t1} to glint({_t1})
+	else if {_tab} is "weapons":
+		set {_t2} to glint({_t2})
+	else if {_tab} is "ammo":
+		set {_t3} to glint({_t3})
+	else:
+		set {_t4} to glint({_t4})
+	button({_p}, 45, tagItem({_t1}, "shopicon:tab"), "tab:loadout")
+	button({_p}, 47, tagItem({_t2}, "shopicon:tab"), "tab:weapons")
+	button({_p}, 49, tagItem({_t3}, "shopicon:tab"), "tab:ammo")
+	button({_p}, 51, tagItem({_t4}, "shopicon:tab"), "tab:items")
+	set {_cells::*} to gunCells()
+	if {_tab} is "loadout":
+		set {_k} to 1
+		loop {-cfg::shop::weapons::*}:
+			set {_w} to loop-value
+			getData({_p}, "wpn::%{_w}%") is true
+			set {_name} to cfg("wpn::%{_w}%::name")
+			set {_at} to loadoutSlotOf({_p}, "wpn:%{_w}%")
+			set {_where} to "&8Not equipped"
+			if {_at} >= 0:
+				set {_where} to "&7Equipped: hotbar %{_at} + 1%"
+			set {_i} to feather named "&f%{_name}%" with lore {_where} and "&eClick: select, then click a hotbar slot above." and "&eShift-click: put it in the first free slot."
+			if {-shop::sel::%{_p}%} is {_w}:
+				set {_i} to glint({_i})
+			button({_p}, {_cells::%{_k}%}, tagItem({_i}, "shopicon:wpn"), "sel:%{_w}%")
+			add 1 to {_k}
+		if {_k} is 1:
+			set slot {_cells::1} of {_gui} to tagItem(paper named "&7No weapons yet" with lore "&8Buy one in the Weapons tab.", "shopicon:none")
+	else if {_tab} is "weapons":
+		set {_k} to 1
+		loop {-cfg::shop::weapons::*}:
+			set {_w} to loop-value
+			set {_name} to cfg("wpn::%{_w}%::name")
+			set {_kindname} to cfg("wpn::%{_w}%::kind")
+			add "&7%{_kindname}%" to {_lore::*}
+			if {-cfg::wpn::%{_w}%::ammo} is set:
+				set {_type} to cfg("wpn::%{_w}%::ammo")
+				set {_ammoname} to cfg("ammo::%{_type}%::name")
+				set {_mag} to cfg("wpn::%{_w}%::mag")
+				add "&7Ammo: %{_ammoname}%, %{_mag}% per magazine" to {_lore::*}
+			if getData({_p}, "wpn::%{_w}%") is true:
+				add "&aOwned: click to equip it." to {_lore::*}
+			else:
+				set {_money} to formatMoney(cfg("wpn::%{_w}%::price"))
+				add "&ePrice: %{_money}%" to {_lore::*}
+			button({_p}, {_cells::%{_k}%}, tagItem(feather named "&f%{_name}%" with lore {_lore::*}, "shopicon:wpn"), "buy:%{_w}%")
+			delete {_lore::*}
+			add 1 to {_k}
+	else if {_tab} is "ammo":
+		set {_row} to 0
+		loop {-cfg::shop::ammo::*}:
+			set {_type} to loop-value
+			set {_base} to 19 + 9 * {_row}
+			set {_name} to cfg("ammo::%{_type}%::name")
+			set {_have} to ammoCount({_p}, {_type})
+			set {_max} to cfg("ammo::%{_type}%::max")
+			set {_price} to cfg("ammo::%{_type}%::price")
+			set {_pack} to cfg("ammo::%{_type}%::pack")
+			set {_icon} to cfg("ammo::%{_type}%::item")
+			set slot {_base} of {_gui} to tagItem({_icon} named "&e%{_name}%" with lore "&7You carry %{_have}% / %{_max}%.", "shopicon:ammo")
+			set {_m1} to formatMoney({_pack} * {_price})
+			button({_p}, {_base} + 2, tagItem({_icon} named "&f+%{_pack}% rounds" with lore "&e%{_m1}%", "shopicon:ammo"), "ammo:%{_type}%:%{_pack}%")
+			set {_m5} to formatMoney({_pack} * 5 * {_price})
+			button({_p}, {_base} + 3, tagItem({_icon} named "&f+%{_pack} * 5% rounds" with lore "&e%{_m5}%", "shopicon:ammo"), "ammo:%{_type}%:%{_pack} * 5%")
+			set {_room} to ammoRoom({_p}, {_type})
+			if {_room} > 0:
+				set {_mf} to formatMoney({_room} * {_price})
+				button({_p}, {_base} + 4, tagItem({_icon} named "&fFill up (+%{_room}%)" with lore "&e%{_mf}%", "shopicon:ammo"), "ammo:%{_type}%:fill")
+			else:
+				set slot {_base} + 4 of {_gui} to tagItem(barrier named "&7Full", "shopicon:full")
+			add 1 to {_row}
+	else:
+		set {_k} to 1
+		loop {-cfg::shop::consumables::*}:
+			set {_w} to loop-value
+			set {_name} to cfg("con::%{_w}%::name")
+			set {_money} to formatMoney(cfg("con::%{_w}%::price"))
+			set {_max} to cfg("con::%{_w}%::max")
+			button({_p}, {_cells::%{_k}%}, tagItem(glass bottle named "&f%{_name}%" with lore "&e%{_money}% each, up to %{_max}%" and "&eClick: buy 1. Shift-click: fill up.", "shopicon:con"), "con:%{_w}%")
+			add 1 to {_k}
+		set {_k} to 8
+		loop {-cfg::shop::tools::*}:
+			set {_name} to cfg("tool::%loop-value%::name")
+			set slot {_cells::%{_k}%} of {_gui} to tagItem(iron pickaxe named "&7%{_name}%" with lore "&8Coming soon.", "shopicon:tool")
+			add 1 to {_k}
+
+function renderGear(p: player):
+	set {_gui} to {-shop::gui::%{_p}%}
+	set {_head} to itemId(helmet of {_p})
+	set {_chest} to itemId(chestplate of {_p})
+	set {_wear} to "&7Wearing: nothing"
+	if {_head} starts with "gear:":
+		set {_hid} to last element of ({_head} split at ":")
+		set {_hname} to cfg("gear::%{_hid}%::name")
+		set {_wear} to "&7Wearing: %{_hname}%"
+	if {_chest} starts with "gear:":
+		set {_cid} to last element of ({_chest} split at ":")
+		set {_cname} to cfg("gear::%{_cid}%::name")
+		set {_wear} to "%{_wear}%, %{_cname}%"
+	set slot 13 of {_gui} to tagItem(armor stand named {_wear} with lore "&8Lost when you die." and "&8Guns hurt 3%% less per armor point.", "shopicon:wear")
+	set {_slots::*} to 10, 11, 15 and 16
+	set {_k} to 1
+	loop {-cfg::shop::gear::*}:
+		set {_id} to loop-value
+		set {_name} to cfg("gear::%{_id}%::name")
+		set {_money} to formatMoney(cfg("gear::%{_id}%::price"))
+		set {_base} to cfg("gear::%{_id}%::item")
+		set {_i} to {_base} named "&f%{_name}%" with lore "&e%{_money}%"
+		if itemId(helmet of {_p}) is "gear:%{_id}%":
+			set {_i} to glint({_base} named "&f%{_name}%" with lore "&aWearing it.")
+		else if itemId(chestplate of {_p}) is "gear:%{_id}%":
+			set {_i} to glint({_base} named "&f%{_name}%" with lore "&aWearing it.")
+		button({_p}, {_slots::%{_k}%}, tagItem({_i}, "shopicon:gear"), "gear:%{_id}%")
+		add 1 to {_k}
+
+function renderBag(p: player):
+	set {_carry} to getData({_p}, "bag-tier")
+	if {_carry} is not set:
+		set {_carry} to 0
+	set {_best} to bestBag({_p})
+	loop integers from 1 to 5:
+		set {_t} to loop-value
+		set {_name} to cfg("bag::%{_t}%::name")
+		set {_cap} to formatMoney(cfg("bag::%{_t}%::capacity"))
+		add "&7Holds %{_cap}% of loot." to {_lore::*}
+		if {_t} is {_carry}:
+			add "&aCarrying it." to {_lore::*}
+		else if {_t} <= {_best}:
+			set {_money} to formatMoney(cfg("bag::%{_t}%::replace"))
+			add "&7Unlocked: a new one costs &e%{_money}%" to {_lore::*}
+		else:
+			set {_money} to formatMoney(cfg("bag::%{_t}%::price"))
+			add "&7Unlock: &e%{_money}%" to {_lore::*}
+		set {_i} to leather named "&6%{_name}%" with lore {_lore::*}
+		if {_t} is {_carry}:
+			set {_i} to glint({_i})
+		button({_p}, 10 + {_t}, tagItem({_i}, "shopicon:bag"), "bag:%{_t}%")
+		delete {_lore::*}
+
+function renderTools(p: player):
+	set {_k} to 11
+	loop {-cfg::shop::tools::*}:
+		set {_name} to cfg("tool::%loop-value%::name")
+		set slot {_k} of {-shop::gui::%{_p}%} to tagItem(iron pickaxe named "&7%{_name}%" with lore "&8Coming soon.", "shopicon:tool")
+		add 2 to {_k}
+
+# ---------- Clicks ----------
+
+on inventory click:
+	{-shop::gui::%player%} is set
+	player's current inventory is {-shop::gui::%player%}
+	# Every click in a shop is cancelled, also for staff with the inventory bypass.
+	cancel event
+	event-inventory is {-shop::gui::%player%}
+	set {_slot} to index of event-slot
+	set {_act} to {-shop::act::%player%::%{_slot}%}
+	{_act} is set
+	# Left, right and shift-left clicks only (number keys, double clicks, drops do nothing).
+	set {_shift} to false
+	set {_ok} to false
+	if click type is left mouse button with shift:
+		set {_shift} to true
+		set {_ok} to true
+	else if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_ok} to true
+	{_ok} is true
+	set {_gen} to {-shop::gen::%player%}
+	wait 1 tick
+	player is online
+	player is alive
+	{-shop::gui::%player%} is set
+	# One action per drawn screen: a second click from the same tick finds it already used.
+	{-shop::gen::%player%} is {_gen}
+	add 1 to {-shop::gen::%player%}
+	shopAction(player, {_act}, {_shift})
+
+on inventory drag:
+	{-shop::gui::%player%} is set
+	player's current inventory is {-shop::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-shop::gui::%player%} is set
+	event-inventory is {-shop::gui::%player%}
+	clearShopState(player)
+
+on quit:
+	clearShopState(player)
+
+# Getting hurt into combat closes the shop.
+on damage of player with priority monitor:
+	{-shop::gui::%victim%} is set
+	wait 1 tick
+	victim is online
+	{-shop::gui::%victim%} is set
+	isCombatTagged(victim) is true
+	close victim's inventory
+	msg(victim, "&cShop closed: you're in combat.")
+
+function shopAction(p: player, act: text, shift: boolean):
+	if {_act} is "close":
+		close {_p}'s inventory
+		stop
+	set {_why} to shopBlockReason({_p})
+	if {_why} is not "":
+		close {_p}'s inventory
+		msg({_p}, "&c%{_why}%")
+		stop
+	# Any other action cancels an armed confirmation of something else (checked in needsConfirm).
+	set {_parts::*} to {_act} split at ":"
+	set {_what} to {_parts::1}
+	if {_what} is "tab":
+		set {-shop::tab::%{_p}%} to {_parts::2}
+		delete {-shop::sel::%{_p}%}
+	else if {_what} is "sel":
+		selectWeapon({_p}, {_parts::2}, {_shift})
+	else if {_what} is "hot":
+		clickHotbar({_p}, {_parts::2} parsed as number)
+	else if {_what} is "buy":
+		buyWeapon({_p}, {_parts::2})
+	else if {_what} is "ammo":
+		buyAmmo({_p}, {_parts::2}, {_parts::3})
+	else if {_what} is "con":
+		buyConsumable({_p}, {_parts::2}, {_shift})
+	else if {_what} is "gear":
+		buyGear({_p}, {_parts::2})
+	else if {_what} is "bag":
+		buyBag({_p}, {_parts::2} parsed as number)
+	else if {_what} is "save":
+		saveLoadout({_p})
+	else if {_what} is "restore":
+		restoreLoadout({_p})
+	if {-shop::confirm::%{_p}%} is set:
+		if {-shop::confirm::%{_p}%} does not start with "%{_act}%@":
+			delete {-shop::confirm::%{_p}%}
+	renderShop({_p})
+
+# ---------- Weapons and the loadout ----------
+
+function buyWeapon(p: player, w: text):
+	set {_name} to cfg("wpn::%{_w}%::name")
+	if getData({_p}, "wpn::%{_w}%") is true:
+		# Owned: equip it if it isn't already.
+		set {_at} to loadoutSlotOf({_p}, "wpn:%{_w}%")
+		if {_at} >= 0:
+			shopFail({_p}, "The %{_name}% is already in hotbar %{_at} + 1%.")
+			stop
+		set {_slot} to freeLoadoutSlot({_p})
+		if {_slot} < 0:
+			shopFail({_p}, "Hotbar 1-5 is full: take something out first.")
+			stop
+		if equipWeapon({_p}, {_w}, {_slot}) is true:
+			shopOk({_p}, "The %{_name}% is in hotbar %{_slot} + 1%.")
+		else:
+			shopFail({_p}, "Couldn't equip the %{_name}%.")
+		stop
+	set {_price} to cfg("wpn::%{_w}%::price")
+	if needsConfirm({_p}, "buy:%{_w}%", {_price}, false) is true:
+		stop
+	# No wait from here on: check, charge, grant and verify in one call.
+	if chargeMoney({_p}, {_price}) is false:
+		set {_money} to formatMoney({_price})
+		shopFail({_p}, "The %{_name}% costs %{_money}%.")
+		stop
+	setData({_p}, "wpn::%{_w}%", true)
+	shopLog({_p}, "unlock %{_w}%", {_price})
+	set {_slot} to freeLoadoutSlot({_p})
+	if {_slot} >= 0:
+		equipWeapon({_p}, {_w}, {_slot})
+	shopOk({_p}, "Unlocked the %{_name}%: equip it for free at any gun shop.")
+
+function selectWeapon(p: player, w: text, shift: boolean):
+	if getData({_p}, "wpn::%{_w}%") is not true:
+		stop
+	if {_shift} is true:
+		delete {-shop::sel::%{_p}%}
+		buyWeapon({_p}, {_w})
+		stop
+	if {-shop::sel::%{_p}%} is {_w}:
+		delete {-shop::sel::%{_p}%}
+		shopStatus({_p}, "&7Pick something.")
+		stop
+	set {-shop::sel::%{_p}%} to {_w}
+	set {_name} to cfg("wpn::%{_w}%::name")
+	shopStatus({_p}, "&eNow click a hotbar slot for the %{_name}%.")
+
+function clickHotbar(p: player, n: number):
+	set {_i} to slot {_n} of {_p}'s inventory
+	set {_id} to loadoutId({_i})
+	set {_sel} to {-shop::sel::%{_p}%}
+	if {_sel} is set:
+		delete {-shop::sel::%{_p}%}
+		set {_name} to cfg("wpn::%{_sel}%::name")
+		set {_at} to loadoutSlotOf({_p}, "wpn:%{_sel}%")
+		if {_at} is {_n}:
+			shopOk({_p}, "The %{_name}% is already in hotbar %{_n} + 1%.")
+			stop
+		if {_i} is not air:
+			if {_id} does not start with "wpn:":
+				shopFail({_p}, "Hotbar %{_n} + 1% holds something else: click it to throw it away first.")
+				stop
+		if {_at} >= 0:
+			# Move (or swap) the weapon: it keeps its loaded rounds.
+			swapSlots({_p}, {_at}, {_n})
+			shopOk({_p}, "The %{_name}% is in hotbar %{_n} + 1%.")
+			stop
+		if {_i} is not air:
+			unequipGun({_p}, {_n})
+		if equipWeapon({_p}, {_sel}, {_n}) is true:
+			shopOk({_p}, "The %{_name}% is in hotbar %{_n} + 1%.")
+		else:
+			shopFail({_p}, "Couldn't equip the %{_name}%.")
+		stop
+	if {_i} is air:
+		shopStatus({_p}, "&7Select a weapon in the Loadout tab first.")
+		stop
+	if {_id} starts with "wpn:":
+		set {_w} to wmTitle({_i})
+		set {_name} to cfg("wpn::%{_w}%::name")
+		# unequipGun replaces this with a warning if loaded rounds didn't fit.
+		shopOk({_p}, "Took the %{_name}% out (it stays unlocked).")
+		unequipGun({_p}, {_n})
+		stop
+	# Consumables or anything else: thrown away, after a second click.
+	if needsConfirm({_p}, "hot:%{_n}%", 0, true) is true:
+		shopStatus({_p}, "&eClick again to throw away what's in hotbar %{_n} + 1%.")
+		stop
+	if {_id} starts with "con:":
+		set slot {_n} of {_p}'s inventory to air
+		shopOk({_p}, "Thrown away.")
+		stop
+	shopFail({_p}, "The shop can't take that.")
+
+function saveLoadout(p: player):
+	loop integers from 1 to 5:
+		set {_i} to slot (loop-value - 1) of {_p}'s inventory
+		set {_id} to loadoutId({_i})
+		deleteData({_p}, "loadout::%loop-value%::count")
+		if {_id} is "":
+			deleteData({_p}, "loadout::%loop-value%")
+		else:
+			setData({_p}, "loadout::%loop-value%", {_id})
+			if {_id} starts with "con:":
+				setData({_p}, "loadout::%loop-value%::count", item amount of {_i})
+	setData({_p}, "loadout::saved", true)
+	shopOk({_p}, "Loadout saved.")
+
+# What Restore would charge right now (consumables + ammo), without changing anything.
+function restoreCost(p: player) :: number:
+	set {_cost} to 0
+	loop integers from 1 to 5:
+		set {_id} to getData({_p}, "loadout::%loop-value%")
+		{_id} is set
+		{_id} starts with "con:"
+		set {_w} to last element of ({_id} split at ":")
+		{-cfg::con::%{_w}%::price} is set
+		set {_need} to restoreConNeed({_p}, loop-value)
+		add {_need} * cfg("con::%{_w}%::price") to {_cost}
+	loop {-cfg::shop::ammo::*}:
+		set {_need} to restoreAmmoNeed({_p}, loop-value)
+		add {_need} * cfg("ammo::%loop-value%::price") to {_cost}
+	return {_cost}
+
+# Consumables Restore adds in hotbar n (1-5).
+function restoreConNeed(p: player, n: number) :: number:
+	set {_id} to getData({_p}, "loadout::%{_n}%")
+	set {_count} to getData({_p}, "loadout::%{_n}%::count")
+	set {_w} to last element of ({_id} split at ":")
+	set {_max} to cfg("con::%{_w}%::max")
+	set {_count} to min({_count}, {_max})
+	set {_i} to slot ({_n} - 1) of {_p}'s inventory
+	if {_i} is air:
+		return {_count}
+	if loadoutId({_i}) is {_id}:
+		return max(0, {_count} - item amount of {_i})
+	return 0
+
+# Rounds of this type Restore buys: restock-mags magazines per saved gun, capped at max and room.
+function restoreAmmoNeed(p: player, type: text) :: number:
+	set {_target} to 0
+	loop integers from 1 to 5:
+		set {_id} to getData({_p}, "loadout::%loop-value%")
+		{_id} is set
+		{_id} starts with "wpn:"
+		set {_w} to last element of ({_id} split at ":")
+		{-cfg::wpn::%{_w}%::ammo} is {_type}
+		add cfg("shop::restock-mags") * cfg("wpn::%{_w}%::mag") to {_target}
+	set {_target} to min({_target}, cfg("ammo::%{_type}%::max"))
+	set {_need} to max(0, {_target} - ammoCount({_p}, {_type}))
+	return min({_need}, ammoRoom({_p}, {_type}))
+
+function restoreLoadout(p: player):
+	if getData({_p}, "loadout::saved") is not true:
+		shopFail({_p}, "Save a loadout first.")
+		stop
+	# 1. Weapons: free, into their saved slots (if empty and not equipped elsewhere).
+	loop integers from 1 to 5:
+		set {_id} to getData({_p}, "loadout::%loop-value%")
+		{_id} is set
+		{_id} starts with "wpn:"
+		set {_w} to last element of ({_id} split at ":")
+		getData({_p}, "wpn::%{_w}%") is true
+		loadoutSlotOf({_p}, {_id}) < 0
+		slot (loop-value - 1) of {_p}'s inventory is air
+		equipWeapon({_p}, {_w}, loop-value - 1)
+	# 2. Consumables and ammo: one payment for all of it.
+	set {_cost} to restoreCost({_p})
+	if {_cost} <= 0:
+		shopOk({_p}, "Loadout restored.")
+		stop
+	set {_money} to formatMoney({_cost})
+	if balance of {_p} < {_cost}:
+		shopFail({_p}, "Weapons are back. Ammo and Stims cost %{_money}%: buy what you can in the Ammo and Items tabs.")
+		stop
+	if needsConfirm({_p}, "restore", {_cost}, false) is true:
+		stop
+	if chargeMoney({_p}, {_cost}) is false:
+		shopFail({_p}, "Restoring costs %{_money}%.")
+		stop
+	set {_short} to 0
+	loop integers from 1 to 5:
+		set {_id} to getData({_p}, "loadout::%loop-value%")
+		{_id} is set
+		{_id} starts with "con:"
+		set {_w} to last element of ({_id} split at ":")
+		set {_need} to restoreConNeed({_p}, loop-value)
+		{_need} > 0
+		set {_have} to 0
+		if slot (loop-value - 1) of {_p}'s inventory is not air:
+			set {_have} to item amount of slot (loop-value - 1) of {_p}'s inventory
+		set {_n} to name of {_p}
+		execute console command "wm give %{_n}% %{_w}% %{_have} + {_need}% {slot:%loop-value - 1%}"
+		if wmTitle(slot (loop-value - 1) of {_p}'s inventory) is not {_w}:
+			add {_need} * cfg("con::%{_w}%::price") to {_short}
+	loop {-cfg::shop::ammo::*}:
+		set {_need} to restoreAmmoNeed({_p}, loop-value)
+		{_need} > 0
+		set {_got} to addAmmo({_p}, loop-value, {_need})
+		add ({_need} - {_got}) * cfg("ammo::%loop-value%::price") to {_short}
+	if {_short} > 0:
+		giveMoney({_p}, {_short})
+		shopLog({_p}, "restore refund", {_short})
+	shopLog({_p}, "restore", {_cost} - {_short})
+	shopOk({_p}, "Loadout restored for %{_money}%.")
+
+# ---------- Ammo and consumables ----------
+
+# amount: a number of rounds, or "fill".
+function buyAmmo(p: player, type: text, amount: text):
+	set {_room} to ammoRoom({_p}, {_type})
+	set {_name} to cfg("ammo::%{_type}%::name")
+	if {_room} <= 0:
+		shopFail({_p}, "No room for more %{_name}%.")
+		stop
+	if {_amount} is "fill":
+		set {_n} to {_room}
+	else:
+		set {_n} to {_amount} parsed as number
+		if {_n} > {_room}:
+			shopFail({_p}, "Room for %{_room}% more only.")
+			stop
+	set {_price} to {_n} * cfg("ammo::%{_type}%::price")
+	if needsConfirm({_p}, "ammo:%{_type}%:%{_amount}%", {_price}, false) is true:
+		stop
+	if chargeMoney({_p}, {_price}) is false:
+		set {_money} to formatMoney({_price})
+		shopFail({_p}, "That costs %{_money}%.")
+		stop
+	set {_got} to addAmmo({_p}, {_type}, {_n})
+	if {_got} < {_n}:
+		giveMoney({_p}, ({_n} - {_got}) * cfg("ammo::%{_type}%::price"))
+	shopLog({_p}, "ammo %{_type}% x%{_got}%", {_got} * cfg("ammo::%{_type}%::price"))
+	shopOk({_p}, "+%{_got}% %{_name}%.")
+
+# Left-click: one more. Shift-click: up to the max.
+function buyConsumable(p: player, w: text, shift: boolean):
+	set {_name} to cfg("con::%{_w}%::name")
+	set {_max} to cfg("con::%{_w}%::max")
+	set {_slot} to loadoutSlotOf({_p}, "con:%{_w}%")
+	set {_have} to 0
+	if {_slot} >= 0:
+		set {_have} to item amount of slot {_slot} of {_p}'s inventory
+	else:
+		set {_slot} to freeLoadoutSlot({_p})
+		if {_slot} < 0:
+			shopFail({_p}, "Hotbar 1-5 is full.")
+			stop
+	set {_n} to 1
+	if {_shift} is true:
+		set {_n} to {_max} - {_have}
+	if {_have} + {_n} > {_max}:
+		shopFail({_p}, "You can carry %{_max}% %{_name}%s.")
+		stop
+	if {_n} <= 0:
+		shopFail({_p}, "You can carry %{_max}% %{_name}%s.")
+		stop
+	set {_price} to {_n} * cfg("con::%{_w}%::price")
+	if needsConfirm({_p}, "con:%{_w}%:%{_n}%", {_price}, false) is true:
+		stop
+	if chargeMoney({_p}, {_price}) is false:
+		set {_money} to formatMoney({_price})
+		shopFail({_p}, "That costs %{_money}%.")
+		stop
+	set {_pn} to name of {_p}
+	execute console command "wm give %{_pn}% %{_w}% %{_have} + {_n}% {slot:%{_slot}%}"
+	if wmTitle(slot {_slot} of {_p}'s inventory) is not {_w}:
+		giveMoney({_p}, {_price})
+		shopFail({_p}, "Couldn't give the %{_name}% (refunded).")
+		send "[Donating] shop: wm give %{_w}% to %{_pn}% failed" to console
+		stop
+	shopLog({_p}, "consumable %{_w}% x%{_n}%", {_price})
+	shopOk({_p}, "+%{_n}% %{_name}%.")
+
+# ---------- Gear ----------
+
+function buyGear(p: player, id: text):
+	set {_name} to cfg("gear::%{_id}%::name")
+	set {_where} to cfg("gear::%{_id}%::slot")
+	set {_tier} to cfg("gear::%{_id}%::tier")
+	if {_where} is "helmet":
+		set {_worn} to helmet of {_p}
+	else:
+		set {_worn} to chestplate of {_p}
+	set {_wornid} to itemId({_worn})
+	set {_force} to false
+	if {_worn} is not air:
+		if {_wornid} does not start with "gear:":
+			shopFail({_p}, "Take off what you're wearing there first.")
+			stop
+		set {_wid} to last element of ({_wornid} split at ":")
+		if cfg("gear::%{_wid}%::tier") >= {_tier}:
+			shopFail({_p}, "You're already wearing that or better.")
+			stop
+		set {_force} to true
+	set {_price} to cfg("gear::%{_id}%::price")
+	if needsConfirm({_p}, "gear:%{_id}%", {_price}, {_force}) is true:
+		if {_force} is true:
+			set {_money} to formatMoney({_price})
+			shopStatus({_p}, "&eClick again: %{_money}%, replaces what you wear (no refund).")
+		stop
+	if chargeMoney({_p}, {_price}) is false:
+		set {_money} to formatMoney({_price})
+		shopFail({_p}, "The %{_name}% costs %{_money}%.")
+		stop
+	set {_base} to cfg("gear::%{_id}%::item")
+	set {_i} to unbreakable {_base}
+	set name of {_i} to "&f%{_name}%"
+	set lore of {_i} to "&8Lost when you die."
+	set {_i} to tagItem({_i}, "gear:%{_id}%")
+	if {_where} is "helmet":
+		set helmet of {_p} to {_i}
+		set {_now} to itemId(helmet of {_p})
+	else:
+		set chestplate of {_p} to {_i}
+		set {_now} to itemId(chestplate of {_p})
+	if {_now} is not "gear:%{_id}%":
+		giveMoney({_p}, {_price})
+		shopFail({_p}, "Couldn't put it on (refunded).")
+		stop
+	shopLog({_p}, "gear %{_id}%", {_price})
+	shopOk({_p}, "You're wearing the %{_name}%.")
+
+# ---------- Bags ----------
+
+function buyBag(p: player, t: number):
+	set {_name} to cfg("bag::%{_t}%::name")
+	set {_carry} to getData({_p}, "bag-tier")
+	if {_carry} is not set:
+		set {_carry} to 0
+	if {_t} is {_carry}:
+		shopFail({_p}, "You're carrying the %{_name}% already.")
+		stop
+	if shopBagLoot({_p}) > 0:
+		shopFail({_p}, "Sell your loot at the base first.")
+		stop
+	set {_price} to cfg("bag::%{_t}%::price")
+	if {_t} <= bestBag({_p}):
+		set {_price} to cfg("bag::%{_t}%::replace")
+	set {_force} to false
+	if {_carry} > 0:
+		set {_force} to true
+	if needsConfirm({_p}, "bag:%{_t}%", {_price}, {_force}) is true:
+		if {_force} is true:
+			set {_money} to formatMoney({_price})
+			shopStatus({_p}, "&eClick again: %{_money}%, your current bag is thrown away.")
+		stop
+	if chargeMoney({_p}, {_price}) is false:
+		set {_money} to formatMoney({_price})
+		shopFail({_p}, "The %{_name}% costs %{_money}%.")
+		stop
+	setData({_p}, "bag-tier", {_t})
+	if bestBag({_p}) < {_t}:
+		setData({_p}, "bag-best", {_t})
+	else:
+		setData({_p}, "bag-best", bestBag({_p}))
+	applyBag({_p})
+	if itemId(offhand tool of {_p}) is not "bag:%{_t}%":
+		send "[Donating] shop: bag %{_t}% for %{_p}% didn't land in the offhand" to console
+	shopLog({_p}, "bag %{_t}%", {_price})
+	shopOk({_p}, "You're carrying the %{_name}%.")
+
+# ---------- Commands ----------
+
+# Console only: bots and Citizens NPCs ("dshop open <p> gun"); staff support (unlock/lock).
+command /dshop <text> <player> [<text>]:
+	executable by: console
+	trigger:
+		if arg-1 is "open":
+			if arg-3 is not set:
+				send "usage: dshop open <player> gun|gear|bag|tools"
+				stop
+			openShop(arg-2, arg-3)
+			send "SHOP opened %arg-3% for %arg-2%"
+		else if arg-1 is "unlock":
+			setData(arg-2, "wpn::%arg-3%", true)
+			shopLog(arg-2, "staff unlock %arg-3%", 0)
+			send "SHOP unlocked %arg-3% for %arg-2%"
+		else if arg-1 is "lock":
+			deleteData(arg-2, "wpn::%arg-3%")
+			shopLog(arg-2, "staff lock %arg-3%", 0)
+			send "SHOP locked %arg-3% for %arg-2%"
+		else:
+			send "usage: dshop open|unlock|lock <player> <kind|weapon>"
+
+on join:
+	auditWeapons(player)
+
+on death of player:
+	clearShopState(victim)
+
+# ---------- Shopkeepers ----------
+# Saved: {shop::keepers::<id>} = kind, {shop::keeper::<id>::loc}. A missing keeper (killed, /kill)
+# comes back within cfg("shop::keeper-check") while its chunk is loaded. Stand them in safe zones.
+
+command /dshopkeeper [<text>] [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		if arg-1 is "add":
+			if {-cfg::shop::%arg-2%::title} is not set:
+				msg(player, "&cKinds: gun, gear, bag, tools.")
+				stop
+			add 1 to {shop::keeper-next}
+			set {_id} to "%{shop::keeper-next}%"
+			set {shop::keepers::%{_id}%} to arg-2
+			set {shop::keeper::%{_id}%::loc} to location of player
+			spawnKeeper({_id})
+			msg(player, "Shopkeeper %{_id}% (%arg-2%) added here.")
+		else if arg-1 is "remove":
+			set {_id} to arg-2
+			if {shop::keepers::%{_id}%} is not set:
+				msg(player, "&cNo shopkeeper %{_id}%.")
+				stop
+			# minecraft:kill also removes invulnerable entities.
+			execute console command "minecraft:kill @e[tag=shopk_%{_id}%]"
+			delete {shop::keepers::%{_id}%}
+			delete {shop::keeper::%{_id}%::*}
+			msg(player, "Shopkeeper %{_id}% removed.")
+		else if arg-1 is "list":
+			loop {shop::keepers::*}:
+				set {_l} to {shop::keeper::%loop-index%::loc}
+				msg(player, "%loop-index%: %loop-value% at %{_l}%")
+		else:
+			msg(player, "/dshopkeeper add <gun|gear|bag|tools> | remove <id> | list")
+
+function spawnKeeper(id: text):
+	set {_loc} to {shop::keeper::%{_id}%::loc}
+	set {_kind} to {shop::keepers::%{_id}%}
+	set {_title} to cfg("shop::%{_kind}%::title")
+	set {_x} to x-coordinate of {_loc}
+	set {_y} to y-coordinate of {_loc}
+	set {_z} to z-coordinate of {_loc}
+	set {_yaw} to yaw of {_loc}
+	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b,Rotation:[%{_yaw}%f,0f]}"
+
+every 30 seconds:
+	loop {shop::keepers::*}:
+		keeperCheck(loop-index)
+
+function keeperCheck(id: text):
+	set {_loc} to {shop::keeper::%{_id}%::loc}
+	{_loc} is set
+	chunk at {_loc} is loaded
+	loop entities in radius 3 around {_loc}:
+		loop-entity has scoreboard tag "shopk_%{_id}%"
+		stop
+	spawnKeeper({_id})

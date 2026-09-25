@@ -6,7 +6,7 @@ description: Draws the Donating phone map. Game rules live in Skript.
 commands:
   dphone:
     description: Reload the phone config and re-read the city map (pixels + banner labels), or show one player's phone.
-    usage: /dphone [status <player>]
+    usage: /dphone [reload | status <player>]
     permission: donating.phone.admin
 permissions:
   donating.phone.admin:

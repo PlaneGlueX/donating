@@ -331,6 +331,11 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                     + " pois=" + pois.size() + " cursor=" + (s == null ? "none" : s.curX + "," + s.curY));
             return true;
         }
+        if (args.length > 1 || (args.length == 1 && !args[0].equalsIgnoreCase("reload"))) {
+            sender.sendMessage("/dphone [reload]: reload the config and re-read the city (after adding banner labels)");
+            sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
+            return true;
+        }
         load();
         sender.sendMessage("DonatingPhone reloaded: " + pool.size() + " phone maps, city " + cityDesc + ".");
         return true;

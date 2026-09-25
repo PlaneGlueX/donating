@@ -161,6 +161,17 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 56. **Death in the real client (human):** the loss message, and whether losing the bag feels fair (buying it again is shop.sk's job).
     - Result: HUMAN / TODO
 
+## shop.sk: the shops (2026-09-25)
+
+57. **Item ammo** (`bots\run.js wm-ammo`, 21 checks): the config files have no forbidden keys, every sold gun has item ammo and Swap_Hands, the knife and Stim cancel Q/F. A gun given without `{ammo:0}` starts full (control). For the .50 GS, Uzi, R9-0 and AK-47: no free reloads, the wrong ammo type isn't used, and Q loads exactly one magazine from the shop's ammo items with F pressed during the reload. A reload takes from several stacks. A Stim heals and uses one of the stack, leaving nothing. Q/F leave the knife in place. Ammo only goes into the upper inventory.
+    - Result: PASS (bot, 2026-09-25). 21/21. wm-reload now buys rifle ammo before it reloads (5/5).
+58. **Shops** (`bots\run.js shop`, 40 checks): the gun shop layout; buying the .50 GS (charged, unlocked, in hotbar 1 with an empty magazine), not twice, not without the money; the confirm click for $1,000+ and one that ran out; ammo ($16 per 16 light rounds, in the upper inventory; a same-tick double click buys once, two separate clicks twice; fill up to exactly 256; refused at the max and with no free slots); the loadout (a selected gun moves keeping its 5 loaded rounds, taking it out gives the rounds back, equipping again is free and empty); Stims (a stack up to 3, the 4th refused; throwing away takes two clicks); Save, die, Restore (AK-47, 2 Stims, 90 rifle rounds for $670; with too little money only the weapons, no charge); no shopping in combat, getting hurt in combat closes the shop, passive players can shop; number keys, clicks below the shop and staff with the bypass take nothing; the audit removes an unlocked-less R9-0 and a second AK-47; gear (helmet straight on, unbreakable, the same one refused, a better one asks first and replaces it); bags (a lost unlocked tier costs the replacement price, a new tier unlocks it after a confirm, the carried one is refused); a mannequin shopkeeper opens its shop; /dshopkeeper is staff only, adds a mannequin, a killed keeper comes back within 30 s, remove takes it away.
+    - Result: PASS (bot, 2026-09-25), all 40. Found on the way: reopening a shop only stays blocked while that shop really is open (stale state could have locked a player out).
+59. **Owner decisions (defaults built, all PROPOSALs in core.sk):** weapon prices (knife $150, .50 GS $300, Uzi $3,000, R9-0 $7,500, AK-47 $15,000); ammo per round (light $1, shells $5, rifle $3); Stim $200 (max 3); helmets $750 / $2,500, vests $1,000 / $5,000; a replacement bag = 10% of unlocking that tier; confirm clicks from $1,000; Restore buys 3 magazines per saved gun; explicit Save button (not auto-save); shopkeeper skins (default mannequin skin now); no grenades in v1.
+    - Result: OWNER / TODO
+60. **Shops in the real client (human):** the menus look right (titles, lore, the glint on the selected weapon and active tab, the status line), the mannequin keeper, the reload feel with bought ammo, helmet/vest look, the bag appears in the offhand, whether the confirm click and Restore are clear.
+    - Result: HUMAN / TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

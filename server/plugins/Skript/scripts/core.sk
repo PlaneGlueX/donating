@@ -11,7 +11,10 @@
 #     first-join   date of first join
 #     passive      true while in passive mode
 #     bounty       current bounty ($)
-#     bag-tier     bag tier the player owns and carries (0 = no bag)
+#     bag-tier     bag tier the player carries now (0 or unset = no bag; death.sk deletes it)
+#     bag-best     highest bag tier unlocked (a lost bag's tier stays unlocked)
+#     wpn::<W>     true once weapon W (a WeaponMechanics title) is unlocked (shop.sk)
+#     loadout::<n> saved loadout for hotbar n (1-5): "wpn:<W>", "con:<W>"; loadout::<n>::count
 #   Server stats (saved): {stats::unique-joins} = players who ever joined (join-quit.sk).
 
 on load:
@@ -98,6 +101,110 @@ function loadSettings():
 	set {-cfg::bounty::kill-cap} to 25000
 	set {-cfg::bounty::min-placed} to 1000
 
+	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
+	# Purchases at or above this price need a second click within the window.
+	set {-cfg::shop::confirm-above} to 1000
+	set {-cfg::shop::confirm-window} to 5 seconds
+	# Restore buys ammo up to this many magazines per saved gun (capped at the type's max).
+	set {-cfg::shop::restock-mags} to 3
+	set {-cfg::shop::keeper-check} to 30 seconds
+	set {-cfg::shop::keeper-skin} to "" # "" = the default mannequin skin
+	set {-cfg::shop::gun::title} to "Gun Shop"
+	set {-cfg::shop::gear::title} to "Gear Shop"
+	set {-cfg::shop::bag::title} to "Bag Shop"
+	set {-cfg::shop::tools::title} to "Heist Tools"
+
+	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles.
+	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
+	set {-cfg::shop::weapons::*} to "Combat_Knife", "50_GS", "Uzi", "R9_0" and "AK_47"
+	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
+	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
+	set {-cfg::wpn::Combat_Knife::price} to 150
+	set {-cfg::wpn::50_GS::name} to ".50 GS"
+	set {-cfg::wpn::50_GS::kind} to "Pistol"
+	set {-cfg::wpn::50_GS::price} to 300
+	set {-cfg::wpn::50_GS::ammo} to "light"
+	set {-cfg::wpn::50_GS::mag} to 7
+	set {-cfg::wpn::Uzi::name} to "Uzi"
+	set {-cfg::wpn::Uzi::kind} to "SMG"
+	set {-cfg::wpn::Uzi::price} to 3000
+	set {-cfg::wpn::Uzi::ammo} to "light"
+	set {-cfg::wpn::Uzi::mag} to 32
+	set {-cfg::wpn::R9_0::name} to "R9-0"
+	set {-cfg::wpn::R9_0::kind} to "Shotgun"
+	set {-cfg::wpn::R9_0::price} to 7500
+	set {-cfg::wpn::R9_0::ammo} to "shells"
+	set {-cfg::wpn::R9_0::mag} to 14
+	set {-cfg::wpn::AK_47::name} to "AK-47"
+	set {-cfg::wpn::AK_47::kind} to "Rifle"
+	set {-cfg::wpn::AK_47::price} to 15000
+	set {-cfg::wpn::AK_47::ammo} to "rifle"
+	set {-cfg::wpn::AK_47::mag} to 30
+
+	# Ammo types. "wm" = the ammo's name in plugins\WeaponMechanics\ammos\Donating_Ammos.yml.
+	set {-cfg::shop::ammo::*} to "light", "shells" and "rifle"
+	set {-cfg::ammo::light::name} to "Light Rounds"
+	set {-cfg::ammo::light::wm} to "Donating_Light"
+	set {-cfg::ammo::light::item} to iron nugget
+	set {-cfg::ammo::light::price} to 1 # per round
+	set {-cfg::ammo::light::pack} to 16
+	set {-cfg::ammo::light::max} to 256
+	set {-cfg::ammo::shells::name} to "Shotgun Shells"
+	set {-cfg::ammo::shells::wm} to "Donating_Shells"
+	set {-cfg::ammo::shells::item} to copper nugget
+	set {-cfg::ammo::shells::price} to 5
+	set {-cfg::ammo::shells::pack} to 14
+	set {-cfg::ammo::shells::max} to 112
+	set {-cfg::ammo::rifle::name} to "Rifle Rounds"
+	set {-cfg::ammo::rifle::wm} to "Donating_Rifle"
+	set {-cfg::ammo::rifle::item} to gold nugget
+	set {-cfg::ammo::rifle::price} to 3
+	set {-cfg::ammo::rifle::pack} to 30
+	set {-cfg::ammo::rifle::max} to 240
+
+	# Consumables: WeaponMechanics items with Shoot.Consume_Item_On_Shoot (no leftover item).
+	set {-cfg::shop::consumables::*} to "Stim"
+	set {-cfg::con::Stim::name} to "Stim"
+	set {-cfg::con::Stim::price} to 200
+	set {-cfg::con::Stim::max} to 3
+
+	# Heist tools (loot.sk turns them on later).
+	set {-cfg::shop::tools::*} to "drill" and "safe-kit"
+	set {-cfg::tool::drill::name} to "Drill"
+	set {-cfg::tool::drill::enabled} to false
+	set {-cfg::tool::safe-kit::name} to "Safe Kit"
+	set {-cfg::tool::safe-kit::enabled} to false
+
+	# Helmets and vests: lost on death, bought again. Gun damage D' = D × (1 − 0.03 × armor points).
+	set {-cfg::shop::gear::*} to "helmet-1", "helmet-2", "vest-1" and "vest-2"
+	set {-cfg::gear::helmet-1::name} to "Light Helmet"
+	set {-cfg::gear::helmet-1::slot} to "helmet"
+	set {-cfg::gear::helmet-1::item} to iron helmet
+	set {-cfg::gear::helmet-1::tier} to 1
+	set {-cfg::gear::helmet-1::price} to 750
+	set {-cfg::gear::helmet-2::name} to "Tactical Helmet"
+	set {-cfg::gear::helmet-2::slot} to "helmet"
+	set {-cfg::gear::helmet-2::item} to diamond helmet
+	set {-cfg::gear::helmet-2::tier} to 2
+	set {-cfg::gear::helmet-2::price} to 2500
+	set {-cfg::gear::vest-1::name} to "Light Vest"
+	set {-cfg::gear::vest-1::slot} to "vest"
+	set {-cfg::gear::vest-1::item} to chainmail chestplate
+	set {-cfg::gear::vest-1::tier} to 1
+	set {-cfg::gear::vest-1::price} to 1000
+	set {-cfg::gear::vest-2::name} to "Heavy Vest"
+	set {-cfg::gear::vest-2::slot} to "vest"
+	set {-cfg::gear::vest-2::item} to diamond chestplate
+	set {-cfg::gear::vest-2::tier} to 2
+	set {-cfg::gear::vest-2::price} to 5000
+
+	# Bags: price to replace a lost bag of a tier you've already unlocked (10% of unlocking it).
+	set {-cfg::bag::1::replace} to 0
+	set {-cfg::bag::2::replace} to 750
+	set {-cfg::bag::3::replace} to 3000
+	set {-cfg::bag::4::replace} to 12000
+	set {-cfg::bag::5::replace} to 40000
+
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script
@@ -148,6 +255,20 @@ function giveMoney(p: offline player, amount: number):
 	if {_amount} > 0:
 		add {_amount} to balance of {_p}
 
+# All or nothing: true = the whole price was taken (shop purchases). A balance that didn't drop is
+# reported and counts as not paid.
+function chargeMoney(p: offline player, price: number) :: boolean:
+	if {_price} <= 0:
+		return true
+	set {_before} to balance of {_p}
+	if {_before} < {_price}:
+		return false
+	remove {_price} from balance of {_p}
+	if balance of {_p} > {_before} - {_price} + 0.001:
+		send "[Donating] chargeMoney: %{_p}% was not charged %{_price}%" to console
+		return false
+	return true
+
 # Takes up to `amount`; returns how much was actually taken.
 function takeMoney(p: offline player, amount: number) :: number:
 	set {_taken} to min({_amount}, balance of {_p})
@@ -197,6 +318,20 @@ function itemId(i: item) :: text:
 	if {_id} is set:
 		return {_id}
 	return ""
+
+# WeaponMechanics keeps its item data in the PDC (custom_data.PublicBukkitValues); SkBee's path
+# separator is ";". The weapon title ("AK_47") or "", and the rounds loaded.
+function wmTitle(i: item) :: text:
+	set {_t} to string tag "PublicBukkitValues;weaponmechanics:weapon-title" of custom nbt of {_i}
+	if {_t} is set:
+		return {_t}
+	return ""
+
+function wmLoaded(i: item) :: number:
+	set {_n} to int tag "PublicBukkitValues;weaponmechanics:ammo-left" of custom nbt of {_i}
+	if {_n} is set:
+		return {_n}
+	return 0
 
 # ---------- Permissions ----------
 
