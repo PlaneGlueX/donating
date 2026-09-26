@@ -5,6 +5,7 @@
 //   - two small arrows (2/3 of the normal size) for the zoomed-out big map: white = you, green = a
 //     passive player. They replace two map icons the server never uses otherwise (jungle temple,
 //     swamp hut); the phone plugin sends those types on the big map.
+//   - the phone's inventory icon (16x16), see "Phone icon" below.
 //
 // Usage: tools\node\node.exe tools\make-phone-art.js   (writes the PNGs under pack\)
 //
@@ -134,3 +135,47 @@ fs.mkdirSync(deco, { recursive: true })
 fs.writeFileSync(path.join(deco, 'jungle_temple.png'), arrow([250, 250, 250, 255], [185, 185, 185, 255])) // you
 fs.writeFileSync(path.join(deco, 'swamp_hut.png'), arrow([40, 230, 90, 255], [20, 160, 60, 255])) // passive players
 console.log(`wrote the small arrows to ${deco}`)
+
+// ---------- Phone icon ----------
+// The phone item's look in the inventory, on the ground and in other players' hands: a small phone
+// with a map on its screen. pack\assets\minecraft\items\filled_map.json picks it for maps whose
+// first custom_model_data string is "donating:phone" (inventory.sk's phoneItem); every other map
+// keeps the vanilla look, and without the pack the phone looks like a normal map. Held in first
+// person it's still drawn as the map (the client draws any map in hand that way).
+const PHONE = [
+  '................',
+  '....KKKKKKKK....',
+  '...KBBBBBBBBK...',
+  '...KBBBssBBBK...',
+  '...KBGGGyWWBK...',
+  '...KBGgGyWWBK...',
+  '...KByyyyyWBK...',
+  '...KBGGGyGGBK...',
+  '...KBGRGyGgBK...',
+  '...KBGGGyGGBK...',
+  '...KBgGGyyyBK...',
+  '...KBGGGyGGBK...',
+  '...KBBBBBBBBK...',
+  '...KBBBooBBBK...',
+  '....KKKKKKKK....',
+  '................'
+]
+const PHONE_COLORS = {
+  K: [12, 13, 16, 255], // outline
+  B: [36, 40, 47, 255], // bezel
+  s: [10, 11, 13, 255], // speaker
+  o: [70, 76, 88, 255], // home button
+  G: [96, 140, 72, 255], // land
+  g: [70, 110, 56, 255], // park
+  W: [64, 112, 180, 255], // water
+  y: [200, 196, 180, 255], // road
+  R: [220, 50, 50, 255] // pin
+}
+const icon = Buffer.alloc(16 * 16 * 4)
+PHONE.forEach((row, y) => [...row].forEach((ch, x) => {
+  if (PHONE_COLORS[ch]) PHONE_COLORS[ch].forEach((v, i) => { icon[(y * 16 + x) * 4 + i] = v })
+}))
+const itemDir = path.join(__dirname, '..', 'pack', 'assets', 'donating', 'textures', 'item')
+fs.mkdirSync(itemDir, { recursive: true })
+fs.writeFileSync(path.join(itemDir, 'phone.png'), encode(16, 16, icon))
+console.log(`wrote the phone icon to ${itemDir}`)

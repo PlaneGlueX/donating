@@ -204,8 +204,14 @@ function bestBag(p: player) :: number:
 	return {_best}
 
 # True = this click only armed the confirmation (the caller stops). The price is part of the key, so
-# a changed price asks again. force: always ask, whatever the price.
+# a changed price asks again. force: always ask, whatever the price. While armed, the button turns
+# into a green "Confirm purchase?" block (red "Throw away?" for the hotbar), see button().
 function needsConfirm(p: player, act: text, price: number, force: boolean) :: boolean:
+	# Too little money: don't ask, so the caller's chargeMoney refuses it on this first click.
+	if {_price} > 0:
+		if balance of {_p} < {_price}:
+			delete {-shop::confirm::%{_p}%}
+			return false
 	if {_force} is false:
 		if {_price} < cfg("shop::confirm-above"):
 			return false
@@ -254,7 +260,7 @@ function openShop(p: player, kind: text):
 	set {_rows} to 3
 	if {_kind} is "gun":
 		set {_rows} to 6
-	set {_title} to cfg("shop::%{_kind}%::title")
+	set {_title} to cfg("shop::title::%{_kind}%")
 	set {_gui} to chest inventory with {_rows} rows named "&8%{_title}%"
 	clearShopState({_p})
 	set {-shop::gui::%{_p}%} to {_gui}
@@ -277,10 +283,29 @@ on right click on entity:
 
 # ---------- Drawing ----------
 
-# A button: the item plus the action it runs.
+# A button: the item plus the action it runs. While its confirm is armed it shows a confirm block
+# instead, so a second click is clearly a "yes" and a third one isn't made by accident.
 function button(p: player, slot: number, i: item, act: text):
+	set {_c} to {-shop::confirm::%{_p}%}
+	if {_c} is set:
+		if {_c} starts with "%{_act}%@":
+			set {_i} to confirmItem({_p}, {_i}, {_act})
 	set slot {_slot} of {-shop::gui::%{_p}%} to {_i}
 	set {-shop::act::%{_p}%::%{_slot}%} to {_act}
+
+function confirmItem(p: player, i: item, act: text) :: item:
+	set {_what} to name of {_i}
+	if {_what} is not set:
+		set {_what} to "%type of {_i}%"
+	set {_status} to {-shop::status::%{_p}%}
+	if {_status} is not set:
+		set {_status} to "&eClick again to confirm."
+	set {_win} to cfg("shop::confirm-window")
+	if {_act} starts with "hot:":
+		set {_c} to red concrete named "&c&lThrow away?" with lore "&7%{_what}%" and {_status}
+	else:
+		set {_c} to lime concrete named "&a&lConfirm purchase?" with lore "&7%{_what}%", {_status} and "&8Runs out after %{_win}%."
+	return tagItem({_c}, "shopicon:confirm")
 
 function glint(i: item) :: item:
 	set boolean tag "minecraft:enchantment_glint_override" of nbt of {_i} to true
@@ -551,6 +576,15 @@ on inventory click:
 	{-shop::gen::%player%} is {_gen}
 	add 1 to {-shop::gen::%player%}
 	shopAction(player, {_act}, {_shift})
+
+every second:
+	loop all players:
+		{-shop::confirm::%loop-player%} is set
+		difference between {-shop::confirmat::%loop-player%} and now >= cfg("shop::confirm-window")
+		delete {-shop::confirm::%loop-player%}
+		delete {-shop::confirmat::%loop-player%}
+		shopStatus(loop-player, "&7That ran out: click it again to start over.")
+		renderShop(loop-player)
 
 on inventory drag:
 	{-shop::gui::%player%} is set
@@ -1029,11 +1063,17 @@ command /dshopkeeper [<text>] [<text>]:
 	permission message: &cStaff only.
 	trigger:
 		if arg-1 is "add":
-			if {-cfg::shop::%arg-2%::title} is not set:
+			if {-cfg::shop::title::%arg-2%} is not set:
 				msg(player, "&cKinds: gun, gear, bag, tools.")
 				stop
-			add 1 to {shop::keeper-next}
-			set {_id} to "%{shop::keeper-next}%"
+			# The lowest free number, so ids of removed shopkeepers are used again.
+			set {_n} to 1
+			while {shop::keepers::%{_n}%} is set:
+				add 1 to {_n}
+			set {_id} to "%{_n}%"
+			delete {shop::keeper-next}
+			# A leftover entity with this id (e.g. from before ids were reused) must not come back.
+			execute console command "minecraft:kill @e[tag=shopk_%{_id}%]"
 			set {shop::keepers::%{_id}%} to arg-2
 			set {shop::keeper::%{_id}%::loc} to location of player
 			spawnKeeper({_id})
@@ -1064,7 +1104,7 @@ command /dshopkeeper [<text>] [<text>]:
 function spawnKeeper(id: text):
 	set {_loc} to {shop::keeper::%{_id}%::loc}
 	set {_kind} to {shop::keepers::%{_id}%}
-	set {_title} to cfg("shop::%{_kind}%::title")
+	set {_title} to cfg("shop::title::%{_kind}%")
 	set {_x} to x-coordinate of {_loc}
 	set {_y} to y-coordinate of {_loc}
 	set {_z} to z-coordinate of {_loc}

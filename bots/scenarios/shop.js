@@ -64,6 +64,14 @@ module.exports = async ({ check }) => {
       for (let i = 0; i < 20 && !new RegExp(`tab=${name} `).test(await shop()); i++) await sleep(150)
     }
     const at = slot => (bot.currentWindow && bot.currentWindow.slots[slot] ? bot.currentWindow.slots[slot].name : 'empty')
+    // Sounds the server plays to the bot: shopFail = entity.villager.no, needsConfirm =
+    // block.note_block.pling. Mineflayer's 1.21.11 sound ids are one off (villager.no arrives as
+    // villager.hurt, pling as hat), so the checks only match "villager" / "note_block".
+    const sounds = []
+    const soundName = s => String((s && (s.soundName || s.name)) || s || '')
+    bot.on('soundEffectHeard', name => sounds.push({ t: Date.now(), name: soundName(name) }))
+    bot.on('hardcodedSoundEffectHeard', id => sounds.push({ t: Date.now(), name: soundName(bot.registry.sounds && bot.registry.sounds[id]) }))
+    const heard = t0 => sounds.filter(x => x.t >= t0).map(x => x.name).join(',')
 
     // ---------- Layout ----------
     let w = await open()
@@ -76,21 +84,29 @@ module.exports = async ({ check }) => {
     check('buying the .50 GS ($300): charged, unlocked, in hotbar 1 with an empty magazine', (await bal()) === 200 && (await data('wpn::50_GS')) === 'true' && /(^WM |\| )0=50_GS:0x1/.test(await wm()), `${await bal()}; ${await wm()}`)
     await click(WPN['50_GS'])
     check('buying it again charges nothing', (await bal()) === 200 && /already in hotbar 1/.test(await shop()), await shop())
+    let t0 = Date.now()
     await click(WPN.AK_47)
+    check('too little money for a $1,000+ buy: refused on the first click with the decline sound (no confirm)', (await bal()) === 200 && /confirm=<none>/.test(await shop()) && /costs \$15,000/.test(await shop()) && at(WPN.AK_47) !== 'lime_concrete' && /villager/.test(heard(t0)) && !/note_block/.test(heard(t0)), `${await shop()}; slot ${at(WPN.AK_47)}; sounds ${heard(t0)}`)
     await click(WPN.AK_47)
     check('too little money: no charge, no unlock, no gun', (await bal()) === 200 && (await data('wpn::AK_47')) !== 'true' && !/AK_47/.test(await wm()) && /costs \$15,000/.test(await shop()), `${await bal()}; ${await shop()}`)
     await rcon.cmd(`eco set ${NAME} 20000`)
+    t0 = Date.now()
     await click(WPN.AK_47)
-    const armed = (await bal()) === 20000 && /Click again/.test(await shop())
+    const confirmItem = bot.currentWindow && bot.currentWindow.slots[WPN.AK_47]
+    const confirmName = confirmItem ? JSON.stringify(confirmItem.customName || confirmItem.nbt || confirmItem.components || '') : ''
+    const armed = (await bal()) === 20000 && /Click again/.test(await shop()) && at(WPN.AK_47) === 'lime_concrete' && /note_block/.test(heard(t0))
+    check('a $1,000+ buy turns its button into a green "Confirm purchase?" block', armed && /Confirm purchase/.test(confirmName), `${at(WPN.AK_47)}; ${confirmName.slice(0, 160)}; ${await shop()}; sounds ${heard(t0)}`)
     await click(WPN.AK_47)
-    check('$1,000 or more needs a second click, then it\'s bought', armed && (await bal()) === 5000 && (await data('wpn::AK_47')) === 'true' && /(^WM |\| )1=AK_47:0x1/.test(await wm()), `armed ${armed}; ${await bal()}; ${await wm()}`)
+    check('$1,000 or more needs a second click, then it\'s bought', armed && (await bal()) === 5000 && (await data('wpn::AK_47')) === 'true' && /(^WM |\| )1=AK_47:0x1/.test(await wm()) && at(WPN.AK_47) !== 'lime_concrete', `armed ${armed}; ${await bal()}; ${await wm()}; slot ${at(WPN.AK_47)}`)
     await rcon.cmd(`eco set ${NAME} 20000`)
     await click(WPN.Uzi)
+    const uziArmed = at(WPN.Uzi)
     await sleep(5500) // the confirm window (5 s) runs out
+    const uziAfter = at(WPN.Uzi)
     await click(WPN.Uzi)
     const reArmed = (await bal()) === 20000 && /Click again/.test(await shop())
     await click(WPN.Uzi)
-    check('a confirm that ran out only arms again', reArmed && (await bal()) === 17000, `re-armed ${reArmed}; ${await bal()}`)
+    check('a confirm that ran out turns back into the item and only arms again', uziArmed === 'lime_concrete' && uziAfter !== 'lime_concrete' && reArmed && (await bal()) === 17000, `${uziArmed} -> ${uziAfter}; re-armed ${reArmed}; ${await bal()}`)
 
     // ---------- Ammo ----------
     await tab('ammo')
@@ -149,9 +165,9 @@ module.exports = async ({ check }) => {
     check('Stims: one stack, up to 3 (a buy over the confirm limit asks, then goes through); the 4th is refused with no charge', stimArmedBuy && /Stim:0x3/.test(line) && (await bal()) === before - 600 && /carry 3/.test(await shop()), `armed ${stimArmedBuy}; ${line}; ${before} -> ${await bal()}; ${await shop()}`)
     const stimSlot = Number((line.match(/(\d+)=Stim/) || [])[1])
     await click(HOT(stimSlot))
-    const stimArmed = /Stim/.test(await wm())
+    const stimArmed = /Stim/.test(await wm()) && at(HOT(stimSlot)) === 'red_concrete'
     await click(HOT(stimSlot))
-    check('throwing Stims away takes two clicks', stimArmed && !/Stim/.test(await wm()), await wm())
+    check('throwing Stims away takes two clicks (the first shows a red "Throw away?" block)', stimArmed && !/Stim/.test(await wm()), `${await wm()}; armed ${stimArmed}`)
 
     // ---------- Save, die, restore ----------
     await rcon.cmd(`zzclear ${NAME}`)
@@ -243,7 +259,8 @@ module.exports = async ({ check }) => {
 
     // ---------- Gear ----------
     await rcon.cmd(`eco set ${NAME} 10000`)
-    await open('gear')
+    const gw = await open('gear')
+    check('the gear shop has its title', gw && JSON.stringify(gw.title).includes('Gear Shop'), gw && JSON.stringify(gw.title))
     await click(10)
     let d = await dump()
     check('a Light Helmet goes straight on ($750)', /39=iron helmet x1 \[gear:helmet-1\]/.test(d) && (await bal()) === 9250, `${d}; ${await bal()}`)
@@ -314,6 +331,13 @@ module.exports = async ({ check }) => {
     bot.chat(`/dshopkeeper remove ${id}`)
     await sleep(1000)
     check('/dshopkeeper remove takes it away for good', (await count()) === 0, `count ${await count()}`)
+    t = Date.now()
+    bot.chat('/dshopkeeper add gear')
+    await sleep(1500)
+    const again = messagesSince(bot, t).map(m => m.text).join(' | ')
+    const id2 = (again.match(/Shopkeeper (\d+) \(gear\) added/) || [])[1]
+    check('the next shopkeeper gets the removed one\'s number again', id2 === id, `first ${id}, next ${id2}; ${again}`)
+    if (id2) { bot.chat(`/dshopkeeper remove ${id2}`); await sleep(1000) }
     await rcon.cmd(`lp user ${NAME} permission unset donating.staff`)
   } finally {
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`).catch(() => {})

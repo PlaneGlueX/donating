@@ -45,6 +45,8 @@ function phoneItem(p: player) :: item:
 	set {_id} to metadata value "donating_phone_map" of {_p}
 	if {_id} is set:
 		set int tag "minecraft:map_id" of nbt of {_i} to {_id}
+	# The pack draws this map as a phone in the inventory (pack/assets/minecraft/items/filled_map.json).
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:phone"
 	return tagItem({_i}, "phone")
 
 function bagItem(tier: number) :: item:

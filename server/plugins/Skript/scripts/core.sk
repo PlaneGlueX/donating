@@ -111,10 +111,10 @@ function loadSettings():
 	set {-cfg::shop::restock-mags} to 3
 	set {-cfg::shop::keeper-check} to 30 seconds
 	set {-cfg::shop::keeper-skin} to "" # "" = the default mannequin skin
-	set {-cfg::shop::gun::title} to "Gun Shop"
-	set {-cfg::shop::gear::title} to "Gear Shop"
-	set {-cfg::shop::bag::title} to "Bag Shop"
-	set {-cfg::shop::tools::title} to "Heist Tools"
+	set {-cfg::shop::title::gun} to "Gun Shop"
+	set {-cfg::shop::title::gear} to "Gear Shop"
+	set {-cfg::shop::title::bag} to "Bag Shop"
+	set {-cfg::shop::title::tools} to "Heist Tools"
 
 	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles.
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.

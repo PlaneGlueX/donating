@@ -63,6 +63,11 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`zzdata ${NAME} bounty none`)
     await sleep(1000)
 
+    // ---------- The item ----------
+    // The pack's filled_map.json draws a map whose first custom_model_data string is this as a phone.
+    const cmd = await rcon.cmd(`data get entity ${NAME} Inventory[{Slot:8b}].components."minecraft:custom_model_data"`)
+    check('the phone carries the pack\'s phone model tag (a phone icon in the inventory)', /strings: \["donating:phone"\]/.test(cmd), cmd.trim())
+
     // ---------- Opening and contents ----------
     let w = await openMenu(() => bot.activateItem(), 1500)
     check('right-clicking the phone opens no menu', !w, w ? JSON.stringify(w.title).slice(0, 80) : 'no window')
