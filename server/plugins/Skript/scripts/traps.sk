@@ -3,13 +3,16 @@
 # Four kinds, placed per heist with /dtrap (staff) and saved with the heist:
 #   - lasers: a thin full-bright rod (block display) between two points, any angle; static or blinking
 #   - pressure plates: real plate blocks in the room; stepping on one fires it (the plate never goes down)
-#   - collapsing floors: a one-layer area that cracks when stepped on, drops after a short fuse, kills
-#     whoever falls in, and comes back after a while
+#   - collapsing floors: a one-layer area that cracks when stepped on, drops after a short fuse, hurts
+#     whoever falls in and puts them back on the last solid ground they stood on, and comes back later
 #   - cameras: a view cone with line of sight and a short "spotted" meter; they trip the alarm in
-#     advanced heists (or, with effect=kill, act as a turret)
-# Every trap kills (CLAUDE.md), with Skript's kill: no attacker, so the death counts as "trap" (death.sk:
-# L = min(B × p, C) with the heist's p, no bounty) and passive players die too. Traps and plates can be
-# set to effect=alarm instead (advanced heists only): they call heistTripAlarm.
+#     advanced heists (or, with effect=damage, act as a turret that shoots while it sees you)
+# Every trap hurts (owner, 2026-09-25: fair damage, not an instant kill): `damage` hearts per hit × the
+# heist's trap-damage (difficulty), through armor (generic damage), on each new touch and never twice
+# within min-gap; a laser hurts again every `every` while you stay in it, a plate once per step. The
+# hit has no attacker, so a death from it counts as "trap" (death.sk: L = min(B × p, C) with the heist's
+# p, no bounty), it tags combat ("trap"), and passive players get hurt too. Traps and plates can be
+# set to effect=alarm instead (advanced heists only): they call heistTripAlarm and never hurt.
 #
 # Traps are armed only while their heist is open or active. One loop every 2 ticks checks only the
 # robbers of armed heists, only against the traps in their 4-block cell, sampling their path every
@@ -20,8 +23,9 @@
 # Saved: {traps::<h>::<n>} = kind (the list), {trap::<h>::next}, {trap::<h>::<n>::a|b} (points) and
 # {trap::<h>::<n>::<key>} (overrides; unset = cfg("trap::<kind>::<key>")). Memory: {-trapc::…}
 # (compiled numbers), {-trapcell::…} (the cell index), {-trapplate::…}, {-trapd::…} (displays),
-# {-trapfloor::…} (floor states), {-trapseen::…} (camera meters), {-trapkill::<p>} (set only around the
-# kill, read by death.sk). Log: plugins\Skript\logs\traps.log.
+# {-trapfloor::…} (floor states), {-trapseen::…} (camera meters), {-traptouch::…} / {-traphit::…}
+# (per trap and robber: last touch and last hit, in trap ticks), {-trapkill::<p>} (set only around the
+# damage, read by death.sk if it kills). Log: plugins\Skript\logs\traps.log.
 
 # ---------- Settings ----------
 
@@ -50,9 +54,9 @@ function trapTicks(h: text, n: text, key: text) :: number:
 
 # The kinds' keys: which are times (seconds), numbers, true/false or effect.
 function trapKeyType(key: text) :: text:
-	if {_key} is "on" or "off" or "offset" or "delay" or "restore" or "grace" or "period":
+	if {_key} is "on" or "off" or "offset" or "delay" or "restore" or "grace" or "period" or "every":
 		return "time"
-	if {_key} is "depth" or "angle" or "range" or "sweep":
+	if {_key} is "depth" or "angle" or "range" or "sweep" or "damage":
 		return "number"
 	if {_key} is "blink":
 		return "boolean"
@@ -71,6 +75,13 @@ function trapParseValue(key: text, value: text) :: object:
 	if {_t} is "number":
 		set {_n} to {_value} parsed as number
 		{_n} is set
+		if {_key} is "damage":
+			# Hearts per hit, before the heist's trap-damage (explicit stops: a condition line inside an
+			# if only ends that block).
+			if {_n} <= 0:
+				stop
+			if {_n} > 20:
+				stop
 		return {_n}
 	if {_t} is "boolean":
 		if {_value} is "true":
@@ -78,8 +89,11 @@ function trapParseValue(key: text, value: text) :: object:
 		if {_value} is "false":
 			return false
 	if {_t} is "effect":
-		if {_value} is "kill" or "alarm":
+		if {_value} is "damage" or "alarm":
 			return {_value}
+		if {_value} is "kill":
+			# The old name (traps killed before 2026-09-25).
+			return "damage"
 
 # ---------- Compiling (saved definitions -> memory numbers and the cell index) ----------
 
@@ -109,7 +123,18 @@ function trapCompileOne(h: text, n: text):
 	{_a} is set
 	set {_c} to "%{_h}%::%{_n}%"
 	set {-trapc::%{_c}%::kind} to {_k}
-	set {-trapc::%{_c}%::effect} to trapSetting({_h}, {_n}, "effect")
+	set {_eff} to trapSetting({_h}, {_n}, "effect")
+	if {_eff} is "kill":
+		set {_eff} to "damage"
+	set {-trapc::%{_c}%::effect} to {_eff}
+	# Damage per hit in hearts, whole half-hearts, at least half a heart: D = max(1, round(d × 2 × m)) / 2
+	# with d = the trap's `damage` and m = the heist's trap-damage.
+	set {_m} to heistSetting({_h}, "trap-damage")
+	if {_m} is not set:
+		set {_m} to 1
+	set {_d} to trapSetting({_h}, {_n}, "damage")
+	if {_d} is set:
+		set {-trapc::%{_c}%::dmg} to max(1, round({_d} * 2 * {_m})) / 2
 	set {_g} to {-cfg::trap::grace}
 	set {_w} to 0.3 - {_g}
 	if {_k} is "laser":
@@ -129,6 +154,7 @@ function trapCompileOne(h: text, n: text):
 		set {_r} to trapSetting({_h}, {_n}, "thickness") / 2
 		set {-trapc::%{_c}%::r} to {_r}
 		set {-trapc::%{_c}%::live} to true
+		set {-trapc::%{_c}%::every} to trapTicks({_h}, {_n}, "every")
 		if trapSetting({_h}, {_n}, "blink") is true:
 			set {-trapc::%{_c}%::blink} to true
 			set {-trapc::%{_c}%::on} to trapTicks({_h}, {_n}, "on")
@@ -177,11 +203,13 @@ function trapCompileOne(h: text, n: text):
 		set {-trapc::%{_c}%::range} to trapSetting({_h}, {_n}, "range")
 		set {_cos} to cos(trapSetting({_h}, {_n}, "angle"))
 		set {-trapc::%{_c}%::cos2} to {_cos} * {_cos}
-		if {-trapc::%{_c}%::effect} is "kill":
+		if {-trapc::%{_c}%::effect} is "damage":
 			if {trap::%{_h}%::%{_n}%::grace} is set:
 				set {-trapc::%{_c}%::grace} to trapTicks({_h}, {_n}, "grace")
 			else:
-				set {-trapc::%{_c}%::grace} to 2 * round(({-cfg::trap::camera::kill-grace} / 1 tick) / 2)
+				set {-trapc::%{_c}%::grace} to 2 * round(({-cfg::trap::camera::turret-grace} / 1 tick) / 2)
+			# A turret shoots again every `every` while it still sees you.
+			set {-trapc::%{_c}%::every} to max(4, trapTicks({_h}, {_n}, "every"))
 		else:
 			set {-trapc::%{_c}%::grace} to trapTicks({_h}, {_n}, "grace")
 		set {-trapcams::%{_h}%::%{_n}%} to {_n}
@@ -215,6 +243,8 @@ function trapUnpress(l: location):
 function trapDisarm(h: text):
 	delete {-trap::armed::%{_h}%}
 	delete {-trapseen::%{_h}%::*}
+	delete {-traptouch::%{_h}%::*}
+	delete {-traphit::%{_h}%::*}
 	loop {traps::%{_h}%::*}:
 		trapDespawn({_h}, loop-index)
 
@@ -239,7 +269,7 @@ function trapSpawn(h: text, n: text):
 	else if {_k} is "camera":
 		{-cfg::trap::camera::pointer} is true
 		set {_color} to "yellow"
-		if {-trapc::%{_c}%::effect} is "kill":
+		if {-trapc::%{_c}%::effect} is "damage":
 			set {_color} to "red"
 		set {-trapd::%{_c}%} to trapRod({_a}, trapCameraTip({_h}, {_n}, {-trapc::%{_c}%::yaw}), 0.05, {_color})
 		set {-trapvis::%{_c}%} to true
@@ -369,7 +399,7 @@ function trapTick(h: text):
 	if {-trapblink::%{_h}%::*} is set:
 		trapBlinkStep({_h})
 	trapFloorsDue({_h})
-	# A copy: a kill makes the robber leave the heist while this loops.
+	# A copy: a death (or a floor's way out) can make the robber leave the heist while this loops.
 	set {_m::*} to heistRobbers({_h})
 	loop {_m::*}:
 		trapCheck(loop-value, {_h})
@@ -377,8 +407,8 @@ function trapTick(h: text):
 		if {-trapcams::%{_h}%::*} is set:
 			trapCameras({_h})
 
-# Blinking lasers: shown while φ < on; they kill only while lead ≤ φ < on, so the client always sees a
-# beam before it can kill and it stops killing before it vanishes on screen.
+# Blinking lasers: shown while φ < on; they hurt only while lead ≤ φ < on, so the client always sees a
+# beam before it can hurt and it stops hurting before it vanishes on screen.
 function trapBlinkStep(h: text):
 	set {_lead} to {-cfg::trap::lead} / 1 tick
 	loop {-trapblink::%{_h}%::*}:
@@ -438,16 +468,20 @@ function trapCheck(p: player, h: text):
 	set {_s} to min({-cfg::trap::max-samples}, max(1, ceil({_d} / {-cfg::trap::step})))
 	loop integers from 1 to {_s}:
 		set {_f} to loop-value / {_s}
-		set {_hit} to trapScan({_h}, {_px} + ({_x} - {_px}) * {_f}, {_py} + ({_y} - {_py}) * {_f}, {_pz} + ({_z} - {_pz}) * {_f}, {_hh})
+		set {_hit} to trapScan({_h}, {_px} + ({_x} - {_px}) * {_f}, {_py} + ({_y} - {_py}) * {_f}, {_pz} + ({_z} - {_pz}) * {_f}, {_hh}, "%{_p}%")
 		if {_hit} is not "":
 			trapFire({_p}, {_h}, {_hit})
 			if {-trapc::%{_h}%::%{_hit}%::effect} is not "alarm":
 				stop
-			# An alarm hit: keep checking the rest of the path for kill traps.
-	trapFloorStep({_p}, {_h}, {_x}, {_y}, {_z})
+			# An alarm hit: keep checking the rest of the path for damage traps.
+	set {_clear} to false
+	if trapScan({_h}, {_x}, {_y}, {_z}, {_hh}) is "":
+		set {_clear} to true
+	trapFloorStep({_p}, {_h}, {_x}, {_y}, {_z}, {_clear})
 
-# The first lethal trap at this spot, or "". No side effects (the probe and bench use it too).
-function trapScan(h: text, x: number, y: number, z: number, hh: number) :: text:
+# The first harmful trap at this spot, or "". who = "" (the probe, the bench, the safe-spot test): no
+# side effects. who = a robber: only traps that may hurt them now (trapReady), and it records the touch.
+function trapScan(h: text, x: number, y: number, z: number, hh: number, who: text = "") :: text:
 	set {_s} to {-cfg::trap::cell}
 	set {_key} to "%floor({_x} / {_s})%,%floor({_y} / {_s})%,%floor({_z} / {_s})%"
 	loop {-trapcell::%{_h}%::%{_key}%::*}:
@@ -466,10 +500,11 @@ function trapScan(h: text, x: number, y: number, z: number, hh: number) :: text:
 			if trapPlateHit({_h}, {_n}, {_x}, {_y}, {_z}) is true:
 				set {_hit} to true
 		if {_hit} is true:
-			# A kill trap wins over an alarm trap in the same spot (an alarm hit must not hide it).
+			# A damage trap wins over an alarm trap in the same spot (an alarm hit must not hide it).
 			if {-trapc::%{_h}%::%{_n}%::effect} is not "alarm":
-				return {_n}
-			if {-trap::alarmed::%{_h}%} is not true:
+				if trapReady({_h}, {_n}, {_who}) is true:
+					return {_n}
+			else if {-trap::alarmed::%{_h}%} is not true:
 				set {_alarm} to {_n}
 	if {_alarm} is set:
 		if heistIsAdvanced({_h}) is true:
@@ -575,18 +610,49 @@ function trapPitHit(h: text, n: text, x: number, y: number, z: number) :: boolea
 
 # ---------- Firing ----------
 
-# The only effect path: dry mode, alarm, or kill.
+# Whether trap n may hurt this robber now; also records the touch. A trap hurts on each new touch (off
+# it for longer than rearm), never twice within min-gap, and a trap with `every` (lasers) again every
+# `every` while they stay in it. A plate has no `every`: once per step. who = "": always.
+function trapReady(h: text, n: text, who: text) :: boolean:
+	if {_who} is "":
+		return true
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_t} to {-trap::tick}
+	set {_touch} to {-traptouch::%{_c}%::%{_who}%}
+	set {-traptouch::%{_c}%::%{_who}%} to {_t}
+	set {_last} to {-traphit::%{_c}%::%{_who}%}
+	if {_last} is not set:
+		return true
+	if {_t} - {_last} < ({-cfg::trap::min-gap} / 1 tick):
+		return false
+	if {_touch} is not set:
+		return true
+	if {_t} - {_touch} > ({-cfg::trap::rearm} / 1 tick):
+		return true
+	set {_every} to {-trapc::%{_c}%::every}
+	if {_every} is set:
+		if {_every} > 0:
+			if {_t} - {_last} >= {_every}:
+				return true
+	return false
+
+# The only effect path: dry mode, alarm, or damage.
 function trapFire(p: player, h: text, n: text):
 	set {_id} to "%{_h}%-%{_n}%"
 	set {_c} to "%{_h}%::%{_n}%"
 	set {_k} to {-trapc::%{_c}%::kind}
+	# Keyed by name like trapReady's who (a player in a variable name would be its UUID).
+	set {_who} to "%{_p}%"
+	set {-traphit::%{_c}%::%{_who}%} to {-trap::tick}
 	if {-trapdry::%{_p}%} is true:
 		if trapCooldown("%{_id}%::%{_p}%", 1 second) is true:
 			send title "&e&lDRY HIT" with subtitle "&f%{_id}% &7(%{_k}%)" to {_p} for 1 second
 			play sound "block.note_block.bass" with volume 0.8 to {_p}
 			trapLog("dry %name of {_p}% %{_id}% %{_k}%")
+		if {_k} is "floor":
+			trapPitOut({_p}, {_h})
 		stop
-	# An alarm trap never kills (explicit stops: a condition line inside an if only ends that block).
+	# An alarm trap never hurts (explicit stops: a condition line inside an if only ends that block).
 	if {-trapc::%{_c}%::effect} is "alarm":
 		if {-trap::alarmed::%{_h}%} is true:
 			stop
@@ -595,26 +661,66 @@ function trapFire(p: player, h: text, n: text):
 		set {_ok} to heistTripAlarm({_h}, "%{_k}%:%{_id}%")
 		trapLog("alarm %name of {_p}% %{_id}% tripped=%{_ok}%")
 		stop
-	set {-trapkill::%{_p}%} to "%{_id}%:%{_k}%"
+	set {_dmg} to {-trapc::%{_c}%::dmg}
+	if {_dmg} is not set:
+		set {_dmg} to 1
 	set {_l} to location of {_p}
 	if {_k} is "laser":
 		play sound "block.beacon.deactivate" with volume 1 and pitch 2 at {_l}
 		draw 8 red dust particles at {_l} for all players
 	else if {_k} is "floor":
 		play sound "entity.player.hurt_on_fire" with volume 1 at {_l}
+	else if {_k} is "camera":
+		play sound "entity.firework_rocket.blast" with volume 1 and pitch 1.4 at {_l}
 	else:
 		play sound "entity.generic.explode" with volume 0.6 and pitch 1.6 at {_l}
-	kill {_p}
+	tagCombat({_p}, "trap")
+	set {_before} to health of {_p}
+	# Generic damage: no attacker (a death is "trap"), and it goes through armor (vests are for bullets).
+	# No invulnerability left from an earlier hit, so the hit is always exactly D.
+	set {-trapkill::%{_p}%} to "%{_id}%:%{_k}%"
+	set invulnerability time of {_p} to 0 ticks
+	damage {_p} by {_dmg}
 	delete {-trapkill::%{_p}%}
-	if {_p} is alive:
-		# Just joined or respawned (the client hasn't loaded), or god mode: the next check retries.
-		if trapCooldown("killfail::%{_p}%", 2 seconds) is true:
-			trapLog("kill-failed %name of {_p}% %{_id}% %{_k}%")
-		stop
 	set {_phase} to {-trapc::%{_c}%::phase}
 	if {_phase} is not set:
 		set {_phase} to "-"
-	trapLog("kill %name of {_p}% %uuid of {_p}% %{_id}% %{_k}% x=%x-coordinate of {_l}% y=%y-coordinate of {_l}% z=%z-coordinate of {_l}% phase=%{_phase}%")
+	set {_where} to "x=%x-coordinate of {_l}% y=%y-coordinate of {_l}% z=%z-coordinate of {_l}% phase=%{_phase}%"
+	if {_p} is not alive:
+		trapLog("kill %name of {_p}% %uuid of {_p}% %{_id}% %{_k}% dmg=%{_dmg} * 2% %{_where}%")
+		stop
+	set {_after} to health of {_p}
+	if {_k} is "floor":
+		trapPitOut({_p}, {_h})
+	if {_after} >= {_before}:
+		# Just joined or respawned (the client hasn't loaded), or god mode: the next check retries.
+		delete {-traphit::%{_c}%::%{_who}%}
+		if trapCooldown("hitfail::%{_p}%", 2 seconds) is true:
+			trapLog("hit-failed %name of {_p}% %{_id}% %{_k}%")
+		stop
+	trapNotify({_p}, "hit", "&c-%{_dmg}% ❤ &7%{_k}%")
+	trapLog("hit %name of {_p}% %uuid of {_p}% %{_id}% %{_k}% dmg=%{_dmg} * 2% hp=%{_before} * 2%->%{_after} * 2% %{_where}%")
+
+# Out of a collapsed floor's pit: back to the last solid ground they stood on in this heist, looking
+# the same way (else the heist's exit).
+function trapPitOut(p: player, h: text):
+	{_p} is alive
+	set {_s} to {-trapsafe::%{_p}%}
+	set {_ok} to false
+	if {_s} is set:
+		if world of {_s} is world of {_p}:
+			if distance between {_s} and (location of {_p}) < 24:
+				if heistAt({_s}) is {_h}:
+					set {_ok} to true
+	if {_ok} is false:
+		heistTeleport({_p}, heistExit({_h}))
+		stop
+	set {_to} to location(x-coordinate of {_s}, y-coordinate of {_s}, z-coordinate of {_s}, world of {_s})
+	set yaw of {_to} to yaw of {_p}
+	set pitch of {_to} to pitch of {_p}
+	heistTeleport({_p}, {_to})
+	# The path starts again here (no sweep from the pit back up through the room).
+	set {-trapprev::%{_p}%} to location of {_p}
 
 # True (and starts the cooldown) when `key` isn't cooling down.
 function trapCooldown(key: text, t: timespan) :: boolean:
@@ -665,6 +771,8 @@ on pressure plate:
 	heistOf(player) is {_parts::1}
 	if trapCooldown("click::%player%", 500 milliseconds) is true:
 		play sound "block.stone_pressure_plate.click_on" with volume 0.8 at location of event-block
+	# Once per step (the event fires every tick while they stand on it).
+	trapReady({_parts::1}, {_parts::2}, "%player%") is true
 	trapFire(player, {_parts::1}, {_parts::2})
 
 # ---------- Collapsing floors ----------
@@ -677,11 +785,15 @@ on jump:
 	trapArmed({_h}) is true
 	heistBuilder(player) is false
 	set {_l} to location of player
-	trapFloorStep(player, {_h}, x-coordinate of {_l}, y-coordinate of {_l}, z-coordinate of {_l})
+	set {_clear} to false
+	if trapScan({_h}, x-coordinate of {_l}, y-coordinate of {_l}, z-coordinate of {_l}, 1.8) is "":
+		set {_clear} to true
+	trapFloorStep(player, {_h}, x-coordinate of {_l}, y-coordinate of {_l}, z-coordinate of {_l}, {_clear})
 
 # Stepping on an intact floor starts its fuse; everyone on a cracking floor is combat-tagged ("trap"),
-# so logging out now counts as a trap death. Also remembers the last safe spot (duffel spot).
-function trapFloorStep(p: player, h: text, x: number, y: number, z: number):
+# so logging out now counts as a trap death. Also remembers the last safe spot: solid ground, not over
+# any floor (or in its pit), touching no trap (clear). A fall puts them back there; a death's duffel too.
+function trapFloorStep(p: player, h: text, x: number, y: number, z: number, clear: boolean):
 	set {_s} to {-cfg::trap::cell}
 	set {_key} to "%floor({_x} / {_s})%,%floor({_y} / {_s})%,%floor({_z} / {_s})%"
 	set {_over} to false
@@ -689,16 +801,35 @@ function trapFloorStep(p: player, h: text, x: number, y: number, z: number):
 		set {_n} to loop-value
 		set {_c} to "%{_h}%::%{_n}%"
 		if {-trapc::%{_c}%::kind} is "floor":
-			if trapOnFloor({_c}, {_x}, {_y}, {_z}, 0.3) is true:
+			if trapOverFloor({_c}, {_x}, {_y}, {_z}) is true:
 				set {_over} to true
+			if trapOnFloor({_c}, {_x}, {_y}, {_z}, 0.3) is true:
 				set {_st} to {-trapfloor::%{_c}%}
 				if {_st} is not set:
 					trapFloorCrack({_h}, {_n})
 				else if {_st} is "crack":
 					tagCombat({_p}, "trap")
 	if {_over} is false:
-		if {_p} is on ground:
-			set {-trapsafe::%{_p}%} to location of {_p}
+		if {_clear} is true:
+			if {_p} is on ground:
+				set {-trapsafe::%{_p}%} to location of {_p}
+
+# Over a floor's footprint, from its top down to the bottom of its pit.
+function trapOverFloor(c: text, x: number, y: number, z: number) :: boolean:
+	if {_x} + 0.3 <= {-trapc::%{_c}%::x1}:
+		return false
+	if {_x} - 0.3 >= {-trapc::%{_c}%::x2}:
+		return false
+	if {_z} + 0.3 <= {-trapc::%{_c}%::z1}:
+		return false
+	if {_z} - 0.3 >= {-trapc::%{_c}%::z2}:
+		return false
+	set {_top} to {-trapc::%{_c}%::top}
+	if {_y} > {_top} + 0.1:
+		return false
+	if {_y} < {_top} - {-trapc::%{_c}%::depth} - 1:
+		return false
+	return true
 
 # Standing on the floor's top: the box overlaps the footprint and the feet are at the top.
 function trapOnFloor(c: text, x: number, y: number, z: number, w: number) :: boolean:
@@ -887,7 +1018,8 @@ function trapCamera(h: text, n: text, m: players):
 	loop {_m::*}:
 		trapCameraWatch({_h}, {_n}, loop-value, {_lens}, {_fx}, {_fy}, {_fz})
 
-# One robber against one camera: the meter goes up while seen, down while not; at `grace` it fires.
+# One robber against one camera: the meter goes up while seen, down while not; at `grace` it fires. A
+# turret then shoots again every `every` while it still sees them.
 function trapCameraWatch(h: text, n: text, p: player, lens: location, fx: number, fy: number, fz: number):
 	{_p} is alive
 	heistBuilder({_p}) is false
@@ -915,6 +1047,8 @@ function trapCameraWatch(h: text, n: text, p: player, lens: location, fx: number
 		play sound "block.note_block.pling" with volume 0.5 and pitch (0.8 + {_m} / max(1, {_grace})) to {_p}
 	if {_m} >= {_grace}:
 		set {-trapseen::%{_c}%::%{_p}%} to 0
+		if {-trapc::%{_c}%::effect} is "damage":
+			set {-trapseen::%{_c}%::%{_p}%} to max(0, {_grace} - {-trapc::%{_c}%::every})
 		trapFire({_p}, {_h}, {_n})
 
 function trapCameraSees(c: text, p: player, lens: location, fx: number, fy: number, fz: number) :: boolean:
@@ -1162,7 +1296,7 @@ function dtrapAdd(s: command sender, a: texts):
 		dtrapReply({_s}, "TRAP add: /dtrap add <heist> laser|plate|floor|camera ...")
 		stop
 	if heistRobberCount({_h}) > 0:
-		dtrapReply({_s}, "TRAP add: robbers are inside (a trap appearing on someone kills without warning)")
+		dtrapReply({_s}, "TRAP add: robbers are inside (a trap appearing on someone hurts them without warning)")
 		stop
 	if size of {traps::%{_h}%::*} >= {-cfg::trap::max-per-heist}:
 		dtrapReply({_s}, "TRAP add: %{_h}% has the most traps allowed (%{-cfg::trap::max-per-heist}%)")
@@ -1355,7 +1489,7 @@ function dtrapSet(s: command sender, a: texts):
 		stop
 	set {_p::*} to {_id} split at "-"
 	if heistRobberCount({_p::1}) > 0:
-		dtrapReply({_s}, "TRAP set: robbers are inside (a trap changing on someone kills without warning)")
+		dtrapReply({_s}, "TRAP set: robbers are inside (a trap changing on someone hurts them without warning)")
 		stop
 	set {_key} to {_a::3}
 	set {_val} to {_a::4}
@@ -1394,7 +1528,7 @@ function trapDescribe(h: text, n: text) :: text:
 		set {_t} to "%{_t}% %yaw of {_a}% %pitch of {_a}%"
 	if {_k} is "laser":
 		set {_t} to "%{_t}% len=%round(distance between {_a} and {_b} * 100) / 100%"
-	loop "effect", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "grace" and "period":
+	loop "effect", "damage", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "grace" and "period":
 		set {_v} to {trap::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		if trapKeyType(loop-value) is "time":

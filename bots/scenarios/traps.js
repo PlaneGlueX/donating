@@ -1,10 +1,13 @@
 // traps.sk: a test "Trap Hall" (x 768..782, z 768..794, difficulty 2) and an advanced "Camera Room"
 // (x 788..804, difficulty 4) on a glass platform, set up with /dheist and /dtrap like staff would.
 // Robbers walk east (+x) along lanes (z), from x 765.5 (outside) through the traps at x 771..773.
-// Checks: staff setup and refusals, laser displays, laser deaths (cause trap, the heist's p, no bounty,
-// the death message), sneaking under a high laser, passive and creative players, dry mode, blinking
-// lasers, pressure plates, collapsing floors (fall, strip, restore, restore 0 until the reset,
-// disable), cameras (cone, wall, sneaking, creative, turret, alarm plate), and the lifecycle (end,
+// Traps hurt (owner, 2026-09-25): D = max(1, round(d × 2 × m)) / 2 hearts, here m = 1.25 (difficulty 2)
+// and 1.75 (difficulty 4). Checks: staff setup and refusals, laser displays, laser hits (the amount,
+// through armor, the combat tag, again every second while standing in the beam), deaths when low
+// (cause trap, the heist's p, no bounty, the death message), sneaking under a high laser, passive and
+// creative players, dry mode, blinking lasers, pressure plates (once per step), collapsing floors (the
+// fall puts you back on solid ground, strip, restore, restore 0 until the reset, disable), cameras
+// (cone, wall, sneaking, creative, turret, alarm plate), damage settings, and the lifecycle (end,
 // reload, dump round trip, remove, delete).
 const fs = require('fs')
 const path = require('path')
@@ -60,6 +63,7 @@ module.exports = async ({ check }) => {
       await cmd(`zzpassive ${name} off`)
       await cmd(`zzdata ${name} passive-switched none`)
       await cmd(`gamemode survival ${name}`)
+      await cmd(`zzhp ${name} 20`)
     }
     const place = async (name, x, z, y = Y) => { await cmd(`zzheisttp ${name} ${x} ${y} ${z}`); await sleep(1300) }
     const walk = async (name, ms, sneak = false) => {
@@ -72,14 +76,16 @@ module.exports = async ({ check }) => {
       bot.setControlState('sneak', false)
       await sleep(700)
     }
-    // Walk a lane (z) from outside the hall; returns whether the bot died on the way.
-    const lane = async (name, z, { ms = 2000, sneak = false } = {}) => {
+    // Walk a lane (z) from outside the hall at hp (20 = full, no regeneration: zzhp); returns the trap
+    // log's hit lines, whether the bot died, and every line for the report.
+    const lane = async (name, z, { ms = 2000, sneak = false, hp = 20 } = {}) => {
       await place(name, 765.5, z)
+      await cmd(`zzhp ${name} ${hp}`)
       setMark()
       await walk(name, ms, sneak)
-      const died = logged(new RegExp(`kill ${name} `)).length > 0
-      return died
+      return { hits: logged(new RegExp(`hit ${name} `)), died: logged(new RegExp(`kill ${name} `)).length > 0, lines: logLines().slice(mark).join(' / ') }
     }
+    const tstate = async (id, k) => ((await state(id)).match(new RegExp(` ${k}=(\\S*)`)) || [])[1]
 
     // ---------- Build ----------
     for (const h of ['ztrap', 'ztrapa']) await cmd(`dheist delete ${h} confirm`)
@@ -148,9 +154,26 @@ module.exports = async ({ check }) => {
     // ---------- Lasers ----------
     await cmd(`zztestkit ${A}`)
     await cmd(`eco set ${A} 100000`)
+    let r = await lane(A, 770.5)
+    check('walking into a laser hurts once: 3♥ × 1.25 = 8 HP (20 -> 12), and they keep going', r.hits.length === 1 && /ztrap-1 laser dmg=8 hp=20->12 /.test(r.hits[0]) && !r.died && (await member(A)) === 'ztrap' && (await pos(A))[0] > 772, r.lines)
+    check('...the hit tags them in combat as a trap', /tagged=true .*cause=trap/.test(await cmd(`zzcombat ${A}`)), await cmd(`zzcombat ${A}`))
+    await cmd(`item replace entity ${A} armor.chest with minecraft:diamond_chestplate`)
+    r = await lane(A, 770.5)
+    check('...a vest doesn\'t soften it (8 HP through diamond armor)', r.hits.length === 1 && /dmg=8 hp=20->12 /.test(r.hits[0]), r.lines)
+    await cmd(`item replace entity ${A} armor.chest with minecraft:air`)
+    // Standing in the beam: hurt again every second.
+    await cmd(`zzhp ${A} 20`)
+    setMark()
+    await cmd(`zzheisttp ${A} 771.5 200 770.5`)
+    await sleep(1600)
+    await cmd(`zzheisttp ${A} 764.5 200 766.5`)
+    const stayHits = logged(/hit TrapA \S+ ztrap-1 /)
+    check('standing in a beam hurts again every second (2 hits in 1.6 s: 20 -> 12 -> 4)', stayHits.length === 2 && /hp=12->4 /.test(stayHits[1]), logLines().slice(mark).join(' / '))
+    await sleep(1000)
+    await cmd(`zzcombatend ${A}`)
     t = Date.now()
-    let died = await lane(A, 770.5)
-    check('walking into a laser kills', died && logged(/kill TrapA \S+ ztrap-1 laser/).length === 1 && (await member(A)) === 'none', logLines().slice(mark).join(' / '))
+    r = await lane(A, 770.5, { hp: 6 })
+    check('a robber with 3 hearts left dies to it', r.died && logged(/kill TrapA \S+ ztrap-1 laser dmg=8 /).length === 1 && (await member(A)) === 'none', r.lines)
     check('...a trap death at the heist\'s p: L = min(100,000 × 2%, min(6,000, 12,000)) = $2,000', (await bal(A)) === 98000 && (await data(A, 'last-death-cause')) === 'trap', `${await bal(A)} / ${await data(A, 'last-death-cause')}`)
     check('...and everyone reads which trap', /walked into a laser in the Trap Hall/.test(text(B, t)), text(B, t))
     await afterDeath()
@@ -160,6 +183,7 @@ module.exports = async ({ check }) => {
     await sleep(4200) // EssentialsX: no PvP right after a teleport
     await cmd(`zzbountyreset ${B}`)
     await cmd(`zzshieldoff ${A}`)
+    await cmd(`zzhp ${A} 6`)
     await cmd(`damage ${A} 1 minecraft:player_attack by ${B}`)
     const hitLanded = / tagged=true .*cause=player:/.test(await cmd(`zzcombat ${A}`))
     setMark()
@@ -167,51 +191,49 @@ module.exports = async ({ check }) => {
     check('shot by a player just before: still a trap death, no bounty for them', hitLanded && logged(/kill TrapA \S+ ztrap-1/).length === 1 && (await data(A, 'last-death-cause')) === 'trap' && Number(((await cmd(`zzbounty ${B}`)).match(/BOUNTY \S+ (\d+)/) || [])[1] || 0) === 0, `${await data(A, 'last-death-cause')} / ${await cmd(`zzbounty ${B}`)}`)
     await afterDeath()
     await reset(A)
-    died = await lane(A, 773.5)
-    check('a high laser kills a robber walking upright', died, logLines().slice(mark).join(' / '))
-    await afterDeath()
-    await reset(A)
-    died = await lane(A, 773.5, { ms: 6500, sneak: true })
-    check('...and sneaking under it is safe', !died && (await member(A)) === 'ztrap' && (await pos(A))[0] > 772, `${await pos(A)}`)
+    r = await lane(A, 773.5)
+    check('a high laser hurts a robber walking upright', r.hits.length === 1 && /ztrap-2 laser/.test(r.hits[0]), r.lines)
     await place(A, 764.5, 766.5)
-    died = await lane(A, 776.5)
-    check('a low laser kills a robber who walks into it', died)
-    await afterDeath()
-    await reset(A)
+    r = await lane(A, 773.5, { ms: 6500, sneak: true })
+    check('...and sneaking under it is safe', r.hits.length === 0 && !r.died && (await member(A)) === 'ztrap' && (await pos(A))[0] > 772, `${await pos(A)} ${r.lines}`)
+    await place(A, 764.5, 766.5)
+    r = await lane(A, 776.5)
+    check('a low laser hurts a robber who walks into it', r.hits.length === 1 && /ztrap-3 laser/.test(r.hits[0]), r.lines)
+    await place(A, 764.5, 766.5)
     const probes = [
       await cmd('zztrapprobe ztrap 771.5 200 776.5 stand'), await cmd('zztrapprobe ztrap 771.5 200.6 776.5 stand'),
       await cmd('zztrapprobe ztrap 771.5 200 770.5 sneak'), await cmd('zztrapprobe ztrap 771.5 200.95 770.5 stand'),
       await cmd('zztrapprobe ztrap 771.5 200 773.5 stand'), await cmd('zztrapprobe ztrap 771.5 200 773.5 sneak')]
     check('heights: a jump clears the low laser, the waist laser hits a sneaker but not a high jump, the high laser only standing', /PROBE 3/.test(probes[0]) && /none/.test(probes[1]) && /PROBE 1/.test(probes[2]) && /none/.test(probes[3]) && /PROBE 2/.test(probes[4]) && /none/.test(probes[5]), probes.join(' / '))
     await cmd(`zzpassive ${A} on`)
-    died = await lane(A, 770.5)
-    check('passive robbers die to traps too', died)
-    await afterDeath()
+    r = await lane(A, 770.5)
+    check('passive robbers get hurt by traps too', r.hits.length === 1, r.lines)
+    await place(A, 764.5, 766.5)
     await reset(A)
     await cmd(`gamemode creative ${B}`)
     setMark()
     await place(B, 765.5, 770.5)
     await walk(B, 2000)
-    check('creative staff walk through (not robbers)', logged(/kill TrapB/).length === 0 && (await member(B)) === 'none')
+    check('creative staff walk through (not robbers)', logged(/(hit|kill) TrapB/).length === 0 && (await member(B)) === 'none')
     await cmd(`gamemode survival ${B}`)
     await place(B, 764.5, 767.5)
     // Sprinting through the sloped laser: sampling the path catches it.
-    let sprintDeaths = 0
+    let sprintHits = 0
     for (let i = 0; i < 2; i++) {
       await place(A, 765.5, 782.5)
+      await cmd(`zzhp ${A} 20`)
       setMark()
       bots[A].setControlState('sprint', true)
       await walk(A, 1600)
       bots[A].setControlState('sprint', false)
-      if (logged(/kill TrapA \S+ ztrap-5/).length === 1) sprintDeaths++
-      await afterDeath()
-      await reset(A)
+      if (logged(/hit TrapA \S+ ztrap-5/).length === 1) sprintHits++
     }
-    check('sprinting through a sloped laser still kills (2/2)', sprintDeaths === 2, `${sprintDeaths}/2`)
+    check('sprinting through a sloped laser still hits (2/2)', sprintHits === 2, `${sprintHits}/2`)
+    await place(A, 764.5, 766.5)
     await cmd(`dtrap dry ${A} on`)
     t = Date.now()
-    died = await lane(A, 770.5)
-    check('dry mode: a "DRY HIT" instead of a death', !died && logged(/dry TrapA ztrap-1/).length >= 1 && (await member(A)) === 'ztrap', logLines().slice(mark).join(' / '))
+    r = await lane(A, 770.5)
+    check('dry mode: a "DRY HIT" instead of the damage', r.hits.length === 0 && logged(/dry TrapA ztrap-1/).length >= 1 && (await member(A)) === 'ztrap', r.lines)
     await cmd(`dtrap dry ${A} off`)
     await place(A, 764.5, 766.5)
 
@@ -231,14 +253,15 @@ module.exports = async ({ check }) => {
     await until(async () => /vis=false/.test(await state('ztrap-8')), 5000)
     setMark()
     await walk(A, 900)
-    check('walking through while it\'s off is safe', logged(/kill TrapA/).length === 0 && (await pos(A))[0] > 772, `${await pos(A)}`)
+    check('walking through while it\'s off is safe', logged(/(hit|kill) TrapA/).length === 0 && (await pos(A))[0] > 772, `${await pos(A)}`)
     await until(async () => /vis=false/.test(await state('ztrap-8')), 5000)
+    await cmd(`zzhp ${A} 20`)
     setMark()
     await place(A, 771.5, 793.5) // in the beam line while it's off
-    const blinkKill = await until(async () => logged(/kill TrapA \S+ ztrap-8/).length === 1, 5000)
-    const phase = Number(((logged(/kill TrapA \S+ ztrap-8/)[0] || '').match(/phase=(\d+)/) || [])[1])
-    check('standing in the line when it comes back on kills, only after the lead time', blinkKill && phase >= 4, logged(/ztrap-8/).join(' / '))
-    await afterDeath()
+    const blinkHit = await until(async () => logged(/hit TrapA \S+ ztrap-8/).length >= 1, 5000)
+    await place(A, 764.5, 766.5)
+    const phase = Number(((logged(/hit TrapA \S+ ztrap-8/)[0] || '').match(/phase=(\d+)/) || [])[1])
+    check('standing in the line when it comes back on hurts, only after the lead time', blinkHit && phase >= 4, logged(/ztrap-8/).join(' / '))
     await reset(A)
 
     // ---------- Plates ----------
@@ -248,27 +271,46 @@ module.exports = async ({ check }) => {
     const unpressed = await isBlock(771, 200, 779, 'stone_pressure_plate[powered=false]')
     await cmd(`gamemode survival ${B}`)
     await place(B, 764.5, 767.5)
+    r = await lane(A, 779.5)
+    check('a creative player walking over a trap plate doesn\'t press it (it still works after)', unpressed && r.hits.length >= 1, `unpressed ${unpressed}`)
+    check('stepping on a pressure plate hurts once per step: 4♥ × 1.25 = 10 HP', r.hits.length === 1 && /ztrap-4 plate dmg=10 hp=20->10 /.test(r.hits[0]), r.lines)
+    // Standing on it: no second hit. Off and back on: a new step.
+    await cmd(`zzhp ${A} 20`)
+    setMark()
+    await cmd(`zzheisttp ${A} 771.5 200 779.5`)
+    await sleep(1500)
+    const standHits = logged(/hit TrapA \S+ ztrap-4/).length
+    await cmd(`zzheisttp ${A} 769.5 200 779.5`)
+    await sleep(600)
+    await cmd(`zzhp ${A} 20`)
+    await cmd(`zzheisttp ${A} 771.5 200 779.5`)
+    await sleep(800)
+    const againHits = logged(/hit TrapA \S+ ztrap-4/).length
+    await place(A, 764.5, 766.5)
+    check('standing on a plate doesn\'t hurt again; stepping off and back on does', standHits === 1 && againHits === 2, `${standHits} ${againHits} ${logLines().slice(mark).join(' / ')}`)
+    await cmd(`zzcombatend ${A}`)
     t = Date.now()
-    died = await lane(A, 779.5)
-    check('a creative player walking over a trap plate doesn\'t press it (it still works after)', unpressed && died, `unpressed ${unpressed}`)
-    check('stepping on a pressure plate kills', died && logged(/kill TrapA \S+ ztrap-4 plate/).length === 1, logLines().slice(mark).join(' / '))
-    check('...the plate never goes down, and the death line says so', await isBlock(771, 200, 779, 'stone_pressure_plate[powered=false]') && /stepped on a trap/.test(text(B, t)), text(B, t))
+    r = await lane(A, 779.5, { hp: 8 })
+    check('...the plate never goes down, and a death on it says so', r.died && await isBlock(771, 200, 779, 'stone_pressure_plate[powered=false]') && /stepped on a trap/.test(text(B, t)), `${r.lines} | ${text(B, t)}`)
     await afterDeath()
     await reset(A)
 
     // ---------- Floors ----------
-    died = await lane(A, 786.5)
-    check('a collapsing floor drops the robber (the floor is gone, they die below it)', died && logged(/collapse ztrap-6/).length === 1 && logged(/kill TrapA \S+ ztrap-6 floor/).length === 1, logLines().slice(mark).join(' / '))
+    r = await lane(A, 786.5, { ms: 1700 })
+    await until(async () => logged(/hit TrapA \S+ ztrap-6 floor/).length >= 1, 3000)
+    await sleep(300)
+    const p6 = await pos(A)
+    check('a collapsing floor drops the robber: 4♥ × 1.25 = 10 HP, and they\'re put back on the solid ground before it', logged(/collapse ztrap-6/).length === 1 && logged(/hit TrapA \S+ ztrap-6 floor dmg=10 hp=20->10 /).length === 1 && (await member(A)) === 'ztrap' && p6[0] > 768 && p6[0] < 770.8 && Math.abs(p6[1] - 200) < 0.01, `${p6} ${logLines().slice(mark).join(' / ')}`)
+    await place(A, 764.5, 766.5)
     const gone = await isBlock(772, 199, 786, 'air')
     await place(B, 770.2, 786.5) // waiting on the west rim, next to the hole
     const back = await until(async () => isBlock(772, 199, 786, 'oak_planks'), 13000)
     check('...and comes back about 10 s later, even with a robber waiting on the rim', gone && back)
     await place(B, 764.5, 767.5)
-    await afterDeath()
     await reset(A)
-    died = await lane(A, 790.5)
+    r = await lane(A, 790.5)
     const stripGone = await until(async () => isBlock(771, 199, 790, 'air'), 2000)
-    check('walking over a 1-wide strip without stopping is safe (it falls behind you)', !died && (await member(A)) === 'ztrap' && stripGone, `${await pos(A)}`)
+    check('walking over a 1-wide strip without stopping is safe (it falls behind you)', r.hits.length === 0 && !r.died && (await member(A)) === 'ztrap' && stripGone, `${await pos(A)} ${r.lines}`)
     await place(A, 764.5, 766.5)
     await cmd('dtrap set ztrap-6 delay 3')
     await place(B, 772.5, 786.5, 200)
@@ -288,14 +330,15 @@ module.exports = async ({ check }) => {
     await cmd('dtrap set ztrap-6 delay default')
     await until(async () => isBlock(772, 199, 786, 'oak_planks'), 13000)
     await cmd('dtrap set ztrap-6 restore 0')
-    died = await lane(A, 786.5)
+    r = await lane(A, 786.5, { ms: 1700 })
+    const fell = await until(async () => logged(/hit TrapA \S+ ztrap-6 floor/).length >= 1, 3000)
+    await place(A, 764.5, 766.5)
     await sleep(12000)
     const stillGone = await isBlock(772, 199, 786, 'air')
     await cmd('dheist end ztrap')
     const resetBack = await until(async () => (await isBlock(772, 199, 786, 'oak_planks')) && /6:up/.test(await traps('ztrap')), 8000)
-    check('restore 0: the floor stays down until the room reset', died && stillGone && resetBack, `${stillGone} ${resetBack} ${await traps('ztrap')}`)
+    check('restore 0: the floor stays down until the room reset', fell && stillGone && resetBack, `${fell} ${stillGone} ${resetBack} ${await traps('ztrap')}`)
     await cmd('dtrap set ztrap-6 restore default')
-    await afterDeath()
     await reset(A)
     check('after the cooldown the heist reopens with its traps armed again', await until(async () => /armed=true/.test(await traps('ztrap')) && (await tfield('ztrap', 'displays')) === '5', 12000), await traps('ztrap'))
     // Collapse a floor, then disable: it comes back at once, and nothing is left.
@@ -306,8 +349,20 @@ module.exports = async ({ check }) => {
     await sleep(1200)
     check('disable: collapsed floors come back at once, no displays left', (await isBlock(772, 199, 786, 'oak_planks')) && (await hallDisplays()) === 0 && /armed=false/.test(await traps('ztrap')), `${await traps('ztrap')} entities=${await hallDisplays()}`)
     await cmd('dtrap set ztrap-6 delay default')
-    await afterDeath()
+    await place(A, 764.5, 766.5)
     await reset(A)
+    // Damage settings: per trap (hearts before the heist's multiplier) and per heist.
+    const d0 = await tstate('ztrap-1', 'dmg')
+    await cmd('dtrap set ztrap-1 damage 5')
+    const d1 = await tstate('ztrap-1', 'dmg')
+    await cmd('dheist set ztrap trap-damage 2')
+    const d2 = await tstate('ztrap-1', 'dmg')
+    const d3 = await tstate('ztrap-4', 'dmg')
+    const badDamage = await cmd('dtrap set ztrap-1 damage 0')
+    await cmd('dtrap set ztrap-1 damage default')
+    await cmd('dheist set ztrap trap-damage default')
+    const d4 = await tstate('ztrap-1', 'dmg')
+    check('damage settings: 3♥ × 1.25 = 4♥; damage=5 -> 6.5♥; trap-damage 2 -> 10♥ and the plate 8♥; 0 is refused; defaults back to 4♥', d0 === '4' && d1 === '6.5' && d2 === '10' && d3 === '8' && /bad value/.test(badDamage) && d4 === '4', `${d0} ${d1} ${d2} ${d3} ${d4} ${badDamage}`)
     await cmd('dheist enable ztrap')
     await until(async () => /armed=true/.test(await traps('ztrap')), 8000)
 
@@ -337,14 +392,16 @@ module.exports = async ({ check }) => {
     await cmd(`gamemode survival ${B}`)
     await place(B, 764.5, 767.5)
     await place(A, 764.5, 766.5)
-    // A turret: a camera that kills (any heist).
+    // A turret: a camera that shoots (any heist).
     await cmd('dheist set ztrapa advanced false')
     const inert = /INERT/.test(await cmd('dtrap list ztrapa'))
-    await cmd('dtrap set ztrapa-1 effect kill')
+    await cmd('dtrap set ztrapa-1 effect damage')
+    await cmd(`zzhp ${A} 20`)
     setMark()
     await place(A, 796.5, 780.5)
-    const turret = await until(async () => logged(/kill TrapA \S+ ztrapa-1 camera/).length === 1, 5000)
-    check('an alarm camera in a heist that isn\'t advanced is marked INERT; effect=kill makes it a turret', inert && turret, logLines().slice(mark).join(' / '))
+    const turret = await until(async () => logged(/hit TrapA \S+ ztrapa-1 camera dmg=5 /).length >= 2, 5000)
+    await place(A, 764.5, 766.5)
+    check('an alarm camera in a heist that isn\'t advanced is marked INERT; effect=damage makes it a turret that keeps shooting while it sees you (1.5♥ × 1.75 = 5 HP a shot)', inert && turret, logLines().slice(mark).join(' / '))
     await cmd('dtrap set ztrapa-1 effect default')
     await cmd('dheist set ztrapa advanced default')
     await afterDeath()
@@ -354,7 +411,7 @@ module.exports = async ({ check }) => {
     setMark()
     await walk(A, 1500)
     const plateAlarm = await until(async () => (await heistField('ztrapa', 'alarm')) !== 'none', 3000)
-    check('an alarm plate trips the alarm and doesn\'t kill', plateAlarm && logged(/alarm TrapA ztrapa-2 tripped=true/).length === 1 && logged(/kill TrapA/).length === 0 && (await hunt(A)) === 'ztrapa', logLines().slice(mark).join(' / '))
+    check('an alarm plate trips the alarm and doesn\'t hurt', plateAlarm && logged(/alarm TrapA ztrapa-2 tripped=true/).length === 1 && logged(/(hit|kill) TrapA/).length === 0 && (await hunt(A)) === 'ztrapa', logLines().slice(mark).join(' / '))
     await cmd('dheist end ztrapa')
 
     // ---------- Lifecycle ----------

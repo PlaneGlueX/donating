@@ -371,6 +371,18 @@ command /zzpack <player>:
 
 # ---------- traps.sk ----------
 
+# Health in HP (20 = full): /zzhp <player> [hp]. Also fills food and saturation to 20 / 0 when setting,
+# so natural regeneration is slow and predictable (1 HP per 4 s).
+command /zzhp <player> [<number>]:
+	executable by: console
+	trigger:
+		if arg-2 is set:
+			set health of arg-1 to arg-2 / 2
+			set food level of arg-1 to 10
+			set saturation of arg-1 to 0
+		send "HP %name of arg-1% %health of arg-1 * 2%"
+
+
 command /zztrap <text>:
 	executable by: console
 	trigger:
@@ -404,7 +416,7 @@ command /zztrapstate <text>:
 		if {_d} is set:
 			if {_d} is valid:
 				set {_dv} to "valid"
-		send "TRAPSTATE %arg-1% kind=%{-trapc::%{_c}%::kind}% live=%{-trapc::%{_c}%::live}% vis=%{-trapvis::%{_c}%}% phase=%{-trapc::%{_c}%::phase}% floor=%{_st}% seen=%{_seen}% display=%{_dv}%"
+		send "TRAPSTATE %arg-1% kind=%{-trapc::%{_c}%::kind}% live=%{-trapc::%{_c}%::live}% vis=%{-trapvis::%{_c}%}% phase=%{-trapc::%{_c}%::phase}% floor=%{_st}% seen=%{_seen}% display=%{_dv}% dmg=%{-trapc::%{_c}%::dmg}%"
 
 # trapScan at a spot: which trap would kill a robber standing, sneaking or swimming there.
 command /zztrapprobe <text> <number> <number> <number> <text>:

@@ -146,6 +146,12 @@ function loadSettings():
 	set {-cfg::difficulty::2::color} to "&e"
 	set {-cfg::difficulty::3::color} to "&6"
 	set {-cfg::difficulty::4::color} to "&4"
+	# Trap damage m per difficulty (PROPOSAL): a hit does D = max(1, round(d × 2 × m)) / 2 hearts, d = the
+	# trap's damage below (or its own damage=). Per heist: /dheist set <id> trap-damage <m>.
+	set {-cfg::difficulty::1::trap-damage} to 1.0
+	set {-cfg::difficulty::2::trap-damage} to 1.25
+	set {-cfg::difficulty::3::trap-damage} to 1.5
+	set {-cfg::difficulty::4::trap-damage} to 1.75
 
 	# ---------- Traps (traps.sk): ALL PROPOSALS ----------
 	set {-cfg::trap::max-per-heist} to 40      # one display per laser/camera: caps entities and the index
@@ -153,10 +159,16 @@ function loadSettings():
 	set {-cfg::trap::step} to 0.5              # max blocks between path samples (the hit window is 0.56)
 	set {-cfg::trap::max-samples} to 16        # a fall is up to 3.9 blocks per tick
 	set {-cfg::trap::grace} to 0.05            # hitbox shrink per side: grazes are forgiven
-	set {-cfg::trap::lead} to 4 ticks          # a blinking beam shows this long before it can kill (ping)
+	set {-cfg::trap::lead} to 4 ticks          # a blinking beam shows this long before it can hurt (ping)
+	# Traps hurt, not kill (owner, 2026-09-25). A trap hits on each new touch (off it longer than rearm),
+	# never twice within min-gap; lasers again every `every` while you stay in them, plates once per step.
+	set {-cfg::trap::rearm} to 4 ticks
+	set {-cfg::trap::min-gap} to 10 ticks
 	set {-cfg::trap::alarm-repeat} to 2 seconds
 	set {-cfg::trap::show-time} to 20 seconds  # /dtrap show
-	set {-cfg::trap::laser::effect} to "kill"
+	set {-cfg::trap::laser::effect} to "damage"
+	set {-cfg::trap::laser::damage} to 3        # hearts per hit (10 = full health), × trap-damage
+	set {-cfg::trap::laser::every} to 1 second # again while you stay in the beam
 	set {-cfg::trap::laser::thickness} to 0.06
 	set {-cfg::trap::laser::max-length} to 32
 	set {-cfg::trap::laser::view-range} to 1.0
@@ -168,8 +180,10 @@ function loadSettings():
 	set {-cfg::trap::laser::on} to 2 seconds   # a 4 s rhythm is learnable in one cycle
 	set {-cfg::trap::laser::off} to 2 seconds
 	set {-cfg::trap::laser::offset} to 0 seconds
-	set {-cfg::trap::plate::effect} to "kill"
-	set {-cfg::trap::floor::effect} to "kill"
+	set {-cfg::trap::plate::effect} to "damage"
+	set {-cfg::trap::plate::damage} to 4        # once per step
+	set {-cfg::trap::floor::effect} to "damage"
+	set {-cfg::trap::floor::damage} to 4        # then back on the last solid ground you stood on
 	set {-cfg::trap::floor::delay} to 10 ticks     # walking over a 1-wide strip takes 0.35 s: keep moving
 	set {-cfg::trap::floor::restore} to 10 seconds # 0 = stays down until the room reset
 	set {-cfg::trap::floor::drop} to 1.0
@@ -180,7 +194,9 @@ function loadSettings():
 	set {-cfg::trap::camera::range} to 12
 	set {-cfg::trap::camera::sneak-range} to 0.5   # sneaking halves the range
 	set {-cfg::trap::camera::grace} to 1 second    # seen this long -> it trips
-	set {-cfg::trap::camera::kill-grace} to 1.5 seconds
+	set {-cfg::trap::camera::turret-grace} to 1 second # effect=damage: seen this long -> the first shot
+	set {-cfg::trap::camera::damage} to 1.5     # per turret shot
+	set {-cfg::trap::camera::every} to 0.5 seconds # a turret shoots again this often while it sees you
 	set {-cfg::trap::camera::sweep} to 0
 	set {-cfg::trap::camera::period} to 8 seconds
 	set {-cfg::trap::camera::pointer} to true

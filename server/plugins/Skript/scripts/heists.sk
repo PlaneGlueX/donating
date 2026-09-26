@@ -1027,7 +1027,7 @@ function dheistSet(s: command sender, h: text, a: texts):
 	set {_key} to {_a::3}
 	set {_val} to {_a::4}
 	if {_val} is not set:
-		dheistReply({_s}, "HEIST %{_h}% set: name|difficulty|escape|cooldown|pool|rank|advanced|pvp <value|default>")
+		dheistReply({_s}, "HEIST %{_h}% set: name|difficulty|escape|cooldown|pool|rank|advanced|pvp|trap-damage <value|default>")
 		stop
 	if {_key} is "name":
 		set {_words::*} to {_a::*}
@@ -1066,11 +1066,15 @@ function dheistSet(s: command sender, h: text, a: texts):
 		set {_store} to "advanced"
 	else if {_key} is "pvp":
 		set {_store} to "pvp-only"
+	else if {_key} is "trap-damage":
+		set {_store} to "trap-damage"
 	if {_store} is "":
 		dheistReply({_s}, "HEIST %{_h}% set: unknown setting %{_key}%")
 		stop
 	if {_val} is "default":
 		delete {heist::%{_h}%::%{_store}%}
+		# Traps work out their damage when compiled.
+		trapCompile({_h})
 		dheistReply({_s}, "HEIST %{_h}% %{_key}% = default (%heistSetting({_h}, {_store})%)")
 		stop
 	if {_store} is "advanced":
@@ -1097,6 +1101,7 @@ function dheistSet(s: command sender, h: text, a: texts):
 			set {heist::%{_h}%::cooldown} to 1 second * {_n}
 		else:
 			set {heist::%{_h}%::%{_store}%} to {_n}
+	trapCompile({_h})
 	dheistReply({_s}, "HEIST %{_h}% %{_key}% = %heistSetting({_h}, {_store})%")
 
 # The spot evicted robbers land on: never inside a heist or a safe zone (a safe zone cancels the
@@ -1221,7 +1226,7 @@ function dheistInfo(s: command sender, h: text):
 # DecentHolograms file travel with the world; run these after /rg define.
 function dheistDump(s: command sender, h: text):
 	set {_l::*} to "dheist create %{_h}% %heistDifficulty({_h})%" and "dheist set %{_h}% name %heistName({_h})%"
-	loop "escape", "cooldown", "loot-pool", "rank", "advanced" and "pvp-only":
+	loop "escape", "cooldown", "loot-pool", "rank", "advanced", "pvp-only" and "trap-damage":
 		{heist::%{_h}%::%loop-value%} is set
 		set {_v} to {heist::%{_h}%::%loop-value%}
 		set {_k} to loop-value
