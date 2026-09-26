@@ -70,7 +70,8 @@ function openPhone(p: player):
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
 	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars. Coming soon.", "phone:garage")
-	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Open crates, see what's inside," and "&7and claim your daily key.", "phone:crates")
+	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
+	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
 	set slot 25 of {_gui} to tagItem(leather named "&6Bag" with lore "&7What's in your heist bag.", "phone:bag")
 	set slot 23 of {_gui} to tagItem(book named "&aHow to play" with lore "&7Heists, your bag, passive mode.", "phone:help")
@@ -138,6 +139,9 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 25:
 		close {_p}'s inventory
 		bagMenu({_p})
+	else if {_slot} is 17:
+		close {_p}'s inventory
+		cosMenu({_p})
 	else if {_slot} is 26:
 		close {_p}'s inventory
 

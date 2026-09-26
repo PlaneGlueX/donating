@@ -194,7 +194,8 @@ Damage:
 
     # Armor modifiers... for simplicity, I recommend only changing 'Per_Armor_Point'.
     # This will make sure you keep compatibility with changes to the item attributes.
-    Per_Armor_Point: -3%
+    # Donating: -6% per armor point, so the best gear (Tactical Helmet 3 + Heavy Vest 8 = 11) takes 66% off.
+    Per_Armor_Point: -6%
     Armor: []
       #- IRON_HELMET -5%
     Enchantments:

@@ -87,12 +87,14 @@
     Finish_Mechanics:
       - "CustomSound{sound=reload.end.light, volume=0.5, noise=0.1}"
   Damage:
-    Base_Damage: 8
+    # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
+    # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
+    Base_Damage: 4.3
     Armor_Damage: 3
     Dropoff:
-      - "10 -1.96"
-      - "25 -3.92"
-      - "50 -5.88"
+      - "10 -1.05"
+      - "25 -2.11"
+      - "50 -3.16"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"

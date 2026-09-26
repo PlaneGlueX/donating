@@ -23,6 +23,7 @@
 #   %donating_booster%       the running money booster ("⚡ 1.5× money for everyone · 23:10 · thanks Name"), or "&r"
 #   %donating_title%         " &a«Ghost»" after the name (chat, tab list; cosmetics.sk keeps it in memory), or "&r"
 #   %donating_keys_<crate>%  your keys for that crate ("3"; crate stand holograms, crates.sk)
+#   %donating_hacked_crate%  the Hacked crate's animated name (a Hacked stand's hologram, crates.sk)
 #   %donating_wanted%        "&c&lWANTED&r &7· lose the cops" while an alarm hunts you, else "&r"
 #   %donating_heist_diff%    your heist's difficulty in its color ("&4Advanced")
 #   %donating_heist_robbers% robbers in your heist ("3")
@@ -146,6 +147,10 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-ph::title::%player%} is set:
 			set the placeholder result to {-ph::title::%player%}
+	else if {_i} is "hacked_crate":
+		set the placeholder result to "&2Hacked Crate"
+		if {-ph::hackedcrate} is set:
+			set the placeholder result to {-ph::hackedcrate}
 	else if {_i} starts with "keys_":
 		set {_c} to subtext of {_i} from characters 6 to (length of {_i})
 		set {_n} to {data::%player%::keys::%{_c}%}

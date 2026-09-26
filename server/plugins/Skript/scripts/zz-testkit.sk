@@ -609,6 +609,7 @@ command /zzcratereset <offline player>:
 		deleteData(arg-1, "title")
 		deleteData(arg-1, "killfx")
 		deleteData(arg-1, "bag-skin")
+		delete {cratepending::%uuid of arg-1%::*}
 		send "CRATERESET %arg-1%"
 
 # A crate's reward lines until the next loadSettings() (lines split by ";"): /zzcratelines common 1|money|777

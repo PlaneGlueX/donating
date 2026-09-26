@@ -43,7 +43,7 @@ Every jar below is in `server\plugins\` locally (tools\fetch.ps1 re-downloads mi
 | Tebex | `tebex-bukkit-2.4.6.jar` |
 | DonatingPhone (ours) | `DonatingPhone.jar` |
 
-Not spark (Paper has it built in). MTVehicles only once cars are built.
+Not spark (Paper has it built in). MTVehicles (`MTVehicles.jar` (2.5.9), downloaded by hand from SpigotMC, in `server\plugins\` locally) only once cars are built (garage.sk).
 
 Start the server once so every plugin makes its folders, then stop it and upload the configs.
 
@@ -56,7 +56,7 @@ Start the server once so every plugin makes its folders, then stop it and upload
 | `plugins/Essentials/config.yml` | same |
 | `plugins/TAB/config.yml`, `plugins/TAB/groups.yml` | same |
 | `plugins/LPC/config.yml` | same |
-| `plugins/WeaponMechanics/config.yml` and the folders `weapons/`, `ammos/`, `projectiles/` | same |
+| `plugins/WeaponMechanics/config.yml` (armor: `Per_Armor_Point: -6%`) and the folders `weapons/` (the nerfed gun damage), `ammos/`, `projectiles/` | same |
 | `plugins/WorldGuard/config.yml` | same |
 | `bukkit.yml`, `spigot.yml` (only if you keep the End off: `allow-end: false`) | server root |
 | The world folder (`world/`, with `world/generated/donating/structures/` = the heist rooms, `world/data/map_*.dat` = the city map) and `plugins/WorldGuard/worlds/world/regions.yml` (safe zones, heist regions) | server root / same |
@@ -97,15 +97,17 @@ Then put the store's address in `core.sk` as `store::url` and upload it again (`
 The heists, traps, loot, cop spots: locally, run `/dheist dump <id>`, `/dtrap dump <id>`, `/dloot dump <id>` and `/dcops <id> dump` for every heist; the lines are also in `plugins/Skript/logs/heists.log`. Run those lines on Minehut in the same order (heist first, then traps, loot, cops), then `/dheist enable <id>`.
 
 Places, standing where they go:
-- Safe zones: WorldEdit wand (a structure void), `/rg define safe_spawn`, `/rg flag safe_spawn passthrough allow`, `/rg flag safe_spawn weapon-shoot deny`; the base is a safe zone whose id starts with `safe_base` (loot sells there).
-- Shopkeepers: `/dshopkeeper add gun|gear|bag|tools`.
-- Crate stands (optional): look at a block, `/dcrate place daily|common|uncommon|rare|epic|legendary`.
+- Safe zones: WorldEdit wand (a structure void), `/rg define safe_spawn`, `/rg flag safe_spawn passthrough allow`, `/rg flag safe_spawn weapon-shoot deny`; the base is a safe zone whose id starts with `safe_base` (loot sells there). The spawn zone must be called `safe_spawn` (core.sk `tutorial::region`): new players stay in it until they buy their first bag (tutorial.sk), so a Bag Shop shopkeeper must stand inside it.
+- Shopkeepers: `/dshopkeeper add gun|gear|bag|tools` (at least a bag shop inside `safe_spawn`).
+- Crate stands: look at a block inside a safe zone (crates only open in safe zones), `/dcrate place daily|common|uncommon|rare|epic|legendary|hacked`. `/crates` only shows odds and keys, so without stands nobody can open a crate.
+- Points of interest (the locator bar's dots): locally `/dpoi dump` prints a `/minecraft:tp` and a `/dpoi add` line per POI; on Minehut run each pair (the add uses where you stand). Heist dots come by themselves once the heists exist.
 - The spawn: EssentialsX `/setspawn`.
 - The phone's city map: set `city-maps` in `plugins/DonatingPhone/config.yml`, then `/dphone`.
 
 ## 6. Check it
 
 - The console after start: `[Skript] All scripts loaded without errors.`, Citizens loaded its libraries (it downloads a few from Maven Central on the first start), Tebex "Connected".
-- Join, open `/crates`, `/heists`, the phone (F with the phone), the gun shop.
+- Join with a fresh account (or `/dtutorial <you> reset`): you can't leave spawn until you buy a Gym Bag.
+- Open `/crates`, a crate stand, `/cosmetics`, `/heists`, the phone (F with the phone), the gun shop.
 - A Tebex test purchase (Tebex's test mode or a $0 package): the rank or keys arrive.
 - Send Minehut the latest MONETIZATION.md (or the "Donating Paid Perks" page).

@@ -1204,6 +1204,11 @@ function buyBag(p: player, t: number):
 	set {_price} to cfg("bag::%{_t}%::price")
 	if {_t} <= bestBag({_p}):
 		set {_price} to cfg("bag::%{_t}%::replace")
+		# A robber who can't pay for a new Gym Bag gets one free (never stuck without a bag).
+		if {_t} is 1:
+			if {-cfg::bag::free-if-broke} is true:
+				if balance of {_p} < {_price}:
+					set {_price} to 0
 	set {_force} to false
 	if {_carry} > 0:
 		set {_force} to true

@@ -77,12 +77,15 @@ R9_0:
     Finish_Mechanics:
       - "CustomSound{sound=reload.start.shotgun, volume=0.5, noise=0.1}"
   Damage:
-    Base_Damage: 10.8
+    # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
+    # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
+    # Per pellet: all 10 pellets at point blank = 6 damage, 4 blasts.
+    Base_Damage: 0.6
     Armor_Damage: 4
     Dropoff:
-      - "5 -2.16"
-      - "10 -5.4"
-      - "20 -8.64"
+      - "5 -0.12"
+      - "10 -0.3"
+      - "20 -0.48"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"
