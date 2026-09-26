@@ -221,12 +221,18 @@ command /killeffect [<text>]:
 			set {_t} to arg-1
 		cosPick(player, "killfx", "killfx", "killeffect", {_t})
 
+# ---------- The wardrobe (/cosmetics, the phone's Cosmetics app) ----------
+# Owner, 2026-09-26: people can take a title off if they don't want it. /cosmetics shows the three kinds;
+# each page lists what you own (click to wear it, the worn one glows) with a "Take it off" button.
+
 command /cosmetics:
-	description: Your cosmetics.
+	description: Your cosmetics: wear them or take them off.
+	aliases: /wardrobe
 	executable by: players
 	trigger:
-		cosList(player)
+		cosMenu(player)
 
+# The chat list (kept for the phone-less and for tests).
 function cosList(p: player):
 	msg({_p}, "&6Your cosmetics &7(from crates: /crates)")
 	loop "title", "bagskin" and "killfx":
@@ -243,3 +249,166 @@ function cosList(p: player):
 			send colored "&7 » Bag skins &f/bagskin&7: %{_list}%" to {_p}
 		else:
 			send colored "&7 » Kill effects &f/killeffect&7: %{_list}%" to {_p}
+
+# What the player wears of a type ("" = nothing / the default look).
+function cosWorn(p: player, type: text) :: text:
+	if {_type} is "bagskin":
+		return bagSkinOf({_p})
+	set {_id} to getData({_p}, {_type})
+	if {_id} is set:
+		if cosOwned({_p}, "%{_id}%") is true:
+			return "%{_id}%"
+	return ""
+
+# What the player owns of a type: bag skins include the rank's (ranks.sk).
+function cosWardrobe(p: player, type: text) :: texts:
+	if {_type} is "bagskin":
+		return bagSkinsOwned({_p})
+	return cosOwnedOf({_p}, {_type})
+
+function cosWornName(p: player, type: text) :: text:
+	set {_w} to cosWorn({_p}, {_type})
+	if {_w} is "":
+		return "&7none"
+	if {_type} is "bagskin":
+		if cosExists({_w}) is true:
+			return cosColored({_w})
+		return "&d%bagSkinName({_w})%"
+	return cosColored({_w})
+
+function cosClearGui(p: player):
+	delete {-cos::gui::%{_p}%}
+	delete {-cos::act::%{_p}%::*}
+
+function cosButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-cos::act::%{_p}%::%{_slot}%} to {_act}
+
+function cosMenu(p: player):
+	set {_gui} to chest inventory with 3 rows named "&8Your cosmetics"
+	set {_pane} to gray stained glass pane named "&r"
+	loop 27 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	cosClearGui({_p})
+	set {-cos::gui::%{_p}%} to {_gui}
+	set {_n} to size of cosWardrobe({_p}, "title")
+	set {_wt} to cosWornName({_p}, "title")
+	cosButton({_p}, {_gui}, 11, name tag named "&6Titles" with lore "&7After your name in chat and the tab list." and "&7Wearing: %{_wt}%" and "&7You have %{_n}%." and "&eClick to pick or take it off.", "page:title")
+	set {_n} to size of cosWardrobe({_p}, "bagskin")
+	set {_wb} to cosWornName({_p}, "bagskin")
+	cosButton({_p}, {_gui}, 13, leather named "&6Bag skins" with lore "&7How your bag looks." and "&7Wearing: %{_wb}%" and "&7You have %{_n}%." and "&eClick to pick one.", "page:bagskin")
+	set {_n} to size of cosWardrobe({_p}, "killfx")
+	set {_wk} to cosWornName({_p}, "killfx")
+	cosButton({_p}, {_gui}, 15, blaze powder named "&6Kill effects" with lore "&7Where you knock someone out." and "&7Wearing: %{_wk}%" and "&7You have %{_n}%." and "&eClick to pick or take it off.", "page:killfx")
+	cosButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	open {_gui} to {_p}
+
+function cosPage(p: player, type: text):
+	set {_label} to cosTypeName({_type})
+	set {_gui} to chest inventory with 6 rows named "&8Your %{_label}%s"
+	cosClearGui({_p})
+	set {-cos::gui::%{_p}%} to {_gui}
+	set {_worn} to cosWorn({_p}, {_type})
+	set {_slot} to 0
+	loop cosWardrobe({_p}, {_type}):
+		{_slot} < 45
+		set {_id} to loop-value
+		if {_type} is "title":
+			set {_i} to name tag
+		else if {_type} is "killfx":
+			set {_i} to blaze powder
+		else:
+			set {_i} to leather
+			set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_id}%"
+		if cosExists({_id}) is true:
+			set name of {_i} to colored cosColored({_id})
+		else:
+			set name of {_i} to colored "&d%bagSkinName({_id})% &7(rank)"
+		if {_id} is {_worn}:
+			set lore of {_i} to "&aWearing it."
+			set {_i} to glint({_i})
+		else:
+			set lore of {_i} to "&eClick to wear it."
+		cosButton({_p}, {_gui}, {_slot}, {_i}, "wear:%{_type}%:%{_id}%")
+		add 1 to {_slot}
+	if {_slot} is 0:
+		set slot 22 of {_gui} to paper named "&7No %{_label}%s yet" with lore "&7They come from crates: &f/crates"
+	set {_pane} to gray stained glass pane named "&r"
+	loop integers from 45 to 53:
+		set slot loop-value of {_gui} to {_pane}
+	cosButton({_p}, {_gui}, 45, arrow named "&fBack", "menu")
+	if {_type} is "bagskin":
+		cosButton({_p}, {_gui}, 49, barrier named "&fDefault look" with lore "&7Your bag tier's own look.", "off:bagskin")
+	else:
+		cosButton({_p}, {_gui}, 49, barrier named "&fTake it off" with lore "&7Wear no %{_label}%.", "off:%{_type}%")
+	cosButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
+	open {_gui} to {_p}
+
+# Wear a cosmetic (or "" = take it off / the default bag look).
+function cosWear(p: player, type: text, id: text):
+	if {_type} is "bagskin":
+		if {_id} is "":
+			setData({_p}, "bag-skin", "default")
+		else if bagSkinsOwned({_p}) contains {_id}:
+			setData({_p}, "bag-skin", {_id})
+		else:
+			stop
+		bagRefresh({_p})
+	else:
+		if {_id} is "":
+			deleteData({_p}, {_type})
+		else if cosOwned({_p}, {_id}) is true:
+			setData({_p}, {_type}, {_id})
+		else:
+			stop
+		if {_type} is "title":
+			set {-ph::title::%{_p}%} to titleText({_p})
+	play sound "item.armor.equip_leather" with volume 0.6 to {_p}
+	cosPage({_p}, {_type})
+
+on inventory click:
+	{-cos::gui::%player%} is set
+	player's current inventory is {-cos::gui::%player%}
+	cancel event
+	event-inventory is {-cos::gui::%player%}
+	set {_act} to {-cos::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_ok} to false
+	if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_ok} to true
+	{_ok} is true
+	# One action per drawn screen, a tick later (as in crates.sk).
+	if {-cos::gen::%player%} is not set:
+		set {-cos::gen::%player%} to 0
+	set {_gen} to {-cos::gen::%player%}
+	wait 1 tick
+	player is online
+	{-cos::gui::%player%} is set
+	{-cos::gen::%player%} is {_gen}
+	add 1 to {-cos::gen::%player%}
+	if {_act} starts with "page:":
+		cosPage(player, subtext of {_act} from characters 6 to (length of {_act}))
+	else if {_act} starts with "wear:":
+		set {_a::*} to {_act} split at ":"
+		cosWear(player, {_a::2}, {_a::3})
+	else if {_act} starts with "off:":
+		cosWear(player, subtext of {_act} from characters 5 to (length of {_act}), "")
+	else if {_act} is "menu":
+		cosMenu(player)
+	else if {_act} is "close":
+		close player's inventory
+
+on inventory drag:
+	{-cos::gui::%player%} is set
+	player's current inventory is {-cos::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-cos::gui::%player%} is set
+	event-inventory is {-cos::gui::%player%}
+	cosClearGui(player)
+
+on quit:
+	cosClearGui(player)

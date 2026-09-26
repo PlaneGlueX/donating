@@ -818,6 +818,13 @@ function shopAction(p: player, act: text, shift: boolean):
 	# Any other action cancels an armed confirmation of something else (checked in needsConfirm).
 	set {_parts::*} to {_act} split at ":"
 	set {_what} to {_parts::1}
+	# The first-join tutorial (tutorial.sk): the bag comes first, so the start money can't run out on
+	# anything else and leave a new player stuck in spawn. Looking around (tabs) is fine.
+	if tutorialNeedsBag({_p}) is true:
+		if {_what} is not "bag":
+			if {_what} is not "tab":
+				shopFail({_p}, "Buy your bag first (Bag Shop): you can't leave spawn without one.")
+				stop
 	if {_what} is "tab":
 		set {-shop::tab::%{_p}%} to {_parts::2}
 		delete {-shop::sel::%{_p}%}
@@ -1202,8 +1209,19 @@ function buyBag(p: player, t: number):
 		shopFail({_p}, "Sell your loot at the base first.")
 		stop
 	set {_price} to cfg("bag::%{_t}%::price")
+	# The first Gym Bag is free for a new player who somehow can't pay for it (never stuck in spawn).
+	if {_t} is 1:
+		if bestBag({_p}) < 1:
+			if {-cfg::bag::free-if-broke} is true:
+				if balance of {_p} < {_price}:
+					set {_price} to 0
 	if {_t} <= bestBag({_p}):
 		set {_price} to cfg("bag::%{_t}%::replace")
+		# A robber who can't pay for a new Gym Bag gets one free (never stuck without a bag).
+		if {_t} is 1:
+			if {-cfg::bag::free-if-broke} is true:
+				if balance of {_p} < {_price}:
+					set {_price} to 0
 	set {_force} to false
 	if {_carry} > 0:
 		set {_force} to true

@@ -133,23 +133,29 @@ function loadSettings():
 	set {-cfg::difficulty::4::cop-p} to 0.10
 
 	# ---------- Money: ALL PROPOSALS, waiting for the owner ----------
-	set {-cfg::money::start} to 500
-	# Bag tiers: capacity = the most loot value ($) the bag holds.
+	# Start money (owner, 2026-09-26: more, and the first-join tutorial makes you buy a bag with it:
+	# tutorial.sk). $5,000 = the Gym Bag ($2,400) + a .50 GS ($1,500) + ammo.
+	set {-cfg::money::start} to 5000
+	# Bag tiers: capacity = the most loot value ($) the bag holds. Owner, 2026-09-26: unlocking a tier
+	# costs 120% of what it holds (price = 1.2 × capacity), a new one after losing it 20% (replace below).
 	set {-cfg::bag::1::name} to "Gym Bag"
 	set {-cfg::bag::1::capacity} to 2000
-	set {-cfg::bag::1::price} to 0
+	set {-cfg::bag::1::price} to 2400
 	set {-cfg::bag::2::name} to "Duffel Bag"
 	set {-cfg::bag::2::capacity} to 6000
-	set {-cfg::bag::2::price} to 7500
+	set {-cfg::bag::2::price} to 7200
 	set {-cfg::bag::3::name} to "Hockey Bag"
 	set {-cfg::bag::3::capacity} to 15000
-	set {-cfg::bag::3::price} to 30000
+	set {-cfg::bag::3::price} to 18000
 	set {-cfg::bag::4::name} to "Armored Duffel"
 	set {-cfg::bag::4::capacity} to 40000
-	set {-cfg::bag::4::price} to 120000
+	set {-cfg::bag::4::price} to 48000
 	set {-cfg::bag::5::name} to "Vault Bag"
 	set {-cfg::bag::5::capacity} to 100000
-	set {-cfg::bag::5::price} to 400000
+	set {-cfg::bag::5::price} to 120000
+	# The first-join tutorial (tutorial.sk): a player without a bag can't leave the WorldGuard region
+	# whose id starts with this (the spawn safe zone: create it as safe_spawn) until they buy one.
+	set {-cfg::tutorial::region} to "safe_spawn"
 	# Default loot pool per difficulty (each heist can override its own).
 	set {-cfg::difficulty::1::loot-pool} to 3000
 	set {-cfg::difficulty::2::loot-pool} to 12000
@@ -378,7 +384,9 @@ function loadSettings():
 	set {-cfg::shop::title::bag} to "Bag Shop"
 	set {-cfg::shop::title::tools} to "Heist Tools"
 
-	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles.
+	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles. Owner, 2026-09-26:
+	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
+	# files (AK-47 5.5 a body shot: 4 shots unarmored, 11 in a Tactical Helmet + Heavy Vest).
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
 	set {-cfg::shop::weapons::*} to "Combat_Knife", "50_GS", "Uzi", "R9_0" and "AK_47"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
@@ -389,25 +397,25 @@ function loadSettings():
 	set {-cfg::wpn::Combat_Knife::model} to -10
 	set {-cfg::wpn::50_GS::name} to ".50 GS"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
-	set {-cfg::wpn::50_GS::price} to 300
+	set {-cfg::wpn::50_GS::price} to 1500
 	set {-cfg::wpn::50_GS::ammo} to "light"
 	set {-cfg::wpn::50_GS::mag} to 7
 	set {-cfg::wpn::50_GS::model} to 9
 	set {-cfg::wpn::Uzi::name} to "Uzi"
 	set {-cfg::wpn::Uzi::kind} to "SMG"
-	set {-cfg::wpn::Uzi::price} to 3000
+	set {-cfg::wpn::Uzi::price} to 15000
 	set {-cfg::wpn::Uzi::ammo} to "light"
 	set {-cfg::wpn::Uzi::mag} to 32
 	set {-cfg::wpn::Uzi::model} to 1
 	set {-cfg::wpn::R9_0::name} to "R9-0"
 	set {-cfg::wpn::R9_0::kind} to "Shotgun"
-	set {-cfg::wpn::R9_0::price} to 7500
+	set {-cfg::wpn::R9_0::price} to 37500
 	set {-cfg::wpn::R9_0::ammo} to "shells"
 	set {-cfg::wpn::R9_0::mag} to 14
 	set {-cfg::wpn::R9_0::model} to 14
 	set {-cfg::wpn::AK_47::name} to "AK-47"
 	set {-cfg::wpn::AK_47::kind} to "Rifle"
-	set {-cfg::wpn::AK_47::price} to 15000
+	set {-cfg::wpn::AK_47::price} to 75000
 	set {-cfg::wpn::AK_47::ammo} to "rifle"
 	set {-cfg::wpn::AK_47::mag} to 30
 	set {-cfg::wpn::AK_47::model} to 5
@@ -561,16 +569,16 @@ function loadSettings():
 	set {-cfg::rarity::legendary::color} to "&6"
 	set {-cfg::rarity::hacked::name} to "Hacked"
 	set {-cfg::rarity::hacked::color} to "&2"
-	# A cosmetic you already own pays this much instead (by the cosmetic's rarity).
-	set {-cfg::rarity::daily::dupe} to 400
-	set {-cfg::rarity::common::dupe} to 400
-	set {-cfg::rarity::uncommon::dupe} to 1000
-	set {-cfg::rarity::rare::dupe} to 3000
-	set {-cfg::rarity::epic::dupe} to 8000
-	set {-cfg::rarity::legendary::dupe} to 20000
-	set {-cfg::rarity::hacked::dupe} to 25000
-	# Crates, in menu order. sold = Tebex sells its keys; secret = hidden from /crates unless you have a
-	# key; block = the block a crate stand is made of (/dcrate place).
+	# A cosmetic you already own pays this much instead (by the cosmetic's rarity; owner, 2026-09-26).
+	set {-cfg::rarity::daily::dupe} to 200
+	set {-cfg::rarity::common::dupe} to 200
+	set {-cfg::rarity::uncommon::dupe} to 500
+	set {-cfg::rarity::rare::dupe} to 1500
+	set {-cfg::rarity::epic::dupe} to 3000
+	set {-cfg::rarity::legendary::dupe} to 5000
+	set {-cfg::rarity::hacked::dupe} to 7500
+	# Crates, in menu order (all of them always show in /crates; owner, 2026-09-26). sold = Tebex sells
+	# its keys.
 	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary" and "hacked"
 	set {-cfg::crate::daily::sold} to false
 	set {-cfg::crate::common::sold} to true
@@ -579,7 +587,6 @@ function loadSettings():
 	set {-cfg::crate::epic::sold} to true
 	set {-cfg::crate::legendary::sold} to true
 	set {-cfg::crate::hacked::sold} to false
-	set {-cfg::crate::hacked::secret} to true
 	set {-cfg::crate::daily::icon} to chest
 	set {-cfg::crate::common::icon} to chest
 	set {-cfg::crate::uncommon::icon} to chest
@@ -588,20 +595,34 @@ function loadSettings():
 	set {-cfg::crate::legendary::icon} to ender chest
 	set {-cfg::crate::hacked::icon} to sculk shrieker
 	# Rewards: "weight|kind|what|amount". The chance of a line = its weight / the crate's total (shown in
-	# /crates). Kinds: money|<$>; ammo|<type>|<rounds>; con|<consumable>|<n>; tool|<tool>|<n>;
-	# cos|<cosmetic id>. Ammo, consumables and tools that don't fit (full inventory, carry limit, a tool
-	# above your level) pay their shop price in cash instead, and a cosmetic you own pays its dupe value,
-	# so nothing is ever lost. Car cosmetics, car upgrades and gun skins come later (garage.sk, art).
-	set {-cfg::crate::daily::rewards::*} to "25|money|250", "18|money|500", "8|money|1000", "12|ammo|light|32", "8|ammo|shells|14", "8|ammo|rifle|30", "10|con|Stim|1", "5|tool|safe-kit|1", "2|cos|rookie", "2|cos|lookout", "1|cos|poof" and "1|cos|denim"
-	set {-cfg::crate::common::rewards::*} to "19|money|500", "14|money|1000", "6|money|2000", "10|ammo|light|64", "8|ammo|shells|28", "8|ammo|rifle|60", "8|con|Stim|2", "6|tool|safe-kit|1", "4|cos|rookie", "4|cos|lookout", "3|cos|wheelman", "3|cos|hustler", "3|cos|poof", "2|cos|smoke", "1|cos|denim" and "1|cos|sand"
-	set {-cfg::crate::uncommon::rewards::*} to "18|money|1500", "5|money|2000", "12|money|3000", "4|money|5000", "8|ammo|light|128", "6|ammo|shells|56", "6|ammo|rifle|120", "8|con|Stim|3", "6|tool|safe-kit|2", "5|cos|ghost", "4|cos|smooth", "4|cos|nightowl", "4|cos|flames", "4|cos|sparks", "3|cos|urban" and "3|cos|cherry"
-	set {-cfg::crate::rare::rewards::*} to "18|money|4000", "3|money|6000", "10|money|8000", "4|money|12000", "8|ammo|rifle|240", "6|ammo|shells|112", "6|con|Stim|3", "8|tool|drill|1", "5|tool|safe-kit|3", "6|cos|insideman", "6|cos|phantom", "5|cos|cashburst", "5|cos|souls", "5|cos|cashprint" and "5|cos|crimson"
-	set {-cfg::crate::epic::rewards::*} to "18|money|10000", "10|money|20000", "5|money|30000", "8|tool|drill|1", "5|con|Stim|3", "9|cos|untouchable", "9|cos|bigfish", "8|cos|fireworks", "8|cos|stormcloud", "10|cos|tiger" and "10|cos|carbon"
-	set {-cfg::crate::legendary::rewards::*} to "20|money|25000", "10|money|50000", "5|money|75000", "11|cos|mostwanted", "11|cos|theboss", "11|cos|dragon", "11|cos|totem", "11|cos|diamond" and "10|cos|molten"
-	set {-cfg::crate::hacked::rewards::*} to "20|money|50000", "16|cos|hacker", "16|cos|zeroday", "24|cos|glitch" and "24|cos|matrix"
+	# /crates; the weights here add up to 1000, so 30 = 3%). Kinds: money|<$>; ammo|<type>|<rounds>;
+	# con|<consumable>|<n>; tool|<tool>|<n>; cos|<cosmetic id>[,<id>...] (a set: all of them);
+	# car|<id>|<Name> (left out of rolls until cars exist: crate::cars, garage.sk). Ammo, consumables and
+	# tools that don't fit (full inventory, carry limit, a tool above your level) pay crate::overflow-rate
+	# of their shop price in cash, and a cosmetic you own pays its rarity's dupe value.
+	# Owner, 2026-09-26: money 50-65% lower than before but more often; cosmetics at most 1 / 3 / 5 / 7 /
+	# 10 / 15% (daily ... legendary), every cosmetic in one crate only; Legendary has an exclusive car at
+	# 3% (inside its 15%); Hacked has 3 cars (Legendary's too) at 20% each and every Hacked prize at about
+	# the same odds, so its two cosmetic lines are sets (a title with a bag skin or a kill effect).
+	set {-cfg::crate::daily::rewards::*} to "320|money|100", "220|money|200", "110|money|400", "100|ammo|light|32", "60|ammo|shells|14", "60|ammo|rifle|30", "70|con|Stim|1", "50|tool|safe-kit|1", "4|cos|rookie", "3|cos|poof" and "3|cos|denim"
+	set {-cfg::crate::common::rewards::*} to "280|money|200", "200|money|450", "120|money|900", "100|ammo|light|64", "70|ammo|shells|28", "70|ammo|rifle|60", "80|con|Stim|2", "50|tool|safe-kit|1", "6|cos|lookout", "6|cos|wheelman", "6|cos|hustler", "6|cos|smoke" and "6|cos|sand"
+	set {-cfg::crate::uncommon::rewards::*} to "220|money|700", "170|money|900", "150|money|1350", "80|money|2250", "80|ammo|light|128", "60|ammo|shells|56", "60|ammo|rifle|120", "70|con|Stim|3", "60|tool|safe-kit|2", "8|cos|ghost", "7|cos|smooth", "7|cos|nightowl", "7|cos|flames", "7|cos|sparks", "7|cos|urban" and "7|cos|cherry"
+	set {-cfg::crate::rare::rewards::*} to "230|money|1800", "170|money|2700", "150|money|3600", "90|money|5400", "70|ammo|rifle|240", "50|ammo|shells|112", "50|con|Stim|3", "70|tool|drill|1", "50|tool|safe-kit|3", "12|cos|insideman", "12|cos|phantom", "12|cos|cashburst", "12|cos|souls", "11|cos|cashprint" and "11|cos|crimson"
+	set {-cfg::crate::epic::rewards::*} to "330|money|4500", "240|money|9000", "130|money|13500", "120|tool|drill|1", "80|con|Stim|3", "17|cos|untouchable", "17|cos|bigfish", "17|cos|fireworks", "17|cos|stormcloud", "16|cos|tiger" and "16|cos|carbon"
+	set {-cfg::crate::legendary::rewards::*} to "380|money|11000", "250|money|22500", "120|money|34000", "100|tool|drill|1", "30|car|vandal|Vandal", "20|cos|mostwanted", "20|cos|theboss", "20|cos|dragon", "20|cos|totem", "20|cos|diamond" and "20|cos|molten"
+	set {-cfg::crate::hacked::rewards::*} to "200|car|vandal|Vandal", "200|car|specter|Specter", "200|car|overclock|Overclock", "200|cos|hacker,matrix" and "200|cos|zeroday,glitch"
+	# Cars in crates: garage.sk sets this to true once cars exist; until then car lines are left out
+	# (the other lines share their chance) and the menu shows them as "coming with cars".
+	set {-cfg::crate::cars} to false
+	# Rewards that don't fit pay this share of their shop price (owner, 2026-09-26: 50%).
+	set {-cfg::crate::overflow-rate} to 0.5
+	# Crates whose cosmetic and car pulls are announced to everyone (owner, 2026-09-26).
+	set {-cfg::crate::announce::*} to "legendary" and "hacked"
+	# How close to a crate stand a player must be to open it (blocks).
+	set {-cfg::crate::stand-reach} to 6
 	# /daily: once every this many hours (a bit under a day, so a daily routine doesn't drift later).
 	set {-cfg::daily::hours} to 20
-	# The spin before a crate shows what you got (the reward is given the moment the key is used).
+	# The spin before a crate shows what you got (the reward is given when it stops; owner, 2026-09-26).
 	set {-cfg::crate::spin-steps} to 30
 
 	# Cosmetics: type title (a tag after your name in chat and the tab list: /title), bagskin (the bag's
@@ -612,7 +633,7 @@ function loadSettings():
 	set {-cfg::cosmetics::*} to "rookie", "lookout", "wheelman", "hustler", "ghost", "smooth", "nightowl", "insideman", "phantom", "untouchable", "bigfish", "mostwanted", "theboss", "hacker", "zeroday", "denim", "sand", "urban", "cherry", "cashprint", "crimson", "tiger", "carbon", "diamond", "molten", "matrix", "poof", "smoke", "flames", "sparks", "cashburst", "souls", "fireworks", "stormcloud", "dragon", "totem" and "glitch"
 	set {-cfg::cos::rookie::type} to "title"
 	set {-cfg::cos::rookie::name} to "Rookie"
-	set {-cfg::cos::rookie::rarity} to "common"
+	set {-cfg::cos::rookie::rarity} to "daily"
 	set {-cfg::cos::lookout::type} to "title"
 	set {-cfg::cos::lookout::name} to "Lookout"
 	set {-cfg::cos::lookout::rarity} to "common"
@@ -657,7 +678,7 @@ function loadSettings():
 	set {-cfg::cos::zeroday::rarity} to "hacked"
 	set {-cfg::cos::denim::type} to "bagskin"
 	set {-cfg::cos::denim::name} to "Denim"
-	set {-cfg::cos::denim::rarity} to "common"
+	set {-cfg::cos::denim::rarity} to "daily"
 	set {-cfg::cos::sand::type} to "bagskin"
 	set {-cfg::cos::sand::name} to "Desert"
 	set {-cfg::cos::sand::rarity} to "common"
@@ -690,7 +711,7 @@ function loadSettings():
 	set {-cfg::cos::matrix::rarity} to "hacked"
 	set {-cfg::cos::poof::type} to "killfx"
 	set {-cfg::cos::poof::name} to "Poof"
-	set {-cfg::cos::poof::rarity} to "common"
+	set {-cfg::cos::poof::rarity} to "daily"
 	set {-cfg::cos::smoke::type} to "killfx"
 	set {-cfg::cos::smoke::name} to "Smoke Bomb"
 	set {-cfg::cos::smoke::rarity} to "common"
@@ -753,12 +774,16 @@ function loadSettings():
 	set {-cfg::gear::vest-2::tier} to 2
 	set {-cfg::gear::vest-2::price} to 5000
 
-	# Bags: price to replace a lost bag of a tier you've already unlocked (10% of unlocking it).
-	set {-cfg::bag::1::replace} to 0
-	set {-cfg::bag::2::replace} to 750
+	# Bags: price to replace a lost bag of a tier you've already unlocked (owner, 2026-09-26: 20% of what
+	# it holds).
+	set {-cfg::bag::1::replace} to 400
+	set {-cfg::bag::2::replace} to 1200
 	set {-cfg::bag::3::replace} to 3000
-	set {-cfg::bag::4::replace} to 12000
-	set {-cfg::bag::5::replace} to 40000
+	set {-cfg::bag::4::replace} to 8000
+	set {-cfg::bag::5::replace} to 20000
+	# A player who can't pay for a new Gym Bag (tier 1, already unlocked) gets one free, so a robber who
+	# lost everything is never stuck without a bag (PROPOSAL).
+	set {-cfg::bag::free-if-broke} to true
 
 	set {-cfg::loaded} to true
 

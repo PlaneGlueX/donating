@@ -79,12 +79,14 @@ AK_47:
     Finish_Mechanics:
       - "CustomSound{sound=reload.end.normal, volume=0.5, noise=0.1}"
   Damage:
-    Base_Damage: 10.2
+    # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
+    # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
+    Base_Damage: 5.5
     Armor_Damage: 3
     Dropoff:
-      - "10 -1.66"
-      - "25 -3.32"
-      - "50 -4.98"
+      - "10 -0.9"
+      - "25 -1.79"
+      - "50 -2.68"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"

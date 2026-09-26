@@ -114,7 +114,7 @@ module.exports = async ({ check }) => {
     let t = Date.now()
     await cmd(`dheist alarm ${BB}`)
     check('the alarm: red, "ALARM · Cops in 3s", counting down to the first wave', await until(one(/^ALARM · Cops in [123]s · Escape 8:[12]\d$/, 'red'), 2000), barText())
-    check('...and an ALARM title', messagesSince(bot, t).some(m => m.kind === 'title:title' && /ALARM/.test(m.text)), messagesSince(bot, t).map(m => `${m.kind}:${m.text}`).join(' | '))
+    check('...and a big WANTED title (owner, 2026-09-26)', messagesSince(bot, t).some(m => m.kind === 'title:title' && /WANTED/.test(m.text)) && messagesSince(bot, t).some(m => m.kind === 'title:subtitle' && /Alarm/.test(m.text)), messagesSince(bot, t).map(m => `${m.kind}:${m.text}`).join(' | '))
     check('then the waves: "WAVE 1 · next in 10s"', await until(one(/^WAVE 1 · next in (10|9|8)s · Escape/, 'red'), 5000), barText())
     await cmd(`zzheisttp ${NAME} ${BB_EXIT}`)
     check('hunted outside: "COPS · wave 1 · N blocks to lose them", N = R − d', await until(async () => barNow().length === 1 && /^COPS · wave \d · next in \d+s · (9[0-9]) blocks to lose them$/.test(barNow()[0].title), 4000), barText())

@@ -41,6 +41,8 @@ command /zzclear <player>:
 	trigger:
 		clear arg-1's inventory
 		deleteData(arg-1, "bag-tier")
+		# Test bots skip the first-join tutorial (it blocks shops until the first bag): tutorial.js sets it.
+		setData(arg-1, "tutorial", "done")
 		applyLayout(arg-1)
 		applyMapVisibility(arg-1)
 
@@ -609,6 +611,7 @@ command /zzcratereset <offline player>:
 		deleteData(arg-1, "title")
 		deleteData(arg-1, "killfx")
 		deleteData(arg-1, "bag-skin")
+		delete {cratepending::%uuid of arg-1%::*}
 		send "CRATERESET %arg-1%"
 
 # A crate's reward lines until the next loadSettings() (lines split by ";"): /zzcratelines common 1|money|777

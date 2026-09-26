@@ -189,25 +189,29 @@ Damage:
   Use_Vanilla_Damaging: false
 
   Damage_Modifiers:
-    Min: 0%   # Bullets will always do at least 0% of their base damage
+    # Donating: at least 20%, so no hit spot ever does nothing through armor.
+    Min: 20%   # Bullets will always do at least 20% of their base damage
     Max: 300%  # Bullets will, at a max, do 300% of their base damage
 
     # Armor modifiers... for simplicity, I recommend only changing 'Per_Armor_Point'.
     # This will make sure you keep compatibility with changes to the item attributes.
-    Per_Armor_Point: -3%
+    # Donating: -6% per armor point, so the best gear (Tactical Helmet 3 + Heavy Vest 8 = 11) takes 66% off.
+    Per_Armor_Point: -6%
     Armor: []
       #- IRON_HELMET -5%
     Enchantments:
       - projectile_protection -8%
       - protection -4%
 
-    # Modifiers for where the bullet hits the body
-    Head: +50%
+    # Modifiers for where the bullet hits the body. Donating (review, 2026-09-26): kept small, because
+    # they add to the armor's -66% (feet were -50%: 0 damage through the best gear). AK-47: 4 shots
+    # unarmored anywhere; in the best gear body/arms/legs 11, feet 13, back 10, head 8.
+    Head: +15%
     Body: +0%
-    Arms: -20%
-    Legs: -20%
-    Feet: -50%
-    Back: +20%
+    Arms: +0%
+    Legs: +0%
+    Feet: -5%
+    Back: +5%
 
     # Moving targets are not braced for impact
     Sneaking: -5%

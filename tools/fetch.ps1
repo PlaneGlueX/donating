@@ -15,6 +15,12 @@ foreach ($f in $manifest.files) {
   $dest = Join-Path $root $f.dest
   New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
   if (-not (Test-Path $dest)) {
+    # SpigotMC blocks scripted downloads: the owner gets these by hand.
+    if ($f.manual) {
+      $bad++
+      Write-Output ('{0,-28} {1,-10} {2}' -f $f.name, $f.version, "MISSING: download it by hand from $($f.url)")
+      continue
+    }
     Invoke-WebRequest -Uri $f.url -OutFile $dest -Headers $headers -UseBasicParsing
   }
   $size = (Get-Item $dest).Length

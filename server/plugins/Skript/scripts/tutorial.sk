@@ -1,0 +1,126 @@
+# tutorial.sk: the first-join tutorial. Built 2026-09-26 (owner: "a small tutorial in the beginning and
+# they are forced to buy the bag"). The steps and texts are a PROPOSAL.
+#
+# A player who has never unlocked a bag (shop.sk's bestBag = 0) starts in step "bag" (data "tutorial"):
+# they can't leave the spawn safe zone (a WorldGuard region whose id starts with cfg tutorial::region,
+# "safe_spawn"; walking or teleporting out is cancelled) until they buy a bag at the Bag Shop. Inside it
+# a title and chat lines say so at the start, and the action bar reminds them every few seconds. Once a
+# bag is unlocked the tutorial ends with the next steps (a gun, /heists, selling at the base, the phone)
+# and data "tutorial" = "done". Players who already had a bag when this was added skip it.
+# Staff (donating.tutorial.bypass, the owner through *) are never held.
+#   /tutorial                          the steps again
+#   /dtutorial <player> reset|done     staff
+
+function tutorialLog(text: text):
+	log {_text} to "tutorial"
+
+function tutorialStep(p: player) :: text:
+	set {_s} to getData({_p}, "tutorial")
+	if {_s} is set:
+		return "%{_s}%"
+	return ""
+
+# True while the player must still buy their first bag.
+function tutorialNeedsBag(p: player) :: boolean:
+	if tutorialStep({_p}) is "bag":
+		if bestBag({_p}) < 1:
+			return true
+	return false
+
+# Whether a location is in the tutorial's spawn region.
+function tutorialRegionAt(l: location) :: boolean:
+	set {_prefix} to cfg("tutorial::region")
+	loop regions at {_l}:
+		if name of loop-value starts with {_prefix}:
+			return true
+	return false
+
+function tutorialBagIntro(p: player):
+	send title colored "&6&lBUY YOUR BAG" with subtitle colored "&7Bag Shop, here at spawn" to {_p} for 4 seconds
+	play sound "block.note_block.pling" with volume 0.7 to {_p}
+	msg({_p}, "&6First things first: a bag.")
+	send colored "&7 » Loot never goes in your inventory: it goes in your &ebag&7, carried in your offhand." to {_p}
+	send colored "&7 » Buy a &eGym Bag &7at the &eBag Shop &7(a shopkeeper here at spawn; yellow dots on the bar above your hotbar are shops)." to {_p}
+	send colored "&7 » You can leave spawn once you have one." to {_p}
+
+function tutorialFinish(p: player):
+	setData({_p}, "tutorial", "done")
+	tutorialLog("done %{_p}% %uuid of {_p}%")
+	send title colored "&a&lYOU'RE READY" with subtitle colored "&7/heists shows what's open" to {_p} for 4 seconds
+	play sound "entity.player.levelup" with volume 0.7 to {_p}
+	tutorialNext({_p})
+
+function tutorialNext(p: player):
+	msg({_p}, "&aYou've got a bag. &7What's next:")
+	send colored "&7 1. &eA gun &7at the &eGun Shop &7(buy it once, equip it for free after that; ammo is bought again)." to {_p}
+	send colored "&7 2. &eA heist: &f/heists &7shows which are open. Grab loot, dodge the traps, get out before 0:00." to {_p}
+	send colored "&7 3. &eSell &7by walking into the base with your bag: it sells by itself." to {_p}
+	send colored "&7 4. &eYour phone &7(slot 9): the map, passive mode, crates, your bag. &f/help &7for the rest." to {_p}
+
+on join:
+	# Starts for a player who has never had a bag; one who already has a bag skips it.
+	if getData(player, "tutorial") is not set:
+		if bestBag(player) < 1:
+			setData(player, "tutorial", "bag")
+			tutorialLog("start %player% %uuid of player%")
+		else:
+			setData(player, "tutorial", "done")
+	tutorialNeedsBag(player) is true
+	# After the welcome title (join-quit.sk).
+	wait 5 seconds
+	player is online
+	tutorialNeedsBag(player) is true
+	tutorialBagIntro(player)
+
+# Walking or teleporting out of spawn without a bag.
+on region exit:
+	name of the worldguard region starts with cfg("tutorial::region")
+	player does not have permission "donating.tutorial.bypass"
+	tutorialNeedsBag(player) is true
+	cancel event
+	if {-tutorial::said::%player%} is set:
+		difference between {-tutorial::said::%player%} and now < 2 seconds
+		stop
+	set {-tutorial::said::%player%} to now
+	send title colored "&6&lBUY YOUR BAG" with subtitle colored "&7at the Bag Shop first" to player for 2 seconds
+	play sound "entity.villager.no" with volume 0.6 to player
+
+# The bag is bought (checked every second), and a reminder in spawn every 5 seconds.
+every second:
+	loop all players:
+		if tutorialStep(loop-player) is "bag":
+			if bestBag(loop-player) >= 1:
+				tutorialFinish(loop-player)
+
+every 5 seconds:
+	loop all players:
+		if tutorialNeedsBag(loop-player) is true:
+			if tutorialRegionAt(location of loop-player) is true:
+				hudBar(loop-player, "&6Buy your bag at the Bag Shop &7to leave spawn", 0)
+
+on quit:
+	delete {-tutorial::said::%player%}
+
+command /tutorial:
+	description: The first steps again.
+	executable by: players
+	trigger:
+		if tutorialNeedsBag(player) is true:
+			tutorialBagIntro(player)
+		else:
+			tutorialNext(player)
+
+command /dtutorial <offline player> <text>:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		if arg-2 is "reset":
+			set {data::%arg-1%::tutorial} to "bag"
+			tutorialLog("reset %arg-1% by=%sender%")
+			send "TUTORIAL %arg-1% reset (step bag; held in spawn only while they have no bag)" to sender
+		else if arg-2 is "done":
+			set {data::%arg-1%::tutorial} to "done"
+			tutorialLog("done-by-staff %arg-1% by=%sender%")
+			send "TUTORIAL %arg-1% done" to sender
+		else:
+			send "TUTORIAL usage: /dtutorial <player> reset|done" to sender
