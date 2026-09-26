@@ -1,4 +1,5 @@
-# bag.sk: the heist bag, part 1 (CLAUDE.md, Heist bag). Script 15; part 1 built with loot.sk (2026-09-25).
+# bag.sk: the heist bag (CLAUDE.md, Heist bag). Script 15; part 1 built with loot.sk (2026-09-25), part 2
+# (the dropped duffel) 2026-09-26.
 #
 # Loot never goes in the inventory: loot.sk puts dollars into the bag with bagAdd. The bag (data
 # "bag-tier", always in the offhand) holds up to cfg("bag::<tier>::capacity"). Its name shows how full it
@@ -10,8 +11,8 @@
 # ("safe_base"). The pay is P = floor(T × m) with m = cfg("passive::payout-multiplier") (0.75) for
 # passive players, else 1, and the robbery bounty adds P × cfg("bounty::robbery-share") (never for
 # passive players). Combat-tagged and wanted players can't get into a safe zone (pvp.sk).
-# Death: the loot leaves the bag. Part 1 records it for part 2's dropped duffel ({-bagdrop::<p>::...}):
-# the drop spot (traps.sk's trapDropSpot), the time and every line with its tag.
+# Death: the loot leaves the bag and lies on the ground as one duffel (traps.sk's trapDropSpot: a floor
+# trap's pit drops it on the last safe spot) that anyone may take, as much as fits in their own bag.
 #
 # Saved: {data::<uuid>::loot::<h>#<run>} = $ (getData key "loot::<h>#<run>"), data "loot-sold" (total $
 # sold) and "robberies" (heist runs sold). Memory: {-bag::total::<p>} (cache), {-bag::shown::<p>} (the
@@ -80,12 +81,16 @@ function bagFillText(p: player) :: text:
 
 # Adds up to `amount` of heist h's current run; returns what went in (0 when full or without a bag).
 function bagAdd(p: player, h: text, amount: number) :: number:
+	return bagAddTag({_p}, "%{_h}%#%heistRun({_h})%", {_amount})
+
+# The same for a line that keeps its own tag ("bank#12"): a dropped duffel's loot.
+function bagAddTag(p: player, tag: text, amount: number) :: number:
 	set {_add} to min({_amount}, bagRoom({_p}))
 	if {_add} <= 0:
 		return 0
 	# The total before the new line (a recount after it would count it twice).
 	set {_before} to bagTotal({_p})
-	set {_key} to "loot::%{_h}%#%heistRun({_h})%"
+	set {_key} to "loot::%{_tag}%"
 	set {_v} to getData({_p}, {_key})
 	if {_v} is not set:
 		set {_v} to 0
@@ -119,26 +124,240 @@ function bagRefresh(p: player):
 	set {-bag::shown::%{_p}%} to {_key}
 	set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}))
 
-# ---------- Death (part 1: the record for part 2's dropped duffel) ----------
+# ---------- Death: the loot drops as one duffel ----------
 
 # Default priority: death.sk (the balance loss, the bag tier) doesn't depend on this, nor this on it.
+# The loot leaves the bag first, so it exists once: in the duffel (or nowhere, if the drop failed).
 on death of player:
 	set {_sum} to 0
 	set {_lines} to ""
 	loop {data::%victim%::loot::*}:
 		add loop-value to {_sum}
-		set {_lines} to "%{_lines}% %loop-index%=%loop-value%"
+		if {_lines} is "":
+			set {_lines} to "%loop-index%=%loop-value%"
+		else:
+			set {_lines} to "%{_lines}%;%loop-index%=%loop-value%"
 	delete {-bag::total::%victim%}
 	delete {-bag::shown::%victim%}
 	{_sum} > 0
 	set {_l} to trapDropSpot(victim)
-	delete {-bagdrop::%victim%::*}
-	set {-bagdrop::%victim%::loc} to {_l}
-	set {-bagdrop::%victim%::at} to now
-	loop {data::%victim%::loot::*}:
-		set {-bagdrop::%victim%::line::%loop-index%} to loop-value
 	delete {data::%victim%::loot::*}
-	bagLog("death-lost %name of victim% %uuid of victim% total=%{_sum}% lines=%{_lines}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+	set {_dropped} to duffelDrop(victim, {_l}, {_lines})
+	bagLog("death-lost %name of victim% %uuid of victim% total=%{_sum}% lines=%{_lines}% duffel=%{_dropped}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+
+# ---------- The dropped duffel (part 2, 2026-09-26) ----------
+# The loot a death takes out of the bag lies on the ground as one duffel: a normal item entity that the
+# pack draws as a canvas duffel with a gold $ (donating:bag_loot), its value and time left over it
+# ("Loot duffel $2,700 · 1:42"). Walking over it takes as much as fits in your own bag; the rest stays
+# (owner, 2026-09-25). Nobody without a bag can take it, passive players can't take anyone else's, and
+# a passive player's duffel is theirs alone (nobody takes a passive player's loot). The owner takes it
+# back only in the passive mode they died in (else dying and switching would change the payout mode
+# after robbing). It's gone after cfg duffel::despawn (2 min). A heist's 0:00 treats the duffels inside
+# like its robbers: that run's loot is lost and the rest goes out to the exit spot (bagClearDuffels).
+# Everything about a duffel is in its item's custom data, so it survives chunk unloads and restarts:
+#   donating_id "duffel:<n>" (never two alike, so duffels don't merge), donating_duffel = its lines
+#   "<heist>#<run>=<$>;..." (each keeps its tag: 0:00 of that run still costs it), donating_duffel_owner
+#   (uuid), donating_duffel_name, donating_duffel_passive ("true"/"false"), donating_duffel_until (unix
+#   seconds). The pickup itself is SkBee's "on player attempt item pickup" (it also fires with a full
+#   inventory), always cancelled: the duffel never becomes an item in anyone's inventory.
+
+# The action bar for duffel refusals, at most once a second (the pickup event fires every tick).
+function duffelTell(p: player, text: text):
+	set {_at} to {-duffel::told::%{_p}%}
+	if {_at} is set:
+		if difference between {_at} and now < 1 second:
+			stop
+	set {-duffel::told::%{_p}%} to now
+	hudBar({_p}, {_text}, 1)
+
+# What a duffel's lines are worth ("bank#7=1200;jewel#3=500").
+function duffelValue(lines: text) :: number:
+	set {_sum} to 0
+	loop {_lines} split at ";":
+		set {_kv::*} to loop-value split at "="
+		set {_v} to {_kv::2} parsed as number
+		if {_v} is set:
+			add {_v} to {_sum}
+	return {_sum}
+
+function duffelItem(lines: text, owner: text, oname: text, passive: text, until: number) :: item:
+	add 1 to {-duffel::next}
+	set {_i} to leather named "&6Loot Duffel"
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_loot"
+	set string tag "donating_duffel" of custom nbt of {_i} to {_lines}
+	set string tag "donating_duffel_owner" of custom nbt of {_i} to {_owner}
+	set string tag "donating_duffel_name" of custom nbt of {_i} to {_oname}
+	set string tag "donating_duffel_passive" of custom nbt of {_i} to {_passive}
+	set double tag "donating_duffel_until" of custom nbt of {_i} to {_until}
+	return tagItem({_i}, "duffel:%{-duffel::next}%")
+
+# The name over it: the value and the time left.
+function duffelShow(e: entity, v: number, left: number):
+	set display name of {_e} to colored "&6Loot duffel &f%formatMoney({_v})% &7· %formatClock({_left})%"
+	show the custom name of {_e}
+
+# Drops a death's loot as a duffel at l; true when it's on the ground.
+function duffelDrop(p: player, l: location, lines: text) :: boolean:
+	set {_life} to cfg("duffel::despawn") / 1 second
+	set {_until} to (unix timestamp of now) + {_life}
+	set {_i} to duffelItem({_lines}, "%uuid of {_p}%", "%{_p}%", "%isPassive({_p})%", {_until})
+	set {_id} to itemId({_i})
+	if {_l} is not set:
+		set {_l} to location of {_p}
+	drop {_i} at {_l} without velocity
+	set {_e} to last dropped item
+	# "last dropped item" keeps the previous drop's entity when this one failed: check it's this duffel.
+	set {_ok} to false
+	if {_e} is set:
+		if itemId(item of {_e}) is {_id}:
+			set {_ok} to true
+	if {_ok} is false:
+		bagLog("duffel-failed %name of {_p}% %uuid of {_p}% %{_id}% lines=%{_lines}%")
+		return false
+	# Lava, fire, cactus and explosions can't destroy it.
+	make {_e} invulnerable
+	duffelShow({_e}, duffelValue({_lines}), {_life})
+	bagLog("duffel-drop %name of {_p}% %uuid of {_p}% %itemId(item of {_e})% lines=%{_lines}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+	return true
+
+# Walking over a duffel: take as much as fits. One call with no wait, so the same dollars can't go to
+# two players (the item on the ground is rewritten, or removed, before anyone else is handled).
+function duffelGrab(p: player, e: entity):
+	heistBuilder({_p}) is false
+	{_p} is alive
+	{_e} is alive
+	set {_i} to item of {_e}
+	set {_lines} to string tag "donating_duffel" of custom nbt of {_i}
+	{_lines} is set
+	set {_left} to (double tag "donating_duffel_until" of custom nbt of {_i}) - (unix timestamp of now)
+	if {_left} <= 0:
+		bagLog("duffel-expired %itemId({_i})% lines=%{_lines}%")
+		kill {_e}
+		stop
+	set {_owner} to string tag "donating_duffel_owner" of custom nbt of {_i}
+	set {_was} to string tag "donating_duffel_passive" of custom nbt of {_i}
+	if {_owner} is "%uuid of {_p}%":
+		if {_was} is not "%isPassive({_p})%":
+			duffelTell({_p}, "&cYou switched passive mode since you died: this loot stays on the ground.")
+			stop
+	else:
+		if isPassive({_p}) is true:
+			duffelTell({_p}, "&cPassive players can't take someone else's loot.")
+			stop
+		if {_was} is "true":
+			duffelTell({_p}, "&7A passive player's loot: only they can take it.")
+			stop
+	if bagTier({_p}) <= 0:
+		duffelTell({_p}, "&cYou need a bag to carry loot. &7Buy one at a bag shop.")
+		stop
+	set {_room} to bagRoom({_p})
+	if {_room} <= 0:
+		duffelTell({_p}, "&c&lBAG FULL&r &7· it stays in the duffel")
+		stop
+	set {_took} to 0
+	set {_rest} to ""
+	loop {_lines} split at ";":
+		set {_kv::*} to loop-value split at "="
+		set {_v} to {_kv::2} parsed as number
+		if {_v} is set:
+			set {_got} to 0
+			if {_took} < {_room}:
+				set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
+				add {_got} to {_took}
+			if {_v} > {_got}:
+				set {_line} to "%{_kv::1}%=%{_v} - {_got}%"
+				if {_rest} is "":
+					set {_rest} to {_line}
+				else:
+					set {_rest} to "%{_rest}%;%{_line}%"
+	{_took} > 0
+	set {_id} to itemId({_i})
+	if {_rest} is "":
+		kill {_e}
+	else:
+		set string tag "donating_duffel" of custom nbt of {_i} to {_rest}
+		set item of {_e} to {_i}
+		duffelShow({_e}, duffelValue({_rest}), ceil({_left}))
+	if {_rest} is "":
+		hudBar({_p}, "&a+%formatMoney({_took})% &7from a loot duffel", 1)
+	else:
+		hudBar({_p}, "&a+%formatMoney({_took})% &7from a loot duffel &c(bag full: %formatMoney(duffelValue({_rest}))% left in it)", 1)
+	play sound "entity.item.pickup" with volume 1 to {_p}
+	play sound "block.note_block.chime" with volume 0.6 and pitch 1.4 to {_p}
+	bagLog("duffel-take %name of {_p}% %uuid of {_p}% %{_id}% owner=%{_owner}% took=%{_took}% rest=%{_rest}%")
+
+on player attempt item pickup:
+	set {_e} to event-dropped item
+	itemId(item of {_e}) starts with "duffel:"
+	cancel event
+	duffelGrab(player, {_e})
+
+# Only players walking over it take a duffel: never a hopper, a hopper minecart or a mob.
+on inventory pickup:
+	itemId(event-item) starts with "duffel:"
+	cancel event
+
+on entity pickup:
+	event-entity is not a player
+	itemId(event-item) starts with "duffel:"
+	cancel event
+
+# Every second: the time left over each duffel, and gone when it runs out (also one that comes back
+# with its chunk after its time).
+every second:
+	set {_now} to unix timestamp of now
+	loop all dropped items:
+		set {_i} to item of loop-entity
+		set {_lines} to string tag "donating_duffel" of custom nbt of {_i}
+		{_lines} is set
+		set {_left} to (double tag "donating_duffel_until" of custom nbt of {_i}) - {_now}
+		if {_left} <= 0:
+			bagLog("duffel-expired %itemId({_i})% lines=%{_lines}%")
+			kill loop-entity
+		else:
+			duffelShow(loop-entity, duffelValue({_lines}), ceil({_left}))
+
+# heists.sk's heistOnEnd (0:00, /dheist end: why "time") and heistOnDisable (why "disable"): the
+# duffels inside that heist get what its robbers get. At 0:00 that run's lines are lost (like the robbers
+# still inside lose them) and the rest goes out to the exit spot; a staff disable costs nothing, so the
+# whole duffel goes out. Only loaded chunks; one in an unloaded chunk runs out before the heist reopens.
+function bagClearDuffels(h: text, why: text):
+	set {_tag} to "%{_h}%#%heistRun({_h})%"
+	set {_exit} to heistExit({_h})
+	set {_list::*} to all dropped items
+	loop {_list::*}:
+		set {_e} to loop-value
+		set {_i} to item of {_e}
+		set {_lines} to string tag "donating_duffel" of custom nbt of {_i}
+		{_lines} is set
+		heistAt(location of {_e}) is {_h}
+		set {_rest} to ""
+		set {_lost} to 0
+		loop {_lines} split at ";":
+			set {_kv::*} to loop-value-2 split at "="
+			if {_why} is "time":
+				if {_kv::1} is {_tag}:
+					set {_v} to {_kv::2} parsed as number
+					if {_v} is set:
+						add {_v} to {_lost}
+			if {_kv::1} is not {_tag}:
+				if {_rest} is "":
+					set {_rest} to loop-value-2
+				else:
+					set {_rest} to "%{_rest}%;%loop-value-2%"
+			else if {_why} is not "time":
+				if {_rest} is "":
+					set {_rest} to loop-value-2
+				else:
+					set {_rest} to "%{_rest}%;%loop-value-2%"
+		if {_rest} is "":
+			bagLog("duffel-cleared %{_h}% %{_why}% %itemId({_i})% lost=%{_lost}% lines=%{_lines}%")
+			kill {_e}
+		else:
+			set string tag "donating_duffel" of custom nbt of {_i} to {_rest}
+			set item of {_e} to {_i}
+			teleport {_e} to {_exit}
+			bagLog("duffel-moved %{_h}% %{_why}% %itemId({_i})% lost=%{_lost}% rest=%{_rest}%")
 
 # ---------- Selling at the base ----------
 
@@ -226,3 +445,4 @@ on join:
 on quit:
 	delete {-bag::total::%player%}
 	delete {-bag::shown::%player%}
+	delete {-duffel::told::%player%}

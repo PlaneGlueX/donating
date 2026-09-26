@@ -298,6 +298,14 @@ command /zzheisttp <player> <number> <number> <number>:
 		heistTeleport(arg-1, location(arg-2, arg-3, arg-4, world "world"))
 		send "HEISTTP %arg-1%"
 
+# An active heist's clock: /zzheistleft <id> <seconds left>.
+command /zzheistleft <text> <number>:
+	executable by: console
+	trigger:
+		set {-heist::%arg-1%::until} to now
+		add 1 second * arg-2 to {-heist::%arg-1%::until}
+		send "HEISTLEFT %arg-1% %heistSecondsLeft(arg-1)%"
+
 command /zzcfgtime <text> <timespan>:
 	executable by: console
 	trigger:
@@ -500,6 +508,28 @@ command /zztool <player> <text> <number> <number>:
 		else:
 			set slot arg-4 of arg-1's inventory to toolItem(arg-2, arg-3)
 		send "TOOL %arg-1% %arg-2% x%toolCount(arg-1, arg-2)%"
+
+# bag.sk: every dropped duffel in loaded chunks:
+# "DUFFELS <n> | <id> lines=<lines> owner=<name> passive=<p> left=<s> at=<x>,<y>,<z> inv=<b> name=<name>"
+command /zzduffels:
+	executable by: console
+	trigger:
+		set {_out} to ""
+		set {_n} to 0
+		loop all dropped items:
+			set {_i} to item of loop-entity
+			set {_lines} to string tag "donating_duffel" of custom nbt of {_i}
+			{_lines} is set
+			add 1 to {_n}
+			set {_owner} to string tag "donating_duffel_name" of custom nbt of {_i}
+			set {_pas} to string tag "donating_duffel_passive" of custom nbt of {_i}
+			set {_left} to (double tag "donating_duffel_until" of custom nbt of {_i}) - (unix timestamp of now)
+			set {_inv} to false
+			if loop-entity is invulnerable:
+				set {_inv} to true
+			set {_l} to location of loop-entity
+			set {_out} to "%{_out}% | %itemId({_i})% lines=%{_lines}% owner=%{_owner}% passive=%{_pas}% left=%floor({_left})% at=%floor(x-coordinate of {_l})%,%floor(y-coordinate of {_l})%,%floor(z-coordinate of {_l})% inv=%{_inv}% name=%uncolored display name of loop-entity%"
+		send "DUFFELS %{_n}%%{_out}%"
 
 command /zzbagclear <player>:
 	executable by: console

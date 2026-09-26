@@ -41,7 +41,7 @@
     Default: 9
     Scope: ADD 1000
     Sprint: ADD 2000
-  Projectile: "pistol_projectile"
+  Projectile: "donating_pistol_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"

@@ -743,15 +743,38 @@ on death of player:
 	replace all "{heist}" with heistName({_idp::1}) in {_msg}
 	set the death message to colored {_msg}
 
-# Where a trap death's duffel lands (bag.sk): the last safe spot for a floor death, else the death spot.
+# Where a death's duffel lands (bag.sk): the last safe spot for a floor death, and for any death over a
+# collapsing floor (a laser, a turret or a gun while the tiles crack: the duffel would fall into the pit
+# with them, where nobody can reach it); else the death spot.
 function trapDropSpot(p: player) :: location:
+	set {_l} to location of {_p}
+	set {_s} to {-trapsafe::%{_p}%}
 	set {_v} to {-trapkill::%{_p}%}
 	if {_v} is set:
 		if {_v} ends with ":floor":
-			set {_s} to {-trapsafe::%{_p}%}
 			if {_s} is set:
 				return {_s}
-	return location of {_p}
+	# (No condition lines here: one that fails would end the function with no location at all.)
+	if {_s} is set:
+		set {_h} to heistAt({_l})
+		if {_h} is not "":
+			if trapOverAnyFloor({_h}, x-coordinate of {_l}, y-coordinate of {_l}, z-coordinate of {_l}) is true:
+				if world of {_s} is world of {_l}:
+					if distance between {_s} and {_l} < 24:
+						if heistAt({_s}) is {_h}:
+							return {_s}
+	return {_l}
+
+# Over any collapsing floor's footprint (or its pit) of heist h.
+function trapOverAnyFloor(h: text, x: number, y: number, z: number) :: boolean:
+	set {_s} to {-cfg::trap::cell}
+	set {_key} to "%floor({_x} / {_s})%,%floor({_y} / {_s})%,%floor({_z} / {_s})%"
+	loop {-trapcell::%{_h}%::%{_key}%::*}:
+		set {_c} to "%{_h}%::%loop-value%"
+		if {-trapc::%{_c}%::kind} is "floor":
+			if trapOverFloor({_c}, {_x}, {_y}, {_z}) is true:
+				return true
+	return false
 
 # ---------- Pressure plates ----------
 

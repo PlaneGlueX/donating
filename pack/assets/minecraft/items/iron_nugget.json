@@ -13,8 +13,43 @@
       }
     ],
     "fallback": {
-      "type": "minecraft:model",
-      "model": "minecraft:item/iron_nugget"
+      "type": "minecraft:range_dispatch",
+      "property": "minecraft:custom_model_data",
+      "index": 0,
+      "entries": [
+        {
+          "threshold": 7001,
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/tracer_light"
+          }
+        },
+        {
+          "threshold": 7002,
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/tracer_rifle"
+          }
+        },
+        {
+          "threshold": 7003,
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/tracer_pellet"
+          }
+        },
+        {
+          "threshold": 7004,
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/iron_nugget"
+          }
+        }
+      ],
+      "fallback": {
+        "type": "minecraft:model",
+        "model": "minecraft:item/iron_nugget"
+      }
     }
   }
 }

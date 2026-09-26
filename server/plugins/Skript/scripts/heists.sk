@@ -25,6 +25,9 @@
 # wave every cfg alarm::wave-interval (cops.sk spawns them) until every hunted robber has died, failed,
 # quit or left cfg alarm::chase-radius. Lockdown boxes (/dheist lock) fill with bars when it trips.
 #
+# Chat (owner, 2026-09-26: no heist messages flooding the chat): only "open" and "closed" go to
+# everyone (heistAnnounce); everything else about a heist goes only to the robbers in it (heistNotify).
+#
 # Later scripts plug in through the stub hooks at the bottom (edit the one-line body), like death.sk's
 # stubs. Log: plugins\Skript\logs\heists.log.
 #
@@ -194,6 +197,11 @@ function heistSameCrew(a: player, b: player) :: boolean:
 function heistLog(text: text):
 	log {_text} to "heists"
 
+# The only heist chat that goes to everyone: a heist opening or closing (cfg heist::announce).
+function heistAnnounce(text: text):
+	if cfg("heist::announce") is true:
+		broadcastMsg({_text})
+
 # ---------- The loop ----------
 
 on load:
@@ -229,6 +237,11 @@ function heistInit(h: text):
 function heistTick(h: text):
 	if {-heist::%{_h}%::state} is not set:
 		heistInit({_h})
+		# A restart or Minehut waking up opens every heist within a minute or two: that first opening
+		# isn't announced (one message per heist at once would flood the chat). A cooldown that was
+		# still running (a saved reopen time) opens later and is announced as usual.
+		if {-heist::%{_h}%::until} <= now:
+			set {-heist::%{_h}%::quiet-open} to true
 	set {_s} to {-heist::%{_h}%::state}
 	if {_s} is "active":
 		heistWarnings({_h})
@@ -251,6 +264,10 @@ function heistOpen(h: text):
 	set {_run} to heistRun({_h}) + 1
 	set {heist::%{_h}%::run} to {_run}
 	heistLog("open %{_h}% run=%{_run}%")
+	if {-heist::%{_h}%::quiet-open} is set:
+		delete {-heist::%{_h}%::quiet-open}
+	else:
+		heistAnnounce("&aThe %heistName({_h})% is open! &7/heists")
 	heistOnOpen({_h})
 
 # Starts the escape clock (first robbery, first entry with start-on "enter", or an alarm).
@@ -270,8 +287,6 @@ function heistStartRun(h: text):
 	heistLog("start %{_h}% run=%heistRun({_h})% escape=%{_secs}%")
 	loop heistRobbers({_h}):
 		heistNotify(loop-value, "start", "&eThe clock is running: &f%{_clock}% &eto get out of the %{_name}%.")
-	if cfg("heist::announce-start") is true:
-		broadcastMsg("&6The %{_name}% is being robbed! &7%{_clock}% to get out.")
 	heistOnStart({_h})
 
 # loot.sk's cleaned-out rule: an active clock with more than secs left drops to secs (loot.sk works out
@@ -304,6 +319,7 @@ function heistEndRun(h: text, reason: text):
 	loop {_m::*}:
 		heistEvict(loop-value, {_h}, {_reason})
 	heistLog("end %{_h}% run=%heistRun({_h})% reason=%{_reason}%")
+	heistAnnounce("&7The %heistName({_h})% is closed. &8It reopens in %formatClock(heistSecondsLeft({_h}))%.")
 	heistOnEnd({_h}, {_reason})
 
 function heistWarnings(h: text):
@@ -457,13 +473,15 @@ function heistEvict(p: player, h: text, reason: text):
 		heistRelease({_p}, "failed")
 		if {_lost} > 0:
 			set {_money} to formatMoney({_lost})
-			heistNotify({_p}, "evict", "&c&lToo late! &cYou were thrown out of the %{_name}% and lost %{_money}% of loot.")
+			set {_text} to "&c&lToo late!&r &cYou were thrown out of the %{_name}% and lost %{_money}% of loot."
 		else:
-			heistNotify({_p}, "evict", "&c&lToo late! &cYou were thrown out of the %{_name}%.")
+			set {_text} to "&c&lToo late!&r &cYou were thrown out of the %{_name}%."
 	else:
 		heistRelease({_p}, "staff")
-		heistNotify({_p}, "evict", "&7You were moved out of the %{_name}%.")
+		set {_text} to "&7You were moved out of the %{_name}%."
 	heistTeleport({_p}, heistExit({_h}))
+	# After the teleport: hud.sk's sound plays where the player is now.
+	heistNotify({_p}, "evict", {_text})
 	if heistAt(location of {_p}) is {_h}:
 		heistLog("evict-failed %name of {_p}% %{_h}%")
 
@@ -594,11 +612,9 @@ function heistTripAlarm(h: text, source: text) :: boolean:
 	loop {_m::*}:
 		heistHunt(loop-value, {_h})
 	heistLockdown({_h})
-	set {_name} to heistName({_h})
 	set {_warn} to cfg("alarm::warning") / 1 second
-	broadcastMsg("&4Alarm at the %{_name}%! &7Cops in %{_warn}%s.")
 	loop {_m::*}:
-		heistNotify(loop-value, "alarm", "&4&lALARM! &cCops in %{_warn}% seconds.")
+		heistNotify(loop-value, "alarm", "&4&lALARM!&r &cCops in %{_warn}% seconds.")
 	heistLog("alarm %{_h}% source=%{_source}%")
 	heistOnAlarm({_h}, {_source})
 	return true
@@ -643,6 +659,8 @@ function heistAlarmTick(h: text):
 	loop {_list::*}:
 		if loop-value is not online:
 			delete {-heist::%{_h}%::hunted::%loop-index%}
+		else if heistBuilder(loop-value) is true:
+			heistRelease(loop-value, "staff")
 		else if heistInRange(loop-value, {_h}) is false:
 			heistRelease(loop-value, "range")
 	if size of {-heist::%{_h}%::hunted::*} is 0:
@@ -800,7 +818,7 @@ function heistRefreshText(h: text):
 	else if {_s} is "active":
 		set {_clock} to formatClock(heistSecondsLeft({_h}))
 		if {-heist::%{_h}%::alarm} is set:
-			set {_status} to "&4&lALARM &f%{_clock}% &7· wave %heistWave({_h})%"
+			set {_status} to "&4&lALARM&r &f%{_clock}% &7· wave %heistWave({_h})%"
 		else:
 			set {_status} to "&eBEING ROBBED &f%{_clock}% &7· %heistRobberCount({_h})% inside"
 		set {_status} to "%{_status}%%lootLeftText({_h})%"
@@ -930,6 +948,7 @@ command /dheist [<text>]:
 			heistLog("enable %{_h}%")
 			dheistReply(sender, "HEIST %{_h}% enabled: resetting, then open")
 		else if {_sub} is "disable":
+			set {_was} to heistState({_h})
 			heistClose({_h})
 			heistOnDisable({_h})
 			set {heist::%{_h}%::disabled} to true
@@ -938,6 +957,10 @@ command /dheist [<text>]:
 			delete {-heist::%{_h}%::reset-next}
 			delete {heist::%{_h}%::reopen}
 			heistLog("disable %{_h}%")
+			if {_was} is "open":
+				heistAnnounce("&7The %heistName({_h})% is closed.")
+			else if {_was} is "active":
+				heistAnnounce("&7The %heistName({_h})% is closed.")
 			dheistReply(sender, "HEIST %{_h}% disabled")
 		else if {_sub} is "open":
 			if heistState({_h}) is not "cooldown":
@@ -1322,9 +1345,10 @@ function heistForfeit(p: player, h: text, run: number) :: number:
 	heistLog("forfeit %name of {_p}% %uuid of {_p}% %{_h}%#%{_run}% value=%{_v}%")
 	return {_v}
 
-# hud.sk: titles, sounds, action-bar priority. kind: enter, leave, start, warn, evict, alarm, lost-cops.
+# hud.sk: chat plus a sound per moment, a title for the alarm. kind: enter, leave, start, warn, evict,
+# alarm, lost-cops.
 function heistNotify(p: player, kind: text, text: text):
-	msg({_p}, {_text})
+	hudNotify({_p}, {_kind}, {_text})
 
 # loot.sk (refill spots, roll their values), traps.sk (arm), nav.sk (POI color).
 function heistOnOpen(h: text):
@@ -1337,13 +1361,14 @@ function heistOnStart(h: text):
 function heistOnEnd(h: text, reason: text):
 	trapDisarm({_h})
 	lootDisarm({_h})
+	bagClearDuffels({_h}, {_reason})
 
 # traps.sk re-arms, loot.sk refills (each spot rolls its value between its min and max, and shows that
-# much loot), bag.sk removes dropped duffels.
+# much loot). (bag.sk removes the dropped duffels inside at heistOnEnd.)
 function heistOnReset(h: text):
 	trapOnReset({_h})
 
-# hud.sk (boss bar), nav.sk (exit arrow), bag.sk.
+# nav.sk (exit arrow). (hud.sk's boss bar follows heistOf by itself.)
 function heistOnEnter(p: player, h: text):
 	trapOnEnter({_p}, {_h})
 	lootOnEnter({_p}, {_h})
@@ -1370,6 +1395,7 @@ function heistOnAlarmEnd(h: text):
 function heistOnDisable(h: text):
 	trapOnDisable({_h})
 	lootOnDisable({_h})
+	bagClearDuffels({_h}, "disable")
 
 # /dheist delete: traps.sk deletes the heist's traps.
 function heistOnDelete(h: text):

@@ -31,6 +31,7 @@
 !/server/plugins/WeaponMechanics/config.yml
 !/server/plugins/WeaponMechanics/weapons/
 !/server/plugins/WeaponMechanics/ammos/
+!/server/plugins/WeaponMechanics/projectiles/
 !/server/plugins/WorldGuard/
 /server/plugins/WorldGuard/*
 !/server/plugins/WorldGuard/config.yml

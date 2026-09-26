@@ -1,0 +1,96 @@
+# Donating's bullets (owner, 2026-09-26: "look like actual bullets, or at least bullet streaks like other
+# games, and not snowballs"). Same physics as the WeaponMechanics defaults each sold gun used before
+# (pistol_projectile, sub_machine_gun_projectile, assault_rifle_projectile, shotgun_projectile in
+# Default_Projectiles.yml); only the look changed: a fake item display (packets only: nothing on the
+# server to hit or see) holding an iron nugget with custom model data 7001 / 7002 / 7003, which our
+# resource pack's iron_nugget.json draws as a copper bullet with a glowing tracer streak, turned along
+# its flight every tick. Without the pack it's a small flying iron nugget. Art: tools\make-item-art.js
+# (Bullets). Size 0.1 is WeaponMechanics' default hit box for every type, so hits work as before.
+
+# .50 GS
+donating_pistol_bullet:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7001 # donating:tracer_light
+    Gravity: 9.8
+    Drag:
+      Base: 0.99
+      In_Water: 0.96
+      When_Raining_Or_Snowing: 0.98
+
+# Uzi
+donating_smg_bullet:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7001 # donating:tracer_light
+    Maximum:
+      Speed: 80
+    Gravity: 9.8
+    Drag:
+      Base: 0.99
+      In_Water: 0.96
+      When_Raining_Or_Snowing: 0.98
+  Through:
+    Maximum_Through_Amount: 1
+    Blocks:
+      Default_Speed_Multiplier: 0.8
+      Whitelist: true
+      List:
+        - "$GLASS"
+    Entities:
+      Allow_Any: true
+      Default_Speed_Multiplier: 0.7
+
+# AK-47
+donating_rifle_bullet:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7002 # donating:tracer_rifle
+    Minimum:
+      Speed: 60
+    Gravity: 9.8
+    Drag:
+      Base: 0.99
+      In_Water: 0.96
+      When_Raining_Or_Snowing: 0.98
+  Through:
+    Maximum_Through_Amount: 2
+    Blocks:
+      Default_Speed_Multiplier: 0.8
+      Whitelist: true
+      List:
+        - "$GLASS"
+    Entities:
+      Allow_Any: true
+      Default_Speed_Multiplier: 0.7
+
+# R9-0 (10 pellets a shot)
+donating_pellet:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7003 # donating:tracer_pellet
+    Gravity: 9.8
+    Minimum:
+      Speed: 4
+    Drag:
+      Base: 0.9
+      In_Water: 0.87
+      When_Raining_Or_Snowing: 0.89
+  Bouncy:
+    Maximum_Bounce_Amount: 1
+    Blocks:
+      Allow_Any: true
+  Through:
+    Maximum_Through_Amount: 1
+    Blocks:
+      Whitelist: true
+      List:
+        - "$GLASS"

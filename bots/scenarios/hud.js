@@ -1,14 +1,21 @@
 // hud.sk + placeholders.sk: the XP bar shows the held gun's ammo (level = every round left for it,
 // bar = how full the magazine is), melee = full bar, a Stim stack = its count, anything else empty;
 // the placeholders the tab list uses (balance, bounty, passive name color, AFK tag); the bag and ammo
-// items carry the pack's model tags.
-const { join, sleep, quit } = require('../lib')
+// items carry the pack's model tags. The boss bar: the heist you're in and its clock (white while
+// open, green / yellow / red as it runs down), red with the alarm (cops in, then waves), and while the
+// cops chase you outside, how far you still have to go; gone once you lose them. The alarm's title.
+const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
 const NAME = 'HudBot'
 const Y = 200
 const PLATFORM = `770 ${Y - 1} 770 774 ${Y - 1} 774`
 const CHUNKS = '770 770 774 774'
+// The boss bar's heist: an advanced (difficulty 4) room east of the platform.
+const BB = 'hudbb'
+const BB_CHUNKS = '776 764 792 784'
+const BB_EXIT = '777.5 200 775.5'
+const FAR = '0.5 68 -656.5'
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
@@ -18,6 +25,19 @@ module.exports = async ({ check }) => {
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} glass`)
     bot = await join(NAME)
+    // Boss bars as the client sees them (uuid -> title, health, color).
+    const bars = new Map()
+    const COLORS = ['pink', 'blue', 'red', 'green', 'yellow', 'purple', 'white']
+    bot._client.on('boss_bar', p => {
+      if (p.action === 1) { bars.delete(p.entityUUID); return }
+      const b = bars.get(p.entityUUID) || {}
+      if (p.title !== undefined) b.title = require('prismarine-chat')(bot.registry).fromNotch(p.title).toString()
+      if (p.health !== undefined) b.health = p.health
+      if (p.color !== undefined) b.color = COLORS[p.color]
+      bars.set(p.entityUUID, b)
+    })
+    const barNow = () => [...bars.values()]
+    const barText = () => JSON.stringify(barNow())
     await cmd(`gamemode survival ${NAME}`)
     await cmd(`minecraft:tp ${NAME} 772.5 ${Y} 772.5 0 0`)
     await cmd(`zzclear ${NAME}`)
@@ -70,6 +90,43 @@ module.exports = async ({ check }) => {
     const bagTag = await cmd(`data get entity ${NAME} equipment.offhand.components."minecraft:custom_model_data"`)
     check('the bag carries its tier\'s duffel tag', /strings: \["donating:bag_3"\]/.test(bagTag), bagTag)
 
+    // ---------- The boss bar ----------
+    await cmd(`dheist delete ${BB} confirm`)
+    await cmd(`rg remove -w world heist_${BB}`)
+    await cmd(`forceload add ${BB_CHUNKS}`)
+    await cmd(`fill 776 ${Y - 1} 764 792 ${Y - 1} 784 glass`)
+    await cmd(`zzregion heist_${BB} 780 190 768 790 208 780`)
+    for (const c of [`dheist create ${BB} 4`, `dheist set ${BB} name Hud Lab`, `dheist set ${BB} escape 600`, `dheist set ${BB} cooldown 5`, `dheist exit ${BB} ${BB_EXIT} -90`, `dheist snapshot ${BB}`, `dheist enable ${BB}`]) await cmd(c)
+    const until = async (fn, ms = 5000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(200) } return Boolean(await fn()) }
+    const opened = await until(async () => /state=open/.test(await cmd(`zzheist ${BB}`)), 15000)
+    check('no boss bar outside heists', opened && barNow().length === 0, barText())
+    await cmd(`zzheisttp ${NAME} 785.5 ${Y} 774.5`)
+    const one = (re, color) => async () => barNow().length === 1 && re.test(barNow()[0].title) && barNow()[0].color === color
+    check('inside an open heist: its name and "the clock starts at the first robbery" (white, full)', await until(one(/^Hud Lab · the clock starts at the first robbery$/, 'white'), 4000) && barNow()[0].health > 0.99, barText())
+    await cmd(`dheist start ${BB}`)
+    check('the clock runs: "Escape 10:00" in green, a full bar', await until(one(/^Hud Lab · Escape (10:00|9:5\d)$/, 'green'), 3000) && barNow()[0].health > 0.98, barText())
+    await cmd(`zzheistleft ${BB} 250`)
+    check('under half the time: yellow, the bar at T / E', await until(one(/Escape 4:(10|09|08)$/, 'yellow'), 3000) && Math.abs(barNow()[0].health - 250 / 600) < 0.02, barText())
+    await cmd(`zzheistleft ${BB} 50`)
+    check('the last minute: red', await until(one(/Escape 0:(50|49|48)$/, 'red'), 3000), barText())
+    await cmd(`zzheistleft ${BB} 500`)
+    await cmd('zzcfgtime alarm::warning 3 seconds')
+    let t = Date.now()
+    await cmd(`dheist alarm ${BB}`)
+    check('the alarm: red, "ALARM · Cops in 3s", counting down to the first wave', await until(one(/^ALARM · Cops in [123]s · Escape 8:[12]\d$/, 'red'), 2000), barText())
+    check('...and an ALARM title', messagesSince(bot, t).some(m => m.kind === 'title:title' && /ALARM/.test(m.text)), messagesSince(bot, t).map(m => `${m.kind}:${m.text}`).join(' | '))
+    check('then the waves: "WAVE 1 · next in 10s"', await until(one(/^WAVE 1 · next in (10|9|8)s · Escape/, 'red'), 5000), barText())
+    await cmd(`zzheisttp ${NAME} ${BB_EXIT}`)
+    check('hunted outside: "COPS · wave 1 · N blocks to lose them", N = R − d', await until(async () => barNow().length === 1 && /^COPS · wave \d · next in \d+s · (9[0-9]) blocks to lose them$/.test(barNow()[0].title), 4000), barText())
+    t = Date.now()
+    await cmd(`zzheisttp ${NAME} ${FAR}`)
+    check('out of range: the cops lose you and the bar goes', await until(async () => barNow().length === 0, 4000) && await until(async () => messagesSince(bot, t).some(m => /lost the cops/.test(m.text)), 2000), barText())
+    await cmd('zzcfgreload')
+    await cmd(`dheist delete ${BB} confirm`)
+    await cmd(`rg remove -w world heist_${BB}`)
+    await cmd(`minecraft:tp ${NAME} 772.5 ${Y} 772.5 0 0`)
+    await sleep(500)
+
     // ---------- Tab-list placeholders ----------
     await cmd(`eco set ${NAME} 12345`)
     await sleep(1300) // the balance is copied into memory once a second
@@ -95,6 +152,11 @@ module.exports = async ({ check }) => {
     if (bot) await quit(bot)
     await rcon.cmd(`fill ${PLATFORM} air replace glass`).catch(() => {})
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
+    await rcon.cmd('zzcfgreload').catch(() => {})
+    await rcon.cmd(`dheist delete ${BB} confirm`).catch(() => {})
+    await rcon.cmd(`rg remove -w world heist_${BB}`).catch(() => {})
+    await rcon.cmd(`fill 776 ${Y - 1} 764 792 ${Y - 1} 784 air replace glass`).catch(() => {})
+    await rcon.cmd(`forceload remove ${BB_CHUNKS}`).catch(() => {})
     rcon.close()
   }
 }

@@ -5,6 +5,9 @@
 // behind, the knife stays put on Q/F, and the config files have no forbidden keys. Every sold gun fires
 // and reloads with the bag in the offhand (WeaponMechanics counts any offhand item as dual wielding,
 // and its default guns deny shooting while dual wielding: nobody could shoot until 2026-09-25).
+// Bullets look like bullets (owner, 2026-09-26): every sold gun's projectile is a fake item display
+// holding an iron nugget with custom model data 7001-7003 (the pack draws our tracers for those),
+// turned along its flight.
 const fs = require('fs')
 const path = require('path')
 const { Vec3 } = require('vec3')
@@ -16,12 +19,12 @@ const Y = 200
 const PLATFORM = `660 ${Y - 1} 660 664 ${Y - 1} 664`
 const CHUNKS = '660 660 664 664'
 const WM = path.join(__dirname, '..', '..', 'server', 'plugins', 'WeaponMechanics')
-// Sold guns: file, ammo type, magazine, a mistaken ammo type.
+// Sold guns: file, ammo type, magazine, a mistaken ammo type, the tracer model its bullets carry.
 const GUNS = [
-  { w: '50_GS', file: 'weapons/pistols/50_GS.yml', type: 'light', mag: 7, wrong: 'rifle' },
-  { w: 'Uzi', file: 'weapons/sub_machine_guns/Uzi.yml', type: 'light', mag: 32, wrong: 'shells' },
-  { w: 'R9_0', file: 'weapons/shotguns/R9_0.yml', type: 'shells', mag: 14, wrong: 'light' },
-  { w: 'AK_47', file: 'weapons/assault_rifles/AK_47.yml', type: 'rifle', mag: 30, wrong: 'light' }
+  { w: '50_GS', file: 'weapons/pistols/50_GS.yml', type: 'light', mag: 7, wrong: 'rifle', tracer: 'light', cmd: 7001 },
+  { w: 'Uzi', file: 'weapons/sub_machine_guns/Uzi.yml', type: 'light', mag: 32, wrong: 'shells', tracer: 'light', cmd: 7001 },
+  { w: 'R9_0', file: 'weapons/shotguns/R9_0.yml', type: 'shells', mag: 14, wrong: 'light', tracer: 'pellet', cmd: 7003 },
+  { w: 'AK_47', file: 'weapons/assault_rifles/AK_47.yml', type: 'rifle', mag: 30, wrong: 'light', tracer: 'rifle', cmd: 7002 }
 ]
 
 module.exports = async ({ check }) => {
@@ -38,6 +41,24 @@ module.exports = async ({ check }) => {
   const dual = walk(path.join(WM, 'weapons')).filter(p => /^\s*Dual_Wielding:/m.test(fs.readFileSync(p, 'utf8')))
   check('no weapon has a Dual_Wielding rule (the bag is always in the offhand)', dual.length === 0, dual.map(p => path.basename(p)).join(', '))
   check('Donating_Ammos.yml defines the three ammo types', ['Donating_Light:', 'Donating_Shells:', 'Donating_Rifle:'].every(t => read('ammos/Donating_Ammos.yml').includes(t)))
+  const projOf = g => (read(g.file).match(/^ {2}Projectile: "([^"]+)"/m) || [])[1]
+  const projBlocks = {}
+  for (const part of read('projectiles/Donating_Projectiles.yml').split(/^(?=\S)/m)) {
+    const name = (part.match(/^([a-z_]+):/) || [])[1]
+    if (name) projBlocks[name] = part
+  }
+  const ours = GUNS.filter(g => { const b = projBlocks[projOf(g)] || ''; return /Type: "ITEM_DISPLAY"/.test(b) && /Type: "IRON_NUGGET"/.test(b) && b.includes(`Custom_Model_Data: ${g.cmd}`) })
+  check('every sold gun shoots a Donating bullet (an item display with its tracer model), no snowballs or eggs', ours.length === GUNS.length, GUNS.map(g => `${g.w}=${projOf(g)}`).join(' '))
+  const pack = path.join(__dirname, '..', '..', 'pack', 'assets', 'donating')
+  const nugget = fs.readFileSync(path.join(pack, '..', 'minecraft', 'items', 'iron_nugget.json'), 'utf8')
+  const art = [['light', 7001], ['rifle', 7002], ['pellet', 7003]].filter(([k, n]) => {
+    const m = JSON.parse(fs.readFileSync(path.join(pack, 'models', 'item', `tracer_${k}.json`), 'utf8'))
+    // Glowing, nothing drawn behind z = 12 (it would stick out of the shooter's head on the first tick),
+    // no backward faces (the shooter looks straight down the path).
+    const ok = m.elements.every(e => e.light_emission === 15 && e.to[2] <= 12 && e.from[2] >= -16 && !e.faces.south)
+    return ok && new RegExp(`"threshold": ${n},\\s*"model": \\{\\s*"type": "minecraft:model",\\s*"model": "donating:item/tracer_${k}"`).test(nugget)
+  })
+  check('...and the pack draws each tracer (glowing, forward of the shooter\'s eye) for its number, and light ammo keeps its icon', art.length === 3 && /"when": "donating:ammo_light"/.test(nugget), art.map(a => a[0]).join(' '))
 
   const rcon = await rconLib.connect()
   let bot = null
@@ -45,6 +66,22 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`forceload add ${CHUNKS}`)
     await rcon.cmd(`fill ${PLATFORM} glass`)
     bot = await join(NAME)
+    // Fake projectile entities: spawns of item displays, their item (metadata) and their moves.
+    const displayId = bot.registry.entitiesByName.item_display.id
+    const fakes = new Map()
+    bot._client.on('packet', (data, meta) => {
+      if (meta.name === 'spawn_entity' && data.type === displayId) fakes.set(data.entityId, { model: null, moves: [] })
+      const e = data && data.entityId !== undefined ? fakes.get(data.entityId) : null
+      if (!e) return
+      if (meta.name === 'entity_metadata') {
+        const m = JSON.stringify(data.metadata).match(/custom_model_data[\s\S]{0,120}?(700[1-3])/)
+        if (m) e.model = Number(m[1])
+      } else if (meta.name === 'entity_move_look') {
+        e.moves.push({ dx: data.dX, dy: data.dY, dz: data.dZ, yaw: data.yaw, pitch: data.pitch })
+      }
+    })
+    const angle = b => ((b * 360 / 256) % 360 + 360) % 360
+    const yawOff = mv => { const want = ((Math.atan2(-mv.dx, mv.dz) * 180 / Math.PI) % 360 + 360) % 360; const d = Math.abs(want - angle(mv.yaw)); return Math.min(d, 360 - d) }
     await rcon.cmd(`gamemode survival ${NAME}`)
     await rcon.cmd(`minecraft:tp ${NAME} 662.5 ${Y} 662.5`)
     const dig = status => bot._client.write('block_dig', { status, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
@@ -135,11 +172,18 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.0 with air`)
       await give(g.w, '{slot:0}')
       const before = await loaded(0)
+      fakes.clear()
+      // Aim level and a little to the side, so the bullets fly across open air.
+      await bot.look(0.7, 0, true)
       for (let i = 0; i < 4; i++) { bot.activateItem(); await sleep(200); bot.deactivateItem(); await sleep(400) }
       await sleep(600)
       const after = await loaded(0)
       const off = (await rcon.cmd(`zzdump ${NAME}`)).trim()
       check(`${g.w} fires with the bag in the offhand`, /40=leather x1 \[bag:2\]/.test(off) && after < before, `${before} -> ${after}; ${off}`)
+      const shots = [...fakes.values()]
+      const moves = shots.flatMap(e => e.moves).filter(mv => Math.abs(mv.dx) + Math.abs(mv.dz) > 400)
+      const worst = moves.length ? Math.max(...moves.map(yawOff)) : 999
+      check(`...its bullets are tracers (${g.tracer}, custom model data ${g.cmd}) facing where they fly`, shots.length > 0 && shots.every(e => e.model === g.cmd) && moves.length > 0 && worst < 6, `${shots.length} bullets, models ${[...new Set(shots.map(e => e.model))]}, ${moves.length} moves, worst yaw off ${worst.toFixed(1)}°`)
     }
     await rcon.cmd(`zztestkit ${NAME}`)
     await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.0 with air`)
