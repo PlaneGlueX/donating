@@ -25,6 +25,17 @@ module.exports = async ({ check }) => {
     }
     const count = async tag => Number(((await cmd(`execute if entity @e[tag=${tag}]`)).match(/count: (\d+)/i) || [])[1] || 0)
     const range = async tag => Number(((await cmd(`attribute @e[tag=${tag},limit=1] minecraft:waypoint_transmit_range get`)).match(/is ([\d.E+-]+)/) || [])[1] || -1)
+    // The stand's UUID ("[I; a, b, c, d]" -> "xxxxxxxx-xxxx-..."), and the color set by /waypoint modify.
+    const uuidOf = async tag => {
+      const m = (await cmd(`data get entity @e[tag=${tag},limit=1] UUID`)).match(/\[I; (-?\d+), (-?\d+), (-?\d+), (-?\d+)\]/)
+      if (!m) return ''
+      const hex = m.slice(1).map(n => (Number(n) >>> 0).toString(16).padStart(8, '0')).join('')
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+    }
+    const colorOf = async tag => Number(((await cmd(`data get entity @e[tag=${tag},limit=1] locator_bar_icon.color`)).match(/data: (-?\d+)/) || [])[1] || -1)
+    // A track packet for exactly this stand, in this color (/waypoint's colors as red, green, blue).
+    const tracked = (uuid, rgb) => waypoints.some(w => w.operation === 'track' && w.waypoint && w.waypoint.uuid === uuid &&
+      w.waypoint.icon && w.waypoint.icon.color && w.waypoint.icon.color.red === rgb[0] && w.waypoint.icon.color.green === rgb[1] && w.waypoint.icon.color.blue === rgb[2])
 
     await cmd(`dheist delete ${ID} confirm`)
     await cmd(`rg remove -w world ${REGION}`)
@@ -49,11 +60,17 @@ module.exports = async ({ check }) => {
     const tag = `poi_${poiId}`
     check('/dpoi add: a POI where the staff member stands', poiId !== '' && (await count(tag)) === 1, text(t))
     check('...an invisible marker stand sending a waypoint to everyone', (await range(tag)) > 1e7, `${await range(tag)}`)
-    const got = await until(() => waypoints.some(w => JSON.stringify(w).includes('track')), 4000)
-    check('...and the player gets it on their locator bar (a tracked waypoint)', got, JSON.stringify(waypoints.slice(-2)).slice(0, 300))
+    const standId = await uuidOf(tag)
+    // Shops are yellow (core.sk poi::shop::color): /waypoint's yellow is 255, 255, 85.
+    const got = await until(() => tracked(standId, [255, 255, 85]), 4000)
+    check('...and the player gets that stand on their locator bar, in the shop color (a track packet with its UUID)', standId !== '' && got, `${standId} ${JSON.stringify(waypoints.slice(-2)).slice(0, 300)}`)
     await cmd(`minecraft:kill @e[tag=${tag}]`)
+    waypoints.length = 0
     const back = await until(async () => (await count(tag)) === 1, 22000)
+    await sleep(1500)
+    const newId = await uuidOf(tag)
     check('a missing stand comes back within 10 s (exactly one)', back, `${await count(tag)}`)
+    check('...and the new stand is a waypoint again (range and color set on the new stand)', newId !== '' && newId !== standId && (await range(tag)) > 1e7 && tracked(newId, [255, 255, 85]), `${newId} range ${await range(tag)} ${JSON.stringify(waypoints.slice(-2)).slice(0, 300)}`)
 
     // ---------- Heists: only while open ----------
     await cmd(`zzregion ${REGION} 1055 199 1055 1065 205 1065`)
@@ -63,13 +80,20 @@ module.exports = async ({ check }) => {
     await cmd(`dheist holo ${ID} 1052.5 ${Y} 1058.5`)
     await cmd(`dheist snapshot ${ID}`)
     await until(async () => (await count(`poi_h_${ID}`)) === 1, 12000)
-    check('a disabled heist has a stand but sends no waypoint', (await count(`poi_h_${ID}`)) === 1 && (await range(`poi_h_${ID}`)) === 0, `${await count(`poi_h_${ID}`)} ${await range(`poi_h_${ID}`)}`)
+    await sleep(1000)
+    // Difficulty 3's color is gold (0xFFAA00 = 16755200): proof the commands ran, not just an armor stand's default range.
+    check('a disabled heist has a stand, in its difficulty\'s color, but sends no waypoint', (await count(`poi_h_${ID}`)) === 1 && (await range(`poi_h_${ID}`)) === 0 && (await colorOf(`poi_h_${ID}`)) === 16755200, `${await count(`poi_h_${ID}`)} range ${await range(`poi_h_${ID}`)} color ${await colorOf(`poi_h_${ID}`)}`)
     await cmd(`dheist enable ${ID}`)
     const shown = await until(async () => (await range(`poi_h_${ID}`)) > 1e7, 20000)
     check('once it opens, its waypoint shows (in the difficulty\'s color)', shown, `${await range(`poi_h_${ID}`)} ${await cmd(`zzheist ${ID}`)}`)
     await cmd(`dheist disable ${ID}`)
     const hidden = await until(async () => (await range(`poi_h_${ID}`)) === 0, 14000)
     check('disabled again: hidden', hidden, `${await range(`poi_h_${ID}`)}`)
+
+    // Moving the hologram moves the POI: the old stand goes, one new stand at the new spot.
+    await cmd(`dheist holo ${ID} 1047.5 ${Y} 1062.5`)
+    const moved = await until(async () => /1047\.5/.test(await cmd(`data get entity @e[tag=poi_h_${ID},limit=1] Pos[0]`)) && (await count(`poi_h_${ID}`)) === 1, 24000)
+    check('moving a heist\'s hologram moves its POI: exactly one stand, at the new spot, still gold', moved && (await colorOf(`poi_h_${ID}`)) === 16755200, `${await count(`poi_h_${ID}`)} ${await cmd(`data get entity @e[tag=poi_h_${ID},limit=1] Pos`)} color ${await colorOf(`poi_h_${ID}`)}`)
 
     // ---------- Remove, staff only ----------
     t = Date.now()

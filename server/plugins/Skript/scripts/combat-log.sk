@@ -80,7 +80,9 @@ on damage of player with priority monitor:
 	if attacker has metadata "NPC":
 		tagCombat(victim, "cop")
 	else:
-		tagCombat(victim, "player:%uuid of attacker%")
+		# A shot cop (a Citizens NPC) is never tagged: nothing would ever clear its variables.
+		if isNpc(victim) is false:
+			tagCombat(victim, "player:%uuid of attacker%")
 		tagCombat(attacker, "")
 
 # Tells players when their tag runs out (wanted players stay tagged until the cops lose them).

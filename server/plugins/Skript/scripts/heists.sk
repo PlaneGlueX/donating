@@ -477,16 +477,22 @@ function heistLeave(p: player, h: text, reason: text):
 function heistEvict(p: player, h: text, reason: text):
 	heistLeave({_p}, {_h}, {_reason})
 	set {_name} to heistName({_h})
+	# Only this heist's chase ends here: a robber another heist's alarm hunts stays hunted.
+	set {_own} to false
+	if heistHuntedBy({_p}) is {_h}:
+		set {_own} to true
 	if {_reason} is "time":
 		set {_lost} to heistForfeit({_p}, {_h}, heistRun({_h}))
-		heistRelease({_p}, "failed")
+		if {_own} is true:
+			heistRelease({_p}, "failed")
 		if {_lost} > 0:
 			set {_money} to formatMoney({_lost})
 			set {_text} to "&c&lToo late!&r &cYou were thrown out of the %{_name}% and lost %{_money}% of loot."
 		else:
 			set {_text} to "&c&lToo late!&r &cYou were thrown out of the %{_name}%."
 	else:
-		heistRelease({_p}, "staff")
+		if {_own} is true:
+			heistRelease({_p}, "staff")
 		set {_text} to "&7You were moved out of the %{_name}%."
 	heistTeleport({_p}, heistExit({_h}))
 	# After the teleport: hud.sk's sound plays where the player is now.

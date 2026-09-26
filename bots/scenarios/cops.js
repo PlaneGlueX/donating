@@ -181,6 +181,8 @@ module.exports = async ({ check }) => {
     await place(A, 965.5, 965.5)
     await until(async () => /state=active/.test(await heist()), 4000)
     await cmd('zzcfgset difficulty::4::cop-damage 60')
+    // A Gym Bag ($2,000), so the cap C = min(bag, pool) is over the 10% (else C = 0 and any p passes).
+    await cmd(`zzdata ${A} bag-tier 1`)
     await cmd(`dheist alarm ${ID}`)
     const before = Number(((await cmd(`zzbal ${A}`)).match(/: (-?\d+)/) || [])[1])
     let died = false
@@ -189,7 +191,8 @@ module.exports = async ({ check }) => {
     await sleep(800)
     const cause = await cmd(`zzdata ${A} last-death-cause`)
     const loss = await cmd(`zzdata ${A} last-death-loss`)
-    check('a robber shot dead by a cop: a cop death (cop-p of the balance: 10% of $10,000 at difficulty 4, capped by the bag)', died && /= cop$/m.test(cause), `${died} ${cause} ${loss} bal before ${before}`)
+    // L = min(B × p, C) = min($10,000 × 10%, min($2,000, pool)) = $1,000 (a trap's p, 5%, would be $500).
+    check('a robber shot dead by a cop: a cop death, losing cop-p of the balance (10% of $10,000 at difficulty 4 = $1,000)', died && /= cop$/m.test(cause) && /= 1000(\.0)?$/m.test(loss), `${died} ${cause} ${loss} bal before ${before}`)
     const ended = await until(async () => (await alive()) === 0 && /alarm=none/.test(await heist()), 6000)
     check('the only hunted robber died: the alarm ends and the cops go', ended, `${await cops()} ${await heist()}`)
     await cmd('zzcfgset difficulty::4::cop-damage 4')

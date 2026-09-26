@@ -28,13 +28,21 @@ function copLog(text: text):
 	log {_text} to "cops"
 
 # A heist's cop spots: the /dcops spots, else its exit spot.
+# Never in a safe zone (players can't hurt anything there, but a cop could still shoot out of it),
+# and never the world spawn (heistExit's fallback when a heist has no exit spot): no spot = no cops,
+# logged "no-spot".
 function copSpots(h: text) :: locations:
 	set {_w} to world({heist::%{_h}%::world})
 	loop {heist::%{_h}%::cops::*}:
 		set {_p::*} to loop-value split at " "
-		add location(({_p::1} parsed as number), ({_p::2} parsed as number), ({_p::3} parsed as number), {_w}) to {_out::*}
+		set {_l} to location(({_p::1} parsed as number), ({_p::2} parsed as number), ({_p::3} parsed as number), {_w})
+		if isSafeZone({_l}) is false:
+			add {_l} to {_out::*}
 	if size of {_out::*} is 0:
-		add heistExit({_h}) to {_out::*}
+		set {_l} to {heist::%{_h}%::exit}
+		if {_l} is set:
+			if isSafeZone({_l}) is false:
+				add {_l} to {_out::*}
 	return {_out::*}
 
 # Cops of a heist that exist now (a dead one is forgotten a tick after it dies).
@@ -256,7 +264,9 @@ function copKilled(p: player):
 		copLog("bounty %name of {_p}% %uuid of {_p}% cops=%{_n}% +%{_add}%")
 
 # Shooting a cop makes you wanted: its heist's alarm hunts you and its cops target you (owner,
-# 2026-09-26). Monitor: only hits that landed (not cancelled by anything).
+# 2026-09-26). Monitor: only hits that landed (not cancelled by anything). Only a player no alarm hunts
+# yet, and only within the chase radius: switching a hunted robber to another heist's alarm would end
+# their own chase, and one out of range would be let go the next second.
 on damage with priority monitor:
 	victim has metadata "NPC"
 	attacker is a player
@@ -266,7 +276,8 @@ on damage with priority monitor:
 	{_h} is set
 	heistAlarmStage({_h}) is not "none"
 	heistBuilder(attacker) is false
-	heistHuntedBy(attacker) is not {_h}
+	heistHuntedBy(attacker) is ""
+	heistInRange(attacker, {_h}) is true
 	heistHunt(attacker, {_h})
 	set {_r} to cfg("alarm::chase-radius")
 	set {_hn} to heistName({_h})
@@ -318,6 +329,9 @@ command /dcops [<text>]:
 			set {_l} to location({_x}, {_y}, {_z}, world({heist::%{_h}%::world}))
 			if heistAt({_l}) is not "":
 				dcopsReply(sender, "COPS add: not inside a heist (cops come from outside)")
+				stop
+			if isSafeZone({_l}) is true:
+				dcopsReply(sender, "COPS add: not in a safe zone (nobody could fight them there)")
 				stop
 			add "%{_x}% %{_y}% %{_z}%" to {heist::%{_h}%::cops::*}
 			dcopsReply(sender, "COPS %{_h}% spot %size of {heist::%{_h}%::cops::*}% at %{_x}% %{_y}% %{_z}%")

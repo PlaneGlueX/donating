@@ -64,14 +64,56 @@ on respawn:
 # shopkeepers: every 10 s each POI gets exactly one (a missing one comes back, extras go).
 # Saved: {poi::<n>} = "type|world|x|y|z|name" (only POIs under poi::, the counter is {poicounter}). Colors: core.sk poi::<type>::color and
 # difficulty::<d>::waypoint (names from Minecraft's /waypoint command: aqua, yellow, gold, ...). POIs live in
-# the main world (Nether and End are off): the console summons them there.
+# the main world (Nether and End are off): the console summons them there, so /dpoi refuses other worlds
+# and a heist in another world gets no POI. Each POI remembers where its stand is ({poiat::<id>}) and
+# which chunk it force-loaded ({poichunk::<id>} = "cx:cz"): a POI that moves (a heist's hologram set
+# again) loses its old stand, and a chunk no POI uses any more is released.
 
 function poiTag(id: text) :: text:
 	return "poi_%{_id}%"
 
+# The world the console's summon lands in (the first world the server lists).
+function poiMainWorld() :: world:
+	loop all worlds:
+		return loop-value
+
+# Releases a POI's force-loaded chunk unless another POI still sits in it, and forgets its stand.
+function poiRelease(id: text):
+	set {_c} to {poichunk::%{_id}%}
+	delete {poichunk::%{_id}%}
+	delete {poiat::%{_id}%}
+	delete {-poi::state::%{_id}%}
+	{_c} is set
+	loop {poichunk::*}:
+		if loop-value is {_c}:
+			stop
+	set {_p::*} to {_c} split at ":"
+	set {_bx} to ({_p::1} parsed as number) * 16
+	set {_bz} to ({_p::2} parsed as number) * 16
+	execute console command "forceload remove %{_bx}% %{_bz}%"
+
 # The stand of a POI (staff ones by number, heists by "h_<id>"), summoned if missing.
 function poiEnsure(id: text, l: location, color: text, on: boolean):
 	set {_tag} to poiTag({_id})
+	if world of {_l} is not poiMainWorld():
+		if {-poi::warned::%{_id}%} is not set:
+			set {-poi::warned::%{_id}%} to true
+			send "[Donating] nav: POI %{_id}% is outside the main world; it gets no stand" to console
+		stop
+	# Moved (a heist's hologram set again): the old stand and its chunk go first.
+	set {_ax} to x-coordinate of {_l}
+	set {_ay} to y-coordinate of {_l}
+	set {_az} to z-coordinate of {_l}
+	set {_ax} to round({_ax} * 100) / 100
+	set {_ay} to round({_ay} * 100) / 100
+	set {_az} to round({_az} * 100) / 100
+	set {_at} to "%world of {_l}%:%{_ax}%:%{_ay}%:%{_az}%"
+	if {poiat::%{_id}%} is set:
+		if {poiat::%{_id}%} is not {_at}:
+			execute console command "minecraft:kill @e[tag=%{_tag}%]"
+			poiRelease({_id})
+			stop
+	set {poiat::%{_id}%} to {_at}
 	set {_n} to 0
 	loop all entities in radius 2 around {_l}:
 		if loop-entity has scoreboard tag {_tag}:
@@ -88,7 +130,13 @@ function poiEnsure(id: text, l: location, color: text, on: boolean):
 		set {_cx} to floor({_x} / 16)
 		set {_cz} to floor({_z} / 16)
 		execute console command "forceload add %{_cx} * 16% %{_cz} * 16%"
+		set {poichunk::%{_id}%} to "%{_cx}%:%{_cz}%"
 		execute console command "summon minecraft:armor_stand %{_x}% %{_y}% %{_z}% {Tags:[""donating_poi"",""%{_tag}%""],Invisible:1b,Invulnerable:1b,NoGravity:1b,Silent:1b,Marker:1b}"
+		# A new stand has the default range and color: always set them.
+		delete {-poi::state::%{_id}%}
+	# A stand summoned before chunks were tracked: remember its chunk now.
+	if {poichunk::%{_id}%} is not set:
+		set {poichunk::%{_id}%} to "%floor(x-coordinate of {_l} / 16)%:%floor(z-coordinate of {_l} / 16)%"
 	# Every pass: the color and whether it's shown (cheap, and survives /waypoint or attribute edits).
 	if {-poi::state::%{_id}%} is not "%{_color}%:%{_range}%":
 		execute console command "attribute @e[tag=%{_tag}%,limit=1] minecraft:waypoint_transmit_range base set %{_range}%"
@@ -139,6 +187,18 @@ function poiReconcile():
 						set {_known} to true
 			if {_known} is false:
 				kill loop-entity
+	# ...and their force-loaded chunks.
+	loop {poichunk::*}:
+		set {_id} to loop-index
+		set {_known} to false
+		if {_id} starts with "h_":
+			set {_hid} to subtext of {_id} from characters 3 to (length of {_id})
+			if {heists::%{_hid}%} is set:
+				set {_known} to true
+		else if {poi::%{_id}%} is set:
+			set {_known} to true
+		if {_known} is false:
+			poiRelease({_id})
 
 every 10 seconds:
 	poiReconcile()
@@ -161,6 +221,9 @@ command /dpoi [<text>]:
 		if {_sub} is "add":
 			if sender is not a player:
 				send "POI add: in game only (stand on the spot)" to sender
+				stop
+			if world of player is not poiMainWorld():
+				send "POI add: only in the main world (%poiMainWorld()%)" to sender
 				stop
 			set {_type} to {_a::2}
 			if {-cfg::poi::types::*} does not contain {_type}:
@@ -187,7 +250,7 @@ command /dpoi [<text>]:
 			set {_tag} to poiTag({_id})
 			execute console command "minecraft:kill @e[tag=%{_tag}%]"
 			delete {poi::%{_id}%}
-			delete {-poi::state::%{_id}%}
+			poiRelease({_id})
 			send "POI %{_id}% removed" to sender
 		else if {_sub} is "list":
 			loop {poi::*}:
