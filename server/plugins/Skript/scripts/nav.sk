@@ -37,10 +37,20 @@ function setPassive(p: player, on: boolean):
 		applyMapVisibility({_p})
 		msg({_p}, "Passive mode &coff&7. You're hidden from other players' maps again.")
 
+# Inside a heist a robber receives no waypoints, so the XP fill bar (the bag meter) shows instead of
+# the locator bar (CLAUDE.md, Navigation). "base reset" puts back the player default (6.0E7).
+function applyWaypointReceive(p: player):
+	if heistOf({_p}) is not "":
+		execute console command "attribute %{_p}% minecraft:waypoint_receive_range base set 0"
+	else:
+		execute console command "attribute %{_p}% minecraft:waypoint_receive_range base reset"
+
 on join:
 	applyMapVisibility(player)
+	applyWaypointReceive(player)
 
 on respawn:
 	wait 1 tick
 	player is online
 	applyMapVisibility(player)
+	applyWaypointReceive(player)

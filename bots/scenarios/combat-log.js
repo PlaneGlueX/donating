@@ -170,7 +170,7 @@ module.exports = async ({ check }) => {
     d0 = await deaths(B)
     t = Date.now()
     const tagBeforeKick = / tagged=true /.test(await combat(B))
-    await rcon.cmd(`kick ${B} test`)
+    await rcon.cmd(`zzkick ${B}`) // a staff kick (RCON commands don't fire Skript's command event)
     await sleep(1500)
     check('a kick while tagged isn\'t a combat log', tagBeforeKick && (await deaths(B)) === d0 && !said(C, t, /logged out in combat/), `tagged ${tagBeforeKick}; deaths ${d0} -> ${await deaths(B)}; ${text(C, t)}`)
     await rejoin(B)

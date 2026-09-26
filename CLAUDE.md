@@ -35,7 +35,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Local test world: `gamerule spawn_mobs false` (a zombie kept killing bots). A city map probably wants it off on Minehut too (the owner hasn't decided).
 - Local owner rank: LuckPerms group `owner` (weight 100, prefix `&4[Owner]`, `*` true, `donating.inventory.bypass` **false** so the lock still applies in playtests, and `donating.wanted` **false**, or `*` makes staff count as wanted, which means always combat-tagged); user Explosde (the owner's Java name). LuckPerms data is per server: redo this on Minehut.
 - LuckPerms default group: `weaponmechanics.use.*` (without it nobody can shoot or reload). Redo on Minehut.
-- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzcfgset`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`, `/zzwm`, `/zzammo`, `/zzshopreset`, `/zzfill`, `/zzshop`, `/zztag`, `/zzbounty`, `/zzbountyreset`, `/zzbountyip`). Never upload them.
+- `server\plugins\Skript\scripts\zz-*.sk` are LOCAL TEST HELPERS (`/zztestkit`, `/zzdump`, `/zzperm`, `/zzclear`, `/zzforget`, `/zzbal`, `/zzcfg`, `/zzcfgset`, `/zzafk`, `/zzafkstate`, `/zztip`, `/zzpassive`, `/zzhide`, `/zzshow`, `/zzdata`, `/zzphone`, `/zzcombat`, `/zzcombatend`, `/zzregion`, `/zzshield`, `/zzshieldoff`, `/zzwm`, `/zzammo`, `/zzshopreset`, `/zzfill`, `/zzshop`, `/zztag`, `/zzbounty`, `/zzbountyreset`, `/zzbountyip`, `/zzheist`, `/zzinheist`, `/zzheisttp`, `/zzcfgtime`, `/zzcfgtext`, `/zzcfgreload`, `/zzpapi`, `/zzpassivewhy`, `/zzspawn`, `/zzheistforget`, `/zzkick`). Never upload them.
 - Owner's Minecraft: launcher at `C:\XboxGames\Minecraft Launcher`, Java client 26.3, username Explosde, game dir `%APPDATA%\.minecraft` (client log: `logs\latest.log` there). The game window (`javaw.exe`) sometimes starts minimized; restore it with Win32 ShowWindow.
 - Computer-use tips (verified 2026-09-24):
   - `minecraft:tp Explosde ~ ~ ~ <yaw> <pitch>` turns the real camera (EssentialsX's `/tp` doesn't), e.g. pitch 75 to look at a held map.
@@ -87,6 +87,16 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Advanced heists only: an alarm that anyone can trip.
   - 20-second warning, then a new wave of NPC cops every 10 seconds.
   - Waves continue until every robber has left the cops' range or died/failed.
+- Decided 2026-09-25 (owner):
+  - Heist crew: robbers inside the same heist can't hurt each other, so nobody can kill everyone as the heist starts and take all the loot. Anyone outside can still shoot in (through a door or window) and robbers can shoot out. Buildings are immune to explosives.
+  - Combat-tagged players may run into an open heist; the tag keeps running.
+  - Some heists can be PvP heists (per heist): no crew rule inside, and passive players can't enter.
+  - Advanced heists: windows lock up when the alarm trips (lockdown boxes per heist, like Jailbreak's jewelry store).
+  - The escape clock starts at the first robbery (until loot.sk exists: at the first entry).
+  - At 0:00 everyone inside loses all loot from that heist's run, also loot from an earlier trip carried back in.
+  - Logging out inside (not in combat) counts as failing: that heist's loot is lost, and rejoining puts you at spawn. A kick (restart, staff) costs nothing.
+  - Timers ("medium"): escape 4/6/8/10 min and cooldown 6/10/15/30 min for difficulty 1-4, each can be changed per heist.
+  - Loot: every loot spot rolls its value in a range at each reset (the owner sets the ranges when designing each heist), and the loot you can see matches it, so a spot visibly empties as it's robbed (loot.sk). A heist is a race for the most loot, not a fixed payout for whoever bought the biggest bag. The owner will explain more of the competition side.
 - Loot spots copy KoyaRobbery's style: cash tables, jewelry cases, safes that need a tool, a vault door you drill. Test KoyaRobbery first; if it doesn't work on 1.21.11 or doesn't allow separate robbers to loot the same building at once, rebuild it in Skript with our own textures. Don't reuse KoyaRobbery's textures without the author's permission.
 
 ### Heist bag
@@ -276,6 +286,41 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Shopkeepers are Paper 1.21.9+ mannequins (look like players, no AI, no locator-bar dot). No shopping while combat-tagged or wanted, and getting hurt into combat closes an open shop.
 - Adding a gun later: pick it from WeaponMechanics' list, add `Reload.Ammo` (an existing or new ammo type in Donating_Ammos.yml) and `Swap_Hands: true` to its file, add its `wpn::<W>::*` settings and its title to `shop::weapons` in core.sk, then add it to bots\scenarios\wm-ammo.js.
 
+### Heists (heists.sk, built 2026-09-25)
+- A heist = a WorldGuard cuboid `heist_<id>` (ids: 1-16 lowercase letters and digits) + its `/dheist` data. Staff setup, in order:
+  1. WorldEdit wand, then `/rg define heist_<id>` over the whole building, basement to roof. Heist regions must not overlap.
+  2. `/dheist create <id> <difficulty 1-4>`: sets passthrough and the explosion flags; the heist starts disabled.
+  3. `/dheist set <id> name <Name>`, and if needed `escape|cooldown <seconds>`, `pool <$>`, `rank <n>`, `advanced|pvp true|false` (`default` = the difficulty's value in core.sk).
+  4. `/dheist exit <id>` standing 5-15 blocks outside the door (refused inside a heist or a safe zone: a safe zone cancels the eviction teleport for tagged robbers).
+  5. Build the room clean (doors closed, traps idle), then `/dheist snapshot <id>` (only while disabled; blocks the reset must never touch can be structure void).
+  6. `/dheist holo <id>` where the hologram goes (it floats 2.5 blocks up).
+  7. Advanced heists: `/dheist lock <id> add x1 y1 z1 x2 y2 z2 [block]` for each window (iron bars by default; `lock <id> test` previews, the next reset clears it).
+  8. `/dheist enable <id>`: the room resets, then it opens.
+  Also `info`, `list`, `open` (skip the cooldown), `start`, `end` (like 0:00), `reset`, `alarm`, `kick <player>`, `disable`, `dump` (the commands that recreate the heist, for Minehut) and `delete <id> confirm`. Players: `/heists`.
+- States: disabled → cooldown (the room resets one 32³ section per second, only while nobody stands inside) → open → active (the clock) → cooldown. Timers are memory dates: a restart or Minehut sleep resets every heist and reopens it. Only the definitions and the run counter are saved; bag.sk tags loot `<id>#<run>`.
+- Inside = standing in the region. The skript-worldguard events only gate: they fire before the move, and a cancel pushes a walk back or cancels a teleport. `heistReconcile` sets membership a tick later and every second (it also catches joins and missed events). No teleporting in or out (every teleport: /spawn, /tpa, staff /tp, plugins), and teleport commands are blocked inside, because a teleport within the region fires no event. Evictions use `heistTeleport` (a pass flag + `force teleport`).
+- Hooks for later scripts are stub functions at the bottom of heists.sk (edit the one-line body):
+  - `heistRankOk` → ranks.sk; `heistForfeit` → bag.sk; `heistNotify` → hud.sk
+  - `heistOnOpen/Start/End/Reset/Enter/Leave` → loot.sk, traps.sk, hud.sk, nav.sk, bag.sk
+  - `heistOnAlarm/Wave/Hunt/AlarmEnd` → cops.sk
+  - loot.sk calls `heistStartRun(id)` at the first robbery (set `heist::start-on` to "rob" then) and `heistTripAlarm(id, source)`; traps.sk calls `heistTripAlarm` and `tagCombat(p, "trap")`.
+  - Read API: `heistOf(p)`, `heistAt(loc)`, `heistState`, `heistName`, `heistDifficulty`, `heistLootPool`, `heistSecondsLeft`, `heistRobbers`, `heistAlarmStage`, `heistWave`, `heistNextWaveIn`, `heistHuntedBy`, `heistSameCrew`.
+- Placeholders (skript-placeholders, prefix "donating"): `%donating_in_heist%` (yes/no: TAB's heist board condition), `%donating_heist_name%`, and per heist `%donating_heist_title_<id>%`, `%donating_heist_status_<id>%`, `%donating_heist_info_<id>%` (the hologram lines, worked out every second into memory; the placeholder code only reads memory, because DecentHolograms and TAB ask from other threads). placeholders.sk can register the same prefix again: the first handler that sets a result wins.
+- Verified in the jars and with bots (bots\run.js heists):
+  - skript-worldguard: `the worldguard move type is teleport` parses and works.
+  - SkBee 3.25.4: `structure template with id "donating:heist/<id>/<n>"`, `fill structure template {_s} between {_a} and {_b}` (both corners included), `save structure {_s}`, `place structure template {_s} at {_loc}`, `structure template "<key>" exists` / `does not exist`, `delete structure {_s}`. Files: `world\generated\donating\structures\heist\<id>\<n>.nbt` (they travel with the world). SkBee's cache turns "include entities" back on at every lookup, so set `structure include entities of {_s} to false` right before each place. Placing uses no block updates, so traps come back as saved without firing.
+  - DecentHolograms 2.10.1: `dh hologram create <name> -l:<world>:<x>:<y>:<z> <line>`, `dh line add <name> 1 <line>`, `dh hologram delete <name>`; files in `plugins\DecentHolograms\holograms\`. Every line change rewrites the file, so lines are placeholders, never updated by command.
+  - The waypoint rule: `attribute <p> minecraft:waypoint_receive_range base set 0` inside, `... base reset` outside (the player default 6.0E7), in nav.sk's `applyWaypointReceive`.
+  - EssentialsX Spawn's commands are namespaced `essentialsspawn:` (not `essentials:`).
+  - Skript: `add <timespan> to {date variable}` works; `1 second * n` makes a timespan; `<timespan> / 1 second` gives a number.
+- Review fixes (2026-09-25):
+  - Only staff kicks are free. core.sk's `staffKicked(p)` is true for 3 s after `/kick` or `/ekick` typed in the console or by a player with `essentials.kick`. A kick the player causes (chat or command spam, a timed-out client) counts as a normal logout, in heists.sk and combat-log.sk. RCON commands don't fire Skript's command event, so the tests kick with `/zzkick`. A server stop never reaches quit handlers (Paper disables plugins first).
+  - Someone rejoining after logging out inside a heist while still carrying loot (`shopBagLoot` > 0, bag.sk) lands at the heist's exit instead of spawn, so a logout can't carry other heists' loot home. Empty-handed: spawn (owner's rule).
+  - Cooldowns survive restarts and Minehut sleep: the reopen time is saved once per run (`{heist::<id>::reopen}`).
+  - A new run ends the last run's chase; every death leaves the hunt; dead players don't block the room reset; builders who log out inside keep their spot; `enable` only from disabled; `reset` works while open or closed.
+- The crew rule (heists.sk's `on damage`) cancels hits between two members of the same non-PvP heist, with the message "They're in your heist crew"; hits into and out of a heist land.
+- Block breaking is locked everywhere for survival players (inventory.sk `on break`); staff build in creative.
+
 ### Navigation (verified 2026-09-24 in the Paper 1.21.11 jar with javap, with bots, and in the 26.3 client)
 - Maps: every player carrying a copy of the same map id (anywhere in the inventory) is a white arrow on everyone's copy. `MapItemSavedData.tickCarriedBy` adds all carriers, then removes other carriers wearing an item from `#minecraft:map_invisibility_equipment` in an armor slot (hands don't count), but never the viewer itself. `ServerPlayer.doTick` runs that pass right before sending that player's map packet, so the hiding is per viewer and never flickers (12/12 packets in the bot test). Vanilla's tag only holds carved_pumpkin. (Before the phone plugin a datapack added structure_void as a boots-slot "map cloak"; gone now that every player has their own map id, and nav.sk takes old cloaks off.)
 - Player arrows never get a name (the server passes null). Item `map_decorations` entries are copied into the shared map data once (null name, never moved or removed until a restart). Named banners clicked with a map become labeled markers for everyone (saved with the map). That's why inventory.sk locks banner right-clicks; staff with bypass can still add labels with a plain copy of the map (not the phone).
@@ -320,7 +365,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 - Kill bounties are capped. Players can pay to place bounties (not on themselves). No payout for same-IP alts.
 - Alarm: max 6 cops alive per heist; waves only refill up to the cap; all cops despawn when the alarm ends. Cops chase within about 100 blocks; wanted clears once you escape the radius.
 - Wanted counts as combat-tagged, and combat-tagged players can't enter safe zones, so you can't reach the base to sell until you lose the cops.
-- Passive mode: robbery payouts −25%, can't enter PvP-only heists, can't place or claim bounties, 10-minute switch cooldown, can't switch while combat-tagged or carrying loot.
+- Passive mode: robbery payouts −25%, can't enter PvP heists, can't switch inside any heist, can't place or claim bounties, 10-minute switch cooldown, can't switch while combat-tagged or carrying loot.
 - Spawn shield: 10 seconds after respawn/join, ends if you attack.
 - Dropped duffel: only loot (never the bag). Pickup needs room in your own bag (see Death and combat). Despawns after 2 minutes.
 - Deaths outside a heist use the easiest tier's % and your bag cap.
@@ -377,6 +422,7 @@ Config notes (applied locally 2026-09-24; copy these files to Minehut):
 - City GPS map (when the city exists): make a map covering the city (scale 2-3), fill it in by flying over the city holding it (or draw it), lock it in a cartography table (for a big city, several maps of the same scale side by side, each locked), put named banners on it (a staff account with the inventory bypass, holding a plain copy of the map: the phone opens its big map instead), then set `city-maps` in `plugins\DonatingPhone\config.yml` (`[[id]]`, or rows of ids) and run `/dphone`. The `world\data\map_<id>.dat` file goes to Minehut with the world.
 - Skript `config.sk`: default database `pattern: (?!-).*` so `{-...}` variables stay in memory only; `backups to keep: 24`.
 - EssentialsX `starting-balance: 0` stays: join-quit.sk gives `cfg("money::start")` on the first join, so the number lives in core.sk with the other money values.
+- Heists on Minehut: the regions (WorldGuard `worlds/world/regions.yml`) and room snapshots (`world/generated/donating/structures/`) travel with the world, the holograms in `plugins/DecentHolograms/holograms/`. The heist definitions are saved Skript variables: run the lines `/dheist dump <id>` prints (also in `plugins/Skript/logs/heists.log`) on Minehut instead of uploading variables.csv (it's full of test data).
 - Server-list text (MOTD): set it in the Minehut dashboard. Minehut's proxy answers server-list pings, and the server is asleep when nobody's on, so a Skript ping handler would never be seen. PROPOSAL (the owner hasn't picked one): line 1 `&6&lDONATING &8» &7Heists, cars & bounties`, line 2 `&fRob banks, dodge traps, outrun the cops`.
 
 ## Skripts (build in this order)
@@ -393,7 +439,7 @@ Phase 1 (core, inventory, heists, PvP):
 9. combat-log.sk (built 2026-09-25): combat tag (15 s PROPOSAL) on player/cop/trap damage, wanted = tagged (permission `donating.wanted`), logout while tagged = death credited by `deathCause()` (5-second player-hit priority, then cops, then last damager), no teleport commands or passive switch while tagged. traps.sk calls `tagCombat(victim, "trap")`; death.sk and bounty.sk read `deathCause()` and the data `last-combat-log`.
 10. pvp.sk (2026-09-25: passive switching with the cooldown, bounty and combat-tag rules; no PvP for or against passive players; safe zones; the spawn shield). Still to add: the loot check in `passiveBlockReason()` (bag.sk), PvP-only heists (heists.sk).
 11. bounty.sk (built 2026-09-25): kills add $250 (PROPOSAL) to the killer's bounty, capped at $25,000 from kills, not twice for the same victim within 15 min; `addBounty(p, value × robbery-share, "robbery")` for bag.sk's sales; `/bounty <player> <amount>` places one (at least $1,000, paid by the placer); the next player kill (or a combat log credited to a player) pays the killer all of it; passive players can't gain, claim or place bounties, and nobody can place one on them; no payout or kill bounty between same-IP players (`bounty::ip-check`). The phone's Bounties app and `/bounty` list the biggest bounties online.
-12. heists.sk: heist list, open/closed timers, cooldowns, rank requirements, escape countdown, alarms (advanced heists), room resets, status holograms
+12. heists.sk (built 2026-09-25): heists defined with /dheist, the state machine (cooldown + room reset → open → the escape clock → 0:00), entry gates, the heist crew, deaths/logouts inside, the alarm timeline and lockdown, room resets (SkBee), status holograms (DecentHolograms) and placeholders. See "Heists (heists.sk)" in Verified notes.
 13. traps.sk: lasers, pressure plates, cameras, collapsing floors
 14. loot.sk: KoyaRobbery-style loot spots, tools, progress bars
 15. bag.sk: bag tiers, offhand duffel models, virtual loot storage (tracks which heist each item came from), bag contents menu, dropped duffels, auto-sell at base
@@ -429,9 +475,9 @@ Later:
 Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged 2026-09-25, owner's go-ahead). Work on a new branch per task and merge it when its tests pass.
 
 Built and passing on the local server (details and results in PLAYTEST.md):
-- Scripts 1-11 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav, shop, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk), bounty.
+- Scripts 1-12 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav, shop, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk), bounty, heists (loot, traps, the bag, the HUD and cops plug in through its hooks).
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 33, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 45, bounty 19 = 314 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 33, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 45, bounty 19, heists 72 = 386 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:
@@ -440,7 +486,7 @@ Waiting on the owner:
 - When building bag.sk: does a duffel pickup with too little room take nothing or as much as fits?
 - The two SpigotMC jars (MTVehicles 2.5.9, KoyaRobbery 1.2.2).
 
-Next in the build order: heists.sk (script 12), traps.sk, loot.sk and bag.sk (the duffel; it calls `addBounty` for robbery sales). The shop's prices and catalogue are PROPOSALs (owner questions in PLAYTEST 59) (the helmet/vest and bag-loss answers are in Death and combat).
+Next in the build order: traps.sk (script 13), loot.sk (loot spots with a value range per reset and visible loot that empties; switch `heist::start-on` to "rob"), bag.sk (the duffel, the forfeit hook; it calls `addBounty` for robbery sales). Heist open questions and numbers: PLAYTEST 66. The shop's prices and catalogue are PROPOSALs (owner questions in PLAYTEST 59) (the helmet/vest and bag-loss answers are in Death and combat).
 
 History: the first local session (2026-09-24) set up the server and built core.sk + inventory.sk; a cloud session wrote join-quit, chat-extras and afk on branch `claude/dreamy-mendel-ouutfb`; the second local session tested and fixed them, added navigation (locator bar + the map phone), phone.sk, pvp.sk and the phone plugin, then merged the branch.
 

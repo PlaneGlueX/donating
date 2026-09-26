@@ -262,3 +262,92 @@ command /zzbountyip <text>:
 		else:
 			set {-cfg::bounty::ip-check} to true
 		send "BOUNTYIP %{-cfg::bounty::ip-check}%"
+
+# ---------- heists.sk ----------
+
+command /zzheist <text>:
+	executable by: console
+	trigger:
+		set {_h} to arg-1
+		if heistExists({_h}) is false:
+			send "HEIST %{_h}% unknown"
+			stop
+		set {_names::*} to heistRobbers({_h})
+		set {_names} to join {_names::*} with ","
+		set {_reset} to {-heist::%{_h}%::reset-next}
+		if {_reset} is not set:
+			set {_reset} to "none"
+		set {_hunted} to size of {-heist::%{_h}%::hunted::*}
+		send "HEIST %{_h}% state=%heistState({_h})% run=%heistRun({_h})% left=%heistSecondsLeft({_h})% inside=%heistRobberCount({_h})% names=%{_names}% alarm=%heistAlarmStage({_h})% wave=%heistWave({_h})% hunted=%{_hunted}% reset=%{_reset}%"
+
+command /zzinheist <player>:
+	executable by: console
+	trigger:
+		set {_in} to heistOf(arg-1)
+		if {_in} is "":
+			set {_in} to "none"
+		set {_hunt} to heistHuntedBy(arg-1)
+		if {_hunt} is "":
+			set {_hunt} to "none"
+		send "INHEIST %arg-1% %{_in}% hunt=%{_hunt}%"
+
+# heists.sk's own teleport (skips the gates; the reconcile decides membership).
+command /zzheisttp <player> <number> <number> <number>:
+	executable by: console
+	trigger:
+		heistTeleport(arg-1, location(arg-2, arg-3, arg-4, world "world"))
+		send "HEISTTP %arg-1%"
+
+command /zzcfgtime <text> <timespan>:
+	executable by: console
+	trigger:
+		set {-cfg::%arg-1%} to arg-2
+		send "CFGTIME %arg-1% = %arg-2%"
+
+command /zzcfgtext <text> <text>:
+	executable by: console
+	trigger:
+		set {-cfg::%arg-1%} to arg-2
+		send "CFGTEXT %arg-1% = %arg-2%"
+
+command /zzcfgreload:
+	executable by: console
+	trigger:
+		loadSettings()
+		send "CFGRELOAD"
+
+command /zzpapi <player> <text>:
+	executable by: console
+	trigger:
+		set {_v} to placeholder arg-2 from arg-1
+		send "PAPI %arg-2% = %{_v}%"
+
+command /zzpassivewhy <player>:
+	executable by: console
+	trigger:
+		send "PASSIVEWHY %passiveBlockReason(arg-1)%"
+
+# Forgets a heist's memory state, like a restart or Minehut sleep does.
+command /zzheistforget <text>:
+	executable by: console
+	trigger:
+		delete {-heist::%arg-1%::*}
+		send "HEISTFORGET %arg-1%"
+
+# A staff kick. core.sk flags kicks typed in the console or by staff in game; RCON commands (the tests)
+# don't fire Skript's command event, so this flags it the same way first.
+command /zzkick <player>:
+	executable by: console
+	trigger:
+		set {_k} to name of arg-1 in lower case
+		set {-staffkick::%{_k}%} to true
+		kick arg-1 due to "test kick"
+		send "KICKED %{_k}%"
+		wait 3 seconds
+		delete {-staffkick::%{_k}%}
+
+command /zzspawn:
+	executable by: console
+	trigger:
+		set {_l} to spawn of world "world"
+		send "SPAWN %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}%"

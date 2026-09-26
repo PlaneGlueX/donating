@@ -107,8 +107,9 @@ on command:
 on quit:
 	player is alive
 	isCombatTagged(player) is true
-	# A kick isn't a combat log: server restarts, staff kicks.
-	quit reason is not kicked
+	# A staff kick isn't a combat log (core.sk's staffKicked). A kick the player caused (chat spam, a
+	# timed-out client) is. A server stop never gets here: Paper disables plugins first.
+	staffKicked(player) is false
 	set {_cause} to deathCause(player)
 	setData(player, "last-combat-log", {_cause})
 	broadcastMsg("&c%name of player% logged out in combat and died.")

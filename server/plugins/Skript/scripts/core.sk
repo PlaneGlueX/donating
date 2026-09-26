@@ -97,6 +97,55 @@ function loadSettings():
 	set {-cfg::difficulty::2::loot-pool} to 12000
 	set {-cfg::difficulty::3::loot-pool} to 40000
 	set {-cfg::difficulty::4::loot-pool} to 120000
+
+	# ---------- Heists (heists.sk) ----------
+	# WorldGuard regions "heist_<id>" are heists (staff define them with /dheist).
+	set {-cfg::heist::region-prefix} to "heist_"
+	# When the escape clock starts: "rob" = at the first robbery (owner, 2026-09-25; loot.sk calls
+	# heistStartRun), "enter" = at the first robber's entry. "enter" until loot.sk exists.
+	set {-cfg::heist::start-on} to "enter"
+	# PROPOSAL: with less than this left, the doors are locked (nobody new can still rob anything).
+	set {-cfg::heist::entry-cutoff} to 20 seconds
+	# PROPOSAL: chat warnings at these seconds left.
+	set {-cfg::heist::warn-at::*} to 60, 30 and 10
+	# PROPOSAL: "The Bank is being robbed!" to everyone when a clock starts (the come-and-fight signal).
+	set {-cfg::heist::announce-start} to true
+	# Room resets place one section of at most this many blocks per side per second.
+	set {-cfg::heist::reset-section} to 32
+	# Largest room a heist may save (blocks). SkBee keeps saved rooms in memory.
+	set {-cfg::heist::snapshot-max} to 100000
+	# Hologram height above the spot staff stand on.
+	set {-cfg::heist::holo-height} to 2.5
+	# Escape countdown E and cooldown K per difficulty (owner picked "medium", 2026-09-25). Each heist
+	# can override them (/dheist set <id> escape|cooldown <seconds>). The most one heist can put into
+	# the game per hour: F = P × 60 / (E + K), with P = its loot per run and E, K in minutes.
+	set {-cfg::difficulty::1::escape} to 4 minutes
+	set {-cfg::difficulty::2::escape} to 6 minutes
+	set {-cfg::difficulty::3::escape} to 8 minutes
+	set {-cfg::difficulty::4::escape} to 10 minutes
+	set {-cfg::difficulty::1::cooldown} to 6 minutes
+	set {-cfg::difficulty::2::cooldown} to 10 minutes
+	set {-cfg::difficulty::3::cooldown} to 15 minutes
+	set {-cfg::difficulty::4::cooldown} to 30 minutes
+	# Robber rank needed (ranks.sk; 0 = anyone).
+	set {-cfg::difficulty::1::rank} to 0
+	set {-cfg::difficulty::2::rank} to 0
+	set {-cfg::difficulty::3::rank} to 0
+	set {-cfg::difficulty::4::rank} to 0
+	# Advanced heists have an alarm (decided: only advanced heists).
+	set {-cfg::difficulty::1::advanced} to false
+	set {-cfg::difficulty::2::advanced} to false
+	set {-cfg::difficulty::3::advanced} to false
+	set {-cfg::difficulty::4::advanced} to true
+	# PvP heists: no crew rule inside, no passive players (per heist: /dheist set <id> pvp true).
+	set {-cfg::difficulty::1::pvp-only} to false
+	set {-cfg::difficulty::2::pvp-only} to false
+	set {-cfg::difficulty::3::pvp-only} to false
+	set {-cfg::difficulty::4::pvp-only} to false
+	set {-cfg::difficulty::1::color} to "&a"
+	set {-cfg::difficulty::2::color} to "&e"
+	set {-cfg::difficulty::3::color} to "&6"
+	set {-cfg::difficulty::4::color} to "&4"
 	set {-cfg::bounty::per-kill} to 250
 	set {-cfg::bounty::kill-cap} to 25000
 	set {-cfg::bounty::min-placed} to 1000
@@ -237,6 +286,15 @@ function formatMoney(amount: number) :: text:
 		return "-$%{_n}%%{_out}%"
 	return "$%{_n}%%{_out}%"
 
+# 75 -> "1:15", 5 -> "0:05"; negative counts as 0. For countdowns (heists.sk, hud.sk).
+function formatClock(seconds: number) :: text:
+	set {_s} to max(0, ceil({_seconds}))
+	set {_m} to floor({_s} / 60)
+	set {_r} to mod({_s}, 60)
+	if {_r} < 10:
+		return "%{_m}%:0%{_r}%"
+	return "%{_m}%:%{_r}%"
+
 # 1234567 -> "$1.2M", 15300 -> "$15.3K", 950 -> "$950". For tight spaces like the sidebar.
 function formatMoneyShort(amount: number) :: text:
 	set {_a} to abs({_amount})
@@ -336,6 +394,32 @@ function wmLoaded(i: item) :: number:
 	return 0
 
 # ---------- Permissions ----------
+
+# Staff kicks (console, or a player with essentials.kick): the kicked player is flagged for 3 s, so the
+# quit handlers can tell them from a kick the player caused (chat spam, a timed-out client), which
+# counts as a normal logout (combat-log.sk, heists.sk). A server stop never reaches quit handlers.
+on command:
+	set {_parts::*} to command split at ":"
+	set {_cmd} to last element of {_parts::*} in lower case
+	if {_cmd} is not "kick":
+		if {_cmd} is not "ekick":
+			stop
+	if player is set:
+		if player does not have permission "essentials.kick":
+			stop
+	set {_args::*} to full command split at " "
+	set {_k} to {_args::2}
+	{_k} is set
+	set {_k} to {_k} in lower case
+	set {-staffkick::%{_k}%} to true
+	wait 3 seconds
+	delete {-staffkick::%{_k}%}
+
+function staffKicked(p: player) :: boolean:
+	set {_k} to name of {_p} in lower case
+	if {-staffkick::%{_k}%} is true:
+		return true
+	return false
 
 function isStaff(p: player) :: boolean:
 	if {_p} has permission "donating.staff":

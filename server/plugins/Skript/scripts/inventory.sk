@@ -179,6 +179,12 @@ on place with priority highest:
 	bypassesLock(player) is false
 	cancel event
 
+# No breaking blocks either: robbers could dig past traps and through vault walls (every Donating
+# region is passthrough, and nothing else protects the world). Builders use creative mode.
+on break with priority highest:
+	bypassesLock(player) is false
+	cancel event
+
 # The gamerule above only covers the overworld; this keeps the layout in every world.
 on death of player:
 	keep the inventory and experience

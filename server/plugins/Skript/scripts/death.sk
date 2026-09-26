@@ -7,8 +7,8 @@
 #       B = balance
 #       p = the heist difficulty's p, or its cop-p for cop deaths
 #       C = min(bag capacity, the heist's loot pool); no bag: C = 0, nothing is lost
-#     Outside heists: difficulty 1 and C = the bag capacity. heists.sk will tell deaths inside a heist
-#     apart (deathDifficulty / deathLootPool below); until then every death counts as outside.
+#     Outside heists: difficulty 1 and C = the bag capacity. Inside a heist: its difficulty and loot
+#     pool (heists.sk, through deathDifficulty / deathLootPool below).
 #   Lost balance disappears (a money sink).
 # Cop deaths: killed by a cop (Citizens NPC, metadata "NPC"), or a combat log credited to the cops.
 # The cause is saved as data "last-death-cause": "player:<uuid>", "cop" or "other" (bounty.sk).
@@ -17,12 +17,19 @@
 # so what this clears is gone and the rest stays. The respawn's applyLayout puts the phone back and
 # leaves the offhand empty (no bag).
 
-# Hooks for heists.sk: the difficulty and loot pool of the heist the player died in (1 / none outside).
+# The difficulty and loot pool of the heist the player died in (1 / none outside). This handler runs
+# before heists.sk's (priority monitor), so the player still counts as inside.
 function deathDifficulty(p: player) :: number:
-	return 1
+	set {_h} to heistForDeath({_p})
+	if {_h} is "":
+		return 1
+	return heistDifficulty({_h})
 
 function deathLootPool(p: player) :: number:
-	return -1
+	set {_h} to heistForDeath({_p})
+	if {_h} is "":
+		return -1
+	return heistLootPool({_h})
 
 # L = min(B × p, C), whole dollars.
 function deathLoss(p: player, cause: text) :: number:
