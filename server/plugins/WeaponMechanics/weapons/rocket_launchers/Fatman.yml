@@ -43,7 +43,6 @@ Fatman:
       Circumstance:
         Swimming: "DENY"
         Sprinting: "DENY"
-        Dual_Wielding: "DENY"
     Projectile_Speed: 32
     Spread:
       Base_Spread: 7.8
@@ -209,7 +208,6 @@ Fatman_Rock:
       Circumstance:
         Swimming: "DENY"
         Sprinting: "DENY"
-        Dual_Wielding: "DENY"
     Projectile_Speed: 32
     Spread:
       Base_Spread: 7.8

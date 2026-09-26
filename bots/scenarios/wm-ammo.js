@@ -2,7 +2,9 @@
 // builds (Skript items with the weaponmechanics:ammo-name tag, in the upper inventory), takes exactly
 // a magazine's worth, ignores the wrong ammo type, and F doesn't stop a reload. Also: a new gun
 // starts full unless given {ammo:0} (why the shop always passes it), Stims stack and leave nothing
-// behind, the knife stays put on Q/F, and the config files have no forbidden keys.
+// behind, the knife stays put on Q/F, and the config files have no forbidden keys. Every sold gun fires
+// and reloads with the bag in the offhand (WeaponMechanics counts any offhand item as dual wielding,
+// and its default guns deny shooting while dual wielding: nobody could shoot until 2026-09-25).
 const fs = require('fs')
 const path = require('path')
 const { Vec3 } = require('vec3')
@@ -32,6 +34,9 @@ module.exports = async ({ check }) => {
   const gunsOk = GUNS.filter(g => new RegExp(`Ammos:\\s*\\n\\s*- "Donating_${g.type[0].toUpperCase() + g.type.slice(1)}"`).test(read(g.file)) && /Swap_Hands: true/.test(read(g.file)))
   check('every sold gun has item ammo and Swap_Hands', gunsOk.length === GUNS.length, `${gunsOk.map(g => g.w)}`)
   check('the knife and the Stim cancel Q and F too', ['weapons/melee/Combat_Knife.yml', 'weapons/consumables/Stim.yml'].every(f => /Drop_Item: true/.test(read(f)) && /Swap_Hands: true/.test(read(f))))
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)])
+  const dual = walk(path.join(WM, 'weapons')).filter(p => /^\s*Dual_Wielding:/m.test(fs.readFileSync(p, 'utf8')))
+  check('no weapon has a Dual_Wielding rule (the bag is always in the offhand)', dual.length === 0, dual.map(p => path.basename(p)).join(', '))
   check('Donating_Ammos.yml defines the three ammo types', ['Donating_Light:', 'Donating_Shells:', 'Donating_Rifle:'].every(t => read('ammos/Donating_Ammos.yml').includes(t)))
 
   const rcon = await rconLib.connect()
@@ -123,6 +128,26 @@ module.exports = async ({ check }) => {
     const knife = await wm()
     const ground2 = await rcon.cmd(`execute at ${NAME} if entity @e[type=item,distance=..20]`)
     check('Q and F leave the knife in place and drop nothing', /(^WM |\| )0=Combat_Knife:/.test(knife) && !/passed/i.test(ground2), `${knife}; ground ${ground2.trim()}`)
+
+    // ---------- With the bag in the offhand ----------
+    for (const g of GUNS) {
+      await rcon.cmd(`zztestkit ${NAME}`) // bag tier 2 in the offhand
+      await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.0 with air`)
+      await give(g.w, '{slot:0}')
+      const before = await loaded(0)
+      for (let i = 0; i < 4; i++) { bot.activateItem(); await sleep(200); bot.deactivateItem(); await sleep(400) }
+      await sleep(600)
+      const after = await loaded(0)
+      const off = (await rcon.cmd(`zzdump ${NAME}`)).trim()
+      check(`${g.w} fires with the bag in the offhand`, /40=leather x1 \[bag:2\]/.test(off) && after < before, `${before} -> ${after}; ${off}`)
+    }
+    await rcon.cmd(`zztestkit ${NAME}`)
+    await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.0 with air`)
+    await give('AK_47', '{slot:0,ammo:0}')
+    await rcon.cmd(`zzammo ${NAME} rifle 40`)
+    dig(4)
+    await sleep(4500)
+    check('...and reloads with the bag in the offhand', (await loaded(0)) === 30 && (await ammo('rifle')) === 10, await wm())
 
     // ---------- Ammo never in the hotbar ----------
     await fresh()
