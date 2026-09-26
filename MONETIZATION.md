@@ -6,14 +6,14 @@ Everything is sold through **Tebex** (the official Tebex plugin). When someone b
 
 ## Everything a player can buy
 
-All prices and numbers are proposals until the owner sets them. The server's settings are in `server/plugins/Skript/scripts/core.sk`.
+Rank prices were picked on 2026-09-26 with the owner's OK (one-time purchases, the rank is kept for good); the booster price is the owner's. The perk numbers are still proposals. The server's settings are in `server/plugins/Skript/scripts/core.sk`.
 
 | Purchase | What the player gets | Affects gameplay? | Numbers (proposal) | Tebex command |
 |---|---|---|---|---|
-| **VIP** rank | Green `[VIP]` tag before their name in the tab list, chat and join messages; sorted above players without a rank in the tab list; the Camo bag look; their bags hold **+5%** | **Yes:** +5% bag capacity | price: owner decides | `dranks give {username} vip` |
-| **VIP+** rank | Aqua `[VIP+]` tag, sorted above VIP; Arctic and Camo bag looks; bags hold **+10%** | **Yes:** +10% bag capacity | price: owner decides | `dranks give {username} vipplus` |
-| **Elite** rank | Gold `[Elite]` tag, sorted above VIP+; Gilded and lower bag looks; bags hold **+15%** | **Yes:** +15% bag capacity | price: owner decides | `dranks give {username} elite` |
-| **Legend** rank | Pink `[Legend]` tag, sorted above Elite; Neon (glows in the dark) and every lower bag look; bags hold **+20%** | **Yes:** +20% bag capacity | price: owner decides | `dranks give {username} legend` |
+| **VIP** rank | Green `[VIP]` tag before their name in the tab list, chat and join messages; sorted above players without a rank in the tab list; the Camo bag look; their bags hold **+5%** | **Yes:** +5% bag capacity | $4.99 once | `dranks give {username} vip` |
+| **VIP+** rank | Aqua `[VIP+]` tag, sorted above VIP; Arctic and Camo bag looks; bags hold **+10%** | **Yes:** +10% bag capacity | $9.99 once | `dranks give {username} vipplus` |
+| **Elite** rank | Gold `[Elite]` tag, sorted above VIP+; Gilded and lower bag looks; bags hold **+15%** | **Yes:** +15% bag capacity | $19.99 once | `dranks give {username} elite` |
+| **Legend** rank | Pink `[Legend]` tag, sorted above Elite; Neon (glows in the dark) and every lower bag look; bags hold **+20%** | **Yes:** +20% bag capacity | $34.99 once | `dranks give {username} legend` |
 | **Money booster** | For its time, every loot sale pays **1.5×** for everyone on the server; the buyer's own sales pay **2×** | **Yes:** everyone earns more while it runs; the buyer earns a bit more than others | **$1 per 5 minutes** (any quantity) | `dbooster add {username} 1.5 5 {purchaseQuantity}` |
 
 A player has one rank at a time. Buying a higher rank replaces the lower one, and buying a lower rank never takes away a higher one.
