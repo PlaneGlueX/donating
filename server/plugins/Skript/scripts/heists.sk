@@ -897,6 +897,7 @@ command /dheist [<text>]:
 			dheistReply(sender, "HEIST %{_h}% enabled: resetting, then open")
 		else if {_sub} is "disable":
 			heistClose({_h})
+			heistOnDisable({_h})
 			set {heist::%{_h}%::disabled} to true
 			set {-heist::%{_h}%::state} to "disabled"
 			delete {-heist::%{_h}%::until}
@@ -1248,6 +1249,7 @@ function dheistDump(s: command sender, h: text):
 
 function dheistDelete(s: command sender, h: text):
 	heistClose({_h})
+	heistOnDelete({_h})
 	execute console command "dh hologram delete donating_heist_%{_h}%"
 	set {_n} to {heist::%{_h}%::sections}
 	if {_n} is set:
@@ -1286,30 +1288,30 @@ function heistNotify(p: player, kind: text, text: text):
 
 # loot.sk (refill spots, roll their values), traps.sk (arm), nav.sk (POI color).
 function heistOnOpen(h: text):
-	stop
+	trapArm({_h})
 
 function heistOnStart(h: text):
 	stop
 
 function heistOnEnd(h: text, reason: text):
-	stop
+	trapDisarm({_h})
 
 # traps.sk re-arms, loot.sk refills (each spot rolls its value between its min and max, and shows that
 # much loot), bag.sk removes dropped duffels.
 function heistOnReset(h: text):
-	stop
+	trapOnReset({_h})
 
 # hud.sk (boss bar), nav.sk (exit arrow), bag.sk.
 function heistOnEnter(p: player, h: text):
-	stop
+	trapOnEnter({_p}, {_h})
 
 function heistOnLeave(p: player, h: text, reason: text):
-	stop
+	trapForget({_p}, {_h})
 
 # cops.sk: the temporary wanted permission (heistOnHunt), waves up to cfg alarm::max-cops (heistOnWave),
 # despawning (heistOnAlarmEnd).
 function heistOnAlarm(h: text, source: text):
-	stop
+	trapOnAlarm({_h}, true)
 
 function heistOnWave(h: text, wave: number):
 	stop
@@ -1318,4 +1320,12 @@ function heistOnHunt(p: player, h: text, on: boolean):
 	stop
 
 function heistOnAlarmEnd(h: text):
-	stop
+	trapOnAlarm({_h}, false)
+
+# /dheist disable: traps.sk removes its displays and puts collapsed floors back at once.
+function heistOnDisable(h: text):
+	trapOnDisable({_h})
+
+# /dheist delete: traps.sk deletes the heist's traps.
+function heistOnDelete(h: text):
+	trapOnDelete({_h})

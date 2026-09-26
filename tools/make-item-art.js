@@ -121,8 +121,8 @@ for (const t of Object.keys(BAGS)) {
     ],
     // Carried in the offhand like a duffel by its handle; on the ground it's a dropped duffel.
     display: {
-      thirdperson_righthand: { rotation: [90, 90, 0], translation: [5, 0, 0], scale: [0.55, 0.55, 0.55] },
-      thirdperson_lefthand: { rotation: [90, 90, 0], translation: [5, 0, 0], scale: [0.55, 0.55, 0.55] },
+      thirdperson_righthand: { rotation: [90, 90, 0], translation: [0, 0, -1.9], scale: [0.55, 0.55, 0.55] },
+      thirdperson_lefthand: { rotation: [90, 90, 0], translation: [0, 0, -1.9], scale: [0.55, 0.55, 0.55] },
       firstperson_righthand: { rotation: [0, 15, 0], translation: [1, 2.5, 0], scale: [0.3, 0.3, 0.3] },
       firstperson_lefthand: { rotation: [0, 15, 0], translation: [1, 2.5, 0], scale: [0.3, 0.3, 0.3] },
       ground: { translation: [0, 1, 0], scale: [0.6, 0.6, 0.6] },
