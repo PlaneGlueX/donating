@@ -733,6 +733,8 @@ function trapCooldown(key: text, t: timespan) :: boolean:
 
 # The death message names the trap (instead of vanilla's "was killed").
 on death of player:
+	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
+	victim does not have metadata "NPC"
 	set {_v} to {-trapkill::%victim%}
 	{_v} is set
 	set {_parts::*} to {_v} split at ":"

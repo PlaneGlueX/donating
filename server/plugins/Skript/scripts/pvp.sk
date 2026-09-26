@@ -16,6 +16,8 @@ on damage of player:
 	attacker is a player
 	attacker does not have metadata "NPC"
 	attacker is not victim
+	# Cops (cops.sk) aren't players: passive robbers may shoot back.
+	victim does not have metadata "NPC"
 	if isPassive(victim) is true:
 		cancel event
 		send action bar "&aThat player is in passive mode." to attacker

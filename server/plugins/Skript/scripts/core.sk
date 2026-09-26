@@ -45,6 +45,23 @@ function loadSettings():
 	set {-cfg::alarm::wave-interval} to 10 seconds
 	set {-cfg::alarm::max-cops} to 6
 	set {-cfg::alarm::chase-radius} to 100
+	# ---------- Cops (cops.sk, Citizens + Sentinel): ALL PROPOSALS ----------
+	# Each alarm wave brings per-wave cops, up to alarm::max-cops alive per heist and max-total on the
+	# whole server (1 GB RAM). health / damage are HP (20 = a full player); attack-rate in seconds
+	# between shots; range = how far they shoot; chase = how far from where they spawned they follow;
+	# accuracy 0 = perfect, 5 = poor; speed × a player's walk. model = the WeaponMechanics skin their
+	# gun shows (9 = the .50 GS's Desert Eagle); the gun fires arrows (Sentinel treats it as a bow).
+	set {-cfg::cop::per-wave} to 2
+	set {-cfg::cop::max-total} to 12
+	set {-cfg::cop::name} to "Cop"
+	set {-cfg::cop::health} to 20
+	set {-cfg::cop::damage} to 3
+	set {-cfg::cop::attack-rate} to 1.5
+	set {-cfg::cop::range} to 30
+	set {-cfg::cop::chase} to 120
+	set {-cfg::cop::accuracy} to 1.5
+	set {-cfg::cop::speed} to 1.25
+	set {-cfg::cop::model} to 9
 	set {-cfg::car::idle-despawn} to 5 minutes
 	set {-cfg::car::other-car-despawn} to 1 minute
 	set {-cfg::lockpick::max-fails} to 3
@@ -57,6 +74,18 @@ function loadSettings():
 	# The city map the phones show is set in plugins\DonatingPhone\config.yml (city-maps), not here.
 	# How far a passive player's green locator-bar dot reaches (blocks). Non-passive players send none.
 	set {-cfg::nav::passive-range} to 100000
+	# Points of interest on the locator bar (nav.sk, /dpoi): types and their dot colors (the names Minecraft's
+	# /waypoint command takes). PROPOSAL. Heists get their difficulty's waypoint color while open or running.
+	set {-cfg::poi::types::*} to "base", "shop", "spawn" and "landmark"
+	set {-cfg::poi::base::color} to "aqua"
+	set {-cfg::poi::shop::color} to "yellow"
+	set {-cfg::poi::spawn::color} to "white"
+	set {-cfg::poi::landmark::color} to "light_purple"
+	set {-cfg::poi::range} to 60000000
+	set {-cfg::difficulty::1::waypoint} to "green"
+	set {-cfg::difficulty::2::waypoint} to "yellow"
+	set {-cfg::difficulty::3::waypoint} to "gold"
+	set {-cfg::difficulty::4::waypoint} to "dark_red"
 
 	# ---------- Death loss: L = min(B × p, C) ----------
 	# p per heist difficulty. Player/trap deaths: 1-5%. Cop deaths: 5-10%.

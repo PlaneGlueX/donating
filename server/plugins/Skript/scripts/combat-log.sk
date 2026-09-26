@@ -4,7 +4,7 @@
 #   - hurting another player, or being hurt by one
 #   - being hurt by a cop (Citizens NPC, metadata "NPC")
 #   - being hurt by a trap (traps.sk calls tagCombat(victim, "trap"))
-# and for as long as they're wanted (cops.sk gives the temporary permission "donating.wanted").
+# and for as long as they're wanted (hunted by an alarm, see isWanted).
 # Damage that another script cancelled (passive players, safe zones, EssentialsX's teleport
 # protection) doesn't tag: the handler runs at priority monitor and skips cancelled events.
 #
@@ -23,8 +23,13 @@
 # {-combat::by::<p>} who hurt them last, {-combat::player::<p>} / {-combat::playerat::<p>} the last
 # player who hurt them and when.
 
+# Wanted = hunted by an advanced heist's alarm (heists.sk heistHunt, until the robber gets
+# cfg alarm::chase-radius away, dies, fails or quits; cops.sk's cops target exactly these players), or
+# the permission donating.wanted (staff tests). Memory only: nothing stays wanted after a restart.
 function isWanted(p: player) :: boolean:
 	if {_p} has permission "donating.wanted":
+		return true
+	if {-heisthunt::%{_p}%} is set:
 		return true
 	return false
 
@@ -87,6 +92,8 @@ every second:
 		hudBar(loop-player, "&aYou're out of combat.", 2)
 
 on death of player with priority monitor:
+	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
+	victim does not have metadata "NPC"
 	clearCombat(victim)
 
 # ---------- Rules while tagged ----------

@@ -271,6 +271,14 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 98. **Rank bag bonuses changed** (owner, 2026-09-26): Elite +20%, Legend +25% (a Legend's Duffel Bag holds $7,500). `bots\run.js ranks` 18/18 with the new numbers.
     - Result: PASS (bot, 2026-09-26).
 
+99. **Cops** (`bots\run.js cops`, 17 checks; Citizens + Sentinel installed): an advanced heist's alarm makes the robbers inside wanted (combat-tagged); after the warning, waves of NPC cops appear at the heist's cop spot (`/dcops <heist> add`) holding a Desert Eagle, up to the cap; they shoot only hunted robbers (a bystander next to them isn't shot, a passive player who shoots them isn't either); a dead cop is removed and the next wave replaces it; getting 100 blocks away ends the alarm and removes every cop; dying to a cop is a cop death; stray "Cop" NPCs (after a crash) are swept away.
+    - Result: PASS (bot, 2026-09-26). Owner: the cop numbers (core.sk cop::*: health, damage, fire rate, range, accuracy, speed, per wave, caps), the cops' look (the skin: Citizens uses the skin of the Minecraft account named like the NPC, "Cop", until we give them a police skin; the gun is WeaponMechanics' Desert Eagle), and how a chase feels in the real client (the arrows are drawn as tracer streaks).
+
+100. **Sidebars and /bag** (`bots\run.js boards`, 10 checks): the main sidebar shows cash, level, bag, heists open, the daily reward ("ready /daily" or the time left) and WANTED while an alarm hunts you; the heist board adds the difficulty (in its color) and the robbers inside; `/bag` (and the phone's Bag app) lists each heist run in the bag with its value and marks the run you're robbing ("get out before 0:00"), clicks take nothing.
+    - Result: PASS (bot, 2026-09-26). Owner: whether the main sidebar should show these lines (it only had your name and the player count).
+101. **Locator-bar points of interest** (`bots\run.js poi`, 10 checks): `/dpoi add base|shop|spawn|landmark [name]` puts a colored dot on everyone's locator bar (base aqua, shop yellow, spawn white, landmark purple); every heist shows a dot in its difficulty's color while it's open or running; a missing stand comes back within 10 s; robbers inside a heist still see none (the ammo bar).
+    - Result: PASS (bot, 2026-09-26). Owner: the colors, and where the base, shops and spawn POIs go once the city exists.
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

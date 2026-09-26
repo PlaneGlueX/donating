@@ -50,7 +50,7 @@ on quit:
 function showHelp(p: player):
 	send colored "%cfg("prefix")%&fHow to play" to {_p}
 	send colored "&7• &eHeists: &7rob buildings for loot. Watch for traps: lasers, pressure plates, cameras, collapsing floors." to {_p}
-	send colored "&7• &eYour bag &7(offhand) holds the loot, not your inventory. Its name shows how full it is." to {_p}
+	send colored "&7• &eYour bag &7(offhand) holds the loot, not your inventory. Its name shows how full it is. &f/bag" to {_p}
 	send colored "&7• &eGet out &7before the heist timer hits 0, or you lose what you took there." to {_p}
 	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
 	send colored "&7• &eLevels: &7selling loot earns XP; higher levels open bigger heists and tools. &f/level" to {_p}

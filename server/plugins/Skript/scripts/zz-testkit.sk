@@ -670,3 +670,46 @@ command /zzheistvar <text> <text> <text>:
 		else:
 			set {-heist::%arg-1%::%arg-2%} to arg-3
 		send "HEISTVAR %arg-1% %arg-2% = %{-heist::%arg-1%::%arg-2%}%"
+
+# ---------- cops.sk ----------
+
+# Every NPC entity (Citizens): "NPCS id=<NPC-ID> name at x,y,z tags=... hp=..."
+command /zznpcs:
+	executable by: console
+	trigger:
+		loop all entities:
+			loop-entity has metadata "NPC"
+			set {_id} to metadata value "NPC-ID" of loop-entity
+			set {_l} to location of loop-entity
+			set {_t} to join scoreboard tags of loop-entity with ","
+			add "id=%{_id}% %name of loop-entity% at %floor(x-coordinate of {_l})%,%floor(y-coordinate of {_l})%,%floor(z-coordinate of {_l})% tags=%{_t}% hp=%health of loop-entity% tool=%type of tool of loop-entity%" to {_o::*}
+		set {_out} to join {_o::*} with " | "
+		send "NPCS %size of {_o::*}% %{_out}%"
+
+# Puts a feather with a WeaponMechanics skin number in every NPC's hand: /zznpctool <model>
+command /zznpctool <number>:
+	executable by: console
+	trigger:
+		loop all entities:
+			loop-entity has metadata "NPC"
+			set {_i} to feather
+			set float list tag "minecraft:custom_model_data;floats" of nbt of {_i} to arg-1
+			set tool of loop-entity to {_i}
+		send "NPCTOOL set"
+
+# A heist's cops: "COPS <h> alive=N total=M ids=a,b saved=x,y"
+command /zzcops <text>:
+	executable by: console
+	trigger:
+		set {_ids::*} to indices of {-cop::ids::%arg-1%::*}
+		set {_ids} to join {_ids::*} with ","
+		set {_saved::*} to indices of {cops::ids::*}
+		set {_saved} to join {_saved::*} with ","
+		send "COPS %arg-1% alive=%copAlive(arg-1)% total=%copTotal()% ids=%{_ids}% saved=%{_saved}%"
+
+# Forgets the cops in memory (like a restart does), without removing the NPCs.
+command /zzcopforget:
+	executable by: console
+	trigger:
+		delete {-cop::*}
+		send "COPFORGET done"

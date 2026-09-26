@@ -132,6 +132,8 @@ function bagRefresh(p: player):
 # Default priority: death.sk (the balance loss, the bag tier) doesn't depend on this, nor this on it.
 # The loot leaves the bag first, so it exists once: in the duffel (or nowhere, if the drop failed).
 on death of player:
+	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
+	victim does not have metadata "NPC"
 	set {_sum} to 0
 	set {_lines} to ""
 	loop {data::%victim%::loot::*}:
@@ -476,3 +478,75 @@ on quit:
 	delete {-bag::total::%player%}
 	delete {-bag::shown::%player%}
 	delete {-duffel::told::%player%}
+
+# ---------- /bag: what's in it ----------
+# One line per heist run in the bag, with its value; the run you're robbing right now is marked (0:00 or
+# logging out inside loses it). Also the phone's Bag app. Looking only: every click is cancelled.
+
+function bagMenu(p: player):
+	set {_gui} to chest inventory with 3 rows named "&8Your bag"
+	set {_pane} to gray stained glass pane named "&r"
+	loop 27 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {_t} to bagTier({_p})
+	if {_t} > 0:
+		set {_i} to bagItem({_t}, bagTotal({_p}), bagSkinOf({_p}), bagCapacity({_p}))
+		set lore of {_i} to "&7Loot: &f%formatMoney(bagTotal({_p}))% &7/ %formatMoney(bagCapacity({_p}))%" and "&7Sells by itself at the base." and "&7Lost (dropped as a duffel) if you die."
+	else:
+		set {_i} to barrier named "&7No bag" with lore "&7Buy one at a bag shop."
+	set slot 4 of {_gui} to {_i}
+	set {_in} to heistOf({_p})
+	set {_slot} to 9
+	set {_more} to 0
+	loop {data::%{_p}%::loot::*}:
+		set {_tag} to loop-index
+		set {_parts::*} to {_tag} split at "#"
+		set {_h} to {_parts::1}
+		set {_run} to {_parts::2}
+		set {_name} to {_h}
+		if heistExists({_h}) is true:
+			set {_name} to heistName({_h})
+		if {_slot} <= 17:
+			set {_li} to paper
+			set string list tag "minecraft:custom_model_data;strings" of nbt of {_li} to "donating:loot_cash"
+			set name of {_li} to "&6%{_name}% &7(run #%{_run}%)"
+			set {_now} to false
+			if {_in} is {_h}:
+				if "%heistRun({_h})%" is {_run}:
+					set {_now} to true
+			if {_now} is true:
+				set lore of {_li} to "&7Value: &a%formatMoney(loop-value)%" and "&cThis run: get out before 0:00," and "&cor you lose it."
+			else:
+				set lore of {_li} to "&7Value: &a%formatMoney(loop-value)%"
+			set slot {_slot} of {_gui} to {_li}
+			add 1 to {_slot}
+		else:
+			add 1 to {_more}
+	if {_more} > 0:
+		set slot 17 of {_gui} to paper named "&7+%{_more} + 1% more runs" with lore "&7Sell at the base to empty the bag."
+	if {_slot} is 9:
+		set slot 13 of {_gui} to paper named "&7Empty" with lore "&7Rob a heist: /heists"
+	set slot 22 of {_gui} to compass named "&fSell: walk into the base" with lore "&7Not while in combat or wanted."
+	set {-bag::gui::%{_p}%} to {_gui}
+	open {_gui} to {_p}
+
+command /bag:
+	description: What's in your heist bag.
+	executable by: players
+	trigger:
+		bagMenu(player)
+
+on inventory click:
+	{-bag::gui::%player%} is set
+	player's current inventory is {-bag::gui::%player%}
+	cancel event
+
+on inventory drag:
+	{-bag::gui::%player%} is set
+	player's current inventory is {-bag::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-bag::gui::%player%} is set
+	event-inventory is {-bag::gui::%player%}
+	delete {-bag::gui::%player%}

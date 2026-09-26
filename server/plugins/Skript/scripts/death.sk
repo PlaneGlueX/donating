@@ -51,6 +51,8 @@ function deathLoss(p: player, cause: text) :: number:
 	return floor(min((balance of {_p}) * {_share}, {_cap}))
 
 on death of player:
+	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
+	victim does not have metadata "NPC"
 	# Who or what caused it: "player:<uuid>", "cop" or "other". (Inline: a function isn't called at
 	# all when an argument is missing, like the attacker of a fall.)
 	set {_cause} to "other"

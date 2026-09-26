@@ -1,0 +1,296 @@
+# cops.sk: NPC cops for advanced heists (Phase 3). Built 2026-09-26 with Citizens (build 4250) and
+# Sentinel (2.9.4 build 534). heists.sk runs the alarm's timeline (the 20 s warning, a wave every 10 s,
+# who's hunted, the chase radius); this script only puts cops in the world for it.
+#
+# - Each wave (heistOnWave) brings cfg cop::per-wave cops, up to cfg alarm::max-cops alive per heist and
+#   cfg cop::max-total on the server. They appear at the heist's cop spots (/dcops), else at its exit.
+# - A cop is a Citizens NPC with Sentinel, made by console commands (Sentinel takes "--id <n>" from the
+#   real console only, never from RCON). Its gun is a feather showing a WeaponMechanics model (cfg
+#   cop::model) that Sentinel treats as a bow (weaponredirect): it shoots arrows, which the pack draws as
+#   bullet streaks (tools\make-item-art.js).
+# - Cops shoot only the players the alarm hunts (Sentinel target uuid:<player>, added on heistOnHunt and
+#   removed when the player gets away, dies, fails or quits). A hunted player is wanted (combat-log.sk
+#   isWanted): combat-tagged, no safe zones, logging out is a cop death.
+# - When the alarm ends (nobody hunted any more, a new run, disable), every cop of that heist is removed.
+#   A cop that dies is removed a tick later (no respawn, no drops, no XP). Killing a cop pays nothing.
+# - The Citizens ids of living cops are saved ({cops::ids::<id>}), so cops left by a crash or a stop are
+#   removed when this script loads again.
+# - Cops are tracked by their Citizens id (entity metadata "NPC-ID"), never by the entity: Citizens
+#   respawns a new player NPC a moment after making it (to put its skin on), so the first entity, and
+#   anything set on it, is gone. The gun goes on through Citizens (npc setequipment), which keeps it.
+# Staff: /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump. Log: plugins\Skript\logs\cops.log.
+
+function copLog(text: text):
+	log {_text} to "cops"
+
+# A heist's cop spots: the /dcops spots, else its exit spot.
+function copSpots(h: text) :: locations:
+	set {_w} to world({heist::%{_h}%::world})
+	loop {heist::%{_h}%::cops::*}:
+		set {_p::*} to loop-value split at " "
+		add location(({_p::1} parsed as number), ({_p::2} parsed as number), ({_p::3} parsed as number), {_w}) to {_out::*}
+	if size of {_out::*} is 0:
+		add heistExit({_h}) to {_out::*}
+	return {_out::*}
+
+# Cops of a heist that exist now (a dead one is forgotten a tick after it dies).
+function copAlive(h: text) :: number:
+	return size of {-cop::ids::%{_h}%::*}
+
+function copTotal() :: number:
+	return size of {-cop::heist::*}
+
+# One wave: per-wave cops, topped up to the heist's cap and the server's. Cops are made one at a time
+# (copSpawn waits for each to appear), so a wave takes a few ticks.
+function copWave(h: text, wave: number):
+	set {_n} to min(cfg("cop::per-wave"), cfg("alarm::max-cops") - copAlive({_h}))
+	copLog("wave %{_h}% %{_wave}% want=%{_n}% alive=%copAlive({_h})% total=%copTotal()%")
+	loop {_n} times:
+		copSpawn({_h})
+
+# True while a cop is being made (at most 3 s: a stuck flag can't block the cops for good).
+function copBusy() :: boolean:
+	if {-cop::busy} is set:
+		if difference between {-cop::busy} and now < 3 seconds:
+			return true
+	return false
+
+# Makes one cop at the next cop spot, then waits (up to 2 s) until Citizens has spawned it: Citizens
+# spawns a player NPC a tick or more after the command, and again once its skin is on. Only one cop is
+# made at a time on the whole server, so the one "Cop" NPC at the spot that isn't a known cop is this one.
+function copSpawn(h: text):
+	set {_waited} to 0
+	while copBusy() is true:
+		wait 1 tick
+		add 1 to {_waited}
+		if {_waited} > 80:
+			copLog("busy-timeout %{_h}%")
+			stop
+	if heistAlarmStage({_h}) is "none":
+		stop
+	if copAlive({_h}) >= cfg("alarm::max-cops"):
+		stop
+	if copTotal() >= cfg("cop::max-total"):
+		copLog("server-cap %{_h}% total=%copTotal()%")
+		stop
+	set {_spots::*} to copSpots({_h})
+	if size of {_spots::*} is 0:
+		copLog("no-spot %{_h}%")
+		stop
+	set {-cop::busy} to now
+	add 1 to {-cop::next::%{_h}%}
+	set {_i} to mod({-cop::next::%{_h}%}, size of {_spots::*}) + 1
+	set {_base} to {_spots::%{_i}%}
+	# A little spread, so cops from one spot don't stand inside each other.
+	set {_dx} to round(100 * (random number between -1.2 and 1.2)) / 100
+	set {_dz} to round(100 * (random number between -1.2 and 1.2)) / 100
+	set {_l} to {_base} ~ vector({_dx}, 0, {_dz})
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_w} to "%world of {_l}%"
+	set {_name} to cfg("cop::name")
+	execute console command "npc create %{_name}% --at %{_x}%,%{_y}%,%{_z}%,%{_w}% --type PLAYER --trait sentinel --nameplate false"
+	set {_id} to ""
+	set {_tries} to 0
+	while {_id} is "":
+		loop all entities in radius 3 around {_l}:
+			if loop-entity has metadata "NPC":
+				if name of loop-entity is {_name}:
+					set {_raw} to metadata value "NPC-ID" of loop-entity
+					if {_raw} is set:
+						if {-cop::heist::%{_raw}%} is not set:
+							set {_id} to "%{_raw}%"
+		if {_id} is "":
+			add 1 to {_tries}
+			if {_tries} > 40:
+				delete {-cop::busy}
+				copLog("spawn-failed %{_h}% at %{_x}% %{_y}% %{_z}% (the sweep removes it if it appears later)")
+				stop
+			wait 1 tick
+	set {cops::ids::%{_id}%} to {_h}
+	set {-cop::heist::%{_id}%} to {_h}
+	set {-cop::ids::%{_h}%::%{_id}%} to true
+	delete {-cop::busy}
+	copSetup({_id})
+	copLog("spawn %{_h}% id=%{_id}% at %floor({_x})% %floor({_y})% %floor({_z})% after %{_tries}% ticks")
+	# The alarm may have ended while it was being made.
+	if heistAlarmStage({_h}) is "none":
+		copRemove({_id}, "alarm-ended")
+		stop
+	loop {-heist::%{_h}%::hunted::*}:
+		copTarget({_id}, loop-value, true)
+
+function copSentinel(id: text, args: text):
+	execute console command "sentinel %{_args}% --id %{_id}%"
+
+# The gun and the numbers (core.sk cop::*).
+function copSetup(id: text):
+	set {_model} to cfg("cop::model")
+	execute console command "npc setequipment hand feather[custom_model_data={floats:[%{_model}%f]}] --id %{_id}%"
+	copSentinel({_id}, "weaponredirect feather bow")
+	# The police skin (tools/make-cop-skin.js, signed once by MineSkin: core.sk cop::skin-*). Without it Citizens
+	# shows the skin of the Minecraft account named like the NPC.
+	set {_tex} to {-cfg::cop::skin-texture}
+	set {_sig} to {-cfg::cop::skin-signature}
+	if {_tex} is set:
+		if {_sig} is set:
+			if {_tex} is not "":
+				execute console command "npc skin -t police %{_tex}% %{_sig}% --id %{_id}%"
+	copSentinel({_id}, "respawntime -1")
+	set {_health} to cfg("cop::health")
+	set {_damage} to cfg("cop::damage")
+	set {_rate} to cfg("cop::attack-rate")
+	set {_range} to cfg("cop::range")
+	set {_chase} to cfg("cop::chase")
+	set {_acc} to cfg("cop::accuracy")
+	set {_speed} to cfg("cop::speed")
+	copSentinel({_id}, "health %{_health}%")
+	copSentinel({_id}, "damage %{_damage}%")
+	copSentinel({_id}, "attackrate %{_rate}% ranged")
+	copSentinel({_id}, "range %{_range}%")
+	copSentinel({_id}, "projectilerange %{_range}%")
+	copSentinel({_id}, "chaserange %{_chase}%")
+	copSentinel({_id}, "accuracy %{_acc}%")
+	copSentinel({_id}, "speed %{_speed}%")
+	copSentinel({_id}, "chaseranged true")
+	copSentinel({_id}, "needammo false")
+	copSentinel({_id}, "safeshot true")
+	# Only hunted players: a cop never turns on someone who isn't (shooting one is free, it pays nothing).
+	copSentinel({_id}, "fightback false")
+	copSentinel({_id}, "deathxp 0")
+
+# Adds (on) or removes a hunted player as this cop's target.
+function copTarget(id: text, p: player, on: boolean):
+	if {_on} is true:
+		copSentinel({_id}, "addtarget uuid:%uuid of {_p}%")
+	else:
+		copSentinel({_id}, "removetarget uuid:%uuid of {_p}%")
+
+function copRemove(id: text, why: text):
+	set {_h} to {-cop::heist::%{_id}%}
+	delete {-cop::heist::%{_id}%}
+	if {_h} is set:
+		delete {-cop::ids::%{_h}%::%{_id}%}
+	delete {cops::ids::%{_id}%}
+	execute console command "npc remove %{_id}%"
+	copLog("remove id=%{_id}% heist=%{_h}% why=%{_why}%")
+
+function copRemoveAll(h: text, why: text):
+	loop indices of {-cop::ids::%{_h}%::*}:
+		copRemove(loop-value, {_why})
+
+# A cop that dies: no drops, gone a tick later (Sentinel's respawn is off). At priority lowest: Citizens
+# despawns a dead NPC (and its metadata) in its own death handler.
+on death with priority lowest:
+	victim has metadata "NPC"
+	set {_raw} to metadata value "NPC-ID" of victim
+	set {_id} to "%{_raw}%"
+	{-cop::heist::%{_id}%} is set
+	clear drops
+	copLog("died id=%{_id}%")
+	wait 1 tick
+	{-cop::heist::%{_id}%} is set
+	copRemove({_id}, "died")
+
+# Cops left from before a restart or a crash (memory is empty then): removed once Citizens has loaded
+# its NPCs. A /sk reload keeps the living cops (they're still in memory).
+on load:
+	wait 5 seconds
+	loop {cops::ids::*}:
+		if {-cop::heist::%loop-index%} is not set:
+			execute console command "npc remove %loop-index%"
+			copLog("cleanup id=%loop-index% heist=%loop-value%")
+			delete {cops::ids::%loop-index%}
+	copSweep()
+
+# Any "Cop" NPC that isn't a known cop (a spawn that timed out, or one that comes back with its chunk
+# after a restart) is removed. Never while a cop is being made (it's unknown for a tick or two then).
+every 10 seconds:
+	copSweep()
+
+function copSweep():
+	copBusy() is false
+	set {_name} to cfg("cop::name")
+	loop all entities:
+		if loop-entity has metadata "NPC":
+			if name of loop-entity is {_name}:
+				set {_raw} to metadata value "NPC-ID" of loop-entity
+				if {_raw} is set:
+					if {-cop::heist::%{_raw}%} is not set:
+						execute console command "npc remove %{_raw}%"
+						delete {cops::ids::%{_raw}%}
+						copLog("sweep id=%{_raw}%")
+
+# ---------- Hooks from heists.sk ----------
+
+function copOnWave(h: text, wave: number):
+	copWave({_h}, {_wave})
+
+function copOnHunt(p: player, h: text, on: boolean):
+	loop indices of {-cop::ids::%{_h}%::*}:
+		copTarget(loop-value, {_p}, {_on})
+
+function copOnAlarmEnd(h: text):
+	copRemoveAll({_h}, "alarm-end")
+
+# ---------- Staff: /dcops ----------
+
+function dcopsReply(s: command sender, text: text):
+	send "%{_text}%" to {_s}
+
+command /dcops [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_h} to {_a::1}
+		set {_sub} to {_a::2}
+		if {_h} is not set:
+			dcopsReply(sender, "COPS usage: /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump")
+			stop
+		if heistExists({_h}) is false:
+			dcopsReply(sender, "COPS %{_h}%: no such heist")
+			stop
+		if {_sub} is "add":
+			if {_a::5} is set:
+				set {_x} to {_a::3} parsed as number
+				set {_y} to {_a::4} parsed as number
+				set {_z} to {_a::5} parsed as number
+			else if sender is a player:
+				set {_x} to floor(x-coordinate of player) + 0.5
+				set {_y} to floor(y-coordinate of player)
+				set {_z} to floor(z-coordinate of player) + 0.5
+			if {_z} is not set:
+				dcopsReply(sender, "COPS add: stand on the spot, or /dcops %{_h}% add <x> <y> <z>")
+				stop
+			set {_l} to location({_x}, {_y}, {_z}, world({heist::%{_h}%::world}))
+			if heistAt({_l}) is not "":
+				dcopsReply(sender, "COPS add: not inside a heist (cops come from outside)")
+				stop
+			add "%{_x}% %{_y}% %{_z}%" to {heist::%{_h}%::cops::*}
+			dcopsReply(sender, "COPS %{_h}% spot %size of {heist::%{_h}%::cops::*}% at %{_x}% %{_y}% %{_z}%")
+		else if {_sub} is "list":
+			loop {heist::%{_h}%::cops::*}:
+				dcopsReply(sender, "COPS %{_h}% spot %loop-index%: %loop-value%")
+			if size of {heist::%{_h}%::cops::*} is 0:
+				dcopsReply(sender, "COPS %{_h}%: no spots (cops come to the exit spot)")
+			dcopsReply(sender, "COPS %{_h}% alive=%copAlive({_h})% total=%copTotal()%")
+		else if {_sub} is "clear":
+			delete {heist::%{_h}%::cops::*}
+			dcopsReply(sender, "COPS %{_h}%: spots cleared (cops come to the exit spot)")
+		else if {_sub} is "spawn":
+			# A test cop (only while the heist's alarm runs: it hunts whoever the alarm hunts).
+			if heistAlarmStage({_h}) is "none":
+				dcopsReply(sender, "COPS %{_h}% spawn: only while its alarm runs (/dheist alarm %{_h}%)")
+				stop
+			copSpawn({_h})
+			dcopsReply(sender, "COPS %{_h}% spawn requested")
+		else if {_sub} is "removeall":
+			copRemoveAll({_h}, "staff")
+			dcopsReply(sender, "COPS %{_h}%: removed")
+		else if {_sub} is "dump":
+			loop {heist::%{_h}%::cops::*}:
+				dcopsReply(sender, "/dcops %{_h}% add %loop-value%")
+		else:
+			dcopsReply(sender, "COPS usage: /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump")

@@ -506,6 +506,8 @@ function heistTeleport(p: player, l: location):
 # death.sk (priority high) has already read the heist through heistForDeath. No forfeit: the bag's
 # loot drops as a duffel (bag.sk).
 on death of player with priority monitor:
+	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
+	victim does not have metadata "NPC"
 	# Also outside: a hunted robber who walked out and died there leaves the hunt.
 	heistRelease(victim, "died")
 	set {_h} to heistOf(victim)
@@ -1418,21 +1420,24 @@ function heistOnAlarm(h: text, source: text):
 	trapOnAlarm({_h}, true)
 
 function heistOnWave(h: text, wave: number):
-	stop
+	copOnWave({_h}, {_wave})
 
 function heistOnHunt(p: player, h: text, on: boolean):
-	stop
+	copOnHunt({_p}, {_h}, {_on})
 
 function heistOnAlarmEnd(h: text):
 	trapOnAlarm({_h}, false)
+	copOnAlarmEnd({_h})
 
 # /dheist disable: traps.sk removes its displays and puts collapsed floors back at once.
 function heistOnDisable(h: text):
 	trapOnDisable({_h})
 	lootOnDisable({_h})
 	bagClearDuffels({_h}, "disable")
+	copRemoveAll({_h}, "disable")
 
 # /dheist delete: traps.sk deletes the heist's traps.
 function heistOnDelete(h: text):
 	trapOnDelete({_h})
 	lootOnDelete({_h})
+	copRemoveAll({_h}, "delete")
