@@ -1,0 +1,729 @@
+# crates.sk: crates, keys and /daily. Built 2026-09-26 (owner: crates daily, common, uncommon, rare, epic,
+# legendary, hacked; /daily gives everyone a daily key and each rank its extra keys; keys for common to
+# legendary are sold on Tebex; hacked keys only at special events, never sold).
+#
+# Keys are virtual: data keys::<crate> = how many (never an item: the inventory is fixed). A crate's
+# rewards are core.sk crate::<id>::rewards ("weight|kind|what|amount"); the chance of each line is its
+# weight / the crate's total, shown in the menu (right-click a crate). Opening one takes a key, rolls,
+# and gives the reward in the same call (so a closed menu, a logout or a crash never loses it), then
+# spins a strip of rewards that stops on it. Ammo, consumables and tools that don't fit pay their shop
+# price in cash instead; a cosmetic you own pays its rarity's dupe value (cosmetics.sk).
+# No opening inside a heist, while combat-tagged or dead (the menu and the odds work anywhere).
+#   /crates           the menu: left-click a crate opens one, right-click shows what's inside
+#   /daily            once every cfg daily::hours (20): a daily key + the rank's daily-keys
+#   crate stands      /dcrate place <crate> turns the block you look at into that crate (a hologram
+#                     above it); clicking it shows the crate with an Open button. /dcrate remove, list.
+#   /dcrate give <player> <crate> [count]   Tebex: dcrate give {username} rare {purchaseQuantity}
+#   /dcrate take <player> <crate> [count]   Tebex refund/chargeback: takes back unused keys
+#   /dcrate info <player>
+# /dcrate is the owner's and the console's only (permission donating.store): keys are paid items.
+# Log: plugins\Skript\logs\crates.log (every key given, taken and used, every roll and what it paid).
+
+function crateLog(text: text):
+	log {_text} to "crates"
+
+function crateExists(t: text) :: boolean:
+	if {-cfg::crates::*} contains {_t}:
+		return true
+	return false
+
+# "Rare Crate" / "&9Rare Crate".
+function crateName(t: text) :: text:
+	return "%{-cfg::rarity::%{_t}%::name}% Crate"
+
+function crateColored(t: text) :: text:
+	return "%{-cfg::rarity::%{_t}%::color}%%crateName({_t})%"
+
+function crateKeys(p: offline player, t: text) :: number:
+	set {_n} to {data::%{_p}%::keys::%{_t}%}
+	if {_n} is set:
+		return {_n}
+	return 0
+
+function crateAddKeys(p: offline player, t: text, n: number, why: text):
+	set {data::%{_p}%::keys::%{_t}%} to crateKeys({_p}, {_t}) + {_n}
+	crateLog("keys+ %{_p}% %uuid of {_p}% %{_t}% +%{_n}% now=%crateKeys({_p}, {_t})% why=%{_why}%")
+
+# ---------- Rewards ----------
+
+function crateWeight(line: text) :: number:
+	set {_a::*} to {_line} split at "|"
+	set {_w} to {_a::1} parsed as number
+	if {_w} is set:
+		return {_w}
+	return 0
+
+# The lines a crate can roll now: a cosmetic that's unknown, retired or testing is left out.
+function crateLines(t: text) :: texts:
+	loop {-cfg::crate::%{_t}%::rewards::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_ok} to true
+		if crateWeight(loop-value) <= 0:
+			set {_ok} to false
+		if {_a::2} is "cos":
+			if cosExists({_a::3}) is false:
+				set {_ok} to false
+			else if cosHidden({_a::3}) is true:
+				set {_ok} to false
+		if {_ok} is true:
+			add loop-value to {_out::*}
+	return {_out::*}
+
+function crateTotal(t: text) :: number:
+	set {_sum} to 0
+	loop crateLines({_t}):
+		add crateWeight(loop-value) to {_sum}
+	return {_sum}
+
+# A line picked by weight ("" if the crate has none).
+function crateRoll(t: text) :: text:
+	set {_total} to crateTotal({_t})
+	if {_total} <= 0:
+		return ""
+	set {_r} to random number between 0 and {_total}
+	set {_acc} to 0
+	set {_last} to ""
+	loop crateLines({_t}):
+		add crateWeight(loop-value) to {_acc}
+		set {_last} to loop-value
+		if {_r} < {_acc}:
+			return loop-value
+	return {_last}
+
+# The rarity a line counts as: a cosmetic's own, anything else the crate's.
+function crateLineRarity(line: text, t: text) :: text:
+	set {_a::*} to {_line} split at "|"
+	if {_a::2} is "cos":
+		set {_r} to {-cfg::cos::%{_a::3}%::rarity}
+		if {_r} is set:
+			return {_r}
+	return {_t}
+
+# "&a$1,000", "&e64 Light Rounds", "&f2 Stims", "&f1 Drill", "&9Cash Print &7bag skin".
+function crateLineText(line: text) :: text:
+	set {_a::*} to {_line} split at "|"
+	set {_k} to {_a::2}
+	if {_k} is "money":
+		return "&a%formatMoney({_a::3} parsed as number)%"
+	if {_k} is "ammo":
+		return "&e%{_a::4}% %{-cfg::ammo::%{_a::3}%::name}%"
+	if {_k} is "con":
+		set {_n} to {_a::4} parsed as number
+		if {_n} is 1:
+			return "&f1 %{-cfg::con::%{_a::3}%::name}%"
+		return "&f%{_n}% %{-cfg::con::%{_a::3}%::name}%s"
+	if {_k} is "tool":
+		set {_n} to {_a::4} parsed as number
+		if {_n} is 1:
+			return "&f1 %{-cfg::tool::%{_a::3}%::name}%"
+		return "&f%{_n}% %{-cfg::tool::%{_a::3}%::name}%s"
+	if {_k} is "cos":
+		set {_type} to {-cfg::cos::%{_a::3}%::type}
+		return "%cosColored({_a::3})% &7%cosTypeName({_type})%"
+	return "&f%{_line}%"
+
+# The line as a menu icon (the pack's art where there is some). Never tagged: it's only a picture.
+function crateLineIcon(line: text) :: item:
+	set {_a::*} to {_line} split at "|"
+	set {_k} to {_a::2}
+	if {_k} is "money":
+		set {_i} to paper
+		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:loot_cash"
+	else if {_k} is "ammo":
+		set {_i} to ammoIcon({_a::3})
+	else if {_k} is "con":
+		set {_i} to wpnIcon({_a::3})
+	else if {_k} is "tool":
+		set {_i} to 1 of {-cfg::tool::%{_a::3}%::item}
+		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:tool_%{_a::3}%"
+	else if {_k} is "cos":
+		set {_type} to {-cfg::cos::%{_a::3}%::type}
+		if {_type} is "bagskin":
+			set {_i} to leather
+			set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_a::3}%"
+		else if {_type} is "killfx":
+			set {_i} to blaze powder
+		else:
+			set {_i} to name tag
+	else:
+		set {_i} to barrier
+	set name of {_i} to colored crateLineText({_line})
+	return {_i}
+
+# Gives the reward of a line to an online player; returns what they got (for chat and the log).
+function crateGrant(p: player, line: text, t: text) :: text:
+	set {_a::*} to {_line} split at "|"
+	set {_k} to {_a::2}
+	if {_k} is "money":
+		set {_n} to {_a::3} parsed as number
+		giveMoney({_p}, {_n})
+		return "&a%formatMoney({_n})%"
+	if {_k} is "ammo":
+		set {_type} to {_a::3}
+		set {_n} to {_a::4} parsed as number
+		set {_name} to {-cfg::ammo::%{_type}%::name}
+		set {_got} to addAmmo({_p}, {_type}, min({_n}, ammoRoom({_p}, {_type})))
+		set {_cash} to ({_n} - {_got}) * {-cfg::ammo::%{_type}%::price}
+		giveMoney({_p}, {_cash})
+		if {_got} >= {_n}:
+			return "&e%{_n}% %{_name}%"
+		if {_got} > 0:
+			return "&e%{_got}% %{_name}% &7+ &a%formatMoney({_cash})% &7(no room for %{_n} - {_got}% more)"
+		return "&a%formatMoney({_cash})% &7(no room for %{_n}% %{_name}%: cash instead)"
+	if {_k} is "con":
+		set {_w} to {_a::3}
+		set {_n} to {_a::4} parsed as number
+		set {_name} to {-cfg::con::%{_w}%::name}
+		set {_max} to {-cfg::con::%{_w}%::max}
+		set {_fit} to 0
+		set {_have} to 0
+		set {_slot} to loadoutSlotOf({_p}, "con:%{_w}%")
+		if {_slot} >= 0:
+			set {_have} to item amount of slot {_slot} of {_p}'s inventory
+		else:
+			set {_slot} to freeLoadoutSlot({_p})
+		if {_slot} >= 0:
+			set {_fit} to max(0, min({_n}, {_max} - {_have}))
+		if {_fit} > 0:
+			execute console command "wm give %name of {_p}% %{_w}% %{_have} + {_fit}% {slot:%{_slot}%}"
+			if wmTitle(slot {_slot} of {_p}'s inventory) is not {_w}:
+				set {_fit} to 0
+			else if item amount of slot {_slot} of {_p}'s inventory is not {_have} + {_fit}:
+				set {_fit} to 0
+				send "[Donating] crates: wm give %{_w}% to %name of {_p}% gave the wrong amount" to console
+		set {_cash} to ({_n} - {_fit}) * {-cfg::con::%{_w}%::price}
+		giveMoney({_p}, {_cash})
+		if {_fit} >= {_n}:
+			return crateLineText({_line})
+		if {_fit} > 0:
+			return "&f%{_fit}% %{_name}% &7+ &a%formatMoney({_cash})% &7(you carry %{_max}% at most)"
+		return "&a%formatMoney({_cash})% &7(no room for %{_name}%s: cash instead)"
+	if {_k} is "tool":
+		set {_tool} to {_a::3}
+		set {_n} to {_a::4} parsed as number
+		set {_name} to {-cfg::tool::%{_tool}%::name}
+		set {_fit} to 0
+		set {_why} to "no room"
+		if levelOk({_p}, toolLevel({_tool})) is false:
+			set {_why} to "needs level %toolLevel({_tool})%"
+		else:
+			set {_have} to 0
+			set {_slot} to toolSlot({_p}, {_tool})
+			if {_slot} >= 0:
+				set {_have} to item amount of slot {_slot} of {_p}'s inventory
+			else:
+				set {_slot} to freeLoadoutSlot({_p})
+			if {_slot} >= 0:
+				set {_fit} to max(0, min({_n}, {-cfg::tool::%{_tool}%::max} - {_have}))
+			if {_fit} > 0:
+				set slot {_slot} of {_p}'s inventory to toolItem({_tool}, {_have} + {_fit})
+				if toolCount({_p}, {_tool}) is not {_have} + {_fit}:
+					set {_fit} to 0
+		set {_cash} to ({_n} - {_fit}) * {-cfg::tool::%{_tool}%::price}
+		giveMoney({_p}, {_cash})
+		if {_fit} >= {_n}:
+			return crateLineText({_line})
+		if {_fit} > 0:
+			set {_tmax} to {-cfg::tool::%{_tool}%::max}
+			return "&f%{_fit}% %{_name}% &7+ &a%formatMoney({_cash})% &7(you carry %{_tmax}% at most)"
+		return "&a%formatMoney({_cash})% &7(%{_name}%: %{_why}%, cash instead)"
+	if {_k} is "cos":
+		set {_id} to {_a::3}
+		set {_type} to {-cfg::cos::%{_id}%::type}
+		set {_label} to "%cosColored({_id})% &7%cosTypeName({_type})%"
+		if cosGive({_p}, {_id}, "crate:%{_t}%") is true:
+			return {_label}
+		set {_rar} to {-cfg::cos::%{_id}%::rarity}
+		set {_dupe} to {-cfg::rarity::%{_rar}%::dupe}
+		if {_dupe} is not set:
+			set {_dupe} to 0
+		giveMoney({_p}, {_dupe})
+		return "%{_label}% &7(you have it: &a%formatMoney({_dupe})% &7instead)"
+	send "[Donating] crates: unknown reward %{_line}% in %{_t}%" to console
+	return "&cnothing (unknown reward, tell staff)"
+
+# ---------- Opening ----------
+
+# "" when the player may open a crate now, else why not.
+function crateBlockReason(p: player) :: text:
+	if {_p} is not alive:
+		return "You can't open crates right now."
+	if heistOf({_p}) is not "":
+		return "Open crates outside heists."
+	if isCombatTagged({_p}) is true:
+		return "You can't open crates while in combat."
+	if {-crate::spinning::%{_p}%} is set:
+		return "One crate at a time."
+	return ""
+
+# Takes a key, rolls and gives the reward in one call (no wait), logs it, then spins the strip.
+function crateOpen(p: player, t: text):
+	set {_why} to crateBlockReason({_p})
+	if {_why} is not "":
+		msg({_p}, "&c%{_why}%")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	if crateKeys({_p}, {_t}) < 1:
+		if {-cfg::crate::%{_t}%::sold} is true:
+			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Get some: &f/store")
+		else if {_t} is "daily":
+			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Claim one every day: &f/daily")
+		else:
+			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys.")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	set {_line} to crateRoll({_t})
+	if {_line} is "":
+		msg({_p}, "&cThat crate is empty right now. &7Your key is safe.")
+		stop
+	set {data::%{_p}%::keys::%{_t}%} to crateKeys({_p}, {_t}) - 1
+	set {_got} to crateGrant({_p}, {_line}, {_t})
+	crateLog("open %{_p}% %uuid of {_p}% %{_t}% keys-left=%crateKeys({_p}, {_t})% line=%{_line}% got=%{_got}%")
+	crateSpin({_p}, {_t}, {_line}, {_got})
+
+# The strip: steps of random rewards sliding left, slowing down, ending with the reward in the middle
+# (slot 13). Only a picture: the reward is already given. Closing the menu skips to the result.
+function crateSpin(p: player, t: text, line: text, got: text):
+	set {_steps} to cfg("crate::spin-steps")
+	loop {_steps} + 9 times:
+		add crateLineIcon(crateRoll({_t})) to {_strip::*}
+	set {_win} to crateLineIcon({_line})
+	set {_strip::%{_steps} + 5%} to {_win}
+	set {_gui} to chest inventory with 3 rows named "&8%crateName({_t})%"
+	set {_pane} to gray stained glass pane named "&r"
+	set {_mark} to lime stained glass pane named "&r"
+	loop 27 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set slot 4 of {_gui} to {_mark}
+	set slot 22 of {_gui} to {_mark}
+	crateClearGui({_p})
+	set {-crate::spinning::%{_p}%} to true
+	set {-crate::gui::%{_p}%} to {_gui}
+	set {-crate::view::%{_p}%} to "spin"
+	open {_gui} to {_p}
+	set {_stopped} to false
+	loop {_steps} + 1 times:
+		set {_k} to loop-number - 1
+		if {_stopped} is false:
+			if {_p} is not online:
+				set {_stopped} to true
+			else if {_p}'s current inventory is not {_gui}:
+				set {_stopped} to true
+			else:
+				loop 9 times:
+					set slot (8 + loop-number-2) of {_gui} to {_strip::%{_k} + loop-number-2%}
+				set {_pitch} to 1 + {_k} / {_steps}
+				play sound "block.note_block.hat" with volume 0.4 and pitch {_pitch} to {_p}
+				set {_wait} to 1
+				if {_k} >= 12:
+					set {_wait} to 2
+				if {_k} >= 20:
+					set {_wait} to 3
+				if {_k} >= 25:
+					set {_wait} to 5
+				if {_k} >= 28:
+					set {_wait} to 8
+				if {_k} < {_steps}:
+					wait 1 tick * {_wait}
+	delete {-crate::spinning::%{_p}%}
+	{_p} is online
+	set {_r} to crateLineRarity({_line}, {_t})
+	if {_p}'s current inventory is {_gui}:
+		set slot 13 of {_gui} to glint({_win})
+		set {_done} to lime stained glass pane named "&r"
+		loop 27 times:
+			if loop-number is not 14:
+				set slot (loop-number - 1) of {_gui} to {_done}
+	msg({_p}, "%crateColored({_t})%&7: you got %{_got}%&7!")
+	if {_r} is "epic":
+		play sound "ui.toast.challenge_complete" with volume 0.7 to {_p}
+	else if {_r} is "legendary":
+		play sound "ui.toast.challenge_complete" with volume 1 to {_p}
+	else if {_r} is "hacked":
+		play sound "ui.toast.challenge_complete" with volume 1 to {_p}
+	else:
+		play sound "entity.player.levelup" with volume 0.6 to {_p}
+	# Big cosmetic pulls are the one crate message everyone sees.
+	set {_a::*} to {_line} split at "|"
+	if {_a::2} is "cos":
+		if {_r} is "epic":
+			broadcastMsg("&f%name of {_p}% &7unboxed %cosColored({_a::3})% &7from a %crateColored({_t})%&7!")
+		else if {_r} is "legendary":
+			broadcastMsg("&f%name of {_p}% &7unboxed %cosColored({_a::3})% &7from a %crateColored({_t})%&7!")
+		else if {_r} is "hacked":
+			broadcastMsg("&f%name of {_p}% &7unboxed %cosColored({_a::3})% &7from a %crateColored({_t})%&7!")
+	# Back to the crates after a moment, if the result is still showing.
+	wait 30 ticks
+	{_p} is online
+	{_p}'s current inventory is {_gui}
+	crateMenu({_p})
+
+# ---------- Menus ----------
+
+function crateClearGui(p: player):
+	delete {-crate::gui::%{_p}%}
+	delete {-crate::view::%{_p}%}
+	delete {-crate::act::%{_p}%::*}
+
+function crateButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-crate::act::%{_p}%::%{_slot}%} to {_act}
+
+# "ready" or "in 5h 12m".
+function dailyText(p: player) :: text:
+	set {_left} to dailyLeft({_p})
+	if {_left} <= 0:
+		return "ready"
+	set {_h} to floor({_left} / 3600)
+	set {_m} to floor(mod({_left}, 3600) / 60)
+	return "in %{_h}%h %{_m}%m"
+
+function crateMenu(p: player):
+	set {_gui} to chest inventory with 3 rows named "&8Crates"
+	set {_pane} to gray stained glass pane named "&r"
+	loop 27 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	crateClearGui({_p})
+	set {-crate::gui::%{_p}%} to {_gui}
+	set {-crate::view::%{_p}%} to "menu"
+	set {_slot} to 10
+	loop {-cfg::crates::*}:
+		set {_t} to loop-value
+		set {_n} to crateKeys({_p}, {_t})
+		set {_show} to true
+		if {-cfg::crate::%{_t}%::secret} is true:
+			if {_n} < 1:
+				set {_show} to false
+		if {_show} is true:
+			set {_i} to 1 of {-cfg::crate::%{_t}%::icon}
+			set name of {_i} to colored crateColored({_t})
+			delete {_l::*}
+			add "&7Keys: &f%{_n}%" to {_l::*}
+			if {-cfg::crate::%{_t}%::sold} is true:
+				add "&7More keys: &f/store" to {_l::*}
+			else if {_t} is "daily":
+				add "&7A free key every day: &f/daily" to {_l::*}
+			else:
+				add "&7Only at special events." to {_l::*}
+			add "" to {_l::*}
+			add "&eLeft-click: open one" to {_l::*}
+			add "&eRight-click: see what's inside" to {_l::*}
+			set lore of {_i} to {_l::*}
+			if {_n} > 0:
+				set {_i} to glint({_i})
+			crateButton({_p}, {_gui}, {_slot}, {_i}, "crate:%{_t}%")
+			add 1 to {_slot}
+	set {_d} to clock named "&eDaily reward: &f%dailyText({_p})%" with lore "&7A Daily key every day, plus your" and "&7rank's keys (VIP+, Elite, Legend)." and "&eClick to claim."
+	crateButton({_p}, {_gui}, 22, {_d}, "daily")
+	crateButton({_p}, {_gui}, 18, book named "&fYour cosmetics" with lore "&7Titles, bag skins, kill effects.", "cosmetics")
+	crateButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	open {_gui} to {_p}
+
+# What's inside a crate: every reward with its chance, and an Open button.
+function cratePreview(p: player, t: text):
+	set {_gui} to chest inventory with 6 rows named "&8%crateName({_t})%: what's inside"
+	crateClearGui({_p})
+	set {-crate::gui::%{_p}%} to {_gui}
+	set {-crate::view::%{_p}%} to "preview"
+	set {_total} to crateTotal({_t})
+	set {_slot} to 0
+	loop crateLines({_t}):
+		{_slot} < 45
+		set {_i} to crateLineIcon(loop-value)
+		set {_pct} to round(1000 * crateWeight(loop-value) / {_total}) / 10
+		delete {_l::*}
+		add "&7Chance: &f%{_pct}%%%" to {_l::*}
+		set {_a::*} to loop-value split at "|"
+		if {_a::2} is "cos":
+			if cosOwned({_p}, {_a::3}) is true:
+				set {_rar} to {-cfg::cos::%{_a::3}%::rarity}
+				set {_dupe} to {-cfg::rarity::%{_rar}%::dupe}
+				add "&aYou have it &7(a repeat pays %formatMoney({_dupe})%&7)" to {_l::*}
+		set lore of {_i} to {_l::*}
+		set slot {_slot} of {_gui} to {_i}
+		add 1 to {_slot}
+	set {_pane} to gray stained glass pane named "&r"
+	loop integers from 45 to 53:
+		set slot loop-value of {_gui} to {_pane}
+	crateButton({_p}, {_gui}, 45, arrow named "&fAll crates", "menu")
+	set {_n} to crateKeys({_p}, {_t})
+	if {_n} > 0:
+		crateButton({_p}, {_gui}, 49, glint(tripwire hook named "&aOpen one &7(keys: %{_n}%)"), "open:%{_t}%")
+	else if {-cfg::crate::%{_t}%::sold} is true:
+		crateButton({_p}, {_gui}, 49, tripwire hook named "&7No keys" with lore "&7Get some: &f/store", "none")
+	else if {_t} is "daily":
+		crateButton({_p}, {_gui}, 49, tripwire hook named "&7No keys" with lore "&7A free key every day: &f/daily", "none")
+	else:
+		crateButton({_p}, {_gui}, 49, tripwire hook named "&7No keys", "none")
+	crateButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
+	open {_gui} to {_p}
+
+on inventory click:
+	{-crate::gui::%player%} is set
+	player's current inventory is {-crate::gui::%player%}
+	cancel event
+	event-inventory is {-crate::gui::%player%}
+	set {_slot} to index of event-slot
+	set {_act} to {-crate::act::%player%::%{_slot}%}
+	{_act} is set
+	set {_right} to false
+	set {_ok} to false
+	if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_right} to true
+		set {_ok} to true
+	{_ok} is true
+	# One action per drawn screen (a second click from the same tick finds it used), a tick later.
+	if {-crate::gen::%player%} is not set:
+		set {-crate::gen::%player%} to 0
+	set {_gen} to {-crate::gen::%player%}
+	wait 1 tick
+	player is online
+	{-crate::gui::%player%} is set
+	{-crate::gen::%player%} is {_gen}
+	add 1 to {-crate::gen::%player%}
+	crateAction(player, {_act}, {_right})
+
+function crateAction(p: player, act: text, right: boolean):
+	if {_act} starts with "crate:":
+		set {_t} to subtext of {_act} from characters 7 to (length of {_act})
+		if {_right} is true:
+			cratePreview({_p}, {_t})
+		else:
+			crateOpen({_p}, {_t})
+	else if {_act} starts with "open:":
+		crateOpen({_p}, subtext of {_act} from characters 6 to (length of {_act}))
+	else if {_act} is "menu":
+		crateMenu({_p})
+	else if {_act} is "daily":
+		close {_p}'s inventory
+		dailyClaim({_p})
+	else if {_act} is "cosmetics":
+		close {_p}'s inventory
+		cosList({_p})
+	else if {_act} is "close":
+		close {_p}'s inventory
+
+on inventory drag:
+	{-crate::gui::%player%} is set
+	player's current inventory is {-crate::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-crate::gui::%player%} is set
+	event-inventory is {-crate::gui::%player%}
+	crateClearGui(player)
+
+on quit:
+	crateClearGui(player)
+	delete {-crate::spinning::%player%}
+
+command /crates:
+	description: Crates: open them, see what's inside, claim your daily key.
+	aliases: /crate
+	executable by: players
+	trigger:
+		crateMenu(player)
+
+# ---------- /daily ----------
+
+# Seconds until the next /daily (0 = ready). Saved as a unix time, so it counts through restarts.
+function dailyLeft(p: player) :: number:
+	set {_last} to getData({_p}, "daily-at")
+	if {_last} is not set:
+		return 0
+	return max(0, {_last} + cfg("daily::hours") * 3600 - unix timestamp of now)
+
+function dailyClaim(p: player):
+	if dailyLeft({_p}) > 0:
+		msg({_p}, "&7Your next daily reward is &f%dailyText({_p})%&7.")
+		stop
+	setData({_p}, "daily-at", unix timestamp of now)
+	crateAddKeys({_p}, "daily", 1, "daily")
+	set {_d} to crateColored("daily")
+	add "%{_d}% key" to {_got::*}
+	set {_r} to paidRank({_p})
+	if {_r} is not "":
+		loop {-cfg::paidrank::%{_r}%::daily-keys::*}:
+			crateAddKeys({_p}, loop-value, 1, "daily:%{_r}%")
+			add "%crateColored(loop-value)% key" to {_got::*}
+	set {_list} to join {_got::*} with "&7, "
+	msg({_p}, "&aDaily reward: %{_list}%&a. &7Open them: &f/crates")
+	play sound "entity.player.levelup" with volume 0.6 to {_p}
+
+command /daily:
+	description: Your daily crate key.
+	executable by: players
+	trigger:
+		dailyClaim(player)
+
+on join:
+	wait 4 seconds
+	player is online
+	dailyLeft(player) <= 0
+	msg(player, "&eYour daily reward is ready: &f/daily")
+
+# ---------- Crate stands (a block that opens a crate) ----------
+
+# A block's x-coordinate is its center (x + 0.5): floor it.
+function crateBlockKey(b: block) :: text:
+	return "%world of {_b}%:%floor(x-coordinate of {_b})%:%floor(y-coordinate of {_b})%:%floor(z-coordinate of {_b})%"
+
+# Lowest: cancelled before the phone (phone.sk) and a held gun (WeaponMechanics, NORMAL) see the click.
+on right click with priority lowest:
+	event-block is set
+	set {_t} to {crateblock::%crateBlockKey(event-block)%}
+	{_t} is set
+	cancel event
+	crateStandClick(player, {_t})
+
+on left click with priority lowest:
+	event-block is set
+	set {_t} to {crateblock::%crateBlockKey(event-block)%}
+	{_t} is set
+	cancel event
+	crateStandClick(player, {_t})
+
+# Both hands fire a click: one menu per 5 ticks.
+function crateStandClick(p: player, t: text):
+	if {-crate::standat::%{_p}%} is set:
+		if difference between {-crate::standat::%{_p}%} and now < 0.25 seconds:
+			stop
+	set {-crate::standat::%{_p}%} to now
+	crateExists({_t}) is true
+	cratePreview({_p}, {_t})
+
+# ---------- Staff and store: /dcrate ----------
+
+function dcrateReply(s: command sender, text: text):
+	send "%{_text}%" to {_s}
+
+command /dcrate [<text>]:
+	permission: donating.store
+	permission message: &cOnly the owner and the store can do that.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "give":
+			dcrateKeys(sender, {_a::*}, 1)
+			stop
+		if {_sub} is "take":
+			dcrateKeys(sender, {_a::*}, -1)
+			stop
+		if {_sub} is "info":
+			set {_p} to {_a::2} parsed as offline player
+			if {_p} is not set:
+				dcrateReply(sender, "CRATE info: /dcrate info <player>")
+				stop
+			loop {-cfg::crates::*}:
+				add "%loop-value%=%crateKeys({_p}, loop-value)%" to {_k::*}
+			set {_keys} to join {_k::*} with " "
+			dcrateReply(sender, "CRATE %{_a::2}% keys %{_keys}%")
+			stop
+		if {_sub} is "place":
+			if sender is not a player:
+				dcrateReply(sender, "CRATE place: in game only (look at the block)")
+				stop
+			set {_t} to {_a::2}
+			if crateExists({_t}) is false:
+				set {_all} to join {-cfg::crates::*} with "|"
+				dcrateReply(sender, "CRATE place: /dcrate place <%{_all}%>")
+				stop
+			set {_b} to targeted block of player
+			if {_b} is not set:
+				dcrateReply(sender, "CRATE place: look at a block")
+				stop
+			set {_key} to crateBlockKey({_b})
+			if {crateblock::%{_key}%} is set:
+				dcrateReply(sender, "CRATE place: that block is already a %{crateblock::%{_key}%}% crate (/dcrate remove first)")
+				stop
+			add 1 to {crateblocks::next}
+			set {_holo} to "crate_%{crateblocks::next}%"
+			set {crateblock::%{_key}%} to {_t}
+			set {crateholo::%{_key}%} to {_holo}
+			set {_x} to floor(x-coordinate of {_b}) + 0.5
+			set {_y} to floor(y-coordinate of {_b}) + 1.9
+			set {_z} to floor(z-coordinate of {_b}) + 0.5
+			execute console command "dh hologram create %{_holo}% -l:%world of {_b}%:%{_x}%:%{_y}%:%{_z}% %crateColored({_t})%"
+			execute console command "dh line add %{_holo}% 1 &7Your keys: &f%%donating_keys_%{_t}%%%"
+			execute console command "dh line add %{_holo}% 1 &eClick to open"
+			crateLog("place %{_t}% %{_key}% holo=%{_holo}% by=%sender%")
+			dcrateReply(sender, "CRATE placed %{_t}% at %{_key}% (hologram %{_holo}%)")
+			stop
+		if {_sub} is "remove":
+			if sender is not a player:
+				dcrateReply(sender, "CRATE remove: in game only (look at the block)")
+				stop
+			set {_b} to targeted block of player
+			if {_b} is not set:
+				dcrateReply(sender, "CRATE remove: look at the crate's block")
+				stop
+			set {_key} to crateBlockKey({_b})
+			if {crateblock::%{_key}%} is not set:
+				dcrateReply(sender, "CRATE remove: that block isn't a crate")
+				stop
+			execute console command "dh hologram delete %{crateholo::%{_key}%}%"
+			crateLog("remove %{crateblock::%{_key}%}% %{_key}% by=%sender%")
+			delete {crateblock::%{_key}%}
+			delete {crateholo::%{_key}%}
+			dcrateReply(sender, "CRATE removed %{_key}%")
+			stop
+		if {_sub} is "list":
+			loop {crateblock::*}:
+				dcrateReply(sender, "CRATE %loop-value% at %loop-index% (hologram %{crateholo::%loop-index%}%)")
+			dcrateReply(sender, "CRATE end")
+			stop
+		dcrateReply(sender, "CRATE usage: /dcrate give|take <player> <crate> [count] | info <player> | place <crate> | remove | list")
+
+# give (sign 1) or take back (sign -1) keys. A store delivery can't be retried by hand easily, so
+# every request and refusal is logged.
+function dcrateKeys(s: command sender, a: texts, sign: number):
+	set {_sub} to "give"
+	if {_sign} < 0:
+		set {_sub} to "take"
+	set {_line} to join {_a::*} with " "
+	set {_p} to {_a::2} parsed as offline player
+	set {_t} to {_a::3}
+	set {_n} to 1
+	if {_a::4} is set:
+		set {_n} to {_a::4} parsed as integer
+	if {_p} is not set:
+		crateLog("refused %{_line}% by=%{_s}% (no player)")
+		dcrateReply({_s}, "CRATE %{_sub}%: /dcrate %{_sub}% <player> <crate> [count]")
+		stop
+	if {_t} is not set:
+		crateLog("refused %{_line}% by=%{_s}% (no crate)")
+		dcrateReply({_s}, "CRATE %{_sub}%: /dcrate %{_sub}% <player> <crate> [count]")
+		stop
+	if crateExists({_t}) is false:
+		crateLog("refused %{_line}% by=%{_s}% (no crate %{_t}%)")
+		set {_all} to join {-cfg::crates::*} with ", "
+		dcrateReply({_s}, "CRATE %{_sub}%: no crate %{_t}% (%{_all}%)")
+		stop
+	if {_n} is not set:
+		crateLog("refused %{_line}% by=%{_s}% (bad count)")
+		dcrateReply({_s}, "CRATE %{_sub}%: the count must be a whole number from 1 to 10000")
+		stop
+	if {_n} < 1:
+		crateLog("refused %{_line}% by=%{_s}% (bad count)")
+		dcrateReply({_s}, "CRATE %{_sub}%: the count must be a whole number from 1 to 10000")
+		stop
+	if {_n} > 10000:
+		crateLog("refused %{_line}% by=%{_s}% (bad count)")
+		dcrateReply({_s}, "CRATE %{_sub}%: the count must be a whole number from 1 to 10000")
+		stop
+	if {_sign} > 0:
+		crateAddKeys({_p}, {_t}, {_n}, "dcrate by=%{_s}%")
+		dcrateReply({_s}, "CRATE %{_a::2}% +%{_n}% %{_t}% (now %crateKeys({_p}, {_t})%)")
+		loop all players:
+			if uuid of loop-player is uuid of {_p}:
+				msg(loop-player, "&aYou got %{_n}% %crateColored({_t})% &akey(s)! &7Open them: &f/crates")
+				play sound "entity.player.levelup" with volume 0.6 to loop-player
+		stop
+	# Take back only unused keys; what's already opened can't be.
+	set {_have} to crateKeys({_p}, {_t})
+	set {_take} to min({_have}, {_n})
+	set {data::%{_p}%::keys::%{_t}%} to {_have} - {_take}
+	crateLog("keys- %{_p}% %uuid of {_p}% %{_t}% -%{_take}% asked=%{_n}% now=%crateKeys({_p}, {_t})% by=%{_s}%")
+	dcrateReply({_s}, "CRATE %{_a::2}% -%{_take}% %{_t}% (asked %{_n}%; %{_n} - {_take}% already opened; now %crateKeys({_p}, {_t})%)")

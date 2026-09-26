@@ -11,7 +11,7 @@ _DEFAULT_:
   tabprefix: "%condition:rankprefix%"
   tagprefix: "%condition:rankprefix%"
   customtabname: "%donating_name_color%%player%"
-  tabsuffix: "%luckperms-suffix%%donating_tab_suffix%"
+  tabsuffix: "%donating_title%%luckperms-suffix%%donating_tab_suffix%"
   tagsuffix: "%luckperms-suffix%"
 
 per-world:

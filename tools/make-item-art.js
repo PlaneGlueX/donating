@@ -36,7 +36,59 @@ const BAGS = {
   camo: { name: 'Camo', B: [92, 104, 60], L: [118, 130, 80], D: [62, 70, 40], S: [70, 58, 40], E: [74, 84, 48], e: [52, 60, 34], H: [40, 34, 26], Z: [150, 140, 100], camo: [[58, 48, 34], [134, 120, 78], [48, 64, 36]] },
   arctic: { name: 'Arctic', B: [226, 232, 238], L: [246, 250, 252], D: [178, 188, 198], S: [120, 186, 222], E: [196, 206, 216], e: [150, 162, 176], H: [72, 80, 92], Z: [120, 186, 222], camo: [[186, 196, 206], [150, 170, 190]] },
   gilded: { name: 'Gilded', B: [236, 232, 222], L: [250, 248, 240], D: [196, 190, 176], S: [214, 170, 52], E: [214, 170, 52], e: [160, 124, 32], H: [120, 90, 30], Z: [232, 196, 80], rivet: [240, 204, 84] },
-  neon: { name: 'Neon', B: [52, 22, 78], L: [78, 36, 112], D: [34, 12, 52], S: [255, 64, 200], E: [255, 64, 200], e: [190, 40, 150], H: [40, 230, 240], Z: [40, 230, 240], glow: true }
+  neon: { name: 'Neon', B: [52, 22, 78], L: [78, 36, 112], D: [34, 12, 52], S: [255, 64, 200], E: [255, 64, 200], e: [190, 40, 150], H: [40, 230, 240], Z: [40, 230, 240], glow: true },
+  // Crate bag skins (cosmetics.sk, 2026-09-26), by rarity. pattern = drawn over the body color only:
+  // checker, stripes (every n columns, jag = wobbly, wide = 2 px), dollars, code (falling dashes).
+  denim: { name: 'Denim', B: [58, 90, 150], L: [86, 118, 178], D: [38, 62, 110], S: [220, 196, 140], E: [48, 76, 130], e: [34, 56, 98], H: [150, 104, 60], Z: [200, 200, 210], pattern: { type: 'stripes', every: 3, color: [70, 104, 166] } },
+  sand: { name: 'Desert', B: [196, 170, 120], L: [216, 194, 148], D: [150, 124, 82], S: [120, 96, 60], E: [176, 150, 102], e: [140, 116, 78], H: [96, 74, 46], Z: [230, 214, 170], camo: [[160, 130, 90], [222, 204, 160], [176, 146, 100]] },
+  urban: { name: 'Urban', B: [110, 112, 118], L: [140, 142, 148], D: [76, 78, 84], S: [40, 40, 44], E: [96, 98, 104], e: [70, 72, 78], H: [30, 30, 34], Z: [190, 190, 196], camo: [[60, 60, 66], [168, 168, 174], [86, 88, 94]] },
+  cherry: { name: 'Cherry', B: [200, 50, 80], L: [232, 92, 120], D: [140, 30, 56], S: [250, 244, 246], E: [180, 40, 70], e: [130, 26, 50], H: [60, 20, 30], Z: [250, 220, 230] },
+  cashprint: { name: 'Cash Print', B: [72, 138, 78], L: [100, 166, 104], D: [50, 104, 56], S: [236, 226, 180], E: [62, 120, 68], e: [44, 90, 50], H: [40, 60, 40], Z: [220, 200, 120], pattern: { type: 'dollars', color: [44, 96, 52] } },
+  crimson: { name: 'Crimson', B: [128, 18, 28], L: [160, 34, 44], D: [86, 10, 18], S: [24, 22, 24], E: [110, 14, 24], e: [76, 8, 16], H: [22, 20, 22], Z: [200, 180, 180], pattern: { type: 'stripes', every: 4, wide: true, color: [28, 24, 26] } },
+  tiger: { name: 'Tiger', B: [232, 132, 34], L: [248, 164, 70], D: [184, 96, 20], S: [250, 240, 220], E: [210, 116, 28], e: [160, 84, 18], H: [30, 22, 16], Z: [250, 230, 200], pattern: { type: 'stripes', every: 3, jag: true, color: [30, 22, 16] } },
+  carbon: { name: 'Carbon', B: [42, 42, 46], L: [64, 64, 70], D: [26, 26, 30], S: [200, 40, 40], E: [52, 52, 58], e: [34, 34, 38], H: [18, 18, 20], Z: [170, 170, 180], pattern: { type: 'checker', color: [58, 58, 64] } },
+  diamond: { name: 'Diamond', B: [90, 214, 226], L: [170, 244, 250], D: [40, 150, 168], S: [250, 254, 255], E: [70, 190, 206], e: [36, 136, 152], H: [30, 90, 104], Z: [240, 252, 255], pattern: { type: 'checker', color: [130, 232, 242] }, glow: true },
+  molten: { name: 'Molten', B: [34, 24, 22], L: [56, 40, 34], D: [20, 14, 12], S: [255, 128, 24], E: [48, 32, 28], e: [28, 20, 18], H: [255, 90, 20], Z: [255, 180, 60], pattern: { type: 'stripes', every: 4, jag: true, color: [255, 120, 20] }, glow: true },
+  matrix: { name: 'Matrix', B: [10, 18, 12], L: [18, 30, 20], D: [4, 10, 6], S: [40, 230, 90], E: [14, 24, 16], e: [8, 14, 10], H: [40, 230, 90], Z: [120, 255, 150], pattern: { type: 'code', color: [40, 230, 90] }, glow: true }
+}
+// Patterns over the body color only (straps, zipper and stripe stay clean), like camoPaint.
+const patternPaint = (c, b, x0, y0, x1, y1) => {
+  const body = [b.B, b.L, b.D].map(v => v.join(','))
+  const p = b.pattern
+  const col = [...p.color, 255]
+  let seed = 11
+  const rnd = n => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return (seed >>> 16) % n }
+  const put = (x, y) => {
+    if (x < x0 || x > x1 || y < y0 || y > y1) return
+    if (body.includes(c.get(x, y).slice(0, 3).join(','))) c.set(x, y, col)
+  }
+  if (p.type === 'checker') {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if ((x + y) % 2 === 0) put(x, y)
+  } else if (p.type === 'stripes') {
+    for (let x = x0; x <= x1; x += p.every) {
+      for (let y = y0; y <= y1; y++) {
+        const dx = p.jag ? rnd(3) - 1 : 0
+        put(x + dx, y)
+        if (p.wide) put(x + dx + 1, y)
+      }
+    }
+  } else if (p.type === 'dollars') {
+    let row = 0
+    for (let y = y0; y <= y1 - 4; y += 6, row++) {
+      for (let x = x0 + (row % 2) * 3; x <= x1 - 2; x += 6) {
+        DOLLAR.forEach((r, dy) => [...r].forEach((ch, dx) => { if (ch === '$') put(x + dx, y + dy) }))
+      }
+    }
+  } else if (p.type === 'code') {
+    for (let x = x0; x <= x1; x += 2) {
+      let y = y0 + rnd(4)
+      while (y <= y1) {
+        const len = 1 + rnd(3)
+        for (let k = 0; k < len; k++) put(x, y + k)
+        y += len + 1 + rnd(3)
+      }
+    }
+  }
 }
 // Blotches over the body color only (straps, zipper and stripe stay clean): a fixed pattern.
 const camoPaint = (c, b, x0, y0, x1, y1) => {
@@ -95,6 +147,7 @@ for (const t of Object.keys(BAGS)) {
   }
   if (b.dollar) c.draw(DOLLAR, { $: [...b.dollar, 255] }, 7, 8)
   if (b.camo) camoPaint(c, b, 2, 7, 13, 12)
+  if (b.pattern) patternPaint(c, b, 2, 7, 13, 12)
   write(`donating/textures/item/bag_${t}.png`, c.png())
   write(`donating/models/item/bag_${t}.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/bag_${t}` } })
 }
@@ -131,6 +184,7 @@ for (const t of Object.keys(BAGS)) {
   c.fill(24, 8, 31, 11, col('H'))
   c.fill(24, 8, 31, 8, shade(col('H'), 1.7))
   if (b.camo) { camoPaint(c, b, 0, 0, 23, 11); camoPaint(c, b, 0, 12, 23, 23) }
+  if (b.pattern) { patternPaint(c, b, 0, 0, 23, 11); patternPaint(c, b, 0, 12, 23, 23) }
   write(`donating/textures/item/bag_${t}_3d.png`, c.png())
   const face = uv => ({ uv, texture: '#bag' })
   const box = (from, to, uv) => ({ from, to, faces: { north: face(uv), south: face(uv), east: face(uv), west: face(uv), up: face(uv), down: face(uv) } })

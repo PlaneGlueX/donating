@@ -224,6 +224,248 @@
             "model": "donating:item/bag_neon_3d"
           }
         }
+      },
+      {
+        "when": "donating:bag_denim",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_denim"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_denim_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_sand",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_sand"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_sand_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_urban",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_urban"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_urban_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_cherry",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_cherry"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_cherry_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_cashprint",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_cashprint"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_cashprint_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_crimson",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_crimson"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_crimson_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_tiger",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_tiger"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_tiger_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_carbon",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_carbon"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_carbon_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_diamond",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_diamond"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_diamond_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_molten",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_molten"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_molten_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_matrix",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_matrix"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_matrix_3d"
+          }
+        }
       }
     ],
     "fallback": {

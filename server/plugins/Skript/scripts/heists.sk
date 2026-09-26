@@ -1035,6 +1035,30 @@ command /dheist [<text>]:
 		else:
 			dheistReply(sender, "HEIST %{_h}% unknown subcommand %{_sub}%")
 
+# Heist Refresh (ranks.sk /heistrefresh, a paid rank's perk): a heist that's cooling down opens for
+# everyone as soon as its room reset is done (like /dheist open). Returns "" when it did, else why not:
+#   "not-cooling"  open, running or disabled
+#   "opening"      its reopen time has already passed (the room is resetting: after a restart, or
+#                  someone refreshed it a moment ago), so a refresh would change nothing
+#   "alarm"        its alarm is still running: opening calls heistEndAlarm, which would end the chase
+#                  of robbers who got out, and a paid perk must never call off the cops
+function heistRefreshBlock(h: text) :: text:
+	if heistState({_h}) is not "cooldown":
+		return "not-cooling"
+	if heistAlarmStage({_h}) is not "none":
+		return "alarm"
+	if heistSecondsLeft({_h}) <= 0:
+		return "opening"
+	return ""
+
+function heistRefresh(h: text) :: text:
+	set {_why} to heistRefreshBlock({_h})
+	if {_why} is not "":
+		return {_why}
+	set {-heist::%{_h}%::until} to now
+	delete {heist::%{_h}%::reopen}
+	return ""
+
 function dheistReply(s: command sender, text: text):
 	send colored "&7%{_text}%" to {_s}
 	heistLog("staff %{_s}%: %{_text}%")

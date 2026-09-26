@@ -1,0 +1,245 @@
+# cosmetics.sk: cosmetics from crates (crates.sk). Built 2026-09-26 (owner: crates with bag skins, titles
+# and kill effects; car cosmetics, car upgrades and gun skins come later).
+#
+# A cosmetic is core.sk cos::<id>::type|name|rarity (optional ::retired, ::testing):
+#   title    a tag after your name in chat and the tab list ("Name «Ghost»"): /title
+#   bagskin  the bag's look, whatever tier you carry (the art is tools\make-item-art.js BAGS): /bagskin
+#            (ranks.sk; a rank's own skins stay rank-only)
+#   killfx   particles and a sound where your victim dies: /killeffect
+# Owned: data cos::<id> = true (saved per player, never taken away). Chosen: data "title", "killfx"
+# ("bag-skin" for bags, ranks.sk). Legends also own every retired and testing cosmetic (owner,
+# 2026-09-26: "Receives all testing/retired cosmetics"; core.sk paidrank::<id>::retired-cosmetics),
+# checked live, so it follows the rank. Crates never roll a retired or testing cosmetic.
+# Looks only: no cosmetic changes what anything does. Log: plugins\Skript\logs\cosmetics.log.
+
+function cosLog(text: text):
+	log {_text} to "cosmetics"
+
+function cosExists(id: text) :: boolean:
+	if {-cfg::cos::%{_id}%::type} is set:
+		return true
+	return false
+
+# "&9Cash Print" (the rarity's color and the name).
+function cosColored(id: text) :: text:
+	set {_r} to {-cfg::cos::%{_id}%::rarity}
+	set {_c} to {-cfg::rarity::%{_r}%::color}
+	if {_c} is not set:
+		set {_c} to "&f"
+	return "%{_c}%%{-cfg::cos::%{_id}%::name}%"
+
+# "title" -> "title", "bagskin" -> "bag skin", "killfx" -> "kill effect".
+function cosTypeName(type: text) :: text:
+	if {_type} is "bagskin":
+		return "bag skin"
+	if {_type} is "killfx":
+		return "kill effect"
+	return {_type}
+
+# Retired (no longer in crates) or testing (not released): crates skip it, Legends own it.
+function cosHidden(id: text) :: boolean:
+	if {-cfg::cos::%{_id}%::retired} is true:
+		return true
+	if {-cfg::cos::%{_id}%::testing} is true:
+		return true
+	return false
+
+function cosOwned(p: offline player, id: text) :: boolean:
+	if {data::%{_p}%::cos::%{_id}%} is true:
+		return true
+	if cosHidden({_id}) is true:
+		set {_r} to paidRank({_p})
+		if {_r} is not "":
+			if {-cfg::paidrank::%{_r}%::retired-cosmetics} is true:
+				return true
+	return false
+
+# Gives a cosmetic: true if it's new, false if the player already had it.
+function cosGive(p: offline player, id: text, why: text) :: boolean:
+	if {data::%{_p}%::cos::%{_id}%} is true:
+		return false
+	set {data::%{_p}%::cos::%{_id}%} to true
+	cosLog("give %{_p}% %uuid of {_p}% %{_id}% why=%{_why}%")
+	return true
+
+# Every cosmetic of a type the player owns, in core.sk's order.
+function cosOwnedOf(p: offline player, type: text) :: texts:
+	loop {-cfg::cosmetics::*}:
+		if {-cfg::cos::%loop-value%::type} is {_type}:
+			if cosOwned({_p}, loop-value) is true:
+				add loop-value to {_out::*}
+	return {_out::*}
+
+# The id of a cosmetic of that type typed by a player: its id or its name, any case, spaces optional
+# ("smooth operator", "SmoothOperator", "smooth"); "" when there's none.
+function cosFind(type: text, typed: text) :: text:
+	set {_t} to {_typed} in lower case
+	replace all " " with "" in {_t}
+	loop {-cfg::cosmetics::*}:
+		if {-cfg::cos::%loop-value%::type} is {_type}:
+			if loop-value is {_t}:
+				return loop-value
+			set {_n} to {-cfg::cos::%loop-value%::name} in lower case
+			replace all " " with "" in {_n}
+			if {_n} is {_t}:
+				return loop-value
+	return ""
+
+# ---------- Titles ----------
+
+# " &a«Ghost»" for the chosen title (if still owned), else "&r" (PlaceholderAPI would show the raw
+# placeholder for an empty text).
+function titleText(p: player) :: text:
+	set {_id} to getData({_p}, "title")
+	if {_id} is set:
+		if cosExists({_id}) is true:
+			if cosOwned({_p}, {_id}) is true:
+				set {_r} to {-cfg::cos::%{_id}%::rarity}
+				set {_c} to {-cfg::rarity::%{_r}%::color}
+				return " %{_c}%«%{-cfg::cos::%{_id}%::name}%»&r"
+	return "&r"
+
+# LPC (chat) and TAB (tab list) read %donating_title% from another thread: a copy in memory.
+every second:
+	loop all players:
+		set {-ph::title::%loop-player%} to titleText(loop-player)
+
+on join:
+	set {-ph::title::%player%} to titleText(player)
+
+on quit:
+	delete {-ph::title::%player%}
+
+# ---------- Kill effects ----------
+
+# The killer's chosen effect where the victim died. Players only: cops (Citizens NPCs, "NPC" metadata),
+# traps, falls and combat logs have no effect.
+on death of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	set {_id} to getData(attacker, "killfx")
+	{_id} is set
+	cosOwned(attacker, {_id}) is true
+	killFx({_id}, location of victim)
+
+function killFx(id: text, l: location):
+	set {_c} to {_l} ~ vector(0, 1, 0)
+	if {_id} is "poof":
+		draw 30 poof particles with offset vector(0.3, 0.5, 0.3) at {_c}
+		play sound "block.fire.extinguish" with volume 0.8 at {_c}
+	else if {_id} is "smoke":
+		draw 30 large smoke particles with offset vector(0.4, 0.6, 0.4) at {_c}
+		play sound "entity.generic.extinguish_fire" with volume 0.8 at {_c}
+	else if {_id} is "flames":
+		draw 50 flame particles with offset vector(0.3, 0.8, 0.3) at {_c}
+		play sound "item.firecharge.use" with volume 0.8 at {_c}
+	else if {_id} is "sparks":
+		draw 40 electric spark particles with offset vector(0.4, 0.8, 0.4) at {_c}
+		draw 20 crit particles with offset vector(0.4, 0.8, 0.4) at {_c}
+		play sound "entity.firework_rocket.twinkle" with volume 0.8 at {_c}
+	else if {_id} is "cashburst":
+		draw 30 happy villager particles with offset vector(0.5, 0.8, 0.5) at {_c}
+		draw 20 wax on particles with offset vector(0.5, 0.8, 0.5) at {_c}
+		play sound "entity.experience_orb.pickup" with volume 1 at {_c}
+	else if {_id} is "souls":
+		draw 25 soul particles with offset vector(0.4, 0.6, 0.4) at {_c}
+		draw 20 soul fire flame particles with offset vector(0.3, 0.8, 0.3) at {_c}
+		play sound "particle.soul_escape" with volume 1 at {_c}
+	else if {_id} is "fireworks":
+		draw 60 firework particles with offset vector(0.5, 0.8, 0.5) at {_c}
+		play sound "entity.firework_rocket.blast" with volume 1 at {_c}
+		play sound "entity.firework_rocket.twinkle" with volume 0.8 at {_c}
+	else if {_id} is "stormcloud":
+		draw 30 large smoke particles with offset vector(0.6, 0.2, 0.6) at {_c} ~ vector(0, 1.2, 0)
+		draw 40 electric spark particles with offset vector(0.3, 1, 0.3) at {_c}
+		play sound "entity.lightning_bolt.impact" with volume 0.7 at {_c}
+	else if {_id} is "dragon":
+		draw 60 dragon breath particles with offset vector(0.5, 0.8, 0.5) at {_c}
+		draw 20 end rod particles with offset vector(0.4, 0.8, 0.4) at {_c}
+		play sound "entity.ender_dragon.growl" with volume 0.4 at {_c}
+	else if {_id} is "totem":
+		draw 60 totem of undying particles with offset vector(0.4, 0.8, 0.4) at {_c}
+		play sound "item.totem.use" with volume 0.6 at {_c}
+	else if {_id} is "glitch":
+		draw 30 end rod particles with offset vector(0.3, 0.9, 0.3) at {_c}
+		draw 30 sculk soul particles with offset vector(0.4, 0.8, 0.4) at {_c}
+		draw 20 glow particles with offset vector(0.4, 0.8, 0.4) at {_c}
+		play sound "block.beacon.deactivate" with volume 1 at {_c}
+
+# ---------- Commands ----------
+
+# /title and /killeffect: no argument lists yours, "none" takes it off, a name picks it.
+function cosPick(p: player, type: text, key: text, cmd: text, typed: text):
+	set {_label} to cosTypeName({_type})
+	set {_owned::*} to cosOwnedOf({_p}, {_type})
+	if {_typed} is "":
+		if size of {_owned::*} is 0:
+			msg({_p}, "&7You have no %{_label}%s yet. They come from crates: &f/crates")
+			stop
+		loop {_owned::*}:
+			add cosColored(loop-value) to {_names::*}
+		set {_list} to join {_names::*} with "&7, "
+		set {_now} to getData({_p}, {_key})
+		set {_nowText} to "none"
+		if {_now} is set:
+			if {_owned::*} contains {_now}:
+				set {_nowText} to cosColored({_now})
+		msg({_p}, "&6Your %{_label}%s: %{_list}% &7(now: %{_nowText}%&7). &f/%{_cmd}% <name> &7or &f/%{_cmd}% none")
+		stop
+	if {_typed} is "none":
+		deleteData({_p}, {_key})
+		msg({_p}, "&aNo %{_label}% now.")
+		stop
+	set {_id} to cosFind({_type}, {_typed})
+	if {_id} is "":
+		msg({_p}, "&cThere's no %{_label}% called %{_typed}%. &7/%{_cmd}% lists yours.")
+		stop
+	if cosOwned({_p}, {_id}) is false:
+		msg({_p}, "&cYou don't have %cosColored({_id})%&c yet. &7Crates: &f/crates")
+		stop
+	setData({_p}, {_key}, {_id})
+	if {_type} is "title":
+		set {-ph::title::%{_p}%} to titleText({_p})
+	msg({_p}, "&aYour %{_label}%: %cosColored({_id})%&a.")
+
+command /title [<text>]:
+	description: Pick the title after your name (from crates).
+	executable by: players
+	trigger:
+		set {_t} to ""
+		if arg-1 is set:
+			set {_t} to arg-1
+		cosPick(player, "title", "title", "title", {_t})
+
+command /killeffect [<text>]:
+	description: Pick what happens where you knock someone out (from crates).
+	executable by: players
+	trigger:
+		set {_t} to ""
+		if arg-1 is set:
+			set {_t} to arg-1
+		cosPick(player, "killfx", "killfx", "killeffect", {_t})
+
+command /cosmetics:
+	description: Your cosmetics.
+	executable by: players
+	trigger:
+		cosList(player)
+
+function cosList(p: player):
+	msg({_p}, "&6Your cosmetics &7(from crates: /crates)")
+	loop "title", "bagskin" and "killfx":
+		set {_type} to loop-value
+		delete {_names::*}
+		loop cosOwnedOf({_p}, {_type}):
+			add cosColored(loop-value-2) to {_names::*}
+		set {_list} to join {_names::*} with "&7, "
+		if {_list} is "":
+			set {_list} to "&7none yet"
+		if {_type} is "title":
+			send colored "&7 » Titles &f/title&7: %{_list}%" to {_p}
+		else if {_type} is "bagskin":
+			send colored "&7 » Bag skins &f/bagskin&7: %{_list}%" to {_p}
+		else:
+			send colored "&7 » Kill effects &f/killeffect&7: %{_list}%" to {_p}

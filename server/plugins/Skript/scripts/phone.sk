@@ -70,6 +70,7 @@ function openPhone(p: player):
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
 	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars. Coming soon.", "phone:garage")
+	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Open crates, see what's inside," and "&7and claim your daily key.", "phone:crates")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
 	set slot 23 of {_gui} to tagItem(book named "&aHow to play" with lore "&7Heists, your bag, passive mode.", "phone:help")
 	set slot 26 of {_gui} to tagItem(barrier named "&cClose", "phone:close")
@@ -124,6 +125,9 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 15:
 		close {_p}'s inventory
 		msg({_p}, "The garage is coming soon.")
+	else if {_slot} is 19:
+		close {_p}'s inventory
+		crateMenu({_p})
 	else if {_slot} is 21:
 		close {_p}'s inventory
 		showBounties({_p})
