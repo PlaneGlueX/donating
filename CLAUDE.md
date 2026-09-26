@@ -266,6 +266,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 ### WeaponMechanics (verified in its 4.3.1 source and with bots)
 - It reads Q (PlayerDropItemEvent) and F (PlayerSwapHandItemsEvent) at LOW with ignoreCancelled=true, schedules the trigger for the next tick, and never re-checks. Cancelling at HIGH/HIGHEST is safe; cancelling at LOWEST/LOW breaks reload and firemode.
 - Players need `weaponmechanics.use.<weapon>` (or `.*`) or guns won't shoot or reload.
+- No weapon may have a `Dual_Wielding` rule (removed from every weapon file 2026-09-25): WeaponMechanics counts ANY item in the offhand as dual wielding, and its default guns had `Circumstance: Dual_Wielding: DENY` on shooting (the .50 GS also on scoping, plus +50% spread), so with the bag in the offhand no gun fired; grenades worked because they have no such rule. Found by the owner; `botsun.js wm-ammo` now checks every sold gun fires and reloads with the bag.
 - Every weapon we sell needs `Info.Cancel.Drop_Item: true` and `Info.Cancel.Swap_Hands: true` (without Swap_Hands, pressing F cancels a running reload even though Skript cancels the swap).
 - Default guns have no `Reload.Ammo` section, so they reload for free. Item ammo needs `Reload.Ammo.Ammos` per gun plus an ammo type in `ammos\*.yml`.
 - It takes ammo from slots 0-35 except the held slot, editing stacks in place. Never put ammo in the hotbar.
@@ -501,7 +502,7 @@ Everything is on `main` (PR https://github.com/PlaneGlueX/donating/pull/1 merged
 Built and passing on the local server (details and results in PLAYTEST.md):
 - Scripts 1-13 and 6b: core, join-quit, chat-extras, afk, inventory, phone, nav, shop, death (without the duffel), combat-log, pvp (passive mode, safe zones, spawn shield; the loot rule waits for bag.sk), bounty, heists (loot, the bag, the HUD and cops plug in through its hooks), traps; hud.sk (the ammo bar) and placeholders.sk (the tab list) started.
 - DonatingPhone plugin (see Phone plugin) with the resource pack in `pack\`.
-- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 33, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 21, shop 45, bounty 19, heists 72, hud 13, traps 55 = 454 checks.
+- Bot scenarios (`tools\node\node.exe bots\run.js <name>`): inventory-lock 41, join 4, wm-reload 5, join-quit 15, chat-extras 20, afk 10, phone 33, phone-map 48, pvp 10, combat-log 18, safezone 14, death 11, wm-ammo 27, shop 45, bounty 19, heists 72, hud 13, traps 55 = 460 checks.
 - Real 26.3 client (computer use): PLAYTEST 13-15, 29, 30 (visible parts), 33 (water), 34, 36-38, 40, 43, 49.
 
 Waiting on the owner:

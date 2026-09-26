@@ -217,6 +217,9 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
     - Result: PASS (bot, 2026-09-25). 55/55 (first run 48/55: the per-trap hit cooldown was keyed by UUID on one side and by name on the other, so a laser hit every 2 ticks; and `damage=0` slipped through a condition line inside an `if` block. Both fixed.)
     - Owner: the numbers (hearts per trap kind, the difficulty multiplier, a laser every 1 s, a turret every 0.5 s after 1 s). Human check: does a hit feel fair (the red flash, the sound, the "-4 ❤ laser" action bar)?
 
+74. **Guns fire with the bag in the offhand** (owner report 2026-09-25: "the guns wont shoot, the grenades work"): `botsun.js wm-ammo` (27 checks) now fires and reloads every sold gun with the bag in the offhand, and checks no weapon file has a `Dual_Wielding` rule.
+    - Result: PASS (bot, 2026-09-25). Cause: WeaponMechanics treats any offhand item as dual wielding, and every default gun denied shooting while dual wielding. Removed those rules from all 16 weapon files; the AK went from 0 shots to firing with the bag, leather, stone or a feather in the offhand. Owner: fire every gun once in the real client.
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.
