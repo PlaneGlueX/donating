@@ -389,7 +389,8 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 		if isPassive({_p}) is true:
 			return "The %{_name}% is a PvP heist. Turn passive mode off first (phone)."
 	if heistRankOk({_p}, {_h}) is not true:
-		return "You need robber rank %heistRank({_h})% for the %{_name}%."
+		set {_need} to heistRank({_h})
+		return "You need robber rank %{_need}% (%rankName({_need})%) for the %{_name}%. /rank"
 	return ""
 
 # Puts membership in line with where the player stands.
@@ -851,11 +852,11 @@ placeholderapi placeholder with the prefix "donating":
 			if {-heistin::%player%} is set:
 				set the placeholder result to "yes"
 	else if {_i} is "heist_name":
+		# Memory only (placeholders.sk copies it once a second): TAB asks from its own thread.
 		set the placeholder result to "&r"
 		if player is set:
-			set {_h} to {-heistin::%player%}
-			if {_h} is set:
-				set the placeholder result to heistName({_h})
+			if {-ph::heistname::%player%} is set:
+				set the placeholder result to {-ph::heistname::%player%}
 	else if {_i} starts with "heist_status_":
 		set {_h} to subtext of {_i} from characters 14 to (length of {_i})
 		set the placeholder result to {-heist::%{_h}%::status}
@@ -874,7 +875,11 @@ command /heists:
 			heistState(loop-index) is not "disabled"
 			heistState(loop-index) is not ""
 			set {_any} to true
-			send colored "&8 » %{-heist::%loop-index%::title}% &8- %{-heist::%loop-index%::status}% &8- %{-heist::%loop-index%::info}%" to player
+			set {_lock} to ""
+			set {_need} to heistRank(loop-index)
+			if rankOk(player, {_need}) is false:
+				set {_lock} to " &c(needs %rankName({_need})%)"
+			send colored "&8 » %{-heist::%loop-index%::title}% &8- %{-heist::%loop-index%::status}% &8- %{-heist::%loop-index%::info}%%{_lock}%" to player
 		if {_any} is false:
 			send colored "&7 None open yet." to player
 
@@ -1332,12 +1337,7 @@ function dheistDelete(s: command sender, h: text):
 
 # ranks.sk: may this player rob this heist?
 function heistRankOk(p: player, h: text) :: boolean:
-	set {_r} to getData({_p}, "rank")
-	if {_r} is not set:
-		set {_r} to 0
-	if {_r} >= heistRank({_h}):
-		return true
-	return false
+	return rankOk({_p}, heistRank({_h}))
 
 # bag.sk: remove every loot line tagged "<h>#<run>" from the player's bag; return its value.
 function heistForfeit(p: player, h: text, run: number) :: number:

@@ -96,7 +96,7 @@ module.exports = async ({ check }) => {
     await cmd(`forceload add ${BB_CHUNKS}`)
     await cmd(`fill 776 ${Y - 1} 764 792 ${Y - 1} 784 glass`)
     await cmd(`zzregion heist_${BB} 780 190 768 790 208 780`)
-    for (const c of [`dheist create ${BB} 4`, `dheist set ${BB} name Hud Lab`, `dheist set ${BB} escape 600`, `dheist set ${BB} cooldown 5`, `dheist exit ${BB} ${BB_EXIT} -90`, `dheist snapshot ${BB}`, `dheist enable ${BB}`]) await cmd(c)
+    for (const c of [`dheist create ${BB} 4`, `dheist set ${BB} rank 0`, `dheist set ${BB} name Hud Lab`, `dheist set ${BB} escape 600`, `dheist set ${BB} cooldown 5`, `dheist exit ${BB} ${BB_EXIT} -90`, `dheist snapshot ${BB}`, `dheist enable ${BB}`]) await cmd(c)
     const until = async (fn, ms = 5000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(200) } return Boolean(await fn()) }
     const opened = await until(async () => /state=open/.test(await cmd(`zzheist ${BB}`)), 15000)
     check('no boss bar outside heists', opened && barNow().length === 0, barText())
@@ -132,9 +132,11 @@ module.exports = async ({ check }) => {
     await sleep(1300) // the balance is copied into memory once a second
     check('balance placeholder', (await papi('donating_balance')) === '$12,345', await papi('donating_balance'))
     await cmd(`zzbounty ${NAME} 2500 kill`)
+    await sleep(1300) // the bounty's money texts are copied into memory once a second too
     const fancy = await papi('donating_bounty_fancy')
     check('bounty placeholders: the number, the column text, the footer money', (await papi('donating_bounty')) === '2500' && /\$2\.5K/.test(fancy) && (await papi('donating_bounty_money')) === '$2,500', `${await papi('donating_bounty')} / ${fancy} / ${await papi('donating_bounty_money')}`)
     await cmd(`zzbountyreset ${NAME}`)
+    await sleep(1300)
     check('no bounty: an empty column (a reset code, never the raw placeholder)', /^\(amp\)r$/.test(await papi('donating_bounty_fancy')) && (await papi('donating_bounty')) === '0', await papi('donating_bounty_fancy'))
     const before = await papi('donating_name_color')
     await cmd(`zzpassive ${NAME} on`)

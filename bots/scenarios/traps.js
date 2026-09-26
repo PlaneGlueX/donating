@@ -102,8 +102,8 @@ module.exports = async ({ check }) => {
     await cmd('zzcfgtext heist::start-on enter') // the clock at the first entry: these heists have no loot
     await cmd('zzregion heist_ztrap 768 190 768 782 208 794')
     await cmd('zzregion heist_ztrapa 788 196 768 804 208 796')
-    for (const c of ['dheist create ztrap 2', 'dheist set ztrap name Trap Hall', 'dheist set ztrap escape 600', 'dheist set ztrap cooldown 5', 'dheist exit ztrap 764.5 200 781.5 -90', 'dheist snapshot ztrap',
-      'dheist create ztrapa 4', 'dheist set ztrapa name Camera Room', 'dheist set ztrapa escape 600', 'dheist set ztrapa cooldown 5', 'dheist exit ztrapa 785.5 200 780.5 -90', 'dheist snapshot ztrapa']) await cmd(c)
+    for (const c of ['dheist create ztrap 2', 'dheist set ztrap rank 0', 'dheist set ztrap name Trap Hall', 'dheist set ztrap escape 600', 'dheist set ztrap cooldown 5', 'dheist exit ztrap 764.5 200 781.5 -90', 'dheist snapshot ztrap',
+      'dheist create ztrapa 4', 'dheist set ztrapa rank 0', 'dheist set ztrapa name Camera Room', 'dheist set ztrapa escape 600', 'dheist set ztrapa cooldown 5', 'dheist exit ztrapa 785.5 200 780.5 -90', 'dheist snapshot ztrapa']) await cmd(c)
     for (const name of [A, B]) {
       bots[name] = await join(name)
       await reset(name)
@@ -429,7 +429,7 @@ module.exports = async ({ check }) => {
     await cmd('dheist disable ztrap')
     await cmd('dtrap clear ztrap confirm')
     await cmd('dheist delete ztrap confirm') // also resets the numbering
-    for (const c of ['dheist create ztrap 2', 'dheist set ztrap name Trap Hall']) await cmd(c)
+    for (const c of ['dheist create ztrap 2', 'dheist set ztrap rank 0', 'dheist set ztrap name Trap Hall']) await cmd(c)
     for (const line of dump) await cmd(line)
     const after = (await cmd('dtrap list ztrap')).replace(/armed=\w+/, '')
     check('dump round trip: replaying the dump recreates the same traps', dump.length === 8 && after === before, `${dump.length} lines; ${before === after}`)

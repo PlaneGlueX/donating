@@ -16,8 +16,9 @@ header-footer:
       footer:
         - "&8&m                                        &r"
         - "&f\uE001 &6%donating_balance%     &f\uE002 &c%donating_bounty_money%"
+        - "&7Rank %donating_rank%  &8· &7%donating_rank_xp%"
         - "&f\uE003 &f%online%&7/&f%donating_max_players%     &f\uE004 &f%ping%&7ms"
-        - "&7/help  &8·  &7/heists  &8·  &7/bounty"
+        - "&7/help  &8·  &7/heists  &8·  &7/rank  &8·  &7/bounty"
         - ""
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Tablist-name-formatting

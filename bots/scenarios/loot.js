@@ -62,6 +62,9 @@ module.exports = async ({ check }) => {
       await cmd(`zzdata ${name} passive-switched none`)
       await cmd(`gamemode survival ${name}`)
       await cmd(`zztestkit ${name}`) // bag tier 2 ($6,000)
+      // Bots never eat: after a long session they starve to 1 HP, and the 1-HP test hits below would kill them.
+      await cmd(`minecraft:effect give ${name} minecraft:saturation 1 20 true`)
+      await cmd(`minecraft:effect give ${name} minecraft:instant_health 1 5 true`)
     }
     // The interaction nearest to a point (its position is the box's bottom centre).
     const box = (bot, x, y, z) => {
@@ -117,8 +120,8 @@ module.exports = async ({ check }) => {
     await cmd('zzregion safe_lt 720 190 720 736 208 726')
     await cmd('rg flag -w world safe_base_lt passthrough allow')
     await cmd('rg flag -w world safe_lt passthrough allow')
-    for (const c of ['dheist create lootlab 2', 'dheist set lootlab name Loot Lab', 'dheist set lootlab escape 600', 'dheist set lootlab cooldown 5', 'dheist exit lootlab 698.5 200 708.5 -90', 'dheist snapshot lootlab',
-      'dheist create vaultlab 4', 'dheist set vaultlab name Vault Lab', 'dheist set vaultlab escape 600', 'dheist set vaultlab cooldown 5', 'dheist exit vaultlab 718.5 200 708.5 -90', 'dheist snapshot vaultlab']) await cmd(c)
+    for (const c of ['dheist create lootlab 2', 'dheist set lootlab rank 0', 'dheist set lootlab name Loot Lab', 'dheist set lootlab escape 600', 'dheist set lootlab cooldown 5', 'dheist exit lootlab 698.5 200 708.5 -90', 'dheist snapshot lootlab',
+      'dheist create vaultlab 4', 'dheist set vaultlab rank 0', 'dheist set vaultlab name Vault Lab', 'dheist set vaultlab escape 600', 'dheist set vaultlab cooldown 5', 'dheist exit vaultlab 718.5 200 708.5 -90', 'dheist snapshot vaultlab']) await cmd(c)
     for (const name of [A, B]) {
       bots[name] = await join(name)
       await reset(name)
