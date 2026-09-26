@@ -633,6 +633,41 @@ for (const [base, def] of Object.entries(itemCases)) {
   })
 }
 
+// ---------- Cop bullets: the arrow as a tracer (cops.sk) ----------
+// Cops (Citizens + Sentinel) fire arrows, and nothing else in Donating does (bows aren't sold), so the
+// vanilla arrow becomes a bullet streak. The 26.3 arrow.png is 32x32: row 2 is the side view drawn twice,
+// mirrored (x 0-15 tail -> head, x 16-31 head -> tail, so the head is in the middle), rows 0-4 around it
+// hold the head and feathers, and (0-4, 5-9) / (5-9, 5-9) are the two back crosses. Arrows render cutout:
+// a pixel is shown or not, so the glow is solid pixels. Without the pack cops shoot plain arrows.
+{
+  const c = canvas(32, 32)
+  const CORE = [255, 244, 196, 255]
+  const EDGE = [255, 176, 64, 255]
+  const COPPER = [196, 112, 60, 255]
+  const TIP = [150, 82, 44, 255]
+  const half = (dir, x0) => {
+    // i = 0 at the tail, 15 at the head
+    for (let i = 0; i < 16; i++) {
+      const x = x0 + dir * i
+      if (i >= 13) {
+        c.set(x, 2, i === 15 ? TIP : COPPER)
+        if (i === 13 || i === 14) { c.set(x, 1, COPPER); c.set(x, 3, COPPER) }
+      } else if (i >= 4) {
+        const f = (i - 4) / 8 // 0 at the fading tail, 1 by the head
+        c.set(x, 2, [255, Math.round(170 + 74 * f), Math.round(60 + 136 * f), 255])
+        if (i >= 8) { c.set(x, 1, EDGE); c.set(x, 3, EDGE) }
+      }
+    }
+  }
+  half(1, 0)
+  half(-1, 31)
+  // The back crosses: a small hot dot (what you see of a bullet flying straight away from you).
+  for (const cx of [2, 7]) {
+    c.set(cx, 7, CORE); c.set(cx - 1, 7, EDGE); c.set(cx + 1, 7, EDGE); c.set(cx, 6, EDGE); c.set(cx, 8, EDGE)
+  }
+  write('minecraft/textures/entity/projectiles/arrow.png', c.png())
+}
+
 // ---------- The XP bar: a brass ammo belt ----------
 // 182x5 like vanilla. Every 5 texels a darker seam, like rounds in a belt.
 {

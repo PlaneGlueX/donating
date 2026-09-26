@@ -45,6 +45,52 @@ function loadSettings():
 	set {-cfg::alarm::wave-interval} to 10 seconds
 	set {-cfg::alarm::max-cops} to 6
 	set {-cfg::alarm::chase-radius} to 100
+	# ---------- Cops (cops.sk, Citizens + Sentinel): ALL PROPOSALS ----------
+	# Each alarm wave brings per-wave cops, up to the heist's cap: C = alarm::max-cops + max(0, R - 3) ×
+	# alarm::cops-per-extra-robber, R = the players the alarm hunts (owner, 2026-09-26: +2 per robber
+	# above 3, no cap on the whole server). health / damage are HP (20 = a full player); attack-rate in
+	# seconds between shots; range = how far they shoot; chase = how far from where they spawned they
+	# follow; accuracy 0 = perfect, 5 = poor; speed × a player's walk. model = the WeaponMechanics skin
+	# their gun shows; the gun fires arrows (Sentinel treats it as a bow).
+	set {-cfg::alarm::cops-per-extra-robber} to 2
+	set {-cfg::cop::per-wave} to 2
+	set {-cfg::cop::name} to "Cop"
+	set {-cfg::cop::range} to 30
+	set {-cfg::cop::chase} to 120
+	# Stronger heists, stronger cops with better guns (owner, 2026-09-26). Per difficulty 1-4: health,
+	# damage per shot, seconds between shots, accuracy, speed, gun (9 .50 GS, 1 Uzi, 5 AK-47).
+	set {-cfg::difficulty::1::cop-health} to 16
+	set {-cfg::difficulty::1::cop-damage} to 2
+	set {-cfg::difficulty::1::cop-attack-rate} to 2
+	set {-cfg::difficulty::1::cop-accuracy} to 2.5
+	set {-cfg::difficulty::1::cop-speed} to 1.1
+	set {-cfg::difficulty::1::cop-model} to 9
+	set {-cfg::difficulty::2::cop-health} to 20
+	set {-cfg::difficulty::2::cop-damage} to 2.5
+	set {-cfg::difficulty::2::cop-attack-rate} to 1.75
+	set {-cfg::difficulty::2::cop-accuracy} to 2
+	set {-cfg::difficulty::2::cop-speed} to 1.2
+	set {-cfg::difficulty::2::cop-model} to 9
+	set {-cfg::difficulty::3::cop-health} to 26
+	set {-cfg::difficulty::3::cop-damage} to 3
+	set {-cfg::difficulty::3::cop-attack-rate} to 1.5
+	set {-cfg::difficulty::3::cop-accuracy} to 1.5
+	set {-cfg::difficulty::3::cop-speed} to 1.25
+	set {-cfg::difficulty::3::cop-model} to 1
+	set {-cfg::difficulty::4::cop-health} to 32
+	set {-cfg::difficulty::4::cop-damage} to 4
+	set {-cfg::difficulty::4::cop-attack-rate} to 1.25
+	set {-cfg::difficulty::4::cop-accuracy} to 1
+	set {-cfg::difficulty::4::cop-speed} to 1.3
+	set {-cfg::difficulty::4::cop-model} to 5
+	# Killing cops (owner, 2026-09-26): every cop-bounty-every cops a player kills add cop-bounty to their
+	# bounty (never for passive players). Shooting a cop makes you wanted (cops.sk).
+	set {-cfg::cop::bounty-every} to 4
+	set {-cfg::cop::bounty} to 100
+	# The police skin (tools\make-cop-skin.js), signed once by MineSkin (Citizens: npc skin --file police.png, then
+	# its saves.yml skintrait textureRaw / signature). "" = Citizens uses the skin of the account named cop::name.
+	set {-cfg::cop::skin-texture} to "ewogICJ0aW1lc3RhbXAiIDogMTc5MDQzMjk3MDc0OCwKICAicHJvZmlsZUlkIiA6ICI5OGQxYTQyNmRlMmU0NjBkYjdjNWExMmY5MGNhODg0OSIsCiAgInByb2ZpbGVOYW1lIiA6ICJLdWJpbm9TSyIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8zNGI0N2Q4OTlkNTMyMzllNjM0MTY2MThmNDRhMmNhZWJjNWU4ZjNhZmEwZTk4NzU3MDg1NmFiYTQ5Y2EwYmNkIgogICAgfQogIH0KfQ=="
+	set {-cfg::cop::skin-signature} to "jbmsFMheKX66NCk/w6ZHKDjIpGMpcNLJMu1rpi+SIp5LQezM/Wd9v+5mHBb54CQ2KYZkji2nfCUjakYhf3KFiYNp5qK5zSu29t1CgT4MK1GiZgRZYR6IOFFAvnSWBjlHpaHxLbNxZ5ZCraE52IO8Sk2ANjZjf42uJYYc3b18rZwAwSyJGvAP6hxHPTChDYu78/0kkHf4PopS9sL+puycGf9oskT2Jb4jknOFOAejTos9kU3iiFngeThm9+EeVOgNAQVQr8D7jRXUdnAlqGl5yRrRe9EhjB2HYb1GaZSDveVRpYDNrH3UUSTs528bhM7qZ36pE4YKnfs9/wzxCXp+2ZNXHfcabQut0u0+DfO+7fYnF7bZaUVY9A9es/AJEluCT2XLA/0lRF9BPthGvwn0CeN8q6tuuuyVaLe9bBo/a3sy09Bd6mJH+f1D2MLwTA0KQ/VyCdQsvhdrttX+WERXpaeE5LDAGl243Jrc/L2J6GkkMO5a8ewTWZASXBK7A/rXGUm7IMfzCUXStsLfdO70mcC84KK84s4DXingVNcRU+ahNWsyMjXeV0l61tWXaaQhhtC689qSs0dz5bqEaKcGwvJ0ED392GIlCn0Jqlu3wGvlRW5DqPMur8ON1wbTZ91rJYATjK22LKAumaK0RYgGnDjE2hgYxXg/0k/KYF9/LVE="
 	set {-cfg::car::idle-despawn} to 5 minutes
 	set {-cfg::car::other-car-despawn} to 1 minute
 	set {-cfg::lockpick::max-fails} to 3
@@ -57,6 +103,18 @@ function loadSettings():
 	# The city map the phones show is set in plugins\DonatingPhone\config.yml (city-maps), not here.
 	# How far a passive player's green locator-bar dot reaches (blocks). Non-passive players send none.
 	set {-cfg::nav::passive-range} to 100000
+	# Points of interest on the locator bar (nav.sk, /dpoi): types and their dot colors (the names Minecraft's
+	# /waypoint command takes). PROPOSAL. Heists get their difficulty's waypoint color while open or running.
+	set {-cfg::poi::types::*} to "base", "shop", "spawn" and "landmark"
+	set {-cfg::poi::base::color} to "aqua"
+	set {-cfg::poi::shop::color} to "yellow"
+	set {-cfg::poi::spawn::color} to "white"
+	set {-cfg::poi::landmark::color} to "light_purple"
+	set {-cfg::poi::range} to 60000000
+	set {-cfg::difficulty::1::waypoint} to "green"
+	set {-cfg::difficulty::2::waypoint} to "yellow"
+	set {-cfg::difficulty::3::waypoint} to "gold"
+	set {-cfg::difficulty::4::waypoint} to "dark_red"
 
 	# ---------- Death loss: L = min(B × p, C) ----------
 	# p per heist difficulty. Player/trap deaths: 1-5%. Cop deaths: 5-10%.
@@ -864,6 +922,15 @@ on command:
 function staffKicked(p: player) :: boolean:
 	set {_k} to name of {_p} in lower case
 	if {-staffkick::%{_k}%} is true:
+		return true
+	return false
+
+# A Citizens NPC (a cop, cops.sk). Citizens drops the "NPC" metadata of a dead NPC in its own death
+# handler, so later death handlers also check its CITIZENS_NPC scoreboard tag, which stays.
+function isNpc(e: entity) :: boolean:
+	if {_e} has metadata "NPC":
+		return true
+	if {_e} has scoreboard tag "CITIZENS_NPC":
 		return true
 	return false
 

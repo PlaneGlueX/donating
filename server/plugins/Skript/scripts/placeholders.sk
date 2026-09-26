@@ -23,6 +23,11 @@
 #   %donating_booster%       the running money booster ("⚡ 1.5× money for everyone · 23:10 · thanks Name"), or "&r"
 #   %donating_title%         " &a«Ghost»" after the name (chat, tab list; cosmetics.sk keeps it in memory), or "&r"
 #   %donating_keys_<crate>%  your keys for that crate ("3"; crate stand holograms, crates.sk)
+#   %donating_wanted%        "&c&lWANTED&r &7· lose the cops" while an alarm hunts you, else "&r"
+#   %donating_heist_diff%    your heist's difficulty in its color ("&4Advanced")
+#   %donating_heist_robbers% robbers in your heist ("3")
+#   %donating_heists_open%   heists open or running right now ("2")
+#   %donating_daily%         "&aready" or "in 5h 12m" (/daily, crates.sk)
 
 every second:
 	loop all players:
@@ -38,10 +43,37 @@ every second:
 		set {_h} to {-heistin::%loop-player%}
 		if {_h} is set:
 			set {-ph::heistname::%loop-player%} to heistName({_h})
+			set {_d} to heistDifficulty({_h})
+			set {_dc} to {-cfg::difficulty::%{_d}%::color}
+			set {_dn} to {-cfg::difficulty::%{_d}%::name}
+			set {-ph::heistdiff::%loop-player%} to "%{_dc}%%{_dn}%"
+			set {-ph::heistrobbers::%loop-player%} to "%heistRobberCount({_h})%"
 		else:
 			delete {-ph::heistname::%loop-player%}
+			delete {-ph::heistdiff::%loop-player%}
+			delete {-ph::heistrobbers::%loop-player%}
+		if isWanted(loop-player) is true:
+			set {-ph::wanted::%loop-player%} to "&c&lWANTED&r &7· lose the cops"
+		else:
+			delete {-ph::wanted::%loop-player%}
+		if dailyLeft(loop-player) <= 0:
+			set {-ph::daily::%loop-player%} to "&aready &7/daily"
+		else:
+			set {-ph::daily::%loop-player%} to dailyText(loop-player)
+	set {_open} to 0
+	loop {heists::*}:
+		set {_s} to heistState(loop-index)
+		if {_s} is "open":
+			add 1 to {_open}
+		else if {_s} is "active":
+			add 1 to {_open}
+	set {-ph::heistsopen} to "%{_open}%"
 
 on quit:
+	delete {-ph::heistdiff::%player%}
+	delete {-ph::heistrobbers::%player%}
+	delete {-ph::wanted::%player%}
+	delete {-ph::daily::%player%}
 	delete {-ph::balance::%player%}
 	delete {-ph::bountymoney::%player%}
 	delete {-ph::bountyfancy::%player%}
@@ -90,6 +122,26 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-ph::booster} is set:
 			set the placeholder result to {-ph::booster}
+	else if {_i} is "wanted":
+		set the placeholder result to "&r"
+		if {-ph::wanted::%player%} is set:
+			set the placeholder result to {-ph::wanted::%player%}
+	else if {_i} is "heist_diff":
+		set the placeholder result to "&r"
+		if {-ph::heistdiff::%player%} is set:
+			set the placeholder result to {-ph::heistdiff::%player%}
+	else if {_i} is "heist_robbers":
+		set the placeholder result to "0"
+		if {-ph::heistrobbers::%player%} is set:
+			set the placeholder result to {-ph::heistrobbers::%player%}
+	else if {_i} is "heists_open":
+		set the placeholder result to "0"
+		if {-ph::heistsopen} is set:
+			set the placeholder result to {-ph::heistsopen}
+	else if {_i} is "daily":
+		set the placeholder result to "&r"
+		if {-ph::daily::%player%} is set:
+			set the placeholder result to {-ph::daily::%player%}
 	else if {_i} is "title":
 		set the placeholder result to "&r"
 		if {-ph::title::%player%} is set:

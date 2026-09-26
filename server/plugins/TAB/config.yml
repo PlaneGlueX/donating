@@ -94,19 +94,25 @@ scoreboard:
       display-condition: "%donating_in_heist%=yes"
       lines:
         - "&f%donating_heist_name%"
+        - "%donating_heist_diff% &7· &f%donating_heist_robbers% &7inside"
         - ""
         - "&7Loot left: &6%donating_heist_loot%"
         - "&7Spots: &f%donating_heist_spots%"
         - "&7Your haul: &a%donating_heist_haul%"
         - "&7Bag: &f%donating_bag% &7(%donating_bag_pct%)"
         - "&7At risk: &c%donating_heist_risk%"
+        - "%donating_wanted%"
     main:
       title: "&6&lDONATING"
       lines:
         - ""
-        - "&7Player: &f%player%"
-        - "&7Online: &f%online%"
+        - "&7Cash: &a%donating_balance%"
+        - "&7Level: &f%donating_level_num% %donating_level%"
+        - "&7Bag: &f%donating_bag%"
         - ""
+        - "&7Heists open: &f%donating_heists_open% &7/heists"
+        - "&7Daily: %donating_daily%"
+        - "%donating_wanted%"
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout
 layout:

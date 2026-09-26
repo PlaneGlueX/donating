@@ -170,8 +170,12 @@ function hudNotify(p: player, kind: text, text: text):
 	else if {_kind} is "warn":
 		play sound "block.note_block.bell" with volume 1 and pitch 0.7 to {_p}
 	else if {_kind} is "alarm":
+		# Owner, 2026-09-26: a big WANTED on screen the moment you become wanted.
 		set {_warn} to cfg("alarm::warning") / 1 second
-		send title colored "&4&lALARM" with subtitle colored "&cCops in %{_warn}%s. Get out!" to {_p} for 3 seconds
+		send title colored "&4&lWANTED" with subtitle colored "&cAlarm! Cops in %{_warn}%s. Get out!" to {_p} for 3 seconds
+		play sound "block.bell.use" with volume 1 and pitch 0.8 to {_p}
+	else if {_kind} is "wanted":
+		send title colored "&4&lWANTED" with subtitle colored "&cYou shot a cop" to {_p} for 3 seconds
 		play sound "block.bell.use" with volume 1 and pitch 0.8 to {_p}
 	else if {_kind} is "evict":
 		play sound "entity.villager.no" with volume 0.8 to {_p}
