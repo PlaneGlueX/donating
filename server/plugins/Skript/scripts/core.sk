@@ -62,6 +62,10 @@ function loadSettings():
 	set {-cfg::cop::accuracy} to 1.5
 	set {-cfg::cop::speed} to 1.25
 	set {-cfg::cop::model} to 9
+	# The police skin (toolsmake-cop-skin.js), signed once by MineSkin (Citizens: npc skin --file police.png, then
+	# its saves.yml skintrait textureRaw / signature). "" = Citizens uses the skin of the account named cop::name.
+	set {-cfg::cop::skin-texture} to "ewogICJ0aW1lc3RhbXAiIDogMTc5MDQzMjk3MDc0OCwKICAicHJvZmlsZUlkIiA6ICI5OGQxYTQyNmRlMmU0NjBkYjdjNWExMmY5MGNhODg0OSIsCiAgInByb2ZpbGVOYW1lIiA6ICJLdWJpbm9TSyIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8zNGI0N2Q4OTlkNTMyMzllNjM0MTY2MThmNDRhMmNhZWJjNWU4ZjNhZmEwZTk4NzU3MDg1NmFiYTQ5Y2EwYmNkIgogICAgfQogIH0KfQ=="
+	set {-cfg::cop::skin-signature} to "jbmsFMheKX66NCk/w6ZHKDjIpGMpcNLJMu1rpi+SIp5LQezM/Wd9v+5mHBb54CQ2KYZkji2nfCUjakYhf3KFiYNp5qK5zSu29t1CgT4MK1GiZgRZYR6IOFFAvnSWBjlHpaHxLbNxZ5ZCraE52IO8Sk2ANjZjf42uJYYc3b18rZwAwSyJGvAP6hxHPTChDYu78/0kkHf4PopS9sL+puycGf9oskT2Jb4jknOFOAejTos9kU3iiFngeThm9+EeVOgNAQVQr8D7jRXUdnAlqGl5yRrRe9EhjB2HYb1GaZSDveVRpYDNrH3UUSTs528bhM7qZ36pE4YKnfs9/wzxCXp+2ZNXHfcabQut0u0+DfO+7fYnF7bZaUVY9A9es/AJEluCT2XLA/0lRF9BPthGvwn0CeN8q6tuuuyVaLe9bBo/a3sy09Bd6mJH+f1D2MLwTA0KQ/VyCdQsvhdrttX+WERXpaeE5LDAGl243Jrc/L2J6GkkMO5a8ewTWZASXBK7A/rXGUm7IMfzCUXStsLfdO70mcC84KK84s4DXingVNcRU+ahNWsyMjXeV0l61tWXaaQhhtC689qSs0dz5bqEaKcGwvJ0ED392GIlCn0Jqlu3wGvlRW5DqPMur8ON1wbTZ91rJYATjK22LKAumaK0RYgGnDjE2hgYxXg/0k/KYF9/LVE="
 	set {-cfg::car::idle-despawn} to 5 minutes
 	set {-cfg::car::other-car-despawn} to 1 minute
 	set {-cfg::lockpick::max-fails} to 3
