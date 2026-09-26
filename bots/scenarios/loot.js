@@ -580,7 +580,7 @@ module.exports = async ({ check }) => {
     setMark()
     await cmd(`kill ${B}`)
     await sleep(1500)
-    check('death: the loot leaves the bag and is recorded for the dropped duffel (part 2)', (await bag(B)).total === 0 && logged(/death-lost LootB .*total=500/, 'bag').length === 1, since('bag'))
+    check('death: the loot leaves the bag and drops as a duffel (bots\run.js duffel)', (await bag(B)).total === 0 && logged(/death-lost LootB .*total=500 .*duffel=true/, 'bag').length === 1, since('bag'))
     await sleep(3000)
 
     // ---------- Disable, dump, delete ----------
@@ -612,6 +612,7 @@ module.exports = async ({ check }) => {
     for (const r of ['heist_lootlab', 'heist_vaultlab', 'safe_base_lt', 'safe_lt']) await rcon.cmd(`rg remove -w world ${r}`).catch(() => {})
     await rcon.cmd(`fill 690 ${Y} 690 745 ${Y + 10} 735 air`).catch(() => {})
     await rcon.cmd(`fill 690 ${Y - 1} 690 745 ${Y - 1} 735 air`).catch(() => {})
+    await rcon.cmd('minecraft:kill @e[type=item,x=690,y=190,z=690,dx=55,dy=30,dz=45]').catch(() => {}) // dropped duffels
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
     rcon.close()
   }

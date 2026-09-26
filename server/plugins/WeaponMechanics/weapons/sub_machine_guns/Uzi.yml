@@ -32,7 +32,7 @@ Uzi:
     Default: 1
     Scope: ADD 1000
     Sprint: ADD 2000
-  Projectile: "sub_machine_gun_projectile"
+  Projectile: "donating_smg_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"

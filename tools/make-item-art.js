@@ -28,8 +28,12 @@ const BAGS = {
   2: { name: 'Duffel Bag', B: [96, 104, 58], L: [124, 134, 78], D: [66, 72, 40], S: [176, 154, 98], E: [80, 86, 48], e: [58, 63, 35], H: [98, 64, 36], Z: [206, 172, 78] },
   3: { name: 'Hockey Bag', B: [172, 36, 36], L: [212, 62, 56], D: [116, 22, 22], S: [28, 28, 30], E: [40, 40, 44], e: [26, 26, 29], H: [24, 24, 26], Z: [196, 196, 202] },
   4: { name: 'Armored Duffel', B: [74, 80, 88], L: [104, 111, 121], D: [48, 52, 58], S: [128, 134, 144], E: [122, 128, 138], e: [88, 93, 102], H: [20, 20, 22], Z: [150, 155, 165], rivet: [190, 196, 204] },
-  5: { name: 'Vault Bag', B: [34, 32, 36], L: [60, 58, 64], D: [20, 19, 22], S: [222, 182, 62], E: [205, 165, 52], e: [150, 116, 34], H: [140, 104, 36], Z: [236, 200, 90], lock: [236, 200, 90] }
+  5: { name: 'Vault Bag', B: [34, 32, 36], L: [60, 58, 64], D: [20, 19, 22], S: [222, 182, 62], E: [205, 165, 52], e: [150, 116, 34], H: [140, 104, 36], Z: [236, 200, 90], lock: [236, 200, 90] },
+  // Not a tier: the dropped duffel a death leaves (bag.sk), canvas with a green band and a gold $.
+  loot: { name: 'Loot Duffel', B: [150, 122, 74], L: [182, 152, 98], D: [104, 82, 46], S: [52, 128, 64], E: [120, 96, 56], e: [88, 68, 38], H: [44, 34, 24], Z: [206, 188, 120], dollar: [240, 204, 84] }
 }
+// A 3x5 dollar sign for the loot duffel.
+const DOLLAR = ['.$$', '$$.', '.$.', '.$$', '$$.']
 const colorsOf = t => {
   const b = BAGS[t]
   const c = { O: OUT }
@@ -65,6 +69,7 @@ for (const t of Object.keys(BAGS)) {
     c.set(7, 9, [...b.lock, 255]); c.set(8, 9, [...b.lock, 255])
     c.set(7, 10, shade([...b.lock, 255], 0.8)); c.set(8, 10, [30, 24, 10, 255])
   }
+  if (b.dollar) c.draw(DOLLAR, { $: [...b.dollar, 255] }, 7, 8)
   write(`donating/textures/item/bag_${t}.png`, c.png())
   write(`donating/models/item/bag_${t}.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/bag_${t}` } })
 }
@@ -86,6 +91,8 @@ for (const t of Object.keys(BAGS)) {
   for (const x of [5, 6, 17, 18]) c.fill(x, 0, x, 11, col('H'))
   if (b.rivet) for (let x = 1; x < 24; x += 3) c.set(x, 5, [...b.rivet, 255])
   if (b.lock) { c.fill(11, 4, 12, 7, col('Z')); c.set(11, 6, [30, 24, 10, 255]); c.set(12, 6, [30, 24, 10, 255]) }
+  // The loot duffel's gold $ on both long sides, over the band.
+  if (b.dollar) c.draw(DOLLAR.map(r => [...r].map(ch => ch + ch).join('')), { $: [...b.dollar, 255] }, 9, 3)
   // Top: body with a zipper down the middle and the straps across.
   for (let y = 12; y < 24; y++) c.fill(0, y, 23, y, col(y === 12 || y === 23 ? 'B' : 'L'))
   c.fill(0, 17, 23, 18, col('Z'))
@@ -131,7 +138,7 @@ for (const t of Object.keys(BAGS)) {
     }
   })
 }
-// leather.json: a bag's icon in inventories, the 3D duffel everywhere else.
+// leather.json: a bag's icon in inventories, the 3D duffel everywhere else (bag_loot: the dropped duffel).
 const bagCase = t => ({
   when: `donating:bag_${t}`,
   model: {
@@ -469,6 +476,77 @@ for (const [base, def] of Object.entries(itemCases)) {
       cases: def.cases,
       fallback: { type: 'minecraft:model', model: def.fallback }
     }
+  })
+}
+
+// ---------- Bullets: what WeaponMechanics' projectiles look like in flight ----------
+// Every sold gun's projectile (WeaponMechanics\projectiles\Donating_Projectiles.yml) is a fake item
+// display holding an iron nugget with custom_model_data 7001 (light: Uzi, .50 GS), 7002 (rifle:
+// AK-47) or 7003 (pellet: R9-0, 10 a shot); iron_nugget.json picks the tracer for it, and without the
+// pack a bullet is just a small flying nugget. The iron nugget is also light ammo (its string case,
+// donating:ammo_light), so iron_nugget.json is written again here: the ammo's select first, and its
+// fallback dispatches the bullets' numbers. WeaponMechanics turns the display along its flight each
+// tick, and an item display points its model's -z side forward (the display renderer turns the entity
+// by its yaw/pitch, then the item 180°), so the nose is at low z. The true position is z = 8 and the
+// model limit is -16..32 (1 unit = 1/16 block).
+// The streak is drawn ahead of the true position, from the nose at z = -16 back to z = 12: for its
+// first tick a bullet sits at the shooter's eye (WeaponMechanics moves it on the next tick), and
+// anything drawn further back would stick out of the back of their head. The last 0.25 blocks stay
+// inside the head. No element has a south (+z, backward) face, so the shooter, looking straight down
+// the path, sees nothing of it on that first tick. The display jumps a tick of flight at once (4
+// blocks at Projectile_Speed 80, no interpolation), so in flight it reads as fast dashes. Free
+// WeaponMechanics 4.3.1 has no particle trails (no Trail classes in its jar). light_emission 15:
+// tracers glow at night too.
+{
+  const TRACERS = {
+    light: { cmd: 7001, core: [255, 246, 200], glow: [255, 200, 80, 120], head: [200, 118, 64], tip: [150, 82, 44], nose: -16, headLen: 2.6, headW: 0.9, coreW: 0.4, glowW: 1.1, tail: 12, glowTail: 8 },
+    rifle: { cmd: 7002, core: [255, 214, 150], glow: [255, 120, 40, 130], head: [184, 104, 58], tip: [132, 70, 38], nose: -16, headLen: 3.2, headW: 1.0, coreW: 0.5, glowW: 1.3, tail: 12, glowTail: 8 },
+    pellet: { cmd: 7003, core: [255, 236, 180], glow: [255, 190, 90, 100], head: [150, 150, 158], tip: [110, 110, 118], nose: -10, headLen: 1.2, headW: 0.7, coreW: 0.3, glowW: 0.8, tail: 12, glowTail: 6 }
+  }
+  const entries = []
+  for (const [kind, t] of Object.entries(TRACERS)) {
+    // Four 4x4 swatches; faces sample the middle 2x2 of one, so no neighbour color bleeds in.
+    const tex = canvas(16, 16)
+    const swatch = (sx, col) => tex.fill(sx, 0, sx + 3, 3, col.length === 4 ? col : [...col, 255])
+    swatch(0, t.core); swatch(4, t.glow); swatch(8, t.head); swatch(12, t.tip)
+    write(`donating/textures/item/tracer_${kind}.png`, tex.png())
+    const uv = sx => [sx + 1, 1, sx + 3, 3]
+    const box = (w, z1, z2, sx) => {
+      const f = { uv: uv(sx), texture: '#t' }
+      const r = n => Math.round(n * 1000) / 1000
+      return {
+        from: [r(8 - w / 2), r(8 - w / 2), r(z1)], to: [r(8 + w / 2), r(8 + w / 2), r(z2)],
+        light_emission: 15,
+        faces: { north: f, east: f, west: f, up: f, down: f }
+      }
+    }
+    const tipEnd = t.nose + t.headLen * 0.3
+    const headEnd = t.nose + t.headLen
+    write(`donating/models/item/tracer_${kind}.json`, {
+      textures: { t: `donating:item/tracer_${kind}`, particle: `donating:item/tracer_${kind}` },
+      elements: [
+        box(t.headW * 0.55, t.nose, tipEnd, 12), // the pointed nose
+        box(t.headW, tipEnd, headEnd, 8), // the copper (lead for pellets) bullet
+        box(t.coreW, headEnd, t.tail, 0), // the white-hot tracer core
+        box(t.glowW, headEnd, t.glowTail, 4) // its see-through glow
+      ]
+    })
+    entries.push({ threshold: t.cmd, model: { type: 'minecraft:model', model: `donating:item/tracer_${kind}` } })
+  }
+  // Any other number (and none) is a plain iron nugget.
+  entries.push({ threshold: 7004, model: { type: 'minecraft:model', model: 'minecraft:item/iron_nugget' } })
+  const bullets = {
+    type: 'minecraft:range_dispatch',
+    property: 'minecraft:custom_model_data',
+    index: 0,
+    entries,
+    fallback: { type: 'minecraft:model', model: 'minecraft:item/iron_nugget' }
+  }
+  const nugget = itemCases.iron_nugget
+  write('minecraft/items/iron_nugget.json', {
+    model: nugget
+      ? { type: 'minecraft:select', property: 'minecraft:custom_model_data', index: 0, cases: nugget.cases, fallback: bullets }
+      : bullets
   })
 }
 

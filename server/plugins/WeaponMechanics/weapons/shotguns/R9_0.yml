@@ -35,7 +35,7 @@ R9_0:
     Default: 14
     Scope: ADD 1000
     Sprint: ADD 2000
-  Projectile: "shotgun_projectile"
+  Projectile: "donating_pellet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"

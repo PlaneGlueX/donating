@@ -36,7 +36,7 @@ AK_47:
     Sprint: ADD 2000
     blue: ADD 10000 # blue and red will only work if you have purchased WMC
     red: ADD 20000
-  Projectile: "assault_rifle_projectile"
+  Projectile: "donating_rifle_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"

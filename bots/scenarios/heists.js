@@ -161,9 +161,12 @@ module.exports = async ({ check }) => {
 
     // ---------- Enable ----------
     setMark()
+    let tOpen = Date.now()
     await cmd(`dheist enable ${ID}`)
     const opened = await until(async () => (await field('state')) === 'open', 5000)
     check('enable: the room resets, then the heist opens (run 1)', opened && (await field('run')) === '1' && logged(/reset ztest/).length === 1, await heist())
+    await sleep(300)
+    check('everyone hears that it\'s open (one of the two heist messages that go to everyone)', /The Test Vault is open!/.test(text(A, tOpen)) && /The Test Vault is open!/.test(text(B, tOpen)), `${text(A, tOpen)} // ${text(B, tOpen)}`)
     check('...and the hologram says OPEN', /OPEN/.test(await papi(A, 'donating_heist_status_ztest')))
     t = Date.now()
     bots[A].chat('/heists')
@@ -195,7 +198,7 @@ module.exports = async ({ check }) => {
     let left = Number(await field('left'))
     check('walking into the open heist starts run 1 (60 s)', (await member(A)) === ID && (await field('state')) === 'active' && (await field('run')) === '1' && left >= 54 && left <= 60, await heist())
     check('the robber is told the time and that everyone inside is their crew', /You're in the Test Vault/.test(text(A, t)) && /crew/.test(text(A, t)), text(A, t))
-    check('everyone hears that the heist is being robbed', /Test Vault is being robbed/.test(text(B, tB)), text(B, tB))
+    check('nobody outside hears about the clock (heist chat goes only to the robbers inside)', !/Test Vault/.test(text(B, tB)), text(B, tB))
     check('enable refuses a heist that is already enabled (it would strand the robbers)', /already enabled/.test(await cmd(`dheist enable ${ID}`)) && (await field('state')) === 'active')
     check('inside, the robber receives no waypoints (the XP bar shows the bag)', Number(await range(A)) === 0, await range(A))
     check('placeholders: in_heist / heist_name for the robber, not for others; the status counts robbers', (await papi(A, 'donating_in_heist')) === 'yes' && (await papi(A, 'donating_heist_name')) === 'Test Vault' && (await papi(B, 'donating_in_heist')) === 'no' && /BEING ROBBED/.test(await papi(A, 'donating_heist_status_ztest')) && /1 inside/.test(await papi(A, 'donating_heist_status_ztest')), `${await papi(A, 'donating_in_heist')} ${await papi(A, 'donating_heist_name')} ${await papi(B, 'donating_in_heist')} ${await papi(A, 'donating_heist_status_ztest')}`)
@@ -246,6 +249,7 @@ module.exports = async ({ check }) => {
     check('at 0:00 robbers inside are thrown out to the exit spot', near(p, EXIT[0], EXIT[1]) && (await member(A)) === 'none' && /Too late/.test(text(A, t)), `${p}; ${text(A, t)}`)
     check('...and lose that heist\'s loot (one forfeit, only for them)', logged(new RegExp(`forfeit ${A} \\S+ ztest#1 `)).length === 1 && logged(new RegExp(`forfeit ${B} `)).length === 0, logged(/forfeit/).join(' / '))
     check('...then the heist is closed for its cooldown', (await field('state')) === 'cooldown' && Number(await field('left')) <= 14, await heist())
+    check('everyone hears that it\'s closed and when it reopens', /The Test Vault is closed\. It reopens in 0:1\d\./.test(text(B, t)), text(B, t))
     // A restart or Minehut sleep wipes memory: the saved reopen time keeps the cooldown.
     await cmd(`zzheistforget ${ID}`)
     await sleep(1500)
@@ -255,7 +259,10 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${B} 735.5 ${Y} 730.5`)
     const ejected = await until(async () => near(await pos(B), EXIT[0], EXIT[1]), 2500)
     check('anyone inside a closed heist is moved out', ejected && (await member(B)) === 'none', `${await pos(B)}`)
+    t = Date.now()
     check('after the cooldown it opens again (run 2)', await until(async () => (await field('state')) === 'open' && (await field('run')) === '2', 14000), await heist())
+    await sleep(300)
+    check('...announced to everyone (a cooldown that ran through a restart still counts)', /The Test Vault is open!/.test(text(B, t)), text(B, t))
     await heistSet('cooldown', 6)
 
     // ---------- Round 2: the countdown and the room reset ----------
@@ -366,7 +373,7 @@ module.exports = async ({ check }) => {
     t = Date.now()
     await cmd(`dheist start ${ID}`) // what loot.sk calls at the first robbery
     await sleep(500)
-    check('...the first robbery does', (await field('state')) === 'active' && /being robbed/.test(text(B, t)), `${await heist()}; ${text(B, t)}`)
+    check('...the first robbery does (the robber is told, nobody outside)', (await field('state')) === 'active' && /The clock is running/.test(text(A, t)) && !/Test Vault/.test(text(B, t)), `${await heist()}; ${text(A, t)} // ${text(B, t)}`)
     await cmd('zzcfgreload')
     await cmd('zzcfgtext heist::start-on enter') // most checks here want the clock at the first entry; loot.sk's default is rob
 
@@ -383,7 +390,7 @@ module.exports = async ({ check }) => {
     t = Date.now()
     const alarm = await cmd(`dheist alarm ${ID}`)
     await sleep(400)
-    check('the alarm: warning, robbers inside hunted, everyone told', /HEIST ztest alarm$/.test(alarm) && (await field('alarm')) === 'warning' && (await field('hunted')) === '1' && /ALARM/.test(text(A, t)) && /Alarm at the Test Vault/.test(text(B, t)) && (await hunt(B)) === 'none', `${alarm}; ${await heist()}; ${text(B, t)}`)
+    check('the alarm: warning, robbers inside hunted and told, nobody outside', /HEIST ztest alarm$/.test(alarm) && (await field('alarm')) === 'warning' && (await field('hunted')) === '1' && /ALARM/.test(text(A, t)) && !/Alarm|ALARM|Test Vault/.test(text(B, t)) && (await hunt(B)) === 'none', `${alarm}; ${await heist()}; ${text(B, t)}`)
     check('...and the windows lock (bars)', await isBlock(732, 201, 725, 'iron_bars'))
     check('a second alarm does nothing', /already running/.test(await cmd(`dheist alarm ${ID}`)))
     // Waves are checked once a second: wave 1 at 3-4 s, wave 2 two seconds later.
@@ -405,6 +412,18 @@ module.exports = async ({ check }) => {
     check('the reset takes the bars away again', await until(async () => isBlock(732, 201, 725, 'air'), 4000))
     await cmd('zzcfgreload')
     await cmd('zzcfgtext heist::start-on enter') // most checks here want the clock at the first entry; loot.sk's default is rob
+
+    // ---------- Startup is quiet, disable says closed ----------
+    await until(async () => (await field('state')) === 'open', 12000)
+    t = Date.now()
+    await cmd(`zzheistforget ${ID}`) // like a restart or Minehut waking up: every heist resets and opens
+    const reopened = await until(async () => (await field('state')) === 'open', 12000)
+    await sleep(500)
+    check('opening right after a restart isn\'t announced (no burst of "open" when the server wakes up)', reopened && !/Test Vault/.test(text(B, t)), `${await heist()}; ${text(B, t)}`)
+    t = Date.now()
+    await cmd(`dheist disable ${ID}`)
+    await sleep(500)
+    check('disabling an open heist tells everyone it\'s closed', /The Test Vault is closed\./.test(text(B, t)), text(B, t))
 
     // ---------- Delete ----------
     const del = await cmd(`dheist delete ${ID} confirm`)

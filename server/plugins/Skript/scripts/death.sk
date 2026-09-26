@@ -2,7 +2,7 @@
 #   - lost: equipped weapons and consumables (hotbar 1-5), all ammo (upper inventory), the helmet and
 #     the vest, and the bag. The bag's tier stays unlocked (data "bag-best"): buy a new one at the shop.
 #   - kept: quest items (hotbar 6-8) and the phone. Weapons stay unlocked (shop.sk).
-#   - the bag's loot drops as one duffel: bag.sk, later (dropBagLoot at the death spot).
+#   - the bag's loot drops as one duffel (bag.sk).
 #   - balance: L = min(B × p, C)
 #       B = balance
 #       p = the heist difficulty's p, or its cop-p for cop deaths

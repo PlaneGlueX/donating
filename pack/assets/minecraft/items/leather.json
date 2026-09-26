@@ -114,6 +114,28 @@
             "model": "donating:item/bag_5_3d"
           }
         }
+      },
+      {
+        "when": "donating:bag_loot",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_loot"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_loot_3d"
+          }
+        }
       }
     ],
     "fallback": {

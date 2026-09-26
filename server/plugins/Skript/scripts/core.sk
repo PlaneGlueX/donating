@@ -109,8 +109,9 @@ function loadSettings():
 	set {-cfg::heist::entry-cutoff} to 20 seconds
 	# PROPOSAL: chat warnings at these seconds left.
 	set {-cfg::heist::warn-at::*} to 60, 30 and 10
-	# PROPOSAL: "The Bank is being robbed!" to everyone when a clock starts (the come-and-fight signal).
-	set {-cfg::heist::announce-start} to true
+	# "The Bank is open!" / "The Bank is closed." to everyone. The only heist chat everyone gets (owner,
+	# 2026-09-26): the rest (the clock, warnings, the alarm) goes only to the robbers inside.
+	set {-cfg::heist::announce} to true
 	# Room resets place one section of at most this many blocks per side per second.
 	set {-cfg::heist::reset-section} to 32
 	# Largest room a heist may save (blocks). SkBee keeps saved rooms in memory.
