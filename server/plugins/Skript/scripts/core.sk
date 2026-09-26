@@ -217,7 +217,10 @@ function loadSettings():
 	set {-cfg::loot::gap} to 1                   # seconds: a longer pause resets the progress
 	set {-cfg::loot::guard} to 0.5 seconds       # no gun shot or phone toggle this long after a loot click
 	set {-cfg::loot::claim-range} to 8           # a head start ends when its owner walks this far away
-	set {-cfg::loot::cleaned-out} to 60          # seconds: every pile empty -> the clock drops to this (0 = off)
+	# Cleaned out (owner, 2026-09-25): every pile empty while the clock runs -> the time left T becomes
+	# T' = max(min, ceil(T × factor)); with T at or under min it doesn't change. min 0 = off.
+	set {-cfg::loot::cleaned-out} to 60          # min, seconds
+	set {-cfg::loot::cleaned-out-factor} to 0.5
 	set {-cfg::loot::partial} to true            # less room than a piece: take what fits, the piece shrinks
 	set {-cfg::loot::prompt-range} to 3.5
 	set {-cfg::loot::piece-view} to 0.5          # display view range (× 64 blocks)
@@ -274,7 +277,8 @@ function loadSettings():
 	set {-cfg::loot::pile::lift} to 0             # surface above the block top (auto -0.5 on a bottom slab)
 	# Gates: glass to smash, a safe to crack (keypad, needs a Safe Kit), a vault door to drill (needs a
 	# Drill). claim = the head start of whoever opened it (only they can take from the piles behind it;
-	# ends early when their bag fills, they walk claim-range away, leave or die). Times in seconds.
+	# ends early when their bag fills, they walk claim-range away, leave or die); for a drill, whoever
+	# fixed its last jam, else whoever mounted it. Times in seconds.
 	set {-cfg::loot::smash::take} to 1.5
 	set {-cfg::loot::smash::alarm} to false
 	set {-cfg::loot::safe::digits} to 4
@@ -283,8 +287,14 @@ function loadSettings():
 	set {-cfg::loot::safe::guess-gap} to 1 second # keys are ignored this long after each guess
 	set {-cfg::loot::drill::mount} to 1.5
 	set {-cfg::loot::drill::time} to 60            # 90 suggested for difficulty 4
-	set {-cfg::loot::drill::jams} to 2             # at 1/3 and 2/3; anyone clears one with a fix hold
-	set {-cfg::loot::drill::fix} to 2
+	set {-cfg::loot::drill::jams} to 2             # at 1/3 and 2/3; anyone clears one with the minigame
+	# A jam's minigame (owner, 2026-09-25: opening is active work): a marker runs along a row, one slot
+	# every qte-step ticks; click while it's on green qte-hits times in a row. A miss starts over and
+	# locks clicks for qte-miss-lock ticks; a hit locks them for qte-hit-lock (no double counts).
+	set {-cfg::loot::drill::qte-hits} to 3
+	set {-cfg::loot::drill::qte-step} to 3
+	set {-cfg::loot::drill::qte-miss-lock} to 10
+	set {-cfg::loot::drill::qte-hit-lock} to 6
 	set {-cfg::loot::drill::claim} to 10
 	set {-cfg::loot::drill::alarm} to true
 	# Where bags sell: safe zones whose region id starts with this (bag.sk).

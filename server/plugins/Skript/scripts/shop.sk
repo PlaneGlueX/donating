@@ -1,6 +1,9 @@
 # shop.sk: the shops (CLAUDE.md, Weapons, gear and inventory). Prices and the catalogue are PROPOSALs
 # in core.sk (Shops section).
 #
+# Uses Skript's experimental equippable components (gearItem: how helmets and vests look when worn).
+using equippable components
+#
 # Shops: gun (weapons, loadout, ammo, consumables, heist tools), gear (helmets, vests), bag (bag tiers),
 # tools (heist tools: the Drill and the Safe Kit, for loot.sk). A shopkeeper is any entity with the
 # scoreboard tags "donating_shop" and "shop_<kind>" (staff: /dshopkeeper add <kind>, a mannequin);
@@ -57,6 +60,24 @@ function wpnIcon(w: text) :: item:
 function ammoIcon(type: text) :: item:
 	set {_i} to 1 of cfg("ammo::%{_type}%::item")
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:ammo_%{_type}%"
+	return {_i}
+
+# A helmet or vest (core.sk gear::<id>::*) as the pack draws it: its icon (donating:gear_<id>) and, when
+# worn, the equipment asset donating:<helmet|vest>_<n> (tactical gear art, owner 2026-09-25). The base
+# item keeps its armor points; only the look changes.
+function gearItem(id: text) :: item:
+	set {_base} to cfg("gear::%{_id}%::item")
+	set {_i} to unbreakable {_base}
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:gear_%{_id}%"
+	set {_asset} to {_id}
+	replace all "-" with "_" in {_asset}
+	set {_comp} to a blank equippable component
+	set equipped model id of {_comp} to "donating:%{_asset}%"
+	if cfg("gear::%{_id}%::slot") is "helmet":
+		set equipment slot of {_comp} to head slot
+	else:
+		set equipment slot of {_comp} to chest slot
+	set equippable component of {_i} to {_comp}
 	return {_i}
 
 # A bag tier's icon (the pack's bag art).
@@ -664,12 +685,11 @@ function renderGear(p: player):
 		set {_id} to loop-value
 		set {_name} to cfg("gear::%{_id}%::name")
 		set {_money} to formatMoney(cfg("gear::%{_id}%::price"))
-		set {_base} to cfg("gear::%{_id}%::item")
-		set {_i} to {_base} named "&f%{_name}%" with lore "&e%{_money}%"
+		set {_i} to gearItem({_id}) named "&f%{_name}%" with lore "&e%{_money}%"
 		if itemId(helmet of {_p}) is "gear:%{_id}%":
-			set {_i} to glint({_base} named "&f%{_name}%" with lore "&aWearing it.")
+			set {_i} to glint(gearItem({_id}) named "&f%{_name}%" with lore "&aWearing it.")
 		else if itemId(chestplate of {_p}) is "gear:%{_id}%":
-			set {_i} to glint({_base} named "&f%{_name}%" with lore "&aWearing it.")
+			set {_i} to glint(gearItem({_id}) named "&f%{_name}%" with lore "&aWearing it.")
 		button({_p}, {_slots::%{_k}%}, tagItem({_i}, "shopicon:gear"), "gear:%{_id}%")
 		add 1 to {_k}
 
@@ -1132,8 +1152,7 @@ function buyGear(p: player, id: text):
 		set {_money} to formatMoney({_price})
 		shopFail({_p}, "The %{_name}% costs %{_money}%.")
 		stop
-	set {_base} to cfg("gear::%{_id}%::item")
-	set {_i} to unbreakable {_base}
+	set {_i} to gearItem({_id})
 	set name of {_i} to "&f%{_name}%"
 	set lore of {_i} to "&8Lost when you die."
 	set {_i} to tagItem({_i}, "gear:%{_id}%")
