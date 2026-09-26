@@ -11,7 +11,8 @@
 #     pool (heists.sk, through deathDifficulty / deathLootPool below).
 #   Lost balance disappears (a money sink).
 # Cop deaths: killed by a cop (Citizens NPC, metadata "NPC"), or a combat log credited to the cops.
-# The cause is saved as data "last-death-cause": "player:<uuid>", "cop" or "other" (bounty.sk).
+# The cause is saved as data "last-death-cause": "player:<uuid>", "cop", "trap" (traps.sk) or "other"
+# (bounty.sk).
 #
 # Runs before inventory.sk's death handler (scripts load alphabetically), which keeps the inventory,
 # so what this clears is gone and the rest stays. The respawn's applyLayout puts the phone back and
@@ -56,6 +57,9 @@ on death of player:
 		# A combat log: combat-log.sk saved deathCause() right before killing the player.
 		if {-combat::logout::%victim%} is not "":
 			set {_cause} to {-combat::logout::%victim%}
+	else if {-trapkill::%victim%} is set:
+		# traps.sk kills with no attacker; the heist's p, never a player's bounty.
+		set {_cause} to "trap"
 	else if attacker is a player:
 		if attacker has metadata "NPC":
 			set {_cause} to "cop"

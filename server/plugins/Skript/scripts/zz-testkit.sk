@@ -368,3 +368,65 @@ command /zzpack <player>:
 	trigger:
 		send resource pack from "http://127.0.0.1:8765/pack.zip" to arg-1
 		send "PACK sent to %arg-1%"
+
+# ---------- traps.sk ----------
+
+command /zztrap <text>:
+	executable by: console
+	trigger:
+		set {_h} to arg-1
+		set {_valid} to 0
+		loop {-trapd::%{_h}%::*}:
+			if loop-value is valid:
+				add 1 to {_valid}
+		set {_floors} to ""
+		loop {traps::%{_h}%::*}:
+			loop-value is "floor"
+			set {_st} to {-trapfloor::%{_h}%::%loop-index%}
+			if {_st} is not set:
+				set {_st} to "up"
+			set {_floors} to "%{_floors}%%loop-index%:%{_st}%,"
+		send "TRAPS %{_h}% armed=%trapArmed({_h})% alarmed=%whether {-trap::alarmed::%{_h}%} is set% traps=%trapCount({_h})% displays=%{_valid}% floors=%{_floors}%"
+
+command /zztrapstate <text>:
+	executable by: console
+	trigger:
+		set {_p::*} to arg-1 split at "-"
+		set {_c} to "%{_p::1}%::%{_p::2}%"
+		set {_st} to {-trapfloor::%{_c}%}
+		if {_st} is not set:
+			set {_st} to "up"
+		set {_seen} to ""
+		loop {-trapseen::%{_c}%::*}:
+			set {_seen} to "%{_seen}%%loop-index%:%loop-value%,"
+		set {_d} to {-trapd::%{_c}%}
+		set {_dv} to "none"
+		if {_d} is set:
+			if {_d} is valid:
+				set {_dv} to "valid"
+		send "TRAPSTATE %arg-1% kind=%{-trapc::%{_c}%::kind}% live=%{-trapc::%{_c}%::live}% vis=%{-trapvis::%{_c}%}% phase=%{-trapc::%{_c}%::phase}% floor=%{_st}% seen=%{_seen}% display=%{_dv}%"
+
+# trapScan at a spot: which trap would kill a robber standing, sneaking or swimming there.
+command /zztrapprobe <text> <number> <number> <number> <text>:
+	executable by: console
+	trigger:
+		set {_hh} to 1.8
+		if arg-5 is "sneak":
+			set {_hh} to 1.5
+		if arg-5 is "swim":
+			set {_hh} to 0.6
+		set {_n} to trapScan(arg-1, arg-2, arg-3, arg-4, {_hh})
+		if {_n} is "":
+			set {_n} to "none"
+		send "PROBE %{_n}%"
+
+command /zztrapbench <player> <number>:
+	executable by: console
+	trigger:
+		set {_h} to heistOf(arg-1)
+		set {_l} to location of arg-1
+		set {_t} to now
+		loop arg-2 times:
+			trapScan({_h}, x-coordinate of {_l}, y-coordinate of {_l}, z-coordinate of {_l}, 1.8)
+		set {_ms} to (difference between {_t} and now) / 1 millisecond
+		send "BENCH n=%arg-2% us=%{_ms} * 1000 / arg-2%"

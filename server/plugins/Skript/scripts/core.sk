@@ -146,6 +146,50 @@ function loadSettings():
 	set {-cfg::difficulty::2::color} to "&e"
 	set {-cfg::difficulty::3::color} to "&6"
 	set {-cfg::difficulty::4::color} to "&4"
+
+	# ---------- Traps (traps.sk): ALL PROPOSALS ----------
+	set {-cfg::trap::max-per-heist} to 40      # one display per laser/camera: caps entities and the index
+	set {-cfg::trap::cell} to 4                # index cell size (blocks)
+	set {-cfg::trap::step} to 0.5              # max blocks between path samples (the hit window is 0.56)
+	set {-cfg::trap::max-samples} to 16        # a fall is up to 3.9 blocks per tick
+	set {-cfg::trap::grace} to 0.05            # hitbox shrink per side: grazes are forgiven
+	set {-cfg::trap::lead} to 4 ticks          # a blinking beam shows this long before it can kill (ping)
+	set {-cfg::trap::alarm-repeat} to 2 seconds
+	set {-cfg::trap::show-time} to 20 seconds  # /dtrap show
+	set {-cfg::trap::laser::effect} to "kill"
+	set {-cfg::trap::laser::thickness} to 0.06
+	set {-cfg::trap::laser::max-length} to 32
+	set {-cfg::trap::laser::view-range} to 1.0
+	# "laser here" heights above the feet: low = jump it, mid = a timed jump, high = sneak under it.
+	set {-cfg::trap::laser::low} to 0.4
+	set {-cfg::trap::laser::mid} to 1.0
+	set {-cfg::trap::laser::high} to 1.65
+	set {-cfg::trap::laser::blink} to false
+	set {-cfg::trap::laser::on} to 2 seconds   # a 4 s rhythm is learnable in one cycle
+	set {-cfg::trap::laser::off} to 2 seconds
+	set {-cfg::trap::laser::offset} to 0 seconds
+	set {-cfg::trap::plate::effect} to "kill"
+	set {-cfg::trap::floor::effect} to "kill"
+	set {-cfg::trap::floor::delay} to 10 ticks     # walking over a 1-wide strip takes 0.35 s: keep moving
+	set {-cfg::trap::floor::restore} to 10 seconds # 0 = stays down until the room reset
+	set {-cfg::trap::floor::drop} to 1.0
+	set {-cfg::trap::floor::depth} to 4
+	set {-cfg::trap::floor::max-tiles} to 64
+	set {-cfg::trap::camera::effect} to "alarm"
+	set {-cfg::trap::camera::angle} to 30          # half-angle: a 60° cone
+	set {-cfg::trap::camera::range} to 12
+	set {-cfg::trap::camera::sneak-range} to 0.5   # sneaking halves the range
+	set {-cfg::trap::camera::grace} to 1 second    # seen this long -> it trips
+	set {-cfg::trap::camera::kill-grace} to 1.5 seconds
+	set {-cfg::trap::camera::sweep} to 0
+	set {-cfg::trap::camera::period} to 8 seconds
+	set {-cfg::trap::camera::pointer} to true
+	set {-cfg::trap::camera::thickness} to 0.05
+	# Trap death messages: {name}, {heist} are filled in.
+	set {-cfg::trap::death::laser} to "&c{name} &7walked into a laser in the &f{heist}&7."
+	set {-cfg::trap::death::plate} to "&c{name} &7stepped on a trap in the &f{heist}&7."
+	set {-cfg::trap::death::floor} to "&c{name} &7fell through a trapped floor in the &f{heist}&7."
+	set {-cfg::trap::death::camera} to "&c{name} &7was shot by a security turret in the &f{heist}&7."
 	set {-cfg::bounty::per-kill} to 250
 	set {-cfg::bounty::kill-cap} to 25000
 	set {-cfg::bounty::min-placed} to 1000
