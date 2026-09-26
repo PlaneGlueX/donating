@@ -16,9 +16,9 @@ header-footer:
       footer:
         - "&8&m                                        &r"
         - "&f\uE001 &6%donating_balance%     &f\uE002 &c%donating_bounty_money%"
-        - "&7Rank %donating_rank%  &8· &7%donating_rank_xp%"
+        - "&7Level &f%donating_level_num% %donating_level%  &8· &7%donating_level_xp%"
         - "&f\uE003 &f%online%&7/&f%donating_max_players%     &f\uE004 &f%ping%&7ms"
-        - "&7/help  &8·  &7/heists  &8·  &7/rank  &8·  &7/bounty"
+        - "&7/help  &8·  &7/heists  &8·  &7/level  &8·  &7/bounty"
         - ""
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Tablist-name-formatting
@@ -34,7 +34,8 @@ scoreboard-teams:
   # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Sorting-players-in-tablist
   # Staff first, then the biggest bounties, then A-Z.
   sorting-types:
-    - "GROUPS:owner,admin,mod,helper,builder,vip,default"
+    # Donating: staff, then the paid ranks highest first (ranks.sk, core.sk paidranks), then everyone.
+    - "GROUPS:owner,admin,mod,helper,builder,legend,elite,vipplus,vip,default"
     - "PLACEHOLDER_HIGH_TO_LOW:%donating_bounty%"
     - "PLACEHOLDER_A_TO_Z:%player%"
   case-sensitive-sorting: true

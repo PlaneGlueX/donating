@@ -80,7 +80,7 @@ function openPhone(p: player):
 # Player head with the player's stats.
 function phoneStats(p: player) :: item:
 	add "&7Name: %rankedName({_p})%" to {_l::*}
-	add "&7Rank: %rankColored(rankOf({_p}))% &8(%rankNum(rankXp({_p}))% XP) &8/rank" to {_l::*}
+	add "&7Level: &f%levelOf({_p})% %levelColored(levelOf({_p}))% &8(%levelNum(levelXp({_p}))% XP) &8/level" to {_l::*}
 	add "&7Balance: &a%formatMoney(balance of {_p})%" to {_l::*}
 	set {_bounty} to getData({_p}, "bounty")
 	if {_bounty} is not set:

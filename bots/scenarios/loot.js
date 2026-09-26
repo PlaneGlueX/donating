@@ -120,8 +120,8 @@ module.exports = async ({ check }) => {
     await cmd('zzregion safe_lt 720 190 720 736 208 726')
     await cmd('rg flag -w world safe_base_lt passthrough allow')
     await cmd('rg flag -w world safe_lt passthrough allow')
-    for (const c of ['dheist create lootlab 2', 'dheist set lootlab rank 0', 'dheist set lootlab name Loot Lab', 'dheist set lootlab escape 600', 'dheist set lootlab cooldown 5', 'dheist exit lootlab 698.5 200 708.5 -90', 'dheist snapshot lootlab',
-      'dheist create vaultlab 4', 'dheist set vaultlab rank 0', 'dheist set vaultlab name Vault Lab', 'dheist set vaultlab escape 600', 'dheist set vaultlab cooldown 5', 'dheist exit vaultlab 718.5 200 708.5 -90', 'dheist snapshot vaultlab']) await cmd(c)
+    for (const c of ['dheist create lootlab 2', 'dheist set lootlab level 0', 'dheist set lootlab name Loot Lab', 'dheist set lootlab escape 600', 'dheist set lootlab cooldown 5', 'dheist exit lootlab 698.5 200 708.5 -90', 'dheist snapshot lootlab',
+      'dheist create vaultlab 4', 'dheist set vaultlab level 0', 'dheist set vaultlab name Vault Lab', 'dheist set vaultlab escape 600', 'dheist set vaultlab cooldown 5', 'dheist exit vaultlab 718.5 200 708.5 -90', 'dheist snapshot vaultlab']) await cmd(c)
     for (const name of [A, B]) {
       bots[name] = await join(name)
       await reset(name)

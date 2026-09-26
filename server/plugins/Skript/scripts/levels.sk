@@ -1,0 +1,304 @@
+# levels.sk: robber levels (CLAUDE.md, Skripts: 17). Built 2026-09-26 as "robber ranks"; renamed to
+# levels the same day (owner: paid ranks show in the tab list, levels stay in your footer: two different
+# things, two different words; ranks.sk has the paid ranks).
+#
+# Robbers earn XP by selling loot at the base (bag.sk's bagSell calls levelSale):
+#   X = floor(P / cfg level::xp-per-dollars) + cfg level::xp-per-haul × H
+#   P = what the sale paid (passive players get 75%, so their XP too), H = the heist runs in the sale
+#   not credited to this player before (bag.sk keeps data "level-haul::<h>", the last run credited), so
+#   selling one run's loot in several trips pays the bonus once.
+# Level n needs cfg level::<n>::xp total XP; each level has a title (0 Pickpocket up to cfg level::max,
+# 6 Kingpin). All the numbers are PROPOSALs in core.sk. A level unlocks:
+#   - heists: heistLevel(h), the heist's /dheist set level, else its difficulty's default in core.sk
+#     (heists.sk's heistLevelOk asks levelOk);
+#   - heist tools: cfg tool::<t>::level (shop.sk doesn't sell them below it);
+#   - later: car models (garage.sk: levelOk).
+# XP is never taken away and a level never drops by itself (only staff can lower one).
+# Level-ups are told to that player only (a title, a sound and what it unlocks in chat): no chat spam.
+# Saved: data "level-xp" (total XP), "level" (the level it gives), "level-haul::<h>". Memory:
+# {-ph::level::<p>}, {-ph::levelnum::<p>}, {-ph::levelxp::<p>} for the tab list's footer (placeholders.sk;
+# TAB asks from its own thread).
+# Players: /level (yours, the progress, what the next level unlocks), /levels (all of them).
+# Staff: /dlevel info|set|xp|reset <player> [value]. Log: plugins\Skript\logs\levels.log.
+
+function levelLog(text: text):
+	log {_text} to "levels"
+
+# ---------- Reading ----------
+
+function levelXp(p: offline player) :: number:
+	set {_x} to getData({_p}, "level-xp")
+	if {_x} is set:
+		return {_x}
+	return 0
+
+function levelOf(p: offline player) :: number:
+	set {_r} to getData({_p}, "level")
+	if {_r} is set:
+		return {_r}
+	return 0
+
+# heists.sk, shop.sk, later garage.sk: does the player have at least level `need`?
+function levelOk(p: offline player, need: number) :: boolean:
+	if levelOf({_p}) >= {_need}:
+		return true
+	return false
+
+# The level's title ("Burglar").
+function levelName(n: number) :: text:
+	set {_name} to cfg("level::%{_n}%::name")
+	if {_name} is set:
+		return {_name}
+	return "Level %{_n}%"
+
+# The title in its color: "&aBurglar".
+function levelColored(n: number) :: text:
+	set {_c} to cfg("level::%{_n}%::color")
+	if {_c} is not set:
+		set {_c} to "&7"
+	return "%{_c}%%levelName({_n})%"
+
+# XP level n needs in total. A level without a setting can't be reached (a typo in core.sk must not
+# level everyone up).
+function levelNeed(n: number) :: number:
+	if {_n} <= 0:
+		return 0
+	set {_x} to cfg("level::%{_n}%::xp")
+	if {_x} is set:
+		return {_x}
+	return 1000000000000
+
+# The level a total of xp gives.
+function levelFor(xp: number) :: number:
+	set {_r} to 0
+	set {_max} to cfg("level::max")
+	loop integers from 1 to {_max}:
+		if {_xp} >= levelNeed(loop-value):
+			set {_r} to loop-value
+	return {_r}
+
+# A whole number with thousands commas ("12,500").
+function levelNum(n: number) :: text:
+	set {_t} to formatMoney({_n})
+	replace all "$" with "" in {_t}
+	return {_t}
+
+# What level n unlocks: the heist tools and the (enabled) heists that need exactly that level.
+function levelUnlocks(n: number) :: texts:
+	loop {-cfg::shop::tools::*}:
+		set {_need} to cfg("tool::%loop-value%::level")
+		if {_need} is {_n}:
+			set {_tool} to cfg("tool::%loop-value%::name")
+			add "the %{_tool}%" to {_u::*}
+	loop {heists::*}:
+		if heistState(loop-index) is not "disabled":
+			if heistLevel(loop-index) is {_n}:
+				set {_heist} to heistName(loop-index)
+				add "the %{_heist}%" to {_u::*}
+	return {_u::*}
+
+# ---------- Earning ----------
+
+# Adds XP (whole, never negative) and returns the level after it. A level-up: the title, a sound and
+# what it unlocks, to that player only.
+function levelAddXp(p: player, xp: number, why: text) :: number:
+	set {_old} to levelOf({_p})
+	set {_add} to max(0, floor({_xp}))
+	set {_total} to levelXp({_p}) + {_add}
+	setData({_p}, "level-xp", {_total})
+	set {_new} to max({_old}, levelFor({_total}))
+	if {_new} is not {_old}:
+		setData({_p}, "level", {_new})
+	levelLog("xp %name of {_p}% %uuid of {_p}% +%{_add}% why=%{_why}% total=%{_total}% level=%{_old}%->%{_new}%")
+	levelRefresh({_p})
+	if {_new} > {_old}:
+		levelUp({_p}, {_old}, {_new})
+	return {_new}
+
+function levelUp(p: player, old: number, new: number):
+	set {_name} to levelColored({_new})
+	send title colored "&6&lLEVEL UP&r" with subtitle colored "&7Level %{_new}% · %{_name}%" to {_p} for 3 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+	msg({_p}, "&6Level up! &fYou're level %{_new}% now: %{_name}%&f.")
+	set {_from} to {_old} + 1
+	loop integers from {_from} to {_new}:
+		set {_u::*} to levelUnlocks(loop-value)
+		loop {_u::*}:
+			msg({_p}, "&7 Unlocked: &f%loop-value-2%")
+	levelLog("up %name of {_p}% %uuid of {_p}% %{_old}%->%{_new}%")
+
+# bag.sk's bagSell: the XP for a sale that paid `pay` for `hauls` new heist runs. Returns the XP.
+function levelSale(p: player, pay: number, hauls: number) :: number:
+	set {_xp} to floor({_pay} / cfg("level::xp-per-dollars")) + cfg("level::xp-per-haul") * {_hauls}
+	if {_xp} <= 0:
+		return 0
+	levelAddXp({_p}, {_xp}, "sell")
+	msg({_p}, "&b+%levelNum({_xp})% XP &7(%levelProgressText({_p})%&7)")
+	return {_xp}
+
+# "Level 2 Burglar · 1,240 / 3,000 XP to level 3", or "Level 6 Kingpin · max level".
+function levelProgressText(p: player) :: text:
+	set {_r} to levelOf({_p})
+	set {_x} to levelXp({_p})
+	if {_r} >= cfg("level::max"):
+		return "Level %{_r}% %levelColored({_r})% &7· max level"
+	set {_next} to {_r} + 1
+	return "Level %{_r}% %levelColored({_r})% &7· %levelNum({_x})% / %levelNum(levelNeed({_next}))% XP to level %{_next}%"
+
+# The tab list's copies (placeholders.sk reads memory only). Also catches a player up when the XP they
+# have is worth a higher level than they're saved at (the thresholds were lowered in core.sk).
+function levelRefresh(p: player):
+	set {_r} to levelOf({_p})
+	set {_f} to levelFor(levelXp({_p}))
+	if {_f} > {_r}:
+		setData({_p}, "level", {_f})
+		levelLog("catch-up %name of {_p}% %uuid of {_p}% %{_r}%->%{_f}% xp=%levelXp({_p})%")
+		levelUp({_p}, {_r}, {_f})
+		set {_r} to {_f}
+	set {-ph::level::%{_p}%} to levelColored({_r})
+	set {-ph::levelnum::%{_p}%} to "%{_r}%"
+	if {_r} >= cfg("level::max"):
+		set {-ph::levelxp::%{_p}%} to "max level"
+	else:
+		set {_next} to {_r} + 1
+		set {-ph::levelxp::%{_p}%} to "%levelNum(levelXp({_p}))%/%levelNum(levelNeed({_next}))% XP"
+
+on join:
+	# Saved under the old name ("robber ranks", earlier on 2026-09-26): moved once.
+	set {_old} to getData(player, "rank-xp")
+	if {_old} is set:
+		if getData(player, "level-xp") is not set:
+			setData(player, "level-xp", {_old})
+			set {_r} to getData(player, "rank")
+			if {_r} is set:
+				setData(player, "level", {_r})
+		deleteData(player, "rank-xp")
+		deleteData(player, "rank")
+		delete {data::%player%::rank-haul::*}
+	levelRefresh(player)
+
+on load:
+	loop all players:
+		levelRefresh(loop-player)
+
+# Follows a settings reload (/sk reload core) and a changed threshold within a few seconds.
+every 5 seconds:
+	loop all players:
+		levelRefresh(loop-player)
+
+on quit:
+	delete {-ph::level::%player%}
+	delete {-ph::levelnum::%player%}
+	delete {-ph::levelxp::%player%}
+
+# ---------- /level and /levels ----------
+
+function levelShow(p: player):
+	set {_r} to levelOf({_p})
+	set {_x} to levelXp({_p})
+	set {_max} to cfg("level::max")
+	msg({_p}, "&6Your level: &f%{_r}% %levelColored({_r})% &7(of %{_max}%) &8· &f%levelNum({_x})% XP")
+	if {_r} >= {_max}:
+		send colored "&7 That's the top level." to {_p}
+	else:
+		set {_next} to {_r} + 1
+		set {_from} to levelNeed({_r})
+		set {_to} to levelNeed({_next})
+		set {_pct} to 0
+		if {_to} > {_from}:
+			set {_pct} to max(0, min(100, floor(100 * ({_x} - {_from}) / ({_to} - {_from}))))
+		set {_full} to floor({_pct} / 5)
+		set {_bar} to ""
+		loop 20 times:
+			if loop-number <= {_full}:
+				set {_bar} to "%{_bar}%&a|"
+			else:
+				set {_bar} to "%{_bar}%&8|"
+		send colored "&7 Next: level %{_next}% %levelColored({_next})% &7at %levelNum({_to})% XP  %{_bar}% &7%{_pct}%%%" to {_p}
+		set {_u::*} to levelUnlocks({_next})
+		if size of {_u::*} > 0:
+			set {_list} to join {_u::*} with ", "
+			send colored "&7 It unlocks: &f%{_list}%" to {_p}
+	set {_per} to cfg("level::xp-per-dollars")
+	set {_haul} to cfg("level::xp-per-haul")
+	send colored "&8 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist. /levels" to {_p}
+
+command /level:
+	description: Your robber level.
+	aliases: /lvl
+	executable by: players
+	trigger:
+		levelShow(player)
+
+command /levels:
+	description: Every robber level and what it unlocks.
+	executable by: players
+	trigger:
+		msg(player, "&6Robber levels &7(you: level %levelOf(player)%)")
+		set {_max} to cfg("level::max")
+		loop integers from 0 to {_max}:
+			set {_u::*} to levelUnlocks(loop-value)
+			set {_what} to ""
+			if size of {_u::*} > 0:
+				set {_list} to join {_u::*} with ", "
+				set {_what} to " &8· &7%{_list}%"
+			set {_you} to ""
+			if loop-value is levelOf(player):
+				set {_you} to " &e← you"
+			send colored "&8 %loop-value%. %levelColored(loop-value)% &8- &f%levelNum(levelNeed(loop-value))% XP%{_what}%%{_you}%" to player
+			delete {_u::*}
+
+# ---------- Staff: /dlevel ----------
+
+function dlevelReply(s: command sender, text: text):
+	send "%{_text}%" to {_s}
+
+command /dlevel [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_a::2} is not set:
+			dlevelReply(sender, "LEVEL usage: /dlevel info|set|xp|reset <player> [level|xp]")
+			stop
+		set {_p} to {_a::2} parsed as player
+		if {_p} is not set:
+			dlevelReply(sender, "LEVEL %{_a::2}% isn't online")
+			stop
+		if {_sub} is "info":
+			dlevelReply(sender, "LEVEL %name of {_p}% level=%levelOf({_p})% xp=%levelXp({_p})% name=%levelName(levelOf({_p}))%")
+		else if {_sub} is "set":
+			set {_r} to {_a::3} parsed as integer
+			if {_r} is not set:
+				set {_max} to cfg("level::max")
+				dlevelReply(sender, "LEVEL set: /dlevel set <player> <0-%{_max}%>")
+				stop
+			set {_r} to max(0, min({_r}, cfg("level::max")))
+			# Staff can move a level either way; the XP goes to that level's start, so they stay in step.
+			setData({_p}, "level", {_r})
+			setData({_p}, "level-xp", levelNeed({_r}))
+			levelRefresh({_p})
+			levelLog("set %name of {_p}% %uuid of {_p}% level=%{_r}% by=%sender%")
+			msg({_p}, "&7Your level is now %{_r}% %levelColored({_r})%&7 (staff).")
+			dlevelReply(sender, "LEVEL %name of {_p}% set to %{_r}% (%levelName({_r})%), xp=%levelXp({_p})%")
+		else if {_sub} is "xp":
+			set {_x} to {_a::3} parsed as integer
+			if {_x} is not set:
+				dlevelReply(sender, "LEVEL xp: /dlevel xp <player> <amount>")
+				stop
+			if {_x} <= 0:
+				dlevelReply(sender, "LEVEL xp: only adds (XP is never taken away; use set)")
+				stop
+			levelAddXp({_p}, {_x}, "staff")
+			dlevelReply(sender, "LEVEL %name of {_p}% +%{_x}% xp=%levelXp({_p})% level=%levelOf({_p})%")
+		else if {_sub} is "reset":
+			deleteData({_p}, "level")
+			deleteData({_p}, "level-xp")
+			# The heist runs already credited (bag.sk), so the next sale of any run pays its bonus again.
+			delete {data::%{_p}%::level-haul::*}
+			levelRefresh({_p})
+			levelLog("reset %name of {_p}% %uuid of {_p}% by=%sender%")
+			dlevelReply(sender, "LEVEL %name of {_p}% reset to 0")
+		else:
+			dlevelReply(sender, "LEVEL usage: /dlevel info|set|xp|reset <player> [level|xp]")

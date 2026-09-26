@@ -1,5 +1,5 @@
 // heists.sk: a test heist built on a glass platform (no city yet), driven through /dheist like staff
-// would. Checks the staff setup, the entry gates (closed, teleports, PvP heists, rank), a run (the
+// would. Checks the staff setup, the entry gates (closed, teleports, PvP heists, level), a run (the
 // clock, messages, placeholders, the waypoint rule, no teleport commands or passive switching inside),
 // the heist crew (no hurting each other inside; shooting in and out works), the block-break lock, the
 // countdown (thrown out, loot forfeited, the room reset), deaths inside (death.sk uses the heist's
@@ -104,7 +104,7 @@ module.exports = async ({ check }) => {
       await cmd(`zzclear ${name}`)
       await cmd(`zzpassive ${name} off`)
       await cmd(`zzdata ${name} passive-switched none`)
-      await cmd(`zzdata ${name} rank none`)
+      await cmd(`zzdata ${name} level none`)
       await cmd(`zzcombatend ${name}`)
       await cmd(`lp user ${name} permission unset donating.wanted`)
     }
@@ -122,7 +122,7 @@ module.exports = async ({ check }) => {
     await heistSet('escape', 60)
     await heistSet('cooldown', 6)
     let info = await cmd(`dheist info ${ID}`)
-    check('set: name, escape, cooldown; the rest from difficulty 3 (rank 2)', /name=Test Vault difficulty=3 escape=1:00 cooldown=0:06 pool=\$40,000 rank=2 advanced=false pvp=false/.test(info), info)
+    check('set: name, escape, cooldown; the rest from difficulty 3 (level 2)', /name=Test Vault difficulty=3 escape=1:00 cooldown=0:06 pool=\$40,000 level=2 advanced=false pvp=false/.test(info), info)
     check('enable needs an exit spot', /set the exit spot first/.test(await cmd(`dheist enable ${ID}`)))
     await cmd(`zzregion ${SAFE} 721 199 736 723 206 739`)
     await cmd(`rg flag -w world ${SAFE} passthrough allow`)
@@ -185,14 +185,14 @@ module.exports = async ({ check }) => {
     await cmd(`zzdata ${B} passive-switched none`)
     await place(B, OUTSIDE[0], OUTSIDE[1])
 
-    await heistSet('rank', 1)
+    await heistSet('level', 1)
     t = await walkIn(A)
-    check('a rank requirement pushes lower ranks back', (await pos(A))[0] < EDGE && /robber rank 1 \(Shoplifter\)/.test(bars(A, t)), bars(A, t))
-    await cmd(`zzdata ${A} rank 1`)
-    await heistSet('rank', 'default')
+    check('a level requirement pushes lower levels back', (await pos(A))[0] < EDGE && /level 1 \(Shoplifter\)/.test(bars(A, t)), bars(A, t))
+    await cmd(`zzdata ${A} level 1`)
+    await heistSet('level', 'default')
     t = await walkIn(A)
-    check('the difficulty\'s default rank applies (difficulty 3: rank 2, Burglar)', (await pos(A))[0] < EDGE && /robber rank 2 \(Burglar\)/.test(bars(A, t)), bars(A, t))
-    await heistSet('rank', 0)
+    check('the difficulty\'s default level applies (difficulty 3: level 2, Burglar)', (await pos(A))[0] < EDGE && /level 2 \(Burglar\)/.test(bars(A, t)), bars(A, t))
+    await heistSet('level', 0)
 
     // ---------- Round 1: escape 60 s ----------
     t = Date.now()
@@ -437,7 +437,7 @@ module.exports = async ({ check }) => {
     for (const name of [A, B]) {
       await rcon.cmd(`lp user ${name} permission unset donating.wanted`).catch(() => {})
       await rcon.cmd(`zzpassive ${name} off`).catch(() => {})
-      await rcon.cmd(`zzdata ${name} rank none`).catch(() => {})
+      await rcon.cmd(`zzdata ${name} level none`).catch(() => {})
       await rcon.cmd(`zzdata ${name} passive-switched none`).catch(() => {})
       await rcon.cmd(`zzcombatend ${name}`).catch(() => {})
       await rcon.cmd(`zzclear ${name}`).catch(() => {})

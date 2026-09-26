@@ -96,7 +96,7 @@ module.exports = async ({ check }) => {
     await cmd(`forceload add ${BB_CHUNKS}`)
     await cmd(`fill 776 ${Y - 1} 764 792 ${Y - 1} 784 glass`)
     await cmd(`zzregion heist_${BB} 780 190 768 790 208 780`)
-    for (const c of [`dheist create ${BB} 4`, `dheist set ${BB} rank 0`, `dheist set ${BB} name Hud Lab`, `dheist set ${BB} escape 600`, `dheist set ${BB} cooldown 5`, `dheist exit ${BB} ${BB_EXIT} -90`, `dheist snapshot ${BB}`, `dheist enable ${BB}`]) await cmd(c)
+    for (const c of [`dheist create ${BB} 4`, `dheist set ${BB} level 0`, `dheist set ${BB} name Hud Lab`, `dheist set ${BB} escape 600`, `dheist set ${BB} cooldown 5`, `dheist exit ${BB} ${BB_EXIT} -90`, `dheist snapshot ${BB}`, `dheist enable ${BB}`]) await cmd(c)
     const until = async (fn, ms = 5000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(200) } return Boolean(await fn()) }
     const opened = await until(async () => /state=open/.test(await cmd(`zzheist ${BB}`)), 15000)
     check('no boss bar outside heists', opened && barNow().length === 0, barText())
