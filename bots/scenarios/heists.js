@@ -97,6 +97,7 @@ module.exports = async ({ check }) => {
     await cmd(`fill 720 ${Y} 720 750 ${Y + 10} 740 air`)
     await cmd(`fill ${PLATFORM} glass`)
     await cmd('zzcfgreload')
+    await cmd('zzcfgtext heist::start-on enter') // most checks here want the clock at the first entry; loot.sk's default is rob
     for (const name of [A, B]) {
       bots[name] = await join(name)
       await cmd(`gamemode survival ${name}`)
@@ -367,6 +368,7 @@ module.exports = async ({ check }) => {
     await sleep(500)
     check('...the first robbery does', (await field('state')) === 'active' && /being robbed/.test(text(B, t)), `${await heist()}; ${text(B, t)}`)
     await cmd('zzcfgreload')
+    await cmd('zzcfgtext heist::start-on enter') // most checks here want the clock at the first entry; loot.sk's default is rob
 
     // ---------- Alarm (advanced heists) and the lockdown ----------
     check('only advanced heists have an alarm', /not an advanced heist/.test(await cmd(`dheist alarm ${ID}`)) && (await field('alarm')) === 'none')
@@ -402,6 +404,7 @@ module.exports = async ({ check }) => {
     check('robbers who fail leave the hunt (the alarm ends)', hunted === '1' && (await field('hunted')) === '0' && (await field('alarm')) === 'none', `${hunted}; ${await heist()}`)
     check('the reset takes the bars away again', await until(async () => isBlock(732, 201, 725, 'air'), 4000))
     await cmd('zzcfgreload')
+    await cmd('zzcfgtext heist::start-on enter') // most checks here want the clock at the first entry; loot.sk's default is rob
 
     // ---------- Delete ----------
     const del = await cmd(`dheist delete ${ID} confirm`)

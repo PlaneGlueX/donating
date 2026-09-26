@@ -99,6 +99,7 @@ module.exports = async ({ check }) => {
     await cmd(`fill 798 200 781 798 202 783 stone`) // the camera room's wall
     await cmd(`setblock 792 200 790 stone_pressure_plate`) // ztrapa-2 (alarm plate)
     await cmd('zzcfgreload')
+    await cmd('zzcfgtext heist::start-on enter') // the clock at the first entry: these heists have no loot
     await cmd('zzregion heist_ztrap 768 190 768 782 208 794')
     await cmd('zzregion heist_ztrapa 788 196 768 804 208 796')
     for (const c of ['dheist create ztrap 2', 'dheist set ztrap name Trap Hall', 'dheist set ztrap escape 600', 'dheist set ztrap cooldown 5', 'dheist exit ztrap 764.5 200 781.5 -90', 'dheist snapshot ztrap',

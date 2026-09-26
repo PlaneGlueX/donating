@@ -49,10 +49,19 @@ function phoneItem(p: player) :: item:
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:phone"
 	return tagItem({_i}, "phone")
 
-function bagItem(tier: number) :: item:
+# The bag with its fill: "Duffel Bag (45%)" (rounded down, 100% only when full), the loot in the lore,
+# and the enchant glint when full (bag.sk: a full bag takes no more loot).
+function bagItem(tier: number, loot: number = 0) :: item:
 	set {_name} to cfg("bag::%{_tier}%::name")
 	set {_capacity} to cfg("bag::%{_tier}%::capacity")
-	set {_i} to leather named "&6%{_name}%" with lore "&7Holds up to %formatMoney({_capacity})% of loot"
+	set {_pct} to 0
+	if {_capacity} > 0:
+		set {_pct} to min(99, floor(100 * {_loot} / {_capacity}))
+		if {_loot} >= {_capacity}:
+			set {_pct} to 100
+	set {_i} to leather named "&6%{_name}% &7(%{_pct}%%%)" with lore "&7Loot: &f%formatMoney({_loot})% &7/ %formatMoney({_capacity})%" and "&8Sells automatically at the base"
+	if {_pct} >= 100:
+		set {_i} to glint({_i})
 	# The pack draws it as this tier's duffel (an icon in inventories, a 3D bag in the offhand).
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_tier}%"
 	return tagItem({_i}, "bag:%{_tier}%")
@@ -70,7 +79,8 @@ function applyBag(p: player):
 	set {_tier} to getData({_p}, "bag-tier")
 	if {_tier} is set:
 		if {_tier} > 0:
-			set offhand tool of {_p} to bagItem({_tier})
+			set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}))
+			set {-bag::shown::%{_p}%} to "%{_tier}%:%bagTotal({_p})%"
 			stop
 	set offhand tool of {_p} to air
 
@@ -228,7 +238,7 @@ function repairLayout(p: player):
 				if {_at} >= 0:
 					swapSlots({_p}, {_at}, 40)
 				else if offhand tool of {_p} is air:
-					set offhand tool of {_p} to bagItem({_tier})
+					set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}))
 
 on inventory slot change:
 	set {_slot} to index of event-slot

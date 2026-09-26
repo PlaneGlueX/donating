@@ -102,8 +102,9 @@ function loadSettings():
 	# WorldGuard regions "heist_<id>" are heists (staff define them with /dheist).
 	set {-cfg::heist::region-prefix} to "heist_"
 	# When the escape clock starts: "rob" = at the first robbery (owner, 2026-09-25; loot.sk calls
-	# heistStartRun), "enter" = at the first robber's entry. "enter" until loot.sk exists.
-	set {-cfg::heist::start-on} to "enter"
+	# heistStartRun at the first piece taken, glass smashed, safe cracked or drill mounted), "enter" = at
+	# the first robber's entry.
+	set {-cfg::heist::start-on} to "rob"
 	# PROPOSAL: with less than this left, the doors are locked (nobody new can still rob anything).
 	set {-cfg::heist::entry-cutoff} to 20 seconds
 	# PROPOSAL: chat warnings at these seconds left.
@@ -206,6 +207,88 @@ function loadSettings():
 	set {-cfg::trap::death::plate} to "&c{name} &7stepped on a trap in the &f{heist}&7."
 	set {-cfg::trap::death::floor} to "&c{name} &7fell through a trapped floor in the &f{heist}&7."
 	set {-cfg::trap::death::camera} to "&c{name} &7was shot by a security turret in the &f{heist}&7."
+
+	# ---------- Loot (loot.sk): ALL PROPOSALS ----------
+	# Hold right-click on loot: each click credits min(Δt, credit) seconds (Δt = time since your last
+	# click on it); a pause longer than gap starts over. A held button clicks every 0.2 s, so holding is
+	# real time and clicking faster gains nothing.
+	set {-cfg::loot::reach} to 4.5               # eye to the loot's hitbox (the client clicks within 3)
+	set {-cfg::loot::credit} to 0.3              # seconds, at most, per click
+	set {-cfg::loot::gap} to 1                   # seconds: a longer pause resets the progress
+	set {-cfg::loot::guard} to 0.5 seconds       # no gun shot or phone toggle this long after a loot click
+	set {-cfg::loot::claim-range} to 8           # a head start ends when its owner walks this far away
+	set {-cfg::loot::cleaned-out} to 60          # seconds: every pile empty -> the clock drops to this (0 = off)
+	set {-cfg::loot::partial} to true            # less room than a piece: take what fits, the piece shrinks
+	set {-cfg::loot::prompt-range} to 3.5
+	set {-cfg::loot::piece-view} to 0.5          # display view range (× 64 blocks)
+	set {-cfg::loot::marker-view} to 1.0
+	set {-cfg::loot::max-spots} to 24            # per heist
+	set {-cfg::loot::max-cells} to 12            # per pile
+	set {-cfg::loot::max-pieces} to 24           # per pile
+	set {-cfg::loot::max-heist-pieces} to 150
+	set {-cfg::loot::max-gate-blocks} to 27
+	# Pile styles: what a piece looks like and is worth. A pile's value V = n × piece with n rolled at
+	# every opening between ceil(min / piece) and floor(max / piece) (/dloot add ... value=MIN-MAX).
+	# Rate r = piece / take ($ per second of holding); a bag of capacity C fills in C / r seconds.
+	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods" and "art"
+	set {-cfg::loot::cash::name} to "Cash stack"
+	set {-cfg::loot::cash::piece} to 100
+	set {-cfg::loot::cash::take} to 0.8
+	set {-cfg::loot::cash::item} to paper
+	set {-cfg::loot::cash::per-cell} to 4
+	set {-cfg::loot::cash::layers} to 2
+	set {-cfg::loot::cash::thick} to 0.06
+	set {-cfg::loot::cash::scale} to 0.45
+	set {-cfg::loot::jewel::name} to "Jewels"
+	set {-cfg::loot::jewel::piece} to 250
+	set {-cfg::loot::jewel::take} to 1.0
+	set {-cfg::loot::jewel::item} to diamond
+	set {-cfg::loot::jewel::per-cell} to 4
+	set {-cfg::loot::jewel::layers} to 1
+	set {-cfg::loot::jewel::thick} to 0.04
+	set {-cfg::loot::jewel::scale} to 0.35
+	set {-cfg::loot::gold::name} to "Gold bar"
+	set {-cfg::loot::gold::piece} to 500
+	set {-cfg::loot::gold::take} to 1.5
+	set {-cfg::loot::gold::item} to gold ingot
+	set {-cfg::loot::gold::per-cell} to 2
+	set {-cfg::loot::gold::layers} to 2
+	set {-cfg::loot::gold::thick} to 0.12
+	set {-cfg::loot::gold::scale} to 0.5
+	set {-cfg::loot::goods::name} to "Valuables"
+	set {-cfg::loot::goods::piece} to 200
+	set {-cfg::loot::goods::take} to 1.0
+	set {-cfg::loot::goods::item} to emerald
+	set {-cfg::loot::goods::per-cell} to 2
+	set {-cfg::loot::goods::layers} to 1
+	set {-cfg::loot::goods::thick} to 0.05
+	set {-cfg::loot::goods::scale} to 0.45
+	set {-cfg::loot::art::name} to "Artifact"
+	set {-cfg::loot::art::piece} to 2000
+	set {-cfg::loot::art::take} to 3.0
+	set {-cfg::loot::art::item} to gold block
+	set {-cfg::loot::art::per-cell} to 1
+	set {-cfg::loot::art::layers} to 1
+	set {-cfg::loot::art::thick} to 0.3
+	set {-cfg::loot::art::scale} to 0.5
+	set {-cfg::loot::pile::lift} to 0             # surface above the block top (auto -0.5 on a bottom slab)
+	# Gates: glass to smash, a safe to crack (keypad, needs a Safe Kit), a vault door to drill (needs a
+	# Drill). claim = the head start of whoever opened it (only they can take from the piles behind it;
+	# ends early when their bag fills, they walk claim-range away, leave or die). Times in seconds.
+	set {-cfg::loot::smash::take} to 1.5
+	set {-cfg::loot::smash::alarm} to false
+	set {-cfg::loot::safe::digits} to 4
+	set {-cfg::loot::safe::claim} to 6
+	set {-cfg::loot::safe::alarm} to false
+	set {-cfg::loot::safe::guess-gap} to 1 second # keys are ignored this long after each guess
+	set {-cfg::loot::drill::mount} to 1.5
+	set {-cfg::loot::drill::time} to 60            # 90 suggested for difficulty 4
+	set {-cfg::loot::drill::jams} to 2             # at 1/3 and 2/3; anyone clears one with a fix hold
+	set {-cfg::loot::drill::fix} to 2
+	set {-cfg::loot::drill::claim} to 10
+	set {-cfg::loot::drill::alarm} to true
+	# Where bags sell: safe zones whose region id starts with this (bag.sk).
+	set {-cfg::bag::base-prefix} to "safe_base"
 	set {-cfg::bounty::per-kill} to 250
 	set {-cfg::bounty::kill-cap} to 25000
 	set {-cfg::bounty::min-placed} to 1000
@@ -231,26 +314,33 @@ function loadSettings():
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
 	set {-cfg::wpn::Combat_Knife::price} to 150
+	# model = the weapon's WeaponMechanics skin (Skin: Default in its file), the custom_model_data the
+	# pack's feather.json turns into its 3D model; the shop's icons use it so they look like the gun.
+	set {-cfg::wpn::Combat_Knife::model} to -10
 	set {-cfg::wpn::50_GS::name} to ".50 GS"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
 	set {-cfg::wpn::50_GS::price} to 300
 	set {-cfg::wpn::50_GS::ammo} to "light"
 	set {-cfg::wpn::50_GS::mag} to 7
+	set {-cfg::wpn::50_GS::model} to 9
 	set {-cfg::wpn::Uzi::name} to "Uzi"
 	set {-cfg::wpn::Uzi::kind} to "SMG"
 	set {-cfg::wpn::Uzi::price} to 3000
 	set {-cfg::wpn::Uzi::ammo} to "light"
 	set {-cfg::wpn::Uzi::mag} to 32
+	set {-cfg::wpn::Uzi::model} to 1
 	set {-cfg::wpn::R9_0::name} to "R9-0"
 	set {-cfg::wpn::R9_0::kind} to "Shotgun"
 	set {-cfg::wpn::R9_0::price} to 7500
 	set {-cfg::wpn::R9_0::ammo} to "shells"
 	set {-cfg::wpn::R9_0::mag} to 14
+	set {-cfg::wpn::R9_0::model} to 14
 	set {-cfg::wpn::AK_47::name} to "AK-47"
 	set {-cfg::wpn::AK_47::kind} to "Rifle"
 	set {-cfg::wpn::AK_47::price} to 15000
 	set {-cfg::wpn::AK_47::ammo} to "rifle"
 	set {-cfg::wpn::AK_47::mag} to 30
+	set {-cfg::wpn::AK_47::model} to 5
 
 	# Ammo types. "wm" = the ammo's name in plugins\WeaponMechanics\ammos\Donating_Ammos.yml.
 	set {-cfg::shop::ammo::*} to "light", "shells" and "rifle"
@@ -278,13 +368,23 @@ function loadSettings():
 	set {-cfg::con::Stim::name} to "Stim"
 	set {-cfg::con::Stim::price} to 200
 	set {-cfg::con::Stim::max} to 3
+	set {-cfg::con::Stim::model} to -1
 
-	# Heist tools (loot.sk turns them on later).
+	# Heist tools (loot.sk): carried in hotbar 1-5 (only the gun shop and the tools shop change those),
+	# used up by the task (a Safe Kit only when the safe opens), lost on death. Not in Save/Restore.
 	set {-cfg::shop::tools::*} to "drill" and "safe-kit"
 	set {-cfg::tool::drill::name} to "Drill"
-	set {-cfg::tool::drill::enabled} to false
+	set {-cfg::tool::drill::enabled} to true
+	set {-cfg::tool::drill::price} to 2500
+	set {-cfg::tool::drill::max} to 1
+	set {-cfg::tool::drill::item} to iron ingot
+	set {-cfg::tool::drill::about} to "Drills a vault door open (1 per door)."
 	set {-cfg::tool::safe-kit::name} to "Safe Kit"
-	set {-cfg::tool::safe-kit::enabled} to false
+	set {-cfg::tool::safe-kit::enabled} to true
+	set {-cfg::tool::safe-kit::price} to 400
+	set {-cfg::tool::safe-kit::max} to 3
+	set {-cfg::tool::safe-kit::item} to flint
+	set {-cfg::tool::safe-kit::about} to "Cracks a safe's code (used up when it opens)."
 
 	# Helmets and vests: lost on death, bought again. Gun damage D' = D × (1 − 0.03 × armor points).
 	set {-cfg::shop::gear::*} to "helmet-1", "helmet-2", "vest-1" and "vest-2"

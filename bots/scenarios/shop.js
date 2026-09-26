@@ -76,7 +76,7 @@ module.exports = async ({ check }) => {
     // ---------- Layout ----------
     let w = await open()
     const layout = [0, 2, 4, 6, 8, 11, 45, 47, 49, 51].map(s => `${s}=${at(s)}`).join(' ')
-    check('the gun shop opens with its layout', w && JSON.stringify(w.title).includes('Gun Shop') && layout === '0=gold_ingot 2=writable_book 4=book 6=recovery_compass 8=barrier 11=light_gray_stained_glass_pane 45=chest 47=feather 49=iron_nugget 51=lightning_rod', layout)
+    check('the gun shop opens with its layout', w && JSON.stringify(w.title).includes('Gun Shop') && layout === '0=gold_ingot 2=writable_book 4=book 6=recovery_compass 8=barrier 11=light_gray_stained_glass_pane 45=chest 47=feather 49=gold_nugget 51=feather', layout)
 
     // ---------- Buying weapons ----------
     await tab('weapons')

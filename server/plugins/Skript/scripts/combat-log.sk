@@ -47,7 +47,7 @@ function tagCombat(p: player, source: text):
 			set {-combat::player::%{_p}%} to {_source}
 			set {-combat::playerat::%{_p}%} to now
 	if {_was} is false:
-		send action bar "&cIn combat! Logging out now kills you." to {_p}
+		hudBar({_p}, "&cIn combat! Logging out now kills you.", 3)
 
 function clearCombat(p: player):
 	delete {-combat::at::%{_p}%}
@@ -84,7 +84,7 @@ every second:
 		{-combat::at::%loop-player%} is set
 		isCombatTagged(loop-player) is false
 		clearCombat(loop-player)
-		send action bar "&aYou're out of combat." to loop-player
+		hudBar(loop-player, "&aYou're out of combat.", 2)
 
 on death of player with priority monitor:
 	clearCombat(victim)

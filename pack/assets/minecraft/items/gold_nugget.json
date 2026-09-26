@@ -10,6 +10,13 @@
           "type": "minecraft:model",
           "model": "donating:item/ammo_rifle"
         }
+      },
+      {
+        "when": "donating:marker",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/marker"
+        }
       }
     ],
     "fallback": {

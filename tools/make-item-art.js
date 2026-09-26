@@ -142,6 +142,8 @@ const bagCase = t => ({
   }
 })
 write('minecraft/items/leather.json', {
+  // Replacing the offhand bag when its fill changes must not play the re-equip dip (26.3 client).
+  hand_animation_on_swap: false,
   model: {
     type: 'minecraft:select',
     property: 'minecraft:custom_model_data',
@@ -173,16 +175,193 @@ const AMMO = {
   shells: { item: 'copper_nugget', png: ammoIcon(SHELL, [[3, 3], [8, 4]]) },
   rifle: { item: 'gold_nugget', png: ammoIcon(RIFLE, [[3, 1], [8, 2]]) }
 }
+// Each vanilla item's definition picks our model by the first custom_model_data string; several of our
+// items can share one base item (the gold nugget is rifle ammo and the loot marker), so the cases are
+// collected here and every items/<base>.json is written once at the end.
+const itemCases = {}
+const addCase = (base, when, model, fallback = `minecraft:item/${base}`) => {
+  if (!itemCases[base]) itemCases[base] = { fallback, cases: [] }
+  itemCases[base].cases.push({ when, model: { type: 'minecraft:model', model } })
+}
+const sprite = (name, png) => {
+  write(`donating/textures/item/${name}.png`, png)
+  write(`donating/models/item/${name}.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/${name}` } })
+}
 for (const [type, a] of Object.entries(AMMO)) {
-  write(`donating/textures/item/ammo_${type}.png`, a.png)
-  write(`donating/models/item/ammo_${type}.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/ammo_${type}` } })
-  write(`minecraft/items/${a.item}.json`, {
+  sprite(`ammo_${type}`, a.png)
+  addCase(a.item, `donating:ammo_${type}`, `donating:item/ammo_${type}`)
+}
+
+// ---------- Loot pieces, the loot marker, heist tools (loot.sk) ----------
+// Loot pieces are item displays lying flat (pitch 90), so a generated sprite reads from above like a
+// real stack of bills or a bar. The marker floats over loot you can take (billboarded, glowing). Tools
+// sit in hotbar 1-5. Base items (core.sk): cash paper, jewel diamond, gold gold_ingot, goods emerald, art
+// gold_block, marker gold_nugget, drill iron_ingot, safe kit flint.
+{
+  const K = [28, 24, 20, 255]
+  const art = (rows, colors) => { const c = canvas(16, 16); c.draw(rows, { k: K, ...colors }); return c.png() }
+  sprite('loot_cash', art([
+    '................',
+    '................',
+    '................',
+    '.kkkkkkkkkkkkkk.',
+    '.kLLLLLWWLLLLLk.',
+    '.kGGGGGWWGGGGGk.',
+    '.kGggGGWwGGggGk.',
+    '.kGgdgGWwGgdgGk.',
+    '.kGggGGWwGGggGk.',
+    '.kGGGGGWwGGGGGk.',
+    '.kLLLLLWWLLLLLk.',
+    '.kDDDDDwwDDDDDk.',
+    '.kDDDDDwwDDDDDk.',
+    '.kkkkkkkkkkkkkk.',
+    '................',
+    '................'
+  ], { L: [150, 214, 140, 255], G: [104, 176, 96, 255], g: [72, 138, 70, 255], d: [44, 96, 46, 255], D: [58, 112, 56, 255], W: [240, 236, 214, 255], w: [196, 190, 162, 255] }))
+  addCase('paper', 'donating:loot_cash', 'donating:item/loot_cash')
+  sprite('loot_jewel', art([
+    '................',
+    '................',
+    '....kkkkkkkk....',
+    '...kwbBBBBbdk...',
+    '..kwbbBBBBbbdk..',
+    '.kkkkkkkkkkkkkk.',
+    '..kbBBbwbbBBdk..',
+    '...kbBBbbBBdk...',
+    '....kbBbbBdk....',
+    '.....kbBBdk.....',
+    '......kBdk......',
+    '.......kk.......',
+    '..........kkk...',
+    '.........kRrRk..',
+    '..........kkk...',
+    '................'
+  ], { w: [236, 250, 255, 255], b: [150, 220, 250, 255], B: [72, 170, 236, 255], d: [30, 104, 180, 255], R: [230, 50, 70, 255], r: [255, 160, 170, 255] }))
+  addCase('diamond', 'donating:loot_jewel', 'donating:item/loot_jewel')
+  sprite('loot_gold', art([
+    '................',
+    '................',
+    '................',
+    '................',
+    '....kkkkkkkk....',
+    '...kWYYYYYYYk...',
+    '..kYyyyyyyyyYk..',
+    '.kYyyyyYYyyyyYk.',
+    '.kkkkkkkkkkkkkk.',
+    '.kOOOOOOOOOOOOk.',
+    '.kOooooooooooOk.',
+    '.kOooooooooooOk.',
+    '.kkkkkkkkkkkkkk.',
+    '................',
+    '................',
+    '................'
+  ], { W: [255, 250, 210, 255], Y: [255, 222, 90, 255], y: [240, 190, 50, 255], O: [214, 150, 30, 255], o: [178, 118, 20, 255] }))
+  addCase('gold_ingot', 'donating:loot_gold', 'donating:item/loot_gold')
+  sprite('loot_goods', art([
+    '......kkkk......',
+    '......kSSk......',
+    '......kSsk......',
+    '....kkkkkkkk....',
+    '...kYWWWWWWYk...',
+    '..kYWWWkWWWWYk..',
+    '..kYWWWkWWWWYk..',
+    '..kYWWWkkkWWYkk.',
+    '..kYWWWWWWWWYk..',
+    '...kYWWWWWWYk...',
+    '....kkkkkkkk....',
+    '......kSsk......',
+    '......kSSk......',
+    '......kkkk......',
+    '................',
+    '................'
+  ], { S: [90, 60, 40, 255], s: [60, 40, 26, 255], Y: [236, 190, 70, 255], W: [246, 244, 236, 255] }))
+  addCase('emerald', 'donating:loot_goods', 'donating:item/loot_goods')
+  sprite('loot_art', art([
+    '......kkkk......',
+    '.....kYYYYk.....',
+    '.....kYkkYk.....',
+    '.....kYYYYk.....',
+    '......kYYk......',
+    '....kkYYYYkk....',
+    '...kYYyYYyYYk...',
+    '...kYkYYYYkYk...',
+    '...kk.kYYk.kk...',
+    '......kYYk......',
+    '.....kYyyYk.....',
+    '....kkkkkkkk....',
+    '....kRRRRRRk....',
+    '....krrrrrrk....',
+    '....kkkkkkkk....',
+    '................'
+  ], { Y: [250, 204, 70, 255], y: [210, 150, 36, 255], R: [150, 30, 40, 255], r: [110, 20, 30, 255] }))
+  addCase('gold_block', 'donating:loot_art', 'donating:item/loot_art', 'minecraft:block/gold_block')
+  sprite('marker', art([
+    '................',
+    '....kkkkkkkk....',
+    '....kWWWWWWk....',
+    '....kWwwwwWk....',
+    '....kWwwwwWk....',
+    '.kkkkWwwwwWkkkk.',
+    '..kWWwwwwwwWWk..',
+    '...kWwwwwwwWk...',
+    '....kWwwwwWk....',
+    '.....kWwwWk.....',
+    '......kWWk......',
+    '.......kk.......',
+    '................',
+    '................',
+    '................',
+    '................'
+  ], { W: [255, 255, 255, 255], w: [255, 236, 150, 255] }))
+  addCase('gold_nugget', 'donating:marker', 'donating:item/marker')
+  sprite('tool_drill', art([
+    '................',
+    '................',
+    '................',
+    '.kkkkkkkkkk.....',
+    '.kYYYYYYYYYkkkk.',
+    '.kYyyyyyyyYkGGkS',
+    '.kYyyyyyyyYkGgkS',
+    '.kkkkyyykkkkkkk.',
+    '....kyyyk.......',
+    '....kyyyk.......',
+    '....kDDDk.......',
+    '....kDDDk.......',
+    '...kkkkkkk......',
+    '...kBBBBBk......',
+    '...kkkkkkk......',
+    '................'
+  ], { Y: [250, 200, 40, 255], y: [220, 160, 20, 255], G: [150, 154, 160, 255], g: [110, 114, 120, 255], S: [210, 214, 220, 255], D: [40, 40, 44, 255], B: [70, 70, 76, 255] }))
+  addCase('iron_ingot', 'donating:tool_drill', 'donating:item/tool_drill')
+  sprite('tool_safe_kit', art([
+    '................',
+    '................',
+    '................',
+    '......kkkk......',
+    '......k..k......',
+    '..kkkkkkkkkkkk..',
+    '..kDDDDDDDDDDk..',
+    '..kDDDkkkkDDDk..',
+    '..kDDkWWWWkDDk..',
+    '..kDDkWkWWkDDk..',
+    '..kDDkWWWWkDDk..',
+    '..kDDDkkkkDDDk..',
+    '..kDDDDDDDDDDk..',
+    '..kkkkkkkkkkkk..',
+    '................',
+    '................'
+  ], { D: [64, 68, 76, 255], W: [236, 236, 228, 255] }))
+  // The tool id is "safe-kit" (shop.sk's toolItem writes donating:tool_<id>).
+  addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
+}
+for (const [base, def] of Object.entries(itemCases)) {
+  write(`minecraft/items/${base}.json`, {
     model: {
       type: 'minecraft:select',
       property: 'minecraft:custom_model_data',
       index: 0,
-      cases: [{ when: `donating:ammo_${type}`, model: { type: 'minecraft:model', model: `donating:item/ammo_${type}` } }],
-      fallback: { type: 'minecraft:model', model: `minecraft:item/${a.item}` }
+      cases: def.cases,
+      fallback: { type: 'minecraft:model', model: def.fallback }
     }
   })
 }
