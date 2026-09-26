@@ -129,11 +129,12 @@ function loadSettings():
 	set {-cfg::difficulty::2::cooldown} to 10 minutes
 	set {-cfg::difficulty::3::cooldown} to 15 minutes
 	set {-cfg::difficulty::4::cooldown} to 30 minutes
-	# Robber rank needed (ranks.sk; 0 = anyone).
+	# PROPOSAL: robber rank needed (ranks.sk; 0 = anyone). Each heist can override it (/dheist set <id>
+	# rank <n>).
 	set {-cfg::difficulty::1::rank} to 0
-	set {-cfg::difficulty::2::rank} to 0
-	set {-cfg::difficulty::3::rank} to 0
-	set {-cfg::difficulty::4::rank} to 0
+	set {-cfg::difficulty::2::rank} to 1
+	set {-cfg::difficulty::3::rank} to 2
+	set {-cfg::difficulty::4::rank} to 3
 	# Advanced heists have an alarm (decided: only advanced heists).
 	set {-cfg::difficulty::1::advanced} to false
 	set {-cfg::difficulty::2::advanced} to false
@@ -396,6 +397,38 @@ function loadSettings():
 	set {-cfg::tool::safe-kit::max} to 3
 	set {-cfg::tool::safe-kit::item} to flint
 	set {-cfg::tool::safe-kit::about} to "Cracks a safe's code (used up when it opens)."
+	# PROPOSAL: the robber rank a tool needs to be bought (ranks.sk).
+	set {-cfg::tool::safe-kit::rank} to 1
+	set {-cfg::tool::drill::rank} to 2
+
+	# ---------- Robber ranks (ranks.sk) ----------
+	# PROPOSAL: rank n needs rank::<n>::xp total XP. XP comes from selling loot at the base:
+	# X = floor(P / rank::xp-per-dollars) + rank::xp-per-haul × H, P = what the sale paid (passive: 75%),
+	# H = the heist runs in it. E.g. a full Duffel Bag ($6,000) from one heist = 60 + 10 = 70 XP.
+	set {-cfg::rank::max} to 6
+	set {-cfg::rank::xp-per-dollars} to 100
+	set {-cfg::rank::xp-per-haul} to 10
+	set {-cfg::rank::0::name} to "Pickpocket"
+	set {-cfg::rank::0::xp} to 0
+	set {-cfg::rank::0::color} to "&7"
+	set {-cfg::rank::1::name} to "Shoplifter"
+	set {-cfg::rank::1::xp} to 250
+	set {-cfg::rank::1::color} to "&f"
+	set {-cfg::rank::2::name} to "Burglar"
+	set {-cfg::rank::2::xp} to 1000
+	set {-cfg::rank::2::color} to "&a"
+	set {-cfg::rank::3::name} to "Safecracker"
+	set {-cfg::rank::3::xp} to 3000
+	set {-cfg::rank::3::color} to "&b"
+	set {-cfg::rank::4::name} to "Heister"
+	set {-cfg::rank::4::xp} to 8000
+	set {-cfg::rank::4::color} to "&e"
+	set {-cfg::rank::5::name} to "Mastermind"
+	set {-cfg::rank::5::xp} to 20000
+	set {-cfg::rank::5::color} to "&6"
+	set {-cfg::rank::6::name} to "Kingpin"
+	set {-cfg::rank::6::xp} to 50000
+	set {-cfg::rank::6::color} to "&c"
 
 	# Helmets and vests: lost on death, bought again. Gun damage D' = D × (1 − 0.03 × armor points).
 	set {-cfg::shop::gear::*} to "helmet-1", "helmet-2", "vest-1" and "vest-2"

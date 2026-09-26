@@ -289,14 +289,29 @@ function toolIcon(p: player, t: text) :: item:
 	set {_money} to formatMoney(cfg("tool::%{_t}%::price"))
 	set {_max} to cfg("tool::%{_t}%::max")
 	set {_have} to toolCount({_p}, {_t})
+	set {_need} to toolRank({_t})
+	if rankOk({_p}, {_need}) is false:
+		set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&cNeeds robber rank %{_need}% (%rankName({_need})%). /rank" and "&8Lost when you die."
+		return tagItem({_i}, "shopicon:tool")
 	set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&7You have %{_have}%." and "&eClick: buy 1. Shift-click: fill up." and "&8Lost when you die."
 	return tagItem({_i}, "shopicon:tool")
+
+# The robber rank a tool needs (ranks.sk; 0 when core.sk sets none).
+function toolRank(t: text) :: number:
+	set {_r} to cfg("tool::%{_t}%::rank")
+	if {_r} is set:
+		return {_r}
+	return 0
 
 # Left-click: one more. Shift-click: up to the max.
 function buyTool(p: player, t: text, shift: boolean):
 	set {_name} to cfg("tool::%{_t}%::name")
 	if cfg("tool::%{_t}%::enabled") is not true:
 		shopFail({_p}, "The %{_name}% is coming soon.")
+		stop
+	set {_need} to toolRank({_t})
+	if rankOk({_p}, {_need}) is false:
+		shopFail({_p}, "The %{_name}% needs robber rank %{_need}% (%rankName({_need})%). /rank")
 		stop
 	set {_max} to cfg("tool::%{_t}%::max")
 	set {_slot} to toolSlot({_p}, {_t})

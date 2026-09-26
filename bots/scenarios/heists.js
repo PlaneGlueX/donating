@@ -122,7 +122,7 @@ module.exports = async ({ check }) => {
     await heistSet('escape', 60)
     await heistSet('cooldown', 6)
     let info = await cmd(`dheist info ${ID}`)
-    check('set: name, escape, cooldown; the rest from difficulty 3', /name=Test Vault difficulty=3 escape=1:00 cooldown=0:06 pool=\$40,000 rank=0 advanced=false pvp=false/.test(info), info)
+    check('set: name, escape, cooldown; the rest from difficulty 3 (rank 2)', /name=Test Vault difficulty=3 escape=1:00 cooldown=0:06 pool=\$40,000 rank=2 advanced=false pvp=false/.test(info), info)
     check('enable needs an exit spot', /set the exit spot first/.test(await cmd(`dheist enable ${ID}`)))
     await cmd(`zzregion ${SAFE} 721 199 736 723 206 739`)
     await cmd(`rg flag -w world ${SAFE} passthrough allow`)
@@ -187,14 +187,17 @@ module.exports = async ({ check }) => {
 
     await heistSet('rank', 1)
     t = await walkIn(A)
-    check('a rank requirement pushes lower ranks back', (await pos(A))[0] < EDGE && /robber rank 1/.test(bars(A, t)), bars(A, t))
+    check('a rank requirement pushes lower ranks back', (await pos(A))[0] < EDGE && /robber rank 1 \(Shoplifter\)/.test(bars(A, t)), bars(A, t))
     await cmd(`zzdata ${A} rank 1`)
+    await heistSet('rank', 'default')
+    t = await walkIn(A)
+    check('the difficulty\'s default rank applies (difficulty 3: rank 2, Burglar)', (await pos(A))[0] < EDGE && /robber rank 2 \(Burglar\)/.test(bars(A, t)), bars(A, t))
+    await heistSet('rank', 0)
 
     // ---------- Round 1: escape 60 s ----------
     t = Date.now()
     const tB = Date.now()
     await walkIn(A)
-    await heistSet('rank', 'default')
     let left = Number(await field('left'))
     check('walking into the open heist starts run 1 (60 s)', (await member(A)) === ID && (await field('state')) === 'active' && (await field('run')) === '1' && left >= 54 && left <= 60, await heist())
     check('the robber is told the time and that everyone inside is their crew', /You're in the Test Vault/.test(text(A, t)) && /crew/.test(text(A, t)), text(A, t))

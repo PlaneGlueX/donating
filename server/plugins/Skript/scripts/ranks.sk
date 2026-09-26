@@ -1,0 +1,286 @@
+# ranks.sk: robber ranks (CLAUDE.md, Skripts: 17). Built 2026-09-26.
+#
+# Robbers earn XP by selling loot at the base (bag.sk's bagSell calls rankSale):
+#   X = floor(P / cfg rank::xp-per-dollars) + cfg rank::xp-per-haul × H
+#   P = what the sale paid (passive players get 75%, so their XP too), H = the heist runs in the sale
+#   not credited to this player before (bag.sk keeps data "rank-haul::<h>", the last run credited), so
+#   selling one run's loot in several trips pays the bonus once.
+# Rank n needs cfg rank::<n>::xp total XP (0 Pickpocket up to cfg rank::max, 6 Kingpin). All the numbers
+# are PROPOSALs in core.sk. A rank unlocks:
+#   - heists: heistRank(h), the heist's /dheist set rank, else its difficulty's default in core.sk
+#     (heists.sk's heistRankOk asks rankOk);
+#   - heist tools: cfg tool::<t>::rank (shop.sk doesn't sell them below it);
+#   - later: car models (garage.sk: rankOk).
+# XP is never taken away and a rank never drops by itself (only staff can lower one).
+# Rank-ups are told to that player only (a title, a sound and what it unlocks in chat): no chat spam.
+# Saved: data "rank-xp" (total XP) and "rank" (the rank it gives). Memory: {-ph::rank::<p>} and
+# {-ph::rankxp::<p>} for the tab list (placeholders.sk; TAB asks from its own thread).
+# Players: /rank (yours, the progress, what the next rank unlocks), /ranks (all of them).
+# Staff: /drank info|set|xp|reset <player> [value]. Log: plugins\Skript\logs\ranks.log.
+
+function rankLog(text: text):
+	log {_text} to "ranks"
+
+# ---------- Reading ----------
+
+function rankXp(p: offline player) :: number:
+	set {_x} to getData({_p}, "rank-xp")
+	if {_x} is set:
+		return {_x}
+	return 0
+
+function rankOf(p: offline player) :: number:
+	set {_r} to getData({_p}, "rank")
+	if {_r} is set:
+		return {_r}
+	return 0
+
+# heists.sk, shop.sk, later garage.sk: does the player have at least rank `need`?
+function rankOk(p: offline player, need: number) :: boolean:
+	if rankOf({_p}) >= {_need}:
+		return true
+	return false
+
+function rankName(n: number) :: text:
+	set {_name} to cfg("rank::%{_n}%::name")
+	if {_name} is set:
+		return {_name}
+	return "Rank %{_n}%"
+
+# The name in its color: "&aBurglar".
+function rankColored(n: number) :: text:
+	set {_c} to cfg("rank::%{_n}%::color")
+	if {_c} is not set:
+		set {_c} to "&7"
+	return "%{_c}%%rankName({_n})%"
+
+# XP rank n needs in total. A rank without a setting can't be reached (a typo in core.sk must not
+# promote everyone).
+function rankNeed(n: number) :: number:
+	if {_n} <= 0:
+		return 0
+	set {_x} to cfg("rank::%{_n}%::xp")
+	if {_x} is set:
+		return {_x}
+	return 1000000000000
+
+# The rank a total of xp gives.
+function rankFor(xp: number) :: number:
+	set {_r} to 0
+	set {_max} to cfg("rank::max")
+	loop integers from 1 to {_max}:
+		if {_xp} >= rankNeed(loop-value):
+			set {_r} to loop-value
+	return {_r}
+
+# A whole number with thousands commas ("12,500").
+function rankNum(n: number) :: text:
+	set {_t} to formatMoney({_n})
+	replace all "$" with "" in {_t}
+	return {_t}
+
+# What rank n unlocks: the heist tools and the (enabled) heists that need exactly that rank.
+function rankUnlocks(n: number) :: texts:
+	loop {-cfg::shop::tools::*}:
+		set {_need} to cfg("tool::%loop-value%::rank")
+		if {_need} is {_n}:
+			set {_tool} to cfg("tool::%loop-value%::name")
+			add "the %{_tool}%" to {_u::*}
+	loop {heists::*}:
+		if heistState(loop-index) is not "disabled":
+			if heistRank(loop-index) is {_n}:
+				set {_heist} to heistName(loop-index)
+				add "the %{_heist}%" to {_u::*}
+	return {_u::*}
+
+# ---------- Earning ----------
+
+# Adds XP (whole, never negative) and returns the rank after it. A rank-up: the title, a sound and
+# what it unlocks, to that player only.
+function rankAddXp(p: player, xp: number, why: text) :: number:
+	set {_old} to rankOf({_p})
+	set {_add} to max(0, floor({_xp}))
+	set {_total} to rankXp({_p}) + {_add}
+	setData({_p}, "rank-xp", {_total})
+	set {_new} to max({_old}, rankFor({_total}))
+	if {_new} is not {_old}:
+		setData({_p}, "rank", {_new})
+	rankLog("xp %name of {_p}% %uuid of {_p}% +%{_add}% why=%{_why}% total=%{_total}% rank=%{_old}%->%{_new}%")
+	rankRefresh({_p})
+	if {_new} > {_old}:
+		rankUp({_p}, {_old}, {_new})
+	return {_new}
+
+function rankUp(p: player, old: number, new: number):
+	set {_name} to rankColored({_new})
+	send title colored "&6&lRANK UP&r" with subtitle colored "%{_name}% &7(rank %{_new}%)" to {_p} for 3 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+	msg({_p}, "&6Rank up! &fYou're a %{_name}%&f now (rank %{_new}%).")
+	set {_from} to {_old} + 1
+	loop integers from {_from} to {_new}:
+		set {_u::*} to rankUnlocks(loop-value)
+		loop {_u::*}:
+			msg({_p}, "&7 Unlocked: &f%loop-value-2%")
+	rankLog("up %name of {_p}% %uuid of {_p}% %{_old}%->%{_new}%")
+
+# bag.sk's bagSell: the XP for a sale that paid `pay` for `hauls` heist runs. Returns the XP.
+function rankSale(p: player, pay: number, hauls: number) :: number:
+	set {_xp} to floor({_pay} / cfg("rank::xp-per-dollars")) + cfg("rank::xp-per-haul") * {_hauls}
+	if {_xp} <= 0:
+		return 0
+	rankAddXp({_p}, {_xp}, "sell")
+	msg({_p}, "&b+%rankNum({_xp})% XP &7(%rankProgressText({_p})%&7)")
+	return {_xp}
+
+# "Burglar · 1,240 / 3,000 XP to Safecracker", or "Kingpin · max rank".
+function rankProgressText(p: player) :: text:
+	set {_r} to rankOf({_p})
+	set {_x} to rankXp({_p})
+	if {_r} >= cfg("rank::max"):
+		return "%rankColored({_r})% &7· max rank"
+	set {_next} to {_r} + 1
+	return "%rankColored({_r})% &7· %rankNum({_x})% / %rankNum(rankNeed({_next}))% XP to %rankColored({_next})%"
+
+# The tab list's copies (placeholders.sk reads memory only). Also catches a player up when the XP they
+# have is worth a higher rank than they're saved at (the thresholds were lowered in core.sk).
+function rankRefresh(p: player):
+	set {_r} to rankOf({_p})
+	set {_f} to rankFor(rankXp({_p}))
+	if {_f} > {_r}:
+		setData({_p}, "rank", {_f})
+		rankLog("catch-up %name of {_p}% %uuid of {_p}% %{_r}%->%{_f}% xp=%rankXp({_p})%")
+		rankUp({_p}, {_r}, {_f})
+		set {_r} to {_f}
+	set {-ph::rank::%{_p}%} to rankColored({_r})
+	if {_r} >= cfg("rank::max"):
+		set {-ph::rankxp::%{_p}%} to "max rank"
+	else:
+		set {_next} to {_r} + 1
+		set {-ph::rankxp::%{_p}%} to "%rankNum(rankXp({_p}))%/%rankNum(rankNeed({_next}))% XP"
+
+on join:
+	rankRefresh(player)
+
+on load:
+	loop all players:
+		rankRefresh(loop-player)
+
+# Follows a settings reload (/sk reload core) and a changed threshold within a few seconds.
+every 5 seconds:
+	loop all players:
+		rankRefresh(loop-player)
+
+on quit:
+	delete {-ph::rank::%player%}
+	delete {-ph::rankxp::%player%}
+
+# ---------- /rank and /ranks ----------
+
+function rankShow(p: player):
+	set {_r} to rankOf({_p})
+	set {_x} to rankXp({_p})
+	set {_max} to cfg("rank::max")
+	msg({_p}, "&6Your rank: %rankColored({_r})% &7(rank %{_r}% of %{_max}%) &8· &f%rankNum({_x})% XP")
+	if {_r} >= {_max}:
+		send colored "&7 That's the top rank." to {_p}
+	else:
+		set {_next} to {_r} + 1
+		set {_from} to rankNeed({_r})
+		set {_to} to rankNeed({_next})
+		set {_pct} to 0
+		if {_to} > {_from}:
+			set {_pct} to max(0, min(100, floor(100 * ({_x} - {_from}) / ({_to} - {_from}))))
+		set {_full} to floor({_pct} / 5)
+		set {_bar} to ""
+		loop 20 times:
+			if loop-number <= {_full}:
+				set {_bar} to "%{_bar}%&a|"
+			else:
+				set {_bar} to "%{_bar}%&8|"
+		send colored "&7 Next: %rankColored({_next})% &7at %rankNum({_to})% XP  %{_bar}% &7%{_pct}%%%" to {_p}
+		set {_u::*} to rankUnlocks({_next})
+		if size of {_u::*} > 0:
+			set {_list} to join {_u::*} with ", "
+			send colored "&7 It unlocks: &f%{_list}%" to {_p}
+	set {_per} to cfg("rank::xp-per-dollars")
+	set {_haul} to cfg("rank::xp-per-haul")
+	send colored "&8 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist. /ranks" to {_p}
+
+command /rank:
+	description: Your robber rank.
+	executable by: players
+	trigger:
+		rankShow(player)
+
+command /ranks:
+	description: Every robber rank and what it unlocks.
+	executable by: players
+	trigger:
+		msg(player, "&6Robber ranks &7(you: %rankColored(rankOf(player))%&7)")
+		set {_max} to cfg("rank::max")
+		loop integers from 0 to {_max}:
+			set {_u::*} to rankUnlocks(loop-value)
+			set {_what} to ""
+			if size of {_u::*} > 0:
+				set {_list} to join {_u::*} with ", "
+				set {_what} to " &8· &7%{_list}%"
+			set {_you} to ""
+			if loop-value is rankOf(player):
+				set {_you} to " &e← you"
+			send colored "&8 %loop-value%. %rankColored(loop-value)% &8- &f%rankNum(rankNeed(loop-value))% XP%{_what}%%{_you}%" to player
+			delete {_u::*}
+
+# ---------- Staff: /drank ----------
+
+function drankReply(s: command sender, text: text):
+	send "%{_text}%" to {_s}
+
+command /drank [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_a::2} is not set:
+			drankReply(sender, "RANK usage: /drank info|set|xp|reset <player> [rank|xp]")
+			stop
+		set {_p} to {_a::2} parsed as player
+		if {_p} is not set:
+			drankReply(sender, "RANK %{_a::2}% isn't online")
+			stop
+		if {_sub} is "info":
+			drankReply(sender, "RANK %name of {_p}% rank=%rankOf({_p})% xp=%rankXp({_p})% name=%rankName(rankOf({_p}))%")
+		else if {_sub} is "set":
+			set {_r} to {_a::3} parsed as integer
+			if {_r} is not set:
+				set {_max} to cfg("rank::max")
+				drankReply(sender, "RANK set: /drank set <player> <0-%{_max}%>")
+				stop
+			set {_r} to max(0, min({_r}, cfg("rank::max")))
+			# Staff can move a rank either way; the XP goes to that rank's start, so they stay in step.
+			setData({_p}, "rank", {_r})
+			setData({_p}, "rank-xp", rankNeed({_r}))
+			rankRefresh({_p})
+			rankLog("set %name of {_p}% %uuid of {_p}% rank=%{_r}% by=%sender%")
+			msg({_p}, "&7Your rank is now %rankColored({_r})%&7 (staff).")
+			drankReply(sender, "RANK %name of {_p}% set to %{_r}% (%rankName({_r})%), xp=%rankXp({_p})%")
+		else if {_sub} is "xp":
+			set {_x} to {_a::3} parsed as integer
+			if {_x} is not set:
+				drankReply(sender, "RANK xp: /drank xp <player> <amount>")
+				stop
+			if {_x} <= 0:
+				drankReply(sender, "RANK xp: only adds (XP is never taken away; use set)")
+				stop
+			rankAddXp({_p}, {_x}, "staff")
+			drankReply(sender, "RANK %name of {_p}% +%{_x}% xp=%rankXp({_p})% rank=%rankOf({_p})%")
+		else if {_sub} is "reset":
+			deleteData({_p}, "rank")
+			deleteData({_p}, "rank-xp")
+			# The heist runs already credited (bag.sk), so the next sale of any run pays its bonus again.
+			delete {data::%{_p}%::rank-haul::*}
+			rankRefresh({_p})
+			rankLog("reset %name of {_p}% %uuid of {_p}% by=%sender%")
+			drankReply(sender, "RANK %name of {_p}% reset to 0")
+		else:
+			drankReply(sender, "RANK usage: /drank info|set|xp|reset <player> [rank|xp]")

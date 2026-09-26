@@ -1,8 +1,9 @@
 # placeholders.sk: PlaceholderAPI placeholders for TAB (script 18, started 2026-09-25 for the tab list).
 # Prefix "donating" (skript-placeholders allows it in several scripts; heists.sk answers the heist
 # ones). An empty result would make PlaceholderAPI show the raw %placeholder%, so "nothing" is "&r".
-# TAB asks from its own thread, so these only read memory and saved variables; the balance is
-# copied into memory once a second.
+# TAB asks from its own thread, so these only read memory and saved variables, never call a function
+# (a function being reloaded is missing for a moment: a Severe Error on TAB's thread). The balance, the
+# bounty's money texts and the heist's name are copied into memory once a second.
 #   %donating_balance%       "$12,345" (your own, footer)
 #   %donating_bounty%        the bounty as a whole number (sorting, the list's score column)
 #   %donating_bounty_fancy%  "&c$2.5K", or "&r" (nothing) with no bounty (the score column's text)
@@ -16,13 +17,31 @@
 #   %donating_heist_loot%    loot left in your heist ("$18.4K")        %donating_heist_spots% "3/5"
 #   %donating_heist_haul%    your loot from this run                   %donating_heist_risk%  bag + a death's loss
 # (loot.sk copies these into memory once a second.)
+#   %donating_rank%          your robber rank in its color ("&aBurglar")
+#   %donating_rank_xp%       "1,240/3,000 XP" to the next rank, or "max rank" (ranks.sk keeps both in memory)
 
 every second:
 	loop all players:
 		set {-ph::balance::%loop-player%} to formatMoney(balance of loop-player)
+		set {_n} to {data::%loop-player%::bounty}
+		if {_n} is not set:
+			set {_n} to 0
+		set {-ph::bountymoney::%loop-player%} to formatMoney({_n})
+		if {_n} > 0:
+			set {-ph::bountyfancy::%loop-player%} to "&c%formatMoneyShort({_n})%"
+		else:
+			set {-ph::bountyfancy::%loop-player%} to "&r"
+		set {_h} to {-heistin::%loop-player%}
+		if {_h} is set:
+			set {-ph::heistname::%loop-player%} to heistName({_h})
+		else:
+			delete {-ph::heistname::%loop-player%}
 
 on quit:
 	delete {-ph::balance::%player%}
+	delete {-ph::bountymoney::%player%}
+	delete {-ph::bountyfancy::%player%}
+	delete {-ph::heistname::%player%}
 
 placeholderapi placeholder with the prefix "donating":
 	player is set
@@ -38,16 +57,13 @@ placeholderapi placeholder with the prefix "donating":
 			set {_n} to 0
 		set the placeholder result to "%floor({_n})%"
 	else if {_i} is "bounty_fancy":
-		set {_n} to {data::%player%::bounty}
 		set the placeholder result to "&r"
-		if {_n} is set:
-			if {_n} > 0:
-				set the placeholder result to "&c%formatMoneyShort({_n})%"
+		if {-ph::bountyfancy::%player%} is set:
+			set the placeholder result to {-ph::bountyfancy::%player%}
 	else if {_i} is "bounty_money":
-		set {_n} to {data::%player%::bounty}
-		if {_n} is not set:
-			set {_n} to 0
-		set the placeholder result to formatMoney({_n})
+		set the placeholder result to "$0"
+		if {-ph::bountymoney::%player%} is set:
+			set the placeholder result to {-ph::bountymoney::%player%}
 	else if {_i} is "max_players":
 		set the placeholder result to "%max players count%"
 	else if {_i} is "passive":
@@ -66,6 +82,14 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-afk::is::%player%} is set:
 			set the placeholder result to " &7AFK"
+	else if {_i} is "rank":
+		set the placeholder result to "&7Pickpocket"
+		if {-ph::rank::%player%} is set:
+			set the placeholder result to {-ph::rank::%player%}
+	else if {_i} is "rank_xp":
+		set the placeholder result to "&r"
+		if {-ph::rankxp::%player%} is set:
+			set the placeholder result to {-ph::rankxp::%player%}
 	else if {_i} is "bag" or "bag_pct" or "heist_haul" or "heist_risk" or "heist_loot" or "heist_spots":
 		# Memory only (loot.sk copies these once a second); nothing yet is "&r", never the raw %placeholder%.
 		set {_h} to {-heistin::%player%}
