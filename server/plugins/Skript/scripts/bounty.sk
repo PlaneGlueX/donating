@@ -129,6 +129,9 @@ function placeBounty(p: player, target: offline player, amount: number):
 	if isPassive({_p}) is true:
 		msg({_p}, "&cPassive players can't place bounties.")
 		stop
+	if tutorialNeedsBag({_p}) is true:
+		msg({_p}, "&cBuy your bag first (Bag Shop): you can't leave spawn without one.")
+		stop
 	if {_target} has not played before:
 		if {_target} is not online:
 			msg({_p}, "&cNobody called %{_tname}% has played here.")

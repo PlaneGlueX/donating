@@ -339,8 +339,9 @@ function crateGrant(p: player, line: text, t: text) :: text:
 
 # ---------- Opening (at crate stands only) ----------
 
-# "" when the player may open a crate at their stand now, else why not.
-function crateBlockReason(p: player) :: text:
+# "" when the player may open crate t at their stand now, else why not. The stand must still exist and
+# still be that crate (staff may remove or change it while a menu is open).
+function crateBlockReason(p: player, t: text) :: text:
 	if {_p} is not alive:
 		return "You can't open crates right now."
 	if {-crate::spinning::%{_p}%} is set:
@@ -354,6 +355,11 @@ function crateBlockReason(p: player) :: text:
 		return "Crates open at crate stands."
 	if distance between {_stand} and location of {_p} > cfg("crate::stand-reach"):
 		return "Stand next to the crate to open it."
+	set {_key} to {-crate::standkey::%{_p}%}
+	if {_key} is not set:
+		return "Crates open at crate stands."
+	if {crateblock::%{_key}%} is not {_t}:
+		return "That crate stand is gone."
 	if heistOf({_p}) is not "":
 		return "Open crates outside heists."
 	if isCombatTagged({_p}) is true:
@@ -365,7 +371,7 @@ function crateBlockReason(p: player) :: text:
 # Takes a key and rolls in one call (no wait), saves the roll as the pending reward, logs it, then
 # spins the strip. The reward is given when the spin ends (crateFinish).
 function crateOpen(p: player, t: text):
-	set {_why} to crateBlockReason({_p})
+	set {_why} to crateBlockReason({_p}, {_t})
 	if {_why} is not "":
 		msg({_p}, "&c%{_why}%")
 		play sound "entity.villager.no" with volume 0.6 to {_p}
@@ -686,12 +692,15 @@ on quit:
 	crateClearGui(player)
 	delete {-crate::spinning::%player%}
 	delete {-crate::stand::%player%}
+	delete {-crate::standkey::%player%}
 
-# A reward left pending by a logout or a crash mid-spin.
+# A reward left pending by a logout or a crash mid-spin. Not while a new spin runs: that one gives its
+# own reward when it ends.
 on join:
 	wait 2 seconds
 	player is online
 	{cratepending::%uuid of player%::line} is set
+	{-crate::spinning::%player%} is not set
 	crateFinish(player)
 
 # ...or by a death mid-spin (death.sk clears the loadout at the death, so it's given after).
@@ -699,6 +708,7 @@ on respawn:
 	wait 1 second
 	player is online
 	{cratepending::%uuid of player%::line} is set
+	{-crate::spinning::%player%} is not set
 	crateFinish(player)
 
 command /crates:
@@ -775,6 +785,7 @@ function crateStandClick(p: player, t: text, b: block):
 	set {-crate::standat::%{_p}%} to now
 	crateExists({_t}) is true
 	set {-crate::stand::%{_p}%} to location of {_b}
+	set {-crate::standkey::%{_p}%} to crateBlockKey({_b})
 	cratePreview({_p}, {_t}, true)
 
 # ---------- Staff and store: /dcrate ----------

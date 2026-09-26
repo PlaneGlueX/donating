@@ -25,7 +25,8 @@ Combat_Knife:
     Default:
       Custom_Model_Data: -10  # negative numbers work fine for Custom Model Data
   Damage:
-    # Donating (owner, 2026-09-26): 4 hits unarmored, 12 in the best gear, like the strongest gun.
+    # Donating (owner, 2026-09-26): 4 hits unarmored, 12 in the best gear, like the strongest gun (head
+    # and backstab bonuses 0: the global hit-spot modifiers already count).
     Base_Damage: 5
     Armor_Damage: 4
     Victim_Mechanics:
@@ -33,11 +34,12 @@ Combat_Knife:
         - "Sound{sound=entity.arrow.shoot} @Target{}"
         - "Sound{sound=entity.slime.jump} @Target{}"
     Head:
-      Bonus_Damage: 2.7
+      # Donating: no bonus on top of the global Head modifier (it stacked into 2-hit kills).
+      Bonus_Damage: 0
       Victim_Mechanics:
         - "Firework{effects=[(shape=BALL, color=RED, flicker=true, trail=true)]} @Source{offset=0 2 0}"
     Backstab:
-      Bonus_Damage: 3.8
+      Bonus_Damage: 0
       Victim_Mechanics:
         - "Firework{effects=[(shape=BURST, color=BLACK, flicker=true, trail=true)]} @Source{offset=0 2 0}"
   Melee:

@@ -21,7 +21,19 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const CONFIRM = Number(((await rcon.cmd('zzcfg shop::confirm-above')).match(/= (\d+)/) || [])[1]) || 1000
   let bot = null
+  // The owner's prices (2026-09-26) are checked here; the rest of this test runs on the first proposal's
+  // prices (its balances are worked out with them), restored after with zzcfgreload.
+  const OWNER = { 'wpn::50_GS::price': 1500, 'wpn::Uzi::price': 15000, 'wpn::R9_0::price': 37500, 'wpn::AK_47::price': 75000, 'wpn::Combat_Knife::price': 150, 'bag::1::price': 2400, 'bag::2::price': 7200, 'bag::3::price': 18000, 'bag::4::price': 48000, 'bag::5::price': 120000, 'bag::1::replace': 400, 'bag::2::replace': 1200, 'bag::3::replace': 3000, 'bag::4::replace': 8000, 'bag::5::replace': 20000 }
+  const TEST = { 'wpn::50_GS::price': 300, 'wpn::Uzi::price': 3000, 'wpn::R9_0::price': 7500, 'wpn::AK_47::price': 15000, 'wpn::Combat_Knife::price': 150, 'bag::1::price': 0, 'bag::2::price': 7500, 'bag::3::price': 30000, 'bag::4::price': 120000, 'bag::5::price': 400000, 'bag::1::replace': 0, 'bag::2::replace': 750, 'bag::3::replace': 3000, 'bag::4::replace': 12000, 'bag::5::replace': 40000 }
   try {
+    await rcon.cmd('zzcfgreload')
+    const wrong = []
+    for (const [k, v] of Object.entries(OWNER)) {
+      const got = Number(((await rcon.cmd(`zzcfg ${k}`)).match(/= (\d+)/) || [])[1])
+      if (got !== v) wrong.push(`${k}=${got} (want ${v})`)
+    }
+    check('the owner\'s prices: guns 5×, bags 120% to unlock and 20% to replace', wrong.length === 0, wrong.join(', '))
+    for (const [k, v] of Object.entries(TEST)) await rcon.cmd(`zzcfgset ${k} ${v}`)
     await rcon.cmd(`forceload add ${CHUNKS}`)
     await rcon.cmd(`fill ${PLATFORM} glass`)
     bot = await join(NAME)
@@ -344,6 +356,7 @@ module.exports = async ({ check }) => {
     if (id2) { bot.chat(`/dshopkeeper remove ${id2}`); await sleep(1000) }
     await rcon.cmd(`lp user ${NAME} permission unset donating.staff`)
   } finally {
+    await rcon.cmd('zzcfgreload').catch(() => {})
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`).catch(() => {})
     await rcon.cmd('minecraft:kill @e[tag=zztest]').catch(() => {})
     await rcon.cmd(`zzshopreset ${NAME}`).catch(() => {})

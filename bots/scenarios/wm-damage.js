@@ -48,9 +48,12 @@ module.exports = async ({ check }) => {
       last = b.health
       drops = []
     }
+    // Where on the target (feet up): 1.0 body; 1.6 head; 0.45 legs (WeaponMechanics' player hitbox:
+    // head 25%, body 37.5%, legs 25%, feet 12.5% of 1.8).
+    let height = 1.0
     const aim = async () => {
       const t = a.players[TARGET] && a.players[TARGET].entity
-      if (t) await a.lookAt(t.position.offset(0, 1.0, 0), true)
+      if (t) await a.lookAt(t.position.offset(0, height, 0), true)
     }
     // A fresh gun (a full magazine) in the slot, then fires until `n` hits landed; returns the drops.
     const give = async (w, slot) => {
@@ -89,7 +92,7 @@ module.exports = async ({ check }) => {
     await heal()
     const sg = await fire(1, 1)
     // All pellets of one blast arrive in the same tick: one drop.
-    check('R9-0, no armor: a point-blank blast does at most 6 (10 pellets × 0.6), so it takes 4 or more', sg.length === 1 && sg[0] <= 6.05 && sg[0] > 0, `drops ${sg.join(', ')}`)
+    check('R9-0, no armor: a blast at 4 blocks does 3-6 (10 pellets × 0.6, most of them hit), so it takes 4 or more', sg.length === 1 && sg[0] <= 6.05 && sg[0] >= 3, `drops ${sg.join(', ')}`)
 
     await heal()
     a.setQuickBarSlot(2)
@@ -113,6 +116,16 @@ module.exports = async ({ check }) => {
     const akAHit = avg(akA)
     const n = shots(akAHit)
     check('AK-47 against a Tactical Helmet + Heavy Vest: 10-12 shots to kill (5.5 × 0.34 = 1.87 a shot: 11)', akA.length === 3 && n >= 10 && n <= 12, `drops ${akA.join(', ')} -> ${n} shots`)
+    // Hit spots are small modifiers now (review, 2026-09-26): the head +15% (0.49: 2.70, 8 shots), legs 0%.
+    await heal()
+    height = 1.62
+    const head = await fire(0, 3)
+    check('...a head shot through the best gear: 2.70 (8 shots), not a one-shot and not nothing', head.length === 3 && head.some(d => Math.abs(d - 2.7) < 0.1) && head.every(d => d >= 1.5), `drops ${head.join(', ')}`)
+    await heal()
+    height = 0.45
+    const legs = await fire(0, 3)
+    check('...leg shots through the best gear still count (1.87, 11 shots; no hit spot does nothing)', legs.length === 3 && legs.every(d => d >= 1.5 && d <= 2.0), `drops ${legs.join(', ')}`)
+    height = 1.0
   } finally {
     await cmd(`minecraft:clear ${TARGET}`).catch(() => {})
     await cmd(`minecraft:clear ${SHOOTER}`).catch(() => {})

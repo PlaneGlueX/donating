@@ -165,8 +165,10 @@ module.exports = async ({ check }) => {
     const gave = await cmd(`dcrate give ${A} rare 3`)
     const took = await cmd(`dcrate take ${A} rare 5`)
     check('dcrate give adds keys; take takes back only the unused ones', /\+3 rare \(now 3\)/.test(gave) && /-3 rare \(asked 5; 2 already opened; now 0\)/.test(took), `${gave} / ${took}`)
+    // Log checks only read what was written after this point (the log keeps earlier runs).
+    let mark = log('crates').length
     const bad = [await cmd(`dcrate give ${A} mythic 1`), await cmd(`dcrate give ${A} rare 0`), await cmd(`dcrate give ${A} rare 10001`), await cmd(`dcrate give ${A} rare x`)]
-    check('refused and logged: an unknown crate, a count of 0, over 10,000, not a number', /no crate mythic/.test(bad[0]) && bad.slice(1).every(r => /whole number/.test(r)) && (await keys(A, 'rare')) === 0 && /refused give CrateA rare 10001/.test(log('crates')), bad.join(' / '))
+    check('refused and logged: an unknown crate, a count of 0, over 10,000, not a number', /no crate mythic/.test(bad[0]) && bad.slice(1).every(r => /whole number/.test(r)) && (await keys(A, 'rare')) === 0 && /refused give CrateA rare 10001/.test(log('crates').slice(mark)), bad.join(' / '))
     t = Date.now()
     bots[A].chat('/dcrate give CrateA legendary 5')
     await sleep(800)
@@ -221,10 +223,11 @@ module.exports = async ({ check }) => {
     check('...and nothing was opened (no key used)', (await keys(A, 'common')) === 5 && (await bal(A)) === before, `keys=${await keys(A, 'common')}`)
 
     // ---------- Opening at a stand ----------
+    mark = log('crates').length
     let r = await openCrate(A, 'Common', { mid: async () => { await sleep(300); return { bal: await bal(A), keys: await keys(A, 'common'), pending: await pending(A) } } })
     check('a stand shows the crate with an Open button; the key is used when the spin starts', /Common Crate: what's inside/.test(r.standTitle) && /Common Crate/.test(r.spinTitle) && r.during && r.during.keys === 4 && /money\|777/.test(r.during.pending), JSON.stringify(r.during))
     check('...and the reward comes when the spin stops, not before', r.during && r.during.bal === before && /you got .*\$777/.test(r.said) && (await bal(A)) - before === 777 && r.ms > 1500 && (await pending(A)) === 'none', `during=${JSON.stringify(r.during)} after +${(await bal(A)) - before} in ${r.ms} ms / ${r.said}`)
-    check('every opening and grant is logged', /open CrateA [0-9a-f-]+ common keys-left=4 line=1\|money\|777/.test(log('crates')) && /grant CrateA [0-9a-f-]+ common line=1\|money\|777/.test(log('crates')))
+    check('every opening and grant is logged', /open CrateA [0-9a-f-]+ common keys-left=4 line=1\|money\|777/.test(log('crates').slice(mark)) && /grant CrateA [0-9a-f-]+ common line=1\|money\|777/.test(log('crates').slice(mark)))
     before = await bal(A)
     r = await openCrate(A, 'Common', { closeEarly: true })
     check('closing the spin ends it early and gives the reward at once', /\$777/.test(r.said) && (await bal(A)) - before === 777 && (await keys(A, 'common')) === 3 && r.ms < 2500, `${r.said} +${(await bal(A)) - before} in ${r.ms} ms`)

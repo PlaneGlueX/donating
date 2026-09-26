@@ -22,16 +22,36 @@ module.exports = async ({ check }) => {
     await cmd(`rg remove -w world ${REGION}`)
     await cmd(`zzregion ${REGION} 1100 195 1100 1110 210 1110`)
     await cmd(`rg flag -w world ${REGION} passthrough allow`)
-    await cmd(`dtutorial ${P} reset`)
+    // A first join with no bag: the join itself starts the tutorial (no staff reset).
+    await cmd(`zzdata ${P} tutorial none`)
     await cmd(`zzdata ${P} bag-best none`)
     await cmd(`zzdata ${P} bag-tier none`)
     let t = Date.now()
     bot = await join(P)
-    await cmd(`zzclear ${P}`)
     await sleep(2500) // EssentialsX's newbie teleport on a first join
+    check('joining without ever having had a bag starts the tutorial', /= bag$/m.test(await cmd(`zzdata ${P} tutorial`)), await cmd(`zzdata ${P} tutorial`))
     await cmd(`zzheisttp ${P} 1105.5 ${Y} 1105.5`)
     await sleep(5500)
     check('a player with no bag gets the bag intro', /First things first: a bag/.test(text(t)) && /Bag Shop/.test(text(t)), text(t).slice(0, 300))
+
+    // Until the bag: no other shop purchase and no bounty, so the start money can't run out elsewhere.
+    await cmd(`eco set ${P} 5000`)
+    t = Date.now()
+    bot.chat(`/bounty Explosde 1000`)
+    await sleep(800)
+    check('no bounty placing before the first bag', /Buy your bag first/.test(text(t)) && /BAL \w+: 5000/.test(await cmd(`zzbal ${P}`)), text(t))
+    const opened = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w => { clearTimeout(timer); resolve(w) }) })
+    await cmd(`dshop open ${P} gun`)
+    await opened
+    await sleep(400)
+    bot.clickWindow(47, 0, 0).catch(() => {}) // the Weapons tab (looking is fine)
+    await sleep(700)
+    bot.clickWindow(20, 0, 0).catch(() => {}) // the .50 GS
+    await sleep(900)
+    const shopState = await cmd(`zzshop ${P}`)
+    check('...and no gun: the shop says to buy the bag first, nothing charged', /Buy your bag first/.test(shopState) && /BAL \w+: 5000/.test(await cmd(`zzbal ${P}`)) && !/50_GS/.test(await cmd(`zzwm ${P}`)), shopState)
+    if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
+    await sleep(300)
 
     // Walking out (+x) is stopped at the edge.
     t = Date.now()
@@ -49,10 +69,19 @@ module.exports = async ({ check }) => {
     check('...and so is a teleport out', x2 < 1111.5, `x=${x2.toFixed(2)}`)
     check('...with the BUY YOUR BAG title', /BUY YOUR BAG/.test(text(t)), text(t).slice(0, 300))
 
-    // Buying the bag ends it.
+    // Buying the bag ends it: a real Bag Shop purchase with $0 (the first Gym Bag is free for a new
+    // player who can't pay for it, so nobody is stuck in spawn).
+    await cmd(`eco set ${P} 0`)
     t = Date.now()
-    await cmd(`zzdata ${P} bag-best 1`)
+    const bagShop = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w => { clearTimeout(timer); resolve(w) }) })
+    await cmd(`dshop open ${P} bag`)
+    await bagShop
+    await sleep(400)
+    bot.clickWindow(11, 0, 0).catch(() => {}) // the Gym Bag (tier 1)
     await sleep(1800)
+    if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
+    check('a new player with $0 gets the first Gym Bag free', /= 1(\.0)?$/m.test(await cmd(`zzdata ${P} bag-best`)), `${await cmd(`zzdata ${P} bag-best`)} ${await cmd(`zzshop ${P}`)}`)
+    await sleep(600)
     check('buying a bag ends the tutorial with the next steps', /You've got a bag/.test(text(t)) && /heists/.test(text(t)) && /done/.test(await cmd(`zzdata ${P} tutorial`)), `${text(t).slice(0, 300)} / ${await cmd(`zzdata ${P} tutorial`)}`)
     await cmd(`minecraft:tp ${P} 1118.5 ${Y} 1105.5`)
     await sleep(800)
