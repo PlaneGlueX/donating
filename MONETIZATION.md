@@ -38,6 +38,7 @@ A player has one rank at a time. Buying a higher rank replaces the lower one, an
 3. **Connect the server.** Copy the store's **secret key** from [creator.tebex.io/game-servers](https://creator.tebex.io/game-servers). Type `tebex secret <your key>` in the server console yourself.
    - Keep the key private and never commit it. It's saved in `plugins/Tebex/config.yml`, which git ignores.
 4. **Create the packages** from the table above. For each one:
+   - Paste its description from "Store descriptions" below.
    - Set its command as the **initial command**, with "run the command even if the player is offline" chosen: our commands work for offline players.
    - For each rank, also add `dranks take {username} <that rank>` as its **chargeback** and **refund** command.
      - Example: `dranks take {username} vip`.
@@ -46,7 +47,63 @@ A player has one rank at a time. Buying a higher rank replaces the lower one, an
 5. **Show the store in game.** Put the store's address in `core.sk` as `store::url` (e.g. `donating.tebex.io`). `/store` and `/ranks` show it.
 6. **Create the rank groups.** On a new server (Minehut), run `/dranks setup` once in the console. It creates the LuckPerms groups with their tags and order.
 
-## Commands the store uses (staff can run them too)
+## Store descriptions
+
+Paste one into each Tebex package's description. Every claim matches what the server does; the bag examples use the current proposal (the Vault Bag holds $100,000), so update them if the bag sizes change.
+
+**VIP Rank** ($4.99)
+
+> Stand out from your first heist.
+> - A green **[VIP]** tag before your name in the tab list, in chat and when you join
+> - Listed above every player without a rank
+> - The **Camo** bag skin
+> - **+5% room in every bag** you carry: more loot per trip (a Vault Bag holds $105,000 instead of $100,000)
+> - One-time purchase, yours for good
+>
+> Every purchase helps keep Donating online and growing.
+
+**VIP+ Rank** ($9.99)
+
+> For robbers who mean business.
+> - An aqua **[VIP+]** tag before your name, listed above VIP
+> - The **Arctic** bag skin, plus Camo (switch any time with /bagskin)
+> - **+10% room in every bag** you carry (a Vault Bag holds $110,000)
+> - One-time purchase, yours for good
+>
+> Every purchase helps keep Donating online and growing.
+
+**Elite Rank** ($19.99)
+
+> Pull every job in style.
+> - A gold **[Elite]** tag before your name, listed above VIP+
+> - The **Gilded** bag skin, plus Arctic and Camo
+> - **+15% room in every bag** you carry (a Vault Bag holds $115,000)
+> - One-time purchase, yours for good
+>
+> Every purchase helps keep Donating online and growing.
+
+**Legend Rank** ($34.99)
+
+> The name everyone in the city knows.
+> - A pink **[Legend]** tag before your name, at the top of the player list, right under staff
+> - The **Neon** bag skin that glows in the dark, plus every other skin
+> - **+20% room in every bag** you carry, the biggest bonus on the server (a Vault Bag holds $120,000)
+> - One-time purchase, yours for good
+>
+> Every purchase helps keep Donating online and growing.
+
+**Money Booster (5 minutes)** ($1 each)
+
+> Make it rain for the whole server.
+> - Every loot sale pays **1.5×** for everyone online
+> - Your own sales pay **2×**
+> - The whole server is told you started it, and your name shows in everyone's tab list while it runs
+> - Stack it: buy 6 for 30 minutes
+> - Never wasted: if another booster is running, yours waits its turn, and the clock only runs while players are online
+>
+> Every purchase helps keep Donating online and growing.
+
+## Commands the store uses (the owner can run them too)
 
 - `dranks give <player> <legend|elite|vipplus|vip|none>`: gives one paid rank and removes any other. A player who already has a higher rank keeps it. Works for players who haven't joined yet.
 - `dranks take <player> <rank>`: removes that rank, but only if it's the player's current rank (for refunds and chargebacks).
