@@ -35,6 +35,13 @@ chat-format: "{prefix}{name}&r: {message}"
 group-formats:
 #  default: "{prefix}{name}&r: {message}"
 #  admin: "&c[Admin] {prefix}{name}&r: {message}"
+  # Donating (2026-09-26): staff and paid ranks (ranks.sk) show "[Legend] Name", the name in white, like
+  # the tab list and join messages (the prefixes have no trailing space).
+  owner: "{prefix}&r &f{name}&r: {message}"
+  legend: "{prefix}&r &f{name}&r: {message}"
+  elite: "{prefix}&r &f{name}&r: {message}"
+  vipplus: "{prefix}&r &f{name}&r: {message}"
+  vip: "{prefix}&r &f{name}&r: {message}"
 
 # Message shown after /lpc clear
 clear-chat-message: "&7Chat has been cleared by a staff member."

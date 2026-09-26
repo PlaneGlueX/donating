@@ -395,12 +395,12 @@ function bagSell(p: player) :: number:
 		set {_parts::*} to loop-index split at "#"
 		set {_hid} to {_parts::1}
 		add loop-value to {_by::%{_hid}%}
-		# Rank XP's per-heist bonus counts each heist run once per player (data "rank-haul::<h>" = the
+		# Level XP's per-heist bonus counts each heist run once per player (data "level-haul::<h>" = the
 		# last run credited), so selling one run's loot in several trips doesn't pay it again.
 		set {_run} to {_parts::2} parsed as number
 		if {_run} is set:
 			if {_prev::%{_hid}%} is not set:
-				set {_prev::%{_hid}%} to getData({_p}, "rank-haul::%{_hid}%")
+				set {_prev::%{_hid}%} to getData({_p}, "level-haul::%{_hid}%")
 				if {_prev::%{_hid}%} is not set:
 					set {_prev::%{_hid}%} to 0
 			if {_run} > {_prev::%{_hid}%}:
@@ -410,7 +410,7 @@ function bagSell(p: player) :: number:
 				else if {_run} > {_top::%{_hid}%}:
 					set {_top::%{_hid}%} to {_run}
 	loop {_top::*}:
-		setData({_p}, "rank-haul::%loop-index%", loop-value)
+		setData({_p}, "level-haul::%loop-index%", loop-value)
 	delete {data::%{_p}%::loot::*}
 	set {-bag::total::%{_p}%} to 0
 	giveMoney({_p}, {_pay})
@@ -439,8 +439,8 @@ function bagSell(p: player) :: number:
 		msg({_p}, "&aSold %formatMoney(loop-value)% of loot from the %heistName(loop-index)%.")
 	if {_passive} is true:
 		msg({_p}, "&7Passive mode: you got %{_money}% (75%%).")
-	# Robber rank XP (ranks.sk), last: a rank-up's title replaces the sale's.
-	rankSale({_p}, {_pay}, {_credit})
+	# Robber level XP (levels.sk), last: a level-up's title replaces the sale's.
+	levelSale({_p}, {_pay}, {_credit})
 	return {_pay}
 
 on region enter:

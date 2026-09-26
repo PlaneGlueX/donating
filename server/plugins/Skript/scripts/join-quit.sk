@@ -53,7 +53,8 @@ function showHelp(p: player):
 	send colored "&8• &eYour bag &7(offhand) holds the loot, not your inventory. Its name shows how full it is." to {_p}
 	send colored "&8• &eGet out &7before the heist timer hits 0, or you lose what you took there." to {_p}
 	send colored "&8• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
-	send colored "&8• &eRanks: &7selling loot earns XP; higher ranks open bigger heists and tools. &f/rank" to {_p}
+	send colored "&8• &eLevels: &7selling loot earns XP; higher levels open bigger heists and tools. &f/level" to {_p}
+	send colored "&8• &eRanks &7(/ranks) are cosmetic tags that support the server." to {_p}
 	send colored "&8• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
 	send colored "&8• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
 	send colored "&8• &ePhone &7(hotbar 9): garage, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}

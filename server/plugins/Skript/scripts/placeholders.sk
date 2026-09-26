@@ -17,8 +17,9 @@
 #   %donating_heist_loot%    loot left in your heist ("$18.4K")        %donating_heist_spots% "3/5"
 #   %donating_heist_haul%    your loot from this run                   %donating_heist_risk%  bag + a death's loss
 # (loot.sk copies these into memory once a second.)
-#   %donating_rank%          your robber rank in its color ("&aBurglar")
-#   %donating_rank_xp%       "1,240/3,000 XP" to the next rank, or "max rank" (ranks.sk keeps both in memory)
+#   %donating_level%         your robber level's title in its color ("&aBurglar")
+#   %donating_level_num%     your robber level as a number ("2")
+#   %donating_level_xp%      "1,240/3,000 XP" to the next level, or "max level" (levels.sk keeps these in memory)
 
 every second:
 	loop all players:
@@ -82,14 +83,18 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-afk::is::%player%} is set:
 			set the placeholder result to " &7AFK"
-	else if {_i} is "rank":
+	else if {_i} is "level":
 		set the placeholder result to "&7Pickpocket"
-		if {-ph::rank::%player%} is set:
-			set the placeholder result to {-ph::rank::%player%}
-	else if {_i} is "rank_xp":
+		if {-ph::level::%player%} is set:
+			set the placeholder result to {-ph::level::%player%}
+	else if {_i} is "level_num":
+		set the placeholder result to "0"
+		if {-ph::levelnum::%player%} is set:
+			set the placeholder result to {-ph::levelnum::%player%}
+	else if {_i} is "level_xp":
 		set the placeholder result to "&r"
-		if {-ph::rankxp::%player%} is set:
-			set the placeholder result to {-ph::rankxp::%player%}
+		if {-ph::levelxp::%player%} is set:
+			set the placeholder result to {-ph::levelxp::%player%}
 	else if {_i} is "bag" or "bag_pct" or "heist_haul" or "heist_risk" or "heist_loot" or "heist_spots":
 		# Memory only (loot.sk copies these once a second); nothing yet is "&r", never the raw %placeholder%.
 		set {_h} to {-heistin::%player%}

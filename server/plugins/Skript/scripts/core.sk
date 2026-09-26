@@ -129,12 +129,12 @@ function loadSettings():
 	set {-cfg::difficulty::2::cooldown} to 10 minutes
 	set {-cfg::difficulty::3::cooldown} to 15 minutes
 	set {-cfg::difficulty::4::cooldown} to 30 minutes
-	# PROPOSAL: robber rank needed (ranks.sk; 0 = anyone). Each heist can override it (/dheist set <id>
-	# rank <n>).
-	set {-cfg::difficulty::1::rank} to 0
-	set {-cfg::difficulty::2::rank} to 1
-	set {-cfg::difficulty::3::rank} to 2
-	set {-cfg::difficulty::4::rank} to 3
+	# PROPOSAL: robber level needed (levels.sk; 0 = anyone). Each heist can override it (/dheist set <id>
+	# level <n>).
+	set {-cfg::difficulty::1::level} to 0
+	set {-cfg::difficulty::2::level} to 1
+	set {-cfg::difficulty::3::level} to 2
+	set {-cfg::difficulty::4::level} to 3
 	# Advanced heists have an alarm (decided: only advanced heists).
 	set {-cfg::difficulty::1::advanced} to false
 	set {-cfg::difficulty::2::advanced} to false
@@ -397,38 +397,58 @@ function loadSettings():
 	set {-cfg::tool::safe-kit::max} to 3
 	set {-cfg::tool::safe-kit::item} to flint
 	set {-cfg::tool::safe-kit::about} to "Cracks a safe's code (used up when it opens)."
-	# PROPOSAL: the robber rank a tool needs to be bought (ranks.sk).
-	set {-cfg::tool::safe-kit::rank} to 1
-	set {-cfg::tool::drill::rank} to 2
+	# PROPOSAL: the robber level a tool needs to be bought (levels.sk).
+	set {-cfg::tool::safe-kit::level} to 1
+	set {-cfg::tool::drill::level} to 2
 
-	# ---------- Robber ranks (ranks.sk) ----------
-	# PROPOSAL: rank n needs rank::<n>::xp total XP. XP comes from selling loot at the base:
-	# X = floor(P / rank::xp-per-dollars) + rank::xp-per-haul × H, P = what the sale paid (passive: 75%),
-	# H = the heist runs in it. E.g. a full Duffel Bag ($6,000) from one heist = 60 + 10 = 70 XP.
-	set {-cfg::rank::max} to 6
-	set {-cfg::rank::xp-per-dollars} to 100
-	set {-cfg::rank::xp-per-haul} to 10
-	set {-cfg::rank::0::name} to "Pickpocket"
-	set {-cfg::rank::0::xp} to 0
-	set {-cfg::rank::0::color} to "&7"
-	set {-cfg::rank::1::name} to "Shoplifter"
-	set {-cfg::rank::1::xp} to 250
-	set {-cfg::rank::1::color} to "&f"
-	set {-cfg::rank::2::name} to "Burglar"
-	set {-cfg::rank::2::xp} to 1000
-	set {-cfg::rank::2::color} to "&a"
-	set {-cfg::rank::3::name} to "Safecracker"
-	set {-cfg::rank::3::xp} to 3000
-	set {-cfg::rank::3::color} to "&b"
-	set {-cfg::rank::4::name} to "Heister"
-	set {-cfg::rank::4::xp} to 8000
-	set {-cfg::rank::4::color} to "&e"
-	set {-cfg::rank::5::name} to "Mastermind"
-	set {-cfg::rank::5::xp} to 20000
-	set {-cfg::rank::5::color} to "&6"
-	set {-cfg::rank::6::name} to "Kingpin"
-	set {-cfg::rank::6::xp} to 50000
-	set {-cfg::rank::6::color} to "&c"
+	# ---------- Robber levels (levels.sk) ----------
+	# PROPOSAL: level n needs level::<n>::xp total XP; its name is the level's title. XP comes from
+	# selling loot at the base: X = floor(P / level::xp-per-dollars) + level::xp-per-haul × H, P = what
+	# the sale paid (passive: 75%), H = the heist runs in it (each run once per player). E.g. a full
+	# Duffel Bag ($6,000) from one heist = 60 + 10 = 70 XP.
+	set {-cfg::level::max} to 6
+	set {-cfg::level::xp-per-dollars} to 100
+	set {-cfg::level::xp-per-haul} to 10
+	set {-cfg::level::0::name} to "Pickpocket"
+	set {-cfg::level::0::xp} to 0
+	set {-cfg::level::0::color} to "&7"
+	set {-cfg::level::1::name} to "Shoplifter"
+	set {-cfg::level::1::xp} to 250
+	set {-cfg::level::1::color} to "&f"
+	set {-cfg::level::2::name} to "Burglar"
+	set {-cfg::level::2::xp} to 1000
+	set {-cfg::level::2::color} to "&a"
+	set {-cfg::level::3::name} to "Safecracker"
+	set {-cfg::level::3::xp} to 3000
+	set {-cfg::level::3::color} to "&b"
+	set {-cfg::level::4::name} to "Heister"
+	set {-cfg::level::4::xp} to 8000
+	set {-cfg::level::4::color} to "&e"
+	set {-cfg::level::5::name} to "Mastermind"
+	set {-cfg::level::5::xp} to 20000
+	set {-cfg::level::5::color} to "&6"
+	set {-cfg::level::6::name} to "Kingpin"
+	set {-cfg::level::6::xp} to 50000
+	set {-cfg::level::6::color} to "&c"
+
+	# ---------- Paid ranks (ranks.sk) ----------
+	# Cosmetic only (Monetization): a tag before the name in the tab list, chat and join messages, and a
+	# spot higher in the tab list. LuckPerms groups made by /dranks setup; the weight orders them and is
+	# the prefix's priority (staff groups are 100). PROPOSAL: names, tags and order (the owner sets
+	# prices). Listed highest first. The ids are also in TAB's sorting list (plugins\TAB\config.yml).
+	set {-cfg::paidranks::*} to "legend", "elite", "vipplus" and "vip"
+	set {-cfg::paidrank::legend::name} to "Legend"
+	set {-cfg::paidrank::legend::prefix} to "&d[Legend]"
+	set {-cfg::paidrank::legend::weight} to 40
+	set {-cfg::paidrank::elite::name} to "Elite"
+	set {-cfg::paidrank::elite::prefix} to "&6[Elite]"
+	set {-cfg::paidrank::elite::weight} to 30
+	set {-cfg::paidrank::vipplus::name} to "VIP+"
+	set {-cfg::paidrank::vipplus::prefix} to "&b[VIP+]"
+	set {-cfg::paidrank::vipplus::weight} to 20
+	set {-cfg::paidrank::vip::name} to "VIP"
+	set {-cfg::paidrank::vip::prefix} to "&a[VIP]"
+	set {-cfg::paidrank::vip::weight} to 10
 
 	# Helmets and vests: lost on death, bought again. Gun damage D' = D × (1 − 0.03 × armor points).
 	set {-cfg::shop::gear::*} to "helmet-1", "helmet-2", "vest-1" and "vest-2"

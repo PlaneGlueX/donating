@@ -13,7 +13,7 @@
 #   - cooldown: closed; the room resets from its snapshot, then it opens again.
 #
 # Being inside: the region events are only gates (closed heists, teleports in or out, PvP heists for
-# passive players, rank). Membership changes in heistReconcile, one tick after a region event and
+# passive players, level). Membership changes in heistReconcile, one tick after a region event and
 # every second as a backstop, and in the forced paths (death, quit, eviction).
 # Heist crew (owner, 2026-09-25): robbers inside the same heist can't hurt each other, unless it's a
 # PvP heist (/dheist set <id> pvp true; passive players can't enter those). Anyone outside can still
@@ -96,8 +96,9 @@ function heistLootPool(h: text) :: number:
 			return {_r}
 	return heistSetting({_h}, "loot-pool")
 
-function heistRank(h: text) :: number:
-	return heistSetting({_h}, "rank")
+# The robber level needed (levels.sk).
+function heistLevel(h: text) :: number:
+	return heistSetting({_h}, "level")
 
 function heistIsAdvanced(h: text) :: boolean:
 	if heistSetting({_h}, "advanced") is true:
@@ -206,6 +207,13 @@ function heistAnnounce(text: text):
 
 on load:
 	heistIndexRegions()
+	# The robber level a heist needs was saved as "rank" before levels.sk (2026-09-26): moved once, so
+	# /dheist info, set and dump all see it as "level".
+	loop {heists::*}:
+		if {heist::%loop-index%::rank} is set:
+			if {heist::%loop-index%::level} is not set:
+				set {heist::%loop-index%::level} to {heist::%loop-index%::rank}
+			delete {heist::%loop-index%::rank}
 
 # {-heistregion::<region id>} = heist id, for every defined heist.
 function heistIndexRegions():
@@ -388,9 +396,9 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 	if heistIsPvp({_h}) is true:
 		if isPassive({_p}) is true:
 			return "The %{_name}% is a PvP heist. Turn passive mode off first (phone)."
-	if heistRankOk({_p}, {_h}) is not true:
-		set {_need} to heistRank({_h})
-		return "You need robber rank %{_need}% (%rankName({_need})%) for the %{_name}%. /rank"
+	if heistLevelOk({_p}, {_h}) is not true:
+		set {_need} to heistLevel({_h})
+		return "You need level %{_need}% (%levelName({_need})%) for the %{_name}%. /level"
 	return ""
 
 # Puts membership in line with where the player stands.
@@ -834,9 +842,9 @@ function heistRefreshText(h: text):
 	set {-heist::%{_h}%::status} to {_status}
 	set {_dname} to cfg("difficulty::%{_d}%::name")
 	set {_info} to "%{_color}%%{_dname}%"
-	set {_r} to heistRank({_h})
+	set {_r} to heistLevel({_h})
 	if {_r} > 0:
-		set {_info} to "%{_info}% &7· Rank %{_r}%+"
+		set {_info} to "%{_info}% &7· Level %{_r}%+"
 	if heistIsPvp({_h}) is true:
 		set {_info} to "%{_info}% &7· &cPvP"
 	if heistIsAdvanced({_h}) is true:
@@ -876,9 +884,9 @@ command /heists:
 			heistState(loop-index) is not ""
 			set {_any} to true
 			set {_lock} to ""
-			set {_need} to heistRank(loop-index)
-			if rankOk(player, {_need}) is false:
-				set {_lock} to " &c(needs %rankName({_need})%)"
+			set {_need} to heistLevel(loop-index)
+			if levelOk(player, {_need}) is false:
+				set {_lock} to " &c(needs level %{_need}%)"
 			send colored "&8 » %{-heist::%loop-index%::title}% &8- %{-heist::%loop-index%::status}% &8- %{-heist::%loop-index%::info}%%{_lock}%" to player
 		if {_any} is false:
 			send colored "&7 None open yet." to player
@@ -1089,7 +1097,7 @@ function dheistSet(s: command sender, h: text, a: texts):
 	set {_key} to {_a::3}
 	set {_val} to {_a::4}
 	if {_val} is not set:
-		dheistReply({_s}, "HEIST %{_h}% set: name|difficulty|escape|cooldown|pool|rank|advanced|pvp|trap-damage <value|default>")
+		dheistReply({_s}, "HEIST %{_h}% set: name|difficulty|escape|cooldown|pool|level|advanced|pvp|trap-damage <value|default>")
 		stop
 	if {_key} is "name":
 		set {_words::*} to {_a::*}
@@ -1122,8 +1130,11 @@ function dheistSet(s: command sender, h: text, a: texts):
 		set {_store} to "cooldown"
 	else if {_key} is "pool":
 		set {_store} to "loot-pool"
+	else if {_key} is "level":
+		set {_store} to "level"
 	else if {_key} is "rank":
-		set {_store} to "rank"
+		# The old name (robber levels were "ranks" at first).
+		set {_store} to "level"
 	else if {_key} is "advanced":
 		set {_store} to "advanced"
 	else if {_key} is "pvp":
@@ -1280,7 +1291,7 @@ function dheistInfo(s: command sender, h: text):
 	set {_exit} to "no"
 	if {heist::%{_h}%::exit} is set:
 		set {_exit} to "yes"
-	dheistReply({_s}, "HEIST %{_h}% name=%heistName({_h})% difficulty=%{_d}% escape=%{_esc}% cooldown=%{_cool}% pool=%{_pool}% rank=%heistRank({_h})% advanced=%heistIsAdvanced({_h})% pvp=%heistIsPvp({_h})%")
+	dheistReply({_s}, "HEIST %{_h}% name=%heistName({_h})% difficulty=%{_d}% escape=%{_esc}% cooldown=%{_cool}% pool=%{_pool}% level=%heistLevel({_h})% advanced=%heistIsAdvanced({_h})% pvp=%heistIsPvp({_h})%")
 	set {_locks} to size of {heist::%{_h}%::lock::*}
 	dheistReply({_s}, "HEIST %{_h}% state=%heistState({_h})% run=%heistRun({_h})% left=%heistSecondsLeft({_h})% inside=%heistRobberCount({_h})% alarm=%heistAlarmStage({_h})% exit=%{_exit}% snapshot=%{_snap}% holo=%{_holo}% locks=%{_locks}%")
 
@@ -1288,7 +1299,7 @@ function dheistInfo(s: command sender, h: text):
 # DecentHolograms file travel with the world; run these after /rg define.
 function dheistDump(s: command sender, h: text):
 	set {_l::*} to "dheist create %{_h}% %heistDifficulty({_h})%" and "dheist set %{_h}% name %heistName({_h})%"
-	loop "escape", "cooldown", "loot-pool", "rank", "advanced", "pvp-only" and "trap-damage":
+	loop "escape", "cooldown", "loot-pool", "level", "advanced", "pvp-only" and "trap-damage":
 		{heist::%{_h}%::%loop-value%} is set
 		set {_v} to {heist::%{_h}%::%loop-value%}
 		set {_k} to loop-value
@@ -1335,9 +1346,9 @@ function dheistDelete(s: command sender, h: text):
 
 # ---------- Hooks for later scripts (replace the body; see CLAUDE.md, heists) ----------
 
-# ranks.sk: may this player rob this heist?
-function heistRankOk(p: player, h: text) :: boolean:
-	return rankOk({_p}, heistRank({_h}))
+# levels.sk: may this player rob this heist?
+function heistLevelOk(p: player, h: text) :: boolean:
+	return levelOk({_p}, heistLevel({_h}))
 
 # bag.sk: remove every loot line tagged "<h>#<run>" from the player's bag; return its value.
 function heistForfeit(p: player, h: text, run: number) :: number:
