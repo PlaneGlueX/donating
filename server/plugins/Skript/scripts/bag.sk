@@ -29,11 +29,12 @@ function bagTier(p: player) :: number:
 		return {_t}
 	return 0
 
+# The carried bag's capacity, with the paid rank's bag bonus (ranks.sk): floor(C × (1 + b)).
 function bagCapacity(p: player) :: number:
 	set {_t} to bagTier({_p})
 	if {_t} <= 0:
 		return 0
-	return cfg("bag::%{_t}%::capacity")
+	return floor(cfg("bag::%{_t}%::capacity") * (1 + paidRankBagBonus({_p})))
 
 function bagRecount(p: player) :: number:
 	set {_sum} to 0
@@ -117,12 +118,14 @@ function bagForfeit(p: player, h: text, run: number) :: number:
 function bagRefresh(p: player):
 	set {_tier} to bagTier({_p})
 	{_tier} > 0
-	set {_key} to "%{_tier}%:%bagTotal({_p})%"
+	set {_skin} to bagSkinOf({_p})
+	set {_cap} to bagCapacity({_p})
+	set {_key} to "%{_tier}%:%bagTotal({_p})%:%{_skin}%:%{_cap}%"
 	{-bag::shown::%{_p}%} is not {_key}
 	{_p} does not have scoreboard tag "donating_phone_open"
 	itemId(offhand tool of {_p}) starts with "bag:"
 	set {-bag::shown::%{_p}%} to {_key}
-	set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}))
+	set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}), {_skin}, {_cap})
 
 # ---------- Death: the loot drops as one duffel ----------
 
@@ -386,6 +389,12 @@ function bagSell(p: player) :: number:
 	if {_passive} is true:
 		set {_m} to cfg("passive::payout-multiplier")
 	set {_pay} to floor({_t} * {_m})
+	# A money booster (boosters.sk): the extra on top of P (its buyer gets a bit more). Level XP and the
+	# robbery bounty come from P.
+	set {_boost} to boosterFor({_p})
+	set {_extra} to 0
+	if {_boost} > 1:
+		set {_extra} to floor({_pay} * ({_boost} - 1))
 	set {_hauls} to 0
 	set {_credit} to 0
 	set {_lines} to ""
@@ -413,19 +422,19 @@ function bagSell(p: player) :: number:
 		setData({_p}, "level-haul::%loop-index%", loop-value)
 	delete {data::%{_p}%::loot::*}
 	set {-bag::total::%{_p}%} to 0
-	giveMoney({_p}, {_pay})
+	giveMoney({_p}, {_pay} + {_extra})
 	set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "robbery")
 	set {_sold} to getData({_p}, "loot-sold")
 	if {_sold} is not set:
 		set {_sold} to 0
-	setData({_p}, "loot-sold", {_sold} + {_pay})
+	setData({_p}, "loot-sold", {_sold} + {_pay} + {_extra})
 	set {_r} to getData({_p}, "robberies")
 	if {_r} is not set:
 		set {_r} to 0
 	setData({_p}, "robberies", {_r} + {_hauls})
 	bagRefresh({_p})
-	bagLog("sell %name of {_p}% %uuid of {_p}% total=%{_t}% pay=%{_pay}% passive=%{_passive}% bounty=%{_bounty}% lines=%{_lines}%")
-	set {_money} to formatMoney({_pay})
+	bagLog("sell %name of {_p}% %uuid of {_p}% total=%{_t}% pay=%{_pay}% extra=%{_extra}% booster=%{_boost}% passive=%{_passive}% bounty=%{_bounty}% lines=%{_lines}%")
+	set {_money} to formatMoney({_pay} + {_extra})
 	if {_passive} is true:
 		set {_sub} to "&7passive: 75%% of %formatMoney({_t})%"
 	else if {_bounty} > 0:
@@ -438,10 +447,12 @@ function bagSell(p: player) :: number:
 	loop {_by::*}:
 		msg({_p}, "&aSold %formatMoney(loop-value)% of loot from the %heistName(loop-index)%.")
 	if {_passive} is true:
-		msg({_p}, "&7Passive mode: you got %{_money}% (75%%).")
+		msg({_p}, "&7Passive mode: you got %formatMoney({_pay})% (75%%).")
+	if {_extra} > 0:
+		msg({_p}, "&6⚡ Money booster %boosterText({_boost})%: &e+%formatMoney({_extra})%")
 	# Robber level XP (levels.sk), last: a level-up's title replaces the sale's.
 	levelSale({_p}, {_pay}, {_credit})
-	return {_pay}
+	return {_pay} + {_extra}
 
 on region enter:
 	name of the worldguard region starts with cfg("bag::base-prefix")

@@ -43,7 +43,8 @@ function deathLoss(p: player, cause: text) :: number:
 	set {_tier} to getData({_p}, "bag-tier")
 	if {_tier} is set:
 		if {_tier} > 0:
-			set {_cap} to cfg("bag::%{_tier}%::capacity")
+			# The real capacity (a paid rank's bigger bag also risks more).
+			set {_cap} to bagCapacity({_p})
 	set {_pool} to deathLootPool({_p})
 	if {_pool} >= 0:
 		set {_cap} to min({_cap}, {_pool})

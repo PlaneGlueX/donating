@@ -23,11 +23,11 @@ function rankedName(p: player) :: text:
 
 on join:
 	if getData(player, "first-join") is set:
-		set join message to colored "&8[&a+&8] %rankedName(player)%"
+		set join message to colored "&7[&a+&7] %rankedName(player)%"
 		stop
 	setData(player, "first-join", now)
 	add 1 to {stats::unique-joins}
-	set join message to colored "&8[&a+&8] %rankedName(player)% &7joined for the first time &8(#%{stats::unique-joins}%)"
+	set join message to colored "&7[&a+&7] %rankedName(player)% &7joined for the first time &7(#%{stats::unique-joins}%)"
 	set {_start} to cfg("money::start")
 	giveMoney(player, {_start})
 	# Let the client finish loading, or the title and sound get lost.
@@ -42,22 +42,22 @@ on join:
 	msg(player, "Type &e/help&7 to learn how heists work.")
 
 on quit:
-	set quit message to colored "&8[&c-&8] %rankedName(player)%"
+	set quit message to colored "&7[&c-&7] %rankedName(player)%"
 
 # ---------- /help ----------
 # Replaces EssentialsX's /help. Update the lines when a script adds a player command or changes a rule.
 
 function showHelp(p: player):
 	send colored "%cfg("prefix")%&fHow to play" to {_p}
-	send colored "&8• &eHeists: &7rob buildings for loot. Watch for traps: lasers, pressure plates, cameras, collapsing floors." to {_p}
-	send colored "&8• &eYour bag &7(offhand) holds the loot, not your inventory. Its name shows how full it is." to {_p}
-	send colored "&8• &eGet out &7before the heist timer hits 0, or you lose what you took there." to {_p}
-	send colored "&8• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
-	send colored "&8• &eLevels: &7selling loot earns XP; higher levels open bigger heists and tools. &f/level" to {_p}
-	send colored "&8• &eRanks &7(/ranks) are cosmetic tags that support the server." to {_p}
-	send colored "&8• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
-	send colored "&8• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
-	send colored "&8• &ePhone &7(hotbar 9): garage, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}
+	send colored "&7• &eHeists: &7rob buildings for loot. Watch for traps: lasers, pressure plates, cameras, collapsing floors." to {_p}
+	send colored "&7• &eYour bag &7(offhand) holds the loot, not your inventory. Its name shows how full it is." to {_p}
+	send colored "&7• &eGet out &7before the heist timer hits 0, or you lose what you took there." to {_p}
+	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
+	send colored "&7• &eLevels: &7selling loot earns XP; higher levels open bigger heists and tools. &f/level" to {_p}
+	send colored "&7• &eRanks &7(/ranks) support the server: a tag, a bag look and more bag room." to {_p}
+	send colored "&7• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
+	send colored "&7• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
+	send colored "&7• &ePhone &7(hotbar 9): garage, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}
 
 # The optional text swallows things like "/help 2" instead of showing a usage error.
 command /help [<text>]:

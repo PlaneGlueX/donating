@@ -20,6 +20,7 @@
 #   %donating_level%         your robber level's title in its color ("&aBurglar")
 #   %donating_level_num%     your robber level as a number ("2")
 #   %donating_level_xp%      "1,240/3,000 XP" to the next level, or "max level" (levels.sk keeps these in memory)
+#   %donating_booster%       the running money booster ("⚡ 1.5× money for everyone · 23:10 · thanks Name"), or "&r"
 
 every second:
 	loop all players:
@@ -83,6 +84,10 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-afk::is::%player%} is set:
 			set the placeholder result to " &7AFK"
+	else if {_i} is "booster":
+		set the placeholder result to "&r"
+		if {-ph::booster} is set:
+			set the placeholder result to {-ph::booster}
 	else if {_i} is "level":
 		set the placeholder result to "&7Pickpocket"
 		if {-ph::level::%player%} is set:

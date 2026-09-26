@@ -91,7 +91,7 @@ function ammoItem(type: text, n: number) :: item:
 	set {_base} to cfg("ammo::%{_type}%::item")
 	set {_name} to cfg("ammo::%{_type}%::name")
 	set {_wm} to cfg("ammo::%{_type}%::wm")
-	set {_i} to {_base} named "&e%{_name}%" with lore "&7Loaded when you reload (Q)." and "&8Lost when you die."
+	set {_i} to {_base} named "&e%{_name}%" with lore "&7Loaded when you reload (Q)." and "&7Lost when you die."
 	set item amount of {_i} to {_n}
 	set {_i} to tagItem({_i}, "ammo:%{_type}%")
 	set string tag "PublicBukkitValues;weaponmechanics:ammo-name" of custom nbt of {_i} to {_wm}
@@ -248,7 +248,7 @@ function toolItem(t: text, n: number) :: item:
 	set {_about} to cfg("tool::%{_t}%::about")
 	set {_i} to {_n} of {_base}
 	set name of {_i} to "&f%{_name}%"
-	set lore of {_i} to "&7%{_about}%" and "&8Heist tool · lost when you die"
+	set lore of {_i} to "&7%{_about}%" and "&7Heist tool · lost when you die"
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:tool_%{_t}%"
 	return tagItem({_i}, "tool:%{_t}%")
 
@@ -284,16 +284,16 @@ function toolIcon(p: player, t: text) :: item:
 	set {_name} to cfg("tool::%{_t}%::name")
 	set {_about} to cfg("tool::%{_t}%::about")
 	if cfg("tool::%{_t}%::enabled") is not true:
-		set lore of {_i} to "&8Coming soon."
+		set lore of {_i} to "&7Coming soon."
 		return tagItem({_i}, "shopicon:tool")
 	set {_money} to formatMoney(cfg("tool::%{_t}%::price"))
 	set {_max} to cfg("tool::%{_t}%::max")
 	set {_have} to toolCount({_p}, {_t})
 	set {_need} to toolLevel({_t})
 	if levelOk({_p}, {_need}) is false:
-		set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&cNeeds level %{_need}% (%levelName({_need})%). /level" and "&8Lost when you die."
+		set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&cNeeds level %{_need}% (%levelName({_need})%). /level" and "&7Lost when you die."
 		return tagItem({_i}, "shopicon:tool")
-	set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&7You have %{_have}%." and "&eClick: buy 1. Shift-click: fill up." and "&8Lost when you die."
+	set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&7You have %{_have}%." and "&eClick: buy 1. Shift-click: fill up." and "&7Lost when you die."
 	return tagItem({_i}, "shopicon:tool")
 
 # The robber level a tool needs (levels.sk; 0 when core.sk sets none).
@@ -490,7 +490,7 @@ function confirmItem(p: player, i: item, act: text) :: item:
 	if {_act} starts with "hot:":
 		set {_c} to red concrete named "&c&lThrow away?" with lore "&7%{_what}%" and {_status}
 	else:
-		set {_c} to lime concrete named "&a&lConfirm purchase?" with lore "&7%{_what}%", {_status} and "&8Runs out after %{_win}%."
+		set {_c} to lime concrete named "&a&lConfirm purchase?" with lore "&7%{_what}%", {_status} and "&7Runs out after %{_win}%."
 	return tagItem({_c}, "shopicon:confirm")
 
 function glint(i: item) :: item:
@@ -511,7 +511,7 @@ function renderShop(p: player):
 	if {_status} is not set:
 		set {_status} to "&7Pick something."
 	set {_above} to formatMoney(cfg("shop::confirm-above"))
-	set slot 4 of {_gui} to tagItem(book named {_status} with lore "&8Buys of %{_above}% or more need a second click.", "shopicon:status")
+	set slot 4 of {_gui} to tagItem(book named {_status} with lore "&7Buys of %{_above}% or more need a second click.", "shopicon:status")
 	button({_p}, 8, tagItem(barrier named "&cClose", "shopicon:close"), "close")
 	set {_kind} to {-shop::kind::%{_p}%}
 	if {_kind} is "gun":
@@ -531,7 +531,7 @@ function gunCells() :: numbers:
 function slotText(p: player, slot: number) :: text:
 	set {_i} to slot {_slot} of {_p}'s inventory
 	if {_i} is air:
-		return "&8empty"
+		return "&7empty"
 	set {_id} to loadoutId({_i})
 	if {_id} starts with "wpn:":
 		set {_w} to wmTitle({_i})
@@ -565,7 +565,7 @@ function renderGun(p: player):
 		add "&eCosts now: %{_money}%" to {_rest::*}
 		button({_p}, 6, tagItem(recovery compass named "&aRestore loadout" with lore {_rest::*}, "shopicon:restore"), "restore")
 	else:
-		set slot 6 of {_gui} to tagItem(recovery compass named "&7Restore loadout" with lore "&8No saved loadout yet.", "shopicon:restore")
+		set slot 6 of {_gui} to tagItem(recovery compass named "&7Restore loadout" with lore "&7No saved loadout yet.", "shopicon:restore")
 	# Hotbar mirror (hotbar 1-5 = slots 11-15).
 	loop integers from 0 to 4:
 		set {_n} to loop-value
@@ -573,7 +573,7 @@ function renderGun(p: player):
 		set {_line} to slotText({_p}, {_n})
 		set {_hot} to "Hotbar %{_n} + 1%"
 		if {_i} is air:
-			set {_icon} to light gray stained glass pane named "&7%{_hot}%: empty" with lore "&8Select a weapon, then click here."
+			set {_icon} to light gray stained glass pane named "&7%{_hot}%: empty" with lore "&7Select a weapon, then click here."
 		else:
 			set {_w} to wmTitle({_i})
 			set {_id} to itemId({_i})
@@ -585,7 +585,7 @@ function renderGun(p: player):
 				set {_icon} to 1 of type of {_i}
 			set item amount of {_icon} to item amount of {_i}
 			set name of {_icon} to "&f%{_hot}%"
-			set lore of {_icon} to {_line} and "&8Click: take out or put your selection here."
+			set lore of {_icon} to {_line} and "&7Click: take out or put your selection here."
 		button({_p}, 11 + {_n}, tagItem({_icon}, "shopicon:hot"), "hot:%{_n}%")
 	# Tabs.
 	set {_tab} to {-shop::tab::%{_p}%}
@@ -613,7 +613,7 @@ function renderGun(p: player):
 			getData({_p}, "wpn::%{_w}%") is true
 			set {_name} to cfg("wpn::%{_w}%::name")
 			set {_at} to loadoutSlotOf({_p}, "wpn:%{_w}%")
-			set {_where} to "&8Not equipped"
+			set {_where} to "&7Not equipped"
 			if {_at} >= 0:
 				set {_where} to "&7Equipped: hotbar %{_at} + 1%"
 			set {_i} to wpnIcon({_w}) named "&f%{_name}%" with lore {_where} and "&eClick: select, then click a hotbar slot above." and "&eShift-click: put it in the first free slot."
@@ -622,7 +622,7 @@ function renderGun(p: player):
 			button({_p}, {_cells::%{_k}%}, tagItem({_i}, "shopicon:wpn"), "sel:%{_w}%")
 			add 1 to {_k}
 		if {_k} is 1:
-			set slot {_cells::1} of {_gui} to tagItem(paper named "&7No weapons yet" with lore "&8Buy one in the Weapons tab.", "shopicon:none")
+			set slot {_cells::1} of {_gui} to tagItem(paper named "&7No weapons yet" with lore "&7Buy one in the Weapons tab.", "shopicon:none")
 	else if {_tab} is "weapons":
 		set {_k} to 1
 		loop {-cfg::shop::weapons::*}:
@@ -693,7 +693,7 @@ function renderGear(p: player):
 		set {_cid} to last element of ({_chest} split at ":")
 		set {_cname} to cfg("gear::%{_cid}%::name")
 		set {_wear} to "%{_wear}%, %{_cname}%"
-	set slot 13 of {_gui} to tagItem(armor stand named {_wear} with lore "&8Lost when you die." and "&8Guns hurt 3%% less per armor point.", "shopicon:wear")
+	set slot 13 of {_gui} to tagItem(armor stand named {_wear} with lore "&7Lost when you die." and "&7Guns hurt 3%% less per armor point.", "shopicon:wear")
 	set {_slots::*} to 10, 11, 15 and 16
 	set {_k} to 1
 	loop {-cfg::shop::gear::*}:
@@ -716,8 +716,12 @@ function renderBag(p: player):
 	loop integers from 1 to 5:
 		set {_t} to loop-value
 		set {_name} to cfg("bag::%{_t}%::name")
-		set {_cap} to formatMoney(cfg("bag::%{_t}%::capacity"))
+		set {_bonus} to paidRankBagBonus({_p})
+		set {_cap} to formatMoney(floor(cfg("bag::%{_t}%::capacity") * (1 + {_bonus})))
 		add "&7Holds %{_cap}% of loot." to {_lore::*}
+		if {_bonus} > 0:
+			set {_pct} to {_bonus} * 100
+			add "&d+%{_pct}%%% room from your rank." to {_lore::*}
 		if {_t} is {_carry}:
 			add "&aCarrying it." to {_lore::*}
 		else if {_t} <= {_best}:
@@ -1169,7 +1173,7 @@ function buyGear(p: player, id: text):
 		stop
 	set {_i} to gearItem({_id})
 	set name of {_i} to "&f%{_name}%"
-	set lore of {_i} to "&8Lost when you die."
+	set lore of {_i} to "&7Lost when you die."
 	set {_i} to tagItem({_i}, "gear:%{_id}%")
 	if {_where} is "helmet":
 		set helmet of {_p} to {_i}

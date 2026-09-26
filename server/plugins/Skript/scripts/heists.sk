@@ -327,7 +327,7 @@ function heistEndRun(h: text, reason: text):
 	loop {_m::*}:
 		heistEvict(loop-value, {_h}, {_reason})
 	heistLog("end %{_h}% run=%heistRun({_h})% reason=%{_reason}%")
-	heistAnnounce("&7The %heistName({_h})% is closed. &8It reopens in %formatClock(heistSecondsLeft({_h}))%.")
+	heistAnnounce("&7The %heistName({_h})% is closed. &7It reopens in %formatClock(heistSecondsLeft({_h}))%.")
 	heistOnEnd({_h}, {_reason})
 
 function heistWarnings(h: text):
@@ -838,7 +838,7 @@ function heistRefreshText(h: text):
 		else:
 			set {_status} to "&7Resetting..."
 	else:
-		set {_status} to "&8CLOSED"
+		set {_status} to "&7CLOSED"
 	set {-heist::%{_h}%::status} to {_status}
 	set {_dname} to cfg("difficulty::%{_d}%::name")
 	set {_info} to "%{_color}%%{_dname}%"
@@ -887,7 +887,7 @@ command /heists:
 			set {_need} to heistLevel(loop-index)
 			if levelOk(player, {_need}) is false:
 				set {_lock} to " &c(needs level %{_need}%)"
-			send colored "&8 » %{-heist::%loop-index%::title}% &8- %{-heist::%loop-index%::status}% &8- %{-heist::%loop-index%::info}%%{_lock}%" to player
+			send colored "&7 » %{-heist::%loop-index%::title}% &7- %{-heist::%loop-index%::status}% &7- %{-heist::%loop-index%::info}%%{_lock}%" to player
 		if {_any} is false:
 			send colored "&7 None open yet." to player
 

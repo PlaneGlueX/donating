@@ -64,7 +64,7 @@ on chat:
 function staffChat(from: player, text: text):
 	loop all players:
 		if isStaff(loop-player) is true:
-			send colored "&c[Staff] %rankedName({_from})%&8: &f%{_text}%" to loop-player
+			send colored "&c[Staff] %rankedName({_from})%&7: &f%{_text}%" to loop-player
 	send "[Staff] %{_from}%: %{_text}%" to console
 
 # /sc <message> sends one message to staff; /sc alone toggles staff chat mode.
@@ -125,7 +125,7 @@ function sendTip():
 	add 1 to {-tip::next}
 	if {-tip::next} > size of {-tips::*}:
 		set {-tip::next} to 1
-	send colored "&e&lTIP&r &8» &7%{-tips::%{-tip::next}%}%" to all players
+	send colored "&e&lTIP&r &7» &7%{-tips::%{-tip::next}%}%" to all players
 
 every 1 minute:
 	if number of all players is 0:

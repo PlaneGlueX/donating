@@ -59,14 +59,42 @@ module.exports = async ({ check }) => {
       check('staff stay above every paid rank', got[0] === 'Explosde', `${got}`)
     }
 
+    // ---------- Rank bags: the look and more room on any tier ----------
+    const bagOf = async name => {
+      const r = await cmd(`zzbag ${name}`)
+      const model = await cmd(`data get entity ${name} equipment.offhand.components."minecraft:custom_model_data"`)
+      return { room: Number((r.match(/room=([\d.]+)/) || [])[1]), model: (model.match(/donating:bag_\w+/) || [''])[0], name: await cmd(`zzoffhand ${name}`) }
+    }
+    for (const name of [Z, M, A]) await cmd(`zztestkit ${name}`) // a Duffel Bag ($6,000)
+    await sleep(1500)
+    let bz = await bagOf(Z)
+    let bm = await bagOf(M)
+    let ba = await bagOf(A)
+    check('a Legend\'s Duffel Bag holds 20% more ($7,200) and looks Neon; a VIP\'s 5% ($6,300), Camo', bz.room === 7200 && bz.model === 'donating:bag_neon' && /Neon Duffel Bag/.test(bz.name) && bm.room === 6300 && bm.model === 'donating:bag_camo', `${JSON.stringify(bz)} ${JSON.stringify(bm)}`)
+    check('...no rank: the normal Duffel Bag ($6,000)', ba.room === 6000 && ba.model === 'donating:bag_2', JSON.stringify(ba))
+    let t = Date.now()
+    bots[M].chat('/bagskin neon')
+    await sleep(800)
+    check('a VIP can\'t pick a higher rank\'s skin', /don't have that skin/.test(messagesSince(bots[M], t).map(m => m.text).join(' ')) && (await bagOf(M)).model === 'donating:bag_camo')
+    bots[Z].chat('/bagskin camo')
+    await sleep(800)
+    const zc = await bagOf(Z)
+    bots[Z].chat('/bagskin default')
+    await sleep(800)
+    const zd = await bagOf(Z)
+    check('a Legend can pick any lower skin, or the tier\'s own look; the room stays', zc.model === 'donating:bag_camo' && zd.model === 'donating:bag_2' && zd.room === 7200, `${JSON.stringify(zc)} ${JSON.stringify(zd)}`)
+    bots[Z].chat('/bagskin neon')
+    await sleep(500)
+
     // ---------- One rank at a time ----------
     await cmd(`dranks give ${M} elite`)
     await sleep(2500)
     const list = await cmd('dranks list')
     check('giving another rank replaces the old one (one paid rank at a time)', /\[Elite\] TabMid/.test(shown(M)) && !/VIP/.test(shown(M)) && /RANKS TabMid elite/.test(list) && !/TabMid vip/.test(list), `${shown(M)} / ${list}`)
+    await cmd(`dranks give ${M} none`) // "give" never downgrades: Elite to VIP+ needs a clear first
     await cmd(`dranks give ${M} vipplus`)
     await sleep(2500)
-    let t = Date.now()
+    t = Date.now()
     bots[M].chat('/ranks')
     await sleep(900)
     const plus = messagesSince(bots[M], t).map(m => m.text).join(' | ')
@@ -75,6 +103,9 @@ module.exports = async ({ check }) => {
     await sleep(2500)
     got = sorted([A, M, Z])
     check('"none" takes it away: the tag goes, and the bounty decides among players without a rank', !/\[/.test(shown(M)) && got.join(',') === `${Z},${A},${M}`, `${got} ${why([Z, M, A])}`)
+    await sleep(4000) // the bag follows within 5 s
+    bm = await bagOf(M)
+    check('...and the bag goes back to the normal look and room ($6,000)', bm.model === 'donating:bag_2' && bm.room === 6000, JSON.stringify(bm))
     check('an unknown rank is refused', /no rank gold/.test(await cmd(`dranks give ${M} gold`)))
 
     // ---------- Chat, /ranks, the footer ----------
@@ -87,11 +118,22 @@ module.exports = async ({ check }) => {
     bots[Z].chat('/ranks')
     await sleep(900)
     const out = messagesSince(bots[Z], t).map(m => m.text).join(' | ')
-    check('/ranks lists them highest first, says they\'re cosmetic, and shows yours', /\[Legend\] Legend.*\[Elite\] Elite.*\[VIP\+\] VIP\+.*\[VIP\] VIP/.test(out) && /Nothing else: no money, guns or bags/.test(out) && /Yours: \[Legend\] Legend/.test(out) && /\/level/.test(out), out)
+    check('/ranks lists them highest first, says what they give, and shows yours', /\[Legend\] Legend.*\[Elite\] Elite.*\[VIP\+\] VIP\+.*\[VIP\] VIP/.test(out) && /gives your bag its look and more room/.test(out) && /Neon bag, \+20% room/.test(out) && /Yours: \[Legend\] Legend/.test(out) && /\/level/.test(out), out)
     t = Date.now()
     bots[M].chat('/dranks list')
     await sleep(900)
-    check('/dranks is staff only', messagesSince(bots[M], t).some(m => /Staff only/.test(m.text)), messagesSince(bots[M], t).map(m => m.text).join(' | '))
+    check('/dranks is the owner\'s and the store\'s only', messagesSince(bots[M], t).some(m => /Only the owner and the store/.test(m.text)), messagesSince(bots[M], t).map(m => m.text).join(' | '))
+    // Refunds: "take" removes that rank only if it's the player's; "give" never downgrades.
+    await cmd(`dranks give ${Z} vip`)
+    const kept = await cmd(`dranks list`)
+    const skipped = await cmd(`dranks take ${Z} vip`)
+    await sleep(1500)
+    check('buying a lower rank keeps the higher one, and refunding a rank they don\'t have takes nothing', /TabZed legend/.test(kept) && /nothing taken/.test(skipped) && /\[Legend\] TabZed/.test(shown(Z)), `${kept} / ${skipped} / ${shown(Z)}`)
+    const took = await cmd(`dranks take ${Z} legend`)
+    await sleep(2000)
+    check('refunding their rank takes exactly that one', /lost legend/.test(took) && !/\[/.test(shown(Z)), `${took} / ${shown(Z)}`)
+    await cmd(`dranks give ${Z} legend`)
+    await sleep(1500)
     // The Legend's own footer: it must show their level, not their rank.
     const footer = bots[Z].tablist && bots[Z].tablist.footer ? bots[Z].tablist.footer.toString() : ''
     check('the footer shows the robber level, not the rank', /Level 0 Pickpocket/.test(footer) && /\/level/.test(footer) && !/Legend|VIP/.test(footer), footer)

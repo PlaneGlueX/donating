@@ -1,0 +1,226 @@
+# boosters.sk: server-wide money boosters (CLAUDE.md, Monetization). Built 2026-09-26.
+#
+# Someone buys a booster (Tebex runs "dbooster add <player> <multiplier> <minutes> [count]" from the console):
+# while it runs, every loot sale at the base pays P' = floor(P × b) for everyone, and the buyer's own
+# sales floor(P × (b + cfg booster::buyer-bonus)) (owner, 2026-09-26: "someone buys 1.5x money for the
+# server for 30 mins and since they bought it for everyone they get 2x instead of 1.5x"). P is the
+# normal pay (passive players' 75% included). Level XP and the robbery bounty come from P, not P'.
+# The buyer bonus affects gameplay: it's listed in MONETIZATION.md, the disclosure for Minehut.
+# One booster runs at a time; more queue behind it. The time only runs while someone is online
+# (Minehut sleeps an empty server, and nobody would get anything). Everyone sees it in the tab-list
+# footer ("1.5× money · 23:10 · thanks Name"); the start and the end are announced to everyone.
+# Saved (a paid booster survives restarts and sleep): {booster::active} = "<name>|<uuid>|<b>",
+# {booster::left} = seconds left, {booster::queue::<n>} = "<name>|<uuid>|<b>|<seconds>".
+# Staff: /dbooster add|stop|clear|info. Players: /booster. Log: plugins\Skript\logs\boosters.log.
+
+function boosterLog(text: text):
+	log {_text} to "boosters"
+
+# b while a booster runs, else 1.
+function boosterMultiplier() :: number:
+	set {_a} to {booster::active}
+	if {_a} is not set:
+		return 1
+	set {_parts::*} to {_a} split at "|"
+	set {_b} to {_parts::3} parsed as number
+	if {_b} is set:
+		return {_b}
+	return 1
+
+# The UUID of the running booster's buyer, or "".
+function boosterBuyer() :: text:
+	set {_a} to {booster::active}
+	if {_a} is not set:
+		return ""
+	set {_parts::*} to {_a} split at "|"
+	return {_parts::2}
+
+# The multiplier for this player's sales: b, plus the buyer bonus for whoever bought it.
+function boosterFor(p: player) :: number:
+	set {_b} to boosterMultiplier()
+	if {_b} <= 1:
+		return 1
+	if boosterBuyer() is "%uuid of {_p}%":
+		return {_b} + cfg("booster::buyer-bonus")
+	return {_b}
+
+# "1.5×" (no trailing zeros).
+function boosterText(b: number) :: text:
+	return "%{_b}%×"
+
+# Starts the next queued booster if none runs.
+function boosterNext():
+	{booster::active} is not set
+	set {_keys::*} to indices of {booster::queue::*}
+	{_keys::1} is set
+	set {_q} to {booster::queue::%{_keys::1}%}
+	delete {booster::queue::%{_keys::1}%}
+	set {_parts::*} to {_q} split at "|"
+	set {booster::active} to "%{_parts::1}%|%{_parts::2}%|%{_parts::3}%"
+	set {booster::left} to {_parts::4} parsed as number
+	set {_b} to {_parts::3} parsed as number
+	set {_clock} to formatClock({booster::left})
+	boosterLog("start %{_parts::1}% %{_parts::2}% b=%{_b}% seconds=%{booster::left}%")
+	broadcastMsg("&6⚡ %{_parts::1}% started a %boosterText({_b})% money booster for everyone! &e(%{_clock}%) &7Thank you!")
+	loop all players:
+		play sound "entity.player.levelup" with volume 0.7 and pitch 1.2 to loop-player
+	boosterPlaceholder()
+
+function boosterEnd(why: text):
+	{booster::active} is set
+	set {_parts::*} to {booster::active} split at "|"
+	boosterLog("end %{_parts::1}% %{_parts::2}% why=%{_why}% left=%{booster::left}%")
+	delete {booster::active}
+	delete {booster::left}
+	broadcastMsg("&7The money booster from &f%{_parts::1}% &7ended.")
+	boosterNext()
+	boosterPlaceholder()
+
+# The footer line for everyone (placeholders.sk reads memory only).
+function boosterPlaceholder():
+	if {booster::active} is not set:
+		delete {-ph::booster}
+		stop
+	set {_parts::*} to {booster::active} split at "|"
+	set {_b} to {_parts::3} parsed as number
+	set {-ph::booster} to "&6⚡ %boosterText({_b})% money for everyone &7· &e%formatClock({booster::left})% &7· thanks &f%{_parts::1}%"
+
+# The time runs only while someone's online.
+every second:
+	if {booster::active} is not set:
+		boosterNext()
+		stop
+	size of all players > 0
+	remove 1 from {booster::left}
+	if {booster::left} <= 0:
+		boosterEnd("time")
+	else:
+		boosterPlaceholder()
+
+on load:
+	boosterPlaceholder()
+
+command /booster:
+	description: The money booster running now and the ones queued.
+	executable by: players
+	trigger:
+		if {booster::active} is not set:
+			msg(player, "&7No money booster right now. &fBoosters &7multiply every sale's pay for everyone.")
+			stop
+		set {_parts::*} to {booster::active} split at "|"
+		set {_b} to {_parts::3} parsed as number
+		msg(player, "&6⚡ %boosterText({_b})% money for everyone &7for &e%formatClock({booster::left})% &7more, thanks to &f%{_parts::1}%&7.")
+		set {_mine} to boosterFor(player)
+		if {_mine} is not {_b}:
+			send colored "&7 Yours: &e%boosterText({_mine})% &7(you bought it)." to player
+		set {_n} to size of {booster::queue::*}
+		if {_n} > 0:
+			send colored "&7 %{_n}% more queued after it." to player
+
+function dboosterReply(s: command sender, text: text):
+	send "%{_text}%" to {_s}
+
+# Only the owner and the console (Tebex) may grant a paid perk: its own permission, not staff's.
+command /dbooster [<text>]:
+	permission: donating.store
+	permission message: &cOnly the owner and the store can do that.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "add":
+			# A refused paid delivery must leave a trace (Tebex counts it as delivered).
+			boosterLog("add-request %arg-1% by=%sender%")
+			set {_p} to {_a::2} parsed as offline player
+			set {_b} to {_a::3} parsed as number
+			set {_min} to {_a::4} parsed as integer
+			if {_p} is not set:
+				boosterLog("refused %arg-1% by=%sender% reason=usage")
+				dboosterReply(sender, "BOOSTER add: /dbooster add <player> <multiplier> <minutes> [count]")
+				stop
+			if {_b} is not set:
+				boosterLog("refused %arg-1% by=%sender% reason=usage")
+				dboosterReply(sender, "BOOSTER add: /dbooster add <player> <multiplier> <minutes> [count]")
+				stop
+			if {_min} is not set:
+				boosterLog("refused %arg-1% by=%sender% reason=usage")
+				dboosterReply(sender, "BOOSTER add: /dbooster add <player> <multiplier> <minutes> [count]")
+				stop
+			# Checked as it's saved: two decimals (a 1.004 would pass "more than 1" and pay nothing).
+			set {_b} to round({_b} * 100) / 100
+			set {_max} to cfg("booster::max-multiplier")
+			if {_b} <= 1:
+				boosterLog("refused %arg-1% by=%sender% reason=multiplier")
+				dboosterReply(sender, "BOOSTER add: the multiplier must be more than 1 (up to %{_max}%)")
+				stop
+			if {_b} > {_max}:
+				boosterLog("refused %arg-1% by=%sender% reason=multiplier")
+				dboosterReply(sender, "BOOSTER add: the multiplier must be more than 1 (up to %{_max}%)")
+				stop
+			set {_maxMin} to cfg("booster::max-minutes")
+			if {_min} < 1:
+				boosterLog("refused %arg-1% by=%sender% reason=minutes")
+				dboosterReply(sender, "BOOSTER add: 1-%{_maxMin}% minutes")
+				stop
+			if {_min} > {_maxMin}:
+				boosterLog("refused %arg-1% by=%sender% reason=minutes")
+				dboosterReply(sender, "BOOSTER add: 1-%{_maxMin}% minutes")
+				stop
+			# An optional count (Tebex's {purchaseQuantity}: "$1 per 5 minutes" bought 6 times = 30 minutes):
+			# minutes × count, queued in boosters of at most booster::max-minutes each.
+			set {_count} to 1
+			if {_a::5} is set:
+				set {_count} to {_a::5} parsed as integer
+				if {_count} is not set:
+					boosterLog("refused %arg-1% by=%sender% reason=count")
+					dboosterReply(sender, "BOOSTER add: the count must be a whole number (1-10000)")
+					stop
+				if {_count} < 1:
+					boosterLog("refused %arg-1% by=%sender% reason=count")
+					dboosterReply(sender, "BOOSTER add: the count must be a whole number (1-10000)")
+					stop
+				if {_count} > 10000:
+					boosterLog("refused %arg-1% by=%sender% reason=count")
+					dboosterReply(sender, "BOOSTER add: the count must be a whole number (1-10000)")
+					stop
+			set {_total} to {_min} * {_count}
+			set {_chunks} to ceil({_total} / {_maxMin})
+			# Queue keys sort as text, so they all have the same length (100001, 100002, ...).
+			if {booster::next} is not set:
+				set {booster::next} to 100000
+			loop {_chunks} times:
+				set {_this} to min({_maxMin}, {_total} - (loop-number - 1) * {_maxMin})
+				add 1 to {booster::next}
+				set {_n} to {booster::next}
+				set {booster::queue::%{_n}%} to "%{_a::2}%|%uuid of {_p}%|%{_b}%|%{_this} * 60%"
+			boosterLog("add %{_a::2}% %uuid of {_p}% b=%{_b}% minutes=%{_min}% count=%{_count}% total=%{_total}% by=%sender%")
+			if {booster::active} is set:
+				dboosterReply(sender, "BOOSTER queued: %{_a::2}% %{_b}%x %{_total}% min (%size of {booster::queue::*}% waiting)")
+			else:
+				boosterNext()
+				dboosterReply(sender, "BOOSTER started: %{_a::2}% %{_b}%x %{_total}% min")
+			stop
+		if {_sub} is "stop":
+			if {booster::active} is not set:
+				dboosterReply(sender, "BOOSTER none running")
+				stop
+			boosterEnd("staff:%sender%")
+			dboosterReply(sender, "BOOSTER stopped")
+			stop
+		if {_sub} is "clear":
+			# Each paid entry removed is logged (to refund or re-add from).
+			loop {booster::queue::*}:
+				boosterLog("cleared %loop-value% by=%sender%")
+			delete {booster::queue::*}
+			boosterLog("clear by=%sender%")
+			dboosterReply(sender, "BOOSTER queue cleared")
+			stop
+		if {_sub} is "info":
+			set {_act} to "none"
+			if {booster::active} is set:
+				set {_act} to {booster::active}
+			set {_left} to 0
+			if {booster::left} is set:
+				set {_left} to {booster::left}
+			dboosterReply(sender, "BOOSTER active=%{_act}% left=%{_left}% queued=%size of {booster::queue::*}% multiplier=%boosterMultiplier()%")
+			stop
+		dboosterReply(sender, "BOOSTER usage: /dbooster add <player> <multiplier> <minutes> [count] | stop | clear | info")
