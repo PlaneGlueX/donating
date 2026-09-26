@@ -1,0 +1,1321 @@
+# heists.sk: heists (CLAUDE.md, Heists; "Heists (heists.sk)" in its Verified notes).
+#
+# A heist is a WorldGuard cuboid region "heist_<id>" plus a definition staff make with /dheist. Nothing
+# is hard-coded: the defaults per difficulty are in core.sk ("difficulty::<d>::escape" and so on).
+#
+# One state machine per heist, driven by one "every second" loop:
+#   disabled -> cooldown (the room resets, one section per second) -> open -> active -> cooldown
+#   - open: robbers may walk in. The escape clock starts at the first robbery (loot.sk calls
+#     heistStartRun; owner, 2026-09-25), or at the first entry while cfg heist::start-on is "enter"
+#     (the default until loot.sk exists), or when an alarm trips.
+#   - active: the escape countdown runs. At 0:00 everyone still inside is thrown out to the heist's
+#     exit spot and loses all loot from that heist's run (bag.sk, through heistForfeit).
+#   - cooldown: closed; the room resets from its snapshot, then it opens again.
+#
+# Being inside: the region events are only gates (closed heists, teleports in or out, PvP heists for
+# passive players, rank). Membership changes in heistReconcile, one tick after a region event and
+# every second as a backstop, and in the forced paths (death, quit, eviction).
+# Heist crew (owner, 2026-09-25): robbers inside the same heist can't hurt each other, unless it's a
+# PvP heist (/dheist set <id> pvp true; passive players can't enter those). Anyone outside can still
+# shoot in, and robbers can shoot out.
+# Logging out inside (not in combat) counts as failing: that heist's loot is lost, and on the next join
+# the player is sent to spawn (owner, 2026-09-25). A kick (restart, staff) costs nothing. Logging out
+# in combat is a death (combat-log.sk).
+# Advanced heists: an alarm (traps.sk, loot.sk or /dheist alarm) warns for cfg alarm::warning, then a
+# wave every cfg alarm::wave-interval (cops.sk spawns them) until every hunted robber has died, failed,
+# quit or left cfg alarm::chase-radius. Lockdown boxes (/dheist lock) fill with bars when it trips.
+#
+# Later scripts plug in through the stub hooks at the bottom (edit the one-line body), like death.sk's
+# stubs. Log: plugins\Skript\logs\heists.log.
+#
+# Saved: {heists::<id>} = true (the list), {heist::<id>::...} (definition, run counter, sections,
+# lockdown boxes). Memory: {-heist::<id>::...} (state, timers, members, alarm, display text),
+# {-heistregion::<region>} = id, {-heistin::<p>} = the heist a player robs, {-heisthunt::<p>},
+# {-heistpass::<p>} (our own teleports), {-heistjoin::<p>} (just joined: being sent to spawn).
+
+# ---------- Read API (never returns unset) ----------
+
+function heistOf(p: player) :: text:
+	set {_h} to {-heistin::%{_p}%}
+	if {_h} is set:
+		return {_h}
+	return ""
+
+# The heist whose region contains this spot, or "". Only registered heist regions count, so trap
+# sub-regions like "heist_bank_vault" never do.
+function heistAt(l: location) :: text:
+	loop regions at {_l}:
+		set {_h} to {-heistregion::%name of loop-value%}
+		if {_h} is set:
+			return {_h}
+	return ""
+
+# The heist a death right now belongs to (death.sk). Deaths outside count as outside.
+function heistForDeath(p: player) :: text:
+	return heistOf({_p})
+
+function heistExists(h: text) :: boolean:
+	if {heists::%{_h}%} is true:
+		return true
+	return false
+
+function heistState(h: text) :: text:
+	set {_s} to {-heist::%{_h}%::state}
+	if {_s} is set:
+		return {_s}
+	return ""
+
+function heistName(h: text) :: text:
+	set {_n} to {heist::%{_h}%::name}
+	if {_n} is set:
+		return {_n}
+	return {_h}
+
+function heistDifficulty(h: text) :: number:
+	set {_d} to {heist::%{_h}%::difficulty}
+	if {_d} is set:
+		return {_d}
+	return 1
+
+# A per-heist override (/dheist set), or the difficulty's default in core.sk.
+function heistSetting(h: text, key: text) :: object:
+	set {_v} to {heist::%{_h}%::%{_key}%}
+	if {_v} is set:
+		return {_v}
+	set {_d} to heistDifficulty({_h})
+	return cfg("difficulty::%{_d}%::%{_key}%")
+
+function heistLootPool(h: text) :: number:
+	return heistSetting({_h}, "loot-pool")
+
+function heistRank(h: text) :: number:
+	return heistSetting({_h}, "rank")
+
+function heistIsAdvanced(h: text) :: boolean:
+	if heistSetting({_h}, "advanced") is true:
+		return true
+	return false
+
+# PvP heist: no crew rule inside, and passive players can't enter.
+function heistIsPvp(h: text) :: boolean:
+	if heistSetting({_h}, "pvp-only") is true:
+		return true
+	return false
+
+function heistEscape(h: text) :: timespan:
+	return heistSetting({_h}, "escape")
+
+function heistCooldown(h: text) :: timespan:
+	return heistSetting({_h}, "cooldown")
+
+function heistRun(h: text) :: number:
+	set {_r} to {heist::%{_h}%::run}
+	if {_r} is set:
+		return {_r}
+	return 0
+
+# Seconds to 0:00 while active, to reopening during cooldown; -1 otherwise.
+function heistSecondsLeft(h: text) :: number:
+	set {_u} to {-heist::%{_h}%::until}
+	if {_u} is not set:
+		return -1
+	if {_u} <= now:
+		return 0
+	return ceil((difference between now and {_u}) / 1 second)
+
+function heistRobbers(h: text) :: players:
+	return {-heist::%{_h}%::members::*}
+
+function heistRobberCount(h: text) :: number:
+	return size of {-heist::%{_h}%::members::*}
+
+function heistExit(h: text) :: location:
+	set {_l} to {heist::%{_h}%::exit}
+	if {_l} is set:
+		return {_l}
+	heistLog("no exit spot for %{_h}%: using the world spawn")
+	return spawn of world({heist::%{_h}%::world})
+
+function heistCenter(h: text) :: location:
+	return {heist::%{_h}%::center}
+
+function heistAlarmStage(h: text) :: text:
+	set {_a} to {-heist::%{_h}%::alarm}
+	if {_a} is set:
+		return {_a}
+	return "none"
+
+function heistWave(h: text) :: number:
+	set {_w} to {-heist::%{_h}%::wave}
+	if {_w} is set:
+		return {_w}
+	return 0
+
+function heistNextWaveIn(h: text) :: number:
+	set {_n} to {-heist::%{_h}%::next-wave}
+	if {_n} is not set:
+		return -1
+	if {_n} <= now:
+		return 0
+	return ceil((difference between now and {_n}) / 1 second)
+
+# The heist whose alarm hunts this player, or "".
+function heistHuntedBy(p: player) :: text:
+	set {_h} to {-heisthunt::%{_p}%}
+	if {_h} is set:
+		return {_h}
+	return ""
+
+# Builders (creative or spectator) are never robbers and never gated. Deliberately no permission: the
+# owner's LuckPerms "*" would grant it, and they couldn't playtest heists as a robber.
+function heistBuilder(p: player) :: boolean:
+	if gamemode of {_p} is creative:
+		return true
+	if gamemode of {_p} is spectator:
+		return true
+	return false
+
+# Heist crew: both robbing the same heist, and it isn't a PvP heist.
+function heistSameCrew(a: player, b: player) :: boolean:
+	set {_h} to heistOf({_a})
+	if {_h} is "":
+		return false
+	if heistOf({_b}) is not {_h}:
+		return false
+	if heistIsPvp({_h}) is true:
+		return false
+	return true
+
+function heistLog(text: text):
+	log {_text} to "heists"
+
+# ---------- The loop ----------
+
+on load:
+	heistIndexRegions()
+
+# {-heistregion::<region id>} = heist id, for every defined heist.
+function heistIndexRegions():
+	delete {-heistregion::*}
+	set {_prefix} to cfg("heist::region-prefix")
+	loop {heists::*}:
+		set {-heistregion::%{_prefix}%%loop-index%} to loop-index
+
+every second:
+	loop {heists::*}:
+		heistTick(loop-index)
+	loop all players:
+		heistReconcile(loop-player)
+
+# After a restart (or for a heist whose state is unknown): reset the room once, then open.
+function heistInit(h: text):
+	if {heist::%{_h}%::disabled} is true:
+		set {-heist::%{_h}%::state} to "disabled"
+		stop
+	set {-heist::%{_h}%::state} to "cooldown"
+	set {-heist::%{_h}%::until} to now
+	set {-heist::%{_h}%::reset-next} to 1
+	# A cooldown that was running before the restart keeps its reopen time.
+	set {_r} to {heist::%{_h}%::reopen}
+	if {_r} is set:
+		if {_r} > now:
+			set {-heist::%{_h}%::until} to {_r}
+
+function heistTick(h: text):
+	if {-heist::%{_h}%::state} is not set:
+		heistInit({_h})
+	set {_s} to {-heist::%{_h}%::state}
+	if {_s} is "active":
+		heistWarnings({_h})
+		if {-heist::%{_h}%::until} <= now:
+			heistEndRun({_h}, "time")
+	else if {_s} is "cooldown":
+		if {-heist::%{_h}%::reset-next} is set:
+			heistResetStep({_h})
+		else if {-heist::%{_h}%::until} <= now:
+			heistOpen({_h})
+	heistAlarmTick({_h})
+	heistRefreshText({_h})
+
+function heistOpen(h: text):
+	# The last run's chase ends here (robbers still hiding in range would otherwise hunt the new run).
+	heistEndAlarm({_h})
+	set {-heist::%{_h}%::state} to "open"
+	delete {-heist::%{_h}%::until}
+	delete {-heist::%{_h}%::warned::*}
+	set {_run} to heistRun({_h}) + 1
+	set {heist::%{_h}%::run} to {_run}
+	heistLog("open %{_h}% run=%{_run}%")
+	heistOnOpen({_h})
+
+# Starts the escape clock (first robbery, first entry with start-on "enter", or an alarm).
+function heistStartRun(h: text):
+	heistState({_h}) is "open"
+	set {_e} to heistEscape({_h})
+	set {-heist::%{_h}%::state} to "active"
+	set {-heist::%{_h}%::until} to now
+	add {_e} to {-heist::%{_h}%::until}
+	# Warnings longer than the whole run would all fire at once: mark them as sent.
+	set {_secs} to {_e} / 1 second
+	loop {-cfg::heist::warn-at::*}:
+		loop-value >= {_secs}
+		set {-heist::%{_h}%::warned::%loop-value%} to true
+	set {_name} to heistName({_h})
+	set {_clock} to formatClock({_secs})
+	heistLog("start %{_h}% run=%heistRun({_h})% escape=%{_secs}%")
+	loop heistRobbers({_h}):
+		heistNotify(loop-value, "start", "&eThe clock is running: &f%{_clock}% &eto get out of the %{_name}%.")
+	if cfg("heist::announce-start") is true:
+		broadcastMsg("&6The %{_name}% is being robbed! &7%{_clock}% to get out.")
+	heistOnStart({_h})
+
+# Ends an active run: "time" (0:00 or /dheist end: stragglers lose that heist's loot) or "staff".
+function heistEndRun(h: text, reason: text):
+	heistState({_h}) is "active"
+	# Cooldown first, so the gates refuse from this moment on.
+	set {-heist::%{_h}%::state} to "cooldown"
+	set {-heist::%{_h}%::until} to now
+	add heistCooldown({_h}) to {-heist::%{_h}%::until}
+	# Saved, so a restart or Minehut sleep can't skip the cooldown.
+	set {heist::%{_h}%::reopen} to {-heist::%{_h}%::until}
+	set {-heist::%{_h}%::reset-next} to 1
+	set {_m::*} to heistRobbers({_h})
+	loop {_m::*}:
+		heistEvict(loop-value, {_h}, {_reason})
+	heistLog("end %{_h}% run=%heistRun({_h})% reason=%{_reason}%")
+	heistOnEnd({_h}, {_reason})
+
+function heistWarnings(h: text):
+	set {_left} to heistSecondsLeft({_h})
+	loop {-cfg::heist::warn-at::*}:
+		{_left} <= loop-value
+		{-heist::%{_h}%::warned::%loop-value%} is not set
+		set {-heist::%{_h}%::warned::%loop-value%} to true
+		set {_clock} to formatClock({_left})
+		loop heistRobbers({_h}):
+			heistNotify(loop-value-2, "warn", "&c%{_clock}% left! Get out of the %heistName({_h})% or lose its loot.")
+
+# ---------- Being inside ----------
+
+on region enter:
+	set {_h} to {-heistregion::%name of the worldguard region%}
+	{_h} is set
+	player does not have metadata "NPC"
+	heistBuilder(player) is false
+	# Our own teleports (evictions): heistReconcile decides.
+	{-heistpass::%player%} is not set
+	set {_tp} to false
+	if the worldguard move type is teleport:
+		set {_tp} to true
+	set {_why} to heistEntryBlock(player, {_h}, {_tp})
+	if {_why} is not "":
+		# A walk: WorldGuard pushes the player back. A teleport: it's cancelled.
+		cancel event
+		send action bar "&c%{_why}%" to player
+		stop
+	wait 1 tick
+	player is online
+	heistReconcile(player)
+
+on region exit:
+	set {_h} to {-heistregion::%name of the worldguard region%}
+	{_h} is set
+	heistOf(player) is {_h}
+	{-heistpass::%player%} is not set
+	# No /spawn, /home, /tpa, staff /tp or plugin teleports out: robbers walk out past the traps.
+	if the worldguard move type is teleport:
+		cancel event
+		send action bar "&cYou can't teleport out of a heist. Walk out." to player
+		stop
+	wait 1 tick
+	player is online
+	heistReconcile(player)
+
+# "" when the player may enter now, otherwise why not.
+function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
+	set {_name} to heistName({_h})
+	if {_tp} is true:
+		return "You can't teleport into a heist. Walk in."
+	set {_s} to heistState({_h})
+	if {_s} is "cooldown":
+		set {_left} to heistSecondsLeft({_h})
+		if {_left} > 0:
+			return "The %{_name}% is closed. Opens in %formatClock({_left})%."
+		return "The %{_name}% is closed. It opens in a moment."
+	if {_s} is not "open":
+		if {_s} is not "active":
+			return "The %{_name}% is closed."
+	if {_s} is "active":
+		if heistSecondsLeft({_h}) < cfg("heist::entry-cutoff") / 1 second:
+			return "The %{_name}%'s doors are locked."
+	if heistIsPvp({_h}) is true:
+		if isPassive({_p}) is true:
+			return "The %{_name}% is a PvP heist. Turn passive mode off first (phone)."
+	if heistRankOk({_p}, {_h}) is not true:
+		return "You need robber rank %heistRank({_h})% for the %{_name}%."
+	return ""
+
+# Puts membership in line with where the player stands.
+function heistReconcile(p: player):
+	{_p} is alive
+	# Just joined: on their way to spawn (see "on join").
+	{-heistjoin::%{_p}%} is not set
+	set {_in} to heistOf({_p})
+	if heistBuilder({_p}) is true:
+		if {_in} is not "":
+			heistLeave({_p}, {_in}, "builder")
+		stop
+	set {_at} to heistAt(location of {_p})
+	if {_at} is {_in}:
+		stop
+	if {_in} is not "":
+		heistLeave({_p}, {_in}, "exit")
+	if {_at} is not "":
+		set {_why} to heistEntryBlock({_p}, {_at}, false)
+		if {_why} is "":
+			heistJoin({_p}, {_at})
+		else:
+			# Inside a heist they may not be in (it closed, a teleport slipped through): moved out, no loss.
+			heistTeleport({_p}, heistExit({_at}))
+			send action bar "&c%{_why}%" to {_p}
+
+function heistJoin(p: player, h: text):
+	set {-heistin::%{_p}%} to {_h}
+	set {_name} to heistName({_h})
+	# Started by this entry: before joining the member list, so this robber gets only the entry line
+	# below (with the time), not also heistStartRun's "the clock is running".
+	if heistState({_h}) is "open":
+		if cfg("heist::start-on") is "enter":
+			heistStartRun({_h})
+	set {-heist::%{_h}%::members::%{_p}%} to {_p}
+	if {-heist::%{_h}%::alarm} is set:
+		heistHunt({_p}, {_h})
+	applyWaypointReceive({_p})
+	if heistState({_h}) is "active":
+		set {_clock} to formatClock(heistSecondsLeft({_h}))
+		heistNotify({_p}, "enter", "&6You're in the %{_name}%. &7Get out before the clock runs out: &f%{_clock}%&7.")
+	else:
+		heistNotify({_p}, "enter", "&6You're in the %{_name}%. &7The clock starts at the first robbery.")
+	if heistIsPvp({_h}) is true:
+		heistNotify({_p}, "enter", "&cPvP heist: anyone in here can hurt you.")
+	else:
+		heistNotify({_p}, "enter", "&7Everyone robbing it is your crew: you can't hurt each other in here.")
+	set {_bag} to getData({_p}, "bag-tier")
+	if {_bag} is not set:
+		set {_bag} to 0
+	if {_bag} <= 0:
+		heistNotify({_p}, "enter", "&eYou have no bag, so you can't carry loot. Get one at a Bag Shop.")
+	heistLog("join %name of {_p}% %{_h}% run=%heistRun({_h})%")
+	heistOnEnter({_p}, {_h})
+
+# reason: "exit" (walked out), "time", "staff", "death", "quit", "kick", "builder".
+function heistLeave(p: player, h: text, reason: text):
+	delete {-heistin::%{_p}%}
+	delete {-heist::%{_h}%::members::%{_p}%}
+	if {_reason} is "exit":
+		applyWaypointReceive({_p})
+		heistNotify({_p}, "leave", "&aYou got out of the %heistName({_h})%.")
+	else if {_reason} is "time":
+		applyWaypointReceive({_p})
+	else if {_reason} is "staff":
+		applyWaypointReceive({_p})
+	else if {_reason} is "builder":
+		applyWaypointReceive({_p})
+	heistLog("leave %name of {_p}% %{_h}% reason=%{_reason}%")
+	heistOnLeave({_p}, {_h}, {_reason})
+
+# Moves a robber out to the heist's exit spot. "time": they lose that heist's loot.
+function heistEvict(p: player, h: text, reason: text):
+	heistLeave({_p}, {_h}, {_reason})
+	set {_name} to heistName({_h})
+	if {_reason} is "time":
+		set {_lost} to heistForfeit({_p}, {_h}, heistRun({_h}))
+		heistRelease({_p}, "failed")
+		if {_lost} > 0:
+			set {_money} to formatMoney({_lost})
+			heistNotify({_p}, "evict", "&c&lToo late! &cYou were thrown out of the %{_name}% and lost %{_money}% of loot.")
+		else:
+			heistNotify({_p}, "evict", "&c&lToo late! &cYou were thrown out of the %{_name}%.")
+	else:
+		heistRelease({_p}, "staff")
+		heistNotify({_p}, "evict", "&7You were moved out of the %{_name}%.")
+	heistTeleport({_p}, heistExit({_h}))
+	if heistAt(location of {_p}) is {_h}:
+		heistLog("evict-failed %name of {_p}% %{_h}%")
+
+# Our own teleports skip the gates (the region events see the pass flag). "force": a plain teleport
+# to an unloaded chunk finishes later, after the flag is gone (Skript 2.16.2).
+function heistTeleport(p: player, l: location):
+	set {-heistpass::%{_p}%} to true
+	force teleport {_p} to {_l}
+	delete {-heistpass::%{_p}%}
+
+# ---------- Deaths, logouts, joins, commands ----------
+
+# death.sk (priority high) has already read the heist through heistForDeath. No forfeit: the bag's
+# loot drops as a duffel (bag.sk).
+on death of player with priority monitor:
+	# Also outside: a hunted robber who walked out and died there leaves the hunt.
+	heistRelease(victim, "died")
+	set {_h} to heistOf(victim)
+	{_h} is not ""
+	heistLeave(victim, {_h}, "death")
+
+# Runs after combat-log.sk's quit kill (a combat log is a death, handled above).
+on quit with priority monitor:
+	delete {-heistpass::%player%}
+	delete {-heistjoin::%player%}
+	heistRelease(player, "quit")
+	set {_h} to heistOf(player)
+	{_h} is not ""
+	# Staff kicks cost nothing (core.sk's staffKicked). A self-inflicted kick (chat spam, a timed-out
+	# client) counts as a logout. A restart never gets here: Paper disables plugins first.
+	if staffKicked(player) is true:
+		setData(player, "heist-notice", "kick:%{_h}%")
+		heistLeave(player, {_h}, "kick")
+		stop
+	# Logging out inside counts as failing (owner, 2026-09-25).
+	set {_lost} to heistForfeit(player, {_h}, heistRun({_h}))
+	setData(player, "heist-notice", "quit:%{_h}%:%{_lost}%")
+	heistLeave(player, {_h}, "quit")
+
+# Rejoining after logging out inside a heist (or anyone joining inside one): sent to spawn (owner,
+# 2026-09-25). WorldGuard fires no enter event on join, so this handles it. Someone still carrying loot
+# (from another heist) lands at the heist's exit instead, so logging out can't carry loot home.
+on join:
+	set {_n} to getData(player, "heist-notice")
+	set {_at} to heistAt(location of player)
+	set {_send} to false
+	if {_n} is set:
+		set {_send} to true
+		set {_parts::*} to {_n} split at ":"
+		if {_at} is "":
+			set {_at} to {_parts::2}
+	else if {_at} is not "":
+		if heistBuilder(player) is false:
+			set {_send} to true
+	{_send} is true
+	set {-heistjoin::%player%} to true
+	set {_toExit} to false
+	if shopBagLoot(player) > 0:
+		if heistExists({_at}) is true:
+			set {_toExit} to true
+	if {_toExit} is true:
+		heistTeleport(player, heistExit({_at}))
+	else:
+		execute console command "essentialsspawn:spawn %name of player%"
+	if {_n} is set:
+		deleteData(player, "heist-notice")
+		set {_parts::*} to {_n} split at ":"
+		set {_name} to heistName({_parts::2})
+		if {_parts::1} is "quit":
+			set {_lost} to {_parts::3} parsed as number
+			if {_lost} > 0:
+				set {_money} to formatMoney({_lost})
+				msg(player, "&cYou logged out inside the %{_name}%, so you lost its loot (%{_money}%).")
+			else:
+				msg(player, "&cYou logged out inside the %{_name}%, so you lost its loot.")
+		else:
+			msg(player, "&7You were moved out of the %{_name}%.")
+	# EssentialsX teleports once the chunk is loaded; don't let the reconcile make them a member first.
+	wait 3 seconds
+	delete {-heistjoin::%player%}
+
+# A teleport inside the same region fires no region event: block the teleport commands there too.
+# (Combat-tagged players get combat-log.sk's message: it runs first and cancelled events stop there.)
+on command:
+	player is set
+	heistOf(player) is not ""
+	set {_parts::*} to command split at ":"
+	set {_cmd} to last element of {_parts::*} in lower case
+	{-cfg::combat::blocked-commands::*} contains {_cmd}
+	cancel event
+	msg(player, "&cYou can't use /%{_cmd}% inside a heist. Walk out first.")
+
+# Heist crew: robbers in the same heist can't hurt each other (not in PvP heists).
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	heistSameCrew(attacker, victim) is true
+	cancel event
+	send action bar "&eThey're in your heist crew: you can't hurt them in here." to attacker
+
+# ---------- Alarm (advanced heists) ----------
+
+# traps.sk, loot.sk or staff. True when it tripped. An open heist starts its clock.
+function heistTripAlarm(h: text, source: text) :: boolean:
+	if heistIsAdvanced({_h}) is not true:
+		return false
+	if {-heist::%{_h}%::alarm} is set:
+		return false
+	if heistState({_h}) is "open":
+		heistStartRun({_h})
+	if heistState({_h}) is not "active":
+		return false
+	set {-heist::%{_h}%::alarm} to "warning"
+	set {-heist::%{_h}%::alarm-at} to now
+	set {-heist::%{_h}%::wave} to 0
+	set {-heist::%{_h}%::next-wave} to now
+	add cfg("alarm::warning") to {-heist::%{_h}%::next-wave}
+	set {_m::*} to heistRobbers({_h})
+	loop {_m::*}:
+		heistHunt(loop-value, {_h})
+	heistLockdown({_h})
+	set {_name} to heistName({_h})
+	set {_warn} to cfg("alarm::warning") / 1 second
+	broadcastMsg("&4Alarm at the %{_name}%! &7Cops in %{_warn}%s.")
+	loop {_m::*}:
+		heistNotify(loop-value, "alarm", "&4&lALARM! &cCops in %{_warn}% seconds.")
+	heistLog("alarm %{_h}% source=%{_source}%")
+	heistOnAlarm({_h}, {_source})
+	return true
+
+function heistHunt(p: player, h: text):
+	set {_old} to heistHuntedBy({_p})
+	if {_old} is {_h}:
+		stop
+	if {_old} is not "":
+		heistRelease({_p}, "other")
+	set {-heisthunt::%{_p}%} to {_h}
+	set {-heist::%{_h}%::hunted::%{_p}%} to {_p}
+	heistOnHunt({_p}, {_h}, true)
+
+# reason: "range" (lost the cops), "failed", "died", "quit", "staff", "other".
+function heistRelease(p: player, reason: text):
+	set {_h} to heistHuntedBy({_p})
+	{_h} is not ""
+	delete {-heisthunt::%{_p}%}
+	delete {-heist::%{_h}%::hunted::%{_p}%}
+	if {_reason} is "range":
+		heistNotify({_p}, "lost-cops", "&aYou lost the cops.")
+	heistLog("release %name of {_p}% %{_h}% reason=%{_reason}%")
+	heistOnHunt({_p}, {_h}, false)
+	# The alarm ends once nobody is hunted any more (everyone died, failed, quit or got away).
+	if size of {-heist::%{_h}%::hunted::*} is 0:
+		heistEndAlarm({_h})
+
+function heistInRange(p: player, h: text) :: boolean:
+	set {_c} to heistCenter({_h})
+	if {_c} is not set:
+		return false
+	if world of {_p} is not world of {_c}:
+		return false
+	if distance between (location of {_p}) and {_c} <= cfg("alarm::chase-radius"):
+		return true
+	return false
+
+function heistAlarmTick(h: text):
+	{-heist::%{_h}%::alarm} is set
+	set {_list::*} to {-heist::%{_h}%::hunted::*}
+	loop {_list::*}:
+		if loop-value is not online:
+			delete {-heist::%{_h}%::hunted::%loop-index%}
+		else if heistInRange(loop-value, {_h}) is false:
+			heistRelease(loop-value, "range")
+	if size of {-heist::%{_h}%::hunted::*} is 0:
+		heistEndAlarm({_h})
+		stop
+	{-heist::%{_h}%::next-wave} <= now
+	set {-heist::%{_h}%::alarm} to "waves"
+	add 1 to {-heist::%{_h}%::wave}
+	# On a fixed beat from the alarm: wave n is due at warning + (n - 1) × interval.
+	add cfg("alarm::wave-interval") to {-heist::%{_h}%::next-wave}
+	heistLog("wave %{_h}% %{-heist::%{_h}%::wave}%")
+	heistOnWave({_h}, {-heist::%{_h}%::wave})
+
+function heistEndAlarm(h: text):
+	{-heist::%{_h}%::alarm} is set
+	# The alarm goes first, so heistRelease below doesn't end it a second time.
+	delete {-heist::%{_h}%::alarm}
+	delete {-heist::%{_h}%::alarm-at}
+	delete {-heist::%{_h}%::wave}
+	delete {-heist::%{_h}%::next-wave}
+	set {_list::*} to {-heist::%{_h}%::hunted::*}
+	loop {_list::*}:
+		heistRelease(loop-value, "other")
+	delete {-heist::%{_h}%::hunted::*}
+	heistLog("alarm-end %{_h}%")
+	heistOnAlarmEnd({_h})
+
+# Alarm lockdown: every box of /dheist lock is filled with its block (bars over windows, shutters).
+# The next room reset puts the room back as it was saved.
+function heistLockdown(h: text):
+	set {_w} to world({heist::%{_h}%::world})
+	loop {heist::%{_h}%::lock::*}:
+		set {_p::*} to loop-value split at " "
+		set {_a} to location(({_p::1} parsed as number), ({_p::2} parsed as number), ({_p::3} parsed as number), {_w})
+		set {_b} to location(({_p::4} parsed as number), ({_p::5} parsed as number), ({_p::6} parsed as number), {_w})
+		set {_t} to {_p::7} parsed as item type
+		if {_t} is set:
+			set blocks within {_a} and {_b} to {_t}
+		else:
+			heistLog("lockdown %{_h}%: unknown block %{_p::7}%")
+
+# ---------- Room resets (SkBee structures) ----------
+
+# Anyone who isn't a builder standing in the heist region (they block the reset; the reconcile moves
+# them out).
+function heistStandingInside(h: text) :: number:
+	set {_n} to 0
+	loop all players:
+		loop-player is alive
+		heistBuilder(loop-player) is false
+		loop-player does not have metadata "NPC"
+		heistAt(location of loop-player) is {_h}
+		add 1 to {_n}
+	return {_n}
+
+# One section per second during cooldown. Blocks come back exactly as saved, without block updates, so
+# traps aren't re-triggered. Structure-void blocks in the saved room are never touched.
+function heistResetStep(h: text):
+	set {_n} to {-heist::%{_h}%::reset-next}
+	set {_count} to {heist::%{_h}%::sections}
+	if {_count} is not set:
+		delete {-heist::%{_h}%::reset-next}
+		stop
+	if heistStandingInside({_h}) > 0:
+		stop
+	set {_key} to "donating:heist/%{_h}%/%{_n}%"
+	if structure template {_key} does not exist:
+		# Fail closed: a missing file would place nothing and reopen a looted room.
+		heistLog("reset %{_h}%: structure %{_key}% is missing, heist disabled")
+		send "[Donating] heists: structure %{_key}% is missing: %{_h}% disabled" to console
+		set {heist::%{_h}%::disabled} to true
+		set {-heist::%{_h}%::state} to "disabled"
+		delete {-heist::%{_h}%::reset-next}
+		stop
+	set {_s} to structure template with id {_key}
+	# Every time: SkBee's cache lookup turns entities back on (see CLAUDE.md, heists).
+	set structure include entities of {_s} to false
+	place structure template {_s} at {heist::%{_h}%::section::%{_n}%}
+	if {_n} >= {_count}:
+		delete {-heist::%{_h}%::reset-next}
+		heistLog("reset %{_h}% sections=%{_count}%")
+		heistOnReset({_h})
+	else:
+		set {-heist::%{_h}%::reset-next} to {_n} + 1
+
+# Saves the room: the region's box, cut into sections of at most cfg heist::reset-section per side.
+function heistSnapshot(h: text) :: text:
+	set {_w} to world({heist::%{_h}%::world})
+	set {_prefix} to cfg("heist::region-prefix")
+	set {_r} to the region "%{_prefix}%%{_h}%" in {_w}
+	if {_r} is not set:
+		return "no region"
+	set {_min} to min point of {_r}
+	set {_max} to max point of {_r}
+	set {_ax} to x-coordinate of {_min}
+	set {_ay} to y-coordinate of {_min}
+	set {_az} to z-coordinate of {_min}
+	set {_bx} to x-coordinate of {_max}
+	set {_by} to y-coordinate of {_max}
+	set {_bz} to z-coordinate of {_max}
+	set {_dx} to {_bx} - {_ax} + 1
+	set {_dy} to {_by} - {_ay} + 1
+	set {_dz} to {_bz} - {_az} + 1
+	set {_v} to {_dx} * {_dy} * {_dz}
+	set {_max} to cfg("heist::snapshot-max")
+	if {_v} > {_max}:
+		return "too big: %{_v}% blocks (max %{_max}%)"
+	set {_size} to cfg("heist::reset-section")
+	# Old sections go first (a smaller room leaves none behind).
+	set {_old} to {heist::%{_h}%::sections}
+	if {_old} is set:
+		loop {_old} times:
+			set {_k} to "donating:heist/%{_h}%/%loop-number%"
+			if structure template {_k} exists:
+				delete structure (structure template with id {_k})
+	delete {heist::%{_h}%::section::*}
+	set {_n} to 0
+	set {_x0} to {_ax}
+	while {_x0} <= {_bx}:
+		set {_y0} to {_ay}
+		while {_y0} <= {_by}:
+			set {_z0} to {_az}
+			while {_z0} <= {_bz}:
+				add 1 to {_n}
+				set {_lo} to location({_x0}, {_y0}, {_z0}, {_w})
+				set {_hi} to location(min({_x0} + {_size} - 1, {_bx}), min({_y0} + {_size} - 1, {_by}), min({_z0} + {_size} - 1, {_bz}), {_w})
+				set {_s} to structure template with id "donating:heist/%{_h}%/%{_n}%"
+				fill structure template {_s} between {_lo} and {_hi}
+				save structure {_s}
+				set {heist::%{_h}%::section::%{_n}%} to {_lo}
+				add {_size} to {_z0}
+			add {_size} to {_y0}
+		add {_size} to {_x0}
+	set {heist::%{_h}%::sections} to {_n}
+	heistLog("snapshot %{_h}% sections=%{_n}% size=%{_dx}%x%{_dy}%x%{_dz}%")
+	return "%{_n}% sections, %{_dx}%x%{_dy}%x%{_dz}% = %{_v}% blocks"
+
+# ---------- Status text (holograms, /heists, placeholders) ----------
+
+function heistRefreshText(h: text):
+	set {_name} to heistName({_h})
+	set {_d} to heistDifficulty({_h})
+	set {_color} to cfg("difficulty::%{_d}%::color")
+	set {-heist::%{_h}%::title} to "%{_color}%&l%{_name}%"
+	set {_s} to heistState({_h})
+	if {_s} is "open":
+		if cfg("heist::start-on") is "enter":
+			set {_status} to "&aOPEN &7· walk in to start"
+		else:
+			set {_status} to "&aOPEN &7· the clock starts at the first robbery"
+		set {_n} to heistRobberCount({_h})
+		if {_n} > 0:
+			set {_status} to "&aOPEN &7· %{_n}% inside"
+	else if {_s} is "active":
+		set {_clock} to formatClock(heistSecondsLeft({_h}))
+		if {-heist::%{_h}%::alarm} is set:
+			set {_status} to "&4&lALARM &f%{_clock}% &7· wave %heistWave({_h})%"
+		else:
+			set {_status} to "&eBEING ROBBED &f%{_clock}% &7· %heistRobberCount({_h})% inside"
+	else if {_s} is "cooldown":
+		set {_left} to heistSecondsLeft({_h})
+		if {_left} > 0:
+			set {_status} to "&cCLOSED &7· opens in &f%formatClock({_left})%"
+		else:
+			set {_status} to "&7Resetting..."
+	else:
+		set {_status} to "&8CLOSED"
+	set {-heist::%{_h}%::status} to {_status}
+	set {_dname} to cfg("difficulty::%{_d}%::name")
+	set {_info} to "%{_color}%%{_dname}%"
+	set {_r} to heistRank({_h})
+	if {_r} > 0:
+		set {_info} to "%{_info}% &7· Rank %{_r}%+"
+	if heistIsPvp({_h}) is true:
+		set {_info} to "%{_info}% &7· &cPvP"
+	if heistIsAdvanced({_h}) is true:
+		set {_info} to "%{_info}% &7· &4Alarm"
+	set {-heist::%{_h}%::info} to {_info}
+
+# DecentHolograms and TAB ask from other threads: this only reads memory.
+placeholderapi placeholder with the prefix "donating":
+	set {_i} to the placeholder identifier
+	if {_i} is "in_heist":
+		set the placeholder result to "no"
+		if player is set:
+			if {-heistin::%player%} is set:
+				set the placeholder result to "yes"
+	else if {_i} is "heist_name":
+		set the placeholder result to ""
+		if player is set:
+			set {_h} to {-heistin::%player%}
+			if {_h} is set:
+				set the placeholder result to heistName({_h})
+	else if {_i} starts with "heist_status_":
+		set {_h} to subtext of {_i} from characters 14 to (length of {_i})
+		set the placeholder result to {-heist::%{_h}%::status}
+	else if {_i} starts with "heist_info_":
+		set {_h} to subtext of {_i} from characters 12 to (length of {_i})
+		set the placeholder result to {-heist::%{_h}%::info}
+	else if {_i} starts with "heist_title_":
+		set {_h} to subtext of {_i} from characters 13 to (length of {_i})
+		set the placeholder result to {-heist::%{_h}%::title}
+
+command /heists:
+	trigger:
+		msg(player, "&6Heists:")
+		set {_any} to false
+		loop {heists::*}:
+			heistState(loop-index) is not "disabled"
+			heistState(loop-index) is not ""
+			set {_any} to true
+			send colored "&8 » %{-heist::%loop-index%::title}% &8- %{-heist::%loop-index%::status}% &8- %{-heist::%loop-index%::info}%" to player
+		if {_any} is false:
+			send colored "&7 None open yet." to player
+
+# ---------- Staff: /dheist ----------
+
+command /dheist [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		set {_h} to {_a::2}
+		if {_sub} is not set:
+			dheistReply(sender, "HEIST usage: /dheist create|set|exit|snapshot|holo|lock|enable|disable|open|end|reset|alarm|kick|info|list|dump|delete ...")
+			stop
+		if {_sub} is "list":
+			loop {heists::*}:
+				dheistReply(sender, "HEIST %loop-index% state=%heistState(loop-index)% run=%heistRun(loop-index)% left=%heistSecondsLeft(loop-index)% inside=%heistRobberCount(loop-index)%")
+			stop
+		if {_sub} is "kick":
+			set {_p} to {_h} parsed as player
+			if {_p} is not set:
+				dheistReply(sender, "HEIST kick: no player %{_h}%")
+				stop
+			set {_in} to heistOf({_p})
+			if {_in} is "":
+				dheistReply(sender, "HEIST kick: %{_h}% isn't in a heist")
+				stop
+			heistEvict({_p}, {_in}, "staff")
+			dheistReply(sender, "HEIST %{_in}% kicked %{_h}%")
+			stop
+		if {_h} is not set:
+			dheistReply(sender, "HEIST usage: /dheist %{_sub}% <id> ...")
+			stop
+		if {_sub} is "create":
+			set {_d} to {_a::3}
+			if {_d} is not set:
+				set {_d} to "1"
+			dheistCreate(sender, {_h}, {_d})
+			stop
+		if heistExists({_h}) is false:
+			dheistReply(sender, "HEIST %{_h}% unknown (make it with /dheist create %{_h}%)")
+			stop
+		if {_sub} is "set":
+			dheistSet(sender, {_h}, {_a::*})
+		else if {_sub} is "exit":
+			dheistExit(sender, {_h}, {_a::*})
+		else if {_sub} is "snapshot":
+			if heistState({_h}) is not "disabled":
+				dheistReply(sender, "HEIST %{_h}% snapshot: disable it first (the room must be clean and empty)")
+				stop
+			dheistReply(sender, "HEIST %{_h}% snapshot %heistSnapshot({_h})%")
+		else if {_sub} is "holo":
+			dheistHolo(sender, {_h}, {_a::*})
+		else if {_sub} is "lock":
+			dheistLock(sender, {_h}, {_a::*})
+		else if {_sub} is "enable":
+			if heistState({_h}) is not "disabled":
+				dheistReply(sender, "HEIST %{_h}% enable: already enabled (use reset, open or end; or disable first)")
+				stop
+			if {heist::%{_h}%::exit} is not set:
+				dheistReply(sender, "HEIST %{_h}% enable: set the exit spot first (/dheist exit %{_h}%)")
+				stop
+			if structure template "donating:heist/%{_h}%/1" does not exist:
+				dheistReply(sender, "HEIST %{_h}% enable: save the room first (/dheist snapshot %{_h}%)")
+				stop
+			delete {heist::%{_h}%::disabled}
+			delete {heist::%{_h}%::reopen}
+			delete {-heist::%{_h}%::state}
+			heistInit({_h})
+			heistLog("enable %{_h}%")
+			dheistReply(sender, "HEIST %{_h}% enabled: resetting, then open")
+		else if {_sub} is "disable":
+			heistClose({_h})
+			set {heist::%{_h}%::disabled} to true
+			set {-heist::%{_h}%::state} to "disabled"
+			delete {-heist::%{_h}%::until}
+			delete {-heist::%{_h}%::reset-next}
+			delete {heist::%{_h}%::reopen}
+			heistLog("disable %{_h}%")
+			dheistReply(sender, "HEIST %{_h}% disabled")
+		else if {_sub} is "open":
+			if heistState({_h}) is not "cooldown":
+				dheistReply(sender, "HEIST %{_h}% open: only during the cooldown")
+				stop
+			set {-heist::%{_h}%::until} to now
+			delete {heist::%{_h}%::reopen}
+			dheistReply(sender, "HEIST %{_h}% opens once the reset is done")
+		else if {_sub} is "end":
+			if heistState({_h}) is not "active":
+				dheistReply(sender, "HEIST %{_h}% end: not running")
+				stop
+			heistEndRun({_h}, "time")
+			dheistReply(sender, "HEIST %{_h}% ended")
+		else if {_sub} is "start":
+			if heistState({_h}) is not "open":
+				dheistReply(sender, "HEIST %{_h}% start: not open")
+				stop
+			heistStartRun({_h})
+			dheistReply(sender, "HEIST %{_h}% started")
+		else if {_sub} is "reset":
+			if heistState({_h}) is "active":
+				dheistReply(sender, "HEIST %{_h}% reset: not while it's running")
+				stop
+			if heistRobberCount({_h}) > 0:
+				dheistReply(sender, "HEIST %{_h}% reset: robbers are inside")
+				stop
+			if heistState({_h}) is "open":
+				set {-heist::%{_h}%::state} to "cooldown"
+				set {-heist::%{_h}%::until} to now
+			if heistState({_h}) is not "cooldown":
+				dheistReply(sender, "HEIST %{_h}% reset: only while open or closed for its cooldown")
+				stop
+			set {-heist::%{_h}%::reset-next} to 1
+			dheistReply(sender, "HEIST %{_h}% resetting")
+		else if {_sub} is "alarm":
+			if heistIsAdvanced({_h}) is not true:
+				dheistReply(sender, "HEIST %{_h}% alarm: not an advanced heist")
+				stop
+			if {-heist::%{_h}%::alarm} is set:
+				dheistReply(sender, "HEIST %{_h}% alarm: already running")
+				stop
+			if heistTripAlarm({_h}, "staff") is true:
+				dheistReply(sender, "HEIST %{_h}% alarm")
+			else:
+				dheistReply(sender, "HEIST %{_h}% alarm: not open or running")
+		else if {_sub} is "info":
+			dheistInfo(sender, {_h})
+		else if {_sub} is "dump":
+			dheistDump(sender, {_h})
+		else if {_sub} is "delete":
+			if {_a::3} is not "confirm":
+				dheistReply(sender, "HEIST %{_h}% delete: add 'confirm' (removes its settings, snapshot and hologram)")
+				stop
+			if heistRobberCount({_h}) > 0:
+				dheistReply(sender, "HEIST %{_h}% delete: robbers are inside")
+				stop
+			dheistDelete(sender, {_h})
+		else:
+			dheistReply(sender, "HEIST %{_h}% unknown subcommand %{_sub}%")
+
+function dheistReply(s: command sender, text: text):
+	send colored "&7%{_text}%" to {_s}
+	heistLog("staff %{_s}%: %{_text}%")
+
+# Evicts every robber without loss (staff).
+function heistClose(h: text):
+	heistEndAlarm({_h})
+	set {_m::*} to heistRobbers({_h})
+	loop {_m::*}:
+		heistEvict(loop-value, {_h}, "staff")
+
+function dheistCreate(s: command sender, h: text, d: text):
+	if {_h} does not match "[a-z0-9]{1,16}":
+		dheistReply({_s}, "HEIST %{_h}% create: ids are 1-16 lowercase letters and digits")
+		stop
+	if heistExists({_h}) is true:
+		dheistReply({_s}, "HEIST %{_h}% create: already exists")
+		stop
+	set {_diff} to {_d} parsed as integer
+	if {_diff} is not set:
+		set {_diff} to 1
+	if {_diff} < 1:
+		set {_diff} to 1
+	if {_diff} > 4:
+		set {_diff} to 4
+	set {_wn} to "world"
+	if {_s} is a player:
+		set {_pl} to {_s}
+		set {_wn} to name of world of {_pl}
+	set {_w} to world({_wn})
+	set {_prefix} to cfg("heist::region-prefix")
+	set {_rid} to "%{_prefix}%%{_h}%"
+	set {_r} to the region {_rid} in {_w}
+	if {_r} is not set:
+		dheistReply({_s}, "HEIST %{_h}% create: no region %{_rid}% in %{_wn}% (make it with WorldEdit + /rg define %{_rid}%)")
+		stop
+	set {_min} to min point of {_r}
+	set {_max} to max point of {_r}
+	set {_cx} to (x-coordinate of {_min} + x-coordinate of {_max}) / 2
+	set {_cy} to (y-coordinate of {_min} + y-coordinate of {_max}) / 2
+	set {_cz} to (z-coordinate of {_min} + z-coordinate of {_max}) / 2
+	set {heists::%{_h}%} to true
+	set {heist::%{_h}%::name} to {_h}
+	set {heist::%{_h}%::difficulty} to {_diff}
+	set {heist::%{_h}%::world} to {_wn}
+	set {heist::%{_h}%::center} to location({_cx}, {_cy}, {_cz}, {_w})
+	set {heist::%{_h}%::disabled} to true
+	set {-heist::%{_h}%::state} to "disabled"
+	# Every Donating region lets Skript own the rules; heists are also immune to explosives.
+	execute console command "rg flag -w %{_wn}% %{_rid}% passthrough allow"
+	execute console command "rg flag -w %{_wn}% %{_rid}% tnt deny"
+	execute console command "rg flag -w %{_wn}% %{_rid}% creeper-explosion deny"
+	execute console command "rg flag -w %{_wn}% %{_rid}% other-explosion deny"
+	heistIndexRegions()
+	if isSafeZone(heistCenter({_h})) is true:
+		dheistReply({_s}, "HEIST %{_h}% warning: its middle is in a safe zone")
+	dheistReply({_s}, "HEIST %{_h}% created (difficulty %{_diff}%, disabled). Next: exit, snapshot, holo, enable")
+
+function dheistSet(s: command sender, h: text, a: texts):
+	set {_key} to {_a::3}
+	set {_val} to {_a::4}
+	if {_val} is not set:
+		dheistReply({_s}, "HEIST %{_h}% set: name|difficulty|escape|cooldown|pool|rank|advanced|pvp <value|default>")
+		stop
+	if {_key} is "name":
+		set {_words::*} to {_a::*}
+		delete {_words::1}
+		delete {_words::2}
+		delete {_words::3}
+		set {_name} to join {_words::*} with " "
+		replace all "%%" with "" in {_name}
+		set {heist::%{_h}%::name} to {_name}
+		dheistReply({_s}, "HEIST %{_h}% name = %{_name}%")
+		stop
+	if {_key} is "difficulty":
+		set {_d} to {_val} parsed as integer
+		if {_d} is not set:
+			dheistReply({_s}, "HEIST %{_h}% set difficulty: 1-4")
+			stop
+		if {_d} < 1:
+			dheistReply({_s}, "HEIST %{_h}% set difficulty: 1-4")
+			stop
+		if {_d} > 4:
+			dheistReply({_s}, "HEIST %{_h}% set difficulty: 1-4")
+			stop
+		set {heist::%{_h}%::difficulty} to {_d}
+		dheistReply({_s}, "HEIST %{_h}% difficulty = %{_d}%")
+		stop
+	set {_store} to ""
+	if {_key} is "escape":
+		set {_store} to "escape"
+	else if {_key} is "cooldown":
+		set {_store} to "cooldown"
+	else if {_key} is "pool":
+		set {_store} to "loot-pool"
+	else if {_key} is "rank":
+		set {_store} to "rank"
+	else if {_key} is "advanced":
+		set {_store} to "advanced"
+	else if {_key} is "pvp":
+		set {_store} to "pvp-only"
+	if {_store} is "":
+		dheistReply({_s}, "HEIST %{_h}% set: unknown setting %{_key}%")
+		stop
+	if {_val} is "default":
+		delete {heist::%{_h}%::%{_store}%}
+		dheistReply({_s}, "HEIST %{_h}% %{_key}% = default (%heistSetting({_h}, {_store})%)")
+		stop
+	if {_store} is "advanced":
+		set {_b} to false
+		if {_val} is "true":
+			set {_b} to true
+		set {heist::%{_h}%::advanced} to {_b}
+	else if {_store} is "pvp-only":
+		set {_b} to false
+		if {_val} is "true":
+			set {_b} to true
+		set {heist::%{_h}%::pvp-only} to {_b}
+	else:
+		set {_n} to {_val} parsed as number
+		if {_n} is not set:
+			dheistReply({_s}, "HEIST %{_h}% set %{_key}%: a number")
+			stop
+		if {_n} < 0:
+			dheistReply({_s}, "HEIST %{_h}% set %{_key}%: 0 or more")
+			stop
+		if {_store} is "escape":
+			set {heist::%{_h}%::escape} to 1 second * {_n}
+		else if {_store} is "cooldown":
+			set {heist::%{_h}%::cooldown} to 1 second * {_n}
+		else:
+			set {heist::%{_h}%::%{_store}%} to {_n}
+	dheistReply({_s}, "HEIST %{_h}% %{_key}% = %heistSetting({_h}, {_store})%")
+
+# The spot evicted robbers land on: never inside a heist or a safe zone (a safe zone cancels the
+# teleport for tagged robbers, who would then stay inside).
+function dheistExit(s: command sender, h: text, a: texts):
+	set {_w} to world({heist::%{_h}%::world})
+	if {_a::5} is set:
+		set {_l} to location(({_a::3} parsed as number), ({_a::4} parsed as number), ({_a::5} parsed as number), {_w})
+		if {_a::6} is set:
+			set yaw of {_l} to ({_a::6} parsed as number)
+	else if {_s} is a player:
+		set {_pl} to {_s}
+		set {_l} to location of {_pl}
+	if {_l} is not set:
+		dheistReply({_s}, "HEIST %{_h}% exit: stand on the spot, or give x y z [yaw]")
+		stop
+	if heistAt({_l}) is not "":
+		dheistReply({_s}, "HEIST %{_h}% exit: refused, that spot is inside a heist")
+		stop
+	if isSafeZone({_l}) is true:
+		dheistReply({_s}, "HEIST %{_h}% exit: refused, that spot is in a safe zone")
+		stop
+	set {heist::%{_h}%::exit} to {_l}
+	dheistReply({_s}, "HEIST %{_h}% exit set")
+
+# A DecentHolograms hologram whose lines are this script's placeholders (never updated by command:
+# DecentHolograms writes its file on every line change).
+function dheistHolo(s: command sender, h: text, a: texts):
+	set {_hn} to "donating_heist_%{_h}%"
+	execute console command "dh hologram delete %{_hn}%"
+	if {_a::3} is "remove":
+		delete {heist::%{_h}%::holo}
+		dheistReply({_s}, "HEIST %{_h}% hologram removed")
+		stop
+	set {_w} to world({heist::%{_h}%::world})
+	if {_a::5} is set:
+		set {_l} to location(({_a::3} parsed as number), ({_a::4} parsed as number), ({_a::5} parsed as number), {_w})
+	else if {_s} is a player:
+		set {_pl} to {_s}
+		set {_l} to location of {_pl}
+		add cfg("heist::holo-height") to y-coordinate of {_l}
+	if {_l} is not set:
+		dheistReply({_s}, "HEIST %{_h}% holo: stand on the spot, or give x y z")
+		stop
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_x} to round({_x} * 10) / 10
+	set {_y} to round({_y} * 10) / 10
+	set {_z} to round({_z} * 10) / 10
+	set {_wn} to {heist::%{_h}%::world}
+	execute console command "dh hologram create %{_hn}% -l:%{_wn}%:%{_x}%:%{_y}%:%{_z}% %%donating_heist_title_%{_h}%%%"
+	execute console command "dh line add %{_hn}% 1 %%donating_heist_status_%{_h}%%%"
+	execute console command "dh line add %{_hn}% 1 %%donating_heist_info_%{_h}%%%"
+	set {heist::%{_h}%::holo} to location({_x}, {_y}, {_z}, {_w})
+	dheistReply({_s}, "HEIST %{_h}% hologram at %{_x}% %{_y}% %{_z}%")
+
+# Alarm lockdown boxes: /dheist lock <id> add <x1> <y1> <z1> <x2> <y2> <z2> [block] | list | clear | test
+# Both corners must be inside the heist, so the room reset puts the windows back.
+function dheistLock(s: command sender, h: text, a: texts):
+	set {_op} to {_a::3}
+	if {_op} is "list":
+		set {_n} to 0
+		loop {heist::%{_h}%::lock::*}:
+			add 1 to {_n}
+			dheistReply({_s}, "HEIST %{_h}% lock %loop-index%: %loop-value%")
+		dheistReply({_s}, "HEIST %{_h}% lock boxes: %{_n}%")
+		stop
+	if {_op} is "clear":
+		delete {heist::%{_h}%::lock::*}
+		dheistReply({_s}, "HEIST %{_h}% lock boxes cleared")
+		stop
+	if {_op} is "test":
+		heistLockdown({_h})
+		dheistReply({_s}, "HEIST %{_h}% lockdown placed (the next reset takes it away)")
+		stop
+	if {_op} is not "add":
+		dheistReply({_s}, "HEIST %{_h}% lock: add <x1> <y1> <z1> <x2> <y2> <z2> [block] | list | clear | test")
+		stop
+	if {_a::9} is not set:
+		dheistReply({_s}, "HEIST %{_h}% lock add: <x1> <y1> <z1> <x2> <y2> <z2> [block]")
+		stop
+	set {_w} to world({heist::%{_h}%::world})
+	loop integers from 4 to 9:
+		set {_c::%loop-value%} to floor({_a::%loop-value%} parsed as number)
+	set {_la} to location({_c::4}, {_c::5}, {_c::6}, {_w})
+	set {_lb} to location({_c::7}, {_c::8}, {_c::9}, {_w})
+	if heistAt({_la}) is not {_h}:
+		dheistReply({_s}, "HEIST %{_h}% lock add: refused, the first corner is outside the heist")
+		stop
+	if heistAt({_lb}) is not {_h}:
+		dheistReply({_s}, "HEIST %{_h}% lock add: refused, the second corner is outside the heist")
+		stop
+	set {_block} to "iron_bars"
+	if {_a::10} is set:
+		set {_block} to {_a::10}
+	if ({_block} parsed as item type) is not set:
+		dheistReply({_s}, "HEIST %{_h}% lock add: unknown block %{_block}%")
+		stop
+	add "%{_c::4}% %{_c::5}% %{_c::6}% %{_c::7}% %{_c::8}% %{_c::9}% %{_block}%" to {heist::%{_h}%::lock::*}
+	dheistReply({_s}, "HEIST %{_h}% lock box added: %{_c::4}% %{_c::5}% %{_c::6}% to %{_c::7}% %{_c::8}% %{_c::9}% (%{_block}%)")
+
+function dheistInfo(s: command sender, h: text):
+	set {_d} to heistDifficulty({_h})
+	set {_esc} to formatClock(heistEscape({_h}) / 1 second)
+	set {_cool} to formatClock(heistCooldown({_h}) / 1 second)
+	set {_pool} to formatMoney(heistLootPool({_h}))
+	set {_snap} to "no"
+	if {heist::%{_h}%::sections} is set:
+		set {_snap} to "%{heist::%{_h}%::sections}% sections"
+	set {_holo} to "no"
+	if {heist::%{_h}%::holo} is set:
+		set {_holo} to "yes"
+	set {_exit} to "no"
+	if {heist::%{_h}%::exit} is set:
+		set {_exit} to "yes"
+	dheistReply({_s}, "HEIST %{_h}% name=%heistName({_h})% difficulty=%{_d}% escape=%{_esc}% cooldown=%{_cool}% pool=%{_pool}% rank=%heistRank({_h})% advanced=%heistIsAdvanced({_h})% pvp=%heistIsPvp({_h})%")
+	set {_locks} to size of {heist::%{_h}%::lock::*}
+	dheistReply({_s}, "HEIST %{_h}% state=%heistState({_h})% run=%heistRun({_h})% left=%heistSecondsLeft({_h})% inside=%heistRobberCount({_h})% alarm=%heistAlarmStage({_h})% exit=%{_exit}% snapshot=%{_snap}% holo=%{_holo}% locks=%{_locks}%")
+
+# The commands that recreate this heist on another server (Minehut): regions, the world and the
+# DecentHolograms file travel with the world; run these after /rg define.
+function dheistDump(s: command sender, h: text):
+	set {_l::*} to "dheist create %{_h}% %heistDifficulty({_h})%" and "dheist set %{_h}% name %heistName({_h})%"
+	loop "escape", "cooldown", "loot-pool", "rank", "advanced" and "pvp-only":
+		{heist::%{_h}%::%loop-value%} is set
+		set {_v} to {heist::%{_h}%::%loop-value%}
+		set {_k} to loop-value
+		if {_k} is "loot-pool":
+			set {_k} to "pool"
+		else if {_k} is "pvp-only":
+			set {_k} to "pvp"
+		if {_k} is "escape":
+			set {_v} to {_v} / 1 second
+		else if {_k} is "cooldown":
+			set {_v} to {_v} / 1 second
+		add "dheist set %{_h}% %{_k}% %{_v}%" to {_l::*}
+	set {_e} to {heist::%{_h}%::exit}
+	if {_e} is set:
+		add "dheist exit %{_h}% %x-coordinate of {_e}% %y-coordinate of {_e}% %z-coordinate of {_e}% %yaw of {_e}%" to {_l::*}
+	set {_o} to {heist::%{_h}%::holo}
+	if {_o} is set:
+		add "dheist holo %{_h}% %x-coordinate of {_o}% %y-coordinate of {_o}% %z-coordinate of {_o}%" to {_l::*}
+	loop {heist::%{_h}%::lock::*}:
+		set {_parts::*} to loop-value split at " "
+		add "dheist lock %{_h}% add %loop-value%" to {_l::*}
+	add "dheist snapshot %{_h}%" and "dheist enable %{_h}%" to {_l::*}
+	loop {_l::*}:
+		dheistReply({_s}, loop-value)
+
+function dheistDelete(s: command sender, h: text):
+	heistClose({_h})
+	execute console command "dh hologram delete donating_heist_%{_h}%"
+	set {_n} to {heist::%{_h}%::sections}
+	if {_n} is set:
+		loop {_n} times:
+			set {_k} to "donating:heist/%{_h}%/%loop-number%"
+			if structure template {_k} exists:
+				delete structure (structure template with id {_k})
+	set {_prefix} to cfg("heist::region-prefix")
+	set {_rid} to "%{_prefix}%%{_h}%"
+	set {_wn} to {heist::%{_h}%::world}
+	delete {heist::%{_h}%::*}
+	delete {heists::%{_h}%}
+	delete {-heist::%{_h}%::*}
+	heistIndexRegions()
+	dheistReply({_s}, "HEIST %{_h}% deleted. The region stays: /rg remove -w %{_wn}% %{_rid}%")
+
+# ---------- Hooks for later scripts (replace the body; see CLAUDE.md, heists) ----------
+
+# ranks.sk: may this player rob this heist?
+function heistRankOk(p: player, h: text) :: boolean:
+	set {_r} to getData({_p}, "rank")
+	if {_r} is not set:
+		set {_r} to 0
+	if {_r} >= heistRank({_h}):
+		return true
+	return false
+
+# bag.sk: remove every loot item tagged "<h>#<run>" from the player's bag; return its value.
+function heistForfeit(p: player, h: text, run: number) :: number:
+	heistLog("forfeit %name of {_p}% %uuid of {_p}% %{_h}%#%{_run}% value=0")
+	return 0
+
+# hud.sk: titles, sounds, action-bar priority. kind: enter, leave, start, warn, evict, alarm, lost-cops.
+function heistNotify(p: player, kind: text, text: text):
+	msg({_p}, {_text})
+
+# loot.sk (refill spots, roll their values), traps.sk (arm), nav.sk (POI color).
+function heistOnOpen(h: text):
+	stop
+
+function heistOnStart(h: text):
+	stop
+
+function heistOnEnd(h: text, reason: text):
+	stop
+
+# traps.sk re-arms, loot.sk refills (each spot rolls its value between its min and max, and shows that
+# much loot), bag.sk removes dropped duffels.
+function heistOnReset(h: text):
+	stop
+
+# hud.sk (boss bar), nav.sk (exit arrow), bag.sk.
+function heistOnEnter(p: player, h: text):
+	stop
+
+function heistOnLeave(p: player, h: text, reason: text):
+	stop
+
+# cops.sk: the temporary wanted permission (heistOnHunt), waves up to cfg alarm::max-cops (heistOnWave),
+# despawning (heistOnAlarmEnd).
+function heistOnAlarm(h: text, source: text):
+	stop
+
+function heistOnWave(h: text, wave: number):
+	stop
+
+function heistOnHunt(p: player, h: text, on: boolean):
+	stop
+
+function heistOnAlarmEnd(h: text):
+	stop
