@@ -92,6 +92,12 @@ scoreboard:
       display-condition: "%donating_in_heist%=yes"
       lines:
         - "&f%donating_heist_name%"
+        - ""
+        - "&7Loot left: &6%donating_heist_loot%"
+        - "&7Spots: &f%donating_heist_spots%"
+        - "&7Your haul: &a%donating_heist_haul%"
+        - "&7Bag: &f%donating_bag% &7(%donating_bag_pct%)"
+        - "&7At risk: &c%donating_heist_risk%"
     main:
       title: "&6&lDONATING"
       lines:

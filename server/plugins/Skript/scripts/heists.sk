@@ -85,7 +85,12 @@ function heistSetting(h: text, key: text) :: object:
 	set {_d} to heistDifficulty({_h})
 	return cfg("difficulty::%{_d}%::%{_key}%")
 
+# While a run is rolled (loot.sk), what's really inside this run; else the setting (/dheist set pool).
 function heistLootPool(h: text) :: number:
+	set {_r} to {-lootroll::%{_h}%}
+	if {_r} is set:
+		if {_r} > 0:
+			return {_r}
 	return heistSetting({_h}, "loot-pool")
 
 function heistRank(h: text) :: number:
@@ -269,6 +274,21 @@ function heistStartRun(h: text):
 		broadcastMsg("&6The %{_name}% is being robbed! &7%{_clock}% to get out.")
 	heistOnStart({_h})
 
+# loot.sk's cleaned-out rule: an active clock with more than secs left drops to secs. True when it did.
+function heistShortenClock(h: text, secs: number) :: boolean:
+	if heistState({_h}) is not "active":
+		return false
+	if heistSecondsLeft({_h}) <= {_secs}:
+		return false
+	set {-heist::%{_h}%::until} to now
+	add 1 second * {_secs} to {-heist::%{_h}%::until}
+	# Warnings at or above the new time are done; the ones below still come.
+	loop {-cfg::heist::warn-at::*}:
+		loop-value >= {_secs}
+		set {-heist::%{_h}%::warned::%loop-value%} to true
+	heistLog("shorten %{_h}% run=%heistRun({_h})% to=%{_secs}%")
+	return true
+
 # Ends an active run: "time" (0:00 or /dheist end: stragglers lose that heist's loot) or "staff".
 function heistEndRun(h: text, reason: text):
 	heistState({_h}) is "active"
@@ -381,6 +401,8 @@ function heistReconcile(p: player):
 
 function heistJoin(p: player, h: text):
 	set {-heistin::%{_p}%} to {_h}
+	# Saved: still set at the next join only when no quit handler ran (the server stopped or crashed).
+	setData({_p}, "heist-in", "%{_h}%#%heistRun({_h})%")
 	set {_name} to heistName({_h})
 	# Started by this entry: before joining the member list, so this robber gets only the entry line
 	# below (with the time), not also heistStartRun's "the clock is running".
@@ -411,6 +433,7 @@ function heistJoin(p: player, h: text):
 # reason: "exit" (walked out), "time", "staff", "death", "quit", "kick", "builder".
 function heistLeave(p: player, h: text, reason: text):
 	delete {-heistin::%{_p}%}
+	deleteData({_p}, "heist-in")
 	delete {-heist::%{_h}%::members::%{_p}%}
 	if {_reason} is "exit":
 		applyWaypointReceive({_p})
@@ -483,6 +506,14 @@ on quit with priority monitor:
 # 2026-09-25). WorldGuard fires no enter event on join, so this handles it. Someone still carrying loot
 # (from another heist) lands at the heist's exit instead, so logging out can't carry loot home.
 on join:
+	# Still "in" a heist: the server stopped or crashed while they robbed it, so no quit handler ran.
+	# That run's loot goes, like any logout inside (loot from elsewhere then lands at the exit, below).
+	set {_was} to getData(player, "heist-in")
+	if {_was} is set:
+		deleteData(player, "heist-in")
+		set {_wp::*} to {_was} split at "#"
+		set {_lost} to heistForfeit(player, {_wp::1}, {_wp::2} parsed as number)
+		heistLog("forfeit-stop %name of player% %uuid of player% %{_was}% value=%{_lost}%")
 	set {_n} to getData(player, "heist-notice")
 	set {_at} to heistAt(location of player)
 	set {_send} to false
@@ -764,12 +795,14 @@ function heistRefreshText(h: text):
 		set {_n} to heistRobberCount({_h})
 		if {_n} > 0:
 			set {_status} to "&aOPEN &7· %{_n}% inside"
+		set {_status} to "%{_status}%%lootLeftText({_h})%"
 	else if {_s} is "active":
 		set {_clock} to formatClock(heistSecondsLeft({_h}))
 		if {-heist::%{_h}%::alarm} is set:
 			set {_status} to "&4&lALARM &f%{_clock}% &7· wave %heistWave({_h})%"
 		else:
 			set {_status} to "&eBEING ROBBED &f%{_clock}% &7· %heistRobberCount({_h})% inside"
+		set {_status} to "%{_status}%%lootLeftText({_h})%"
 	else if {_s} is "cooldown":
 		set {_left} to heistSecondsLeft({_h})
 		if {_left} > 0:
@@ -1282,10 +1315,11 @@ function heistRankOk(p: player, h: text) :: boolean:
 		return true
 	return false
 
-# bag.sk: remove every loot item tagged "<h>#<run>" from the player's bag; return its value.
+# bag.sk: remove every loot line tagged "<h>#<run>" from the player's bag; return its value.
 function heistForfeit(p: player, h: text, run: number) :: number:
-	heistLog("forfeit %name of {_p}% %uuid of {_p}% %{_h}%#%{_run}% value=0")
-	return 0
+	set {_v} to bagForfeit({_p}, {_h}, {_run})
+	heistLog("forfeit %name of {_p}% %uuid of {_p}% %{_h}%#%{_run}% value=%{_v}%")
+	return {_v}
 
 # hud.sk: titles, sounds, action-bar priority. kind: enter, leave, start, warn, evict, alarm, lost-cops.
 function heistNotify(p: player, kind: text, text: text):
@@ -1294,12 +1328,14 @@ function heistNotify(p: player, kind: text, text: text):
 # loot.sk (refill spots, roll their values), traps.sk (arm), nav.sk (POI color).
 function heistOnOpen(h: text):
 	trapArm({_h})
+	lootArm({_h})
 
 function heistOnStart(h: text):
 	stop
 
 function heistOnEnd(h: text, reason: text):
 	trapDisarm({_h})
+	lootDisarm({_h})
 
 # traps.sk re-arms, loot.sk refills (each spot rolls its value between its min and max, and shows that
 # much loot), bag.sk removes dropped duffels.
@@ -1309,9 +1345,11 @@ function heistOnReset(h: text):
 # hud.sk (boss bar), nav.sk (exit arrow), bag.sk.
 function heistOnEnter(p: player, h: text):
 	trapOnEnter({_p}, {_h})
+	lootOnEnter({_p}, {_h})
 
 function heistOnLeave(p: player, h: text, reason: text):
 	trapForget({_p}, {_h})
+	lootForget({_p}, {_h})
 
 # cops.sk: the temporary wanted permission (heistOnHunt), waves up to cfg alarm::max-cops (heistOnWave),
 # despawning (heistOnAlarmEnd).
@@ -1330,7 +1368,9 @@ function heistOnAlarmEnd(h: text):
 # /dheist disable: traps.sk removes its displays and puts collapsed floors back at once.
 function heistOnDisable(h: text):
 	trapOnDisable({_h})
+	lootOnDisable({_h})
 
 # /dheist delete: traps.sk deletes the heist's traps.
 function heistOnDelete(h: text):
 	trapOnDelete({_h})
+	lootOnDelete({_h})

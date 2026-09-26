@@ -1,0 +1,228 @@
+# bag.sk: the heist bag, part 1 (CLAUDE.md, Heist bag). Script 15; part 1 built with loot.sk (2026-09-25).
+#
+# Loot never goes in the inventory: loot.sk puts dollars into the bag with bagAdd. The bag (data
+# "bag-tier", always in the offhand) holds up to cfg("bag::<tier>::capacity"). Its name shows how full it
+# is ("Duffel Bag (45%)", rounded down: 100% only when it really is full), and a full bag has the
+# enchant glint and takes nothing more: bagAdd adds min(amount, room) and returns what it added.
+# Every line is tagged with its heist and run ("bank#12"), so heistForfeit (0:00, logging out inside)
+# removes just that run's loot (bagForfeit), also loot from an earlier trip carried back in.
+# It all sells by itself in a base: a safe zone whose region id starts with cfg("bag::base-prefix")
+# ("safe_base"). The pay is P = floor(T × m) with m = cfg("passive::payout-multiplier") (0.75) for
+# passive players, else 1, and the robbery bounty adds P × cfg("bounty::robbery-share") (never for
+# passive players). Combat-tagged and wanted players can't get into a safe zone (pvp.sk).
+# Death: the loot leaves the bag. Part 1 records it for part 2's dropped duffel ({-bagdrop::<p>::...}):
+# the drop spot (traps.sk's trapDropSpot), the time and every line with its tag.
+#
+# Saved: {data::<uuid>::loot::<h>#<run>} = $ (getData key "loot::<h>#<run>"), data "loot-sold" (total $
+# sold) and "robberies" (heist runs sold). Memory: {-bag::total::<p>} (cache), {-bag::shown::<p>} (the
+# offhand's "<tier>:<pct>"). Log: plugins\Skript\logs\bag.log.
+
+function bagLog(text: text):
+	log {_text} to "bag"
+
+# ---------- Reading ----------
+
+function bagTier(p: player) :: number:
+	set {_t} to getData({_p}, "bag-tier")
+	if {_t} is set:
+		return {_t}
+	return 0
+
+function bagCapacity(p: player) :: number:
+	set {_t} to bagTier({_p})
+	if {_t} <= 0:
+		return 0
+	return cfg("bag::%{_t}%::capacity")
+
+function bagRecount(p: player) :: number:
+	set {_sum} to 0
+	loop {data::%{_p}%::loot::*}:
+		add loop-value to {_sum}
+	set {-bag::total::%{_p}%} to {_sum}
+	return {_sum}
+
+# Everything in the bag, every heist and run ($).
+function bagTotal(p: player) :: number:
+	set {_t} to {-bag::total::%{_p}%}
+	if {_t} is set:
+		return {_t}
+	return bagRecount({_p})
+
+function bagRoom(p: player) :: number:
+	return max(0, bagCapacity({_p}) - bagTotal({_p}))
+
+# 0-100, rounded down; 100 only when full.
+function bagPct(p: player) :: number:
+	set {_c} to bagCapacity({_p})
+	if {_c} <= 0:
+		return 0
+	set {_t} to bagTotal({_p})
+	if {_t} >= {_c}:
+		return 100
+	return min(99, floor(100 * {_t} / {_c}))
+
+# This heist's current run in the bag (the heist board's "your haul").
+function bagRunLoot(p: player, h: text) :: number:
+	set {_v} to getData({_p}, "loot::%{_h}%#%heistRun({_h})%")
+	if {_v} is set:
+		return {_v}
+	return 0
+
+# "Duffel Bag 45%"
+function bagFillText(p: player) :: text:
+	set {_t} to bagTier({_p})
+	if {_t} <= 0:
+		return "&7no bag"
+	set {_name} to cfg("bag::%{_t}%::name")
+	return "&6%{_name}% &f%bagPct({_p})%%%"
+
+# ---------- Changing ----------
+
+# Adds up to `amount` of heist h's current run; returns what went in (0 when full or without a bag).
+function bagAdd(p: player, h: text, amount: number) :: number:
+	set {_add} to min({_amount}, bagRoom({_p}))
+	if {_add} <= 0:
+		return 0
+	# The total before the new line (a recount after it would count it twice).
+	set {_before} to bagTotal({_p})
+	set {_key} to "loot::%{_h}%#%heistRun({_h})%"
+	set {_v} to getData({_p}, {_key})
+	if {_v} is not set:
+		set {_v} to 0
+	setData({_p}, {_key}, {_v} + {_add})
+	set {-bag::total::%{_p}%} to {_before} + {_add}
+	bagRefresh({_p})
+	return {_add}
+
+# heists.sk's heistForfeit: removes one run's loot; returns its value.
+function bagForfeit(p: player, h: text, run: number) :: number:
+	set {_key} to "loot::%{_h}%#%{_run}%"
+	set {_v} to getData({_p}, {_key})
+	if {_v} is not set:
+		return 0
+	deleteData({_p}, {_key})
+	bagRecount({_p})
+	bagRefresh({_p})
+	bagLog("forfeit %name of {_p}% %uuid of {_p}% %{_h}%#%{_run}% value=%{_v}%")
+	return {_v}
+
+# The offhand shows the new fill (only on a change, only if the bag is there: never while the phone's
+# big map is open, closePhoneMap puts it back through applyBag). The pack's leather.json has
+# hand_animation_on_swap false, so the duffel doesn't dip at each take.
+function bagRefresh(p: player):
+	set {_tier} to bagTier({_p})
+	{_tier} > 0
+	set {_key} to "%{_tier}%:%bagTotal({_p})%"
+	{-bag::shown::%{_p}%} is not {_key}
+	{_p} does not have scoreboard tag "donating_phone_open"
+	itemId(offhand tool of {_p}) starts with "bag:"
+	set {-bag::shown::%{_p}%} to {_key}
+	set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}))
+
+# ---------- Death (part 1: the record for part 2's dropped duffel) ----------
+
+# Default priority: death.sk (the balance loss, the bag tier) doesn't depend on this, nor this on it.
+on death of player:
+	set {_sum} to 0
+	set {_lines} to ""
+	loop {data::%victim%::loot::*}:
+		add loop-value to {_sum}
+		set {_lines} to "%{_lines}% %loop-index%=%loop-value%"
+	delete {-bag::total::%victim%}
+	delete {-bag::shown::%victim%}
+	{_sum} > 0
+	set {_l} to trapDropSpot(victim)
+	delete {-bagdrop::%victim%::*}
+	set {-bagdrop::%victim%::loc} to {_l}
+	set {-bagdrop::%victim%::at} to now
+	loop {data::%victim%::loot::*}:
+		set {-bagdrop::%victim%::line::%loop-index%} to loop-value
+	delete {data::%victim%::loot::*}
+	bagLog("death-lost %name of victim% %uuid of victim% total=%{_sum}% lines=%{_lines}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+
+# ---------- Selling at the base ----------
+
+function isBaseAt(l: location) :: boolean:
+	set {_prefix} to cfg("bag::base-prefix")
+	loop regions at {_l}:
+		if name of loop-value starts with {_prefix}:
+			return true
+	return false
+
+# Sells the whole bag; returns the pay (0 when nothing sold). One call, no wait.
+function bagSell(p: player) :: number:
+	if {_p} is not alive:
+		return 0
+	if isCombatTagged({_p}) is true:
+		return 0
+	if heistOf({_p}) is not "":
+		return 0
+	if isBaseAt(location of {_p}) is false:
+		return 0
+	set {_t} to bagRecount({_p})
+	if {_t} <= 0:
+		return 0
+	set {_m} to 1
+	set {_passive} to isPassive({_p})
+	if {_passive} is true:
+		set {_m} to cfg("passive::payout-multiplier")
+	set {_pay} to floor({_t} * {_m})
+	set {_hauls} to 0
+	set {_lines} to ""
+	loop {data::%{_p}%::loot::*}:
+		add 1 to {_hauls}
+		set {_lines} to "%{_lines}% %loop-index%=%loop-value%"
+		set {_parts::*} to loop-index split at "#"
+		set {_hid} to {_parts::1}
+		add loop-value to {_by::%{_hid}%}
+	delete {data::%{_p}%::loot::*}
+	set {-bag::total::%{_p}%} to 0
+	giveMoney({_p}, {_pay})
+	set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "robbery")
+	set {_sold} to getData({_p}, "loot-sold")
+	if {_sold} is not set:
+		set {_sold} to 0
+	setData({_p}, "loot-sold", {_sold} + {_pay})
+	set {_r} to getData({_p}, "robberies")
+	if {_r} is not set:
+		set {_r} to 0
+	setData({_p}, "robberies", {_r} + {_hauls})
+	bagRefresh({_p})
+	bagLog("sell %name of {_p}% %uuid of {_p}% total=%{_t}% pay=%{_pay}% passive=%{_passive}% bounty=%{_bounty}% lines=%{_lines}%")
+	set {_money} to formatMoney({_pay})
+	if {_passive} is true:
+		set {_sub} to "&7passive: 75%% of %formatMoney({_t})%"
+	else if {_bounty} > 0:
+		set {_sub} to "&7%{_hauls}% haul(s) · bounty +%formatMoney({_bounty})%"
+	else:
+		set {_sub} to "&7%{_hauls}% haul(s)"
+	send title colored "&a+%{_money}%" with subtitle colored {_sub} to {_p} for 3 seconds
+	play sound "entity.experience_orb.pickup" with volume 1 to {_p}
+	play sound "block.note_block.bell" with volume 0.8 and pitch 1.2 to {_p}
+	loop {_by::*}:
+		msg({_p}, "&aSold %formatMoney(loop-value)% of loot from the %heistName(loop-index)%.")
+	if {_passive} is true:
+		msg({_p}, "&7Passive mode: you got %{_money}% (75%%).")
+	return {_pay}
+
+on region enter:
+	name of the worldguard region starts with cfg("bag::base-prefix")
+	wait 1 tick
+	player is online
+	bagSell(player)
+
+# The backstop: standing in a base with loot (a tag that ran out inside, a respawn in the base).
+every second:
+	loop all players:
+		{-bag::total::%loop-player%} is set
+		{-bag::total::%loop-player%} > 0
+		isBaseAt(location of loop-player) is true
+		bagSell(loop-player)
+
+on join:
+	bagRecount(player)
+	delete {-bag::shown::%player%}
+
+on quit:
+	delete {-bag::total::%player%}
+	delete {-bag::shown::%player%}

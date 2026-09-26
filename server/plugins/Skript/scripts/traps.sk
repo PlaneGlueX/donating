@@ -1071,9 +1071,9 @@ function trapCameraSees(c: text, p: player, lens: location, fx: number, fy: numb
 		return true
 	return false
 
-# hud.sk takes this over later (action-bar priority).
+# The action bar at priority 2 (hud.sk): loot prompts don't wipe it.
 function trapNotify(p: player, kind: text, text: text):
-	send action bar colored {_text} to {_p}
+	hudBar({_p}, {_text}, 2)
 
 # ---------- Heist hooks (called from heists.sk) ----------
 

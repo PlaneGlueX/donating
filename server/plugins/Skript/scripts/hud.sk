@@ -7,8 +7,24 @@
 #   - Outside heists the locator bar (passive players, POIs) takes the bar's place except for 5 s after
 #     each change, so the bar shows while you shoot; the number above it always shows. Inside heists
 #     players receive no waypoints (nav.sk), so the bar is always there.
-# Still to build: the boss bar, the heist board data for TAB, action-bar priority, titles; the bag's
-# fill shows in its name and on the action bar (bag.sk), not on the XP bar any more.
+#   - hudBar(p, text, prio): the action bar with priorities. A text with a lower priority than the last
+#     one is dropped for 1.5 s, so a loot prompt can't wipe a trap hit. Priorities: combat tag 3, trap
+#     hits and heist gates 2 (traps.sk), loot progress and results 1 (loot.sk), prompts 0.
+# Still to build: the boss bar, titles.
+
+function hudBar(p: player, text: text, prio: number):
+	set {_at} to {-hud::barat::%{_p}%}
+	if {_at} is set:
+		if {-hud::barprio::%{_p}%} > {_prio}:
+			if difference between {_at} and now < 1.5 seconds:
+				stop
+	set {-hud::barat::%{_p}%} to now
+	set {-hud::barprio::%{_p}%} to {_prio}
+	send action bar colored {_text} to {_p}
+
+on quit:
+	delete {-hud::barat::%player%}
+	delete {-hud::barprio::%player%}
 
 # Level number and bar for what the player holds.
 function ammoBar(p: player):

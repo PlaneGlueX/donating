@@ -442,3 +442,98 @@ command /zztrapbench <player> <number>:
 			trapScan({_h}, x-coordinate of {_l}, y-coordinate of {_l}, z-coordinate of {_l}, 1.8)
 		set {_ms} to (difference between {_t} and now) / 1 millisecond
 		send "BENCH n=%arg-2% us=%{_ms} * 1000 / arg-2%"
+
+# ---------- loot.sk and bag.sk ----------
+
+# One line per heist: armed run, rolled, left, spots; per spot: kind, state, pieces, $ left, hitboxes,
+# registered entities, marker colour.
+command /zzloot <text>:
+	executable by: console
+	trigger:
+		set {_h} to arg-1
+		set {_out} to "LOOT %{_h}% armed=%lootArmed({_h})% run=%{-lootrun::%{_h}%}% rolled=%lootRolled({_h})% left=%lootLeft({_h})% spots=%lootSpotsText({_h})% pool=%heistLootPool({_h})% state=%heistState({_h})%"
+		loop {loots::%{_h}%::*}:
+			set {_c} to "%{_h}%::%loop-index%"
+			set {_hb} to size of {-loothb::%{_c}%::*}
+			set {_ents} to size of {-lootents::%{_c}%::*}
+			set {_out} to "%{_out}% | %loop-index%:%loop-value%:%{-lootst::%{_c}%}%:n=%{-lootn::%{_c}%}%:left=%{-lootleft::%{_c}%}%:hb=%{_hb}%:ents=%{_ents}%:mk=%{-lootmkc::%{_c}%}%:claim=%{-lootclaim::%{_c}%::name}%:drill=%{-lootdrill::%{_c}%::done}%"
+		send {_out}
+
+# A player's code for a safe (made now if they have none): /zzlootcode <h-n> <player>
+command /zzlootcode <text> <player>:
+	executable by: console
+	trigger:
+		set {_p::*} to arg-1 split at "-"
+		set {_c} to "%{_p::1}%::%{_p::2}%"
+		if {-lootcode::%{_c}%::%arg-2%} is not set:
+			set {-lootcode::%{_c}%::%arg-2%} to lootNewCode({-lootc::%{_c}%::digits})
+		send "CODE %{-lootcode::%{_c}%::%arg-2%}%"
+
+command /zzbag <player>:
+	executable by: console
+	trigger:
+		set {_lines} to ""
+		loop {data::%arg-1%::loot::*}:
+			set {_lines} to "%{_lines}%%loop-index%=%loop-value%,"
+		set {_sold} to getData(arg-1, "loot-sold")
+		set {_rob} to getData(arg-1, "robberies")
+		send "BAG %arg-1% tier=%bagTier(arg-1)% total=%bagRecount(arg-1)% room=%bagRoom(arg-1)% pct=%bagPct(arg-1)% lines=%{_lines}% sold=%{_sold}% robberies=%{_rob}%"
+
+# Puts loot straight into a bag line: /zzbagadd <player> <heist#run> <$> (0 deletes the line).
+command /zzbagadd <player> <text> <number>:
+	executable by: console
+	trigger:
+		if arg-3 <= 0:
+			deleteData(arg-1, "loot::%arg-2%")
+		else:
+			setData(arg-1, "loot::%arg-2%", arg-3)
+		bagRecount(arg-1)
+		bagRefresh(arg-1)
+		send "BAGADD %arg-1% %arg-2% %arg-3%"
+
+# Heist tools into hotbar slot N (0-4): /zztool <player> <drill|safe-kit> <amount> <slot>
+command /zztool <player> <text> <number> <number>:
+	executable by: console
+	trigger:
+		if arg-3 <= 0:
+			set slot arg-4 of arg-1's inventory to air
+		else:
+			set slot arg-4 of arg-1's inventory to toolItem(arg-2, arg-3)
+		send "TOOL %arg-1% %arg-2% x%toolCount(arg-1, arg-2)%"
+
+command /zzbagclear <player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::loot::*}
+		bagRecount(arg-1)
+		bagRefresh(arg-1)
+		send "BAGCLEAR %arg-1%"
+
+# The offhand item's name and whether it glints: "OFFHAND <name> glint=<true|false>"
+command /zzoffhand <player>:
+	executable by: console
+	trigger:
+		set {_i} to offhand tool of arg-1
+		set {_g} to boolean tag "minecraft:enchantment_glint_override" of nbt of {_i}
+		if {_g} is not set:
+			set {_g} to false
+		send "OFFHAND %name of {_i}% glint=%{_g}%"
+
+# The NBT of a shop icon: /zzicon wpn <title> | ammo <type> | bag <tier>
+command /zzicon <text> <text>:
+	executable by: console
+	trigger:
+		if arg-1 is "wpn":
+			set {_i} to wpnIcon(arg-2)
+		else if arg-1 is "ammo":
+			set {_i} to ammoIcon(arg-2)
+		else:
+			set {_i} to bagIcon(arg-2 parsed as number)
+		send "ICON %type of {_i}% %nbt of {_i}%"
+
+# A text value in player data: /zzdatatext <player> <key> <text>
+command /zzdatatext <offline player> <text> <text>:
+	executable by: console
+	trigger:
+		setData(arg-1, arg-2, arg-3)
+		send "DATATEXT %arg-1% %arg-2% = %getData(arg-1, arg-2)%"

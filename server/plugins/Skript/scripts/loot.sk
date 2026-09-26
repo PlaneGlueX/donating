@@ -1,0 +1,2355 @@
+# loot.sk: loot spots (CLAUDE.md, Heists; "Loot (loot.sk)" in its Verified notes). Script 14.
+#
+# The owner's rules (2026-09-25): every loot spot rolls its value in a range at each opening, the loot you
+# can see is exactly the loot there (so a spot visibly empties), and robbers compete only by how fast
+# they get through the heist's tasks (collecting, cracking a code, drilling...).
+#
+# Kinds (placed per heist with /dloot, saved with it):
+#   - pile:  pieces lying on blocks (cash, jewels, gold, valuables, an artifact). A pile's value is
+#            V = n × piece, n rolled at every opening between ceil(min / piece) and floor(max / piece),
+#            and it shows exactly n pieces. Hold right-click: every `take` seconds one piece goes into
+#            the bag (bag.sk). Pieces are shared, progress is personal: the first to finish takes it.
+#   - smash: glass (a jewelry case) in front of piles: hold right-click to break it; the smasher gets
+#            the nearest piece behind it at once.
+#   - safe:  a safe door: right-click with a Safe Kit in hotbar 1-5 opens a keypad; guess the code
+#            (Wordle-style colors). Each cracker has their own code. The kit is used only on success.
+#            The opener gets a short head start (claim) on the piles behind it.
+#   - drill: a vault door: hold right-click with a Drill to mount it (the Drill is used up). It drills
+#            by itself, jams now and then (anyone clears a jam with a short hold), and opens the door.
+#            The one who mounted it gets a head start. Trips the alarm in advanced heists.
+# Piles point at a gate with behind=<gate id> and stay locked until it opens.
+#
+# Input: invisible, unresponsive Interaction hitboxes (one per pile cell and per gate block). A click on
+# one never fires a gun, never opens the phone and doesn't swing the arm; for cfg loot::guard after a
+# loot click, plain right-clicks are cancelled too (a crosshair sliding off the loot). A held button
+# clicks every 0.2 s; each click credits min(Δt, cfg loot::credit) seconds and a pause over cfg
+# loot::gap starts over, so holding is real time and clicking faster gains nothing. A hit that lands
+# (traps, cops, shots from outside) resets the progress and closes the keypad.
+# The escape clock starts at the first finished task (heistStartRun). Every pile empty: the clock drops
+# to cfg loot::cleaned-out seconds.
+#
+# Saved: {loots::<h>::<n>} = kind (the list), {loot::<h>::next}, {loot::<h>::<n>::a|b} (corner blocks),
+# {loot::<h>::<n>::<key>} (overrides; min and max for piles), {loot::<h>::<n>::gate::<i>} and
+# {loot::<h>::<n>::bd::<i>} (gate blocks and their block data). Memory (c = "<h>::<n>"):
+# {-lootc::c::...} compiled numbers, {-lootrun::<h>} the run while armed, {-lootroll::<h>} the rolled
+# total, {-lootst::c} state (pile: open|locked|empty; gate: closed|drilling|jammed|open), {-lootv::c::<cell>::<slot>}
+# value left per piece, {-lootcn::c::<cell>} pieces per cell, {-lootn::c} / {-lootleft::c} pieces and $
+# left, entity refs ({-lootpd}, {-loothb}, {-lootmk}, {-lootents::c::<uuid>}, {-lootent::<uuid>} =
+# "<h>|<n>|<cell>"), {-lootclaim::c}, {-lootdrill::c::...}, {-lootcode::c::<p>}, {-lootguess::c::<p>::<g>},
+# per player {-lootw::<p>} (the task being held), {-lootkp::<p>} (an open keypad), {-lootguard::<p>}.
+# Every entity is tagged donating_loot and not persistent. Log: plugins\Skript\logs\loot.log.
+
+# ---------- Settings ----------
+
+function lootLog(text: text):
+	log {_text} to "loot"
+
+function lootKind(h: text, n: text) :: text:
+	set {_k} to {loots::%{_h}%::%{_n}%}
+	if {_k} is set:
+		return {_k}
+	return ""
+
+function lootIsGate(k: text) :: boolean:
+	if {_k} is "smash" or "safe" or "drill":
+		return true
+	return false
+
+# A per-spot override, or the default: a pile's from its style (cfg loot::<style>::<key>), a gate's from
+# its kind (cfg loot::<kind>::<key>). Unset for keys without a default (behind).
+function lootSetting(h: text, n: text, key: text) :: object:
+	set {_v} to {loot::%{_h}%::%{_n}%::%{_key}%}
+	if {_v} is set:
+		return {_v}
+	set {_k} to lootKind({_h}, {_n})
+	if {_k} is "pile":
+		if {_key} is "style":
+			return "cash"
+		if {_key} is "lift":
+			return {-cfg::loot::pile::lift}
+		set {_style} to lootSetting({_h}, {_n}, "style")
+		return {-cfg::loot::%{_style}%::%{_key}%}
+	if {_key} is "name":
+		if {_k} is "smash":
+			return "glass case"
+		if {_k} is "safe":
+			return "safe"
+		return "vault door"
+	return {-cfg::loot::%{_k}%::%{_key}%}
+
+# The keys each kind takes: "" = not a key of that kind.
+function lootKeyType(k: text, key: text) :: text:
+	if {_key} is "name":
+		return "text"
+	if {_k} is "pile":
+		if {_key} is "value":
+			return "range"
+		if {_key} is "style":
+			return "style"
+		if {_key} is "behind":
+			return "id"
+		if {_key} is "piece":
+			return "money"
+		if {_key} is "take":
+			return "secs"
+		if {_key} is "per-cell":
+			return "per"
+		if {_key} is "layers":
+			return "layers"
+		if {_key} is "lift":
+			return "lift"
+		return ""
+	if {_key} is "alarm":
+		return "bool"
+	if {_k} is "smash":
+		if {_key} is "take":
+			return "secs"
+	if {_k} is "safe":
+		if {_key} is "digits":
+			return "digits"
+		if {_key} is "claim":
+			return "secs0"
+	if {_k} is "drill":
+		if {_key} is "time" or "mount" or "fix":
+			return "secs"
+		if {_key} is "claim":
+			return "secs0"
+		if {_key} is "jams":
+			return "jams"
+	return ""
+
+# key=value as typed -> the stored value, or nothing when it's bad (explicit stops: a condition line
+# inside an if only ends that block).
+function lootParse(t: text, value: text) :: object:
+	if {_t} is "text":
+		set {_v} to {_value}
+		replace all "_" with " " in {_v}
+		replace all "%%" with "" in {_v}
+		if length of {_v} > 32:
+			stop
+		return {_v}
+	if {_t} is "range":
+		set {_p::*} to {_value} split at "-"
+		set {_a} to {_p::1} parsed as number
+		if {_a} is not set:
+			stop
+		set {_b} to {_a}
+		if {_p::2} is set:
+			set {_b} to {_p::2} parsed as number
+		if {_b} is not set:
+			stop
+		if {_a} <= 0:
+			stop
+		if {_b} < {_a}:
+			stop
+		return "%{_a}%-%{_b}%"
+	if {_t} is "style":
+		if {-cfg::loot::styles::*} contains {_value}:
+			return {_value}
+		stop
+	if {_t} is "id":
+		return {_value}
+	if {_t} is "bool":
+		if {_value} is "true":
+			return true
+		if {_value} is "false":
+			return false
+		stop
+	set {_n} to {_value} parsed as number
+	if {_n} is not set:
+		stop
+	if {_t} is "money":
+		if {_n} <= 0:
+			stop
+		return {_n}
+	if {_t} is "secs":
+		if {_n} <= 0:
+			stop
+		if {_n} > 600:
+			stop
+		return {_n}
+	if {_t} is "secs0":
+		if {_n} < 0:
+			stop
+		if {_n} > 120:
+			stop
+		return {_n}
+	if {_t} is "per":
+		if {_n} is 1 or 2 or 4:
+			return {_n}
+		stop
+	if {_t} is "layers":
+		if {_n} is 1 or 2 or 3:
+			return {_n}
+		stop
+	if {_t} is "lift":
+		if {_n} < -1:
+			stop
+		if {_n} > 1:
+			stop
+		return {_n}
+	if {_t} is "digits":
+		if {_n} is 3 or 4 or 5:
+			return {_n}
+		stop
+	if {_t} is "jams":
+		if {_n} is 0 or 1 or 2 or 3 or 4 or 5:
+			return {_n}
+		stop
+
+# ---------- Compiling (saved definitions -> memory numbers) ----------
+
+function lootCompile(h: text):
+	delete {-lootc::%{_h}%::*}
+	loop {loots::%{_h}%::*}:
+		lootCompileOne({_h}, loop-index)
+
+function lootCompileOne(h: text, n: text):
+	set {_k} to lootKind({_h}, {_n})
+	set {_a} to {loot::%{_h}%::%{_n}%::a}
+	set {_b} to {loot::%{_h}%::%{_n}%::b}
+	{_a} is set
+	set {_c} to "%{_h}%::%{_n}%"
+	delete {-lootc::%{_c}%::*}
+	set {-lootc::%{_c}%::kind} to {_k}
+	set {-lootc::%{_c}%::name} to lootSetting({_h}, {_n}, "name")
+	set {_x1} to min(x-coordinate of {_a}, x-coordinate of {_b})
+	set {_x2} to max(x-coordinate of {_a}, x-coordinate of {_b})
+	set {_y1} to min(y-coordinate of {_a}, y-coordinate of {_b})
+	set {_y2} to max(y-coordinate of {_a}, y-coordinate of {_b})
+	set {_z1} to min(z-coordinate of {_a}, z-coordinate of {_b})
+	set {_z2} to max(z-coordinate of {_a}, z-coordinate of {_b})
+	set {-lootc::%{_c}%::x1} to {_x1}
+	set {-lootc::%{_c}%::x2} to {_x2}
+	set {-lootc::%{_c}%::y1} to {_y1}
+	set {-lootc::%{_c}%::y2} to {_y2}
+	set {-lootc::%{_c}%::z1} to {_z1}
+	set {-lootc::%{_c}%::z2} to {_z2}
+	set {-lootc::%{_c}%::cx} to ({_x1} + {_x2} + 1) / 2
+	set {-lootc::%{_c}%::cz} to ({_z1} + {_z2} + 1) / 2
+	if {_k} is "pile":
+		set {_style} to lootSetting({_h}, {_n}, "style")
+		set {-lootc::%{_c}%::style} to {_style}
+		set {_i} to 1 of {-cfg::loot::%{_style}%::item}
+		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:loot_%{_style}%"
+		set {-lootc::%{_c}%::stack} to {_i}
+		set {-lootc::%{_c}%::piece} to lootSetting({_h}, {_n}, "piece")
+		set {-lootc::%{_c}%::take} to lootSetting({_h}, {_n}, "take")
+		set {-lootc::%{_c}%::per} to lootSetting({_h}, {_n}, "per-cell")
+		set {-lootc::%{_c}%::layers} to lootSetting({_h}, {_n}, "layers")
+		set {-lootc::%{_c}%::thick} to lootSetting({_h}, {_n}, "thick")
+		set {-lootc::%{_c}%::scale} to lootSetting({_h}, {_n}, "scale")
+		set {-lootc::%{_c}%::min} to {loot::%{_h}%::%{_n}%::min}
+		set {-lootc::%{_c}%::max} to {loot::%{_h}%::%{_n}%::max}
+		set {_behind} to {loot::%{_h}%::%{_n}%::behind}
+		if {_behind} is set:
+			set {-lootc::%{_c}%::behind} to {_behind}
+		# The surface: the block top, or a bottom slab's (autolift, saved at /dloot add while the chunk is
+		# loaded), unless staff set lift.
+		set {_lift} to {loot::%{_h}%::%{_n}%::lift}
+		if {_lift} is not set:
+			set {_lift} to {loot::%{_h}%::%{_n}%::autolift}
+		if {_lift} is not set:
+			set {_lift} to {-cfg::loot::pile::lift}
+		set {-lootc::%{_c}%::top} to {_y1} + 1 + {_lift}
+		set {-lootc::%{_c}%::cy} to {_y1} + 1 + {_lift}
+		set {_i} to 0
+		loop integers from {_x1} to {_x2}:
+			set {_x} to loop-value
+			loop integers from {_z1} to {_z2}:
+				add 1 to {_i}
+				set {-lootc::%{_c}%::cellx::%{_i}%} to {_x}
+				set {-lootc::%{_c}%::cellz::%{_i}%} to loop-value-2
+		set {-lootc::%{_c}%::cells} to {_i}
+		# Piece spots in a cell: 1 = the middle, 2 = side by side, 4 = a 2×2 grid.
+		set {_per} to {-lootc::%{_c}%::per}
+		if {_per} is 1:
+			set {_ox::*} to 0.5
+			set {_oz::*} to 0.5
+		else if {_per} is 2:
+			set {_ox::*} to 0.3 and 0.7
+			set {_oz::*} to 0.5 and 0.5
+		else:
+			set {_ox::*} to 0.27, 0.73, 0.27 and 0.73
+			set {_oz::*} to 0.27, 0.27, 0.73 and 0.73
+		loop {_ox::*}:
+			set {-lootc::%{_c}%::ox::%loop-index%} to loop-value
+		loop {_oz::*}:
+			set {-lootc::%{_c}%::oz::%loop-index%} to loop-value
+		set {-lootc::%{_c}%::axis} to 0
+		if {_z2} - {_z1} > {_x2} - {_x1}:
+			set {-lootc::%{_c}%::axis} to 90
+	else:
+		set {-lootc::%{_c}%::cy} to ({_y1} + {_y2} + 1) / 2
+		set {-lootc::%{_c}%::blocks} to size of {loot::%{_h}%::%{_n}%::gate::*}
+		set {-lootc::%{_c}%::alarm} to lootSetting({_h}, {_n}, "alarm")
+		if {_k} is "smash":
+			set {-lootc::%{_c}%::take} to lootSetting({_h}, {_n}, "take")
+		else if {_k} is "safe":
+			set {-lootc::%{_c}%::digits} to lootSetting({_h}, {_n}, "digits")
+			set {-lootc::%{_c}%::claim} to lootSetting({_h}, {_n}, "claim")
+		else if {_k} is "drill":
+			set {-lootc::%{_c}%::time} to lootSetting({_h}, {_n}, "time")
+			set {-lootc::%{_c}%::jams} to lootSetting({_h}, {_n}, "jams")
+			set {-lootc::%{_c}%::mount} to lootSetting({_h}, {_n}, "mount")
+			set {-lootc::%{_c}%::fix} to lootSetting({_h}, {_n}, "fix")
+			set {-lootc::%{_c}%::claim} to lootSetting({_h}, {_n}, "claim")
+
+# ---------- Arming, rolling ----------
+
+function lootArmed(h: text) :: boolean:
+	if {-lootrun::%{_h}%} is set:
+		return true
+	return false
+
+# The heist opened: close the gates, roll every pile, show it all.
+function lootArm(h: text):
+	lootDisarm({_h})
+	lootCompile({_h})
+	set {-lootrun::%{_h}%} to heistRun({_h})
+	set {_total} to 0
+	set {_lines} to ""
+	loop {loots::%{_h}%::*}:
+		if loop-value is "pile":
+			set {_v} to lootRollPile({_h}, loop-index)
+			add {_v} to {_total}
+			set {_lines} to "%{_lines}% %loop-index%=%{_v}%"
+		else:
+			set {-lootst::%{_h}%::%loop-index%} to "closed"
+			lootGateRestore({_h}, loop-index)
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		lootPileState({_h}, loop-index)
+	set {-lootroll::%{_h}%} to {_total}
+	loop {loots::%{_h}%::*}:
+		lootEnsure({_h}, loop-index)
+	lootLog("arm %{_h}% run=%heistRun({_h})% rolled=%{_total}%%{_lines}%")
+
+# The heist closed (or a disabled one): every entity and every bit of run state goes.
+function lootDisarm(h: text):
+	loop all players:
+		set {_k} to {-lootkp::%loop-player%}
+		if {_k} is set:
+			if {_k} starts with "%{_h}%::":
+				lootKeypadClose(loop-player, "closed")
+	loop {loots::%{_h}%::*}:
+		set {_c} to "%{_h}%::%loop-index%"
+		lootDespawnSpot({_h}, loop-index)
+		delete {-lootst::%{_c}%}
+		delete {-lootv::%{_c}%::*}
+		delete {-lootcn::%{_c}%::*}
+		delete {-lootn::%{_c}%}
+		delete {-lootleft::%{_c}%}
+		delete {-lootclaim::%{_c}%}
+		delete {-lootclaim::%{_c}%::*}
+		delete {-lootdrill::%{_c}%::*}
+		delete {-lootcode::%{_c}%::*}
+		delete {-lootguess::%{_c}%::*}
+		delete {-lootguessn::%{_c}%::*}
+		delete {-lootguessat::%{_c}%::*}
+	delete {-lootrun::%{_h}%}
+	delete {-lootroll::%{_h}%}
+	delete {-lootclean::%{_h}%}
+	delete {-ph::heistloot::%{_h}%}
+	delete {-ph::heistspots::%{_h}%}
+
+# n = a random whole number of pieces in [ceil(min / piece), floor(max / piece)], placed in shuffled
+# spots: the bottom layer first, upper layers only on top of pieces. Returns V = n × piece.
+function lootRollPile(h: text, n: text) :: number:
+	set {_c} to "%{_h}%::%{_n}%"
+	delete {-lootv::%{_c}%::*}
+	delete {-lootcn::%{_c}%::*}
+	set {_v} to {-lootc::%{_c}%::piece}
+	set {_per} to {-lootc::%{_c}%::per}
+	set {_layers} to {-lootc::%{_c}%::layers}
+	set {_cells} to {-lootc::%{_c}%::cells}
+	set {_lo} to max(1, ceil({-lootc::%{_c}%::min} / {_v}))
+	set {_hi} to max({_lo}, floor({-lootc::%{_c}%::max} / {_v}))
+	set {_cnt} to random integer between {_lo} and {_hi}
+	set {_cnt} to min({_cnt}, {_cells} * {_per} * {_layers})
+	loop integers from 1 to {_cells}:
+		set {_ci} to loop-value
+		loop integers from 1 to {_per}:
+			add "%{_ci}%:%loop-value-2%" to {_all::*}
+	set {_order::*} to shuffled {_all::*}
+	set {_placed} to 0
+	loop {_layers} times:
+		set {_layer} to loop-number
+		loop {_order::*}:
+			if {_placed} >= {_cnt}:
+				exit loop
+			set {_ik::*} to loop-value-2 split at ":"
+			set {_ci} to {_ik::1} parsed as number
+			set {_slot} to ({_layer} - 1) * {_per} + ({_ik::2} parsed as number)
+			set {-lootv::%{_c}%::%{_ci}%::%{_slot}%} to {_v}
+			add 1 to {-lootcn::%{_c}%::%{_ci}%}
+			add 1 to {_placed}
+	set {-lootn::%{_c}%} to {_placed}
+	set {-lootleft::%{_c}%} to {_placed} * {_v}
+	return {_placed} * {_v}
+
+function lootPileState(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	if {-lootn::%{_c}%} is not set:
+		set {-lootst::%{_c}%} to "empty"
+	else if {-lootn::%{_c}%} <= 0:
+		set {-lootst::%{_c}%} to "empty"
+	else:
+		set {-lootst::%{_c}%} to "open"
+		# Behind a gate that isn't open yet: locked (a function isn't called with an unset argument, so
+		# the gate is checked here).
+		set {_g} to {-lootc::%{_c}%::behind}
+		if {_g} is set:
+			if {-lootst::%{_h}%::%{_g}%} is not "open":
+				set {-lootst::%{_c}%} to "locked"
+
+# ---------- Entities ----------
+
+function lootReg(c: text, e: entity):
+	set {-lootents::%{_c}%::%uuid of {_e}%} to {_e}
+
+function lootUnreg(c: text, e: entity):
+	delete {-lootents::%{_c}%::%uuid of {_e}%}
+	delete {-lootent::%uuid of {_e}%}
+
+function lootKillOne(c: text, e: entity):
+	lootUnreg({_c}, {_e})
+	if {_e} is valid:
+		kill {_e}
+
+# Spawned only with both corners' chunks loaded (the reconcile brings a spot back after an unload).
+function lootEnsure(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_a} to {loot::%{_h}%::%{_n}%::a}
+	set {_b} to {loot::%{_h}%::%{_n}%::b}
+	{_a} is set
+	set {_loaded} to true
+	if chunk at {_a} is not loaded:
+		set {_loaded} to false
+	if chunk at {_b} is not loaded:
+		set {_loaded} to false
+	if {_loaded} is false:
+		if {-lootup::%{_c}%} is set:
+			lootDespawnSpot({_h}, {_n})
+		stop
+	if {-lootup::%{_c}%} is not set:
+		lootSpawnSpot({_h}, {_n})
+		stop
+	loop {-lootents::%{_c}%::*}:
+		if loop-value is not valid:
+			lootSpawnSpot({_h}, {_n})
+			stop
+
+function lootSpawnSpot(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	lootDespawnSpot({_h}, {_n})
+	set {-lootup::%{_c}%} to true
+	set {_k} to {-lootc::%{_c}%::kind}
+	set {_st} to {-lootst::%{_c}%}
+	if {_k} is "pile":
+		set {_slots} to {-lootc::%{_c}%::per} * {-lootc::%{_c}%::layers}
+		loop integers from 1 to {-lootc::%{_c}%::cells}:
+			set {_i} to loop-value
+			loop integers from 1 to {_slots}:
+				if {-lootv::%{_c}%::%{_i}%::%loop-value-2%} is set:
+					lootSpawnPiece({_h}, {_n}, {_i}, loop-value-2)
+			if {_st} is "open":
+				if {-lootcn::%{_c}%::%{_i}%} > 0:
+					lootSpawnHitbox({_h}, {_n}, {_i})
+	else:
+		# The blocks follow the state (see lootGateAir).
+		if {_st} is "open":
+			lootGateAir({_h}, {_n})
+		else:
+			lootGateRestore({_h}, {_n})
+			loop {loot::%{_h}%::%{_n}%::gate::*}:
+				lootSpawnHitbox({_h}, {_n}, loop-index parsed as number)
+		if {_st} is "drilling" or "jammed":
+			lootDrillDisplays({_h}, {_n})
+	lootMarker({_h}, {_n}, true)
+
+function lootDespawnSpot(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	loop {-lootents::%{_c}%::*}:
+		delete {-lootent::%loop-index%}
+		if loop-value is valid:
+			kill loop-value
+	delete {-lootents::%{_c}%::*}
+	delete {-lootpd::%{_c}%::*}
+	delete {-loothb::%{_c}%::*}
+	delete {-lootmk::%{_c}%}
+	delete {-lootmkc::%{_c}%}
+	delete {-lootdrill::%{_c}%::disp}
+	delete {-lootdrill::%{_c}%::text}
+	delete {-lootup::%{_c}%}
+
+# One piece: an item display lying flat, a bit turned at random; a partial piece is smaller.
+function lootSpawnPiece(h: text, n: text, i: number, slot: number):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_per} to {-lootc::%{_c}%::per}
+	set {_k} to mod({_slot} - 1, {_per}) + 1
+	set {_layer} to ceil({_slot} / {_per})
+	set {_thick} to {-lootc::%{_c}%::thick}
+	set {_y} to {-lootc::%{_c}%::top} + 0.02 + {_thick} / 2 + ({_layer} - 1) * {_thick}
+	set {_x} to {-lootc::%{_c}%::cellx::%{_i}%} + {-lootc::%{_c}%::ox::%{_k}%}
+	set {_z} to {-lootc::%{_c}%::cellz::%{_i}%} + {-lootc::%{_c}%::oz::%{_k}%}
+	set {_l} to location({_x}, {_y}, {_z}, world of {loot::%{_h}%::%{_n}%::a})
+	set yaw of {_l} to {-lootc::%{_c}%::axis} + (random number between -12 and 12)
+	set pitch of {_l} to 90
+	set {_s} to {-lootc::%{_c}%::scale}
+	set {_val} to {-lootv::%{_c}%::%{_i}%::%{_slot}%}
+	if {_val} < {-lootc::%{_c}%::piece}:
+		set {_s} to {_s} * (0.4 + 0.6 * {_val} / {-lootc::%{_c}%::piece})
+	set {_stack} to {-lootc::%{_c}%::stack}
+	spawn an item display at {_l}:
+		lootDisplaySetup(event-display, {_stack}, {_s}, {-cfg::loot::piece-view})
+	set {_d} to last spawned entity
+	set {-lootpd::%{_c}%::%{_i}%::%{_slot}%} to {_d}
+	lootReg({_c}, {_d})
+
+function lootDisplaySetup(d: entity, i: item, s: number, view: number):
+	make {_d} not persistent
+	add "donating_loot" to scoreboard tags of {_d}
+	set item of {_d} to {_i}
+	set display scale of {_d} to vector({_s}, {_s}, {_s})
+	set brightness override of {_d} to 15
+	set view range of {_d} to {_view}
+	set teleport duration of {_d} to 3 ticks
+
+# A hitbox: over a pile cell (the loot surface), or around a gate block (a bit bigger than the block,
+# so the click lands on it before the block).
+function lootSpawnHitbox(h: text, n: text, i: number):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_w} to world of {loot::%{_h}%::%{_n}%::a}
+	if {-lootc::%{_c}%::kind} is "pile":
+		set {_l} to location({-lootc::%{_c}%::cellx::%{_i}%} + 0.5, {-lootc::%{_c}%::top}, {-lootc::%{_c}%::cellz::%{_i}%} + 0.5, {_w})
+		set {_wd} to 1
+		set {_ht} to max(0.3, {-lootc::%{_c}%::layers} * {-lootc::%{_c}%::thick} + 0.2)
+	else:
+		set {_g} to {loot::%{_h}%::%{_n}%::gate::%{_i}%}
+		{_g} is set
+		set {_l} to location((x-coordinate of {_g}) + 0.5, (y-coordinate of {_g}) - 0.01, (z-coordinate of {_g}) + 0.5, {_w})
+		set {_wd} to 1.02
+		set {_ht} to 1.02
+	spawn an interaction at {_l}:
+		lootHitboxSetup(event-entity, {_wd}, {_ht})
+	set {_e} to last spawned entity
+	set {-loothb::%{_c}%::%{_i}%} to {_e}
+	set {-lootent::%uuid of {_e}%} to "%{_h}%|%{_n}%|%{_i}%"
+	lootReg({_c}, {_e})
+
+function lootHitboxSetup(e: entity, w: number, h: number):
+	make {_e} not persistent
+	add "donating_loot" to scoreboard tags of {_e}
+	set interaction width of {_e} to {_w}
+	set interaction height of {_e} to {_h}
+	make {_e} unresponsive
+
+# The glowing marker: yellow = grab now, white = a gate with loot behind it (work first), red = a
+# jammed drill; nothing on an empty or locked pile or an open gate. Changes only on a state change.
+function lootMarkerWant(h: text, n: text) :: text:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_st} to {-lootst::%{_c}%}
+	if {-lootc::%{_c}%::kind} is "pile":
+		if {_st} is "open":
+			return "yellow"
+		return "none"
+	if {_st} is "closed":
+		return "white"
+	if {_st} is "jammed":
+		return "red"
+	return "none"
+
+function lootMarker(h: text, n: text, force: boolean = false):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_want} to lootMarkerWant({_h}, {_n})
+	set {_m} to {-lootmk::%{_c}%}
+	if {_force} is false:
+		if {-lootmkc::%{_c}%} is {_want}:
+			if {_want} is "none":
+				stop
+			if {_m} is set:
+				if {_m} is valid:
+					stop
+	if {_m} is set:
+		lootKillOne({_c}, {_m})
+	delete {-lootmk::%{_c}%}
+	set {-lootmkc::%{_c}%} to {_want}
+	{_want} is not "none"
+	{-lootup::%{_c}%} is true
+	set {_w} to world of {loot::%{_h}%::%{_n}%::a}
+	if {-lootc::%{_c}%::kind} is "pile":
+		set {_y} to {-lootc::%{_c}%::top} + 0.55 + {-lootc::%{_c}%::layers} * {-lootc::%{_c}%::thick}
+	else:
+		set {_y} to {-lootc::%{_c}%::y2} + 1.45
+	set {_l} to location({-lootc::%{_c}%::cx}, {_y}, {-lootc::%{_c}%::cz}, {_w})
+	spawn an item display at {_l}:
+		lootMarkerSetup(event-display, {_want})
+	set {_d} to last spawned entity
+	set {-lootmk::%{_c}%} to {_d}
+	lootReg({_c}, {_d})
+
+function lootMarkerSetup(d: entity, color: text):
+	make {_d} not persistent
+	add "donating_loot" to scoreboard tags of {_d}
+	set {_i} to gold nugget
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:marker"
+	set item of {_d} to {_i}
+	set display scale of {_d} to vector(0.3, 0.3, 0.3)
+	set billboard of {_d} to center
+	set brightness override of {_d} to 15
+	set view range of {_d} to {-cfg::loot::marker-view}
+	set glowing of {_d} to true
+	if {_color} is "yellow":
+		set glow color override of {_d} to yellow
+	else if {_color} is "red":
+		set glow color override of {_d} to red
+	else:
+		set glow color override of {_d} to white
+
+# ---------- Gates ----------
+
+# The gate's blocks as air (it's open). Only blocks in loaded chunks: lootSpawnSpot applies the state
+# again whenever the spot spawns (its chunks are loaded then), so a gate opened far from everyone
+# (a drill finishing while its robbers ran) is air by the time anyone gets there.
+function lootGateAir(h: text, n: text):
+	loop {loot::%{_h}%::%{_n}%::gate::*}:
+		chunk at loop-value is loaded
+		block at loop-value is not air
+		update block at loop-value as air[] without neighbour updates
+
+# The gate's saved blocks back (every opening, every spawn of a closed gate; disable with force, which
+# loads the chunk: a disabled heist must never be snapshot with an open gate). The room reset also
+# puts them back. Only blocks that differ are touched.
+function lootGateRestore(h: text, n: text, force: boolean = false):
+	loop {loot::%{_h}%::%{_n}%::gate::*}:
+		set {_ok} to true
+		if {_force} is false:
+			if chunk at loop-value is not loaded:
+				set {_ok} to false
+		{_ok} is true
+		set {_saved} to {loot::%{_h}%::%{_n}%::bd::%loop-index%}
+		"%block data of block at loop-value%" is not {_saved}
+		set {_bd} to {_saved} parsed as block data
+		{_bd} is set
+		update block at loop-value as {_bd} without neighbour updates
+
+# The crack overlay on a gate's blocks, for that heist's robbers (0 clears it).
+function lootGateOverlay(h: text, n: text, progress: number):
+	set {_m::*} to heistRobbers({_h})
+	set {_i} to 0
+	loop {loot::%{_h}%::%{_n}%::gate::*}:
+		add 1 to {_i}
+		set {_b} to block at loop-value
+		make {_m::*} see damage of {_b} as {_progress} from (3000000 + 1000 * ({_n} parsed as number) + {_i})
+
+function lootGateCenter(h: text, n: text) :: location:
+	set {_c} to "%{_h}%::%{_n}%"
+	return location({-lootc::%{_c}%::cx}, {-lootc::%{_c}%::cy}, {-lootc::%{_c}%::cz}, world of {loot::%{_h}%::%{_n}%::a})
+
+# Opens a gate for everyone: the blocks turn to air, its hitboxes go, the piles behind it unlock.
+function lootOpenGate(h: text, n: text, why: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is not "open"
+	set {-lootst::%{_c}%} to "open"
+	loop {-loothb::%{_c}%::*}:
+		lootKillOne({_c}, loop-value)
+	delete {-loothb::%{_c}%::*}
+	lootGateOverlay({_h}, {_n}, 0)
+	lootDrillClear({_h}, {_n})
+	lootGateAir({_h}, {_n})
+	lootMarker({_h}, {_n})
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		{-lootc::%{_h}%::%loop-index%::behind} is {_n}
+		if {-lootst::%{_h}%::%loop-index%} is "locked":
+			lootPileState({_h}, loop-index)
+			lootOpenPile({_h}, loop-index)
+	heistStartRun({_h})
+	lootLog("open %{_h}%-%{_n}% %{-lootc::%{_c}%::kind}% why=%{_why}% run=%heistRun({_h})%")
+
+function lootOpenPile(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootup::%{_c}%} is true
+	{-lootst::%{_c}%} is "open"
+	loop integers from 1 to {-lootc::%{_c}%::cells}:
+		if {-lootcn::%{_c}%::%loop-value%} > 0:
+			if {-loothb::%{_c}%::%loop-value%} is not set:
+				lootSpawnHitbox({_h}, {_n}, loop-value)
+	lootMarker({_h}, {_n})
+
+# ---------- Clicking ----------
+
+on right click on interaction:
+	set {_hit} to {-lootent::%uuid of event-entity%}
+	{_hit} is set
+	cancel event
+	set {-lootguard::%player%} to now
+	lootClick(player, {_hit})
+
+# A crew member between you and the loot: the click goes through them to the loot behind.
+on right click on player:
+	set {_h} to heistOf(player)
+	{_h} is not ""
+	set {_o} to event-entity
+	heistOf({_o}) is {_h}
+	lootArmed({_h}) is true
+	set {_ray} to ray trace from player with max distance {-cfg::loot::reach} while only allowing interaction
+	set {_e} to ray trace hit entity of {_ray}
+	{_e} is set
+	set {_hit} to {-lootent::%uuid of {_e}%}
+	{_hit} is set
+	cancel event
+	set {-lootguard::%player%} to now
+	lootClick(player, {_hit})
+
+# The guard: for a moment after a loot click, a plain right-click (crosshair slid off the loot) does
+# nothing. Cancelled at the lowest priority, WeaponMechanics doesn't fire and phone.sk doesn't run.
+on right click with priority lowest:
+	clicked entity is not set
+	set {_g} to {-lootguard::%player%}
+	{_g} is set
+	difference between {_g} and now < {-cfg::loot::guard}
+	cancel event
+
+# A hit that landed (crew hits are cancelled before this) resets the task and closes the keypad.
+on damage of player with priority monitor:
+	delete {-lootw::%victim%}
+	delete {-lootw::%victim%::*}
+	lootKeypadClose(victim, "hurt")
+
+function lootBar(p: player, text: text):
+	hudBar({_p}, {_text}, 1)
+
+# "&a▮▮▮&7▯▯" for a fraction 0-1.
+function lootMeter(f: number) :: text:
+	set {_n} to min(5, max(0, floor({_f} * 5)))
+	set {_t} to "&a"
+	loop 5 times:
+		if loop-number is {_n} + 1:
+			set {_t} to "%{_t}%&7"
+		if loop-number <= {_n}:
+			set {_t} to "%{_t}%▮"
+		else:
+			set {_t} to "%{_t}%▯"
+	return {_t}
+
+# Holding right-click on task `key`: true when `need` seconds of holding are done (the rest carries on).
+function lootHold(p: player, key: text, need: number) :: boolean:
+	set {_last} to {-lootw::%{_p}%::at}
+	set {-lootw::%{_p}%::at} to now
+	set {_cur} to {-lootw::%{_p}%}
+	if {_cur} is not set:
+		set {_cur} to ""
+	if {_cur} is not {_key}:
+		set {-lootw::%{_p}%} to {_key}
+		set {-lootw::%{_p}%::t} to 0
+		return false
+	if {_last} is not set:
+		set {-lootw::%{_p}%::t} to 0
+		return false
+	set {_dt} to (difference between {_last} and now) / 1 second
+	if {_dt} > {-cfg::loot::gap}:
+		set {-lootw::%{_p}%::t} to 0
+		return false
+	add min({_dt}, {-cfg::loot::credit}) to {-lootw::%{_p}%::t}
+	if {-lootw::%{_p}%::t} >= {_need}:
+		remove {_need} from {-lootw::%{_p}%::t}
+		return true
+	return false
+
+function lootHeld(p: player) :: number:
+	set {_t} to {-lootw::%{_p}%::t}
+	if {_t} is set:
+		return {_t}
+	return 0
+
+function lootClick(p: player, hit: text):
+	set {_parts::*} to {_hit} split at "|"
+	set {_h} to {_parts::1}
+	set {_n} to {_parts::2}
+	set {_i} to {_parts::3} parsed as number
+	set {_c} to "%{_h}%::%{_n}%"
+	lootArmed({_h}) is true
+	# Builders first: creative staff aren't heist members at all.
+	if heistBuilder({_p}) is true:
+		lootBar({_p}, "&7Builder: switch to survival to rob.")
+		stop
+	if heistOf({_p}) is not {_h}:
+		lootBar({_p}, "&7Get inside the %heistName({_h})% first.")
+		stop
+	{_p} is alive
+	set {_hb} to {-loothb::%{_c}%::%{_i}%}
+	if {_hb} is set:
+		if {_hb} is valid:
+			if distance between (eye location of {_p}) and (location of {_hb}) > {-cfg::loot::reach} + 1:
+				stop
+	set {_k} to {-lootc::%{_c}%::kind}
+	if {_k} is "pile":
+		lootClickPile({_p}, {_h}, {_n}, {_i})
+	else if {_k} is "smash":
+		lootClickSmash({_p}, {_h}, {_n})
+	else if {_k} is "safe":
+		lootClickSafe({_p}, {_h}, {_n})
+	else if {_k} is "drill":
+		lootClickDrill({_p}, {_h}, {_n})
+
+# ---------- Piles ----------
+
+function lootClickPile(p: player, h: text, n: text, i: number):
+	set {_c} to "%{_h}%::%{_n}%"
+	if bagTier({_p}) <= 0:
+		lootBar({_p}, "&cYou need a bag to carry loot: buy one at a Bag Shop.")
+		stop
+	if bagRoom({_p}) <= 0:
+		lootBagFull({_p})
+		stop
+	set {_st} to {-lootst::%{_c}%}
+	if {_st} is "locked":
+		set {_g} to {-lootc::%{_c}%::behind}
+		lootBar({_p}, "&7Locked: open the %{-lootc::%{_h}%::%{_g}%::name}% first.")
+		stop
+	if {_st} is not "open":
+		lootBar({_p}, "&7Nothing left here.")
+		stop
+	set {_g} to {-lootc::%{_c}%::behind}
+	if {_g} is set:
+		set {_why} to lootClaimWhy({_p}, {_h}, {_g})
+		if {_why} is not "":
+			lootBar({_p}, {_why})
+			stop
+	set {_take} to {-lootc::%{_c}%::take}
+	if lootHold({_p}, "%{_c}%|grab", {_take}) is true:
+		lootTake({_p}, {_h}, {_n}, {_i})
+		stop
+	set {_name} to {-lootc::%{_c}%::name}
+	set {_money} to formatMoney({-lootc::%{_c}%::piece})
+	lootBar({_p}, "&eGRAB %lootMeter(lootHeld({_p}) / {_take})% &6%{_name}% &f%{_money}% &7· %bagFillText({_p})%")
+
+# Top-layer piece nearest to the robber, in cell i or (empty) the nearest cell with loot: "cell:slot".
+function lootPick(c: text, i: number, p: player) :: text:
+	set {_px} to x-coordinate of {_p}
+	set {_pz} to z-coordinate of {_p}
+	set {_cell} to {_i}
+	set {_cn} to {-lootcn::%{_c}%::%{_i}%}
+	if {_cn} is not set:
+		set {_cn} to 0
+	if {_cn} <= 0:
+		set {_cell} to 0
+		set {_best} to 1000000
+		loop integers from 1 to {-lootc::%{_c}%::cells}:
+			set {_j} to loop-value
+			{-lootcn::%{_c}%::%{_j}%} > 0
+			set {_d2} to ({-lootc::%{_c}%::cellx::%{_j}%} + 0.5 - {_px}) ^ 2 + ({-lootc::%{_c}%::cellz::%{_j}%} + 0.5 - {_pz}) ^ 2
+			if {_d2} < {_best}:
+				set {_best} to {_d2}
+				set {_cell} to {_j}
+		if {_cell} is 0:
+			return ""
+	set {_per} to {-lootc::%{_c}%::per}
+	set {_bs} to 0
+	set {_bl} to 0
+	set {_bd} to 1000000
+	loop integers from 1 to {_per} * {-lootc::%{_c}%::layers}:
+		set {_s} to loop-value
+		{-lootv::%{_c}%::%{_cell}%::%{_s}%} is set
+		set {_layer} to ceil({_s} / {_per})
+		set {_k} to mod({_s} - 1, {_per}) + 1
+		set {_d2} to ({-lootc::%{_c}%::cellx::%{_cell}%} + {-lootc::%{_c}%::ox::%{_k}%} - {_px}) ^ 2 + ({-lootc::%{_c}%::cellz::%{_cell}%} + {-lootc::%{_c}%::oz::%{_k}%} - {_pz}) ^ 2
+		if {_layer} > {_bl}:
+			set {_bl} to {_layer}
+			set {_bd} to {_d2}
+			set {_bs} to {_s}
+		else if {_layer} is {_bl}:
+			if {_d2} < {_bd}:
+				set {_bd} to {_d2}
+				set {_bs} to {_s}
+	if {_bs} is 0:
+		return ""
+	return "%{_cell}%:%{_bs}%"
+
+# One piece into the bag (or what fits: the piece then shrinks and stays). Returns the $ taken.
+function lootTake(p: player, h: text, n: text, i: number) :: number:
+	set {_c} to "%{_h}%::%{_n}%"
+	if bagTier({_p}) <= 0:
+		return 0
+	set {_pick} to lootPick({_c}, {_i}, {_p})
+	if {_pick} is "":
+		set {-lootw::%{_p}%::t} to 0
+		lootBar({_p}, "&cToo slow! It's empty.")
+		return 0
+	set {_ps::*} to {_pick} split at ":"
+	set {_cell} to {_ps::1} parsed as number
+	set {_slot} to {_ps::2} parsed as number
+	set {_w} to {-lootv::%{_c}%::%{_cell}%::%{_slot}%}
+	set {_room} to bagRoom({_p})
+	if {_room} <= 0:
+		lootBagFull({_p})
+		return 0
+	set {_t} to min({_w}, {_room})
+	if {_t} < {_w}:
+		if {-cfg::loot::partial} is not true:
+			lootBar({_p}, "&cNot enough room in your bag for that.")
+			return 0
+	set {_got} to bagAdd({_p}, {_h}, {_t})
+	if {_got} <= 0:
+		lootBagFull({_p})
+		return 0
+	set {_d} to {-lootpd::%{_c}%::%{_cell}%::%{_slot}%}
+	if {_got} >= {_w}:
+		delete {-lootv::%{_c}%::%{_cell}%::%{_slot}%}
+		delete {-lootpd::%{_c}%::%{_cell}%::%{_slot}%}
+		remove 1 from {-lootcn::%{_c}%::%{_cell}%}
+		remove 1 from {-lootn::%{_c}%}
+		if {_d} is set:
+			lootUnreg({_c}, {_d})
+			if {_d} is valid:
+				lootVanish({_d}, {_p})
+		if {-lootcn::%{_c}%::%{_cell}%} <= 0:
+			set {_hb} to {-loothb::%{_c}%::%{_cell}%}
+			if {_hb} is set:
+				lootKillOne({_c}, {_hb})
+			delete {-loothb::%{_c}%::%{_cell}%}
+	else:
+		set {_rest} to {_w} - {_got}
+		set {-lootv::%{_c}%::%{_cell}%::%{_slot}%} to {_rest}
+		if {_d} is set:
+			if {_d} is valid:
+				lootShrink({_d}, {_c}, {_rest} / {-lootc::%{_c}%::piece})
+	remove {_got} from {-lootleft::%{_c}%}
+	if {-lootn::%{_c}%} <= 0:
+		set {-lootst::%{_c}%} to "empty"
+		lootMarker({_h}, {_n})
+	heistStartRun({_h})
+	lootLog("take %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}% cell=%{_cell}% slot=%{_slot}% got=%{_got}% left=%{-lootleft::%{_c}%}% pieces=%{-lootn::%{_c}%}% run=%heistRun({_h})%")
+	set {_pct} to bagPct({_p})
+	play sound "item.bundle.insert" with volume 0.8 and pitch (0.9 + 0.5 * {_pct} / 100) at location of {_p}
+	if bagRoom({_p}) <= 0:
+		play sound "block.amethyst_block.chime" with volume 1 to {_p}
+		lootBar({_p}, "&a+%formatMoney({_got})% &7· &6&lBAG FULL &7· sell it at the base")
+	else:
+		set {_name} to {-lootc::%{_c}%::name}
+		lootBar({_p}, "&a+%formatMoney({_got})% &7%{_name}% · %bagFillText({_p})% &7(%formatMoney(bagTotal({_p}))%/%formatMoney(bagCapacity({_p}))%)")
+	lootCleanCheck({_h})
+	return {_got}
+
+# The taken piece flies to the robber, then goes.
+function lootVanish(d: entity, p: player):
+	set {_l} to location(x-coordinate of {_p}, (y-coordinate of {_p}) + 1.1, z-coordinate of {_p}, world of {_p})
+	set pitch of {_l} to 90
+	teleport {_d} to {_l}
+	wait 4 ticks
+	if {_d} is valid:
+		kill {_d}
+
+function lootShrink(d: entity, c: text, frac: number):
+	set {_s} to {-lootc::%{_c}%::scale} * (0.4 + 0.6 * {_frac})
+	set display scale of {_d} to vector({_s}, {_s}, {_s})
+
+function lootBagFull(p: player):
+	lootBar({_p}, "&6&lBAG FULL &7· sell it at the base")
+	set {_at} to {-lootfull::%{_p}%}
+	if {_at} is set:
+		if difference between {_at} and now < 1 second:
+			stop
+	set {-lootfull::%{_p}%} to now
+	play sound "item.bundle.insert_fail" with volume 0.8 to {_p}
+
+# Every pile empty (locked ones count as loot left) while the clock runs: it drops, once per run.
+function lootCleanCheck(h: text):
+	{-lootclean::%{_h}%} is not set
+	set {_secs} to {-cfg::loot::cleaned-out}
+	{_secs} > 0
+	heistState({_h}) is "active"
+	lootLeft({_h}) <= 0
+	set {-lootclean::%{_h}%} to true
+	if heistShortenClock({_h}, {_secs}) is true:
+		set {_clock} to formatClock({_secs})
+		loop heistRobbers({_h}):
+			heistNotify(loop-value, "warn", "&6The %heistName({_h})% is cleaned out: &f%{_clock}% &6to get out.")
+	lootLog("cleaned %{_h}% run=%heistRun({_h})%")
+
+# ---------- Smashing glass ----------
+
+function lootClickSmash(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "closed"
+	set {_take} to {-lootc::%{_c}%::take}
+	play sound "block.glass.hit" with volume 0.8 at lootGateCenter({_h}, {_n})
+	if lootHold({_p}, "%{_c}%|smash", {_take}) is true:
+		lootSmashDone({_p}, {_h}, {_n})
+		stop
+	set {_f} to lootHeld({_p}) / {_take}
+	lootGateOverlay({_h}, {_n}, max(0.1, min(0.9, {_f})))
+	lootBar({_p}, "&eSMASH %lootMeter({_f})%")
+
+function lootSmashDone(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "closed"
+	lootOpenGate({_h}, {_n}, "smash")
+	set {_l} to lootGateCenter({_h}, {_n})
+	play sound "block.glass.break" with volume 1 at {_l}
+	play sound "block.glass.break" with volume 1 and pitch 0.8 at {_l}
+	draw 16 poof particles at {_l} for all players
+	if {-lootc::%{_c}%::alarm} is true:
+		heistTripAlarm({_h}, "loot:smash:%{_h}%-%{_n}%")
+	lootLog("smash %name of {_p}% %{_h}%-%{_n}%")
+	# The smasher gets the nearest piece behind the glass at once.
+	lootTakeBehind({_p}, {_h}, {_n})
+
+function lootTakeBehind(p: player, h: text, g: text):
+	set {_best} to ""
+	set {_bd} to 1000000
+	set {_l} to location of {_p}
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		set {_m} to loop-index
+		{-lootc::%{_h}%::%{_m}%::behind} is {_g}
+		{-lootn::%{_h}%::%{_m}%} > 0
+		set {_d2} to ({-lootc::%{_h}%::%{_m}%::cx} - (x-coordinate of {_l})) ^ 2 + ({-lootc::%{_h}%::%{_m}%::cz} - (z-coordinate of {_l})) ^ 2
+		if {_d2} < {_bd}:
+			set {_bd} to {_d2}
+			set {_best} to {_m}
+	{_best} is not ""
+	lootTake({_p}, {_h}, {_best}, 0)
+
+# ---------- Safes: the keypad ----------
+
+function lootClickSafe(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "closed"
+	{-lootkp::%{_p}%} is not {_c}
+	if toolCount({_p}, "safe-kit") < 1:
+		lootBar({_p}, "&eCrack the safe &7· needs a &fSafe Kit &7(Tools shop)")
+		stop
+	lootKeypadOpen({_p}, {_h}, {_n})
+
+# A code of `d` different digits 1-9.
+function lootNewCode(d: number) :: text:
+	set {_all::*} to integers from 1 to 9
+	set {_mix::*} to shuffled {_all::*}
+	set {_code} to ""
+	loop integers from 1 to {_d}:
+		set {_code} to "%{_code}%%{_mix::%loop-value%}%"
+	return {_code}
+
+function lootKeypadOpen(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_d} to {-lootc::%{_c}%::digits}
+	if {-lootcode::%{_c}%::%{_p}%} is not set:
+		set {-lootcode::%{_c}%::%{_p}%} to lootNewCode({_d})
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 6 rows named "&8Safe · %{_d}% digits"
+	set {-lootkp::%{_p}%} to {_c}
+	set {-lootkp::%{_p}%::gui} to {_gui}
+	set {-lootkp::%{_p}%::entry} to ""
+	set {-lootkp::%{_p}%::gen} to 0
+	lootKeypadDraw({_p})
+	open {_gui} to {_p}
+	play sound "block.iron_trapdoor.open" with volume 0.6 to {_p}
+
+function lootDigitItem(digit: number, color: text) :: item:
+	if {_color} is "L":
+		set {_i} to {_digit} of lime concrete
+	else if {_color} is "Y":
+		set {_i} to {_digit} of yellow concrete
+	else if {_color} is "X":
+		set {_i} to {_digit} of light gray concrete
+	else if {_color} is "G":
+		set {_i} to {_digit} of gray concrete
+	else:
+		set {_i} to {_digit} of white concrete
+	set name of {_i} to "&f%{_digit}%"
+	return {_i}
+
+# Rows 1-4: the last 4 guesses (newest at the bottom), each digit green (right place), yellow (in the
+# code, wrong place) or gray (not in it), item amount = the digit. Row 5: the rules, the entry, Clear.
+# Row 6: keys 1-9 (a digit already typed is gray).
+function lootKeypadDraw(p: player):
+	set {_c} to {-lootkp::%{_p}%}
+	{_c} is set
+	set {_gui} to {-lootkp::%{_p}%::gui}
+	add 1 to {-lootkp::%{_p}%::gen}
+	set {_d} to {-lootc::%{_c}%::digits}
+	loop integers from 0 to 53:
+		set slot loop-value of {_gui} to air
+	set {_g} to {-lootguessn::%{_c}%::%{_p}%}
+	if {_g} is not set:
+		set {_g} to 0
+	# (A fixed 4 passes: never a while loop here, a condition line inside one would skip the counters.)
+	loop 4 times:
+		set {_row} to 4 - loop-number
+		set {_idx} to {_g} - loop-number + 1
+		if {_idx} >= 1:
+			set {_gs} to {-lootguess::%{_c}%::%{_p}%::%{_idx}%}
+			set {_gp::*} to {_gs} split at ":"
+			loop integers from 1 to {_d}:
+				set {_j} to loop-value-2
+				set {_dg} to (subtext of {_gp::1} from characters {_j} to {_j}) parsed as number
+				set {_col} to subtext of {_gp::2} from characters {_j} to {_j}
+				set slot ({_row} * 9 + {_j} - 1) of {_gui} to lootDigitItem({_dg}, {_col})
+			set slot {_row} * 9 + 8 of {_gui} to paper named "&7Guess #%{_idx}%"
+	set slot 36 of {_gui} to book named "&fCrack the code" with lore "&7%{_d}% different digits, 1-9." and "&aGreen&7: right digit, right place." and "&eYellow&7: in the code, wrong place." and "&7Gray: not in the code." and "&8Your Safe Kit is used only when it opens."
+	set {_entry} to {-lootkp::%{_p}%::entry}
+	loop integers from 1 to {_d}:
+		if loop-value <= length of {_entry}:
+			set {_dg} to (subtext of {_entry} from characters loop-value to loop-value) parsed as number
+			set slot 37 + loop-value of {_gui} to lootDigitItem({_dg}, "W")
+		else:
+			set slot 37 + loop-value of {_gui} to gray stained glass pane named "&8_"
+	set slot 44 of {_gui} to barrier named "&cClear"
+	loop integers from 1 to 9:
+		if {_entry} contains "%loop-value%":
+			set slot 44 + loop-value of {_gui} to lootDigitItem(loop-value, "G")
+		else:
+			set slot 44 + loop-value of {_gui} to lootDigitItem(loop-value, "W")
+
+on inventory click:
+	{-lootkp::%player%} is set
+	player's current inventory is {-lootkp::%player%::gui}
+	cancel event
+	event-inventory is {-lootkp::%player%::gui}
+	set {_slot} to index of event-slot
+	set {_gen} to {-lootkp::%player%::gen}
+	# One action per drawn screen: a second click from the same tick finds the screen redrawn.
+	wait 1 tick
+	player is online
+	{-lootkp::%player%} is set
+	{-lootkp::%player%::gen} is {_gen}
+	lootKeypadKey(player, {_slot})
+
+on inventory drag:
+	{-lootkp::%player%} is set
+	player's current inventory is {-lootkp::%player%::gui}
+	cancel event
+
+on inventory close:
+	{-lootkp::%player%} is set
+	event-inventory is {-lootkp::%player%::gui}
+	lootKeypadForget(player)
+
+function lootKeypadKey(p: player, slot: number):
+	set {_c} to {-lootkp::%{_p}%}
+	set {_parts::*} to {_c} split at "::"
+	set {_h} to {_parts::1}
+	set {_n} to {_parts::2}
+	if {-lootst::%{_c}%} is not "closed":
+		lootKeypadClose({_p}, "open")
+		stop
+	set {_at} to {-lootguessat::%{_c}%::%{_p}%}
+	if {_at} is set:
+		if difference between {_at} and now < {-cfg::loot::safe::guess-gap}:
+			stop
+	set {_entry} to {-lootkp::%{_p}%::entry}
+	if {_slot} is 44:
+		set {-lootkp::%{_p}%::entry} to ""
+		play sound "ui.button.click" with volume 0.6 to {_p}
+		lootKeypadDraw({_p})
+		stop
+	if {_slot} < 45:
+		stop
+	if {_slot} > 53:
+		stop
+	set {_digit} to {_slot} - 44
+	if {_entry} contains "%{_digit}%":
+		play sound "entity.villager.no" with volume 0.5 to {_p}
+		stop
+	set {_entry} to "%{_entry}%%{_digit}%"
+	play sound "ui.button.click" with volume 0.6 to {_p}
+	if length of {_entry} >= {-lootc::%{_c}%::digits}:
+		set {-lootkp::%{_p}%::entry} to ""
+		lootKeypadSubmit({_p}, {_h}, {_n}, {_entry})
+		stop
+	set {-lootkp::%{_p}%::entry} to {_entry}
+	lootKeypadDraw({_p})
+
+function lootKeypadSubmit(p: player, h: text, n: text, guess: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_code} to {-lootcode::%{_c}%::%{_p}%}
+	set {_fb} to ""
+	set {_ok} to true
+	loop integers from 1 to length of {_guess}:
+		set {_ch} to subtext of {_guess} from characters loop-value to loop-value
+		if subtext of {_code} from characters loop-value to loop-value is {_ch}:
+			set {_fb} to "%{_fb}%L"
+		else:
+			set {_ok} to false
+			if {_code} contains {_ch}:
+				set {_fb} to "%{_fb}%Y"
+			else:
+				set {_fb} to "%{_fb}%X"
+	add 1 to {-lootguessn::%{_c}%::%{_p}%}
+	set {_g} to {-lootguessn::%{_c}%::%{_p}%}
+	set {-lootguess::%{_c}%::%{_p}%::%{_g}%} to "%{_guess}%:%{_fb}%"
+	set {-lootguessat::%{_c}%::%{_p}%} to now
+	# Working a safe is robbing it: the clock starts at the first guess.
+	heistStartRun({_h})
+	lootLog("guess %name of {_p}% %{_h}%-%{_n}% #%{_g}% %{_guess}% %{_fb}%")
+	if {_ok} is true:
+		if toolUse({_p}, "safe-kit") is false:
+			lootKeypadClose({_p}, "nokit")
+			stop
+		lootCrack({_p}, {_h}, {_n})
+		stop
+	play sound "block.note_block.bass" with volume 0.8 to {_p}
+	lootKeypadDraw({_p})
+
+function lootCrack(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "closed"
+	lootOpenGate({_h}, {_n}, "safe")
+	set {_claim} to {-lootc::%{_c}%::claim}
+	lootClaimStart({_c}, {_p}, {_claim})
+	set {_l} to lootGateCenter({_h}, {_n})
+	play sound "block.iron_door.open" with volume 1 at {_l}
+	play sound "block.vault.open_shutter" with volume 1 at {_l}
+	if {_claim} > 0:
+		send title colored "&a&lCRACKED" with subtitle colored "&7%{_claim}% s head start" to {_p} for 2 seconds
+	else:
+		send title colored "&a&lCRACKED" to {_p} for 2 seconds
+	loop all players:
+		{-lootkp::%loop-player%} is {_c}
+		loop-player is not {_p}
+		lootKeypadClose(loop-player, "beaten:%name of {_p}%")
+	lootKeypadClose({_p}, "done")
+	if {-lootc::%{_c}%::alarm} is true:
+		heistTripAlarm({_h}, "loot:safe:%{_h}%-%{_n}%")
+	lootLog("crack %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}% guesses=%{-lootguessn::%{_c}%::%{_p}%}%")
+
+function lootKeypadForget(p: player):
+	delete {-lootkp::%{_p}%}
+	delete {-lootkp::%{_p}%::*}
+
+function lootKeypadClose(p: player, why: text):
+	{-lootkp::%{_p}%} is set
+	set {_gui} to {-lootkp::%{_p}%::gui}
+	lootKeypadForget({_p})
+	if {_p}'s current inventory is {_gui}:
+		close {_p}'s inventory
+	if {_why} is "hurt":
+		lootBar({_p}, "&cHurt: the keypad closed.")
+	else if {_why} is "far":
+		lootBar({_p}, "&7Too far from the safe: the keypad closed.")
+	else if {_why} is "nokit":
+		msg({_p}, "&cYour Safe Kit is gone: get one at the Tools shop.")
+	else if {_why} starts with "beaten:":
+		set {_who} to subtext of {_why} from characters 8 to (length of {_why})
+		msg({_p}, "&c%{_who}% cracked it first. You keep your Safe Kit.")
+
+# ---------- Vault doors: the drill ----------
+
+function lootClickDrill(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_st} to {-lootst::%{_c}%}
+	if {_st} is "closed":
+		if toolCount({_p}, "drill") < 1:
+			lootBar({_p}, "&eMount a Drill &7· needs a &fDrill &7(Tools shop)")
+			stop
+		set {_need} to {-lootc::%{_c}%::mount}
+		if lootHold({_p}, "%{_c}%|mount", {_need}) is true:
+			lootMount({_p}, {_h}, {_n})
+			stop
+		lootBar({_p}, "&eMOUNTING %lootMeter(lootHeld({_p}) / {_need})%")
+	else if {_st} is "drilling":
+		lootBar({_p}, "&7%{-lootdrill::%{_c}%::name}%'s drill: &f%lootDrillPct({_c})%%% &7· %formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})% left")
+	else if {_st} is "jammed":
+		set {_need} to {-lootc::%{_c}%::fix}
+		if lootHold({_p}, "%{_c}%|fix", {_need}) is true:
+			lootFix({_p}, {_h}, {_n})
+			stop
+		lootBar({_p}, "&cFIXING %lootMeter(lootHeld({_p}) / {_need})%")
+
+function lootDrillPct(c: text) :: number:
+	set {_need} to {-lootdrill::%{_c}%::need}
+	if {_need} is not set:
+		return 0
+	if {_need} <= 0:
+		return 100
+	return min(100, floor(100 * {-lootdrill::%{_c}%::done} / {_need}))
+
+function lootMount(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "closed"
+	if toolUse({_p}, "drill") is false:
+		lootBar({_p}, "&cYou don't have a Drill.")
+		stop
+	set {-lootst::%{_c}%} to "drilling"
+	delete {-lootdrill::%{_c}%::*}
+	set {-lootdrill::%{_c}%::owner} to {_p}
+	set {-lootdrill::%{_c}%::name} to name of {_p}
+	set {-lootdrill::%{_c}%::done} to 0
+	set {_need} to {-lootc::%{_c}%::time}
+	set {-lootdrill::%{_c}%::need} to {_need}
+	set {_j} to {-lootc::%{_c}%::jams}
+	if {_j} > 0:
+		loop integers from 1 to {_j}:
+			set {-lootdrill::%{_c}%::jam::%loop-value%} to floor(loop-value * {_need} / ({_j} + 1))
+	# The drill sits on the door face toward the one who mounted it.
+	set {_ctr} to lootGateCenter({_h}, {_n})
+	set {_dx} to (x-coordinate of {_p}) - (x-coordinate of {_ctr})
+	set {_dz} to (z-coordinate of {_p}) - (z-coordinate of {_ctr})
+	set {_hx} to ({-lootc::%{_c}%::x2} - {-lootc::%{_c}%::x1} + 1) / 2
+	set {_hz} to ({-lootc::%{_c}%::z2} - {-lootc::%{_c}%::z1} + 1) / 2
+	if abs({_dx}) >= abs({_dz}):
+		set {_fx} to (x-coordinate of {_ctr}) + ({_hx} + 0.3) * ({_dx} / max(0.001, abs({_dx})))
+		set {_fz} to z-coordinate of {_ctr}
+	else:
+		set {_fx} to x-coordinate of {_ctr}
+		set {_fz} to (z-coordinate of {_ctr}) + ({_hz} + 0.3) * ({_dz} / max(0.001, abs({_dz})))
+	set {_face} to location({_fx}, y-coordinate of {_ctr}, {_fz}, world of {_ctr})
+	set yaw of {_face} to yaw of (vector from {_face} to {_ctr})
+	set {-lootdrill::%{_c}%::face} to {_face}
+	lootDrillDisplays({_h}, {_n})
+	lootMarker({_h}, {_n})
+	play sound "block.piston.extend" with volume 1 at {_face}
+	heistStartRun({_h})
+	if {-lootc::%{_c}%::alarm} is true:
+		heistTripAlarm({_h}, "loot:drill:%{_h}%-%{_n}%")
+	lootLog("mount %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}% time=%{_need}% jams=%{_j}%")
+
+function lootDrillDisplays(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootup::%{_c}%} is true
+	set {_face} to {-lootdrill::%{_c}%::face}
+	{_face} is set
+	set {_old} to {-lootdrill::%{_c}%::disp}
+	if {_old} is set:
+		lootKillOne({_c}, {_old})
+	set {_old} to {-lootdrill::%{_c}%::text}
+	if {_old} is set:
+		lootKillOne({_c}, {_old})
+	set {_i} to 1 of {-cfg::tool::drill::item}
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:tool_drill"
+	spawn an item display at {_face}:
+		lootDisplaySetup(event-display, {_i}, 0.8, {-cfg::loot::piece-view})
+	set {_d} to last spawned entity
+	set {-lootdrill::%{_c}%::disp} to {_d}
+	lootReg({_c}, {_d})
+	set {_tl} to location(x-coordinate of {_face}, (y-coordinate of {_face}) + 1.1, z-coordinate of {_face}, world of {_face})
+	spawn a text display at {_tl}:
+		lootTextSetup(event-display)
+	set {_t} to last spawned entity
+	set {-lootdrill::%{_c}%::text} to {_t}
+	lootReg({_c}, {_t})
+	lootDrillText({_h}, {_n})
+
+function lootTextSetup(d: entity):
+	make {_d} not persistent
+	add "donating_loot" to scoreboard tags of {_d}
+	set billboard of {_d} to center
+	set view range of {_d} to {-cfg::loot::piece-view}
+	set brightness override of {_d} to 15
+
+function lootDrillText(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_t} to {-lootdrill::%{_c}%::text}
+	{_t} is set
+	{_t} is valid
+	set {_pct} to lootDrillPct({_c})
+	set {_left} to formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})
+	set {_who} to {-lootdrill::%{_c}%::name}
+	if {-lootst::%{_c}%} is "jammed":
+		set text of {_t} to colored "&c&lJAMMED &7· hold right-click on the door%nl%&7%{_pct}%%% · %{_who}%"
+	else:
+		set text of {_t} to colored "&6DRILL &f%{_pct}%%% %lootMeter({_pct} / 100)% &f%{_left}%%nl%&7%{_who}%"
+
+function lootDrillClear(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_d} to {-lootdrill::%{_c}%::disp}
+	if {_d} is set:
+		lootKillOne({_c}, {_d})
+	set {_d} to {-lootdrill::%{_c}%::text}
+	if {_d} is set:
+		lootKillOne({_c}, {_d})
+	delete {-lootdrill::%{_c}%::disp}
+	delete {-lootdrill::%{_c}%::text}
+
+# Every second: progress, jams, the finish.
+function lootDrillTick(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "drilling"
+	add 1 to {-lootdrill::%{_c}%::done}
+	set {_done} to {-lootdrill::%{_c}%::done}
+	set {_face} to {-lootdrill::%{_c}%::face}
+	if mod({_done}, 2) is 0:
+		if {_face} is set:
+			play sound "block.grindstone.use" with volume 0.8 at {_face}
+	loop {-lootdrill::%{_c}%::jam::*}:
+		{_done} >= loop-value
+		delete {-lootdrill::%{_c}%::jam::%loop-index%}
+		set {-lootst::%{_c}%} to "jammed"
+		if {_face} is set:
+			play sound "block.anvil.land" with volume 0.8 and pitch 0.6 at {_face}
+		lootMarker({_h}, {_n})
+		lootDrillText({_h}, {_n})
+		lootLog("jam %{_h}%-%{_n}% at=%{_done}%")
+		stop
+	if {_done} >= {-lootdrill::%{_c}%::need}:
+		lootDrillDone({_h}, {_n})
+		stop
+	lootDrillText({_h}, {_n})
+
+function lootFix(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "jammed"
+	set {-lootst::%{_c}%} to "drilling"
+	set {_face} to {-lootdrill::%{_c}%::face}
+	if {_face} is set:
+		play sound "block.anvil.place" with volume 0.7 and pitch 1.4 at {_face}
+	lootMarker({_h}, {_n})
+	lootDrillText({_h}, {_n})
+	lootBar({_p}, "&aFixed: the drill is running again.")
+	lootLog("fix %name of {_p}% %{_h}%-%{_n}%")
+
+function lootDrillDone(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_owner} to {-lootdrill::%{_c}%::owner}
+	set {_who} to {-lootdrill::%{_c}%::name}
+	set {_face} to {-lootdrill::%{_c}%::face}
+	lootOpenGate({_h}, {_n}, "drill")
+	delete {-lootdrill::%{_c}%::*}
+	set {_claim} to {-lootc::%{_c}%::claim}
+	set {_got} to false
+	if {_owner} is set:
+		if {_owner} is online:
+			if {_owner} is alive:
+				if heistOf({_owner}) is {_h}:
+					lootClaimStart({_c}, {_owner}, {_claim})
+					set {_got} to true
+	if {_face} is set:
+		play sound "block.iron_door.open" with volume 1 and pitch 0.5 at {_face}
+	loop heistRobbers({_h}):
+		if {_got} is true:
+			if {_claim} > 0:
+				send title colored "&6&lVAULT OPEN" with subtitle colored "&7%{_who}% has a %{_claim}% s head start" to loop-value for 2 seconds
+			else:
+				send title colored "&6&lVAULT OPEN" to loop-value for 2 seconds
+		else:
+			send title colored "&6&lVAULT OPEN" to loop-value for 2 seconds
+	lootLog("drilled %{_h}%-%{_n}% by=%{_who}% claim=%{_got}%")
+
+# ---------- Head starts ----------
+
+function lootClaimStart(c: text, p: player, secs: number):
+	{_secs} > 0
+	set {-lootclaim::%{_c}%} to {_p}
+	set {-lootclaim::%{_c}%::name} to name of {_p}
+	set {_u} to now
+	add 1 second * {_secs} to {_u}
+	set {-lootclaim::%{_c}%::until} to {_u}
+
+# "" when p may take from the piles behind gate g of heist h, else why not.
+function lootClaimWhy(p: player, h: text, g: text) :: text:
+	set {_c} to "%{_h}%::%{_g}%"
+	set {_o} to {-lootclaim::%{_c}%}
+	if {_o} is not set:
+		return ""
+	if {_o} is {_p}:
+		return ""
+	set {_u} to {-lootclaim::%{_c}%::until}
+	if {_u} <= now:
+		lootClaimEnd({_c}, "time")
+		return ""
+	set {_left} to ceil((difference between now and {_u}) / 1 second)
+	return "&eClaimed by %{-lootclaim::%{_c}%::name}%: %{_left}%s"
+
+function lootClaimEnd(c: text, why: text):
+	{-lootclaim::%{_c}%} is set
+	delete {-lootclaim::%{_c}%}
+	delete {-lootclaim::%{_c}%::*}
+	lootLog("claim-end %{_c}% why=%{_why}%")
+
+# Every second: a head start ends when its time is up, or its owner is gone, dead, out of the heist,
+# full, or claim-range away from the gate.
+function lootClaimCheck(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_o} to {-lootclaim::%{_c}%}
+	{_o} is set
+	if {-lootclaim::%{_c}%::until} <= now:
+		lootClaimEnd({_c}, "time")
+	else if {_o} is not online:
+		lootClaimEnd({_c}, "gone")
+	else if {_o} is not alive:
+		lootClaimEnd({_c}, "died")
+	else if heistOf({_o}) is not {_h}:
+		lootClaimEnd({_c}, "left")
+	else if bagRoom({_o}) <= 0:
+		lootClaimEnd({_c}, "full")
+	else if distance between {_o} and lootGateCenter({_h}, {_n}) > {-cfg::loot::claim-range}:
+		lootClaimEnd({_c}, "far")
+
+# ---------- Reading (heist board, holograms, other scripts) ----------
+
+# $ left in every pile of the run (locked ones too).
+function lootLeft(h: text) :: number:
+	set {_sum} to 0
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		set {_v} to {-lootleft::%{_h}%::%loop-index%}
+		{_v} is set
+		add {_v} to {_sum}
+	return {_sum}
+
+function lootRolled(h: text) :: number:
+	set {_r} to {-lootroll::%{_h}%}
+	if {_r} is set:
+		return {_r}
+	return 0
+
+# "3/5": piles with loot left / piles.
+function lootSpotsText(h: text) :: text:
+	set {_all} to 0
+	set {_left} to 0
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		add 1 to {_all}
+		{-lootn::%{_h}%::%loop-index%} > 0
+		add 1 to {_left}
+	return "%{_left}%/%{_all}%"
+
+# The hologram's status line addition (heists.sk): " · $18.4K inside".
+function lootLeftText(h: text) :: text:
+	if {-lootrun::%{_h}%} is not set:
+		return ""
+	if {-lootroll::%{_h}%} is not set:
+		return ""
+	if {-lootroll::%{_h}%} <= 0:
+		return ""
+	return " &7· &6%formatMoneyShort(lootLeft({_h}))% &7inside"
+
+# ---------- Loops ----------
+
+every second:
+	loop {-lootrun::*}:
+		lootSecond(loop-index)
+	loop all players:
+		lootPlayerSecond(loop-player)
+
+function lootSecond(h: text):
+	loop {loots::%{_h}%::*}:
+		if loop-value is "drill":
+			lootDrillTick({_h}, loop-index)
+		if loop-value is not "pile":
+			lootClaimCheck({_h}, loop-index)
+	set {-ph::heistloot::%{_h}%} to formatMoneyShort(lootLeft({_h}))
+	set {-ph::heistspots::%{_h}%} to lootSpotsText({_h})
+
+function lootPlayerSecond(p: player):
+	# A keypad closes when its safe is out of reach.
+	set {_k} to {-lootkp::%{_p}%}
+	if {_k} is set:
+		set {_parts::*} to {_k} split at "::"
+		set {_far} to true
+		if heistOf({_p}) is {_parts::1}:
+			if distance between {_p} and lootGateCenter({_parts::1}, {_parts::2}) <= {-cfg::loot::reach} + 2:
+				set {_far} to false
+		if {_far} is true:
+			lootKeypadClose({_p}, "far")
+	set {_t} to bagTier({_p})
+	if {_t} > 0:
+		set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))%"
+		set {-ph::bagpct::%{_p}%} to "%bagPct({_p})%%%"
+	else:
+		set {-ph::bag::%{_p}%} to "no bag"
+		set {-ph::bagpct::%{_p}%} to "-"
+	set {_h} to heistOf({_p})
+	if {_h} is not "":
+		set {-ph::haul::%{_p}%} to formatMoney(bagRunLoot({_p}, {_h}))
+		set {-ph::risk::%{_p}%} to formatMoney(bagTotal({_p}) + deathLoss({_p}, "other"))
+
+every 2 seconds:
+	loop {heists::*}:
+		lootReconcile(loop-index)
+
+# Armed exactly while open or active (/dheist reset from open never calls heistOnEnd); spots lost to a
+# chunk unload come back.
+function lootReconcile(h: text):
+	set {_s} to heistState({_h})
+	set {_want} to false
+	if {_s} is "open" or "active":
+		set {_want} to true
+	set {_run} to {-lootrun::%{_h}%}
+	if {_want} is false:
+		if {_run} is set:
+			lootDisarm({_h})
+		stop
+	if {_run} is not set:
+		lootArm({_h})
+		stop
+	if {_run} is not heistRun({_h}):
+		lootArm({_h})
+		stop
+	loop {loots::%{_h}%::*}:
+		lootEnsure({_h}, loop-index)
+
+# What to do at the nearest spot, on the action bar (lowest priority; only while not working on one).
+every 10 ticks:
+	loop {-lootrun::*}:
+		lootPrompts(loop-index)
+
+function lootPrompts(h: text):
+	loop heistRobbers({_h}):
+		lootPrompt(loop-value, {_h})
+
+function lootPrompt(p: player, h: text):
+	{_p} is alive
+	heistBuilder({_p}) is false
+	{-lootkp::%{_p}%} is not set
+	set {_at} to {-lootw::%{_p}%::at}
+	if {_at} is set:
+		if difference between {_at} and now < 0.6 seconds:
+			stop
+	set {_e} to eye location of {_p}
+	set {_ex} to x-coordinate of {_e}
+	set {_ey} to y-coordinate of {_e}
+	set {_ez} to z-coordinate of {_e}
+	set {_best} to ""
+	set {_bd} to {-cfg::loot::prompt-range} ^ 2
+	loop {loots::%{_h}%::*}:
+		set {_n} to loop-index
+		set {_c} to "%{_h}%::%{_n}%"
+		set {_st} to {-lootst::%{_c}%}
+		# Empty piles, locked piles and open gates have nothing to do.
+		set {_skip} to false
+		if {_st} is "empty" or "locked":
+			set {_skip} to true
+		else if {_st} is "open":
+			if loop-value is not "pile":
+				set {_skip} to true
+		{_skip} is false
+		set {_d2} to ({-lootc::%{_c}%::cx} - {_ex}) ^ 2 + ({-lootc::%{_c}%::cy} - {_ey}) ^ 2 + ({-lootc::%{_c}%::cz} - {_ez}) ^ 2
+		if {_d2} < {_bd}:
+			set {_bd} to {_d2}
+			set {_best} to {_n}
+	if {_best} is "":
+		delete {-lootprompt::%{_p}%}
+		stop
+	set {_text} to lootPromptText({_p}, {_h}, {_best})
+	{_text} is not ""
+	if {-lootprompt::%{_p}%} is {_text}:
+		if difference between {-lootprompt::%{_p}%::at} and now < 2 seconds:
+			stop
+	set {-lootprompt::%{_p}%} to {_text}
+	set {-lootprompt::%{_p}%::at} to now
+	hudBar({_p}, {_text}, 0)
+
+function lootPromptText(p: player, h: text, n: text) :: text:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_k} to {-lootc::%{_c}%::kind}
+	set {_st} to {-lootst::%{_c}%}
+	if {_k} is "pile":
+		set {_g} to {-lootc::%{_c}%::behind}
+		if {_g} is set:
+			set {_why} to lootClaimWhy({_p}, {_h}, {_g})
+			if {_why} is not "":
+				return {_why}
+		set {_name} to {-lootc::%{_c}%::name}
+		return "&eHold right-click &7· Grab &6%{_name}% &7(%formatMoney({-lootleft::%{_c}%})% left)"
+	if {_k} is "smash":
+		return "&eHold right-click &7· Smash the glass"
+	if {_k} is "safe":
+		if toolCount({_p}, "safe-kit") < 1:
+			return "&eCrack the safe &7· needs a &fSafe Kit"
+		return "&eRight-click &7· Crack the safe"
+	if {_st} is "closed":
+		if toolCount({_p}, "drill") < 1:
+			return "&eMount a Drill &7· needs a &fDrill"
+		return "&eHold right-click &7· Mount your Drill"
+	if {_st} is "jammed":
+		return "&cHold right-click &7· Fix the drill"
+	return "&7Drilling: &f%lootDrillPct({_c})%%% &7· %formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})% left"
+
+# ---------- Heist hooks (called from heists.sk) ----------
+
+function lootOnEnter(p: player, h: text):
+	size of {loots::%{_h}%::*} > 0
+	{-loottip::%{_p}%} is not set
+	set {-loottip::%{_p}%} to true
+	msg({_p}, "&7Hold &fright-click &7on loot to grab it. It goes into your bag; the fastest robbers get the most.")
+
+function lootForget(p: player, h: text):
+	delete {-lootw::%{_p}%}
+	delete {-lootw::%{_p}%::*}
+	delete {-lootprompt::%{_p}%}
+	delete {-lootprompt::%{_p}%::*}
+	lootKeypadClose({_p}, "left")
+	loop {loots::%{_h}%::*}:
+		loop-value is not "pile"
+		{-lootclaim::%{_h}%::%loop-index%} is {_p}
+		lootClaimEnd("%{_h}%::%loop-index%", "left")
+
+function lootOnDisable(h: text):
+	lootDisarm({_h})
+	loop {loots::%{_h}%::*}:
+		loop-value is not "pile"
+		lootGateRestore({_h}, loop-index, true)
+
+function lootOnDelete(h: text):
+	lootOnDisable({_h})
+	delete {loots::%{_h}%::*}
+	delete {loot::%{_h}%::*}
+	delete {-lootc::%{_h}%::*}
+
+# ---------- Players ----------
+
+on quit:
+	delete {-lootw::%player%}
+	delete {-lootw::%player%::*}
+	lootKeypadForget(player)
+	delete {-lootguard::%player%}
+	delete {-lootprompt::%player%}
+	delete {-lootprompt::%player%::*}
+	delete {-loottip::%player%}
+	delete {-lootfull::%player%}
+	delete {-lootsel::%player%::*}
+	delete {-lootshow::%player%}
+	delete {-lootshow::%player%::*}
+	delete {-ph::bag::%player%}
+	delete {-ph::bagpct::%player%}
+	delete {-ph::haul::%player%}
+	delete {-ph::risk::%player%}
+
+on death of player:
+	delete {-lootw::%victim%}
+	delete {-lootw::%victim%::*}
+	lootKeypadForget(victim)
+
+# ---------- Reloads ----------
+
+# Run state lives in memory and survives /sk reload loot: the entities come back from it.
+on load:
+	execute console command "minecraft:kill @e[tag=donating_loot]"
+	delete {-lootent::*}
+	delete {-lootents::*}
+	delete {-lootpd::*}
+	delete {-loothb::*}
+	delete {-lootmk::*}
+	delete {-lootmkc::*}
+	delete {-lootup::*}
+	loop {-lootrun::*}:
+		lootCompile(loop-index)
+
+# ---------- Staff: /dloot ----------
+
+command /dloot [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is not set:
+			dlootReply(sender, "LOOT usage: /dloot pos1|pos2|add|set|list|info|remove|clear|show|preview|roll|regate|check|dump|reload ...")
+			stop
+		if {_sub} is "pos1" or "pos2":
+			if sender is not a player:
+				dlootReply(sender, "LOOT %{_sub}%: players only (look at a block)")
+				stop
+			set {_t} to targeted block of player
+			if {_t} is not set:
+				dlootReply(sender, "LOOT %{_sub}%: look at a block within reach")
+				stop
+			set {-lootsel::%player%::%{_sub}%} to location of {_t}
+			dlootReply(sender, "LOOT %{_sub}% = %x-coordinate of {_t}% %y-coordinate of {_t}% %z-coordinate of {_t}%")
+			stop
+		if {_sub} is "reload":
+			set {_skipped} to ""
+			loop {heists::*}:
+				if heistRobberCount(loop-index) > 0:
+					set {_skipped} to "%{_skipped}% %loop-index%"
+				else:
+					lootCompile(loop-index)
+					if lootArmed(loop-index) is true:
+						lootArm(loop-index)
+			if {_skipped} is "":
+				dlootReply(sender, "LOOT reloaded")
+			else:
+				dlootReply(sender, "LOOT reloaded, except (robbers inside):%{_skipped}%")
+			stop
+		set {_arg} to {_a::2}
+		if {_arg} is not set:
+			dlootReply(sender, "LOOT usage: /dloot %{_sub}% <heist|id> ...")
+			stop
+		if {_sub} is "add":
+			dlootAdd(sender, {_a::*})
+		else if {_sub} is "set":
+			dlootSet(sender, {_a::*})
+		else if {_sub} is "list":
+			dlootList(sender, {_arg})
+		else if {_sub} is "info":
+			dlootInfo(sender, {_arg})
+		else if {_sub} is "remove":
+			dlootRemove(sender, {_arg})
+		else if {_sub} is "clear":
+			set {_cf} to {_a::3}
+			if {_cf} is not set:
+				set {_cf} to ""
+			dlootClear(sender, {_arg}, {_cf})
+		else if {_sub} is "show":
+			dlootShow(sender, {_a::*})
+		else if {_sub} is "preview":
+			dlootPreview(sender, {_arg})
+		else if {_sub} is "roll":
+			dlootRoll(sender, {_arg})
+		else if {_sub} is "regate":
+			dlootRegate(sender, {_arg})
+		else if {_sub} is "check":
+			dlootCheck(sender, {_arg})
+		else if {_sub} is "dump":
+			dlootDump(sender, {_arg})
+		else:
+			dlootReply(sender, "LOOT unknown subcommand %{_sub}%")
+
+function dlootReply(s: command sender, text: text):
+	send colored "&7%{_text}%" to {_s}
+	lootLog("staff %{_s}%: %{_text}%")
+
+# "bank-3" -> true when it's a loot spot.
+function lootIdOk(id: text) :: boolean:
+	set {_p::*} to {_id} split at "-"
+	if {_p::2} is not set:
+		return false
+	if {loots::%{_p::1}%::%{_p::2}%} is set:
+		return true
+	return false
+
+function lootNearEdge(h: text, l: location) :: boolean:
+	set {_w} to world of {_l}
+	loop 1 and -1:
+		if heistAt(location((x-coordinate of {_l}) + 0.5 + loop-value, (y-coordinate of {_l}) + 0.5, (z-coordinate of {_l}) + 0.5, {_w})) is not {_h}:
+			return true
+		if heistAt(location((x-coordinate of {_l}) + 0.5, (y-coordinate of {_l}) + 0.5, (z-coordinate of {_l}) + 0.5 + loop-value, {_w})) is not {_h}:
+			return true
+	return false
+
+# Pieces a pile can hold: S = cells × per-cell × layers; its roll range; its expected value.
+function lootPileRange(h: text, n: text) :: text:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_v} to {-lootc::%{_c}%::piece}
+	set {_lo} to max(1, ceil({-lootc::%{_c}%::min} / {_v}))
+	set {_hi} to floor({-lootc::%{_c}%::max} / {_v})
+	return "%{_lo}%:%{_hi}%"
+
+# "" when the (saved and compiled) pile is valid, else why not.
+function lootValidate(h: text, n: text) :: text:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_k} to {-lootc::%{_c}%::kind}
+	if {_k} is not "pile":
+		return ""
+	if {-lootc::%{_c}%::min} is not set:
+		return "value=MIN-MAX is required (e.g. value=500-2000)"
+	set {_v} to {-lootc::%{_c}%::piece}
+	set {_r::*} to lootPileRange({_h}, {_n}) split at ":"
+	set {_lo} to {_r::1} parsed as number
+	set {_hi} to {_r::2} parsed as number
+	if {_hi} < {_lo}:
+		return "%formatMoney({-lootc::%{_c}%::min})%-%formatMoney({-lootc::%{_c}%::max})% holds no whole piece of %formatMoney({_v})%: raise the max or lower piece="
+	set {_cap} to {-lootc::%{_c}%::cells} * {-lootc::%{_c}%::per} * {-lootc::%{_c}%::layers}
+	if {_hi} > {_cap}:
+		return "this box fits %{_cap}% pieces; %formatMoney({-lootc::%{_c}%::max})% at %formatMoney({_v})% needs %{_hi}%: make the box bigger or raise piece="
+	if {_hi} > {-cfg::loot::max-pieces}:
+		return "at most %{-cfg::loot::max-pieces}% pieces per pile (this needs %{_hi}%): raise piece="
+	if {-lootc::%{_c}%::cells} > {-cfg::loot::max-cells}:
+		return "at most %{-cfg::loot::max-cells}% cells per pile"
+	set {_sum} to 0
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		set {_rr::*} to lootPileRange({_h}, loop-index) split at ":"
+		add ({_rr::2} parsed as number) to {_sum}
+	if {_sum} > {-cfg::loot::max-heist-pieces}:
+		return "the heist would hold up to %{_sum}% pieces (at most %{-cfg::loot::max-heist-pieces}%): raise piece="
+	set {_g} to {-lootc::%{_c}%::behind}
+	if {_g} is set:
+		if lootIsGate(lootKind({_h}, {_g})) is false:
+			return "behind=%{_g}% isn't a gate of %{_h}% (give the gate's number, e.g. behind=2)"
+	# No two piles on the same blocks.
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		loop-index is not {_n}
+		set {_o} to "%{_h}%::%loop-index%"
+		{-lootc::%{_o}%::y1} is {-lootc::%{_c}%::y1}
+		{-lootc::%{_o}%::x1} <= {-lootc::%{_c}%::x2}
+		{-lootc::%{_o}%::x2} >= {-lootc::%{_c}%::x1}
+		{-lootc::%{_o}%::z1} <= {-lootc::%{_c}%::z2}
+		{-lootc::%{_o}%::z2} >= {-lootc::%{_c}%::z1}
+		return "it overlaps %{_h}%-%loop-index%"
+	return ""
+
+# Words after the kind: 6 numbers (corners), key=value pairs.
+function dlootAdd(s: command sender, a: texts):
+	set {_h} to {_a::2}
+	set {_k} to {_a::3}
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	if {_k} is not "pile" or "smash" or "safe" or "drill":
+		dlootReply({_s}, "LOOT add: /dloot add <heist> pile|smash|safe|drill [x1 y1 z1 x2 y2 z2] key=value...")
+		stop
+	if heistRobberCount({_h}) > 0:
+		dlootReply({_s}, "LOOT add: robbers are inside")
+		stop
+	if size of {loots::%{_h}%::*} >= {-cfg::loot::max-spots}:
+		dlootReply({_s}, "LOOT add: %{_h}% has the most spots allowed (%{-cfg::loot::max-spots}%)")
+		stop
+	set {_w} to world({heist::%{_h}%::world})
+	loop {_a::*}:
+		loop-index parsed as number > 3
+		if loop-value contains "=":
+			set {_kv::*} to loop-value split at "="
+			set {_kvs::%{_kv::1}%} to {_kv::2}
+		else if loop-value parsed as number is set:
+			add loop-value to {_nums::*}
+	if size of {_nums::*} >= 6:
+		set {_pa} to location(floor({_nums::1} parsed as number), floor({_nums::2} parsed as number), floor({_nums::3} parsed as number), {_w})
+		set {_pb} to location(floor({_nums::4} parsed as number), floor({_nums::5} parsed as number), floor({_nums::6} parsed as number), {_w})
+	else:
+		if {_s} is not a player:
+			dlootReply({_s}, "LOOT add: give x1 y1 z1 x2 y2 z2")
+			stop
+		set {_pl} to {_s}
+		set {_pa} to {-lootsel::%{_pl}%::pos1}
+		set {_pb} to {-lootsel::%{_pl}%::pos2}
+		if {_pa} is not set:
+			dlootReply({_s}, "LOOT add: give x1 y1 z1 x2 y2 z2, or mark /dloot pos1 and pos2")
+			stop
+		if {_pb} is not set:
+			set {_pb} to {_pa}
+	loop {_pa} and {_pb}:
+		if heistAt(location((x-coordinate of loop-value) + 0.5, (y-coordinate of loop-value) + 0.5, (z-coordinate of loop-value) + 0.5, {_w})) is not {_h}:
+			dlootReply({_s}, "LOOT add: a corner is outside the heist")
+			stop
+	loop {_kvs::*}:
+		set {_kt} to lootKeyType({_k}, loop-index)
+		if {_kt} is "":
+			dlootReply({_s}, "LOOT add: %{_k}% has no setting %loop-index%")
+			stop
+		if lootParse({_kt}, loop-value) is not set:
+			dlootReply({_s}, "LOOT add: bad value %loop-index%=%loop-value%")
+			stop
+	set {_x1} to min(x-coordinate of {_pa}, x-coordinate of {_pb})
+	set {_x2} to max(x-coordinate of {_pa}, x-coordinate of {_pb})
+	set {_y1} to min(y-coordinate of {_pa}, y-coordinate of {_pb})
+	set {_y2} to max(y-coordinate of {_pa}, y-coordinate of {_pb})
+	set {_z1} to min(z-coordinate of {_pa}, z-coordinate of {_pb})
+	set {_z2} to max(z-coordinate of {_pa}, z-coordinate of {_pb})
+	if {_k} is "pile":
+		if {_y1} is not {_y2}:
+			dlootReply({_s}, "LOOT add pile: a pile lies on one layer of blocks (both corners at the same y)")
+			stop
+		if {_kvs::value} is not set:
+			dlootReply({_s}, "LOOT add pile: value=MIN-MAX is required (e.g. value=500-2000)")
+			stop
+		set {_behind} to {_kvs::behind}
+		if {_behind} is set:
+			if lootIsGate(lootKind({_h}, {_behind})) is false:
+				dlootReply({_s}, "LOOT add pile: behind=%{_behind}% isn't a gate of %{_h}% (add the gate first; give its number)")
+				stop
+	else:
+		set {_count} to ({_x2} - {_x1} + 1) * ({_y2} - {_y1} + 1) * ({_z2} - {_z1} + 1)
+		if {_count} > {-cfg::loot::max-gate-blocks}:
+			dlootReply({_s}, "LOOT add %{_k}%: at most %{-cfg::loot::max-gate-blocks}% blocks (this box has %{_count}%)")
+			stop
+		loop integers from {_x1} to {_x2}:
+			set {_gx} to loop-value-1
+			loop integers from {_y1} to {_y2}:
+				set {_gy} to loop-value-2
+				loop integers from {_z1} to {_z2}:
+					if block at location({_gx}, {_gy}, loop-value-3, {_w}) is air:
+						dlootReply({_s}, "LOOT add %{_k}%: the gate box has air at %{_gx}% %{_gy}% %loop-value-3% (mark only the gate's blocks)")
+						stop
+	# Saved, then checked as a whole (a pile's capacity, overlaps); a bad one is taken back.
+	add 1 to {loot::%{_h}%::next}
+	set {_n} to "%{loot::%{_h}%::next}%"
+	set {loots::%{_h}%::%{_n}%} to {_k}
+	set {loot::%{_h}%::%{_n}%::a} to location({_x1}, {_y1}, {_z1}, {_w})
+	set {loot::%{_h}%::%{_n}%::b} to location({_x2}, {_y2}, {_z2}, {_w})
+	loop {_kvs::*}:
+		lootStore({_h}, {_n}, loop-index, lootParse(lootKeyType({_k}, loop-index), loop-value))
+	if {_k} is "pile":
+		if "%block data of block at {_pa}%" contains "type=bottom":
+			set {loot::%{_h}%::%{_n}%::autolift} to -0.5
+	if lootIsGate({_k}) is true:
+		set {_i} to 0
+		loop integers from {_x1} to {_x2}:
+			set {_gx} to loop-value-1
+			loop integers from {_y1} to {_y2}:
+				set {_gy} to loop-value-2
+				loop integers from {_z1} to {_z2}:
+					add 1 to {_i}
+					set {_gl} to location({_gx}, {_gy}, loop-value-3, {_w})
+					set {loot::%{_h}%::%{_n}%::gate::%{_i}%} to {_gl}
+					set {loot::%{_h}%::%{_n}%::bd::%{_i}%} to "%block data of block at {_gl}%"
+	lootCompile({_h})
+	set {_why} to lootValidate({_h}, {_n})
+	if {_why} is not "":
+		delete {loots::%{_h}%::%{_n}%}
+		delete {loot::%{_h}%::%{_n}%::*}
+		remove 1 from {loot::%{_h}%::next}
+		lootCompile({_h})
+		dlootReply({_s}, "LOOT add: %{_why}%")
+		stop
+	lootChanged({_h})
+	dlootReply({_s}, "LOOT %{_h}%-%{_n}% added: %lootDescribe({_h}, {_n})%")
+	loop {loot::%{_h}%::%{_n}%::a} and {loot::%{_h}%::%{_n}%::b}:
+		lootNearEdge({_h}, loop-value) is true
+		dlootReply({_s}, "LOOT warning: %{_h}%-%{_n}% is less than 1 block inside the heist's edge")
+		stop loop
+
+# Stores one parsed setting (value=MIN-MAX becomes min and max).
+function lootStore(h: text, n: text, key: text, v: object):
+	if {_key} is "value":
+		set {_p::*} to "%{_v}%" split at "-"
+		set {loot::%{_h}%::%{_n}%::min} to {_p::1} parsed as number
+		set {loot::%{_h}%::%{_n}%::max} to {_p::2} parsed as number
+		stop
+	set {loot::%{_h}%::%{_n}%::%{_key}%} to {_v}
+
+# After a change: an armed heist nobody's in re-rolls at once; otherwise it applies at the next opening.
+function lootChanged(h: text):
+	lootArmed({_h}) is true
+	heistRobberCount({_h}) is 0
+	lootArm({_h})
+
+function dlootSet(s: command sender, a: texts):
+	set {_id} to {_a::2}
+	if lootIdOk({_id}) is false:
+		dlootReply({_s}, "LOOT %{_id}%: no such loot spot")
+		stop
+	set {_p::*} to {_id} split at "-"
+	set {_h} to {_p::1}
+	set {_n} to {_p::2}
+	if heistRobberCount({_h}) > 0:
+		dlootReply({_s}, "LOOT set: robbers are inside")
+		stop
+	set {_key} to {_a::3}
+	set {_val} to {_a::4}
+	if {_val} is not set:
+		dlootReply({_s}, "LOOT set: /dloot set <id> <key> <value|default>")
+		stop
+	set {_k} to lootKind({_h}, {_n})
+	set {_kt} to lootKeyType({_k}, {_key})
+	if {_kt} is "":
+		dlootReply({_s}, "LOOT set: %{_k}% has no setting %{_key}%")
+		stop
+	set {_old} to {loot::%{_h}%::%{_n}%::%{_key}%}
+	set {_omin} to {loot::%{_h}%::%{_n}%::min}
+	set {_omax} to {loot::%{_h}%::%{_n}%::max}
+	if {_val} is "default":
+		if {_key} is "value":
+			dlootReply({_s}, "LOOT set: a pile's value has no default")
+			stop
+		delete {loot::%{_h}%::%{_n}%::%{_key}%}
+	else:
+		set {_v} to lootParse({_kt}, {_val})
+		if {_v} is not set:
+			dlootReply({_s}, "LOOT set: bad value %{_val}%")
+			stop
+		if {_key} is "behind":
+			if lootIsGate(lootKind({_h}, {_v})) is false:
+				dlootReply({_s}, "LOOT set: behind=%{_v}% isn't a gate of %{_h}%")
+				stop
+		lootStore({_h}, {_n}, {_key}, {_v})
+	lootCompile({_h})
+	set {_why} to lootValidate({_h}, {_n})
+	if {_why} is not "":
+		# Put it back as it was.
+		if {_old} is set:
+			set {loot::%{_h}%::%{_n}%::%{_key}%} to {_old}
+		else:
+			delete {loot::%{_h}%::%{_n}%::%{_key}%}
+		set {loot::%{_h}%::%{_n}%::min} to {_omin}
+		set {loot::%{_h}%::%{_n}%::max} to {_omax}
+		lootCompile({_h})
+		dlootReply({_s}, "LOOT set: %{_why}%")
+		stop
+	lootChanged({_h})
+	dlootReply({_s}, "LOOT %{_id}%: %lootDescribe({_h}, {_n})%")
+
+function lootDescribe(h: text, n: text) :: text:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_k} to lootKind({_h}, {_n})
+	set {_t} to "%{_k}% %{-lootc::%{_c}%::x1}% %{-lootc::%{_c}%::y1}% %{-lootc::%{_c}%::z1}% %{-lootc::%{_c}%::x2}% %{-lootc::%{_c}%::y2}% %{-lootc::%{_c}%::z2}%"
+	if {_k} is "pile":
+		set {_t} to "%{_t}% value=%{-lootc::%{_c}%::min}%-%{-lootc::%{_c}%::max}%"
+	loop "style", "piece", "take", "per-cell", "layers", "lift", "behind", "digits", "claim", "alarm", "time", "jams", "mount" and "fix":
+		set {_v} to {loot::%{_h}%::%{_n}%::%loop-value%}
+		{_v} is set
+		set {_t} to "%{_t}% %loop-value%=%{_v}%"
+	set {_name} to {loot::%{_h}%::%{_n}%::name}
+	if {_name} is set:
+		set {_nm} to {_name}
+		replace all " " with "_" in {_nm}
+		set {_t} to "%{_t}% name=%{_nm}%"
+	if {_k} is "pile":
+		set {_r::*} to lootPileRange({_h}, {_n}) split at ":"
+		set {_lo} to {_r::1} parsed as number
+		set {_hi} to {_r::2} parsed as number
+		set {_ev} to {-lootc::%{_c}%::piece} * ({_lo} + {_hi}) / 2
+		set {_t} to "%{_t}% | cells=%{-lootc::%{_c}%::cells}% pieces=%{_lo}%-%{_hi}% E=%formatMoney({_ev})%"
+	set {_st} to {-lootst::%{_c}%}
+	if {_st} is set:
+		set {_t} to "%{_t}% state=%{_st}%"
+		if {_k} is "pile":
+			set {_t} to "%{_t}% left=%formatMoney({-lootleft::%{_c}%})% (%{-lootn::%{_c}%}% pieces)"
+	return {_t}
+
+function dlootList(s: command sender, h: text):
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	lootCompile({_h})
+	set {_n} to 0
+	loop {loots::%{_h}%::*}:
+		add 1 to {_n}
+		dlootReply({_s}, "LOOT %{_h}%-%loop-index% %lootDescribe({_h}, loop-index)%")
+	dlootReply({_s}, "LOOT %{_h}%: %{_n}% spots, armed=%lootArmed({_h})%, rolled=%formatMoney(lootRolled({_h}))%, left=%formatMoney(lootLeft({_h}))%")
+
+function dlootInfo(s: command sender, id: text):
+	if lootIdOk({_id}) is false:
+		dlootReply({_s}, "LOOT %{_id}%: no such loot spot")
+		stop
+	set {_p::*} to {_id} split at "-"
+	dlootReply({_s}, "LOOT %{_id}% %lootDescribe({_p::1}, {_p::2})%")
+
+function dlootRemove(s: command sender, id: text):
+	if lootIdOk({_id}) is false:
+		dlootReply({_s}, "LOOT %{_id}%: no such loot spot")
+		stop
+	set {_p::*} to {_id} split at "-"
+	set {_h} to {_p::1}
+	set {_n} to {_p::2}
+	if heistRobberCount({_h}) > 0:
+		dlootReply({_s}, "LOOT remove: robbers are inside")
+		stop
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		{loot::%{_h}%::%loop-index%::behind} is {_n}
+		dlootReply({_s}, "LOOT remove: %{_h}%-%loop-index% is behind it (remove that pile or change its behind= first)")
+		stop
+	lootDespawnSpot({_h}, {_n})
+	if lootIsGate(lootKind({_h}, {_n})) is true:
+		lootGateRestore({_h}, {_n}, true)
+	delete {loots::%{_h}%::%{_n}%}
+	delete {loot::%{_h}%::%{_n}%::*}
+	lootCompile({_h})
+	lootChanged({_h})
+	dlootReply({_s}, "LOOT %{_id}% removed")
+
+function dlootClear(s: command sender, h: text, confirm: text):
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	if {_confirm} is not "confirm":
+		dlootReply({_s}, "LOOT clear: add 'confirm' (deletes every loot spot of %{_h}%)")
+		stop
+	if heistRobberCount({_h}) > 0:
+		dlootReply({_s}, "LOOT clear: robbers are inside")
+		stop
+	lootOnDisable({_h})
+	delete {loots::%{_h}%::*}
+	delete {loot::%{_h}%::*}
+	lootCompile({_h})
+	dlootReply({_s}, "LOOT %{_h}% cleared")
+
+# Particle outlines for you: piles gold, gates orange.
+function dlootShow(s: command sender, a: texts):
+	if {_s} is not a player:
+		dlootReply({_s}, "LOOT show: players only")
+		stop
+	set {_h} to {_a::2}
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	set {_secs} to 20
+	if {_a::3} is set:
+		set {_secs} to {_a::3} parsed as number
+	set {_pl} to {_s}
+	set {-lootshow::%{_pl}%} to {_h}
+	set {_u} to now
+	add 1 second * {_secs} to {_u}
+	set {-lootshow::%{_pl}%::until} to {_u}
+	lootCompile({_h})
+	dlootReply({_s}, "LOOT showing %{_h}% for %{_secs}% s")
+
+every second:
+	loop all players:
+		set {_h} to {-lootshow::%loop-player%}
+		{_h} is set
+		if {-lootshow::%loop-player%::until} < now:
+			delete {-lootshow::%loop-player%}
+			delete {-lootshow::%loop-player%::*}
+		else:
+			lootOutline(loop-player, {_h})
+
+function lootOutline(p: player, h: text):
+	loop {loots::%{_h}%::*}:
+		set {_c} to "%{_h}%::%loop-index%"
+		set {_w} to world of {loot::%{_h}%::%loop-index%::a}
+		set {_x1} to {-lootc::%{_c}%::x1}
+		set {_x2} to {-lootc::%{_c}%::x2} + 1
+		set {_z1} to {-lootc::%{_c}%::z1}
+		set {_z2} to {-lootc::%{_c}%::z2} + 1
+		if loop-value is "pile":
+			set {_y} to {-lootc::%{_c}%::top} + 0.05
+			set {_col} to "yellow"
+		else:
+			set {_y} to {-lootc::%{_c}%::y2} + 1.05
+			set {_col} to "orange"
+		trapDots({_p}, location({_x1}, {_y}, {_z1}, {_w}), location({_x2}, {_y}, {_z1}, {_w}), {_col})
+		trapDots({_p}, location({_x2}, {_y}, {_z1}, {_w}), location({_x2}, {_y}, {_z2}, {_w}), {_col})
+		trapDots({_p}, location({_x2}, {_y}, {_z2}, {_w}), location({_x1}, {_y}, {_z2}, {_w}), {_col})
+		trapDots({_p}, location({_x1}, {_y}, {_z2}, {_w}), location({_x1}, {_y}, {_z1}, {_w}), {_col})
+
+# Disabled heists only: every pile at its most for 60 s, to tune how it looks (no hitboxes).
+function dlootPreview(s: command sender, h: text):
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	if heistState({_h}) is not "disabled":
+		dlootReply({_s}, "LOOT preview: only while the heist is disabled (/dheist disable %{_h}%)")
+		stop
+	lootCompile({_h})
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		set {_c} to "%{_h}%::%loop-index%"
+		set {_old} to {-lootc::%{_c}%::min}
+		set {-lootc::%{_c}%::min} to {-lootc::%{_c}%::max}
+		lootRollPile({_h}, loop-index)
+		set {-lootc::%{_c}%::min} to {_old}
+		set {-lootst::%{_c}%} to "preview"
+		lootSpawnSpot({_h}, loop-index)
+	dlootReply({_s}, "LOOT previewing %{_h}% at the most each pile rolls, for 60 s")
+	wait 60 seconds
+	lootArmed({_h}) is false
+	loop {loots::%{_h}%::*}:
+		set {_c} to "%{_h}%::%loop-index%"
+		lootDespawnSpot({_h}, loop-index)
+		delete {-lootst::%{_c}%}
+		delete {-lootv::%{_c}%::*}
+		delete {-lootcn::%{_c}%::*}
+		delete {-lootn::%{_c}%}
+		delete {-lootleft::%{_c}%}
+
+function dlootRoll(s: command sender, h: text):
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	if heistState({_h}) is not "open":
+		dlootReply({_s}, "LOOT roll: only while the heist is open (before the clock starts)")
+		stop
+	if heistRobberCount({_h}) > 0:
+		dlootReply({_s}, "LOOT roll: robbers are inside")
+		stop
+	lootArm({_h})
+	dlootReply({_s}, "LOOT %{_h}% rolled %formatMoney(lootRolled({_h}))%")
+
+function dlootRegate(s: command sender, id: text):
+	if lootIdOk({_id}) is false:
+		dlootReply({_s}, "LOOT %{_id}%: no such loot spot")
+		stop
+	set {_p::*} to {_id} split at "-"
+	set {_h} to {_p::1}
+	set {_n} to {_p::2}
+	if lootIsGate(lootKind({_h}, {_n})) is false:
+		dlootReply({_s}, "LOOT regate: %{_id}% isn't a gate")
+		stop
+	if heistState({_h}) is not "disabled":
+		dlootReply({_s}, "LOOT regate: only while the heist is disabled")
+		stop
+	loop {loot::%{_h}%::%{_n}%::gate::*}:
+		if block at loop-value is air:
+			dlootReply({_s}, "LOOT regate: %{_id}% has air at %x-coordinate of loop-value% %y-coordinate of loop-value% %z-coordinate of loop-value% (build the gate back first)")
+			stop
+	loop {loot::%{_h}%::%{_n}%::gate::*}:
+		set {loot::%{_h}%::%{_n}%::bd::%loop-index%} to "%block data of block at loop-value%"
+	dlootReply({_s}, "LOOT %{_id}%: saved the gate's blocks again")
+
+# The design numbers: the value range against the heist's pool, each pile's rate, and how long one
+# robber needs to clear it all against the escape clock.
+function dlootCheck(s: command sender, h: text):
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	lootCompile({_h})
+	set {_smin} to 0
+	set {_smax} to 0
+	set {_sev} to 0
+	set {_g} to 0
+	loop {loots::%{_h}%::*}:
+		set {_n} to loop-index
+		set {_c} to "%{_h}%::%{_n}%"
+		if loop-value is "pile":
+			set {_r::*} to lootPileRange({_h}, {_n}) split at ":"
+			set {_lo} to {_r::1} parsed as number
+			set {_hi} to {_r::2} parsed as number
+			set {_v} to {-lootc::%{_c}%::piece}
+			add {_lo} * {_v} to {_smin}
+			add {_hi} * {_v} to {_smax}
+			add {_v} * ({_lo} + {_hi}) / 2 to {_sev}
+			add {_hi} * {-lootc::%{_c}%::take} to {_g}
+			dlootReply({_s}, "LOOT %{_h}%-%{_n}%: %formatMoney({_lo} * {_v})%-%formatMoney({_hi} * {_v})%, rate %formatMoney({_v} / {-lootc::%{_c}%::take})%/s")
+		else if loop-value is "smash":
+			add {-lootc::%{_c}%::take} to {_g}
+		else if loop-value is "safe":
+			add 30 to {_g}
+		else if loop-value is "drill":
+			add {-lootc::%{_c}%::mount} + {-lootc::%{_c}%::time} to {_g}
+		if lootNearEdge({_h}, {loot::%{_h}%::%{_n}%::a}) is true:
+			dlootReply({_s}, "LOOT warning: %{_h}%-%{_n}% is less than 1 block inside the edge")
+		if lootIsGate(loop-value) is true:
+			loop {loot::%{_h}%::%{_n}%::gate::*}:
+				chunk at loop-value-2 is loaded
+				set {_now} to "%block data of block at loop-value-2%"
+				{_now} is not {loot::%{_h}%::%{_n}%::bd::%loop-index-2%}
+				heistState({_h}) is "disabled"
+				dlootReply({_s}, "LOOT warning: %{_h}%-%{_n}%'s blocks changed since they were saved (/dloot regate %{_h}%-%{_n}%)")
+				exit loop
+	set {_pool} to heistSetting({_h}, "loot-pool")
+	set {_e} to heistEscape({_h}) / 1 second
+	dlootReply({_s}, "LOOT %{_h}%: rolls %formatMoney({_smin})%-%formatMoney({_smax})%, about %formatMoney({_sev})% on average; pool setting %formatMoney({_pool})%")
+	dlootReply({_s}, "LOOT %{_h}%: one robber clears it all in about %formatClock({_g})%; the escape clock is %formatClock({_e})%")
+	if {_g} > 0.5 * {_e}:
+		dlootReply({_s}, "LOOT warning: that's more than half the clock (fine for a heist meant for a crew)")
+
+# The commands that recreate the heist's loot (Minehut): gates first, then piles, numbered from 1.
+function dlootDump(s: command sender, h: text):
+	if heistExists({_h}) is false:
+		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
+		stop
+	lootCompile({_h})
+	set {_new} to 0
+	loop {loots::%{_h}%::*}:
+		loop-value is not "pile"
+		add 1 to {_new}
+		set {_map::%loop-index%} to {_new}
+		add lootDumpLine({_h}, loop-index, "") to {_lines::*}
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		add 1 to {_new}
+		set {_b} to {loot::%{_h}%::%loop-index%::behind}
+		set {_mb} to ""
+		if {_b} is set:
+			set {_mb} to "%{_map::%{_b}%}%"
+		add lootDumpLine({_h}, loop-index, {_mb}) to {_lines::*}
+	dlootReply({_s}, "LOOT dump %{_h}% (%size of {_lines::*}% spots; on a heist with no loot yet, while disabled):")
+	loop {_lines::*}:
+		send loop-value to {_s}
+		lootLog("dump %loop-value%")
+
+function lootDumpLine(h: text, n: text, behind: text) :: text:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_k} to lootKind({_h}, {_n})
+	set {_t} to "dloot add %{_h}% %{_k}% %{-lootc::%{_c}%::x1}% %{-lootc::%{_c}%::y1}% %{-lootc::%{_c}%::z1}% %{-lootc::%{_c}%::x2}% %{-lootc::%{_c}%::y2}% %{-lootc::%{_c}%::z2}%"
+	if {_k} is "pile":
+		set {_t} to "%{_t}% value=%{loot::%{_h}%::%{_n}%::min}%-%{loot::%{_h}%::%{_n}%::max}%"
+	loop "style", "piece", "take", "per-cell", "layers", "lift", "digits", "claim", "alarm", "time", "jams", "mount" and "fix":
+		set {_v} to {loot::%{_h}%::%{_n}%::%loop-value%}
+		{_v} is set
+		set {_t} to "%{_t}% %loop-value%=%{_v}%"
+	if {_behind} is not "":
+		set {_t} to "%{_t}% behind=%{_behind}%"
+	set {_name} to {loot::%{_h}%::%{_n}%::name}
+	if {_name} is set:
+		set {_nm} to {_name}
+		replace all " " with "_" in {_nm}
+		set {_t} to "%{_t}% name=%{_nm}%"
+	return {_t}

@@ -12,6 +12,10 @@
 #   %donating_afk%           yes / no
 #   %donating_name_color%    "&a" for passive players (green, like their map arrow), else "&f"
 #   %donating_tab_suffix%    " &7AFK" while AFK, else "&r"
+#   %donating_bag%           "$2.7K/$6K" (your bag), "no bag"          %donating_bag_pct%   "45%"
+#   %donating_heist_loot%    loot left in your heist ("$18.4K")        %donating_heist_spots% "3/5"
+#   %donating_heist_haul%    your loot from this run                   %donating_heist_risk%  bag + a death's loss
+# (loot.sk copies these into memory once a second.)
 
 every second:
 	loop all players:
@@ -62,3 +66,22 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-afk::is::%player%} is set:
 			set the placeholder result to " &7AFK"
+	else if {_i} is "bag" or "bag_pct" or "heist_haul" or "heist_risk" or "heist_loot" or "heist_spots":
+		# Memory only (loot.sk copies these once a second); nothing yet is "&r", never the raw %placeholder%.
+		set {_h} to {-heistin::%player%}
+		if {_i} is "bag":
+			set {_v} to {-ph::bag::%player%}
+		else if {_i} is "bag_pct":
+			set {_v} to {-ph::bagpct::%player%}
+		else if {_i} is "heist_haul":
+			set {_v} to {-ph::haul::%player%}
+		else if {_i} is "heist_risk":
+			set {_v} to {-ph::risk::%player%}
+		else if {_h} is set:
+			if {_i} is "heist_loot":
+				set {_v} to {-ph::heistloot::%{_h}%}
+			else:
+				set {_v} to {-ph::heistspots::%{_h}%}
+		set the placeholder result to "&r"
+		if {_v} is set:
+			set the placeholder result to {_v}
