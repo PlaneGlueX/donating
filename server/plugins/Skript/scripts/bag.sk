@@ -133,7 +133,7 @@ function bagRefresh(p: player):
 # The loot leaves the bag first, so it exists once: in the duffel (or nowhere, if the drop failed).
 on death of player:
 	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
-	victim does not have metadata "NPC"
+	isNpc(victim) is false
 	set {_sum} to 0
 	set {_lines} to ""
 	loop {data::%victim%::loot::*}:

@@ -94,6 +94,7 @@ module.exports = async ({ check }) => {
     await sleep(600)
     let c = await combat(A)
     check('the alarm hunts the robber inside: wanted and combat-tagged', /tagged=true wanted=true/.test(c) && /wanted=false/.test(await combat(B)), `${c} / ${await combat(B)}`)
+    check('...with a big WANTED title on screen', /WANTED/.test(messagesSince(bots[A], t).filter(m => /title/.test(m.kind)).map(m => m.text).join(' ')), text(A, t))
     check('no cops during the warning', (await alive()) === 0, await cops())
     const waveOne = await until(async () => (await alive()) === 2, 6000)
     await sleep(1500) // Citizens respawns a new NPC once to put its skin on
@@ -104,6 +105,7 @@ module.exports = async ({ check }) => {
     const spawned = copIds.map(i => (copLog().match(new RegExp(`spawn zcop id=${i} at (\\d+) 200 (\\d+)`)) || []).slice(1).map(Number))
     const atSpot = spawned.every(p => p.length === 2 && Math.abs(p[0] - 940) <= 2 && Math.abs(p[1] - 965) <= 2)
     check('wave 1: two cops at the cop spot, holding the gun (a feather with the model)', waveOne && copLines.length === 2 && atSpot && copLines.every(l => /tool=feather/.test(l)), `${JSON.stringify(spawned)} ${await cops()} ${list}`)
+    check('...as tough as the heist\'s difficulty says (difficulty 4: 32 health = 16 hearts)', copLines.length === 2 && copLines.every(l => /hp=16\b/.test(l)), list)
 
     // Only the hunted robber gets shot.
     const hpA = bots[A].health
@@ -132,21 +134,37 @@ module.exports = async ({ check }) => {
     const refilled = await until(async () => (await alive()) === 3, 6000)
     check('the next wave replaces it', refilled, await cops())
 
-    // Passive players can shoot cops; cops don't shoot passive bystanders.
+    // Every 4th cop a player kills adds to their bounty.
+    await cmd(`zzbountyreset ${A}`)
+    await cmd(`zzdata ${A} cop-kills 3`)
+    await cmd(`minecraft:damage @e[tag=CITIZENS_NPC,limit=1,sort=nearest,x=965,y=200,z=965] 100 minecraft:player_attack by ${A}`)
+    await sleep(800)
+    const kills = await cmd(`zzdata ${A} cop-kills`)
+    const bounty = await cmd(`zzdata ${A} bounty`)
+    check('every 4th cop a robber kills adds $100 to their bounty', /= 4\b/.test(kills) && /= 100\b/.test(bounty), `${kills} / ${bounty}`)
+    await until(async () => (await alive()) === 3, 6000)
+
+    // Shooting a cop makes you wanted, passive or not, and the cops turn on you.
     await cmd(`zzpassive ${B} on`)
+    t = Date.now()
     const dmg = await cmd(`minecraft:damage @e[tag=CITIZENS_NPC,limit=1,sort=nearest,x=952,y=200,z=975] 2 minecraft:player_attack by ${B}`)
-    await sleep(400)
-    const afterHit = await npcs()
-    const hpMin = Math.min(...[...afterHit.matchAll(/hp=([\d.]+)/g)].map(m => Number(m[1])))
-    check('a passive player can hurt a cop (cops aren\'t players)', /Applied 2/.test(dmg) && hpMin < 10, `${dmg} -> ${afterHit}`)
-    await sleep(2500)
-    check('...and the cops don\'t turn on them (they only shoot hunted players)', bots[B].health === hpB, `hp ${hpB} -> ${bots[B].health}`)
+    await sleep(600)
+    const cb = await combat(B)
+    check('shooting a cop (even passive) makes you wanted, with the WANTED title', /Applied 2/.test(dmg) && /wanted=true/.test(cb) && /You shot a cop/.test(text(B, t)), `${dmg} / ${cb} / ${text(B, t)}`)
+    await cmd(`minecraft:effect give ${B} minecraft:instant_health 1 4 true`)
+    await sleep(300)
+    const hpB2 = bots[B].health
+    const shotB = await until(() => bots[B].health < hpB2, 15000)
+    check('...and its cops shoot at you now', shotB, `hp ${hpB2} -> ${bots[B].health}`)
+    await cmd(`minecraft:effect give ${B} minecraft:resistance 60 4 true`)
+    await cmd(`minecraft:effect give ${B} minecraft:regeneration 60 4 true`)
     await cmd(`zzpassive ${B} off`)
 
     // ---------- Getting away ends the alarm ----------
     t = Date.now()
-    await place(A, 965.5, 1090.5) // 125 blocks from the heist's centre (chase radius 100)
     await cmd(`forceload add 960 1080 970 1100`)
+    await place(A, 965.5, 1090.5) // 125 blocks from the heist's centre (chase radius 100)
+    await place(B, 967.5, 1090.5)
     const gone = await until(async () => (await alive()) === 0 && /total=0/.test(await cops()), 6000)
     c = await combat(A)
     check('getting away: the alarm ends, every cop is removed, no longer wanted', gone && /wanted=false/.test(c) && /alarm=none/.test(await heist()), `${await cops()} / ${c} / ${await heist()}`)
@@ -155,13 +173,14 @@ module.exports = async ({ check }) => {
 
     // ---------- Killed by a cop = a cop death ----------
     await cmd(`minecraft:effect clear ${A}`)
+    await cmd(`minecraft:effect clear ${B}`)
     await place(A, 952.5, 965.5)
     await cmd(`dheist end ${ID}`)
     await cmd(`dheist open ${ID}`)
     await until(async () => (await field('state')) === 'open', 8000)
     await place(A, 965.5, 965.5)
     await until(async () => /state=active/.test(await heist()), 4000)
-    await cmd('zzcfgset cop::damage 60')
+    await cmd('zzcfgset difficulty::4::cop-damage 60')
     await cmd(`dheist alarm ${ID}`)
     const before = Number(((await cmd(`zzbal ${A}`)).match(/: (-?\d+)/) || [])[1])
     let died = false
@@ -173,7 +192,7 @@ module.exports = async ({ check }) => {
     check('a robber shot dead by a cop: a cop death (cop-p of the balance: 10% of $10,000 at difficulty 4, capped by the bag)', died && /= cop$/m.test(cause), `${died} ${cause} ${loss} bal before ${before}`)
     const ended = await until(async () => (await alive()) === 0 && /alarm=none/.test(await heist()), 6000)
     check('the only hunted robber died: the alarm ends and the cops go', ended, `${await cops()} ${await heist()}`)
-    await cmd('zzcfgset cop::damage 3')
+    await cmd('zzcfgset difficulty::4::cop-damage 4')
     await sleep(3000)
 
     // ---------- Cops left by a restart ----------

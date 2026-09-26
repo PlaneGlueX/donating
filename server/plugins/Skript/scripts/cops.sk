@@ -2,17 +2,21 @@
 # Sentinel (2.9.4 build 534). heists.sk runs the alarm's timeline (the 20 s warning, a wave every 10 s,
 # who's hunted, the chase radius); this script only puts cops in the world for it.
 #
-# - Each wave (heistOnWave) brings cfg cop::per-wave cops, up to cfg alarm::max-cops alive per heist and
-#   cfg cop::max-total on the server. They appear at the heist's cop spots (/dcops), else at its exit.
+# - Each wave (heistOnWave) brings cfg cop::per-wave cops, up to the heist's cap (copCap: alarm::max-cops,
+#   +alarm::cops-per-extra-robber for each hunted player above 3; no cap on the whole server, owner
+#   2026-09-26). They appear at the heist's cop spots (/dcops), else at its exit. How tough they are and
+#   which gun they carry follow the heist's difficulty (core.sk difficulty::<d>::cop-*).
 # - A cop is a Citizens NPC with Sentinel, made by console commands (Sentinel takes "--id <n>" from the
 #   real console only, never from RCON). Its gun is a feather showing a WeaponMechanics model (cfg
 #   cop::model) that Sentinel treats as a bow (weaponredirect): it shoots arrows, which the pack draws as
 #   bullet streaks (tools\make-item-art.js).
 # - Cops shoot only the players the alarm hunts (Sentinel target uuid:<player>, added on heistOnHunt and
 #   removed when the player gets away, dies, fails or quits). A hunted player is wanted (combat-log.sk
-#   isWanted): combat-tagged, no safe zones, logging out is a cop death.
+#   isWanted): combat-tagged, no safe zones, logging out is a cop death. Shooting a cop makes you hunted
+#   too (owner, 2026-09-26), passive or not, so its partners turn on you.
 # - When the alarm ends (nobody hunted any more, a new run, disable), every cop of that heist is removed.
-#   A cop that dies is removed a tick later (no respawn, no drops, no XP). Killing a cop pays nothing.
+#   A cop that dies is removed a tick later (no respawn, no drops, no XP). Every cop::bounty-every cops a
+#   player kills add cop::bounty to their bounty (owner, 2026-09-26; data "cop-kills").
 # - The Citizens ids of living cops are saved ({cops::ids::<id>}), so cops left by a crash or a stop are
 #   removed when this script loads again.
 # - Cops are tracked by their Citizens id (entity metadata "NPC-ID"), never by the entity: Citizens
@@ -40,10 +44,24 @@ function copAlive(h: text) :: number:
 function copTotal() :: number:
 	return size of {-cop::heist::*}
 
-# One wave: per-wave cops, topped up to the heist's cap and the server's. Cops are made one at a time
-# (copSpawn waits for each to appear), so a wave takes a few ticks.
+# How many cops a heist may have alive: C = max-cops + max(0, R - 3) × cops-per-extra-robber, R = the
+# players its alarm hunts.
+function copCap(h: text) :: number:
+	set {_r} to size of {-heist::%{_h}%::hunted::*}
+	return cfg("alarm::max-cops") + max(0, {_r} - 3) * cfg("alarm::cops-per-extra-robber")
+
+# A cop setting for this heist's difficulty (core.sk difficulty::<d>::cop-<key>).
+function copStat(h: text, key: text) :: number:
+	set {_d} to heistDifficulty({_h})
+	set {_v} to {-cfg::difficulty::%{_d}%::cop-%{_key}%}
+	if {_v} is set:
+		return {_v}
+	return cfg("difficulty::4::cop-%{_key}%")
+
+# One wave: per-wave cops, topped up to the heist's cap. Cops are made one at a time (copSpawn waits
+# for each to appear), so a wave takes a few ticks.
 function copWave(h: text, wave: number):
-	set {_n} to min(cfg("cop::per-wave"), cfg("alarm::max-cops") - copAlive({_h}))
+	set {_n} to min(cfg("cop::per-wave"), copCap({_h}) - copAlive({_h}))
 	copLog("wave %{_h}% %{_wave}% want=%{_n}% alive=%copAlive({_h})% total=%copTotal()%")
 	loop {_n} times:
 		copSpawn({_h})
@@ -68,10 +86,7 @@ function copSpawn(h: text):
 			stop
 	if heistAlarmStage({_h}) is "none":
 		stop
-	if copAlive({_h}) >= cfg("alarm::max-cops"):
-		stop
-	if copTotal() >= cfg("cop::max-total"):
-		copLog("server-cap %{_h}% total=%copTotal()%")
+	if copAlive({_h}) >= copCap({_h}):
 		stop
 	set {_spots::*} to copSpots({_h})
 	if size of {_spots::*} is 0:
@@ -112,7 +127,7 @@ function copSpawn(h: text):
 	set {-cop::heist::%{_id}%} to {_h}
 	set {-cop::ids::%{_h}%::%{_id}%} to true
 	delete {-cop::busy}
-	copSetup({_id})
+	copSetup({_id}, {_h})
 	copLog("spawn %{_h}% id=%{_id}% at %floor({_x})% %floor({_y})% %floor({_z})% after %{_tries}% ticks")
 	# The alarm may have ended while it was being made.
 	if heistAlarmStage({_h}) is "none":
@@ -124,9 +139,9 @@ function copSpawn(h: text):
 function copSentinel(id: text, args: text):
 	execute console command "sentinel %{_args}% --id %{_id}%"
 
-# The gun and the numbers (core.sk cop::*).
-function copSetup(id: text):
-	set {_model} to cfg("cop::model")
+# The gun and the numbers (core.sk cop::* and the heist's difficulty::<d>::cop-*).
+function copSetup(id: text, h: text):
+	set {_model} to copStat({_h}, "model")
 	execute console command "npc setequipment hand feather[custom_model_data={floats:[%{_model}%f]}] --id %{_id}%"
 	copSentinel({_id}, "weaponredirect feather bow")
 	# The police skin (tools/make-cop-skin.js, signed once by MineSkin: core.sk cop::skin-*). Without it Citizens
@@ -138,13 +153,13 @@ function copSetup(id: text):
 			if {_tex} is not "":
 				execute console command "npc skin -t police %{_tex}% %{_sig}% --id %{_id}%"
 	copSentinel({_id}, "respawntime -1")
-	set {_health} to cfg("cop::health")
-	set {_damage} to cfg("cop::damage")
-	set {_rate} to cfg("cop::attack-rate")
+	set {_health} to copStat({_h}, "health")
+	set {_damage} to copStat({_h}, "damage")
+	set {_rate} to copStat({_h}, "attack-rate")
 	set {_range} to cfg("cop::range")
 	set {_chase} to cfg("cop::chase")
-	set {_acc} to cfg("cop::accuracy")
-	set {_speed} to cfg("cop::speed")
+	set {_acc} to copStat({_h}, "accuracy")
+	set {_speed} to copStat({_h}, "speed")
 	copSentinel({_id}, "health %{_health}%")
 	copSentinel({_id}, "damage %{_damage}%")
 	copSentinel({_id}, "attackrate %{_rate}% ranged")
@@ -181,7 +196,8 @@ function copRemoveAll(h: text, why: text):
 		copRemove(loop-value, {_why})
 
 # A cop that dies: no drops, gone a tick later (Sentinel's respawn is off). At priority lowest: Citizens
-# despawns a dead NPC (and its metadata) in its own death handler.
+# despawns a dead NPC (and its metadata) in its own death handler. The killer's cop kills count toward
+# a bounty.
 on death with priority lowest:
 	victim has metadata "NPC"
 	set {_raw} to metadata value "NPC-ID" of victim
@@ -189,6 +205,9 @@ on death with priority lowest:
 	{-cop::heist::%{_id}%} is set
 	clear drops
 	copLog("died id=%{_id}%")
+	if attacker is a player:
+		if attacker does not have metadata "NPC":
+			copKilled(attacker)
 	wait 1 tick
 	{-cop::heist::%{_id}%} is set
 	copRemove({_id}, "died")
@@ -221,6 +240,38 @@ function copSweep():
 						execute console command "npc remove %{_raw}%"
 						delete {cops::ids::%{_raw}%}
 						copLog("sweep id=%{_raw}%")
+
+# Every cop::bounty-every cop kills add cop::bounty to the killer's bounty (bounty.sk's addBounty gives
+# passive players none).
+function copKilled(p: player):
+	set {_n} to getData({_p}, "cop-kills")
+	if {_n} is not set:
+		set {_n} to 0
+	add 1 to {_n}
+	setData({_p}, "cop-kills", {_n})
+	if mod({_n}, cfg("cop::bounty-every")) is 0:
+		set {_add} to addBounty({_p}, cfg("cop::bounty"), "cops")
+		if {_add} > 0:
+			hudBar({_p}, "&c+%formatMoney({_add})% bounty &7· %{_n}% cops down", 2)
+		copLog("bounty %name of {_p}% %uuid of {_p}% cops=%{_n}% +%{_add}%")
+
+# Shooting a cop makes you wanted: its heist's alarm hunts you and its cops target you (owner,
+# 2026-09-26). Monitor: only hits that landed (not cancelled by anything).
+on damage with priority monitor:
+	victim has metadata "NPC"
+	attacker is a player
+	attacker does not have metadata "NPC"
+	set {_raw} to metadata value "NPC-ID" of victim
+	set {_h} to {-cop::heist::%{_raw}%}
+	{_h} is set
+	heistAlarmStage({_h}) is not "none"
+	heistBuilder(attacker) is false
+	heistHuntedBy(attacker) is not {_h}
+	heistHunt(attacker, {_h})
+	set {_r} to cfg("alarm::chase-radius")
+	set {_hn} to heistName({_h})
+	heistNotify(attacker, "wanted", "&4&lWANTED&r &cYou shot a cop. Lose them: get %{_r}% blocks from the %{_hn}%.")
+	copLog("wanted %name of attacker% %uuid of attacker% shot id=%{_raw}% heist=%{_h}%")
 
 # ---------- Hooks from heists.sk ----------
 

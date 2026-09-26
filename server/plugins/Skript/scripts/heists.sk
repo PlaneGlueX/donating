@@ -507,7 +507,7 @@ function heistTeleport(p: player, l: location):
 # loot drops as a duffel (bag.sk).
 on death of player with priority monitor:
 	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
-	victim does not have metadata "NPC"
+	isNpc(victim) is false
 	# Also outside: a hunted robber who walked out and died there leaves the hunt.
 	heistRelease(victim, "died")
 	set {_h} to heistOf(victim)

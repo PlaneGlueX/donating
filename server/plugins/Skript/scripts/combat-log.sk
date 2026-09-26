@@ -93,7 +93,7 @@ every second:
 
 on death of player with priority monitor:
 	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
-	victim does not have metadata "NPC"
+	isNpc(victim) is false
 	clearCombat(victim)
 
 # ---------- Rules while tagged ----------

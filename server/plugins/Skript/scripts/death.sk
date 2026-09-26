@@ -52,7 +52,7 @@ function deathLoss(p: player, cause: text) :: number:
 
 on death of player:
 	# Cops (Citizens NPCs, cops.sk) are player entities too: their deaths aren't a robber's.
-	victim does not have metadata "NPC"
+	isNpc(victim) is false
 	# Who or what caused it: "player:<uuid>", "cop" or "other". (Inline: a function isn't called at
 	# all when an argument is missing, like the attacker of a fall.)
 	set {_cause} to "other"
