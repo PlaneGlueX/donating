@@ -136,6 +136,94 @@
             "model": "donating:item/bag_loot_3d"
           }
         }
+      },
+      {
+        "when": "donating:bag_camo",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_camo"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_camo_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_arctic",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_arctic"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_arctic_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_gilded",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_gilded"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_gilded_3d"
+          }
+        }
+      },
+      {
+        "when": "donating:bag_neon",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "gui"
+              ],
+              "model": {
+                "type": "minecraft:model",
+                "model": "donating:item/bag_neon"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/bag_neon_3d"
+          }
+        }
       }
     ],
     "fallback": {

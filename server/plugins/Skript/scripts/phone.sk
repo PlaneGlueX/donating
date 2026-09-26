@@ -80,7 +80,7 @@ function openPhone(p: player):
 # Player head with the player's stats.
 function phoneStats(p: player) :: item:
 	add "&7Name: %rankedName({_p})%" to {_l::*}
-	add "&7Level: &f%levelOf({_p})% %levelColored(levelOf({_p}))% &8(%levelNum(levelXp({_p}))% XP) &8/level" to {_l::*}
+	add "&7Level: &f%levelOf({_p})% %levelColored(levelOf({_p}))% &7(%levelNum(levelXp({_p}))% XP) &7/level" to {_l::*}
 	add "&7Balance: &a%formatMoney(balance of {_p})%" to {_l::*}
 	set {_bounty} to getData({_p}, "bounty")
 	if {_bounty} is not set:
@@ -90,10 +90,10 @@ function phoneStats(p: player) :: item:
 	if {_tier} is set:
 		if {_tier} > 0:
 			set {_bagName} to cfg("bag::%{_tier}%::name")
-			set {_capacity} to cfg("bag::%{_tier}%::capacity")
-			set {_bag} to "&6%{_bagName}% &8(holds %formatMoney({_capacity})%)"
+			set {_capacity} to bagCapacity({_p})
+			set {_bag} to "&6%{_bagName}% &7(holds %formatMoney({_capacity})%)"
 	if {_bag} is not set:
-		set {_bag} to "&8none yet"
+		set {_bag} to "&7none yet"
 	add "&7Bag: %{_bag}%" to {_l::*}
 	if isPassive({_p}) is true:
 		add "&7Passive mode: &aon" to {_l::*}

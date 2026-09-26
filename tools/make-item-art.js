@@ -30,7 +30,31 @@ const BAGS = {
   4: { name: 'Armored Duffel', B: [74, 80, 88], L: [104, 111, 121], D: [48, 52, 58], S: [128, 134, 144], E: [122, 128, 138], e: [88, 93, 102], H: [20, 20, 22], Z: [150, 155, 165], rivet: [190, 196, 204] },
   5: { name: 'Vault Bag', B: [34, 32, 36], L: [60, 58, 64], D: [20, 19, 22], S: [222, 182, 62], E: [205, 165, 52], e: [150, 116, 34], H: [140, 104, 36], Z: [236, 200, 90], lock: [236, 200, 90] },
   // Not a tier: the dropped duffel a death leaves (bag.sk), canvas with a green band and a gold $.
-  loot: { name: 'Loot Duffel', B: [150, 122, 74], L: [182, 152, 98], D: [104, 82, 46], S: [52, 128, 64], E: [120, 96, 56], e: [88, 68, 38], H: [44, 34, 24], Z: [206, 188, 120], dollar: [240, 204, 84] }
+  loot: { name: 'Loot Duffel', B: [150, 122, 74], L: [182, 152, 98], D: [104, 82, 46], S: [52, 128, 64], E: [120, 96, 56], e: [88, 68, 38], H: [44, 34, 24], Z: [206, 188, 120], dollar: [240, 204, 84] },
+  // Bag skins (ranks.sk, 2026-09-26): a paid rank's look for whatever tier you carry. Looks only: the
+  // capacity is always the tier's. camo = blotch colors over the body; glow = the 3D model lights up.
+  camo: { name: 'Camo', B: [92, 104, 60], L: [118, 130, 80], D: [62, 70, 40], S: [70, 58, 40], E: [74, 84, 48], e: [52, 60, 34], H: [40, 34, 26], Z: [150, 140, 100], camo: [[58, 48, 34], [134, 120, 78], [48, 64, 36]] },
+  arctic: { name: 'Arctic', B: [226, 232, 238], L: [246, 250, 252], D: [178, 188, 198], S: [120, 186, 222], E: [196, 206, 216], e: [150, 162, 176], H: [72, 80, 92], Z: [120, 186, 222], camo: [[186, 196, 206], [150, 170, 190]] },
+  gilded: { name: 'Gilded', B: [236, 232, 222], L: [250, 248, 240], D: [196, 190, 176], S: [214, 170, 52], E: [214, 170, 52], e: [160, 124, 32], H: [120, 90, 30], Z: [232, 196, 80], rivet: [240, 204, 84] },
+  neon: { name: 'Neon', B: [52, 22, 78], L: [78, 36, 112], D: [34, 12, 52], S: [255, 64, 200], E: [255, 64, 200], e: [190, 40, 150], H: [40, 230, 240], Z: [40, 230, 240], glow: true }
+}
+// Blotches over the body color only (straps, zipper and stripe stay clean): a fixed pattern.
+const camoPaint = (c, b, x0, y0, x1, y1) => {
+  const body = [b.B, b.L, b.D].map(v => v.join(','))
+  let seed = 7
+  // 32-bit LCG (Math.imul keeps it exact; the high bits are the random ones).
+  const rnd = n => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return (seed >>> 16) % n }
+  const n = Math.floor(((x1 - x0 + 1) * (y1 - y0 + 1)) / 6)
+  for (let i = 0; i < n; i++) {
+    const x = x0 + rnd(x1 - x0 + 1)
+    const y = y0 + rnd(y1 - y0 + 1)
+    const col = [...b.camo[rnd(b.camo.length)], 255]
+    for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      const px = x + dx; const py = y + dy
+      if (px > x1 || py > y1) continue
+      if (body.includes(c.get(px, py).slice(0, 3).join(','))) c.set(px, py, col)
+    }
+  }
 }
 // A 3x5 dollar sign for the loot duffel.
 const DOLLAR = ['.$$', '$$.', '.$.', '.$$', '$$.']
@@ -70,6 +94,7 @@ for (const t of Object.keys(BAGS)) {
     c.set(7, 10, shade([...b.lock, 255], 0.8)); c.set(8, 10, [30, 24, 10, 255])
   }
   if (b.dollar) c.draw(DOLLAR, { $: [...b.dollar, 255] }, 7, 8)
+  if (b.camo) camoPaint(c, b, 2, 7, 13, 12)
   write(`donating/textures/item/bag_${t}.png`, c.png())
   write(`donating/models/item/bag_${t}.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/bag_${t}` } })
 }
@@ -105,6 +130,7 @@ for (const t of Object.keys(BAGS)) {
   // Handle: strap color with a highlight.
   c.fill(24, 8, 31, 11, col('H'))
   c.fill(24, 8, 31, 8, shade(col('H'), 1.7))
+  if (b.camo) { camoPaint(c, b, 0, 0, 23, 11); camoPaint(c, b, 0, 12, 23, 23) }
   write(`donating/textures/item/bag_${t}_3d.png`, c.png())
   const face = uv => ({ uv, texture: '#bag' })
   const box = (from, to, uv) => ({ from, to, faces: { north: face(uv), south: face(uv), east: face(uv), west: face(uv), up: face(uv), down: face(uv) } })
@@ -116,16 +142,19 @@ for (const t of Object.keys(BAGS)) {
       east: face([12, 0, 16, 4]), west: face([12, 0, 16, 4])
     }
   }
+  const elements = [
+    body,
+    box([1.4, 3.5, 5.5], [2, 8.5, 10.5], [12, 0, 16, 4]), // end caps bulge a little
+    box([14, 3.5, 5.5], [14.6, 8.5, 10.5], [12, 0, 16, 4]),
+    box([4.6, 9, 7.5], [5.4, 11, 8.5], [12, 4, 16, 6]), // handle posts and bar
+    box([10.6, 9, 7.5], [11.4, 11, 8.5], [12, 4, 16, 6]),
+    box([4.6, 11, 7.5], [11.4, 11.8, 8.5], [12, 4, 16, 6])
+  ]
+  // The Neon skin glows in the dark (26.3 model elements take light_emission).
+  if (b.glow) for (const e of elements) e.light_emission = 12
   write(`donating/models/item/bag_${t}_3d.json`, {
     textures: { bag: `donating:item/bag_${t}_3d`, particle: `donating:item/bag_${t}_3d` },
-    elements: [
-      body,
-      box([1.4, 3.5, 5.5], [2, 8.5, 10.5], [12, 0, 16, 4]), // end caps bulge a little
-      box([14, 3.5, 5.5], [14.6, 8.5, 10.5], [12, 0, 16, 4]),
-      box([4.6, 9, 7.5], [5.4, 11, 8.5], [12, 4, 16, 6]), // handle posts and bar
-      box([10.6, 9, 7.5], [11.4, 11, 8.5], [12, 4, 16, 6]),
-      box([4.6, 11, 7.5], [11.4, 11.8, 8.5], [12, 4, 16, 6])
-    ],
+    elements,
     // Carried in the offhand like a duffel by its handle; on the ground it's a dropped duffel.
     display: {
       thirdperson_righthand: { rotation: [90, 90, 0], translation: [0, 0, -1.9], scale: [0.55, 0.55, 0.55] },

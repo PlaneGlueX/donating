@@ -197,7 +197,7 @@ function levelShow(p: player):
 	set {_r} to levelOf({_p})
 	set {_x} to levelXp({_p})
 	set {_max} to cfg("level::max")
-	msg({_p}, "&6Your level: &f%{_r}% %levelColored({_r})% &7(of %{_max}%) &8· &f%levelNum({_x})% XP")
+	msg({_p}, "&6Your level: &f%{_r}% %levelColored({_r})% &7(of %{_max}%) &7· &f%levelNum({_x})% XP")
 	if {_r} >= {_max}:
 		send colored "&7 That's the top level." to {_p}
 	else:
@@ -221,7 +221,7 @@ function levelShow(p: player):
 			send colored "&7 It unlocks: &f%{_list}%" to {_p}
 	set {_per} to cfg("level::xp-per-dollars")
 	set {_haul} to cfg("level::xp-per-haul")
-	send colored "&8 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist. /levels" to {_p}
+	send colored "&7 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist. /levels" to {_p}
 
 command /level:
 	description: Your robber level.
@@ -241,11 +241,11 @@ command /levels:
 			set {_what} to ""
 			if size of {_u::*} > 0:
 				set {_list} to join {_u::*} with ", "
-				set {_what} to " &8· &7%{_list}%"
+				set {_what} to " &7· &7%{_list}%"
 			set {_you} to ""
 			if loop-value is levelOf(player):
 				set {_you} to " &e← you"
-			send colored "&8 %loop-value%. %levelColored(loop-value)% &8- &f%levelNum(levelNeed(loop-value))% XP%{_what}%%{_you}%" to player
+			send colored "&7 %loop-value%. %levelColored(loop-value)% &7- &f%levelNum(levelNeed(loop-value))% XP%{_what}%%{_you}%" to player
 			delete {_u::*}
 
 # ---------- Staff: /dlevel ----------

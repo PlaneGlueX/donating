@@ -1098,7 +1098,7 @@ function lootKeypadDraw(p: player):
 				set {_col} to subtext of {_gp::2} from characters {_j} to {_j}
 				set slot ({_row} * 9 + {_j} - 1) of {_gui} to lootDigitItem({_dg}, {_col})
 			set slot {_row} * 9 + 8 of {_gui} to paper named "&7Guess #%{_idx}%"
-	set slot 36 of {_gui} to book named "&fCrack the code" with lore "&7%{_d}% different digits, 1-9." and "&aGreen&7: right digit, right place." and "&eYellow&7: in the code, wrong place." and "&7Gray: not in the code." and "&8Your Safe Kit is used only when it opens."
+	set slot 36 of {_gui} to book named "&fCrack the code" with lore "&7%{_d}% different digits, 1-9." and "&aGreen&7: right digit, right place." and "&eYellow&7: in the code, wrong place." and "&7Gray: not in the code." and "&7Your Safe Kit is used only when it opens."
 	set {_entry} to {-lootkp::%{_p}%::entry}
 	loop integers from 1 to {_d}:
 		if loop-value <= length of {_entry}:

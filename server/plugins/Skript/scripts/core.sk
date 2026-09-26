@@ -432,8 +432,9 @@ function loadSettings():
 	set {-cfg::level::6::color} to "&c"
 
 	# ---------- Paid ranks (ranks.sk) ----------
-	# Cosmetic only (Monetization): a tag before the name in the tab list, chat and join messages, and a
-	# spot higher in the tab list. LuckPerms groups made by /dranks setup; the weight orders them and is
+	# A tag before the name in the tab list, chat and join messages, a spot higher in the tab list, a bag
+	# skin and more bag room (MONETIZATION.md lists what affects gameplay). LuckPerms groups made by
+	# /dranks setup; the weight orders them and is
 	# the prefix's priority (staff groups are 100). PROPOSAL: names, tags and order (the owner sets
 	# prices). Listed highest first. The ids are also in TAB's sorting list (plugins\TAB\config.yml).
 	set {-cfg::paidranks::*} to "legend", "elite", "vipplus" and "vip"
@@ -449,6 +450,34 @@ function loadSettings():
 	set {-cfg::paidrank::vip::name} to "VIP"
 	set {-cfg::paidrank::vip::prefix} to "&a[VIP]"
 	set {-cfg::paidrank::vip::weight} to 10
+	# Bag skins (owner, 2026-09-26): each paid rank's look for whatever bag tier you carry; a rank has every
+	# lower rank's skin too. The art is in tools\make-item-art.js (BAGS: camo, arctic, gilded, neon).
+	# PROPOSAL: the rank's bag bonus b: capacity × (1 + b) on any bag tier (ranks.sk). Listed in
+	# MONETIZATION.md, the pay-to-win disclosure for Minehut.
+	set {-cfg::paidrank::vip::bag-bonus} to 0.05
+	set {-cfg::paidrank::vipplus::bag-bonus} to 0.1
+	set {-cfg::paidrank::elite::bag-bonus} to 0.15
+	set {-cfg::paidrank::legend::bag-bonus} to 0.2
+	set {-cfg::paidrank::vip::skin} to "camo"
+	set {-cfg::paidrank::vipplus::skin} to "arctic"
+	set {-cfg::paidrank::elite::skin} to "gilded"
+	set {-cfg::paidrank::legend::skin} to "neon"
+	set {-cfg::bagskin::camo::name} to "Camo"
+	set {-cfg::bagskin::arctic::name} to "Arctic"
+	set {-cfg::bagskin::gilded::name} to "Gilded"
+	set {-cfg::bagskin::neon::name} to "Neon"
+
+	# The Tebex webstore's address, shown by /store and /ranks ("" = not open yet). Tebex (the plugin)
+	# delivers purchases by running /dranks give and /dbooster add from the console (MONETIZATION.md).
+	set {-cfg::store::url} to ""
+
+	# ---------- Money boosters (boosters.sk) ----------
+	# A server-wide booster multiplies every loot sale's pay for everyone; its buyer gets buyer-bonus on
+	# top (owner, 2026-09-26: 1.5× for everyone, 2× for the buyer; 0 = the same for all). Listed in
+	# MONETIZATION.md. PROPOSAL: the largest multiplier and the longest booster.
+	set {-cfg::booster::buyer-bonus} to 0.5
+	set {-cfg::booster::max-multiplier} to 2
+	set {-cfg::booster::max-minutes} to 240
 
 	# Helmets and vests: lost on death, bought again. Gun damage D' = D × (1 − 0.03 × armor points).
 	set {-cfg::shop::gear::*} to "helmet-1", "helmet-2", "vest-1" and "vest-2"

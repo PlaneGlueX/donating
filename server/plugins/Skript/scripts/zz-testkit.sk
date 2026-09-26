@@ -298,6 +298,13 @@ command /zzheisttp <player> <number> <number> <number>:
 		heistTeleport(arg-1, location(arg-2, arg-3, arg-4, world "world"))
 		send "HEISTTP %arg-1%"
 
+# boosters.sk: the running booster's seconds left.
+command /zzboosterleft <number>:
+	executable by: console
+	trigger:
+		set {booster::left} to arg-1
+		send "BOOSTERLEFT %{booster::left}%"
+
 # An active heist's clock: /zzheistleft <id> <seconds left>.
 command /zzheistleft <text> <number>:
 	executable by: console

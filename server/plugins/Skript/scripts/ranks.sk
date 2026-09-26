@@ -1,16 +1,22 @@
 # ranks.sk: paid ranks (CLAUDE.md, Monetization). Built 2026-09-26 (owner: "make separate monetized ranks
 # that show next to tab list (higher ranks are higher on the tab list)"). Robber levels are levels.sk.
 #
-# Cosmetic only, never an advantage: a rank is a tag before your name in the tab list, in chat and in
-# join messages, and a spot higher in the tab list (TAB sorts staff first, then these ranks, highest
-# first, then the biggest bounty, then A-Z).
+# A rank is a tag before your name in the tab list, in chat and in join messages, a spot higher in the
+# tab list (TAB sorts staff first, then these ranks, highest first, then the biggest bounty, then A-Z),
+# a bag skin and more bag room (Rank bags, below). The bag room affects gameplay: MONETIZATION.md, the
+# disclosure Minehut asked for, lists it.
 # Each rank is a LuckPerms group (core.sk paidrank::<id>::name|prefix|weight, PROPOSAL; the owner sets
 # names and prices): its weight orders it and is also its prefix's priority, so a player with two ranks
 # shows the higher one, and staff prefixes (weight 100) beat every paid one.
 #   /dranks setup                   creates or updates the groups from core.sk (run it once on a new
 #                                   server, e.g. Minehut, and after changing a rank there)
-#   /dranks give <player> <id|none> takes away every other paid rank, then adds that one (a store runs
-#                                   this from the console when someone buys a rank)
+#   /dranks give <player> <id|none> takes away every other paid rank, then adds that one (Tebex runs
+#                                   this from the console when someone buys a rank); a player who
+#                                   already has a higher rank keeps it
+#   /dranks take <player> <id>      removes that rank only if it's the player's (Tebex's refund and
+#                                   chargeback command: a refund of an old VIP never takes a Legend)
+# /dranks is the owner's and the console's only (permission donating.store), never plain staff's.
+# data "paid-rank" records the rank given (LuckPerms can't be asked reliably about offline players).
 #   /dranks list                    who online has which rank
 # Players: /ranks (the ranks, their tags, yours). Log: plugins\Skript\logs\ranks.log.
 # LuckPerms runs its commands asynchronously: a change shows a moment later (TAB follows LuckPerms).
@@ -54,21 +60,43 @@ command /ranks:
 	description: The server's ranks.
 	executable by: players
 	trigger:
-		msg(player, "&6Ranks &7(cosmetic: they support the server)")
+		msg(player, "&6Ranks &7(they support the server)")
 		# Highest first, like the tab list (core.sk lists them that way).
 		loop {-cfg::paidranks::*}:
 			set {_id} to loop-value
 			set {_name} to cfg("paidrank::%{_id}%::name")
 			set {_tag} to cfg("paidrank::%{_id}%::prefix")
-			send colored "&8 » %{_tag}%&r &f%{_name}%" to player
-		send colored "&7 A rank puts its tag before your name in the tab list and in chat, and moves you up the tab list. Nothing else: no money, guns or bags." to player
+			set {_bonus} to cfg("paidrank::%{_id}%::bag-bonus") * 100
+			set {_skin} to cfg("paidrank::%{_id}%::skin")
+			set {_skinName} to cfg("bagskin::%{_skin}%::name")
+			send colored "&7 » %{_tag}%&r &f%{_name}% &7· %{_skinName}% bag, +%{_bonus}%%% room" to player
+		send colored "&7 A rank puts its tag before your name in the tab list and in chat, moves you up the tab list, and gives your bag its look and more room (bought with in-game money as usual). /bagskin" to player
 		set {_mine} to paidRank(player)
+		set {_store} to storeText()
 		if {_mine} is "":
-			send colored "&7 Yours: &fnone yet. &8Store: coming soon." to player
+			send colored "&7 Yours: &fnone yet. &7%{_store}%" to player
 		else:
 			set {_name} to cfg("paidrank::%{_mine}%::name")
 			send colored "&7 Yours: %paidRankTag({_mine})%&r &f%{_name}%&7. Thank you!" to player
-		send colored "&8 Your robber level (from selling loot) is something else: /level" to player
+		send colored "&7 Your robber level (from selling loot) is something else: /level" to player
+
+# ---------- The store (Tebex) ----------
+
+# "Store: donating.tebex.io", or "Store: opening soon." while core.sk's store::url is empty.
+function storeText() :: text:
+	set {_u} to cfg("store::url")
+	if {_u} is not set:
+		return "Store: opening soon."
+	if {_u} is "":
+		return "Store: opening soon."
+	return "Store: &f%{_u}%"
+
+command /store:
+	description: The server's store: ranks and money boosters.
+	aliases: /donate
+	executable by: players
+	trigger:
+		msg(player, "&6%storeText()% &7Ranks (a tag, a bag look and more bag room) and money boosters (more pay for everyone). /ranks /booster")
 
 # ---------- Staff: /dranks ----------
 
@@ -76,8 +104,8 @@ function drankReply(s: command sender, text: text):
 	send "%{_text}%" to {_s}
 
 command /dranks [<text>]:
-	permission: donating.staff
-	permission message: &cStaff only.
+	permission: donating.store
+	permission message: &cOnly the owner and the store can do that.
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
@@ -111,10 +139,19 @@ command /dranks [<text>]:
 				drankReply(sender, "RANKS give: /dranks give <player> <rank|none>")
 				stop
 			if {_id} is not "none":
-				if cfg("paidrank::%{_id}%::name") is not set:
+				# Read directly: cfg() would log a "Missing setting" warning for a typo in the command.
+				if {-cfg::paidrank::%{_id}%::name} is not set:
 					set {_all} to join {-cfg::paidranks::*} with ", "
 					drankReply(sender, "RANKS give: no rank %{_id}% (ranks: %{_all}%, or none)")
 					stop
+			# A higher rank the player already has stays (buying a lower one never downgrades).
+			set {_had} to getData({_p}, "paid-rank")
+			if {_had} is set:
+				if {_id} is not "none":
+					if cfg("paidrank::%{_had}%::weight") > cfg("paidrank::%{_id}%::weight"):
+						rankLog("give-kept %{_a::2}% %uuid of {_p}% has=%{_had}% asked=%{_id}% by=%sender%")
+						drankReply(sender, "RANKS %{_a::2}% keeps %{_had}% (higher than %{_id}%)")
+						stop
 			# One paid rank at a time: the others go first. By UUID: LuckPerms only knows the names of
 			# players who joined, and a store may sell a rank to someone who hasn't yet.
 			set {_u} to "%uuid of {_p}%"
@@ -123,7 +160,112 @@ command /dranks [<text>]:
 					execute console command "lp user %{_u}% parent remove %loop-value%"
 			if {_id} is not "none":
 				execute console command "lp user %{_u}% parent add %{_id}%"
+				setData({_p}, "paid-rank", {_id})
+			else:
+				deleteData({_p}, "paid-rank")
 			rankLog("give %{_a::2}% %uuid of {_p}% %{_id}% by=%sender%")
 			drankReply(sender, "RANKS %{_a::2}% -> %{_id}%")
 			stop
-		drankReply(sender, "RANKS usage: /dranks setup | give <player> <rank|none> | list")
+		if {_sub} is "take":
+			set {_p} to {_a::2} parsed as offline player
+			set {_id} to {_a::3}
+			if {_p} is not set:
+				drankReply(sender, "RANKS take: /dranks take <player> <rank>")
+				stop
+			if {_id} is not set:
+				drankReply(sender, "RANKS take: /dranks take <player> <rank>")
+				stop
+			set {_had} to getData({_p}, "paid-rank")
+			if {_had} is not {_id}:
+				rankLog("take-skipped %{_a::2}% %uuid of {_p}% has=%{_had}% asked=%{_id}% by=%sender%")
+				drankReply(sender, "RANKS %{_a::2}% doesn't have %{_id}% (has %{_had}%): nothing taken")
+				stop
+			execute console command "lp user %uuid of {_p}% parent remove %{_id}%"
+			deleteData({_p}, "paid-rank")
+			rankLog("take %{_a::2}% %uuid of {_p}% %{_id}% by=%sender%")
+			drankReply(sender, "RANKS %{_a::2}% lost %{_id}%")
+			stop
+		drankReply(sender, "RANKS usage: /dranks setup | give <player> <rank|none> | take <player> <rank> | list")
+
+# ---------- Rank bags (owner, 2026-09-26) ----------
+# A paid rank gives every bag you carry its look (your rank's skin, or a lower rank's: /bagskin) and more
+# room: capacity × (1 + b), b = cfg paidrank::<id>::bag-bonus of your highest rank (PROPOSAL: VIP 5%,
+# VIP+ 10%, Elite 15%, Legend 20%). Everything else stays the tier's: it's bought with in-game money,
+# lost on death and bought again, and the bigger bag also raises a death's balance loss cap (C = the
+# bag's capacity). The bonus affects gameplay: it's listed in MONETIZATION.md, the disclosure Minehut
+# asked for (owner, 2026-09-26: Minehut staff OK'd paid advantages with that private document).
+
+function paidRankBagBonus(p: offline player) :: number:
+	set {_r} to paidRank({_p})
+	if {_r} is "":
+		return 0
+	set {_b} to cfg("paidrank::%{_r}%::bag-bonus")
+	if {_b} is set:
+		return {_b}
+	return 0
+
+# The bag skins a player may use: their rank's and every lower rank's.
+function bagSkinsOwned(p: offline player) :: texts:
+	set {_r} to paidRank({_p})
+	if {_r} is "":
+		return {_none::*}
+	set {_w} to cfg("paidrank::%{_r}%::weight")
+	loop {-cfg::paidranks::*}:
+		if cfg("paidrank::%loop-value%::weight") <= {_w}:
+			set {_s} to cfg("paidrank::%loop-value%::skin")
+			if {_s} is set:
+				add {_s} to {_owned::*}
+	return {_owned::*}
+
+# The skin the bag shows ("" = the tier's own look): the one picked with /bagskin if the player still
+# owns it, else their highest rank's.
+function bagSkinOf(p: offline player) :: text:
+	set {_r} to paidRank({_p})
+	if {_r} is "":
+		return ""
+	set {_pick} to getData({_p}, "bag-skin")
+	if {_pick} is "default":
+		return ""
+	if {_pick} is set:
+		set {_owned::*} to bagSkinsOwned({_p})
+		if {_owned::*} contains {_pick}:
+			return {_pick}
+	set {_s} to cfg("paidrank::%{_r}%::skin")
+	if {_s} is set:
+		return {_s}
+	return ""
+
+command /bagskin [<text>]:
+	description: Pick your bag's look (paid ranks).
+	executable by: players
+	trigger:
+		set {_owned::*} to bagSkinsOwned(player)
+		if arg-1 is not set:
+			if size of {_owned::*} is 0:
+				msg(player, "&7Bag skins come with a rank: &f/ranks")
+				stop
+			set {_list} to join {_owned::*} with ", "
+			set {_now} to bagSkinOf(player)
+			if {_now} is "":
+				set {_now} to "default"
+			msg(player, "&6Your bag skins: &f%{_list}% &7(now: &f%{_now}%&7). &f/bagskin <name> &7or &f/bagskin default")
+			stop
+		set {_pick} to arg-1 in lower case
+		if {_pick} is "default":
+			setData(player, "bag-skin", "default")
+		else if {_owned::*} contains {_pick}:
+			setData(player, "bag-skin", {_pick})
+		else:
+			set {_list} to join {_owned::*} with ", "
+			if {_list} is "":
+				set {_list} to "none"
+			msg(player, "&cYou don't have that skin. &7Yours: &f%{_list}%&7. Skins come with a rank: &f/ranks")
+			stop
+		bagRefresh(player)
+		msg(player, "&aYour bag's look: &f%{_pick}%&a.")
+
+# A rank bought or lost shows on the bag within a few seconds (LuckPerms applies the change a moment
+# after /dranks give). bagRefresh only redraws when something changed.
+every 5 seconds:
+	loop all players:
+		bagRefresh(loop-player)
