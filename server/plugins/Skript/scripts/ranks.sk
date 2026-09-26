@@ -3,8 +3,9 @@
 #
 # A rank is a tag before your name in the tab list, in chat and in join messages, a spot higher in the
 # tab list (TAB sorts staff first, then these ranks, highest first, then the biggest bounty, then A-Z),
-# a bag skin and more bag room (Rank bags, below). The bag room affects gameplay: MONETIZATION.md, the
-# disclosure Minehut asked for, lists it.
+# a bag skin and more bag room (Rank bags, below), crate keys in /daily (VIP+ and up, crates.sk) and
+# Heist Refresh (Elite and Legend, below). The bag room, the keys and the refresh affect gameplay:
+# MONETIZATION.md, the disclosure Minehut asked for, lists them.
 # Each rank is a LuckPerms group (core.sk paidrank::<id>::name|prefix|weight, PROPOSAL; the owner sets
 # names and prices): its weight orders it and is also its prefix's priority, so a player with two ranks
 # shows the higher one, and staff prefixes (weight 100) beat every paid one.
@@ -69,8 +70,18 @@ command /ranks:
 			set {_bonus} to cfg("paidrank::%{_id}%::bag-bonus") * 100
 			set {_skin} to cfg("paidrank::%{_id}%::skin")
 			set {_skinName} to cfg("bagskin::%{_skin}%::name")
-			send colored "&7 » %{_tag}%&r &f%{_name}% &7· %{_skinName}% bag, +%{_bonus}%%% room" to player
-		send colored "&7 A rank puts its tag before your name in the tab list and in chat, moves you up the tab list, and gives your bag its look and more room (bought with in-game money as usual). /bagskin" to player
+			set {_extra} to ""
+			delete {_keys::*}
+			loop {-cfg::paidrank::%{_id}%::daily-keys::*}:
+				add {-cfg::rarity::%loop-value-2%::name} to {_keys::*}
+			if size of {_keys::*} > 0:
+				set {_keyText} to join {_keys::*} with ", "
+				set {_extra} to "%{_extra}%, daily %{_keyText}% keys"
+			set {_hrs} to {-cfg::paidrank::%{_id}%::refresh-hours}
+			if {_hrs} is set:
+				set {_extra} to "%{_extra}%, Heist Refresh every %{_hrs}%h"
+			send colored "&7 » %{_tag}%&r &f%{_name}% &7· %{_skinName}% bag, +%{_bonus}%%% room%{_extra}%" to player
+		send colored "&7 A rank puts its tag before your name in the tab list and in chat, moves you up the tab list, and gives your bag its look and more room (bought with in-game money as usual). /bagskin /daily /heistrefresh" to player
 		set {_mine} to paidRank(player)
 		set {_store} to storeText()
 		if {_mine} is "":
@@ -96,7 +107,7 @@ command /store:
 	aliases: /donate
 	executable by: players
 	trigger:
-		msg(player, "&6%storeText()% &7Ranks (a tag, a bag look and more bag room) and money boosters (more pay for everyone). /ranks /booster")
+		msg(player, "&6%storeText()% &7Ranks (a tag, a bag look and more bag room), money boosters (more pay for everyone) and crate keys. /ranks /booster /crates")
 
 # ---------- Staff: /dranks ----------
 
@@ -204,25 +215,33 @@ function paidRankBagBonus(p: offline player) :: number:
 		return {_b}
 	return 0
 
-# The bag skins a player may use: their rank's and every lower rank's.
+# The bag skins a player may use: their rank's and every lower rank's, and the ones from crates
+# (cosmetics.sk).
 function bagSkinsOwned(p: offline player) :: texts:
 	set {_r} to paidRank({_p})
-	if {_r} is "":
-		return {_none::*}
-	set {_w} to cfg("paidrank::%{_r}%::weight")
-	loop {-cfg::paidranks::*}:
-		if cfg("paidrank::%loop-value%::weight") <= {_w}:
-			set {_s} to cfg("paidrank::%loop-value%::skin")
-			if {_s} is set:
-				add {_s} to {_owned::*}
+	if {_r} is not "":
+		set {_w} to cfg("paidrank::%{_r}%::weight")
+		loop {-cfg::paidranks::*}:
+			if cfg("paidrank::%loop-value%::weight") <= {_w}:
+				set {_s} to cfg("paidrank::%loop-value%::skin")
+				if {_s} is set:
+					add {_s} to {_owned::*}
+	loop cosOwnedOf({_p}, "bagskin"):
+		add loop-value to {_owned::*}
 	return {_owned::*}
+
+# A skin's name ("Camo", "Cash Print").
+function bagSkinName(s: text) :: text:
+	set {_n} to {-cfg::bagskin::%{_s}%::name}
+	if {_n} is not set:
+		set {_n} to {-cfg::cos::%{_s}%::name}
+	if {_n} is not set:
+		return {_s}
+	return {_n}
 
 # The skin the bag shows ("" = the tier's own look): the one picked with /bagskin if the player still
 # owns it, else their highest rank's.
 function bagSkinOf(p: offline player) :: text:
-	set {_r} to paidRank({_p})
-	if {_r} is "":
-		return ""
 	set {_pick} to getData({_p}, "bag-skin")
 	if {_pick} is "default":
 		return ""
@@ -230,39 +249,143 @@ function bagSkinOf(p: offline player) :: text:
 		set {_owned::*} to bagSkinsOwned({_p})
 		if {_owned::*} contains {_pick}:
 			return {_pick}
+	set {_r} to paidRank({_p})
+	if {_r} is "":
+		return ""
 	set {_s} to cfg("paidrank::%{_r}%::skin")
 	if {_s} is set:
 		return {_s}
 	return ""
 
 command /bagskin [<text>]:
-	description: Pick your bag's look (paid ranks).
+	description: Pick your bag's look (paid ranks and crates).
 	executable by: players
 	trigger:
 		set {_owned::*} to bagSkinsOwned(player)
+		loop {_owned::*}:
+			add bagSkinName(loop-value) to {_names::*}
+		set {_list} to join {_names::*} with ", "
+		if {_list} is "":
+			set {_list} to "none"
 		if arg-1 is not set:
 			if size of {_owned::*} is 0:
-				msg(player, "&7Bag skins come with a rank: &f/ranks")
+				msg(player, "&7Bag skins come with a rank or from crates: &f/ranks /crates")
 				stop
-			set {_list} to join {_owned::*} with ", "
 			set {_now} to bagSkinOf(player)
-			if {_now} is "":
-				set {_now} to "default"
-			msg(player, "&6Your bag skins: &f%{_list}% &7(now: &f%{_now}%&7). &f/bagskin <name> &7or &f/bagskin default")
+			set {_nowName} to "default"
+			if {_now} is not "":
+				set {_nowName} to bagSkinName({_now})
+			msg(player, "&6Your bag skins: &f%{_list}% &7(now: &f%{_nowName}%&7). &f/bagskin <name> &7or &f/bagskin default")
 			stop
-		set {_pick} to arg-1 in lower case
-		if {_pick} is "default":
-			setData(player, "bag-skin", "default")
-		else if {_owned::*} contains {_pick}:
-			setData(player, "bag-skin", {_pick})
-		else:
-			set {_list} to join {_owned::*} with ", "
-			if {_list} is "":
-				set {_list} to "none"
-			msg(player, "&cYou don't have that skin. &7Yours: &f%{_list}%&7. Skins come with a rank: &f/ranks")
+		# By id or by name, any case, spaces optional ("cash print", "cashprint").
+		set {_typed} to arg-1 in lower case
+		replace all " " with "" in {_typed}
+		set {_pick} to ""
+		if {_typed} is "default":
+			set {_pick} to "default"
+		loop {_owned::*}:
+			set {_n} to bagSkinName(loop-value) in lower case
+			replace all " " with "" in {_n}
+			if loop-value is {_typed}:
+				set {_pick} to loop-value
+			else if {_n} is {_typed}:
+				set {_pick} to loop-value
+		if {_pick} is "":
+			msg(player, "&cYou don't have that skin. &7Yours: &f%{_list}%&7. Skins come with a rank or from crates: &f/ranks /crates")
 			stop
+		setData(player, "bag-skin", {_pick})
 		bagRefresh(player)
-		msg(player, "&aYour bag's look: &f%{_pick}%&a.")
+		if {_pick} is "default":
+			msg(player, "&aYour bag's look: &fdefault&a.")
+		else:
+			msg(player, "&aYour bag's look: &f%bagSkinName({_pick})%&a.")
+
+# ---------- Heist Refresh (owner, 2026-09-26: Elite every 12 h, Legend every 6 h) ----------
+# /heistrefresh <heist> reopens a heist that's cooling down, for everyone (heists.sk heistRefresh: it
+# opens as soon as its room reset is done, announced as usual). Never a running or open heist, never one
+# whose alarm is still running (opening ends the chase: no paid way to lose the cops), never one that's
+# already reopening (the refresh isn't used up), only one the player's level allows, not while in
+# combat, no head start. Data "refresh-at" = the unix time of the last one (a
+# restart doesn't reset it). Logged to ranks.log.
+
+# Seconds until the player may refresh again (0 = now); -1 when their rank has no refresh.
+function refreshLeft(p: player) :: number:
+	set {_r} to paidRank({_p})
+	if {_r} is "":
+		return -1
+	set {_hrs} to {-cfg::paidrank::%{_r}%::refresh-hours}
+	if {_hrs} is not set:
+		return -1
+	set {_last} to getData({_p}, "refresh-at")
+	if {_last} is not set:
+		return 0
+	return max(0, {_last} + {_hrs} * 3600 - unix timestamp of now)
+
+function refreshWhen(left: number) :: text:
+	if {_left} <= 0:
+		return "ready"
+	set {_h} to floor({_left} / 3600)
+	set {_m} to floor(mod({_left}, 3600) / 60)
+	return "in %{_h}%h %{_m}%m"
+
+command /heistrefresh [<text>]:
+	description: Reopen a heist that's cooling down, for everyone (Elite and Legend).
+	executable by: players
+	trigger:
+		set {_left} to refreshLeft(player)
+		if {_left} < 0:
+			msg(player, "&7Heist Refresh comes with &6[Elite]&7 and &d[Legend]&7: it reopens a heist that's cooling down, for everyone. &f/ranks")
+			stop
+		if arg-1 is not set:
+			set {_any} to false
+			loop {heists::*}:
+				if heistRefreshBlock(loop-index) is "":
+					set {_any} to true
+					send colored "&7 » &f%heistName(loop-index)% &7(%loop-index%) reopens in %formatClock(heistSecondsLeft(loop-index))%" to player
+			if {_any} is false:
+				msg(player, "&7No heist is cooling down right now.")
+			msg(player, "&7Your Heist Refresh: &f%refreshWhen({_left})%&7. &f/heistrefresh <heist>")
+			stop
+		if {_left} > 0:
+			msg(player, "&cYour next Heist Refresh is %refreshWhen({_left})%.")
+			stop
+		if isCombatTagged(player) is true:
+			msg(player, "&cYou can't refresh a heist while in combat.")
+			stop
+		set {_typed} to arg-1 in lower case
+		replace all " " with "" in {_typed}
+		set {_h} to ""
+		loop {heists::*}:
+			set {_n} to heistName(loop-index) in lower case
+			replace all " " with "" in {_n}
+			if loop-index is {_typed}:
+				set {_h} to loop-index
+			else if {_n} is {_typed}:
+				set {_h} to loop-index
+		if {_h} is "":
+			msg(player, "&cThere's no heist called %arg-1%. &7/heistrefresh lists the ones cooling down.")
+			stop
+		set {_name} to heistName({_h})
+		set {_why} to heistRefreshBlock({_h})
+		if {_why} is "not-cooling":
+			msg(player, "&cThe %{_name}% isn't cooling down. &7Only a closed heist can be refreshed.")
+			stop
+		if {_why} is "alarm":
+			msg(player, "&cThe %{_name}%'s alarm is still going. &7Refresh it once the cops give up.")
+			stop
+		if {_why} is "opening":
+			msg(player, "&7The %{_name}% is already reopening. &7Your refresh isn't used.")
+			stop
+		set {_need} to heistLevel({_h})
+		if levelOk(player, {_need}) is false:
+			msg(player, "&cThe %{_name}% needs level %{_need}% (%levelName({_need})%). &7/level")
+			stop
+		if heistRefresh({_h}) is not "":
+			msg(player, "&cThe %{_name}% can't be refreshed right now.")
+			stop
+		setData(player, "refresh-at", unix timestamp of now)
+		rankLog("refresh %name of player% %uuid of player% %{_h}% rank=%paidRank(player)%")
+		broadcastMsg("&f%name of player% &7refreshed the &f%{_name}%&7: it opens in a moment!")
 
 # A rank bought or lost shows on the bag within a few seconds (LuckPerms applies the change a moment
 # after /dranks give). bagRefresh only redraws when something changed.

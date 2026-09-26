@@ -55,6 +55,7 @@ function showHelp(p: player):
 	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
 	send colored "&7• &eLevels: &7selling loot earns XP; higher levels open bigger heists and tools. &f/level" to {_p}
 	send colored "&7• &eRanks &7(/ranks) support the server: a tag, a bag look and more bag room." to {_p}
+	send colored "&7• &eCrates: &7a free key every day with &f/daily&7; open them with &f/crates &7(cash, ammo, titles, bag skins, kill effects)." to {_p}
 	send colored "&7• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
 	send colored "&7• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
 	send colored "&7• &ePhone &7(hotbar 9): garage, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}

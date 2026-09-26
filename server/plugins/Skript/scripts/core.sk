@@ -456,8 +456,19 @@ function loadSettings():
 	# MONETIZATION.md, the pay-to-win disclosure for Minehut.
 	set {-cfg::paidrank::vip::bag-bonus} to 0.05
 	set {-cfg::paidrank::vipplus::bag-bonus} to 0.1
-	set {-cfg::paidrank::elite::bag-bonus} to 0.15
-	set {-cfg::paidrank::legend::bag-bonus} to 0.2
+	# Owner, 2026-09-26: Elite 20%, Legend 25% (was 15% / 20%).
+	set {-cfg::paidrank::elite::bag-bonus} to 0.2
+	set {-cfg::paidrank::legend::bag-bonus} to 0.25
+	# The keys each rank adds to /daily (crates.sk; owner, 2026-09-26). VIP adds none.
+	set {-cfg::paidrank::vipplus::daily-keys::*} to "common"
+	set {-cfg::paidrank::elite::daily-keys::*} to "common" and "uncommon"
+	set {-cfg::paidrank::legend::daily-keys::*} to "common", "uncommon" and "rare"
+	# Heist Refresh (ranks.sk /heistrefresh): hours between two refreshes per player; a rank without
+	# one can't refresh (owner, 2026-09-26: Elite 12 h, Legend 6 h).
+	set {-cfg::paidrank::elite::refresh-hours} to 12
+	set {-cfg::paidrank::legend::refresh-hours} to 6
+	# Legends own every retired and testing cosmetic (cosmetics.sk; owner, 2026-09-26).
+	set {-cfg::paidrank::legend::retired-cosmetics} to true
 	set {-cfg::paidrank::vip::skin} to "camo"
 	set {-cfg::paidrank::vipplus::skin} to "arctic"
 	set {-cfg::paidrank::elite::skin} to "gilded"
@@ -468,8 +479,190 @@ function loadSettings():
 	set {-cfg::bagskin::neon::name} to "Neon"
 
 	# The Tebex webstore's address, shown by /store and /ranks ("" = not open yet). Tebex (the plugin)
-	# delivers purchases by running /dranks give and /dbooster add from the console (MONETIZATION.md).
+	# delivers purchases by running /dranks give, /dbooster add and /dcrate give from the console
+	# (MONETIZATION.md).
 	set {-cfg::store::url} to ""
+
+	# ---------- Crates (crates.sk) and cosmetics (cosmetics.sk): ALL PROPOSALS ----------
+	# Owner, 2026-09-26: crates daily, common, uncommon, rare, epic, legendary, and hacked (special events
+	# only, never sold). Keys are virtual (a count per player, never an item: the inventory is fixed).
+	# /daily gives everyone a daily key (plus each rank's daily-keys above); common to legendary keys are
+	# sold on Tebex (dcrate give). Rarity colors are used for crates and for cosmetics.
+	set {-cfg::rarities::*} to "daily", "common", "uncommon", "rare", "epic", "legendary" and "hacked"
+	set {-cfg::rarity::daily::name} to "Daily"
+	set {-cfg::rarity::daily::color} to "&e"
+	set {-cfg::rarity::common::name} to "Common"
+	set {-cfg::rarity::common::color} to "&f"
+	set {-cfg::rarity::uncommon::name} to "Uncommon"
+	set {-cfg::rarity::uncommon::color} to "&a"
+	set {-cfg::rarity::rare::name} to "Rare"
+	set {-cfg::rarity::rare::color} to "&9"
+	set {-cfg::rarity::epic::name} to "Epic"
+	set {-cfg::rarity::epic::color} to "&5"
+	set {-cfg::rarity::legendary::name} to "Legendary"
+	set {-cfg::rarity::legendary::color} to "&6"
+	set {-cfg::rarity::hacked::name} to "Hacked"
+	set {-cfg::rarity::hacked::color} to "&2"
+	# A cosmetic you already own pays this much instead (by the cosmetic's rarity).
+	set {-cfg::rarity::daily::dupe} to 400
+	set {-cfg::rarity::common::dupe} to 400
+	set {-cfg::rarity::uncommon::dupe} to 1000
+	set {-cfg::rarity::rare::dupe} to 3000
+	set {-cfg::rarity::epic::dupe} to 8000
+	set {-cfg::rarity::legendary::dupe} to 20000
+	set {-cfg::rarity::hacked::dupe} to 25000
+	# Crates, in menu order. sold = Tebex sells its keys; secret = hidden from /crates unless you have a
+	# key; block = the block a crate stand is made of (/dcrate place).
+	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary" and "hacked"
+	set {-cfg::crate::daily::sold} to false
+	set {-cfg::crate::common::sold} to true
+	set {-cfg::crate::uncommon::sold} to true
+	set {-cfg::crate::rare::sold} to true
+	set {-cfg::crate::epic::sold} to true
+	set {-cfg::crate::legendary::sold} to true
+	set {-cfg::crate::hacked::sold} to false
+	set {-cfg::crate::hacked::secret} to true
+	set {-cfg::crate::daily::icon} to chest
+	set {-cfg::crate::common::icon} to chest
+	set {-cfg::crate::uncommon::icon} to chest
+	set {-cfg::crate::rare::icon} to ender chest
+	set {-cfg::crate::epic::icon} to ender chest
+	set {-cfg::crate::legendary::icon} to ender chest
+	set {-cfg::crate::hacked::icon} to sculk shrieker
+	# Rewards: "weight|kind|what|amount". The chance of a line = its weight / the crate's total (shown in
+	# /crates). Kinds: money|<$>; ammo|<type>|<rounds>; con|<consumable>|<n>; tool|<tool>|<n>;
+	# cos|<cosmetic id>. Ammo, consumables and tools that don't fit (full inventory, carry limit, a tool
+	# above your level) pay their shop price in cash instead, and a cosmetic you own pays its dupe value,
+	# so nothing is ever lost. Car cosmetics, car upgrades and gun skins come later (garage.sk, art).
+	set {-cfg::crate::daily::rewards::*} to "25|money|250", "18|money|500", "8|money|1000", "12|ammo|light|32", "8|ammo|shells|14", "8|ammo|rifle|30", "10|con|Stim|1", "5|tool|safe-kit|1", "2|cos|rookie", "2|cos|lookout", "1|cos|poof" and "1|cos|denim"
+	set {-cfg::crate::common::rewards::*} to "19|money|500", "14|money|1000", "6|money|2000", "10|ammo|light|64", "8|ammo|shells|28", "8|ammo|rifle|60", "8|con|Stim|2", "6|tool|safe-kit|1", "4|cos|rookie", "4|cos|lookout", "3|cos|wheelman", "3|cos|hustler", "3|cos|poof", "2|cos|smoke", "1|cos|denim" and "1|cos|sand"
+	set {-cfg::crate::uncommon::rewards::*} to "18|money|1500", "5|money|2000", "12|money|3000", "4|money|5000", "8|ammo|light|128", "6|ammo|shells|56", "6|ammo|rifle|120", "8|con|Stim|3", "6|tool|safe-kit|2", "5|cos|ghost", "4|cos|smooth", "4|cos|nightowl", "4|cos|flames", "4|cos|sparks", "3|cos|urban" and "3|cos|cherry"
+	set {-cfg::crate::rare::rewards::*} to "18|money|4000", "3|money|6000", "10|money|8000", "4|money|12000", "8|ammo|rifle|240", "6|ammo|shells|112", "6|con|Stim|3", "8|tool|drill|1", "5|tool|safe-kit|3", "6|cos|insideman", "6|cos|phantom", "5|cos|cashburst", "5|cos|souls", "5|cos|cashprint" and "5|cos|crimson"
+	set {-cfg::crate::epic::rewards::*} to "18|money|10000", "10|money|20000", "5|money|30000", "8|tool|drill|1", "5|con|Stim|3", "9|cos|untouchable", "9|cos|bigfish", "8|cos|fireworks", "8|cos|stormcloud", "10|cos|tiger" and "10|cos|carbon"
+	set {-cfg::crate::legendary::rewards::*} to "20|money|25000", "10|money|50000", "5|money|75000", "11|cos|mostwanted", "11|cos|theboss", "11|cos|dragon", "11|cos|totem", "11|cos|diamond" and "10|cos|molten"
+	set {-cfg::crate::hacked::rewards::*} to "20|money|50000", "16|cos|hacker", "16|cos|zeroday", "24|cos|glitch" and "24|cos|matrix"
+	# /daily: once every this many hours (a bit under a day, so a daily routine doesn't drift later).
+	set {-cfg::daily::hours} to 20
+	# The spin before a crate shows what you got (the reward is given the moment the key is used).
+	set {-cfg::crate::spin-steps} to 30
+
+	# Cosmetics: type title (a tag after your name in chat and the tab list: /title), bagskin (the bag's
+	# look: /bagskin; art in tools\make-item-art.js BAGS), killfx (particles and a sound where your
+	# victim dies: /killeffect). retired = no longer in crates; testing = not released yet. Legends own
+	# every retired and testing cosmetic (owner, 2026-09-26). Rank bag skins (camo, arctic, gilded, neon)
+	# stay rank-only and aren't listed here.
+	set {-cfg::cosmetics::*} to "rookie", "lookout", "wheelman", "hustler", "ghost", "smooth", "nightowl", "insideman", "phantom", "untouchable", "bigfish", "mostwanted", "theboss", "hacker", "zeroday", "denim", "sand", "urban", "cherry", "cashprint", "crimson", "tiger", "carbon", "diamond", "molten", "matrix", "poof", "smoke", "flames", "sparks", "cashburst", "souls", "fireworks", "stormcloud", "dragon", "totem" and "glitch"
+	set {-cfg::cos::rookie::type} to "title"
+	set {-cfg::cos::rookie::name} to "Rookie"
+	set {-cfg::cos::rookie::rarity} to "common"
+	set {-cfg::cos::lookout::type} to "title"
+	set {-cfg::cos::lookout::name} to "Lookout"
+	set {-cfg::cos::lookout::rarity} to "common"
+	set {-cfg::cos::wheelman::type} to "title"
+	set {-cfg::cos::wheelman::name} to "Wheelman"
+	set {-cfg::cos::wheelman::rarity} to "common"
+	set {-cfg::cos::hustler::type} to "title"
+	set {-cfg::cos::hustler::name} to "Hustler"
+	set {-cfg::cos::hustler::rarity} to "common"
+	set {-cfg::cos::ghost::type} to "title"
+	set {-cfg::cos::ghost::name} to "Ghost"
+	set {-cfg::cos::ghost::rarity} to "uncommon"
+	set {-cfg::cos::smooth::type} to "title"
+	set {-cfg::cos::smooth::name} to "Smooth Operator"
+	set {-cfg::cos::smooth::rarity} to "uncommon"
+	set {-cfg::cos::nightowl::type} to "title"
+	set {-cfg::cos::nightowl::name} to "Night Owl"
+	set {-cfg::cos::nightowl::rarity} to "uncommon"
+	set {-cfg::cos::insideman::type} to "title"
+	set {-cfg::cos::insideman::name} to "Inside Man"
+	set {-cfg::cos::insideman::rarity} to "rare"
+	set {-cfg::cos::phantom::type} to "title"
+	set {-cfg::cos::phantom::name} to "Phantom"
+	set {-cfg::cos::phantom::rarity} to "rare"
+	set {-cfg::cos::untouchable::type} to "title"
+	set {-cfg::cos::untouchable::name} to "Untouchable"
+	set {-cfg::cos::untouchable::rarity} to "epic"
+	set {-cfg::cos::bigfish::type} to "title"
+	set {-cfg::cos::bigfish::name} to "Big Fish"
+	set {-cfg::cos::bigfish::rarity} to "epic"
+	set {-cfg::cos::mostwanted::type} to "title"
+	set {-cfg::cos::mostwanted::name} to "Most Wanted"
+	set {-cfg::cos::mostwanted::rarity} to "legendary"
+	set {-cfg::cos::theboss::type} to "title"
+	set {-cfg::cos::theboss::name} to "The Boss"
+	set {-cfg::cos::theboss::rarity} to "legendary"
+	set {-cfg::cos::hacker::type} to "title"
+	set {-cfg::cos::hacker::name} to "H4CK3R"
+	set {-cfg::cos::hacker::rarity} to "hacked"
+	set {-cfg::cos::zeroday::type} to "title"
+	set {-cfg::cos::zeroday::name} to "Zero Day"
+	set {-cfg::cos::zeroday::rarity} to "hacked"
+	set {-cfg::cos::denim::type} to "bagskin"
+	set {-cfg::cos::denim::name} to "Denim"
+	set {-cfg::cos::denim::rarity} to "common"
+	set {-cfg::cos::sand::type} to "bagskin"
+	set {-cfg::cos::sand::name} to "Desert"
+	set {-cfg::cos::sand::rarity} to "common"
+	set {-cfg::cos::urban::type} to "bagskin"
+	set {-cfg::cos::urban::name} to "Urban"
+	set {-cfg::cos::urban::rarity} to "uncommon"
+	set {-cfg::cos::cherry::type} to "bagskin"
+	set {-cfg::cos::cherry::name} to "Cherry"
+	set {-cfg::cos::cherry::rarity} to "uncommon"
+	set {-cfg::cos::cashprint::type} to "bagskin"
+	set {-cfg::cos::cashprint::name} to "Cash Print"
+	set {-cfg::cos::cashprint::rarity} to "rare"
+	set {-cfg::cos::crimson::type} to "bagskin"
+	set {-cfg::cos::crimson::name} to "Crimson"
+	set {-cfg::cos::crimson::rarity} to "rare"
+	set {-cfg::cos::tiger::type} to "bagskin"
+	set {-cfg::cos::tiger::name} to "Tiger"
+	set {-cfg::cos::tiger::rarity} to "epic"
+	set {-cfg::cos::carbon::type} to "bagskin"
+	set {-cfg::cos::carbon::name} to "Carbon"
+	set {-cfg::cos::carbon::rarity} to "epic"
+	set {-cfg::cos::diamond::type} to "bagskin"
+	set {-cfg::cos::diamond::name} to "Diamond"
+	set {-cfg::cos::diamond::rarity} to "legendary"
+	set {-cfg::cos::molten::type} to "bagskin"
+	set {-cfg::cos::molten::name} to "Molten"
+	set {-cfg::cos::molten::rarity} to "legendary"
+	set {-cfg::cos::matrix::type} to "bagskin"
+	set {-cfg::cos::matrix::name} to "Matrix"
+	set {-cfg::cos::matrix::rarity} to "hacked"
+	set {-cfg::cos::poof::type} to "killfx"
+	set {-cfg::cos::poof::name} to "Poof"
+	set {-cfg::cos::poof::rarity} to "common"
+	set {-cfg::cos::smoke::type} to "killfx"
+	set {-cfg::cos::smoke::name} to "Smoke Bomb"
+	set {-cfg::cos::smoke::rarity} to "common"
+	set {-cfg::cos::flames::type} to "killfx"
+	set {-cfg::cos::flames::name} to "Flames"
+	set {-cfg::cos::flames::rarity} to "uncommon"
+	set {-cfg::cos::sparks::type} to "killfx"
+	set {-cfg::cos::sparks::name} to "Sparks"
+	set {-cfg::cos::sparks::rarity} to "uncommon"
+	set {-cfg::cos::cashburst::type} to "killfx"
+	set {-cfg::cos::cashburst::name} to "Cash Burst"
+	set {-cfg::cos::cashburst::rarity} to "rare"
+	set {-cfg::cos::souls::type} to "killfx"
+	set {-cfg::cos::souls::name} to "Souls"
+	set {-cfg::cos::souls::rarity} to "rare"
+	set {-cfg::cos::fireworks::type} to "killfx"
+	set {-cfg::cos::fireworks::name} to "Fireworks"
+	set {-cfg::cos::fireworks::rarity} to "epic"
+	set {-cfg::cos::stormcloud::type} to "killfx"
+	set {-cfg::cos::stormcloud::name} to "Storm Cloud"
+	set {-cfg::cos::stormcloud::rarity} to "epic"
+	set {-cfg::cos::dragon::type} to "killfx"
+	set {-cfg::cos::dragon::name} to "Dragon's Breath"
+	set {-cfg::cos::dragon::rarity} to "legendary"
+	set {-cfg::cos::totem::type} to "killfx"
+	set {-cfg::cos::totem::name} to "Totem"
+	set {-cfg::cos::totem::rarity} to "legendary"
+	set {-cfg::cos::glitch::type} to "killfx"
+	set {-cfg::cos::glitch::name} to "Glitch"
+	set {-cfg::cos::glitch::rarity} to "hacked"
 
 	# ---------- Money boosters (boosters.sk) ----------
 	# A server-wide booster multiplies every loot sale's pay for everyone; its buyer gets buyer-bonus on

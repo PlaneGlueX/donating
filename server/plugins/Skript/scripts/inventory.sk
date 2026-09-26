@@ -54,9 +54,12 @@ function phoneItem(p: player) :: item:
 # capacity: the bag's real capacity (bag.sk's bagCapacity, with a paid rank's bonus); -1 = the tier's.
 function bagItem(tier: number, loot: number = 0, skin: text = "", capacity: number = -1) :: item:
 	set {_name} to cfg("bag::%{_tier}%::name")
-	# A paid rank's bag skin (ranks.sk): the look and the name (the capacity comes in as `capacity`).
+	# A bag skin (a paid rank's, ranks.sk, or one from a crate, cosmetics.sk): the look and the name (the
+	# capacity comes in as `capacity`).
 	if {_skin} is not "":
-		set {_skinName} to cfg("bagskin::%{_skin}%::name")
+		set {_skinName} to {-cfg::bagskin::%{_skin}%::name}
+		if {_skinName} is not set:
+			set {_skinName} to {-cfg::cos::%{_skin}%::name}
 		if {_skinName} is set:
 			set {_name} to "%{_skinName}% %{_name}%"
 	if {_capacity} < 0:

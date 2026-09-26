@@ -595,3 +595,78 @@ command /zzcleancalc <number>:
 			set {_new} to max({_min}, ceil(arg-1 * {-cfg::loot::cleaned-out-factor}))
 		send "CLEAN %arg-1% -> %{_new}%"
 
+
+# ---------- crates.sk, cosmetics.sk ----------
+
+# Wipes a player's keys, cosmetics, choices and the daily / refresh timers.
+command /zzcratereset <offline player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::keys::*}
+		delete {data::%arg-1%::cos::*}
+		deleteData(arg-1, "daily-at")
+		deleteData(arg-1, "refresh-at")
+		deleteData(arg-1, "title")
+		deleteData(arg-1, "killfx")
+		deleteData(arg-1, "bag-skin")
+		send "CRATERESET %arg-1%"
+
+# A crate's reward lines until the next loadSettings() (lines split by ";"): /zzcratelines common 1|money|777
+command /zzcratelines <text> <text>:
+	executable by: console
+	trigger:
+		set {-cfg::crate::%arg-1%::rewards::*} to arg-2 split at ";"
+		send "CRATELINES %arg-1% %size of {-cfg::crate::%arg-1%::rewards::*}%"
+
+# A true/false setting until the next loadSettings(): /zzcfgbool cos::denim::retired true
+command /zzcfgbool <text> <text>:
+	executable by: console
+	trigger:
+		if arg-2 is "true":
+			set {-cfg::%arg-1%} to true
+		else:
+			delete {-cfg::%arg-1%}
+		send "CFGBOOL %arg-1% = %{-cfg::%arg-1%}%"
+
+# Rolls a crate n times without giving anything: "ROLL <crate> total=<w> <line>=<count> | ..."
+command /zzcrateroll <text> <number>:
+	executable by: console
+	trigger:
+		loop arg-2 times:
+			set {_l} to crateRoll(arg-1)
+			add 1 to {_n::%{_l}%}
+		loop {_n::*}:
+			add "%loop-index%=%loop-value%" to {_out::*}
+		set {_o} to join {_out::*} with " | "
+		send "ROLL %arg-1% total=%crateTotal(arg-1)% lines=%size of crateLines(arg-1)% %{_o}%"
+
+# The cosmetics a player owns and has chosen.
+command /zzcos <offline player>:
+	executable by: console
+	trigger:
+		loop {-cfg::cosmetics::*}:
+			if cosOwned(arg-1, loop-value) is true:
+				add loop-value to {_o::*}
+		set {_owned} to join {_o::*} with ","
+		set {_t} to getData(arg-1, "title")
+		set {_k} to getData(arg-1, "killfx")
+		set {_b} to getData(arg-1, "bag-skin")
+		set {_shown} to bagSkinOf(arg-1)
+		send "COS %arg-1% owned=%{_owned}% title=%{_t}% killfx=%{_k}% bagskin=%{_b}% skinshown=%{_shown}%"
+
+# Gives a cosmetic directly: /zzcosgive <player> <id>
+command /zzcosgive <offline player> <text>:
+	executable by: console
+	trigger:
+		set {_new} to cosGive(arg-1, arg-2, "test")
+		send "COSGIVE %arg-1% %arg-2% new=%{_new}%"
+
+# A heist's memory state value: /zzheistvar <id> <key> <text|none> (e.g. alarm warning)
+command /zzheistvar <text> <text> <text>:
+	executable by: console
+	trigger:
+		if arg-3 is "none":
+			delete {-heist::%arg-1%::%arg-2%}
+		else:
+			set {-heist::%arg-1%::%arg-2%} to arg-3
+		send "HEISTVAR %arg-1% %arg-2% = %{-heist::%arg-1%::%arg-2%}%"
