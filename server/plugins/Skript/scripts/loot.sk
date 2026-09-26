@@ -15,8 +15,10 @@
 #            (Wordle-style colors). Each cracker has their own code. The kit is used only on success.
 #            The opener gets a short head start (claim) on the piles behind it.
 #   - drill: a vault door: hold right-click with a Drill to mount it (the Drill is used up). It drills
-#            by itself, jams now and then (anyone clears a jam with a short hold), and opens the door.
-#            The one who mounted it gets a head start. Trips the alarm in advanced heists.
+#            by itself and jams now and then: a jam opens a timing minigame for whoever right-clicks
+#            the door (click when the marker is on green, 3 in a row; owner, 2026-09-25: opening is
+#            active work). The last to fix it (else the one who mounted it) gets the head start when
+#            the door opens. Trips the alarm in advanced heists.
 # Piles point at a gate with behind=<gate id> and stay locked until it opens.
 #
 # Input: invisible, unresponsive Interaction hitboxes (one per pile cell and per gate block). A click on
@@ -25,8 +27,8 @@
 # clicks every 0.2 s; each click credits min(Δt, cfg loot::credit) seconds and a pause over cfg
 # loot::gap starts over, so holding is real time and clicking faster gains nothing. A hit that lands
 # (traps, cops, shots from outside) resets the progress and closes the keypad.
-# The escape clock starts at the first finished task (heistStartRun). Every pile empty: the clock drops
-# to cfg loot::cleaned-out seconds.
+# The escape clock starts at the first finished task or safe guess (heistStartRun). Every pile empty:
+# the time left is halved, but never below cfg loot::cleaned-out (1:00), and under a minute it stays.
 #
 # Saved: {loots::<h>::<n>} = kind (the list), {loot::<h>::next}, {loot::<h>::<n>::a|b} (corner blocks),
 # {loot::<h>::<n>::<key>} (overrides; min and max for piles), {loot::<h>::<n>::gate::<i>} and
@@ -110,7 +112,7 @@ function lootKeyType(k: text, key: text) :: text:
 		if {_key} is "claim":
 			return "secs0"
 	if {_k} is "drill":
-		if {_key} is "time" or "mount" or "fix":
+		if {_key} is "time" or "mount":
 			return "secs"
 		if {_key} is "claim":
 			return "secs0"
@@ -292,7 +294,6 @@ function lootCompileOne(h: text, n: text):
 			set {-lootc::%{_c}%::time} to lootSetting({_h}, {_n}, "time")
 			set {-lootc::%{_c}%::jams} to lootSetting({_h}, {_n}, "jams")
 			set {-lootc::%{_c}%::mount} to lootSetting({_h}, {_n}, "mount")
-			set {-lootc::%{_c}%::fix} to lootSetting({_h}, {_n}, "fix")
 			set {-lootc::%{_c}%::claim} to lootSetting({_h}, {_n}, "claim")
 
 # ---------- Arming, rolling ----------
@@ -332,6 +333,10 @@ function lootDisarm(h: text):
 		if {_k} is set:
 			if {_k} starts with "%{_h}%::":
 				lootKeypadClose(loop-player, "closed")
+		set {_q} to {-lootqte::%loop-player%}
+		if {_q} is set:
+			if {_q} starts with "%{_h}%::":
+				lootQteClose(loop-player, "closed")
 	loop {loots::%{_h}%::*}:
 		set {_c} to "%{_h}%::%loop-index%"
 		lootDespawnSpot({_h}, loop-index)
@@ -717,6 +722,7 @@ on damage of player with priority monitor:
 	delete {-lootw::%victim%}
 	delete {-lootw::%victim%::*}
 	lootKeypadClose(victim, "hurt")
+	lootQteClose(victim, "hurt")
 
 function lootBar(p: player, text: text):
 	hudBar({_p}, {_text}, 1)
@@ -955,14 +961,17 @@ function lootBagFull(p: player):
 	set {-lootfull::%{_p}%} to now
 	play sound "item.bundle.insert_fail" with volume 0.8 to {_p}
 
-# Every pile empty (locked ones count as loot left) while the clock runs: it drops, once per run.
+# Every pile empty (locked ones count as loot left) while the clock runs, once per run (owner,
+# 2026-09-25): T' = max(min, ceil(T × factor)), unchanged when T <= min. E.g. 5:00 -> 2:30, 1:40 -> 1:00.
 function lootCleanCheck(h: text):
 	{-lootclean::%{_h}%} is not set
-	set {_secs} to {-cfg::loot::cleaned-out}
-	{_secs} > 0
+	set {_min} to {-cfg::loot::cleaned-out}
+	{_min} > 0
 	heistState({_h}) is "active"
 	lootLeft({_h}) <= 0
 	set {-lootclean::%{_h}%} to true
+	set {_left} to heistSecondsLeft({_h})
+	set {_secs} to max({_min}, ceil({_left} * {-cfg::loot::cleaned-out-factor}))
 	if heistShortenClock({_h}, {_secs}) is true:
 		set {_clock} to formatClock({_secs})
 		loop heistRobbers({_h}):
@@ -1253,11 +1262,8 @@ function lootClickDrill(p: player, h: text, n: text):
 	else if {_st} is "drilling":
 		lootBar({_p}, "&7%{-lootdrill::%{_c}%::name}%'s drill: &f%lootDrillPct({_c})%%% &7· %formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})% left")
 	else if {_st} is "jammed":
-		set {_need} to {-lootc::%{_c}%::fix}
-		if lootHold({_p}, "%{_c}%|fix", {_need}) is true:
-			lootFix({_p}, {_h}, {_n})
-			stop
-		lootBar({_p}, "&cFIXING %lootMeter(lootHeld({_p}) / {_need})%")
+		{-lootqte::%{_p}%} is not {_c}
+		lootQteOpen({_p}, {_h}, {_n})
 
 function lootDrillPct(c: text) :: number:
 	set {_need} to {-lootdrill::%{_c}%::need}
@@ -1349,7 +1355,7 @@ function lootDrillText(h: text, n: text):
 	set {_left} to formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})
 	set {_who} to {-lootdrill::%{_c}%::name}
 	if {-lootst::%{_c}%} is "jammed":
-		set text of {_t} to colored "&c&lJAMMED &7· hold right-click on the door%nl%&7%{_pct}%%% · %{_who}%"
+		set text of {_t} to colored "&c&lJAMMED &7· right-click the door to fix it%nl%&7%{_pct}%%% · %{_who}%"
 	else:
 		set text of {_t} to colored "&6DRILL &f%{_pct}%%% %lootMeter({_pct} / 100)% &f%{_left}%%nl%&7%{_who}%"
 
@@ -1389,17 +1395,175 @@ function lootDrillTick(h: text, n: text):
 		stop
 	lootDrillText({_h}, {_n})
 
+# The jam is fixed: the drill runs again, and the fixer now holds the drill (the head start at the end).
 function lootFix(p: player, h: text, n: text):
 	set {_c} to "%{_h}%::%{_n}%"
 	{-lootst::%{_c}%} is "jammed"
 	set {-lootst::%{_c}%} to "drilling"
+	set {-lootdrill::%{_c}%::owner} to {_p}
+	set {-lootdrill::%{_c}%::name} to name of {_p}
 	set {_face} to {-lootdrill::%{_c}%::face}
 	if {_face} is set:
 		play sound "block.anvil.place" with volume 0.7 and pitch 1.4 at {_face}
 	lootMarker({_h}, {_n})
 	lootDrillText({_h}, {_n})
-	lootBar({_p}, "&aFixed: the drill is running again.")
-	lootLog("fix %name of {_p}% %{_h}%-%{_n}%")
+	loop all players:
+		{-lootqte::%loop-player%} is {_c}
+		if loop-player is {_p}:
+			lootQteClose(loop-player, "done")
+		else:
+			lootQteClose(loop-player, "beaten:%name of {_p}%")
+	send title colored "&a&lFIXED" with subtitle colored "&7The head start is yours when it opens" to {_p} for 2 seconds
+	lootLog("fix %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}%")
+
+# ---------- The drill's jams: the minigame ----------
+# A 3-row menu: the top row is the track (a marker runs back and forth, the green slot is where to
+# hit), the middle row counts hits, the bottom row explains. A click anywhere in it is a try. A hit
+# counts when the marker is on green, or was one step ago (the client sees it a moment late).
+
+function lootQteOpen(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	lootQteForget({_p})
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8Fix the drill"
+	set {-lootqte::%{_p}%} to {_c}
+	set {-lootqte::%{_p}%::p} to {_p}
+	set {-lootqte::%{_p}%::gui} to {_gui}
+	set {-lootqte::%{_p}%::hits} to 0
+	set {-lootqte::%{_p}%::pos} to 0
+	set {-lootqte::%{_p}%::prev} to 0
+	set {-lootqte::%{_p}%::dir} to 1
+	set {-lootqte::%{_p}%::t} to 0
+	set {-lootqte::%{_p}%::target} to lootQteTarget(0)
+	lootQteDraw({_p})
+	open {_gui} to {_p}
+	play sound "block.anvil.use" with volume 0.5 and pitch 1.4 to {_p}
+
+# A green slot at least 3 slots away from the marker.
+function lootQteTarget(pos: number) :: number:
+	set {_t} to random integer between 0 and 8
+	loop 20 times:
+		if abs({_t} - {_pos}) >= 3:
+			return {_t}
+		set {_t} to random integer between 0 and 8
+	return mod({_pos} + 4, 9)
+
+function lootQteDraw(p: player):
+	set {_gui} to {-lootqte::%{_p}%::gui}
+	{_gui} is set
+	set {_pos} to {-lootqte::%{_p}%::pos}
+	set {_target} to {-lootqte::%{_p}%::target}
+	loop integers from 0 to 8:
+		if loop-value is {_pos}:
+			if {_pos} is {_target}:
+				set slot loop-value of {_gui} to lime concrete named "&a&lNOW!"
+			else:
+				set slot loop-value of {_gui} to yellow concrete named "&e▼"
+		else if loop-value is {_target}:
+			set slot loop-value of {_gui} to lime stained glass pane named "&aGreen: click when the marker is here"
+		else:
+			set slot loop-value of {_gui} to gray stained glass pane named "&8-"
+	set {_need} to {-cfg::loot::drill::qte-hits}
+	set {_hits} to {-lootqte::%{_p}%::hits}
+	set {_first} to 13 - floor({_need} / 2)
+	loop {_need} times:
+		if loop-number <= {_hits}:
+			set slot {_first} + loop-number - 1 of {_gui} to green concrete named "&aHit %loop-number%/%{_need}%"
+		else:
+			set slot {_first} + loop-number - 1 of {_gui} to light gray concrete named "&7%loop-number%/%{_need}%"
+	set slot 22 of {_gui} to lever named "&fClick when the marker is on green" with lore "&7%{_need}% in a row fixes the drill." and "&7A miss starts over."
+
+# Every tick: the markers move.
+every tick:
+	loop {-lootqte::*}:
+		lootQteTick(loop-index)
+
+function lootQteTick(k: text):
+	set {_p} to {-lootqte::%{_k}%::p}
+	if {_p} is not set:
+		delete {-lootqte::%{_k}%}
+		delete {-lootqte::%{_k}%::*}
+		stop
+	add 1 to {-lootqte::%{_k}%::t}
+	mod({-lootqte::%{_k}%::t}, {-cfg::loot::drill::qte-step}) is 0
+	set {_pos} to {-lootqte::%{_k}%::pos}
+	set {-lootqte::%{_k}%::prev} to {_pos}
+	set {_pos} to {_pos} + {-lootqte::%{_k}%::dir}
+	if {_pos} >= 8:
+		set {_pos} to 8
+		set {-lootqte::%{_k}%::dir} to -1
+	if {_pos} <= 0:
+		set {_pos} to 0
+		set {-lootqte::%{_k}%::dir} to 1
+	set {-lootqte::%{_k}%::pos} to {_pos}
+	lootQteDraw({_p})
+
+on inventory click:
+	{-lootqte::%player%} is set
+	player's current inventory is {-lootqte::%player%::gui}
+	cancel event
+	event-inventory is {-lootqte::%player%::gui}
+	lootQteHit(player)
+
+on inventory drag:
+	{-lootqte::%player%} is set
+	player's current inventory is {-lootqte::%player%::gui}
+	cancel event
+
+on inventory close:
+	{-lootqte::%player%} is set
+	event-inventory is {-lootqte::%player%::gui}
+	lootQteForget(player)
+
+function lootQteHit(p: player):
+	set {_c} to {-lootqte::%{_p}%}
+	if {-lootst::%{_c}%} is not "jammed":
+		lootQteClose({_p}, "running")
+		stop
+	set {_lock} to {-lootqte::%{_p}%::lock}
+	if {_lock} is set:
+		if {_lock} > now:
+			stop
+	set {_target} to {-lootqte::%{_p}%::target}
+	set {_u} to now
+	if {-lootqte::%{_p}%::pos} is {_target}:
+		set {_hit} to true
+	else if {-lootqte::%{_p}%::prev} is {_target}:
+		set {_hit} to true
+	if {_hit} is true:
+		add 1 to {-lootqte::%{_p}%::hits}
+		add 1 tick * {-cfg::loot::drill::qte-hit-lock} to {_u}
+		set {-lootqte::%{_p}%::lock} to {_u}
+		play sound "block.note_block.pling" with volume 0.8 and pitch (1 + 0.25 * {-lootqte::%{_p}%::hits}) to {_p}
+		if {-lootqte::%{_p}%::hits} >= {-cfg::loot::drill::qte-hits}:
+			set {_parts::*} to {_c} split at "::"
+			lootFix({_p}, {_parts::1}, {_parts::2})
+			stop
+		set {-lootqte::%{_p}%::target} to lootQteTarget({-lootqte::%{_p}%::pos})
+	else:
+		set {-lootqte::%{_p}%::hits} to 0
+		add 1 tick * {-cfg::loot::drill::qte-miss-lock} to {_u}
+		set {-lootqte::%{_p}%::lock} to {_u}
+		play sound "block.note_block.bass" with volume 0.8 to {_p}
+	lootQteDraw({_p})
+
+function lootQteForget(p: player):
+	delete {-lootqte::%{_p}%}
+	delete {-lootqte::%{_p}%::*}
+
+function lootQteClose(p: player, why: text):
+	{-lootqte::%{_p}%} is set
+	set {_gui} to {-lootqte::%{_p}%::gui}
+	lootQteForget({_p})
+	if {_p}'s current inventory is {_gui}:
+		close {_p}'s inventory
+	if {_why} is "hurt":
+		lootBar({_p}, "&cHurt: you let go of the drill.")
+	else if {_why} is "far":
+		lootBar({_p}, "&7Too far from the drill.")
+	else if {_why} starts with "beaten:":
+		set {_who} to subtext of {_why} from characters 8 to (length of {_why})
+		lootBar({_p}, "&e%{_who}% fixed the drill first.")
 
 function lootDrillDone(h: text, n: text):
 	set {_c} to "%{_h}%::%{_n}%"
@@ -1545,6 +1709,16 @@ function lootPlayerSecond(p: player):
 				set {_far} to false
 		if {_far} is true:
 			lootKeypadClose({_p}, "far")
+	# The same for the drill's minigame.
+	set {_k} to {-lootqte::%{_p}%}
+	if {_k} is set:
+		set {_parts::*} to {_k} split at "::"
+		set {_far} to true
+		if heistOf({_p}) is {_parts::1}:
+			if distance between {_p} and lootGateCenter({_parts::1}, {_parts::2}) <= {-cfg::loot::reach} + 2:
+				set {_far} to false
+		if {_far} is true:
+			lootQteClose({_p}, "far")
 	set {_t} to bagTier({_p})
 	if {_t} > 0:
 		set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))%"
@@ -1656,7 +1830,7 @@ function lootPromptText(p: player, h: text, n: text) :: text:
 			return "&eMount a Drill &7· needs a &fDrill"
 		return "&eHold right-click &7· Mount your Drill"
 	if {_st} is "jammed":
-		return "&cHold right-click &7· Fix the drill"
+		return "&cRight-click &7· The drill jammed: fix it"
 	return "&7Drilling: &f%lootDrillPct({_c})%%% &7· %formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})% left"
 
 # ---------- Heist hooks (called from heists.sk) ----------
@@ -1696,6 +1870,7 @@ on quit:
 	delete {-lootw::%player%}
 	delete {-lootw::%player%::*}
 	lootKeypadForget(player)
+	lootQteForget(player)
 	delete {-lootguard::%player%}
 	delete {-lootprompt::%player%}
 	delete {-lootprompt::%player%::*}
@@ -1713,6 +1888,7 @@ on death of player:
 	delete {-lootw::%victim%}
 	delete {-lootw::%victim%::*}
 	lootKeypadForget(victim)
+	lootQteForget(victim)
 
 # ---------- Reloads ----------
 
@@ -2070,7 +2246,7 @@ function lootDescribe(h: text, n: text) :: text:
 	set {_t} to "%{_k}% %{-lootc::%{_c}%::x1}% %{-lootc::%{_c}%::y1}% %{-lootc::%{_c}%::z1}% %{-lootc::%{_c}%::x2}% %{-lootc::%{_c}%::y2}% %{-lootc::%{_c}%::z2}%"
 	if {_k} is "pile":
 		set {_t} to "%{_t}% value=%{-lootc::%{_c}%::min}%-%{-lootc::%{_c}%::max}%"
-	loop "style", "piece", "take", "per-cell", "layers", "lift", "behind", "digits", "claim", "alarm", "time", "jams", "mount" and "fix":
+	loop "style", "piece", "take", "per-cell", "layers", "lift", "behind", "digits", "claim", "alarm", "time", "jams" and "mount":
 		set {_v} to {loot::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		set {_t} to "%{_t}% %loop-value%=%{_v}%"
@@ -2341,7 +2517,7 @@ function lootDumpLine(h: text, n: text, behind: text) :: text:
 	set {_t} to "dloot add %{_h}% %{_k}% %{-lootc::%{_c}%::x1}% %{-lootc::%{_c}%::y1}% %{-lootc::%{_c}%::z1}% %{-lootc::%{_c}%::x2}% %{-lootc::%{_c}%::y2}% %{-lootc::%{_c}%::z2}%"
 	if {_k} is "pile":
 		set {_t} to "%{_t}% value=%{loot::%{_h}%::%{_n}%::min}%-%{loot::%{_h}%::%{_n}%::max}%"
-	loop "style", "piece", "take", "per-cell", "layers", "lift", "digits", "claim", "alarm", "time", "jams", "mount" and "fix":
+	loop "style", "piece", "take", "per-cell", "layers", "lift", "digits", "claim", "alarm", "time", "jams" and "mount":
 		set {_v} to {loot::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		set {_t} to "%{_t}% %loop-value%=%{_v}%"

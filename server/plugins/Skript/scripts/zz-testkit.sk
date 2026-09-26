@@ -525,6 +525,8 @@ command /zzicon <text> <text>:
 	trigger:
 		if arg-1 is "wpn":
 			set {_i} to wpnIcon(arg-2)
+		else if arg-1 is "gear":
+			set {_i} to gearItem(arg-2)
 		else if arg-1 is "ammo":
 			set {_i} to ammoIcon(arg-2)
 		else:
@@ -537,3 +539,14 @@ command /zzdatatext <offline player> <text> <text>:
 	trigger:
 		setData(arg-1, arg-2, arg-3)
 		send "DATATEXT %arg-1% %arg-2% = %getData(arg-1, arg-2)%"
+
+# loot.sk's cleaned-out rule for a given time left: "CLEAN <T> -> <T'>"
+command /zzcleancalc <number>:
+	executable by: console
+	trigger:
+		set {_min} to {-cfg::loot::cleaned-out}
+		set {_new} to arg-1
+		if arg-1 > {_min}:
+			set {_new} to max({_min}, ceil(arg-1 * {-cfg::loot::cleaned-out-factor}))
+		send "CLEAN %arg-1% -> %{_new}%"
+

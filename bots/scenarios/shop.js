@@ -273,6 +273,10 @@ module.exports = async ({ check }) => {
     await click(11)
     d = await dump()
     check('a better helmet asks first (no refund), then replaces it', gearArmed && /39=diamond helmet x1 \[gear:helmet-2\]/.test(d) && (await bal()) === 6750, `armed ${gearArmed}; ${d}; ${await bal()}`)
+    const worn = await rcon.cmd(`data get entity ${NAME} equipment.head.components`)
+    const armor = await rcon.cmd(`attribute ${NAME} minecraft:armor get`)
+    const wornModel = await rcon.cmd(`data get entity ${NAME} equipment.head.components.minecraft:custom_model_data`)
+    check('...worn gear has the tactical look (its icon model and equipment asset) and keeps its armor', /donating:gear_helmet-2/.test(wornModel) && /donating:helmet_2/.test(worn) && /is 3/.test(armor), `${worn.slice(0, 300)} ${armor}`)
 
     // ---------- Bags ----------
     await rcon.cmd(`zzdata ${NAME} bag-best 2`)

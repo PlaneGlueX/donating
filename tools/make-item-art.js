@@ -354,6 +354,112 @@ for (const [type, a] of Object.entries(AMMO)) {
   // The tool id is "safe-kit" (shop.sk's toolItem writes donating:tool_<id>).
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 }
+// ---------- Gear: helmets and vests (owner, 2026-09-25: tactical gear art) ----------
+// An inventory icon per piece (picked by donating:gear_<id> on the base item) and the look when worn:
+// shop.sk gives the item an equippable component with asset_id donating:<asset>, so the client draws
+// assets/donating/equipment/<asset>.json -> textures/entity/equipment/humanoid/<asset>.png (the 64x32
+// armor layout: head at 0,0, body at 16,16, arms at 40,16; transparent = nothing drawn, so arms and
+// the face stay visible).
+{
+  const K = [22, 22, 24, 255]
+  const GEAR = {
+    'helmet-1': { asset: 'helmet_1', base: 'iron_helmet', S: [104, 112, 124], H: [140, 148, 160], s: [72, 78, 88], B: [30, 30, 34] },
+    'helmet-2': { asset: 'helmet_2', base: 'diamond_helmet', S: [70, 78, 52], H: [96, 106, 72], s: [48, 54, 36], B: [26, 26, 28], G: [70, 190, 226] },
+    'vest-1': { asset: 'vest_1', base: 'chainmail_chestplate', V: [44, 60, 96], H: [66, 86, 130], s: [30, 42, 70], P: [36, 50, 82], B: [24, 24, 28] },
+    'vest-2': { asset: 'vest_2', base: 'diamond_chestplate', V: [42, 44, 48], H: [66, 68, 74], s: [28, 29, 32], P: [70, 78, 54], B: [18, 18, 20] }
+  }
+  const rgba = c => [...c, 255]
+  for (const [id, g] of Object.entries(GEAR)) {
+    const col = {}
+    for (const k of ['S', 'H', 's', 'B', 'G', 'V', 'P']) if (g[k]) col[k] = rgba(g[k])
+    const icon = canvas(16, 16)
+    const tex = canvas(64, 32)
+    if (id.startsWith('helmet')) {
+      icon.draw([
+        '................',
+        '................',
+        '................',
+        '.....kkkkkk.....',
+        '....kHHSSSSk....',
+        '...kHSSSSSSSk...',
+        '..kHSSSSSSSSSk..',
+        '..kSSSSSSSSSSk..',
+        '..kSSSSSSSSSSk..',
+        '..ksssssssssskk.',
+        '..kkkkkkkkkkkkk.',
+        '..kB.......kB...',
+        '...kB.....kB....',
+        '....kkkkkkk.....',
+        '................',
+        '................'
+      ], { k: K, ...col })
+      if (g.G) icon.draw(['kkkkk', 'kGkGk', 'kkkkk'], { k: K, G: col.G }, 3, 7)
+      // Worn: the head box (8x8x8) at 0,0. Top all shell; sides and back the upper part; the front a
+      // brim over the forehead (goggles on the tactical one); the face stays open.
+      tex.fill(8, 0, 15, 7, col.S)
+      tex.fill(9, 1, 14, 2, col.H)
+      for (const [x0, x1] of [[0, 7], [16, 23], [24, 31]]) {
+        tex.fill(x0, 8, x1, 11, col.S)
+        tex.fill(x0, 8, x1, 8, col.H)
+        tex.fill(x0, 11, x1, 11, col.s)
+      }
+      // Ear covers at the back half of each side, and the back comes down further.
+      tex.fill(4, 12, 7, 13, col.S); tex.fill(16, 12, 19, 13, col.S)
+      tex.fill(24, 12, 31, 13, col.s)
+      // Chin straps.
+      tex.fill(3, 12, 3, 15, col.B); tex.fill(20, 12, 20, 15, col.B)
+      // Front brim.
+      tex.fill(8, 8, 15, 10, col.S)
+      tex.fill(8, 8, 15, 8, col.H)
+      tex.fill(8, 11, 15, 11, col.s)
+      if (g.G) {
+        tex.fill(8, 10, 15, 11, col.B)
+        tex.fill(9, 10, 10, 11, col.G); tex.fill(13, 10, 14, 11, col.G)
+        tex.fill(11, 7, 12, 7, col.B) // the night-vision mount on top of the brim
+      }
+    } else {
+      icon.draw([
+        '................',
+        '................',
+        '....kk....kk....',
+        '...kVVk..kVVk...',
+        '...kVHkkkkHVk...',
+        '..kVVVVVVVVVVk..',
+        '..kHVVVVVVVVHk..',
+        '..kVPPkVVkPPVk..',
+        '..kVPPkVVkPPVk..',
+        '..kVVVVVVVVVVk..',
+        '..kVPPPVVPPPVk..',
+        '..kVPPPVVPPPVk..',
+        '..ksssssssssk...',
+        '..kBBBBBBBBBBk..',
+        '..kkkkkkkkkkkk..',
+        '................'
+      ], { k: K, ...col })
+      // Worn: the body box (8x12x4) at 16,16: shoulder straps on top, the vest on front, sides and
+      // back down to the belt; pouches on the front (and the back of the heavy one).
+      tex.fill(20, 16, 21, 19, col.V); tex.fill(26, 16, 27, 19, col.V)
+      for (const [x0, x1] of [[16, 19], [20, 27], [28, 31], [32, 39]]) {
+        tex.fill(x0, 20, x1, 29, col.V)
+        tex.fill(x0, 20, x1, 20, col.H)
+        tex.fill(x0, 29, x1, 29, col.s)
+        tex.fill(x0, 30, x1, 30, col.B)
+      }
+      // The neck opening at the top of the front and back.
+      tex.fill(22, 20, 25, 21, [0, 0, 0, 0]); tex.fill(34, 20, 37, 21, [0, 0, 0, 0])
+      // Pouches.
+      tex.fill(20, 24, 22, 26, col.P); tex.fill(25, 24, 27, 26, col.P)
+      tex.fill(20, 27, 27, 28, col.P)
+      tex.fill(23, 24, 24, 28, col.V)
+      if (id === 'vest-2') { tex.fill(33, 23, 38, 27, col.P); tex.fill(33, 23, 38, 23, shade(col.P, 1.25)) }
+      for (const x of [21, 26]) tex.set(x, 24, shade(col.P, 1.3))
+    }
+    sprite(`gear_${id.replace('-', '_')}`, icon.png())
+    addCase(g.base, `donating:gear_${id}`, `donating:item/gear_${id.replace('-', '_')}`)
+    write(`donating/textures/entity/equipment/humanoid/${g.asset}.png`, tex.png())
+    write(`donating/equipment/${g.asset}.json`, { layers: { humanoid: [{ texture: `donating:${g.asset}` }] } })
+  }
+}
 for (const [base, def] of Object.entries(itemCases)) {
   write(`minecraft/items/${base}.json`, {
     model: {

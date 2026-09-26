@@ -274,7 +274,8 @@ function heistStartRun(h: text):
 		broadcastMsg("&6The %{_name}% is being robbed! &7%{_clock}% to get out.")
 	heistOnStart({_h})
 
-# loot.sk's cleaned-out rule: an active clock with more than secs left drops to secs. True when it did.
+# loot.sk's cleaned-out rule: an active clock with more than secs left drops to secs (loot.sk works out
+# secs: half the time left, at least 1:00). True when it did.
 function heistShortenClock(h: text, secs: number) :: boolean:
 	if heistState({_h}) is not "active":
 		return false

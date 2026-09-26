@@ -459,11 +459,41 @@ module.exports = async ({ check }) => {
     check('a second driller is refused and keeps their Drill', /tool:drill/.test(await cmd(`zzdump ${B}`)) && logged(/mount LootB/).length === 0 && /LootA's drill/.test(text(B, t)), text(B, t))
     const jammed = await until(async () => (await spot('vaultlab', 1)).st === 'jammed', 6000)
     check('it jams halfway (jams=1): the marker turns red', jammed && (await spot('vaultlab', 1)).mk === 'red', JSON.stringify(await spot('vaultlab', 1)))
+    // The jam's minigame: right-click the door, then click while the marker is on green, 3 in a row.
     setMark()
-    await hold(B, 727.5, 200.99, 706.5, 2600)
-    check('anyone can fix a jam with a 2 s hold', logged(/fix LootB/).length === 1 && (await spot('vaultlab', 1)).st !== 'jammed', since())
+    await hold(B, 727.5, 200.99, 706.5, 300)
+    await until(async () => Boolean(bots[B].currentWindow), 3000)
+    const wq = bots[B].currentWindow
+    check('a jam: right-clicking the door opens the "Fix the drill" minigame', Boolean(wq) && /Fix the drill/.test(JSON.stringify(wq && wq.title)), JSON.stringify(wq && wq.title))
+    const track = () => { const w = bots[B].currentWindow; if (!w) return []; return [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (w.slots[i] ? w.slots[i].name : '')) }
+    const hitsShown = () => { const w = bots[B].currentWindow; if (!w) return -1; return [12, 13, 14].filter(i => w.slots[i] && w.slots[i].name === 'green_concrete').length }
+    const hitOnce = async () => {
+      const end = Date.now() + 6000
+      while (Date.now() < end && bots[B].currentWindow) {
+        const i = track().indexOf('lime_concrete')
+        if (i >= 0) { await bots[B].clickWindow(i, 0, 0); return true }
+        await sleep(15)
+      }
+      return false
+    }
+    await hitOnce()
+    await sleep(500)
+    const afterHit = hitsShown()
+    // A miss: the marker at least 2 slots from green.
+    await until(async () => { const t = track(); const a = t.indexOf('lime_stained_glass_pane'); const b = t.indexOf('yellow_concrete'); return a >= 0 && b >= 0 && Math.abs(a - b) >= 2 }, 3000)
+    await bots[B].clickWindow(22, 0, 0)
+    await sleep(700)
+    const afterMiss = hitsShown()
+    check('a hit counts; a miss starts the count over', afterHit === 1 && afterMiss === 0, `${afterHit} ${afterMiss}`)
+    for (let i = 0; i < 3 && bots[B].currentWindow; i++) { await hitOnce(); await sleep(450) }
+    await sleep(300)
+    check('3 hits in a row fix the jam and close the minigame', logged(/fix LootB/).length === 1 && (await spot('vaultlab', 1)).st !== 'jammed' && !bots[B].currentWindow, since())
     const drilled = await until(async () => (await spot('vaultlab', 1)).st === 'open', 8000)
-    check('the drill finishes: the door is air, the gold behind it opens, the one who mounted it gets the head start', drilled && (await isBlock(726, 201, 706, 'air')) && (await isBlock(727, 202, 706, 'air')) && (await spot('vaultlab', 2)).st === 'open' && (await spot('vaultlab', 1)).claim === A && (await count('text_display', VAULT)) === 0, `${JSON.stringify(await spot('vaultlab', 2))}`)
+    check('the drill finishes: the door is air, the gold behind it opens, whoever fixed it last gets the head start', drilled && (await isBlock(726, 201, 706, 'air')) && (await isBlock(727, 202, 706, 'air')) && (await spot('vaultlab', 2)).st === 'open' && (await spot('vaultlab', 1)).claim === B && (await count('text_display', VAULT)) === 0, `${JSON.stringify(await spot('vaultlab', 1))} ${JSON.stringify(await spot('vaultlab', 2))}`)
+    // The head start ends when its holder walks away (8 blocks).
+    await place(B, 734.5, 714.5)
+    const claimGone = await until(async () => (await spot('vaultlab', 1)).claim === '<none>', 3000)
+    check('...and ends when they walk away', claimGone, JSON.stringify(await spot('vaultlab', 1)))
     // Cleaned out: take everything left in the Vault Lab.
     await place(A, 726.5, 706.2)
     setMark()
@@ -471,8 +501,13 @@ module.exports = async ({ check }) => {
     await hold(A, 727.5, 201, 707.5, 3500)
     await place(A, 731.5, 705.3)
     await hold(A, 731.5, 201, 706.5, 1500)
-    const left = await heistField('vaultlab', 'left')
-    check('cleaned out: every pile empty -> the clock drops to 1:00', logged(/cleaned vaultlab/).length === 1 && Number(left) <= 60, `${left} ${since()}`)
+    const left = Number(await heistField('vaultlab', 'left'))
+    check('cleaned out: every pile empty -> the time left is halved (about 10:00 -> under 5:00)', logged(/cleaned vaultlab/).length === 1 && left <= 300 && left >= 240, `${left} ${since()}`)
+    // Under a minute left, emptying doesn't change it; 1:40 left drops to 1:00 (never under 1:00).
+    const t1 = await cmd('zzcleancalc 45')
+    const t2 = await cmd('zzcleancalc 100')
+    const t3 = await cmd('zzcleancalc 300')
+    check('cleaned-out math: 0:45 stays, 1:40 -> 1:00, 5:00 -> 2:30', /-> 45$/.test(t1) && /-> 60$/.test(t2) && /-> 150$/.test(t3), `${t1} / ${t2} / ${t3}`)
     // End mid-drill: entities go, the door is back at the next opening.
     await cmd('dheist end vaultlab')
     await until(async () => /armed=true/.test(await zl('vaultlab')), 15000)
