@@ -1,0 +1,20 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "donating:ammo_shells",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/ammo_shells"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/copper_nugget"
+    }
+  }
+}

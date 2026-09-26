@@ -1,0 +1,42 @@
+# hud.sk: the HUD (CLAUDE.md, Heist UI). Built so far:
+#   - The XP bar shows the held gun's ammo (owner, 2026-09-25): the level number is every round left
+#     for it (the magazine plus that ammo type in the inventory), the bar is how full the magazine is,
+#     draining as you shoot. A melee weapon shows a full bar with no number (it never runs out), a
+#     consumable (Stim) how many you carry, anything else an empty bar. The pack draws the XP bar as a
+#     brass ammo belt.
+#   - Outside heists the locator bar (passive players, POIs) takes the bar's place except for 5 s after
+#     each change, so the bar shows while you shoot; the number above it always shows. Inside heists
+#     players receive no waypoints (nav.sk), so the bar is always there.
+# Still to build: the boss bar, the heist board data for TAB, action-bar priority, titles; the bag's
+# fill shows in its name and on the action bar (bag.sk), not on the XP bar any more.
+
+# Level number and bar for what the player holds.
+function ammoBar(p: player):
+	set {_i} to tool of {_p}
+	set {_w} to wmTitle({_i})
+	set {_level} to 0
+	set {_bar} to 0
+	if {_w} is not "":
+		set {_type} to {-cfg::wpn::%{_w}%::ammo}
+		if {_type} is set:
+			set {_loaded} to wmLoaded({_i})
+			set {_level} to {_loaded} + ammoCount({_p}, {_type})
+			set {_mag} to {-cfg::wpn::%{_w}%::mag}
+			if {_mag} > 0:
+				set {_bar} to min(1, {_loaded} / {_mag})
+		else if {-cfg::con::%{_w}%::name} is set:
+			set {_level} to item amount of {_i}
+			set {_bar} to 1
+		else if {-cfg::wpn::%{_w}%::name} is set:
+			set {_bar} to 1
+	# A full bar (1) rolls over into the next level in vanilla: keep it just under.
+	set {_bar} to min({_bar}, 0.999)
+	# Only send what changed (a changed XP bar is a packet).
+	if {_p}'s level is not {_level}:
+		set {_p}'s level to {_level}
+	if difference between ({_p}'s level progress) and {_bar} > 0.001:
+		set {_p}'s level progress to {_bar}
+
+every 2 ticks:
+	loop all players:
+		ammoBar(loop-player)

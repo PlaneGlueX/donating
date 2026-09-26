@@ -43,6 +43,8 @@ function ammoItem(type: text, n: number) :: item:
 	set item amount of {_i} to {_n}
 	set {_i} to tagItem({_i}, "ammo:%{_type}%")
 	set string tag "PublicBukkitValues;weaponmechanics:ammo-name" of custom nbt of {_i} to {_wm}
+	# The pack's ammo icon (pack/assets/minecraft/items/<nugget>.json).
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:ammo_%{_type}%"
 	return {_i}
 
 function ammoCount(p: player, type: text) :: number:
