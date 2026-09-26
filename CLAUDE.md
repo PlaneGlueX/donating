@@ -26,6 +26,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 ## Local setup (done 2026-09-24)
 - The server runs in `.\server` (the owner chose to keep it inside this OneDrive folder; pause OneDrive while testing if files get locked).
 - `tools\start-server.ps1` / `tools\stop-server.ps1`: start in the background with 1 GB + Aikar's flags, stop cleanly over RCON. Run with `powershell -NoProfile -ExecutionPolicy Bypass -File tools\<script>.ps1`.
+- In-game `/restart` only STOPS the local server: Spigot runs its restart-script (`./start.sh`, which doesn't exist here) to come back (found 2026-09-26). Start it again with `tools\start-server.ps1`.
 - `tools\rcon.ps1 "cmd" "cmd2"`: console commands. Async plugin replies (e.g. spark) don't come back over RCON; read `server\logs\latest.log`.
 - `tools\downloads.json` + `tools\fetch.ps1`: every jar's official URL, size and hash; fetch.ps1 re-downloads missing files and verifies them.
 - Local-only settings in `server\server.properties`: `online-mode=false`, `server-ip=127.0.0.1`, RCON on 127.0.0.1:25575 with a random password, `enforce-secure-profile=false`.
