@@ -799,7 +799,7 @@ placeholderapi placeholder with the prefix "donating":
 			if {-heistin::%player%} is set:
 				set the placeholder result to "yes"
 	else if {_i} is "heist_name":
-		set the placeholder result to ""
+		set the placeholder result to "&r"
 		if player is set:
 			set {_h} to {-heistin::%player%}
 			if {_h} is set:

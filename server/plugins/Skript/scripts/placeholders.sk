@@ -1,0 +1,64 @@
+# placeholders.sk: PlaceholderAPI placeholders for TAB (script 18, started 2026-09-25 for the tab list).
+# Prefix "donating" (skript-placeholders allows it in several scripts; heists.sk answers the heist
+# ones). An empty result would make PlaceholderAPI show the raw %placeholder%, so "nothing" is "&r".
+# TAB asks from its own thread, so these only read memory and saved variables; the balance is
+# copied into memory once a second.
+#   %donating_balance%       "$12,345" (your own, footer)
+#   %donating_bounty%        the bounty as a whole number (sorting, the list's score column)
+#   %donating_bounty_fancy%  "&c$2.5K", or "&r" (nothing) with no bounty (the score column's text)
+#   %donating_bounty_money%  "$2,500" (your own, footer; "$0" with none)
+#   %donating_max_players%   the server's player limit (TAB 6 has no %maxplayers%)
+#   %donating_passive%       yes / no
+#   %donating_afk%           yes / no
+#   %donating_name_color%    "&a" for passive players (green, like their map arrow), else "&f"
+#   %donating_tab_suffix%    " &7AFK" while AFK, else "&r"
+
+every second:
+	loop all players:
+		set {-ph::balance::%loop-player%} to formatMoney(balance of loop-player)
+
+on quit:
+	delete {-ph::balance::%player%}
+
+placeholderapi placeholder with the prefix "donating":
+	player is set
+	set {_i} to the placeholder identifier
+	if {_i} is "balance":
+		set {_b} to {-ph::balance::%player%}
+		if {_b} is not set:
+			set {_b} to "$0"
+		set the placeholder result to {_b}
+	else if {_i} is "bounty":
+		set {_n} to {data::%player%::bounty}
+		if {_n} is not set:
+			set {_n} to 0
+		set the placeholder result to "%floor({_n})%"
+	else if {_i} is "bounty_fancy":
+		set {_n} to {data::%player%::bounty}
+		set the placeholder result to "&r"
+		if {_n} is set:
+			if {_n} > 0:
+				set the placeholder result to "&c%formatMoneyShort({_n})%"
+	else if {_i} is "bounty_money":
+		set {_n} to {data::%player%::bounty}
+		if {_n} is not set:
+			set {_n} to 0
+		set the placeholder result to formatMoney({_n})
+	else if {_i} is "max_players":
+		set the placeholder result to "%max players count%"
+	else if {_i} is "passive":
+		set the placeholder result to "no"
+		if {data::%player%::passive} is true:
+			set the placeholder result to "yes"
+	else if {_i} is "afk":
+		set the placeholder result to "no"
+		if {-afk::is::%player%} is set:
+			set the placeholder result to "yes"
+	else if {_i} is "name_color":
+		set the placeholder result to "&f"
+		if {data::%player%::passive} is true:
+			set the placeholder result to "&a"
+	else if {_i} is "tab_suffix":
+		set the placeholder result to "&r"
+		if {-afk::is::%player%} is set:
+			set the placeholder result to " &7AFK"

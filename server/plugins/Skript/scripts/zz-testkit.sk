@@ -320,6 +320,9 @@ command /zzpapi <player> <text>:
 	executable by: console
 	trigger:
 		set {_v} to placeholder arg-2 from arg-1
+		# The console strips color codes: show them as (amp)a, (amp)f ...
+		replace all "§" with "(amp)" in {_v}
+		replace all "&" with "(amp)" in {_v}
 		send "PAPI %arg-2% = %{_v}%"
 
 command /zzpassivewhy <player>:
@@ -351,3 +354,17 @@ command /zzspawn:
 	trigger:
 		set {_l} to spawn of world "world"
 		send "SPAWN %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}%"
+
+# Puts the owned bag (data bag-tier) into the offhand (inventory.sk's applyBag).
+command /zzbagapply <player>:
+	executable by: console
+	trigger:
+		applyBag(arg-1)
+		send "BAGAPPLY %arg-1% %itemId(offhand tool of arg-1)%"
+
+# Sends the local test pack again (after tools\build-pack.js), so a client reloads it without rejoining.
+command /zzpack <player>:
+	executable by: console
+	trigger:
+		send resource pack from "http://127.0.0.1:8765/pack.zip" to arg-1
+		send "PACK sent to %arg-1%"

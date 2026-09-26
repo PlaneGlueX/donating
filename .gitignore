@@ -22,6 +22,7 @@
 !/server/plugins/TAB/
 /server/plugins/TAB/*
 !/server/plugins/TAB/config.yml
+!/server/plugins/TAB/groups.yml
 !/server/plugins/LPC/
 /server/plugins/LPC/*
 !/server/plugins/LPC/config.yml

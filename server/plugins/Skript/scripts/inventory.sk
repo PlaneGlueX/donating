@@ -52,7 +52,10 @@ function phoneItem(p: player) :: item:
 function bagItem(tier: number) :: item:
 	set {_name} to cfg("bag::%{_tier}%::name")
 	set {_capacity} to cfg("bag::%{_tier}%::capacity")
-	return tagItem(leather named "&6%{_name}%" with lore "&7Holds up to %formatMoney({_capacity})% of loot", "bag:%{_tier}%")
+	set {_i} to leather named "&6%{_name}%" with lore "&7Holds up to %formatMoney({_capacity})% of loot"
+	# The pack draws it as this tier's duffel (an icon in inventories, a 3D bag in the offhand).
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_tier}%"
+	return tagItem({_i}, "bag:%{_tier}%")
 
 # Puts the phone and the owned bag in their slots. Run on join, respawn, and after anything that
 # resets the inventory. Overwrites slots 8 and 40, and closes the phone's big map.

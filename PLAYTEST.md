@@ -194,6 +194,15 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
 66. **Heists (owner):** the numbers are PROPOSALs in core.sk: doors lock with 20 s left, warnings at 1:00 / 0:30 / 0:10, the "X is being robbed!" broadcast to everyone, heist reset speed. Open questions: (a) EssentialsX gives 4 s of PvP immunity after every teleport, and WorldGuard's pushback at a closed door counts as one, so bumping a closed heist or a safe-zone edge makes you briefly unhittable (keep it, or set `teleport-invulnerability: 0` and keep only the spawn shield?); (b) a cop death during the chase but outside the building counts as outside (Easy, your bag cap): count it as the alarm's heist instead?; (c) every heist has a countdown (a small store with no timer that closes when emptied needs loot.sk).
     - Result: OWNER / TODO
 
+## Art, the ammo bar and the tab list (2026-09-25)
+
+67. **The ammo bar and tab placeholders** (`bots\run.js hud`, 13 checks): holding the AK-47 with 30 loaded and 40 spare shows level 70 and a full bar; 12 of 30 loaded shows 52 and a 40% bar; buying spare rounds raises the level; a melee weapon shows a full bar with no number, a Stim stack its count, the phone an empty bar; ammo and the bag carry the pack's model tags; the balance, bounty (number, column text, footer money), passive name color and AFK tag placeholders; no bounty gives an empty column (never the raw placeholder).
+    - Result: PASS (bot, 2026-09-25). 13/13. Found: a full XP bar (exactly 1) rolls over into the next level in vanilla, so the bar stops at 0.999; an empty placeholder result makes PlaceholderAPI show the raw placeholder, so "nothing" is "&r".
+68. **Art in the real client** (computer use, 2026-09-25): WM's 3D guns in the hotbar and in first person (AK-47, Uzi, .50 GS, R9-0, knife, Stim); the ammo icons; all 5 bag icons; the duffel in the offhand in first person (lower left) and carried by its handle beside the leg in third person; the XP bar showing 85 (25 loaded + 60 spare) over a 25/30 brass bar; the tab list (logo, tagline, "[Owner] Explosde", balance, bounty, 1/10, ping, commands).
+    - Result: PASS (computer use, 2026-09-25). Tuned on the way: the first-person bag (was far too big), the third-person bag (was upright along the arm, then across the body), strikethrough bleeding into the next footer line, glyph tint, the missing space after the rank, %maxplayers%, the logo overlapping the tagline.
+69. **Art (owner):** the look of the bags per tier, the ammo icons, the brass XP bar, the tab list text ("Rob it. Run it. Keep it."), and whether the right-hand column should show the bounty (now) or ping. Note: vanilla nametags show through walls within about 64 blocks, which gives away hidden (non-passive) players nearby; TAB can hide nametags (`invisible-nametags`) if you want that.
+    - Result: OWNER / TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

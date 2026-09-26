@@ -2,15 +2,22 @@
 header-footer:
   enabled: true
   designs:
+    # Donating (2026-09-25): \uE000 is the DONATING logo and \uE001-\uE004 the coin, skull, person and ping
+    # icons, all drawn by our resource pack (tools/make-item-art.js). Without the pack they show as boxes.
+    # Icons take the text color, so they come after &f. TAB joins the lines into one text, so a line that
+    # strikes through ends with &r (otherwise the next line is struck through too).
     default:
       header:
         - ""
-        - "&6&lDONATING"
-        - "&7Heists &8| &7Cars &8| &7Bounties"
         - ""
+        - "\uE000"
+        - "&7Rob it. &fRun it. &6Keep it."
+        - "&8&m                                        &r"
       footer:
-        - ""
-        - "&7Online: &f%online%&7/&f%maxplayers%  &8|  &7Ping: &f%ping%ms"
+        - "&8&m                                        &r"
+        - "&f\uE001 &6%donating_balance%     &f\uE002 &c%donating_bounty_money%"
+        - "&f\uE003 &f%online%&7/&f%donating_max_players%     &f\uE004 &f%ping%&7ms"
+        - "&7/help  &8·  &7/heists  &8·  &7/bounty"
         - ""
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Tablist-name-formatting
@@ -24,18 +31,21 @@ scoreboard-teams:
   enable-collision: true
   invisible-nametags: false
   # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Sorting-players-in-tablist
+  # Staff first, then the biggest bounties, then A-Z.
   sorting-types:
     - "GROUPS:owner,admin,mod,helper,builder,vip,default"
+    - "PLACEHOLDER_HIGH_TO_LOW:%donating_bounty%"
     - "PLACEHOLDER_A_TO_Z:%player%"
   case-sensitive-sorting: true
   can-see-friendly-invisibles: false
   disable-condition: '%world%=disabledworld'
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Playerlist-Objective
+# Donating: the right-hand column shows each player's bounty (nothing without one).
 playerlist-objective:
   enabled: true
-  value: "%ping%"
-  fancy-value: "&7Ping: %ping%"
+  value: "%donating_bounty%"
+  fancy-value: "%donating_bounty_fancy%"
   title: "TAB" # Only visible on Bedrock Edition
   render-type: INTEGER
   disable-condition: '%world%=disabledworld'
@@ -166,6 +176,12 @@ placeholder-output-replacements:
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders
 conditions:
+  # Donating: the rank prefix plus a space, or nothing without a rank (%condition:rankprefix%).
+  rankprefix:
+    conditions:
+      - "%luckperms-prefix%!="
+    true: "%luckperms-prefix% "
+    false: ""
   nick: # use it with %condition:nick%
     conditions:
       - "%player%=%essentials_nickname%"
