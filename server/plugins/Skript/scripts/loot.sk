@@ -690,6 +690,10 @@ on right click on interaction:
 	{_hit} is set
 	cancel event
 	set {-lootguard::%player%} to now
+	# Owner, 2026-09-27: nothing is robbed with the phone in hand (phone.sk's quiet hint).
+	if itemId(player's tool) is "phone":
+		phoneHint(player, "grab loot")
+		stop
 	lootClick(player, {_hit})
 
 # A crew member between you and the loot: the click goes through them to the loot behind.
@@ -706,6 +710,9 @@ on right click on player:
 	{_hit} is set
 	cancel event
 	set {-lootguard::%player%} to now
+	if itemId(player's tool) is "phone":
+		phoneHint(player, "grab loot")
+		stop
 	lootClick(player, {_hit})
 
 # The guard: for a moment after a loot click, a plain right-click (crosshair slid off the loot) does

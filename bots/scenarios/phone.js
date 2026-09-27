@@ -2,7 +2,8 @@
 // map instead (phone-map.js checks the map itself). Nothing in the menu can be taken (not even with
 // the inventory bypass), the stats show the player's numbers, the passive button follows pvp.sk's
 // rules (switch cooldown, no going passive with a bounty), and right-clicking an entity or a block
-// with the phone behaves (entities keep working, blocks don't react, the map toggles once).
+// with the phone behaves (entities keep working; a usable block isn't used and doesn't toggle the map, a quiet
+// hint says to put the phone away).
 // Runs on its own glass platform in the sky and removes everything it placed.
 const { Vec3 } = require('vec3')
 const { join, sleep, messagesSince, quit } = require('../lib')
@@ -190,6 +191,7 @@ module.exports = async ({ check }) => {
 
     await rcon.cmd(`setblock ${LEVER.x} ${LEVER.y} ${LEVER.z} lever[face=floor]`)
     await sleep(500)
+    let tl = Date.now()
     w = await openMenu(async () => {
       await bot.activateBlock(bot.blockAt(new Vec3(LEVER.x, LEVER.y, LEVER.z)))
       // A real client also sends a use-item click after a block click that did nothing.
@@ -198,9 +200,14 @@ module.exports = async ({ check }) => {
     }, 1500)
     await sleep(800)
     const lever = await rcon.cmd(`execute if block ${LEVER.x} ${LEVER.y} ${LEVER.z} lever[powered=false]`)
-    check('right-clicking a lever with the phone toggles the map once (block + air click)', !w && / open=true/.test(await phone()), `window ${Boolean(w)}, ${await phone()}`)
+    // Owner, 2026-09-27: no block use with the phone out; the map stays shut and a quiet hint says why.
+    check('right-clicking a lever with the phone opens no map (block + air click) and quietly says to put the phone away', !w && / open=false/.test(await phone()) && /Put your phone away to use that/.test(text(tl)), `window ${Boolean(w)}, ${await phone()} | ${text(tl)}`)
     check('...and does not flip the lever', /passed/i.test(lever), lever)
     if (w) bot.closeWindow(w)
+    await sleep(600)
+    bot.activateItem()
+    await sleep(600)
+    check('a plain right-click in the air opens the map', / open=true/.test(await phone()), await phone())
     bot.activateItem()
     await sleep(600)
     check('right-clicking again closes the map', / open=false/.test(await phone()), await phone())

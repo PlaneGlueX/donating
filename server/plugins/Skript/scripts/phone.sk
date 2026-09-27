@@ -29,6 +29,12 @@ on right click:
 	# repeats the click every 0.2 s: every click restarts the 0.3 s wait, so it toggles once.
 	set {_last} to {-phone::clicked::%player%}
 	set {-phone::clicked::%player%} to now
+	# Owner, 2026-09-27: no block use with the phone out. A button, door, lever and the like isn't used and
+	# the map stays as it is (a quiet hint says why); a plain block toggles the map.
+	if event-block is set:
+		if phoneUsable(event-block) is true:
+			phoneHint(player, "use that")
+			stop
 	if {_last} is set:
 		if difference between {_last} and now < 0.3 seconds:
 			stop
@@ -36,6 +42,24 @@ on right click:
 		closePhoneMap(player)
 	else:
 		openPhoneMap(player)
+
+# Blocks a player would use with a right-click (by the block's name: "oak button", "iron trapdoor", ...).
+function phoneUsable(b: block) :: boolean:
+	set {_t} to "%type of {_b}%"
+	loop "button", "lever", "door", "fence gate", "bell", "note block", "repeater", "comparator", "daylight detector", "chest", "barrel", "shulker box", "hopper", "dispenser", "dropper", "furnace", "smoker", "anvil", "table", "lectern", "loom", "grindstone", "stonecutter", "brewing stand", "beacon", "jukebox", "bed", "cake", "candle", "composter", "cauldron", "campfire", "flower pot", "respawn anchor", "sign", "crafter" and "vault":
+		if {_t} contains loop-value:
+			return true
+	return false
+
+# The quiet hint for something the phone in hand stops (a block, loot): the action bar, at most once a second.
+# It also swallows the click's second half (block, then air), so the map doesn't toggle right after.
+function phoneHint(p: player, what: text):
+	set {-phone::clicked::%{_p}%} to now
+	if {-phone::hintat::%{_p}%} is set:
+		if difference between {-phone::hintat::%{_p}%} and now < 1 second:
+			stop
+	set {-phone::hintat::%{_p}%} to now
+	hudBar({_p}, "&7Put your phone away to %{_what}%.", 1)
 
 # The tag first, so inventory.sk's watchdog doesn't put the bag straight back. Only the bag leaves
 # the offhand: anything else there (staff with the inventory bypass) stays, and the map stays small.
