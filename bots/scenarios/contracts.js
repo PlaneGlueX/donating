@@ -1,4 +1,5 @@
-// contracts.sk: car-theft contracts. Staff spots and chop shops (/dcontract), the menu (offers by level,
+// contracts.sk: car-theft contracts. Jobs come from a contract giver (quests.sk; one stands next to the
+// thief here, the giver itself is bots\scenarios\quests.js). Staff spots and chop shops (/dcontract), the menu (offers by level,
 // lockpicks for sale with a confirm over $1,000), taking a job (the car appears at its spot, the boss bar
 // and a gold locator-bar dot only the thief gets), nobody else gets in, the lockpick needs to be held,
 // the lock-picking minigame (a hurt closes it, misses count per job, 3 misses break the lockpick, 3 hits
@@ -25,6 +26,7 @@ module.exports = async ({ check }) => {
   const bots = {}
   let spotN = ''
   let chopN = ''
+  let giverN = ''
   try {
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const bal = async name => Number(((await cmd(`zzbal ${name}`)).match(/: (-?\d+)/) || [])[1])
@@ -150,6 +152,8 @@ module.exports = async ({ check }) => {
     await sleep(2500)
     await cmd(`zzheisttp ${A} 1410.5 ${Y} 1410.5`)
     await cmd(`zzheisttp ${B} 1410.5 ${Y} 1416.5`)
+    // A contract giver next to the thief (jobs and lockpicks only there).
+    giverN = ((await cmd(`dquest addat contracts 1407.5 ${Y} 1410.5 -90 Test Yard`)).match(/giver (\d+) \(contracts\) added/) || [])[1] || ''
     await sleep(1500)
 
     // ---------- Staff: spots and chop shops ----------
@@ -339,6 +343,7 @@ module.exports = async ({ check }) => {
     check('the next job waits for the cooldown (3:00)', /next job is ready in 2:5\d|next job is ready in 3:00/.test(text(A, t)), text(A, t))
 
     // ---------- Time runs out; logging out; dropping it ----------
+    await cmd(`zzheisttp ${A} 1410.5 ${Y} 1410.5`) // back at the contract giver
     await cmd(`zzctreset ${A}`)
     await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)
     await cmd(`zzcttake ${A} basic`)
@@ -399,6 +404,7 @@ module.exports = async ({ check }) => {
     }
     if (spotN) await rcon.cmd(`dcontract spot remove ${spotN}`).catch(() => {})
     if (chopN) await rcon.cmd(`dcontract chop remove ${chopN}`).catch(() => {})
+    if (giverN) await rcon.cmd(`dquest remove ${giverN}`).catch(() => {})
     await rcon.cmd(`dheist delete ${HID} confirm`).catch(() => {})
     await rcon.cmd(`rg remove -w world heist_${HID}`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot).catch(() => {})

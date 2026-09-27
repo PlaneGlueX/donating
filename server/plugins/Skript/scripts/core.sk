@@ -195,7 +195,20 @@ function loadSettings():
 	# Car spots and chop shops at least this far apart (/dcontract refuses closer ones).
 	set {-cfg::contract::min-distance} to 50
 
+	# ---------- Quest givers (quests.sk): PROPOSAL names ----------
+	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
+	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
+	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
+	set {-cfg::quests::*} to "contracts"
+	set {-cfg::quest::contracts::name} to "Car contracts"
+	set {-cfg::quest::contracts::npc} to "{place} Boss"
+	set {-cfg::quest::contracts::place} to "Scrap Yard"
+	set {-cfg::quest::contracts::hold} to "flint"
+	set {-cfg::quest::contracts::hold-model} to "donating:lockpick_basic"
+	set {-cfg::quest::reach} to 6
+
 	# ---------- GPS (gps.sk; the phone plugin finds the way along the roads: CLAUDE.md "GPS") ----------
+	# Decided (the owner left the GPS numbers to Claude, 2026-09-26), with the plugin's costs and colors.
 	# A pin counts as reached within this many blocks (then it's cleared); the base while carrying loot too.
 	set {-cfg::gps::pin-radius} to 8
 	set {-cfg::gps::base-radius} to 10
@@ -215,6 +228,8 @@ function loadSettings():
 	set {-cfg::poi::shop::color} to "yellow"
 	set {-cfg::poi::spawn::color} to "white"
 	set {-cfg::poi::landmark::color} to "light_purple"
+	# Quest givers (quests.sk) get a dot of their own, not listed in /dpoi's types.
+	set {-cfg::poi::quest::color} to "blue"
 	set {-cfg::poi::range} to 60000000
 	set {-cfg::difficulty::1::waypoint} to "green"
 	set {-cfg::difficulty::2::waypoint} to "yellow"

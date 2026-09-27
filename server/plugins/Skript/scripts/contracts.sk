@@ -1,7 +1,12 @@
 # contracts.sk: car-theft contracts. Built 2026-09-26 (Phase 2; owner, 2026-09-26: "Cash, car not kept",
 # and no NPC cars at spawn areas).
 #
-# A job: take one of three offers in /contracts (a tier each; core.sk contract::<tier>::*), find the car
+# Jobs are given in person (owner, 2026-09-26): a contract giver (quests.sk: an NPC at a place, like a scrap
+# yard) gives them and sells the lockpicks; right-click it. /contracts and the phone's Contracts app show the
+# offers and your job from anywhere (you can drop a job there too); away from a giver, a click on an offer or a
+# lockpick pins the nearest giver on the GPS.
+#
+# A job: take one of three offers at a contract giver (a tier each; core.sk contract::<tier>::*), find the car
 # at its spot, pick its lock with that tier's lockpick, and drive it to a chop shop before the job's time
 # (contract::time) runs out. The chop shop pays P = floor(pay × m) (m = passive::payout-multiplier for
 # passive players, else 1) and the tier's XP (levels.sk), and the robbery bounty adds
@@ -15,7 +20,7 @@
 # per job, so closing the menu doesn't reset them. Getting hurt or walking away closes it.
 #
 # Lockpicks are quest items (hotbar 6-8, kept on death): one stack per tier, at most lockpick::max each,
-# bought in /contracts (the level of their tier).
+# bought from a contract giver (the level of their tier).
 #
 # The car is a new MTVehicles car owned by the thief (MTVehicles only lets its owner drive), but it's not
 # one of garage.sk's: no {car::owner}, never in /garage. Nobody else gets in, not even as a passenger.
@@ -146,6 +151,8 @@ function ctBuyBlock(p: player, t: text) :: text:
 		return "You can't buy that right now."
 	if isCombatTagged({_p}) is true:
 		return "You can't shop while in combat."
+	if questNear({_p}, "contracts") is "":
+		return "Lockpicks are sold by contract givers. /contracts shows the way."
 	set {_need} to cfg("contract::%{_t}%::level")
 	if levelOk({_p}, {_need}) is false:
 		return "The %ctPickName({_t})% needs level %{_need}% (%levelName({_need})%)."
@@ -334,6 +341,9 @@ function ctTakeBlock(p: player, t: text) :: text:
 	set {_need} to cfg("contract::%{_t}%::level")
 	if levelOk({_p}, {_need}) is false:
 		return "%ctTierName({_t})%s need level %{_need}% (%levelName({_need})%). /level"
+	# In person: next to a contract giver (quests.sk).
+	if questNear({_p}, "contracts") is "":
+		return "Jobs are given by contract givers. /contracts shows the way."
 	return ""
 
 function ctTake(p: player, t: text):
@@ -436,7 +446,7 @@ function ctPickStart(p: player):
 	{_t} is set
 	{-ctqte::%{_p}%} is not set
 	if lockpickCount({_p}, {_t}) < 1:
-		hudBar({_p}, "&cYou need a %ctPickName({_t})%. &7Buy one: &f/contracts", 2)
+		hudBar({_p}, "&cYou need a %ctPickName({_t})%. &7Contract givers sell them: &f/contracts", 2)
 		play sound "block.iron_door.close" with volume 0.5 to {_p}
 		stop
 	if itemId({_p}'s tool) is not "lockpick:%{_t}%":
@@ -884,7 +894,9 @@ function ctGps(u: text):
 	set {_l} to {-ctjob::%{_u}%::carat}
 	gpsQuest({_p}, "%world of {_l}%", gpsSpot({_l}), {_car}, 4, "contract", "deliver:%{_plate}%")
 
-# ---------- The menu: /contracts (also the phone's Contracts app) ----------
+# ---------- The menu: a contract giver, /contracts and the phone's Contracts app ----------
+# At a giver (quests.sk questNear): take a job, buy lockpicks. Anywhere else: the same offers to look at, your
+# job and its drop button, and every other click pins the nearest giver on the GPS.
 
 function ctButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
@@ -894,13 +906,23 @@ function ctMenu(p: player):
 	closePhoneMap({_p})
 	set {_u} to "%uuid of {_p}%"
 	ctOffersFresh({_p})
-	set {_gui} to chest inventory with 4 rows named "&8Car contracts"
+	set {_at} to questNear({_p}, "contracts")
+	set {_title} to "&8Car contracts"
+	if {_at} is not "":
+		set {_title} to "&8Car contracts · %questPlace({_at})%"
+	set {_gui} to chest inventory with 4 rows named {_title}
 	delete {-ctact::%{_p}%::*}
 	set {_pane} to gray stained glass pane named "&r"
 	loop 36 times:
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	set {_clock} to formatClock(cfg("contract::time") / 1 second)
-	set slot 4 of {_gui} to book named "&6Car contracts" with lore "&7Take a job, find the car, pick its lock" and "&7with the job's lockpick (a timing game)," and "&7and drive it to a chop shop within %{_clock}%." and "&7It pays cash and XP; you never keep the car." and "&7The boss bar and your locator bar point the way."
+	set {_near} to questNearestText({_p}, "contracts")
+	set {_where} to "&7Jobs and lockpicks: from contract givers."
+	if {_at} is not "":
+		set {_where} to "&7Take a job here, or buy lockpicks."
+	else if {_near} is not "":
+		set {_where} to "&7Jobs and lockpicks: the &e%{_near}%&7."
+	set slot 4 of {_gui} to book named "&6Car contracts" with lore "&7Take a job, find the car, pick its lock" and "&7with the job's lockpick (a timing game)," and "&7and drive it to a chop shop within %{_clock}%." and "&7It pays cash and XP; you never keep the car." and "&7The GPS points the way." and {_where}
 	if {-ctjob::%{_u}%} is set:
 		set slot 13 of {_gui} to ctJobIcon({_p})
 		if ctArmed({_p}, "drop") is true:
@@ -910,11 +932,23 @@ function ctMenu(p: player):
 	else:
 		set {_slot} to 11
 		loop {-cfg::contract::tiers::*}:
-			ctButton({_p}, {_gui}, {_slot}, ctOfferIcon({_p}, loop-value), "take:%loop-value%")
+			if {_at} is not "":
+				ctButton({_p}, {_gui}, {_slot}, ctOfferIcon({_p}, loop-value, true), "take:%loop-value%")
+			else:
+				ctButton({_p}, {_gui}, {_slot}, ctOfferIcon({_p}, loop-value, false), "find")
 			add 2 to {_slot}
+		# Away from a giver: the way to the nearest one.
+		if {_at} is "":
+			if {_near} is "":
+				set slot 31 of {_gui} to compass named "&7No contract giver yet" with lore "&7Tell staff."
+			else:
+				ctButton({_p}, {_gui}, 31, compass named "&6Find a contract giver" with lore "&7Nearest: &f%{_near}%" and "&eClick: the GPS leads you there.", "find")
 	set {_slot} to 20
 	loop {-cfg::contract::tiers::*}:
-		ctButton({_p}, {_gui}, {_slot}, ctPickIcon({_p}, loop-value), "buy:%loop-value%")
+		if {_at} is not "":
+			ctButton({_p}, {_gui}, {_slot}, ctPickIcon({_p}, loop-value, true), "buy:%loop-value%")
+		else:
+			ctButton({_p}, {_gui}, {_slot}, ctPickIcon({_p}, loop-value, false), "find")
 		add 2 to {_slot}
 	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-ctgui::%{_p}%} to {_gui}
@@ -922,7 +956,8 @@ function ctMenu(p: player):
 		set {-ctgen::%{_p}%} to 0
 	open {_gui} to {_p}
 
-function ctOfferIcon(p: player, t: text) :: item:
+# at: true next to a contract giver (the click takes the job), false elsewhere (the click finds a giver).
+function ctOfferIcon(p: player, t: text, at: boolean) :: item:
 	set {_u} to "%uuid of {_p}%"
 	set {_o} to {-ctoffer::%{_u}%::%{_t}%}
 	set {_name} to "&6%ctTierName({_t})%"
@@ -945,8 +980,11 @@ function ctOfferIcon(p: player, t: text) :: item:
 		add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_l::*}
 	else if {_left} > 0:
 		add "&7Next job in &f%formatClock({_left})%&7." to {_l::*}
-	else:
+	else if {_at} is true:
 		add "&eClick: take this job." to {_l::*}
+	else:
+		add "&7Take it from a contract giver." to {_l::*}
+		add "&eClick: the GPS leads you to one." to {_l::*}
 	set name of {_i} to {_name}
 	set lore of {_i} to {_l::*}
 	return {_i}
@@ -977,7 +1015,7 @@ function ctJobIcon(p: player) :: item:
 	set lore of {_i} to {_l::*}
 	return {_i}
 
-function ctPickIcon(p: player, t: text) :: item:
+function ctPickIcon(p: player, t: text, at: boolean) :: item:
 	set {_i} to lockpickItem({_t}, 1)
 	set {_price} to cfg("lockpick::%{_t}%::price")
 	set {_max} to cfg("lockpick::max")
@@ -987,6 +1025,9 @@ function ctPickIcon(p: player, t: text) :: item:
 	add "&7You have %lockpickCount({_p}, {_t})%. Kept when you die." to {_l::*}
 	if levelOk({_p}, {_need}) is false:
 		add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_l::*}
+	else if {_at} is false:
+		add "&7Sold by contract givers." to {_l::*}
+		add "&eClick: the GPS leads you to one." to {_l::*}
 	else if ctArmed({_p}, "buy:%{_t}%:%{_price}%") is true:
 		set {_i} to lime concrete
 		add "&aClick again to buy." to {_l::*}
@@ -1036,6 +1077,9 @@ function ctAction(p: player, act: text):
 	set {_k} to {_a::1}
 	if {_k} is "close":
 		close {_p}'s inventory
+	else if {_k} is "find":
+		close {_p}'s inventory
+		questFind({_p}, "contracts")
 	else if {_k} is "take":
 		# Close first: chat is hidden behind a menu, and the job's message matters.
 		close {_p}'s inventory
@@ -1053,7 +1097,7 @@ function ctAction(p: player, act: text):
 			ctMenu({_p})
 
 command /contracts:
-	description: Car-theft jobs: steal a car and bring it to a chop shop.
+	description: Car-theft jobs (from a contract giver): steal a car and bring it to a chop shop.
 	aliases: /contract
 	executable by: players
 	trigger:

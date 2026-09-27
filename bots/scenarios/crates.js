@@ -340,6 +340,17 @@ module.exports = async ({ check }) => {
     await sleep(1500)
     const shownAfter = bots[B].players[A] && bots[B].players[A].displayName ? bots[B].players[A].displayName.toString() : ''
     check('/cosmetics: the Titles page shows the worn one; "Take it off" removes it (chat and tab list)', /Your cosmetics/.test(title(ww)) && /Wearing it/.test(worn) && /title=<none>|title= /.test(await cos(A) + ' ') && !/«Ghost»/.test(shownAfter), `${title(ww)} ${worn.slice(0, 160)} ${await cos(A)} tab=${shownAfter}`)
+    // Owner, 2026-09-26: /titles, /bagskins and /killeffects open their page of the wardrobe.
+    const pages = []
+    for (const c of ['titles', 'bagskins', 'killeffects']) {
+      await closeAll(A)
+      opened = windowOpen(bots[A])
+      bots[A].chat('/' + c)
+      pages.push(title(await opened))
+      await sleep(300)
+    }
+    await closeAll(A)
+    check('/titles, /bagskins and /killeffects open their page of the wardrobe', /Your titles/.test(pages[0]) && /Your bag skins/.test(pages[1]) && /Your kill effects/.test(pages[2]), pages.join(' | '))
 
     // Bag skins from crates work without a rank. Tiger is Epic: not announced (only Legendary and Hacked).
     await cmd('zzcratelines common 1|cos|tiger')

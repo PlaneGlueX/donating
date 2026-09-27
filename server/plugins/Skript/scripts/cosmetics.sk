@@ -230,7 +230,30 @@ command /cosmetics:
 	aliases: /wardrobe
 	executable by: players
 	trigger:
+		closePhoneMap(player)
 		cosMenu(player)
+
+# Owner, 2026-09-26: each kind's page of the wardrobe has its own command too.
+command /titles:
+	description: Your titles: wear one or take it off.
+	executable by: players
+	trigger:
+		closePhoneMap(player)
+		cosPage(player, "title")
+
+command /bagskins:
+	description: Your bag skins: pick your bag's look.
+	executable by: players
+	trigger:
+		closePhoneMap(player)
+		cosPage(player, "bagskin")
+
+command /killeffects:
+	description: Your kill effects: pick one or take it off.
+	executable by: players
+	trigger:
+		closePhoneMap(player)
+		cosPage(player, "killfx")
 
 # The chat list (kept for the phone-less and for tests).
 function cosList(p: player):

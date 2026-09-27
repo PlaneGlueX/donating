@@ -936,6 +936,6 @@ command /zzcarflags <text> <text>:
 	trigger:
 		set {_i} to carIcon(arg-1, arg-2)
 		send "CARFLAGS %nbt of {_i}% flags=%item flags of {_i}%"
-		set {_j} to ctOfferIcon(player("Explosde"), "basic")
+		set {_j} to ctOfferIcon(player("Explosde"), "basic", true)
 		send "OFFER %nbt of {_j}%"
 
