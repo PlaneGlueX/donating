@@ -1,0 +1,1231 @@
+# contracts.sk: car-theft contracts. Built 2026-09-26 (Phase 2; owner, 2026-09-26: "Cash, car not kept",
+# and no NPC cars at spawn areas).
+#
+# A job: take one of three offers in /contracts (a tier each; core.sk contract::<tier>::*), find the car
+# at its spot, pick its lock with that tier's lockpick, and drive it to a chop shop before the job's time
+# (contract::time) runs out. The chop shop pays P = floor(pay × m) (m = passive::payout-multiplier for
+# passive players, else 1) and the tier's XP (levels.sk), and the robbery bounty adds
+# floor(P × bounty::robbery-share) like a loot sale (never for passive players). The car is scrapped: a
+# stolen car is never kept. Money boosters (boosters.sk) are for loot sales only.
+#
+# Picking the lock (holding the job's lockpick, right-click the car): the drill's timing minigame
+# (loot.sk). A marker runs along the top row; clicking while it's on the green slot is a hit.
+# contract::<tier>::qte-hits hits in a row open the car and use up the lockpick; every miss starts the
+# row over, and lockpick::max-fails misses break the lockpick (the car's alarm sounds). The misses count
+# per job, so closing the menu doesn't reset them. Getting hurt or walking away closes it.
+#
+# Lockpicks are quest items (hotbar 6-8, kept on death): one stack per tier, at most lockpick::max each,
+# bought in /contracts (the level of their tier).
+#
+# The car is a new MTVehicles car owned by the thief (MTVehicles only lets its owner drive), but it's not
+# one of garage.sk's: no {car::owner}, never in /garage. Nobody else gets in, not even as a passenger.
+# Finding it and the chop shop: the boss bar (hud.sk calls ctHud: an arrow, the distance, the time) and
+# a gold dot on the thief's locator bar (an invisible marker stand only the thief sees; it sits at most
+# contract::marker-lead blocks ahead, in the target's direction, so it's always in a loaded chunk).
+#
+# A job ends (the car is scrapped, contract::cooldown before the next) when the car is delivered, the time
+# runs out, the thief logs out, the car is gone, the thief drops the job, or staff end it. A restart ends
+# every job: jobs live in memory, and the saved plate list {contract::plates::*} scraps leftover cars.
+#
+# Data:
+#   {-ctjob::<uuid>} = tier; ::p ::model ::label ::plate ::spot (spot number) ::spotat ::carat ::until
+#     ::stage ("find" = locked, "open" = picked) ::fails ::mark (the marker stand)
+#   {-ctplate::<plate>} = the thief's uuid; {contract::plates::<plate>} (saved) = the thief's uuid
+#   {-ctcd::<uuid>} = when the next job may start
+#   {-ctoffer::<uuid>::<tier>} = "model|color|spot"; {-ctofferat::<uuid>} = when they were rolled
+#   {contract::spot::<n>} car spots, {contract::chop::<n>} chop shops (saved; /dcontract)
+#   data contracts-done, contracts-earned
+# Staff: /dcontract spot|chop add|remove|list, info|end <player>, dump. Log: plugins\Skript\logs\contracts.log.
+
+function ctLog(text: text):
+	log {_text} to "contracts"
+
+function ctTierName(t: text) :: text:
+	set {_n} to {-cfg::contract::%{_t}%::name}
+	if {_n} is set:
+		return "%{_n}%"
+	return {_t}
+
+function ctPickName(t: text) :: text:
+	set {_n} to {-cfg::lockpick::%{_t}%::name}
+	if {_n} is set:
+		return "%{_n}%"
+	return "%{_t}% lockpick"
+
+function ctIsTier(t: text) :: boolean:
+	if {-cfg::contract::%{_t}%::pay} is set:
+		return true
+	return false
+
+function ctFail(p: player, text: text):
+	msg({_p}, "&c%{_text}%")
+	play sound "entity.villager.no" with volume 0.6 to {_p}
+
+# What a job pays this player (passive players get the passive share).
+function ctPay(p: player, t: text) :: number:
+	set {_m} to 1
+	if isPassive({_p}) is true:
+		set {_m} to cfg("passive::payout-multiplier")
+	return floor(cfg("contract::%{_t}%::pay") * {_m})
+
+# ---------- Lockpicks (hotbar 6-8 = slots 5-7) ----------
+
+function lockpickItem(t: text, n: number) :: item:
+	set {_i} to {_n} of flint
+	set name of {_i} to "&f%ctPickName({_t})%"
+	set lore of {_i} to "&7For %ctTierName({_t})% contracts: hold it" and "&7and right-click the car." and "&7%{-cfg::lockpick::max-fails}% misses break it." and "&7Quest item · kept when you die"
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:lockpick_%{_t}%"
+	return tagItem({_i}, "lockpick:%{_t}%")
+
+# The slot (5-7) holding the lockpicks of a tier, or -1.
+function lockpickSlot(p: player, t: text) :: number:
+	loop 5, 6 and 7:
+		if itemId(slot loop-value of {_p}'s inventory) is "lockpick:%{_t}%":
+			return loop-value
+	return -1
+
+function lockpickCount(p: player, t: text) :: number:
+	set {_s} to lockpickSlot({_p}, {_t})
+	if {_s} < 0:
+		return 0
+	return item amount of slot {_s} of {_p}'s inventory
+
+function lockpickFreeSlot(p: player) :: number:
+	loop 5, 6 and 7:
+		if slot loop-value of {_p}'s inventory is air:
+			return loop-value
+	return -1
+
+# Uses (or breaks) one: true when there was one.
+function lockpickUse(p: player, t: text, why: text) :: boolean:
+	set {_s} to lockpickSlot({_p}, {_t})
+	if {_s} < 0:
+		return false
+	set {_i} to slot {_s} of {_p}'s inventory
+	if item amount of {_i} > 1:
+		set item amount of {_i} to (item amount of {_i}) - 1
+		set slot {_s} of {_p}'s inventory to {_i}
+	else:
+		set slot {_s} of {_p}'s inventory to air
+	ctLog("lockpick-%{_why}% %{_p}% %uuid of {_p}% %{_t}% left=%lockpickCount({_p}, {_t})%")
+	return true
+
+# Lockpicks only in hotbar 6-8, one stack per tier, at most the max (on join).
+function lockpickAudit(p: player):
+	loop integers from 0 to 40:
+		set {_i} to slot loop-value of {_p}'s inventory
+		set {_id} to itemId({_i})
+		{_id} starts with "lockpick:"
+		set {_t} to subtext of {_id} from characters 10 to (length of {_id})
+		set {_bad} to ""
+		if loop-value < 5:
+			set {_bad} to "outside hotbar 6-8"
+		else if loop-value > 7:
+			set {_bad} to "outside hotbar 6-8"
+		else if {_seen::%{_t}%} is set:
+			set {_bad} to "second stack"
+		else if ctIsTier({_t}) is false:
+			set {_bad} to "unknown tier"
+		else if item amount of {_i} > cfg("lockpick::max"):
+			set item amount of {_i} to cfg("lockpick::max")
+			set slot loop-value of {_p}'s inventory to {_i}
+			ctLog("audit trimmed %{_p}% %{_t}% slot=%loop-value%")
+		set {_seen::%{_t}%} to true
+		{_bad} is not ""
+		set slot loop-value of {_p}'s inventory to air
+		ctLog("audit removed %{_p}% %{_t}% slot=%loop-value% (%{_bad}%)")
+
+on join:
+	lockpickAudit(player)
+
+# "" when the player may buy one now, else why not.
+function ctBuyBlock(p: player, t: text) :: text:
+	if ctIsTier({_t}) is false:
+		return "That lockpick isn't sold."
+	if {_p} is not alive:
+		return "You can't buy that right now."
+	if isCombatTagged({_p}) is true:
+		return "You can't shop while in combat."
+	set {_need} to cfg("contract::%{_t}%::level")
+	if levelOk({_p}, {_need}) is false:
+		return "The %ctPickName({_t})% needs level %{_need}% (%levelName({_need})%)."
+	if lockpickCount({_p}, {_t}) >= cfg("lockpick::max"):
+		return "You carry the most %ctPickName({_t})%s already (%cfg("lockpick::max")%)."
+	if lockpickSlot({_p}, {_t}) < 0:
+		if lockpickFreeSlot({_p}) < 0:
+			return "Hotbar 6-8 is full."
+	return ""
+
+# Buys one (check, charge, grant, verify, refund if the grant failed; one call, no wait).
+function ctBuyPick(p: player, t: text):
+	set {_why} to ctBuyBlock({_p}, {_t})
+	if {_why} is not "":
+		ctFail({_p}, {_why})
+		stop
+	set {_price} to cfg("lockpick::%{_t}%::price")
+	if balance of {_p} < {_price}:
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	if {_price} >= cfg("shop::confirm-above"):
+		if ctConfirm({_p}, "buy:%{_t}%:%{_price}%") is false:
+			stop
+	set {_have} to lockpickCount({_p}, {_t})
+	set {_s} to lockpickSlot({_p}, {_t})
+	if {_s} < 0:
+		set {_s} to lockpickFreeSlot({_p})
+	if chargeMoney({_p}, {_price}) is not true:
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	set slot {_s} of {_p}'s inventory to lockpickItem({_t}, {_have} + 1)
+	if lockpickCount({_p}, {_t}) is not {_have} + 1:
+		giveMoney({_p}, {_price})
+		ctLog("buy-failed %{_p}% %uuid of {_p}% %{_t}% price=%{_price}% (refunded)")
+		ctFail({_p}, "Something went wrong. You weren't charged.")
+		stop
+	ctLog("buy %{_p}% %uuid of {_p}% %{_t}% price=%{_price}% now=%{_have} + 1%")
+	play sound "entity.experience_orb.pickup" with volume 0.6 to {_p}
+
+# A second click within 5 s confirms (the key is the action and the price). While armed, the button is
+# drawn as a confirm block; it turns back after the window.
+function ctConfirm(p: player, key: text) :: boolean:
+	if {-ctconfirm::%{_p}%} is {_key}:
+		if difference between {-ctconfirmat::%{_p}%} and now < 5 seconds:
+			delete {-ctconfirm::%{_p}%}
+			return true
+	set {-ctconfirm::%{_p}%} to {_key}
+	set {-ctconfirmat::%{_p}%} to now
+	ctConfirmExpire({_p}, {_key})
+	return false
+
+function ctConfirmExpire(p: player, key: text):
+	wait 5.1 seconds
+	{_p} is online
+	{-ctconfirm::%{_p}%} is {_key}
+	delete {-ctconfirm::%{_p}%}
+	{-ctgui::%{_p}%} is set
+	ctMenu({_p})
+
+function ctArmed(p: player, key: text) :: boolean:
+	if {-ctconfirm::%{_p}%} is {_key}:
+		if difference between {-ctconfirmat::%{_p}%} and now < 5 seconds:
+			return true
+	return false
+
+# ---------- Spots and chop shops ----------
+
+function ctSpotBusy(n: text) :: boolean:
+	loop {-ctjob::*}:
+		if {-ctjob::%loop-index%::spot} is {_n}:
+			return true
+	return false
+
+# The chop shop within contract::chop-radius of a spot ("" if none).
+function ctChopNear(l: location) :: text:
+	set {_r} to cfg("contract::chop-radius")
+	loop {contract::chop::*}:
+		if world of loop-value is world of {_l}:
+			if distance between loop-value and {_l} <= {_r}:
+				return loop-index
+	return ""
+
+function ctNearestChop(l: location) :: location:
+	loop {contract::chop::*}:
+		if world of loop-value is world of {_l}:
+			set {_d} to distance between loop-value and {_l}
+			if {_best} is not set:
+				set {_best} to loop-value
+				set {_bd} to {_d}
+			else if {_d} < {_bd}:
+				set {_best} to loop-value
+				set {_bd} to {_d}
+	return {_best}
+
+# ---------- Directions ----------
+
+# An arrow from a player's view to a spot: ↑ ahead, → to the right...
+function ctArrow(p: player, to: location) :: text:
+	set {_from} to location of {_p}
+	set {_dx} to x-coordinate of {_to}
+	set {_fx} to x-coordinate of {_from}
+	set {_dx} to {_dx} - {_fx}
+	set {_dz} to z-coordinate of {_to}
+	set {_fz} to z-coordinate of {_from}
+	set {_dz} to {_dz} - {_fz}
+	# Minecraft's yaw: 0 faces +z (south), 90 faces -x (west); the yaw facing the spot is atan2(-dx, dz).
+	set {_want} to atan2({_dz}, 0 - {_dx})
+	set {_rel} to mod({_want} - (yaw of {_p}) + 540, 360) - 180
+	set {_i} to mod(round({_rel} / 45) + 8, 8)
+	set {_arrows::*} to "↑", "↗", "→", "↘", "↓", "↙", "←" and "↖"
+	return {_arrows::%{_i} + 1%}
+
+# The compass direction from one spot to another: N, NE, E...
+function ctCompass(from: location, to: location) :: text:
+	set {_dx} to x-coordinate of {_to}
+	set {_fx} to x-coordinate of {_from}
+	set {_dx} to {_dx} - {_fx}
+	set {_dz} to z-coordinate of {_to}
+	set {_fz} to z-coordinate of {_from}
+	set {_dz} to {_dz} - {_fz}
+	# Clockwise from north (-z): atan2(dx, -dz).
+	set {_a} to atan2(0 - {_dz}, {_dx})
+	set {_i} to mod(round({_a} / 45) + 8, 8)
+	set {_dirs::*} to "N", "NE", "E", "SE", "S", "SW", "W" and "NW"
+	return {_dirs::%{_i} + 1%}
+
+# "142m NE" (or "far away" in another world).
+function ctWhere(from: location, to: location) :: text:
+	if world of {_from} is not world of {_to}:
+		return "far away"
+	set {_d} to round(distance between {_from} and {_to})
+	return "%{_d}%m %ctCompass({_from}, {_to})%"
+
+# ---------- Offers ----------
+
+# Rolls a tier's offer: a car of its list, a color, a free spot (none when there's no car or spot).
+function ctRollOffer(p: player, t: text):
+	set {_u} to "%uuid of {_p}%"
+	delete {-ctoffer::%{_u}%::%{_t}%}
+	loop {-cfg::contractcars::%{_t}%::*}:
+		if carExists(loop-value) is true:
+			add loop-value to {_models::*}
+	set {_m} to random element out of {_models::*}
+	{_m} is set
+	set {_labels::*} to carColorLabels({_m})
+	set {_label} to random element out of {_labels::*}
+	{_label} is set
+	loop {contract::spot::*}:
+		if ctSpotBusy(loop-index) is false:
+			add loop-index to {_spots::*}
+	set {_s} to random element out of {_spots::*}
+	{_s} is set
+	set {-ctoffer::%{_u}%::%{_t}%} to "%{_m}%|%{_label}%|%{_s}%"
+
+# Rolls every offer again after contract::refresh, and any that's missing or whose spot is taken.
+function ctOffersFresh(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_all} to false
+	if {-ctofferat::%{_u}%} is not set:
+		set {_all} to true
+	else if difference between {-ctofferat::%{_u}%} and now >= cfg("contract::refresh"):
+		set {_all} to true
+	if {_all} is true:
+		set {-ctofferat::%{_u}%} to now
+	loop {-cfg::contract::tiers::*}:
+		set {_o} to {-ctoffer::%{_u}%::%loop-value%}
+		set {_roll} to {_all}
+		if {_o} is not set:
+			set {_roll} to true
+		else:
+			set {_a::*} to {_o} split at "|"
+			if {contract::spot::%{_a::3}%} is not set:
+				set {_roll} to true
+			else if ctSpotBusy({_a::3}) is true:
+				set {_roll} to true
+		if {_roll} is true:
+			ctRollOffer({_p}, loop-value)
+
+# ---------- Taking a job ----------
+
+function ctCooldownLeft(p: player) :: number:
+	set {_cd} to {-ctcd::%uuid of {_p}%}
+	if {_cd} is set:
+		if {_cd} > now:
+			set {_left} to difference between now and {_cd}
+			return ceil({_left} / 1 second)
+	return 0
+
+# "" when the player may take a job of this tier now, else why not.
+function ctTakeBlock(p: player, t: text) :: text:
+	if ctIsTier({_t}) is false:
+		return "No such job."
+	if {_p} is not alive:
+		return "You can't take a job right now."
+	if heistOf({_p}) is not "":
+		return "Not from inside a heist."
+	if {-ctjob::%uuid of {_p}%} is set:
+		return "You're on a job already. /contracts"
+	set {_left} to ctCooldownLeft({_p})
+	if {_left} > 0:
+		return "Your next job is ready in %formatClock({_left})%."
+	set {_need} to cfg("contract::%{_t}%::level")
+	if levelOk({_p}, {_need}) is false:
+		return "%ctTierName({_t})%s need level %{_need}% (%levelName({_need})%). /level"
+	return ""
+
+function ctTake(p: player, t: text):
+	set {_why} to ctTakeBlock({_p}, {_t})
+	if {_why} is not "":
+		ctFail({_p}, {_why})
+		stop
+	set {_u} to "%uuid of {_p}%"
+	set {_o} to {-ctoffer::%{_u}%::%{_t}%}
+	if {_o} is not set:
+		ctRollOffer({_p}, {_t})
+		ctFail({_p}, "No car for this job right now. Try again later.")
+		stop
+	set {_a::*} to {_o} split at "|"
+	set {_m} to {_a::1}
+	set {_label} to {_a::2}
+	set {_n} to {_a::3}
+	set {_spot} to {contract::spot::%{_n}%}
+	if {_spot} is not set:
+		ctRollOffer({_p}, {_t})
+		ctFail({_p}, "That car is gone. Here's a new job: /contracts")
+		stop
+	if ctSpotBusy({_n}) is true:
+		ctRollOffer({_p}, {_t})
+		ctFail({_p}, "Someone else is after that car. Here's a new job: /contracts")
+		stop
+	if carSpotClear({_spot}) is false:
+		ctRollOffer({_p}, {_t})
+		ctLog("spot-blocked %{_n}% at %{_spot}%")
+		ctFail({_p}, "That car's spot is blocked. Here's a new job: /contracts")
+		stop
+	set {_uuid} to carColorPart({_m}, {_label}, 2)
+	set {_car} to a new mtv vehicle with uuid {_uuid} and owner {_p}
+	if {_car} is not set:
+		ctLog("create-failed %{_p}% %{_u}% %{_t}% %{_m}% %{_label}% (MTVehicles refused %{_uuid}%)")
+		ctFail({_p}, "Something went wrong. Tell staff.")
+		stop
+	set {_plate} to vehicle license plate of {_car}
+	set {contract::plates::%{_plate}%} to {_u}
+	# Load the spot's chunk first.
+	set {_chunk} to chunk at {_spot}
+	spawn mtv vehicle with license plate {_plate} at {_spot}
+	if carStands({_plate}) < 1:
+		delete mtv vehicle {_car}
+		delete {contract::plates::%{_plate}%}
+		ctLog("spawn-failed %{_p}% %{_u}% %{_t}% %{_plate}% spot=%{_n}% at %{_spot}%")
+		ctFail({_p}, "The car isn't there. Try again in a moment.")
+		stop
+	set {_until} to now
+	add cfg("contract::time") to {_until}
+	set {-ctjob::%{_u}%} to {_t}
+	set {-ctjob::%{_u}%::p} to {_p}
+	set {-ctjob::%{_u}%::model} to {_m}
+	set {-ctjob::%{_u}%::label} to {_label}
+	set {-ctjob::%{_u}%::plate} to {_plate}
+	set {-ctjob::%{_u}%::spot} to {_n}
+	set {-ctjob::%{_u}%::spotat} to {_spot}
+	set {-ctjob::%{_u}%::carat} to {_spot}
+	set {-ctjob::%{_u}%::until} to {_until}
+	set {-ctjob::%{_u}%::stage} to "find"
+	set {-ctjob::%{_u}%::fails} to 0
+	set {-ctplate::%{_plate}%} to {_u}
+	ctRollOffer({_p}, {_t})
+	ctLog("take %{_p}% %{_u}% %{_t}% %{_m}% %{_label}% %{_plate}% spot=%{_n}% at %{_spot}%")
+	set {_clock} to formatClock(cfg("contract::time") / 1 second)
+	msg({_p}, "&6%ctTierName({_t})%: &fsteal the %{_label}% %carName({_m})% &7(%ctWhere(location of {_p}, {_spot})%)&f. Pick its lock with a %ctPickName({_t})% and drive it to a chop shop within %{_clock}%.")
+	send title colored "&6&lCONTRACT" with subtitle colored "&fSteal the %{_label}% %carName({_m})%" to {_p} for 3 seconds
+	play sound "block.note_block.pling" with volume 0.8 and pitch 1.2 to {_p}
+	ctMarker({_u})
+
+# ---------- Getting in: the lock ----------
+
+# MTVehicles fires this before its own checks. garage.sk ignores contract cars (no {car::owner}).
+on mtv vehicle enter:
+	set {_plate} to event-text
+	set {_u} to {-ctplate::%{_plate}%}
+	{_u} is set
+	if heistOf(player) is not "":
+		cancel event
+		hudBar(player, "&cNo cars in heists.", 2)
+		stop
+	if "%uuid of player%" is not {_u}:
+		cancel event
+		hudBar(player, "&7Someone else has the contract on this car.", 2)
+		stop
+	if {-ctjob::%{_u}%::stage} is "find":
+		cancel event
+		ctPickStart(player)
+		stop
+	if isCombatTagged(player) is true:
+		if isSafeZone(event-location) is true:
+			cancel event
+			hudBar(player, "&cYou can't get into a car in a safe zone while in combat.", 3)
+			stop
+	# The thief drives (MTVehicles checks the owner itself): ctDriveCheck notices the seat.
+
+function ctPickStart(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_t} to {-ctjob::%{_u}%}
+	{_t} is set
+	{-ctqte::%{_p}%} is not set
+	if lockpickCount({_p}, {_t}) < 1:
+		hudBar({_p}, "&cYou need a %ctPickName({_t})%. &7Buy one: &f/contracts", 2)
+		play sound "block.iron_door.close" with volume 0.5 to {_p}
+		stop
+	if itemId({_p}'s tool) is not "lockpick:%{_t}%":
+		hudBar({_p}, "&eHold your %ctPickName({_t})% &7(hotbar 6-8) &eand right-click the car.", 2)
+		stop
+	ctQteOpen({_p})
+
+# The lock-picking minigame (the drill's, loot.sk, with the tier's speed and hits).
+function ctQteOpen(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_t} to {-ctjob::%{_u}%}
+	ctQteForget({_p})
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8Pick the lock"
+	set {-ctqte::%{_p}%} to {_u}
+	set {-ctqte::%{_p}%::p} to {_p}
+	set {-ctqte::%{_p}%::gui} to {_gui}
+	set {-ctqte::%{_p}%::need} to cfg("contract::%{_t}%::qte-hits")
+	set {-ctqte::%{_p}%::step} to cfg("contract::%{_t}%::qte-step")
+	set {-ctqte::%{_p}%::hits} to 0
+	set {-ctqte::%{_p}%::pos} to 0
+	set {-ctqte::%{_p}%::prev} to 0
+	set {-ctqte::%{_p}%::dir} to 1
+	set {-ctqte::%{_p}%::t} to 0
+	set {-ctqte::%{_p}%::target} to lootQteTarget(0)
+	ctQteDraw({_p})
+	open {_gui} to {_p}
+	play sound "block.iron_trapdoor.open" with volume 0.5 and pitch 1.4 to {_p}
+
+function ctQteDraw(p: player):
+	set {_gui} to {-ctqte::%{_p}%::gui}
+	{_gui} is set
+	set {_pos} to {-ctqte::%{_p}%::pos}
+	set {_target} to {-ctqte::%{_p}%::target}
+	loop integers from 0 to 8:
+		if loop-value is {_pos}:
+			if {_pos} is {_target}:
+				set slot loop-value of {_gui} to lime concrete named "&a&lNOW!"
+			else:
+				set slot loop-value of {_gui} to yellow concrete named "&e▼"
+		else if loop-value is {_target}:
+			set slot loop-value of {_gui} to lime stained glass pane named "&aGreen: click when the marker is here"
+		else:
+			set slot loop-value of {_gui} to gray stained glass pane named "&8-"
+	set {_need} to {-ctqte::%{_p}%::need}
+	set {_hits} to {-ctqte::%{_p}%::hits}
+	set {_first} to 13 - floor({_need} / 2)
+	loop {_need} times:
+		if loop-number <= {_hits}:
+			set slot {_first} + loop-number - 1 of {_gui} to green concrete named "&aPin %loop-number%/%{_need}%"
+		else:
+			set slot {_first} + loop-number - 1 of {_gui} to light gray concrete named "&7Pin %loop-number%/%{_need}%"
+	set {_u} to {-ctqte::%{_p}%}
+	set {_fails} to {-ctjob::%{_u}%::fails}
+	set {_max} to cfg("lockpick::max-fails")
+	set slot 22 of {_gui} to tripwire hook named "&fClick when the marker is on green" with lore "&7%{_need}% in a row opens the car." and "&7A miss starts over." and "&7Misses: &c%{_fails}%/%{_max}%" and "&7At %{_max}% the lockpick breaks."
+
+every tick:
+	loop {-ctqte::*}:
+		ctQteTick(loop-index)
+
+function ctQteTick(k: text):
+	set {_p} to {-ctqte::%{_k}%::p}
+	if {_p} is not set:
+		delete {-ctqte::%{_k}%}
+		delete {-ctqte::%{_k}%::*}
+		stop
+	add 1 to {-ctqte::%{_k}%::t}
+	mod({-ctqte::%{_k}%::t}, {-ctqte::%{_k}%::step}) is 0
+	set {_pos} to {-ctqte::%{_k}%::pos}
+	set {-ctqte::%{_k}%::prev} to {_pos}
+	set {_pos} to {_pos} + {-ctqte::%{_k}%::dir}
+	if {_pos} >= 8:
+		set {_pos} to 8
+		set {-ctqte::%{_k}%::dir} to -1
+	if {_pos} <= 0:
+		set {_pos} to 0
+		set {-ctqte::%{_k}%::dir} to 1
+	set {-ctqte::%{_k}%::pos} to {_pos}
+	ctQteDraw({_p})
+
+on inventory click:
+	{-ctqte::%player%} is set
+	player's current inventory is {-ctqte::%player%::gui}
+	cancel event
+	event-inventory is {-ctqte::%player%::gui}
+	ctQteHit(player)
+
+on inventory drag:
+	{-ctqte::%player%} is set
+	player's current inventory is {-ctqte::%player%::gui}
+	cancel event
+
+on inventory close:
+	{-ctqte::%player%} is set
+	event-inventory is {-ctqte::%player%::gui}
+	ctQteForget(player)
+
+# Only a hit that lands (monitor skips cancelled hits: a passive player's punch, a safe zone, the spawn
+# shield; review fix, 2026-09-26: those closed it too, so anyone could keep a thief from ever picking).
+on damage of player with priority monitor:
+	{-ctqte::%victim%} is set
+	ctQteClose(victim, "hurt")
+
+function ctQteHit(p: player):
+	set {_u} to {-ctqte::%{_p}%}
+	if {-ctjob::%{_u}%::stage} is not "find":
+		ctQteClose({_p}, "done")
+		stop
+	set {_lock} to {-ctqte::%{_p}%::lock}
+	if {_lock} is set:
+		if {_lock} > now:
+			stop
+	set {_target} to {-ctqte::%{_p}%::target}
+	set {_until} to now
+	if {-ctqte::%{_p}%::pos} is {_target}:
+		set {_hit} to true
+	else if {-ctqte::%{_p}%::prev} is {_target}:
+		set {_hit} to true
+	if {_hit} is true:
+		add 1 to {-ctqte::%{_p}%::hits}
+		add 1 tick * cfg("contract::qte-hit-lock") to {_until}
+		set {-ctqte::%{_p}%::lock} to {_until}
+		play sound "block.note_block.pling" with volume 0.8 and pitch (1 + 0.25 * {-ctqte::%{_p}%::hits}) to {_p}
+		if {-ctqte::%{_p}%::hits} >= {-ctqte::%{_p}%::need}:
+			ctPicked({_p})
+			stop
+		set {-ctqte::%{_p}%::target} to lootQteTarget({-ctqte::%{_p}%::pos})
+	else:
+		set {-ctqte::%{_p}%::hits} to 0
+		add 1 to {-ctjob::%{_u}%::fails}
+		add 1 tick * cfg("contract::qte-miss-lock") to {_until}
+		set {-ctqte::%{_p}%::lock} to {_until}
+		play sound "block.note_block.bass" with volume 0.8 to {_p}
+		if {-ctjob::%{_u}%::fails} >= cfg("lockpick::max-fails"):
+			ctPickBreak({_p})
+			stop
+	ctQteDraw({_p})
+
+# The lock is open: the lockpick is used up, the thief may get in.
+function ctPicked(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_t} to {-ctjob::%{_u}%}
+	if lockpickUse({_p}, {_t}, "used") is false:
+		ctQteClose({_p}, "nopick")
+		hudBar({_p}, "&cYou need a %ctPickName({_t})%.", 2)
+		stop
+	set {-ctjob::%{_u}%::stage} to "open"
+	set {-ctjob::%{_u}%::fails} to 0
+	ctQteClose({_p}, "done")
+	ctLog("picked %{_p}% %{_u}% %{_t}% %{-ctjob::%{_u}%::plate}%")
+	send title colored "&a&lUNLOCKED" with subtitle colored "&7Get in and drive it to a chop shop" to {_p} for 2 seconds
+	play sound "block.iron_door.open" with volume 0.8 to {_p}
+	play sound "entity.player.levelup" with volume 0.5 and pitch 1.6 to {_p}
+	ctMarker({_u})
+
+# Too many misses: the lockpick breaks, the misses start over, and the car's alarm sounds.
+function ctPickBreak(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_t} to {-ctjob::%{_u}%}
+	lockpickUse({_p}, {_t}, "broke")
+	set {-ctjob::%{_u}%::fails} to 0
+	ctQteClose({_p}, "broke")
+	set {_left} to lockpickCount({_p}, {_t})
+	hudBar({_p}, "&cYour lockpick broke! &7%{_left}% left.", 2)
+	msg({_p}, "&cYour %ctPickName({_t})% broke. &7You have %{_left}% left.")
+	play sound "entity.item.break" with volume 1 to {_p}
+	ctCarAlarm({-ctjob::%{_u}%::carat})
+
+# A few seconds of car alarm at a spot, for everyone near.
+function ctCarAlarm(l: location):
+	loop 6 times:
+		play sound "block.note_block.bit" with volume 1.5 and pitch 1.8 at {_l}
+		wait 5 ticks
+
+function ctQteForget(p: player):
+	delete {-ctqte::%{_p}%}
+	delete {-ctqte::%{_p}%::*}
+
+function ctQteClose(p: player, why: text):
+	{-ctqte::%{_p}%} is set
+	set {_gui} to {-ctqte::%{_p}%::gui}
+	ctQteForget({_p})
+	if {_p}'s current inventory is {_gui}:
+		close {_p}'s inventory
+	if {_why} is "hurt":
+		hudBar({_p}, "&cYou got hurt: the pick slipped.", 2)
+	else if {_why} is "away":
+		hudBar({_p}, "&7You walked away from the car.", 1)
+
+# ---------- Driving to the chop shop ----------
+
+every 2 ticks:
+	loop {-ctjob::*}:
+		ctDriveCheck(loop-index)
+
+# The thief in the stolen car's driver's seat: a heist throws them out (garage.sk's region event, and
+# this backstop), a chop shop takes the car.
+function ctDriveCheck(u: text):
+	{-ctjob::%{_u}%::stage} is "open"
+	set {_p} to {-ctjob::%{_u}%::p}
+	{_p} is online
+	set {_plate} to {-ctjob::%{_u}%::plate}
+	carSeatOf({_p}) is "driver:%{_plate}%"
+	set {_l} to location of {_p}
+	if heistAt({_l}) is not "":
+		# A car that got into a heist anyway (a teleport: MTVehicles' region event only runs on driving input):
+		# out, and the car back to the last spot outside (review fix: it stayed inside, and the job was stuck).
+		make {_p} dismount
+		set {_car} to mtv vehicle with license plate {_plate}
+		set {_back} to {-ctjob::%{_u}%::carat}
+		if {_car} is set:
+			if {_back} is set:
+				teleport mtv vehicle {_car} to {_back}
+		hudBar({_p}, "&cNo cars in heists: &7the car is back outside.", 2)
+		stop
+	set {-ctjob::%{_u}%::carat} to {_l}
+	set {_c} to ctChopNear({_l})
+	if {_c} is not "":
+		ctDeliver({_u}, {_c})
+
+# Delivered: the car is scrapped and the job pays (one call, no wait).
+function ctDeliver(u: text, chop: text):
+	set {_p} to {-ctjob::%{_u}%::p}
+	set {_t} to {-ctjob::%{_u}%}
+	set {_m} to {-ctjob::%{_u}%::model}
+	set {_label} to {-ctjob::%{_u}%::label}
+	set {_pay} to ctPay({_p}, {_t})
+	set {_xp} to cfg("contract::%{_t}%::xp")
+	make {_p} dismount
+	ctEnd({_u}, "done")
+	giveMoney({_p}, {_pay})
+	set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "contract")
+	set {_done} to getData({_p}, "contracts-done")
+	if {_done} is not set:
+		set {_done} to 0
+	setData({_p}, "contracts-done", {_done} + 1)
+	set {_earned} to getData({_p}, "contracts-earned")
+	if {_earned} is not set:
+		set {_earned} to 0
+	setData({_p}, "contracts-earned", {_earned} + {_pay})
+	ctLog("deliver %{_p}% %{_u}% %{_t}% %{_m}% chop=%{_chop}% pay=%{_pay}% xp=%{_xp}% bounty=+%{_bounty}% passive=%isPassive({_p})%")
+	send title colored "&a&lCAR DELIVERED" with subtitle colored "&f%formatMoney({_pay})% &7· &b+%{_xp}% XP" to {_p} for 3 seconds
+	play sound "entity.player.levelup" with volume 0.8 to {_p}
+	msg({_p}, "&aThe chop shop took the %{_label}% %carName({_m})%: &f%formatMoney({_pay})%&a.")
+	if {_bounty} > 0:
+		msg({_p}, "&7Your bounty went up by &c%formatMoney({_bounty})%&7.")
+	# Last: a level-up's title replaces the delivery's.
+	levelAddXp({_p}, {_xp}, "contract")
+
+# ---------- Ending a job ----------
+
+# Ends a job: the car is scrapped (despawned and deleted in MTVehicles), the marker goes, the cooldown
+# starts. why: done, time, quit, gone, drop, staff.
+function ctEnd(u: text, why: text):
+	set {_t} to {-ctjob::%{_u}%}
+	{_t} is set
+	set {_p} to {-ctjob::%{_u}%::p}
+	set {_plate} to {-ctjob::%{_u}%::plate}
+	set {_m} to {-ctjob::%{_u}%::model}
+	set {_label} to {-ctjob::%{_u}%::label}
+	if {_p} is online:
+		ctQteClose({_p}, "end")
+	ctMarkerRemove({_u})
+	# Load the car's chunk so the despawn reaches it (the stands of a deleted plate are swept later
+	# anyway: car-cleanup.sk).
+	set {_at} to {-ctjob::%{_u}%::carat}
+	if {_at} is set:
+		set {_chunk} to chunk at {_at}
+	ctScrap({_plate})
+	set {_cd} to now
+	add cfg("contract::cooldown") to {_cd}
+	set {-ctcd::%{_u}%} to {_cd}
+	delete {-ctplate::%{_plate}%}
+	delete {-ctjob::%{_u}%::*}
+	delete {-ctjob::%{_u}%}
+	ctLog("end %{_p}% %{_u}% %{_t}% %{_plate}% why=%{_why}%")
+	{_p} is online
+	set {_car} to "%{_label}% %carName({_m})%"
+	if {_why} is "time":
+		msg({_p}, "&cTime's up: the %{_car}% job is off. &7Next job in %formatClock(cfg("contract::cooldown") / 1 second)%.")
+		play sound "block.note_block.bass" with volume 0.8 to {_p}
+	else if {_why} is "gone":
+		msg({_p}, "&cThe %{_car}% is gone: the job is off.")
+	else if {_why} is "drop":
+		msg({_p}, "&7You dropped the %{_car}% job. &7Next job in %formatClock(cfg("contract::cooldown") / 1 second)%.")
+	else if {_why} is "staff":
+		msg({_p}, "&7Staff ended your %{_car}% job.")
+
+# Throws everyone out of a car and deletes it from MTVehicles.
+function ctScrap(plate: text):
+	loop all players:
+		if carSeatOf(loop-player) ends with ":%{_plate}%":
+			make loop-player dismount
+	set {_car} to mtv vehicle with license plate {_plate}
+	if {_car} is set:
+		despawn mtv vehicle {_car}
+		delete mtv vehicle {_car}
+	delete {contract::plates::%{_plate}%}
+	# garage.sk's leave handler notes every car's last use.
+	delete {-car::used::%{_plate}%}
+
+# A logout ends the job (the cooldown stays, so relogging doesn't skip it). Offers and menus are forgotten.
+on quit:
+	set {_u} to "%uuid of player%"
+	ctQteForget(player)
+	delete {-ctoffer::%{_u}%::*}
+	delete {-ctofferat::%{_u}%}
+	delete {-ctgui::%player%}
+	delete {-ctact::%player%::*}
+	delete {-ctconfirm::%player%}
+	delete {-ctconfirmat::%player%}
+	{-ctjob::%{_u}%} is set
+	ctEnd({_u}, "quit")
+
+every second:
+	loop {-ctjob::*}:
+		ctTick(loop-index)
+
+function ctTick(u: text):
+	set {_p} to {-ctjob::%{_u}%::p}
+	if {_p} is not online:
+		ctEnd({_u}, "quit")
+		stop
+	if {-ctjob::%{_u}%::until} < now:
+		ctEnd({_u}, "time")
+		stop
+	if carAlive({-ctjob::%{_u}%::plate}) is false:
+		ctEnd({_u}, "gone")
+		stop
+	if {-ctqte::%{_p}%} is set:
+		set {_at} to {-ctjob::%{_u}%::carat}
+		if world of {_at} is not world of {_p}:
+			ctQteClose({_p}, "away")
+		else if distance between {_at} and (location of {_p}) > 6:
+			ctQteClose({_p}, "away")
+	ctMarker({_u})
+
+# Cars from jobs that ended without us (a restart or crash): scrapped. Marker stands of no job: removed.
+every 10 seconds:
+	loop {contract::plates::*}:
+		set {_plate} to loop-index in upper case
+		if {-ctplate::%{_plate}%} is not set:
+			ctScrap({_plate})
+			ctLog("scrapped %{_plate}% (its job ended in a restart)")
+	loop {-ctjob::*}:
+		set {_m} to {-ctjob::%loop-index%::mark}
+		if {_m} is set:
+			set {_keep::%uuid of {_m}%} to true
+	loop all armor stands:
+		if loop-entity has scoreboard tag "donating_ctmark":
+			if {_keep::%uuid of loop-entity%} is not set:
+				ctKillMarker(loop-entity)
+
+# ---------- The GPS: boss bar and locator bar ----------
+
+# Seconds left in a job (0 when it's over).
+function ctLeft(u: text) :: number:
+	set {_until} to {-ctjob::%{_u}%::until}
+	set {_left} to 0
+	if {_until} is set:
+		if {_until} > now:
+			set {_span} to difference between now and {_until}
+			set {_left} to ceil({_span} / 1 second)
+	return {_left}
+
+# Where the thief should go now: the car (to find it, or back to it), or the nearest chop shop while
+# driving it. Not set: nowhere to point (no chop shop yet).
+function ctTarget(u: text) :: location:
+	set {_p} to {-ctjob::%{_u}%::p}
+	if {-ctjob::%{_u}%::stage} is "find":
+		return {-ctjob::%{_u}%::spotat}
+	set {_plate} to {-ctjob::%{_u}%::plate}
+	if carSeatOf({_p}) is "driver:%{_plate}%":
+		return ctNearestChop(location of {_p})
+	return {-ctjob::%{_u}%::carat}
+
+# hud.sk's boss bar outside heists and chases: true when it showed a job.
+function ctHud(p: player) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	set {_shown} to false
+	if {-ctjob::%{_u}%} is set:
+		set {_t} to {-ctjob::%{_u}%}
+		set {_car} to carName({-ctjob::%{_u}%::model})
+		set {_left} to ctLeft({_u})
+		set {_total} to max(1, cfg("contract::time") / 1 second)
+		set {_clock} to formatClock({_left})
+		set {_to} to ctTarget({_u})
+		set {_plate} to {-ctjob::%{_u}%::plate}
+		if {-ctjob::%{_u}%::stage} is "find":
+			set {_what} to "Steal the &f%{_car}%"
+		else if carSeatOf({_p}) is "driver:%{_plate}%":
+			set {_what} to "Drive it to a chop shop"
+		else:
+			set {_what} to "Back to the &f%{_car}%"
+		set {_dir} to ""
+		if {_to} is set:
+			if world of {_to} is world of {_p}:
+				set {_d} to round(distance between (location of {_p}) and {_to})
+				set {_dir} to " &e%ctArrow({_p}, {_to})% %{_d}%m"
+		else:
+			set {_dir} to " &7(no chop shop yet)"
+		set {_color} to "yellow"
+		set {_cc} to "&e"
+		if {_left} <= 60:
+			set {_color} to "red"
+			set {_cc} to "&c"
+		hudBossSet({_p}, "&6&lCONTRACT&r &7· %{_what}%%{_dir}% &7· %{_cc}%%{_clock}%", {_color}, {_left} / {_total})
+		set {_shown} to true
+	return {_shown}
+
+# The thief's locator-bar dot: an invisible marker stand, hidden from everyone else, at the target or
+# contract::marker-lead blocks towards it.
+function ctMarker(u: text):
+	set {_p} to {-ctjob::%{_u}%::p}
+	set {_to} to ctTarget({_u})
+	set {_ok} to false
+	if {_to} is set:
+		if world of {_to} is world of {_p}:
+			set {_ok} to true
+	if {_ok} is false:
+		ctMarkerRemove({_u})
+		stop
+	set {_pl} to location of {_p}
+	set {_d} to distance between {_pl} and {_to}
+	set {_lead} to cfg("contract::marker-lead")
+	set {_at} to {_to}
+	if {_d} > {_lead}:
+		set {_f} to {_lead} / {_d}
+		set {_px} to x-coordinate of {_pl}
+		set {_py} to y-coordinate of {_pl}
+		set {_pz} to z-coordinate of {_pl}
+		set {_tx} to x-coordinate of {_to}
+		set {_ty} to y-coordinate of {_to}
+		set {_tz} to z-coordinate of {_to}
+		set {_at} to location({_px} + ({_tx} - {_px}) * {_f}, {_py} + ({_ty} - {_py}) * {_f}, {_pz} + ({_tz} - {_pz}) * {_f}, world of {_pl})
+	set {_e} to {-ctjob::%{_u}%::mark}
+	set {_valid} to false
+	if {_e} is set:
+		if {_e} is valid:
+			set {_valid} to true
+	if {_valid} is true:
+		teleport {_e} to {_at}
+		stop
+	spawn an armor stand at {_at}:
+		ctMarkerSetup(event-entity, {_u})
+	set {_e} to last spawned entity
+	set {-ctjob::%{_u}%::mark} to {_e}
+	# The dot's color: no API, and SkBee can't write locator_bar_icon; /waypoint doesn't echo to ops' chat.
+	execute console command "waypoint modify %uuid of {_e}% color %cfg("contract::marker-color")%"
+	loop all players:
+		if loop-player is not {_p}:
+			hide {_e} from loop-player
+
+# Set up without /data (its output goes to every op's chat).
+function ctMarkerSetup(e: entity, u: text):
+	make {_e} not persistent
+	make {_e} invisible
+	add "donating_ctmark" to scoreboard tags of {_e}
+	set byte tag "Marker" of nbt of {_e} to 1
+	set byte tag "NoGravity" of nbt of {_e} to 1
+	set byte tag "Invulnerable" of nbt of {_e} to 1
+	set byte tag "Silent" of nbt of {_e} to 1
+	set waypoint transmit range attribute of {_e} to 60000000
+
+function ctMarkerRemove(u: text):
+	set {_e} to {-ctjob::%{_u}%::mark}
+	delete {-ctjob::%{_u}%::mark}
+	{_e} is set
+	{_e} is valid
+	ctKillMarker({_e})
+
+# Skript's kill is a generic_kill hit: an armor stand hit by that is removed outright (no drop).
+function ctKillMarker(e: entity):
+	kill {_e}
+
+# Players joining don't see other thieves' dots.
+on join:
+	loop {-ctjob::*}:
+		set {_e} to {-ctjob::%loop-index%::mark}
+		if {_e} is set:
+			if loop-index is not "%uuid of player%":
+				hide {_e} from player
+
+# ---------- The menu: /contracts (also the phone's Contracts app) ----------
+
+function ctButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-ctact::%{_p}%::%{_slot}%} to {_act}
+
+function ctMenu(p: player):
+	closePhoneMap({_p})
+	set {_u} to "%uuid of {_p}%"
+	ctOffersFresh({_p})
+	set {_gui} to chest inventory with 4 rows named "&8Car contracts"
+	delete {-ctact::%{_p}%::*}
+	set {_pane} to gray stained glass pane named "&r"
+	loop 36 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {_clock} to formatClock(cfg("contract::time") / 1 second)
+	set slot 4 of {_gui} to book named "&6Car contracts" with lore "&7Take a job, find the car, pick its lock" and "&7with the job's lockpick (a timing game)," and "&7and drive it to a chop shop within %{_clock}%." and "&7It pays cash and XP; you never keep the car." and "&7The boss bar and your locator bar point the way."
+	if {-ctjob::%{_u}%} is set:
+		set slot 13 of {_gui} to ctJobIcon({_p})
+		if ctArmed({_p}, "drop") is true:
+			ctButton({_p}, {_gui}, 15, red concrete named "&cDrop the job?" with lore "&7Click again to confirm." and "&7The car is gone and the next job waits." and "&7%formatClock(cfg("contract::cooldown") / 1 second)%.", "drop")
+		else:
+			ctButton({_p}, {_gui}, 15, red dye named "&cDrop the job" with lore "&7Click twice. The next job waits" and "&7%formatClock(cfg("contract::cooldown") / 1 second)%.", "drop")
+	else:
+		set {_slot} to 11
+		loop {-cfg::contract::tiers::*}:
+			ctButton({_p}, {_gui}, {_slot}, ctOfferIcon({_p}, loop-value), "take:%loop-value%")
+			add 2 to {_slot}
+	set {_slot} to 20
+	loop {-cfg::contract::tiers::*}:
+		ctButton({_p}, {_gui}, {_slot}, ctPickIcon({_p}, loop-value), "buy:%loop-value%")
+		add 2 to {_slot}
+	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
+	set {-ctgui::%{_p}%} to {_gui}
+	if {-ctgen::%{_p}%} is not set:
+		set {-ctgen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+function ctOfferIcon(p: player, t: text) :: item:
+	set {_u} to "%uuid of {_p}%"
+	set {_o} to {-ctoffer::%{_u}%::%{_t}%}
+	set {_name} to "&6%ctTierName({_t})%"
+	if {_o} is not set:
+		return gray dye named {_name} with lore "&7No car for this job right now." and "&7Try again later."
+	set {_a::*} to {_o} split at "|"
+	set {_i} to carIcon({_a::1}, {_a::2})
+	add "&7Steal: &f%{_a::2}% %carName({_a::1})%" to {_l::*}
+	set {_spot} to {contract::spot::%{_a::3}%}
+	if {_spot} is set:
+		add "&7Where: &f%ctWhere(location of {_p}, {_spot})%" to {_l::*}
+	set {_pay} to ctPay({_p}, {_t})
+	set {_xp} to cfg("contract::%{_t}%::xp")
+	add "&7Pays: &a%formatMoney({_pay})% &7· &b+%{_xp}% XP" to {_l::*}
+	add "&7Needs: &f%ctPickName({_t})% &7(you have %lockpickCount({_p}, {_t})%)" to {_l::*}
+	add "&7Time: &f%formatClock(cfg("contract::time") / 1 second)%" to {_l::*}
+	set {_need} to cfg("contract::%{_t}%::level")
+	set {_left} to ctCooldownLeft({_p})
+	if levelOk({_p}, {_need}) is false:
+		add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_l::*}
+	else if {_left} > 0:
+		add "&7Next job in &f%formatClock({_left})%&7." to {_l::*}
+	else:
+		add "&eClick: take this job." to {_l::*}
+	set name of {_i} to {_name}
+	set lore of {_i} to {_l::*}
+	return {_i}
+
+function ctJobIcon(p: player) :: item:
+	set {_u} to "%uuid of {_p}%"
+	set {_t} to {-ctjob::%{_u}%}
+	set {_m} to {-ctjob::%{_u}%::model}
+	set {_label} to {-ctjob::%{_u}%::label}
+	set {_i} to carIcon({_m}, {_label})
+	set {_left} to ctLeft({_u})
+	if {-ctjob::%{_u}%::stage} is "find":
+		add "&7Find the car and pick its lock with" to {_l::*}
+		add "&7a &f%ctPickName({_t})% &7(you have %lockpickCount({_p}, {_t})%)." to {_l::*}
+		add "&7Where: &f%ctWhere(location of {_p}, {-ctjob::%{_u}%::spotat})%" to {_l::*}
+		add "&7Misses: &c%{-ctjob::%{_u}%::fails}%/%cfg("lockpick::max-fails")%" to {_l::*}
+	else:
+		add "&aUnlocked. &7Drive it to a chop shop." to {_l::*}
+		set {_c} to ctNearestChop(location of {_p})
+		if {_c} is set:
+			add "&7Nearest chop shop: &f%ctWhere(location of {_p}, {_c})%" to {_l::*}
+		else:
+			add "&7No chop shop yet (tell staff)." to {_l::*}
+	set {_xp} to cfg("contract::%{_t}%::xp")
+	add "&7Pays: &a%formatMoney(ctPay({_p}, {_t}))% &7· &b+%{_xp}% XP" to {_l::*}
+	add "&7Time left: &f%formatClock({_left})%" to {_l::*}
+	set name of {_i} to "&6%ctTierName({_t})% &7· &f%{_label}% %carName({_m})%"
+	set lore of {_i} to {_l::*}
+	return {_i}
+
+function ctPickIcon(p: player, t: text) :: item:
+	set {_i} to lockpickItem({_t}, 1)
+	set {_price} to cfg("lockpick::%{_t}%::price")
+	set {_max} to cfg("lockpick::max")
+	set {_need} to cfg("contract::%{_t}%::level")
+	add "&7For %ctTierName({_t})% contracts." to {_l::*}
+	add "&e%formatMoney({_price})% each, carry up to %{_max}%" to {_l::*}
+	add "&7You have %lockpickCount({_p}, {_t})%. Kept when you die." to {_l::*}
+	if levelOk({_p}, {_need}) is false:
+		add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_l::*}
+	else if ctArmed({_p}, "buy:%{_t}%:%{_price}%") is true:
+		set {_i} to lime concrete
+		add "&aClick again to buy." to {_l::*}
+		set name of {_i} to "&aConfirm purchase?"
+		set lore of {_i} to {_l::*}
+		return {_i}
+	else:
+		add "&eClick: buy 1." to {_l::*}
+	set lore of {_i} to {_l::*}
+	return {_i}
+
+on inventory click:
+	{-ctgui::%player%} is set
+	player's current inventory is {-ctgui::%player%}
+	cancel event
+	event-inventory is {-ctgui::%player%}
+	set {_act} to {-ctact::%player%::%index of event-slot%}
+	{_act} is set
+	set {_ok} to false
+	if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_ok} to true
+	{_ok} is true
+	# One action per drawn screen, a tick later (as in the shops and the garage).
+	set {_gen} to {-ctgen::%player%}
+	wait 1 tick
+	player is online
+	{-ctgui::%player%} is set
+	{-ctgen::%player%} is {_gen}
+	add 1 to {-ctgen::%player%}
+	ctAction(player, {_act})
+
+on inventory drag:
+	{-ctgui::%player%} is set
+	player's current inventory is {-ctgui::%player%}
+	cancel event
+
+on inventory close:
+	{-ctgui::%player%} is set
+	event-inventory is {-ctgui::%player%}
+	delete {-ctgui::%player%}
+	delete {-ctact::%player%::*}
+
+function ctAction(p: player, act: text):
+	set {_a::*} to {_act} split at ":"
+	set {_k} to {_a::1}
+	if {_k} is "close":
+		close {_p}'s inventory
+	else if {_k} is "take":
+		# Close first: chat is hidden behind a menu, and the job's message matters.
+		close {_p}'s inventory
+		ctTake({_p}, {_a::2})
+	else if {_k} is "buy":
+		ctBuyPick({_p}, {_a::2})
+		ctMenu({_p})
+	else if {_k} is "drop":
+		if {-ctjob::%uuid of {_p}%} is not set:
+			ctMenu({_p})
+		else if ctConfirm({_p}, "drop") is true:
+			close {_p}'s inventory
+			ctEnd("%uuid of {_p}%", "drop")
+		else:
+			ctMenu({_p})
+
+command /contracts:
+	description: Car-theft jobs: steal a car and bring it to a chop shop.
+	aliases: /contract
+	executable by: players
+	trigger:
+		ctMenu(player)
+
+# ---------- Staff ----------
+
+function ctSpotText(l: location) :: text:
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_yaw} to round(yaw of {_l})
+	return "%{_x}% %{_y}% %{_z}% %{_yaw}%"
+
+# "" when a spot is fine for a kind ("spot" or "chop"), else why not.
+function ctSpotBlock(l: location, kind: text) :: text:
+	if heistAt({_l}) is not "":
+		return "inside a heist"
+	# A spot next to a chop shop would pay for no driving (review fix, 2026-09-26).
+	set {_min} to cfg("contract::min-distance")
+	if {_kind} is "spot":
+		if isSafeZone({_l}) is true:
+			return "inside a safe zone"
+		if carSpotClear({_l}) is false:
+			return "no room for a car (solid ground, a 3x3x2 clear space, no water)"
+		loop {contract::chop::*}:
+			if world of loop-value is world of {_l}:
+				if distance between loop-value and {_l} < {_min}:
+					return "less than %{_min}% blocks from chop shop %loop-index%"
+	else:
+		loop {contract::spot::*}:
+			if world of loop-value is world of {_l}:
+				if distance between loop-value and {_l} < {_min}:
+					return "less than %{_min}% blocks from car spot %loop-index%"
+	return ""
+
+command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_k} to arg-1
+		if {_k} is "spot" or "chop":
+			set {_list} to "spot"
+			if {_k} is "chop":
+				set {_list} to "chop"
+			if arg-2 is "add" or "addat":
+				if arg-2 is "add":
+					if player is not set:
+						send "CONTRACT use addat from the console" to sender
+						stop
+					set {_bx} to x-coordinate of player
+					set {_by} to y-coordinate of player
+					set {_bz} to z-coordinate of player
+					set {_l} to location(floor({_bx}) + 0.5, floor({_by}), floor({_bz}) + 0.5, world of player)
+					set yaw of {_l} to yaw of player
+				else:
+					set {_x} to arg-3 parsed as number
+					set {_y} to arg-4 parsed as number
+					set {_z} to arg-5 parsed as number
+					set {_yaw} to arg-6 parsed as number
+					if {_z} is not set:
+						send "CONTRACT %{_k}% addat <x> <y> <z> [yaw]" to sender
+						stop
+					set {_l} to location({_x}, {_y}, {_z}, world "world")
+					if {_yaw} is set:
+						set yaw of {_l} to {_yaw}
+				set {_why} to ctSpotBlock({_l}, {_k})
+				if {_why} is not "":
+					send "CONTRACT refused: %{_why}%" to sender
+					stop
+				add 1 to {contractcounter::%{_list}%}
+				set {_n} to {contractcounter::%{_list}%}
+				set {contract::%{_list}%::%{_n}%} to {_l}
+				ctLog("%{_list}%-add %{_n}% at %{_l}% by=%sender%")
+				send "CONTRACT %{_list}% %{_n}% added at %ctSpotText({_l})%" to sender
+			else if arg-2 is "remove":
+				set {_n} to arg-3
+				if {contract::%{_list}%::%{_n}%} is not set:
+					send "CONTRACT no %{_list}% %{_n}%" to sender
+					stop
+				delete {contract::%{_list}%::%{_n}%}
+				ctLog("%{_list}%-remove %{_n}% by=%sender%")
+				send "CONTRACT %{_list}% %{_n}% removed" to sender
+			else:
+				set {_n} to 0
+				loop {contract::%{_list}%::*}:
+					add 1 to {_n}
+					add "%loop-index%=%ctSpotText(loop-value)%" to {_o::*}
+				set {_all} to join {_o::*} with " | "
+				send "CONTRACT %{_list}%s (%{_n}%): %{_all}%" to sender
+		else if {_k} is "dump":
+			# The lines that recreate every spot and chop shop (for Minehut).
+			loop {contract::spot::*}:
+				send "dcontract spot addat %ctSpotText(loop-value)%" to sender
+				log "dcontract spot addat %ctSpotText(loop-value)%" to "contracts"
+			loop {contract::chop::*}:
+				send "dcontract chop addat %ctSpotText(loop-value)%" to sender
+				log "dcontract chop addat %ctSpotText(loop-value)%" to "contracts"
+		else if {_k} is "info":
+			set {_who} to arg-2 parsed as offline player
+			if {_who} is not set:
+				send "CONTRACT info <player>" to sender
+				stop
+			set {_u} to "%uuid of {_who}%"
+			set {_t} to {-ctjob::%{_u}%}
+			if {_t} is not set:
+				send "CONTRACT %{_who}% no job cooldown=%{-ctcd::%{_u}%}%" to sender
+				stop
+			send "CONTRACT %{_who}% tier=%{_t}% stage=%{-ctjob::%{_u}%::stage}% plate=%{-ctjob::%{_u}%::plate}% model=%{-ctjob::%{_u}%::model}% spot=%{-ctjob::%{_u}%::spot}% fails=%{-ctjob::%{_u}%::fails}% until=%{-ctjob::%{_u}%::until}%" to sender
+		else if {_k} is "end":
+			set {_who} to arg-2 parsed as offline player
+			if {_who} is not set:
+				send "CONTRACT end <player>" to sender
+				stop
+			set {_u} to "%uuid of {_who}%"
+			if {-ctjob::%{_u}%} is not set:
+				send "CONTRACT %{_who}% has no job" to sender
+				stop
+			ctEnd({_u}, "staff")
+			send "CONTRACT ended %{_who}%'s job" to sender
+		else:
+			send "CONTRACT usage: /dcontract spot|chop add|addat|remove|list, dump, info|end <player>" to sender

@@ -10,6 +10,27 @@
           "type": "minecraft:model",
           "model": "donating:item/tool_safe_kit"
         }
+      },
+      {
+        "when": "donating:lockpick_basic",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/lockpick_basic"
+        }
+      },
+      {
+        "when": "donating:lockpick_pro",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/lockpick_pro"
+        }
+      },
+      {
+        "when": "donating:lockpick_master",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/lockpick_master"
+        }
       }
     ],
     "fallback": {

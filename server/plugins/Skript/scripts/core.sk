@@ -148,6 +148,57 @@ function loadSettings():
 	set {-cfg::alarm::car-chase-factor} to 2
 	set {-cfg::lockpick::max-fails} to 3
 
+	# ---------- Car-theft contracts (contracts.sk): PROPOSALS ----------
+	# Owner, 2026-09-26: steal a car with a lockpick, drive it to a chop shop for cash; the car is never
+	# kept (and no NPC cars at spawn areas). Three tiers; each offers a car of its list at a staff spot.
+	set {-cfg::contract::tiers::*} to "basic", "pro" and "master"
+	set {-cfg::contract::basic::name} to "Street job"
+	set {-cfg::contract::basic::level} to 1
+	set {-cfg::contract::basic::pay} to 3000
+	set {-cfg::contract::basic::xp} to 30
+	set {-cfg::contract::basic::qte-hits} to 3
+	set {-cfg::contract::basic::qte-step} to 4
+	set {-cfg::contractcars::basic::*} to "sedan" and "sportsedan"
+	set {-cfg::contract::pro::name} to "Pro job"
+	set {-cfg::contract::pro::level} to 3
+	set {-cfg::contract::pro::pay} to 9000
+	set {-cfg::contract::pro::xp} to 60
+	set {-cfg::contract::pro::qte-hits} to 3
+	set {-cfg::contract::pro::qte-step} to 3
+	set {-cfg::contractcars::pro::*} to "jeep" and "sports"
+	set {-cfg::contract::master::name} to "Master job"
+	set {-cfg::contract::master::level} to 5
+	set {-cfg::contract::master::pay} to 25000
+	set {-cfg::contract::master::xp} to 120
+	set {-cfg::contract::master::qte-hits} to 4
+	set {-cfg::contract::master::qte-step} to 3
+	set {-cfg::contractcars::master::*} to "hotrod" and "suv"
+	# Lockpicks (quest items in hotbar 6-8, kept on death): one per tier, lockpick::max-fails misses break one.
+	set {-cfg::lockpick::basic::name} to "Basic Lockpick"
+	set {-cfg::lockpick::basic::price} to 500
+	set {-cfg::lockpick::pro::name} to "Pro Lockpick"
+	set {-cfg::lockpick::pro::price} to 1500
+	set {-cfg::lockpick::master::name} to "Master Lockpick"
+	set {-cfg::lockpick::master::price} to 4000
+	set {-cfg::lockpick::max} to 3
+	# A contract lasts this long; after one (done, failed or dropped) the next waits this long.
+	set {-cfg::contract::time} to 10 minutes
+	set {-cfg::contract::cooldown} to 3 minutes
+	# Offers are made again this often (per player).
+	set {-cfg::contract::refresh} to 10 minutes
+	# The lock-picking minigame (like the drill's, loot.sk): the marker moves one slot every qte-step
+	# ticks; clicks are ignored this many ticks after a hit / a miss.
+	set {-cfg::contract::qte-hit-lock} to 6
+	set {-cfg::contract::qte-miss-lock} to 10
+	# Chop shops (staff: /dcontract chop add): the stolen car counts as delivered within this many blocks.
+	set {-cfg::contract::chop-radius} to 6
+	# Car spots and chop shops at least this far apart (/dcontract refuses closer ones).
+	set {-cfg::contract::min-distance} to 50
+	# The GPS dot on the locator bar sits at most this far ahead of the thief, in the target's direction
+	# (so it's always in a loaded chunk); the real spot once closer.
+	set {-cfg::contract::marker-lead} to 40
+	set {-cfg::contract::marker-color} to "gold"
+
 	# ---------- Multipliers (decided) ----------
 	set {-cfg::passive::payout-multiplier} to 0.75
 	set {-cfg::bounty::robbery-share} to 0.10

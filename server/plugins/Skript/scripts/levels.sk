@@ -101,6 +101,11 @@ function levelUnlocks(n: number) :: texts:
 			if {-cfg::car::%loop-value%::level} is {_n}:
 				set {_car} to {-cfg::car::%loop-value%::name}
 				add "the %{_car}% (car)" to {_u::*}
+	# Car-theft jobs (contracts.sk).
+	loop {-cfg::contract::tiers::*}:
+		if {-cfg::contract::%loop-value%::level} is {_n}:
+			set {_job} to {-cfg::contract::%loop-value%::name}
+			add "%{_job}% car contracts (/contracts)" to {_u::*}
 	return {_u::*}
 
 # ---------- Earning ----------

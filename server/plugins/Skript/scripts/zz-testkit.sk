@@ -837,3 +837,110 @@ command /zzhunt <player> <text> [<text>]:
 		else:
 			heistHunt(arg-1, arg-2)
 		send "HUNT %arg-1% by=%heistHuntedBy(arg-1)%"
+
+# ---------- Contracts (contracts.sk) ----------
+
+# ctArrow / ctCompass towards x z from where the player stands and looks, and Skript's atan2(1, 0).
+command /zzctdir <player> <number> <number>:
+	executable by: console
+	trigger:
+		set {_to} to location(arg-2, y-coordinate of arg-1, arg-3, world of arg-1)
+		log "CTDIR arrow=%ctArrow(arg-1, {_to})% to %arg-2% %arg-3%" to "zztest"
+		send "CTDIR arrow=%ctArrow(arg-1, {_to})% compass=%ctCompass(location of arg-1, {_to})% yaw=%yaw of arg-1% atan2_1_0=%atan2(1, 0)%"
+
+# Clears a player's job cooldown and offers (and ends a job without a cooldown).
+command /zzctreset <player>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		if {-ctjob::%{_u}%} is set:
+			ctEnd({_u}, "staff")
+		delete {-ctcd::%{_u}%}
+		delete {-ctoffer::%{_u}%::*}
+		delete {-ctofferat::%{_u}%}
+		delete {-ctconfirm::%arg-1%}
+		send "CTRESET %arg-1%"
+
+# Sets an offer: /zzctoffer <player> <tier> <model> <color> <spot n>
+command /zzctoffer <player> <text> <text> <text> <text>:
+	executable by: console
+	trigger:
+		set {-ctoffer::%uuid of arg-1%::%arg-2%} to "%arg-3%|%arg-4%|%arg-5%"
+		set {-ctofferat::%uuid of arg-1%} to now
+		send "CTOFFER %arg-1% %arg-2% %{-ctoffer::%uuid of arg-1%::%arg-2%}%"
+
+# Takes a job as if clicked in the menu.
+command /zzcttake <player> <text>:
+	executable by: console
+	trigger:
+		ctTake(arg-1, arg-2)
+		send "CTTAKE %arg-1% job=%{-ctjob::%uuid of arg-1%}% plate=%{-ctjob::%uuid of arg-1%::plate}%"
+
+# A job's state in one line.
+command /zzctstate <player>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		set {_mark} to "none"
+		set {_m} to {-ctjob::%{_u}%::mark}
+		if {_m} is set:
+			if {_m} is valid:
+				set {_mark} to "%location of {_m}%"
+		send "CTSTATE %arg-1% job=%{-ctjob::%{_u}%}% stage=%{-ctjob::%{_u}%::stage}% plate=%{-ctjob::%{_u}%::plate}% fails=%{-ctjob::%{_u}%::fails}% left=%ctLeft({_u})% cd=%ctCooldownLeft(arg-1)% seat=%carSeatOf(arg-1)% qte=%{-ctqte::%arg-1%}% mark=%{_mark}% hud=%{-hud::bosslast::%arg-1%::title}%"
+
+# Sets the seconds left in a player's job.
+command /zzcttime <player> <number>:
+	executable by: console
+	trigger:
+		set {_until} to now
+		add 1 second * arg-2 to {_until}
+		set {-ctjob::%uuid of arg-1%::until} to {_until}
+		send "CTTIME %arg-1% %arg-2%"
+
+# Sets a player's lockpicks of a tier: /zzpick <player> <tier> <n> (0 removes them, -1 only reads).
+command /zzpick <player> <text> <number>:
+	executable by: console
+	trigger:
+		set {_s} to lockpickSlot(arg-1, arg-2)
+		if {_s} < 0:
+			set {_s} to lockpickFreeSlot(arg-1)
+		if arg-3 < 0:
+			send "PICK %arg-1% %arg-2% %lockpickCount(arg-1, arg-2)% slot=%{_s}%"
+			stop
+		if arg-3 = 0:
+			set slot {_s} of arg-1's inventory to air
+		else:
+			set slot {_s} of arg-1's inventory to lockpickItem(arg-2, arg-3)
+		send "PICK %arg-1% %arg-2% %lockpickCount(arg-1, arg-2)% slot=%{_s}%"
+
+# Seats a player in the driver's seat of their job's car (MTVehicles' mount effect: no enter event).
+command /zzctmount <player>:
+	executable by: console
+	trigger:
+		set {_car} to mtv vehicle with license plate {-ctjob::%uuid of arg-1%::plate}
+		make arg-1 mount mtv vehicle {_car}
+		wait 2 ticks
+		send "CTMOUNT %arg-1% %carSeatOf(arg-1)%"
+
+# The lock-picking minigame's state: marker, target, hits.
+command /zzctqte <player>:
+	executable by: console
+	trigger:
+		send "CTQTE %arg-1% pos=%{-ctqte::%arg-1%::pos}% prev=%{-ctqte::%arg-1%::prev}% target=%{-ctqte::%arg-1%::target}% hits=%{-ctqte::%arg-1%::hits}% need=%{-ctqte::%arg-1%::need}%"
+
+# Finishes an open lock-picking minigame as if the last pin was hit (computer-use tests can't time clicks).
+command /zzctpick <player>:
+	executable by: console
+	trigger:
+		ctPicked(arg-1)
+		send "CTPICK %arg-1% stage=%{-ctjob::%uuid of arg-1%::stage}%"
+
+# The components of a car menu icon (garage.sk carIcon).
+command /zzcarflags <text> <text>:
+	executable by: console
+	trigger:
+		set {_i} to carIcon(arg-1, arg-2)
+		send "CARFLAGS %nbt of {_i}% flags=%item flags of {_i}%"
+		set {_j} to ctOfferIcon(player("Explosde"), "basic")
+		send "OFFER %nbt of {_j}%"
+

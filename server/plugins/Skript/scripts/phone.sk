@@ -70,6 +70,9 @@ function openPhone(p: player):
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
 	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
+	set {_jobs} to flint named "&6Contracts" with lore "&7Car-theft jobs: steal a car and" and "&7bring it to a chop shop for cash." and "&7Lockpicks are sold here too."
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_jobs} to "donating:lockpick_basic"
+	set slot 9 of {_gui} to tagItem({_jobs}, "phone:contracts")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
@@ -127,6 +130,9 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 15:
 		close {_p}'s inventory
 		garageMenu({_p})
+	else if {_slot} is 9:
+		close {_p}'s inventory
+		ctMenu({_p})
 	else if {_slot} is 19:
 		close {_p}'s inventory
 		crateMenu({_p})

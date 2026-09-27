@@ -152,6 +152,9 @@ function hudBoss(p: player):
 					set {_what} to "wave %heistWave({_h})% · next in %{_n}%s"
 				hudBossSet({_p}, "&4&lCOPS&r &c· %{_what}% &7· &f%{_away}% &7blocks to lose them", "red", {_away} / max(1, {_r}))
 				stop
+	# A car-theft job (contracts.sk): where to go, and the time left.
+	if ctHud({_p}) is true:
+		stop
 	hudBossOff({_p})
 
 every 5 ticks:
