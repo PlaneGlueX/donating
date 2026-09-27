@@ -62,7 +62,7 @@ command /trade [<text>]:
 	trigger:
 		set {_u} to "%uuid of player%"
 		if arg-1 is not set:
-			msg(player, "&6Trading: &7stand next to someone and &f/trade <player>&7. They do the same back, then you both add cars and crate cosmetics and press Ready. &f/trade cancel &7ends it.")
+			msg(player, "&6Trading: &7stand next to someone and type &f/trade &7and their name. They do the same back, then you both add cars and crate cosmetics and press Ready. &f/trade cancel &7ends it.")
 			stop
 		if arg-1 is "cancel":
 			if {-trade::sid::%{_u}%} is set:
