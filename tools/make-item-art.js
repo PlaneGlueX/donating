@@ -469,6 +469,30 @@ for (const [type, a] of Object.entries(AMMO)) {
   ], { D: [64, 68, 76, 255], W: [236, 236, 228, 255] }))
   // The tool id is "safe-kit" (shop.sk's toolItem writes donating:tool_<id>).
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
+  // Lockpicks for car-theft contracts (contracts.sk's lockpickItem writes donating:lockpick_<tier>): a steel
+  // pick with a hook, the handle in the tier's color (basic bronze, pro blue, master gold).
+  const PICKS = { basic: [[196, 124, 64], [140, 86, 40]], pro: [[96, 156, 226], [58, 104, 172]], master: [[252, 204, 44], [206, 150, 20]] }
+  for (const [tier, [hi, lo]] of Object.entries(PICKS)) {
+    sprite('lockpick_' + tier, art([
+      '................',
+      '.............kk.',
+      '............kSSk',
+      '...........kSkk.',
+      '..........kSk...',
+      '.........kSk....',
+      '........kSk.....',
+      '.......kSk......',
+      '......kSk.......',
+      '....kkkk........',
+      '...kHHhk........',
+      '..kHHhk.........',
+      '.kHHhk..........',
+      '.khhk...........',
+      '..kk............',
+      '................'
+    ], { S: [206, 210, 216, 255], H: [...hi, 255], h: [...lo, 255] }))
+    addCase('flint', 'donating:lockpick_' + tier, 'donating:item/lockpick_' + tier)
+  }
 }
 // ---------- Gear: helmets and vests (owner, 2026-09-25: tactical gear art) ----------
 // An inventory icon per piece (picked by donating:gear_<id> on the base item) and the look when worn:

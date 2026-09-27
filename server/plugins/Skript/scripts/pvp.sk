@@ -99,6 +99,10 @@ function passiveBlockReason(p: player) :: text:
 	# The passive state at the sale is the one you robbed with (bag.sk: passive sales pay 75%).
 	if bagTotal({_p}) > 0:
 		return "Sell your loot at the base first."
+	# The same for a car-theft job (contracts.sk pays passive players less; review fix, 2026-09-26: passive
+	# all the way, then off at the chop shop for the full pay).
+	if {-ctjob::%uuid of {_p}%} is set:
+		return "Finish or drop your car contract first."
 	set {_last} to getData({_p}, "passive-switched")
 	if {_last} is set:
 		set {_since} to difference between {_last} and now

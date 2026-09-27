@@ -76,11 +76,13 @@ function carColorLabels(id: text) :: texts:
 # The car as a menu icon: a diamond hoe with the model's damage, unbreakable (the pack draws the car).
 # Only ever in menus: players never hold diamond hoes.
 function carIcon(id: text, label: text) :: item:
-	set {_i} to diamond hoe
+	# Unbreakable: the pack only draws the car on an undamaged-looking hoe. No hoe stats in the tooltip
+	# ("1 Attack Damage"): hiding them wasn't enough for a 26.3 client through ViaVersion (2026-09-26), so the
+	# icon has no attributes at all.
+	set {_i} to diamond hoe with nbt from "{""minecraft:attribute_modifiers"":[],""minecraft:unbreakable"":{},""minecraft:tooltip_display"":{hidden_components:[""minecraft:unbreakable"",""minecraft:attribute_modifiers""]}}"
 	set {_d} to carColorPart({_id}, {_label}, 3) parsed as number
 	if {_d} is set:
 		set damage of {_i} to {_d}
-	set {_i} to unbreakable {_i}
 	return {_i}
 
 function carPlate(p: offline player, id: text) :: text:

@@ -58,7 +58,8 @@ function showHelp(p: player):
 	send colored "&7• &eCrates: &7a free key every day with &f/daily&7; open them at crate stands, &f/crates &7shows what's inside. &f/cosmetics &7to wear or take off what you won." to {_p}
 	send colored "&7• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
 	send colored "&7• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
-	send colored "&7• &ePhone &7(hotbar 9): garage, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}
+	send colored "&7• &eContracts: &7steal a car with a lockpick and drive it to a chop shop for cash. &f/contracts" to {_p}
+	send colored "&7• &ePhone &7(hotbar 9): garage, contracts, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}
 
 # The optional text swallows things like "/help 2" instead of showing a usage error.
 command /help [<text>]:
