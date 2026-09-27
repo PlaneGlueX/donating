@@ -143,6 +143,15 @@ function loadSettings():
 	set {-cfg::car::lock-range} to 0
 	# Regions whose id starts with this are no-lock zones (car spawn areas): no locking there.
 	set {-cfg::car::nolock-prefix} to "nolock"
+	# The City Garage (citygarage.sk, PROPOSAL): sites are safe-zone regions whose id starts with region-prefix; a car
+	# comes out there every takeout-cooldown (Valet anywhere every car::call-cooldown) and goes back if nobody gets in
+	# within pickup-idle; driving within return-radius of a return spot parks it. A car standing unused waits while its
+	# owner is within idle-near blocks of it or inside a heist.
+	set {-cfg::garage::region-prefix} to "safe_garage_"
+	set {-cfg::garage::takeout-cooldown} to 5 seconds
+	set {-cfg::garage::pickup-idle} to 90 seconds
+	set {-cfg::garage::return-radius} to 4
+	set {-cfg::car::idle-near} to 64
 	# Owner, 2026-09-26: cars are the getaway, but the cops' chase radius is this many times bigger while
 	# the hunted robber is in a car (heists.sk heistInRange).
 	set {-cfg::alarm::car-chase-factor} to 2
@@ -580,7 +589,8 @@ function loadSettings():
 	set {-cfg::nav::passive-range} to 100000
 	# Points of interest on the locator bar (nav.sk, /dpoi): types and their dot colors (the names Minecraft's
 	# /waypoint command takes). PROPOSAL. Heists get their difficulty's waypoint color while open or running.
-	set {-cfg::poi::types::*} to "base", "shop", "spawn" and "landmark"
+	set {-cfg::poi::types::*} to "base", "shop", "spawn", "landmark" and "garage"
+	set {-cfg::poi::garage::color} to "dark_aqua"
 	set {-cfg::poi::base::color} to "aqua"
 	set {-cfg::poi::shop::color} to "yellow"
 	set {-cfg::poi::spawn::color} to "white"
@@ -861,6 +871,7 @@ function loadSettings():
 	set {-cfg::shop::title::bag} to "Bag Shop"
 	set {-cfg::shop::title::tools} to "Heist Tools"
 	set {-cfg::shop::title::cars} to "Car Dealer"
+	set {-cfg::shop::title::garage} to "City Garage"
 
 	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles. Owner, 2026-09-26:
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
@@ -1011,6 +1022,9 @@ function loadSettings():
 	# one can't refresh (owner, 2026-09-26: Elite 12 h, Legend 6 h).
 	set {-cfg::paidrank::elite::refresh-hours} to 12
 	set {-cfg::paidrank::legend::refresh-hours} to 6
+	# Valet (citygarage.sk, owner 2026-09-27): these ranks take a car out anywhere (everyone else at a garage).
+	set {-cfg::paidrank::elite::remote::*} to "garage"
+	set {-cfg::paidrank::legend::remote::*} to "garage"
 	# Legends own every retired and testing cosmetic (cosmetics.sk; owner, 2026-09-26).
 	set {-cfg::paidrank::legend::retired-cosmetics} to true
 	set {-cfg::paidrank::vip::skin} to "camo"

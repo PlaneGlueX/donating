@@ -28,6 +28,17 @@ function rankLog(text: text):
 # The highest paid rank the player has ("" for none), by their LuckPerms groups (Vault). LuckPerms
 # gives Vault the groups' display names (its vault-group-use-displaynames), so a group matches by its id
 # or by its name ("vipplus" or "VIP+").
+# A convenience a rank gives (paidrank::<r>::remote, e.g. "garage": Valet). By the LuckPerms group, never a permission,
+# so the owner's * doesn't hide the free experience in playtests.
+function remoteOk(p: player, what: text) :: boolean:
+	set {_r} to paidRank({_p})
+	if {_r} is "":
+		return false
+	loop {-cfg::paidrank::%{_r}%::remote::*}:
+		if loop-value is {_what}:
+			return true
+	return false
+
 function paidRank(p: offline player) :: text:
 	set {_g::*} to groups of {_p}
 	set {_best} to ""
@@ -80,6 +91,8 @@ command /ranks:
 			set {_hrs} to {-cfg::paidrank::%{_id}%::refresh-hours}
 			if {_hrs} is set:
 				set {_extra} to "%{_extra}%, Heist Refresh every %{_hrs}%h"
+			if {-cfg::paidrank::%{_id}%::remote::*} contains "garage":
+				set {_extra} to "%{_extra}%, Valet (take your car out anywhere)"
 			send colored "&7 » %{_tag}%&r &f%{_name}% &7· %{_skinName}% bag, +%{_bonus}%%% room%{_extra}%" to player
 		send colored "&7 A rank puts its tag before your name in the tab list and in chat, moves you up the tab list, and gives your bag its look and more room (bought with in-game money as usual). /bagskin /daily /heistrefresh" to player
 		set {_mine} to paidRank(player)

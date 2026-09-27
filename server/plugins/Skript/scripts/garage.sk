@@ -185,9 +185,13 @@ function carCallBlock(p: player) :: text:
 		return "You can't call a car while in combat."
 	if {-car::riding::%uuid of {_p}%} is set:
 		return "You're driving already."
+	# At a garage (citygarage.sk) the next car can come out sooner than a Valet call.
+	set {_cd} to cfg("car::call-cooldown")
+	if garageAt({_p}) is not "":
+		set {_cd} to cfg("garage::takeout-cooldown")
 	set {_at} to {-car::callat::%uuid of {_p}%}
 	if {_at} is set:
-		if difference between {_at} and now < cfg("car::call-cooldown"):
+		if difference between {_at} and now < {_cd}:
 			return "Your mechanic needs a moment. Try again soon."
 	return ""
 
@@ -243,6 +247,11 @@ function carCall(p: player, id: text):
 	if {_why} is not "":
 		carFail({_p}, {_why})
 		stop
+	# Cars come out at garages, or anywhere with Valet (citygarage.sk).
+	set {_gw} to garageAccessBlock({_p})
+	if {_gw} is not "":
+		carFail({_p}, {_gw})
+		stop
 	if carOwned({_p}, {_id}) is false:
 		carFail({_p}, "You don't own a %carName({_id})%.")
 		stop
@@ -253,10 +262,17 @@ function carCall(p: player, id: text):
 	if {-car::driver::%{_plate}%} is set:
 		carFail({_p}, "Someone is in your %carName({_id})%.")
 		stop
-	set {_spot} to carSpawnSpot({_p})
-	if {_spot} is not set:
-		carFail({_p}, "No room for a car here. Try an open street.")
-		stop
+	set {_site} to garageAt({_p})
+	if {_site} is not "":
+		set {_spot} to garageSpot({_p})
+		if {_spot} is not set:
+			carFail({_p}, "The exit lane is full. Give it a moment.")
+			stop
+	else:
+		set {_spot} to carSpawnSpot({_p})
+		if {_spot} is not set:
+			carFail({_p}, "No room for a car here. Try an open street.")
+			stop
 	set {_other} to {car::outof::%uuid of {_p}%}
 	if {_other} is set:
 		carStore("%{_other}%", "swap")
@@ -271,8 +287,12 @@ function carCall(p: player, id: text):
 	set {car::outof::%uuid of {_p}%} to {_plate}
 	set {-car::used::%{_plate}%} to now
 	set {-car::callat::%uuid of {_p}%} to now
-	carLog("call %{_p}% %uuid of {_p}% %{_id}% %{_plate}% at %{_spot}%")
-	msg({_p}, "&aYour %carName({_id})% is here. &7Right-click it to get in.")
+	carLog("call %{_p}% %uuid of {_p}% %{_id}% %{_plate}% at %{_spot}% site=%{_site}%")
+	if {_site} is not "":
+		garageTookOut({_p}, {_plate})
+		hudBar({_p}, "&aYour %carName({_id})% is waiting in the exit lane.", 1)
+	else:
+		msg({_p}, "&aYour %carName({_id})% is here. &7Right-click it to get in.")
 	play sound "block.note_block.bell" with volume 0.6 to {_p}
 
 # Sends a car back to the garage (despawns it; the data stays). why: store, swap, recall, idle, quit...
@@ -290,6 +310,7 @@ function carStore(plate: text, why: text):
 	delete {car::out::%{_plate}%}
 	delete {-car::driver::%{_plate}%}
 	delete {-car::used::%{_plate}%}
+	delete {-car::fresh::%{_plate}%}
 	set {_o} to carOwnerOf({_plate})
 	if {_o} is not "":
 		if {car::outof::%{_o}%} is {_plate}:
@@ -388,6 +409,8 @@ function carSeatCheck(p: player, plate: text):
 	set {-car::driver::%{_plate}%} to {_p}
 	set {-car::riding::%uuid of {_p}%} to {_plate}
 	set {-car::used::%{_plate}%} to now
+	# Picked up from the exit lane (citygarage.sk's pickup-idle no longer applies).
+	delete {-car::fresh::%{_plate}%}
 	closePhoneMap({_p})
 	set slot 8 of {_p}'s inventory to carKey({_p}, {_plate})
 	carLog("drive %{_p}% %uuid of {_p}% %{_plate}%")
@@ -509,8 +532,12 @@ function carToggleLock(p: player, plate: text):
 
 function carNoLockAt(l: location) :: boolean:
 	set {_prefix} to cfg("car::nolock-prefix")
+	# Garages (citygarage.sk) are car spawn areas too.
+	set {_gp} to cfg("garage::region-prefix")
 	loop regions at {_l}:
 		if name of loop-value starts with {_prefix}:
+			return true
+		if name of loop-value starts with {_gp}:
 			return true
 	return false
 
@@ -661,6 +688,23 @@ function garageMenu(p: player):
 	set {_gui} to chest inventory with 3 rows named "&8Your garage"
 	carClearGui({_p})
 	carPane({_gui}, 3)
+	# Where the cars come out (citygarage.sk): at this garage, Valet anywhere, or find a garage.
+	set {_site} to garageAt({_p})
+	set {_access} to false
+	if garageAccessBlock({_p}) is "":
+		set {_access} to true
+	if garagesExist() is true:
+		if {_site} is not "":
+			set slot 4 of {_gui} to minecart named "&aGarage" with lore "&7Left-click a car: it comes out in the exit lane." and "&7Right-click: lock, repaint, send back." and "&7Drive into a return lane to park it."
+		else if {_access} is true:
+			set slot 4 of {_gui} to compass named "&6Valet" with lore "&7Your rank brings your car to you anywhere" and "&7(not in heists or in combat)."
+		else:
+			set {_gn} to garageNearest({_p})
+			set {_where} to "&7No garage on the map yet."
+			if {_gn} is not "":
+				set {_gd} to round(distance between (location of {_p}) and poiLocation({poi::%{_gn}%}))
+				set {_where} to "&7Nearest: &f%garagePoiName({_gn})% (%{_gd}%m)"
+			carButton({_p}, {_gui}, 4, compass named "&6Find a garage" with lore {_where} and "&eClick: the GPS leads you there." and "&7Cars come out at garages." and "&7Valet: &6[Elite] &d[Legend]", "find")
 	set {_slot} to 9
 	loop {-cfg::cars::*}:
 		set {_id} to loop-value
@@ -674,10 +718,18 @@ function garageMenu(p: player):
 			else if {car::out::%{_plate}%} is set:
 				set {_at} to {car::out::%{_plate}%}
 				add "&eOut at %floor(x-coordinate of {_at})%, %floor(z-coordinate of {_at})%." to {_l::*}
-				add "&eLeft-click: bring it here." to {_l::*}
+				if {_access} is true:
+					add "&eLeft-click: bring it here." to {_l::*}
+				else:
+					add "&eLeft-click: the GPS leads you to it." to {_l::*}
 			else:
 				add "&aIn the garage." to {_l::*}
-				add "&eLeft-click: call it here." to {_l::*}
+				if {_site} is not "":
+					add "&eLeft-click: take it out (the exit lane)." to {_l::*}
+				else if {_access} is true:
+					add "&eLeft-click: call it here." to {_l::*}
+				else:
+					add "&eLeft-click: the GPS leads you to a garage." to {_l::*}
 			if carLocked({_plate}) is true:
 				add "&7Locked: &cyes" to {_l::*}
 			else:
@@ -707,7 +759,7 @@ function garageOptions(p: player, id: text):
 	set {_n} to size of carColorLabels({_id})
 	if {_n} > 1:
 		set {_price} to formatMoney(cfg("car::paint-price"))
-		carButton({_p}, {_gui}, 13, red dye named "&dRepaint" with lore "&7Another color: &a%{_price}%." and "&7Only while it's in the garage.", "paint:%{_id}%")
+		carButton({_p}, {_gui}, 13, red dye named "&dRepaint" with lore "&7Another color: &a%{_price}%." and "&7Only while it's in the garage," and "&7at a garage.", "paint:%{_id}%")
 	if {car::out::%{_plate}%} is set:
 		carButton({_p}, {_gui}, 15, chest named "&eSend it back" with lore "&7Back to the garage.", "store:%{_id}%")
 	carButton({_p}, {_gui}, 18, arrow named "&fBack", "garage")
@@ -765,7 +817,14 @@ function carAction(p: player, act: text, right: boolean):
 			garageOptions({_p}, {_a::2})
 		else:
 			close {_p}'s inventory
-			carCall({_p}, {_a::2})
+			# Away from a garage without Valet: the GPS leads to the car (out) or to a garage (in).
+			if garageAccessBlock({_p}) is not "":
+				garageFindCar({_p}, {_a::2})
+			else:
+				carCall({_p}, {_a::2})
+	else if {_k} is "find":
+		close {_p}'s inventory
+		garageFind({_p})
 	else if {_k} is "options":
 		garageOptions({_p}, {_a::2})
 	else if {_k} is "lock":
@@ -846,7 +905,10 @@ function carBuy(p: player, id: text, label: text):
 	close {_p}'s inventory
 	send title colored "&6&lNEW CAR" with subtitle colored "&f%{_label}% %carName({_id})%" to {_p} for 3 seconds
 	play sound "ui.toast.challenge_complete" with volume 0.7 to {_p}
-	msg({_p}, "&aYou bought a %{_label}% %carName({_id})%! &7Call it from your garage: &f/garage &7(or the phone's Garage app).")
+	if garagesExist() is true:
+		msg({_p}, "&aYou bought a %{_label}% %carName({_id})%! &7Take it out at any garage (the dealer has one): &f/gps")
+	else:
+		msg({_p}, "&aYou bought a %{_label}% %carName({_id})%! &7Call it from your garage: &f/garage &7(or the phone's Garage app).")
 
 function carPaint(p: player, id: text, label: text):
 	set {_plate} to carPlate({_p}, {_id})
@@ -863,6 +925,12 @@ function carPaint(p: player, id: text, label: text):
 	if isCombatTagged({_p}) is true:
 		carFail({_p}, "Not while in combat.")
 		stop
+	# The paint shop is at the garage (citygarage.sk; Valet doesn't cover it).
+	if garagesExist() is true:
+		if garageAt({_p}) is "":
+			carFail({_p}, "Repaint at a garage (the attendant, or /garage there).")
+			garageFind({_p})
+			stop
 	set {_price} to cfg("car::paint-price")
 	if balance of {_p} < {_price}:
 		carFail({_p}, "A repaint costs %formatMoney({_price})%.")
@@ -906,7 +974,7 @@ function garageGrantCar(p: player, id: text, why: text) :: text:
 	if {_plate} is "":
 		return ""
 	carLog("grant %{_p}% %uuid of {_p}% %{_id}% %{_plate}% why=%{_why}%")
-	return "&6%carName({_id})% &7car (in your garage: &f/garage&7)"
+	return "&6%carName({_id})% &7car (in your garage: take it out at any garage, &f/garage&7)"
 
 # ---------- Commands ----------
 

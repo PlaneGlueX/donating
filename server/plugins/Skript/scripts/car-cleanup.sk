@@ -12,14 +12,39 @@ every 10 seconds:
 		set {_o} to carOwnerOf({_plate})
 		if {-car::driver::%{_plate}%} is set:
 			set {-car::used::%{_plate}%} to now
+		else if {-car::fresh::%{_plate}%} is set:
+			# Taken out at a garage and never entered (citygarage.sk): back after garage::pickup-idle, freeing the lane.
+			if difference between {-car::fresh::%{_plate}%} and now >= cfg("garage::pickup-idle"):
+				delete {-car::fresh::%{_plate}%}
+				carCleanupStore({_plate}, "pickup-idle")
 		else:
 			if {-car::used::%{_plate}%} is not set:
 				# After a restart: start counting now.
+				set {-car::used::%{_plate}%} to now
+			# A parked car waits for its owner (owner, 2026-09-27): while they're near it or inside a heist.
+			if carWaitsFor({_plate}, {_o}) is true:
 				set {-car::used::%{_plate}%} to now
 			if difference between {-car::used::%{_plate}%} and now >= cfg("car::idle-despawn"):
 				carCleanupStore({_plate}, "idle")
 	carOtherCarCheck()
 	carSweep()
+
+# Whether a parked car still waits for its owner: online and inside a heist (a getaway car outside a long heist), or in
+# the same world within car::idle-near blocks of it.
+function carWaitsFor(plate: text, o: text) :: boolean:
+	if {_o} is "":
+		return false
+	set {_at} to {car::out::%{_plate}%}
+	if {_at} is not set:
+		return false
+	loop all players:
+		if "%uuid of loop-player%" is {_o}:
+			if heistOf(loop-player) is not "":
+				return true
+			if world of loop-player is world of {_at}:
+				if distance between (location of loop-player) and {_at} <= cfg("car::idle-near"):
+					return true
+	return false
 
 # The owner is in another car (not theirs, e.g. an NPC car later) for car::other-car-despawn.
 function carOtherCarCheck():
@@ -48,10 +73,16 @@ function carCleanupStore(plate: text, why: text):
 	carStore({_plate}, {_why})
 	loop all players:
 		if "%uuid of loop-player%" is {_o}:
+			set {_how} to "&f/garage"
+			if garagesExist() is true:
+				if remoteOk(loop-player, "garage") is false:
+					set {_how} to "&7Take it out at a garage: &f/gps"
 			if {_why} is "idle":
-				msg(loop-player, "&7Your %carName({_m})% stood unused, so it went back to the garage. &f/garage")
+				msg(loop-player, "&7Your %carName({_m})% stood unused, so it went back to the garage. %{_how}%")
+			else if {_why} is "pickup-idle":
+				msg(loop-player, "&7Nobody picked up your %carName({_m})%, so it went back to the garage.")
 			else if {_why} is "other-car":
-				msg(loop-player, "&7You're in another car, so your %carName({_m})% went back to the garage. &f/garage")
+				msg(loop-player, "&7You're in another car, so your %carName({_m})% went back to the garage. %{_how}%")
 
 on quit:
 	set {_plate} to {car::outof::%uuid of player%}

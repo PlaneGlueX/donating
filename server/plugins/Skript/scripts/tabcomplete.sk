@@ -529,3 +529,16 @@ on tab complete of "/dhit" and "/skript:dhit":
 		set tab completions for position 2 to tabPlayerNames(player)
 		if {_s} is "give":
 			set tab completions for position 3 to {-cfg::hit::tiers::*}
+
+on tab complete of "/dgaragesite" and "/skript:dgaragesite":
+	set tab completions for position 1 to "exit", "return", "exitat", "returnat", "remove", "list", "show" and "dump"
+	set {_s} to tab arg-1
+	if {_s} is "exit" or "return":
+		set tab completions for position 2 to "add"
+	else if {_s} is "remove" or "exitat" or "returnat":
+		loop {garagesites::*}:
+			add loop-index to {_g::*}
+		if {_g::*} is set:
+			set tab completions for position 2 to {_g::*}
+		if {_s} is "remove":
+			set tab completions for position 3 to "exit" and "return"

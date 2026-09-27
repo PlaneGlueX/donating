@@ -79,7 +79,11 @@ function openPhone(p: player):
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
-	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
+	# Cars come out at garages (citygarage.sk); Valet (Elite, Legend) calls them anywhere.
+	if garageAccessBlock({_p}) is "":
+		set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
+	else:
+		set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Where your cars are; lock or send them back." and "&7Cars come out at garages.", "phone:garage")
 	set {_jobs} to flint named "&6Contracts" with lore "&7Car-theft jobs: steal a car and" and "&7bring it to a chop shop for cash." and "&7Jobs and lockpicks: from contract givers."
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_jobs} to "donating:lockpick_basic"
 	set slot 9 of {_gui} to tagItem({_jobs}, "phone:contracts")

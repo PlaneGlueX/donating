@@ -462,9 +462,12 @@ on right click on entity:
 	event-entity has scoreboard tag "donating_shop"
 	event-entity does not have metadata "NPC"
 	cancel event
-	# The Car Dealer is garage.sk's.
+	# The Car Dealer is garage.sk's, the garage attendant citygarage.sk's.
 	if event-entity has scoreboard tag "shop_cars":
 		garageDealer(player)
+		stop
+	if event-entity has scoreboard tag "shop_garage":
+		garageMenu(player)
 		stop
 	loop "gun", "gear", "bag" and "tools":
 		if event-entity has scoreboard tag "shop_%loop-value%":
@@ -1263,6 +1266,10 @@ command /dshop <text> <player> [<text>]:
 				garageDealer(arg-2)
 				send "SHOP opened cars for %arg-2%"
 				stop
+			if arg-3 is "garage":
+				garageMenu(arg-2)
+				send "SHOP opened garage for %arg-2%"
+				stop
 			openShop(arg-2, arg-3)
 			send "SHOP opened %arg-3% for %arg-2%"
 		else if arg-1 is "unlock":
@@ -1294,7 +1301,7 @@ command /dshopkeeper [<text>] [<text>]:
 	trigger:
 		if arg-1 is "add":
 			if {-cfg::shop::title::%arg-2%} is not set:
-				msg(player, "&cKinds: gun, gear, bag, tools.")
+				msg(player, "&cKinds: gun, gear, bag, tools, cars, garage.")
 				stop
 			# The lowest free number, so ids of removed shopkeepers are used again.
 			set {_n} to 1
@@ -1308,6 +1315,9 @@ command /dshopkeeper [<text>] [<text>]:
 			set {shop::keeper::%{_id}%::loc} to location of player
 			spawnKeeper({_id})
 			msg(player, "Shopkeeper %{_id}% (%arg-2%) added here.")
+			if arg-2 is "garage":
+				if garageAt(player) is "":
+					msg(player, "&eA garage attendant belongs inside a %cfg("garage::region-prefix")%<id> region (citygarage.sk): cars only come out there.")
 		else if arg-1 is "remove":
 			set {_id} to arg-2
 			if {shop::keepers::%{_id}%} is not set:
@@ -1329,7 +1339,7 @@ command /dshopkeeper [<text>] [<text>]:
 				set {_l} to {shop::keeper::%loop-index%::loc}
 				msg(player, "%loop-index%: %loop-value% at %{_l}%")
 		else:
-			msg(player, "/dshopkeeper add <gun|gear|bag|tools> | remove <id> | list")
+			msg(player, "/dshopkeeper add <gun|gear|bag|tools|cars|garage> | remove <id> | list")
 
 function spawnKeeper(id: text):
 	set {_loc} to {shop::keeper::%{_id}%::loc}
