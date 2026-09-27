@@ -174,6 +174,8 @@ The Hacked crate is never sold: its keys only come from special events. Every Ha
 
 - **Bags are never sold.** The rank's capacity bonus only applies to bags bought with in-game money. They're still lost on death and have to be bought again with in-game money.
 - **A bigger bag also risks more.** When a player dies, the balance they lose is capped at their bag's capacity, so the bonus raises that cap too.
+- **A bigger bag also earns a bit more XP per trip** (added 2026-09-27). Robber-level XP comes mostly from loot sold (1 XP per $100 sold), so a rank's +5-25% bag means up to 5-25% more XP from each full bag. With the new level curve (about level 150 after a month of 2 hours a day) this matters a little more than before. Levels still can't be bought.
+- **No free bag, and no bag is sold** (2026-09-27). A player with no bag carries up to $1,000 of loot in their hands (the same for everyone, no rank bonus).
 - **The bag tiers are the same for everyone,** unlocked and bought with in-game money. A rank adds its percentage to whichever tier the player carries. For example, the top bag (the Vault Bag) holds $100,000, or $125,000 for a Legend.
 - **Never sold directly:** guns, helmets, vests, bags, loot, robber levels, access to heists, trap or cop protection. In-game money, ammo, Stims and heist tools only come from paid items at random, through crate keys (the chances are above and in game).
 - **Valet only saves a walk.** Taking a car out anywhere is blocked in heists, in combat and while wanted, like any car call.

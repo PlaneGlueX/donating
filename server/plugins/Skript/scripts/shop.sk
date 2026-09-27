@@ -1371,7 +1371,7 @@ function spawnKeeper(id: text):
 	set {_y} to y-coordinate of {_loc}
 	set {_z} to z-coordinate of {_loc}
 	set {_yaw} to yaw of {_loc}
-	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b,Rotation:[%{_yaw}%f,0f]}"
+	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b%skinProfile({_kind})%,Rotation:[%{_yaw}%f,0f]}"
 
 every 30 seconds:
 	loop {shop::keepers::*}:

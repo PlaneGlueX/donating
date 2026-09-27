@@ -181,8 +181,10 @@ module.exports = async ({ check }) => {
     await place(A, 965.5, 965.5)
     await until(async () => /state=active/.test(await heist()), 4000)
     await cmd('zzcfgset difficulty::4::cop-damage 60')
-    // A Gym Bag ($2,000), so the cap C = min(bag, pool) is over the 10% (else C = 0 and any p passes).
+    // A Gym Bag ($2,000), so the cap C = min(bag, pool) is over the 10%. (An earlier death in this test now costs a
+    // little too: the hands' cap is $1,000. So the balance is set again here.)
     await cmd(`zzdata ${A} bag-tier 1`)
+    await cmd(`eco set ${A} 10000`)
     await cmd(`dheist alarm ${ID}`)
     const before = Number(((await cmd(`zzbal ${A}`)).match(/: (-?\d+)/) || [])[1])
     let died = false

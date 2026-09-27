@@ -220,7 +220,15 @@ module.exports = async ({ check }) => {
     setMark()
     t = Date.now()
     await hold(A, 706.5, 201, 706.5, 1200)
-    check('no bag: refused', takes(A, 'lootlab-1').length === 0 && /You need a bag/.test(text(A, t)), text(A, t))
+    // Owner, 2026-09-27: no bag = the hands carry up to $1,000.
+    check('no bag: the hands take it (up to $1,000: "hands 10%")', takes(A, 'lootlab-1').length >= 1 && /hands 10%/.test(text(A, t)), text(A, t))
+    // Back as it was for the checks below: empty hands, the heist open again with a fresh roll and no clock.
+    await cmd(`zzbagclear ${A}`)
+    await place(A, 698.5, 704.5)
+    await cmd('dheist end lootlab')
+    await cmd('dheist open lootlab')
+    await until(async () => (await heistField('lootlab', 'state')) === 'open' && (await spot('lootlab', 1)).n === 5, 20000)
+    setMark()
     await reset(A)
     await cmd(`gamemode creative ${A}`)
     await place(A, 706.5, 705.3)

@@ -1,6 +1,6 @@
 // death.sk: what a death costs. Lost: hotbar 1-5, all ammo, helmet, vest, the bag (its tier stays
 // unlocked); kept: quest items and the phone. Balance: L = min(B × p, C), p = 1% (difficulty 1) or 5%
-// for cop deaths, C = the bag's capacity (no bag: nothing lost). The cause is saved for bounty.sk.
+// for cop deaths, C = the bag's capacity (no bag: the hands' $1,000, owner 2026-09-27). The cause is saved for bounty.sk.
 // Deaths outside heists only (heists.sk doesn't exist yet). Duffels come with bag.sk.
 const { join, sleep, messagesSince, quit } = require('../lib')
 const rconLib = require('../rcon')
@@ -67,9 +67,9 @@ module.exports = async ({ check }) => {
     await kit(1000000)
     await die(`minecraft:kill ${D}`)
     check('the bag capacity caps it: min(1000000 × 1%, 6000) = $6,000', (await bal()) === 994000, `balance ${await bal()}`)
-    await kit(100000, false)
+    await kit(1000000, false)
     await die(`minecraft:kill ${D}`)
-    check('no bag: nothing lost (C = 0)', (await bal()) === 100000, `balance ${await bal()}`)
+    check('no bag: the hands cap it: min(1000000 × 1%, $1,000) = $1,000', (await bal()) === 999000, `balance ${await bal()}`)
 
     // ---------- Killed by a player ----------
     await kit(100000)

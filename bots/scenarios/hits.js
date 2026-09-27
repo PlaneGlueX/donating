@@ -74,8 +74,8 @@ module.exports = async ({ check }) => {
     // Joining makes 2 online: the week's due windows open; close them (they stay used).
     await sleep(1500)
     for (const t of ['easy', 'medium', 'hard']) await cmd(`dhit window ${t} close`)
-    await cmd(`dlevel set ${A} 2`)
-    await cmd(`dlevel set ${B} 1`)
+    await cmd(`dlevel set ${A} 15`)
+    await cmd(`dlevel set ${B} 14`)
     check('street nodes and the Broker are placed', nodes.every(Boolean) && broker !== '', `${nodes} | ${broker}`)
 
     // ---------- Taking a contract, in person ----------
@@ -93,7 +93,7 @@ module.exports = async ({ check }) => {
     l = lore(w)
     await click(B, 11)
     await click(B, 11)
-    check('below the tier\'s level: "Needs level 2", nothing taken', /Needs level 2/.test(l) && field(await info(B), 'tier') === '', `${field(await info(B), 'tier')} | ${l.slice(0, 300)}`)
+    check('below the tier\'s level: "Needs level 15", nothing taken', /Needs level 15/.test(l) && field(await info(B), 'tier') === '', `${field(await info(B), 'tier')} | ${l.slice(0, 300)}`)
     close(B)
     let t = Date.now()
     w = await openHits(A)
@@ -104,7 +104,7 @@ module.exports = async ({ check }) => {
     let i = await info(A)
     check('at the Broker: a second click takes the Easy contract (the Broker\'s text)', /Click again/.test(armed) && field(i, 'tier') === 'easy' && field(i, 'state') === 'hunting' && /Broker/.test(text(A, t)), `${i} | ${text(A, t).slice(0, 200)}`)
     close(A)
-    await cmd(`dlevel set ${A} 4`)
+    await cmd(`dlevel set ${A} 50`)
     w = await openHits(A)
     l = lore(w)
     await click(A, 13)

@@ -1,6 +1,8 @@
-// levels.sk: robber levels. XP from selling loot at the base, X = floor(P / 100) + 10 × H (each heist
-// run once); a level-up (title, what it unlocks, to that player only); /level and /levels; the heist
-// tools' level (the shop refuses below it and says why); /dlevel for staff only (info, set, xp, reset;
+// levels.sk: robber levels. Level n needs T(n) = 6.5 × n × (n + 5) XP (owner, 2026-09-27: about level 150 after a
+// month of 2 h a day), titles by range (0 Pickpocket, 5 Shoplifter, 15 Burglar, ... 150 Kingpin). XP from selling loot
+// at the base, X = floor(P / 100) + 10 × H (each heist run once); a level-up (title, what it unlocks, to that player
+// only); /level and /levels (only the levels that unlock something); the heist tools' and bag tiers' levels (the shop
+// refuses below them and says why); /dlevel for staff only (info, set, xp, reset;
 // XP is never taken away); the footer placeholders; levels survive a relog. The heist gate itself is in
 // bots\run.js heists. (Paid ranks, in the tab list, are bots\run.js ranks.)
 const fs = require('fs')
@@ -53,10 +55,10 @@ module.exports = async ({ check }) => {
 
     // ---------- A new robber ----------
     let out = await said('/level')
-    check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level and its XP', /Your level: 0 Pickpocket \(of 6\) · 0 XP/.test(out) && /Next: level 1 Shoplifter at 250 XP/.test(out) && /It unlocks: .*the Safe Kit/.test(out), out)
-    out = await said('/levels')
-    check('/levels lists all 7 levels with their XP and unlocks', /0\. Pickpocket - 0 XP/.test(out) && /1\. Shoplifter - 250 XP · the Safe Kit/.test(out) && /2\. Burglar - 1,000 XP · the Drill/.test(out) && /6\. Kingpin - 50,000 XP/.test(out), out)
-    check('the footer shows the level and the XP to the next one', /Pickpocket$/.test(await papi('donating_level')) && (await papi('donating_level_num')) === '0' && (await papi('donating_level_xp')) === '0/250 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
+    check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level at T(1) = 6.5 × 1 × 6 = 39 XP', /Your level: 0 Pickpocket · 0 XP/.test(out) && /Next: level 1 Pickpocket at 39 XP/.test(out), out)
+    out = await said('/levels', 1500)
+    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts', /5\. Shoplifter - 325 XP · .*the \.50 GS.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. Burglar - 1,950 XP · .*the Uzi.*the Drill/.test(out) && /150\. Kingpin - 151,125 XP · .*the SUV \(car\)/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 1500))
+    check('the footer shows the level and the XP to the next one', /Pickpocket$/.test(await papi('donating_level')) && (await papi('donating_level_num')) === '0' && (await papi('donating_level_xp')) === '0/39 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
 
     // ---------- Selling earns XP ----------
     await cmd(`zztestkit ${R}`) // bag tier 2
@@ -67,7 +69,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${R} 840.5 ${Y} 840.5`)
     await sleep(1800)
     let i = await info()
-    check('selling $2,500 from 2 heists at the base gives 25 + 2 × 10 = 45 XP', i.xp === 45 && i.rank === 0 && /\+45 XP/.test(text(t)) && logged(/xp LevelBot \S+ \+45 why=sell total=45 level=0->0/).length === 1, `${i.raw} ${text(t)}`)
+    check('selling $2,500 from 2 heists at the base gives 25 + 2 × 10 = 45 XP (level 1 at 39)', i.xp === 45 && i.rank === 1 && /\+45 XP/.test(text(t)) && logged(/xp LevelBot \S+ \+45 why=sell total=45 level=0->1/).length === 1, `${i.raw} ${text(t)}`)
     await cmd(`zzheisttp ${R} 830.5 ${Y} 830.5`)
     await sleep(500)
     await cmd(`zzbagadd ${R} rka#1 300`)
@@ -81,20 +83,20 @@ module.exports = async ({ check }) => {
 
     // ---------- Level up ----------
     t = Date.now()
-    await cmd(`dlevel xp ${R} 191`)
+    await cmd(`dlevel xp ${R} 266`)
     await sleep(600)
     i = await info()
-    check('reaching 250 XP: level 1 (Shoplifter)', i.rank === 1 && i.xp === 250, i.raw)
-    check('...with a LEVEL UP title and what it unlocks, to that player', messagesSince(bot, t).some(m => m.kind === 'title:title' && /LEVEL UP/.test(m.text)) && /Level up! You're level 1 now: Shoplifter/.test(text(t)) && /Unlocked: the Safe Kit/.test(text(t)), text(t))
-    check('...and the footer follows', /Shoplifter$/.test(await papi('donating_level')) && (await papi('donating_level_xp')) === '250/1,000 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
+    check('reaching 325 XP: level 5 (Shoplifter)', i.rank === 5 && i.xp === 325, i.raw)
+    check('...with a LEVEL UP title and what it unlocks (guns, the Duffel Bag, the Safe Kit), to that player', messagesSince(bot, t).some(m => m.kind === 'title:title' && /LEVEL UP/.test(m.text)) && /Level up! You're level 5 now: Shoplifter/.test(text(t)) && /Unlocked: the \.50 GS/.test(text(t)) && /Unlocked: the Duffel Bag/.test(text(t)) && /Unlocked: the Safe Kit/.test(text(t)), text(t))
+    check('...and the footer follows (T(6) = 429)', /Shoplifter$/.test(await papi('donating_level')) && (await papi('donating_level_xp')) === '325/429 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
     t = Date.now()
     await cmd(`dlevel xp ${R} 3000`)
     await sleep(600)
     i = await info()
-    check('a jump over several levels lists every unlock on the way (3,250 XP: Safecracker)', i.rank === 3 && /Safecracker/.test(text(t)) && /Unlocked: the Drill/.test(text(t)), `${i.raw} ${text(t)}`)
+    check('a jump over several levels lists every unlock on the way (3,325 XP: level 20 Burglar, T(20) = 3,250)', i.rank === 20 && /Burglar/.test(text(t)) && /Unlocked: the Drill/.test(text(t)) && /Unlocked: the Uzi/.test(text(t)) && /Unlocked: the Hockey Bag/.test(text(t)), `${i.raw} ${text(t).slice(0, 600)}`)
 
     // ---------- Tools need their level ----------
-    await cmd(`dlevel set ${R} 1`)
+    await cmd(`dlevel set ${R} 5`)
     const openTools = async () => {
       if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
       const w = new Promise(resolve => { const tm = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', win => { clearTimeout(tm); resolve(win) }) })
@@ -110,26 +112,37 @@ module.exports = async ({ check }) => {
     let dump = await cmd(`zzdump ${R}`)
     // The shop's answer is its status line (the menu's status item), not chat.
     const status = await cmd(`zzshop ${R}`)
-    check('below its level the Drill isn\'t sold, and the shop says why', drillSlot >= 0 && /needs level 2 \(Burglar\)/.test(status) && !/\[tool:drill\]/.test(dump), `slot ${drillSlot}; ${status}; ${dump}`)
+    check('below its level the Drill isn\'t sold, and the shop says why', drillSlot >= 0 && /needs level 15 \(Burglar\)/.test(status) && !/\[tool:drill\]/.test(dump), `slot ${drillSlot}; ${status}; ${dump}`)
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
-    await cmd(`dlevel set ${R} 2`)
+    // A bag tier's first unlock needs its level too (the Hockey Bag: level 10; the bot carries a Duffel Bag).
+    await cmd(`dlevel set ${R} 0`)
+    const bw = new Promise(resolve => { const tm = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', win2 => { clearTimeout(tm); resolve(win2) }) })
+    await cmd(`dshop open ${R} bag`)
+    await bw
+    await sleep(300)
+    bot.clickWindow(13, 0, 0).catch(() => {})
+    await sleep(900)
+    const bagStatus = await cmd(`zzshop ${R}`)
+    check('a new bag tier needs its level: the Hockey Bag at level 0 is refused ("needs level 10 (Shoplifter)")', /Hockey Bag needs level 10 \(Shoplifter\)/.test(bagStatus), bagStatus)
+    if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
+    await cmd(`dlevel set ${R} 15`)
     win = await openTools()
     t = Date.now()
     if (drillSlot >= 0) { bot.clickWindow(drillSlot, 0, 0).catch(() => {}); await sleep(900) }
     if (bot.currentWindow) { bot.clickWindow(drillSlot, 0, 0).catch(() => {}); await sleep(900) } // the $1,000+ confirm
     dump = await cmd(`zzdump ${R}`)
-    check('at level 2 it is', /\[tool:drill\]/.test(dump), `${text(t)}; ${dump}`)
+    check('at level 15 it is', /\[tool:drill\]/.test(dump), `${text(t)}; ${dump}`)
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
 
     // ---------- Staff ----------
     out = await said('/dlevel info LevelBot')
     check('/dlevel is staff only', /Staff only/.test(out), out)
-    check('XP can only be added, never taken away', /only adds/.test(await cmd(`dlevel xp ${R} -5`)) && (await info()).xp === 1000, (await info()).raw)
+    check('XP can only be added, never taken away', /only adds/.test(await cmd(`dlevel xp ${R} -5`)) && (await info()).xp === 1950, (await info()).raw)
     setMark()
     await cmd(`dlevel set ${R} 0`)
     i = await info()
     check('staff can set a level either way; the XP moves to that level\'s start', i.rank === 0 && i.xp === 0 && logged(/set LevelBot \S+ level=0/).length === 1, i.raw)
-    await cmd(`dlevel set ${R} 4`)
+    await cmd(`dlevel set ${R} 60`)
 
     // ---------- It's saved ----------
     await quit(bot)
@@ -137,7 +150,7 @@ module.exports = async ({ check }) => {
     bot = await join(R)
     await sleep(1500)
     i = await info()
-    check('the level and XP survive a relog', i.rank === 4 && i.xp === 8000 && /Heister$/.test(await papi('donating_level')), `${i.raw} ${await papi('donating_level')}`)
+    check('the level and XP survive a relog (level 60 = 25,350 XP, Heister)', i.rank === 60 && i.xp === 25350 && /Heister$/.test(await papi('donating_level')), `${i.raw} ${await papi('donating_level')}`)
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     await rcon.cmd(`dlevel reset ${R}`).catch(() => {})

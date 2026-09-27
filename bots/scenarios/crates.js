@@ -270,11 +270,11 @@ module.exports = async ({ check }) => {
     before = await bal(A)
     r = await openCrate(A, 'Common')
     const wm = await cmd(`zzwm ${A}`)
-    check('Stims over the carry limit (3): 3 in the hotbar, 2 paid at half price', /=Stim:\d+x3/.test(wm) && (await bal(A)) - before === 200, `${wm} +${(await bal(A)) - before} ${r.said}`)
+    check('Stims over the carry limit (3): 3 in the hotbar, 2 paid at half price ($200 each: Stims cost $400 now)', /=Stim:\d+x3/.test(wm) && (await bal(A)) - before === 400, `${wm} +${(await bal(A)) - before} ${r.said}`)
     await cmd('zzcratelines common 1|tool|drill|1')
     before = await bal(A)
     r = await openCrate(A, 'Common')
-    check('a tool above your level pays half its price instead (Drill: level 2)', (await bal(A)) - before === 1250 && /needs level 2/.test(r.said) && !/tool:drill/.test(await cmd(`zzdump ${A}`)), `+${(await bal(A)) - before} ${r.said}`)
+    check('a tool above your level pays half its price instead (Drill: level 15)', (await bal(A)) - before === 1250 && /needs level 15/.test(r.said) && !/tool:drill/.test(await cmd(`zzdump ${A}`)), `+${(await bal(A)) - before} ${r.said}`)
 
     // Blocked: in combat, outside a safe zone, no keys.
     await cmd(`dcrate give ${A} common 1`)

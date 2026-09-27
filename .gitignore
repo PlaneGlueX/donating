@@ -54,3 +54,5 @@
 *.log
 *.jar
 *.zip
+/bots/results/
+/tools/skins/preview-*.png

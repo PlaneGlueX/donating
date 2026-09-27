@@ -137,7 +137,7 @@ function questSpawn(n: text):
 			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1,components:{""minecraft:custom_model_data"":{strings:[""%{_model}%""]}}}}"
 		else:
 			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1}}"
-	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}% · right-click"",color:""gray""}%{_hold}%,Rotation:[%{_yaw}%f,0f]}"
+	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}% · right-click"",color:""gray""}%{_hold}%%skinProfile(questSkinId({_k}))%,Rotation:[%{_yaw}%f,0f]}"
 
 # One NPC per giver while its chunk is loaded: a missing one comes back, extras go.
 function questCheck(n: text):

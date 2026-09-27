@@ -21,10 +21,10 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const CONFIRM = Number(((await rcon.cmd('zzcfg shop::confirm-above')).match(/= (\d+)/) || [])[1]) || 1000
   let bot = null
-  // The owner's prices (2026-09-26) are checked here; the rest of this test runs on the first proposal's
-  // prices (its balances are worked out with them), restored after with zzcfgreload.
-  const OWNER = { 'wpn::50_GS::price': 1500, 'wpn::Uzi::price': 15000, 'wpn::R9_0::price': 37500, 'wpn::AK_47::price': 75000, 'wpn::Combat_Knife::price': 150, 'bag::1::price': 2400, 'bag::2::price': 7200, 'bag::3::price': 18000, 'bag::4::price': 48000, 'bag::5::price': 120000, 'bag::1::replace': 400, 'bag::2::replace': 1200, 'bag::3::replace': 3000, 'bag::4::replace': 8000, 'bag::5::replace': 20000 }
-  const TEST = { 'wpn::50_GS::price': 300, 'wpn::Uzi::price': 3000, 'wpn::R9_0::price': 7500, 'wpn::AK_47::price': 15000, 'wpn::Combat_Knife::price': 150, 'bag::1::price': 0, 'bag::2::price': 7500, 'bag::3::price': 30000, 'bag::4::price': 120000, 'bag::5::price': 400000, 'bag::1::replace': 0, 'bag::2::replace': 750, 'bag::3::replace': 3000, 'bag::4::replace': 12000, 'bag::5::replace': 40000 }
+  // The owner's prices and levels (2026-09-27) are checked here; the rest of this test runs on the first proposal's
+  // prices with no level gates (its balances are worked out with them), restored after with zzcfgreload.
+  const OWNER = { 'wpn::50_GS::price': 7500, 'wpn::Uzi::price': 45000, 'wpn::R9_0::price': 110000, 'wpn::AK_47::price': 225000, 'wpn::Combat_Knife::price': 500, 'wpn::Combat_Knife::level': 0, 'wpn::50_GS::level': 5, 'wpn::Uzi::level': 15, 'wpn::R9_0::level': 30, 'wpn::AK_47::level': 50, 'bag::1::level': 0, 'bag::2::level': 5, 'bag::3::level': 10, 'bag::4::level': 25, 'bag::5::level': 60, 'gear::helmet-1::price': 1500, 'gear::helmet-2::price': 5000, 'gear::vest-1::price': 2000, 'gear::vest-2::price': 10000, 'con::Stim::price': 400, 'bag::1::price': 2400, 'bag::2::price': 7200, 'bag::3::price': 18000, 'bag::4::price': 48000, 'bag::5::price': 120000, 'bag::1::replace': 400, 'bag::2::replace': 1200, 'bag::3::replace': 3000, 'bag::4::replace': 8000, 'bag::5::replace': 20000 }
+  const TEST = { 'wpn::50_GS::level': 0, 'wpn::Uzi::level': 0, 'wpn::R9_0::level': 0, 'wpn::AK_47::level': 0, 'bag::2::level': 0, 'bag::3::level': 0, 'bag::4::level': 0, 'bag::5::level': 0, 'gear::helmet-1::price': 750, 'gear::helmet-2::price': 2500, 'gear::vest-1::price': 1000, 'gear::vest-2::price': 5000, 'con::Stim::price': 200, 'wpn::50_GS::price': 300, 'wpn::Uzi::price': 3000, 'wpn::R9_0::price': 7500, 'wpn::AK_47::price': 15000, 'wpn::Combat_Knife::price': 150, 'bag::1::price': 0, 'bag::2::price': 7500, 'bag::3::price': 30000, 'bag::4::price': 120000, 'bag::5::price': 400000, 'bag::1::replace': 0, 'bag::2::replace': 750, 'bag::3::replace': 3000, 'bag::4::replace': 12000, 'bag::5::replace': 40000 }
   try {
     await rcon.cmd('zzcfgreload')
     const wrong = []
@@ -32,7 +32,7 @@ module.exports = async ({ check }) => {
       const got = Number(((await rcon.cmd(`zzcfg ${k}`)).match(/= (\d+)/) || [])[1])
       if (got !== v) wrong.push(`${k}=${got} (want ${v})`)
     }
-    check('the owner\'s prices: guns 5×, bags 120% to unlock and 20% to replace', wrong.length === 0, wrong.join(', '))
+    check('the owner\'s prices and levels (2026-09-27): guns dearer with levels, gear and Stims doubled, bags 120% to unlock (with levels) and 20% to replace', wrong.length === 0, wrong.join(', '))
     for (const [k, v] of Object.entries(TEST)) await rcon.cmd(`zzcfgset ${k} ${v}`)
     await rcon.cmd(`forceload add ${CHUNKS}`)
     await rcon.cmd(`fill ${PLATFORM} glass`)

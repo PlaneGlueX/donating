@@ -82,7 +82,7 @@ module.exports = async ({ check }) => {
     const layout = [11, 13, 15, 21, 23, 26].map(s => `${s}=${at(s)}`).join(' ')
     check('menu buttons are in place', layout === '11=player_head 13=gray_dye 15=minecart 21=skeleton_skull 23=book 26=barrier', layout)
     const stats = loreText(w.slots[11])
-    check('stats show the real numbers', /Balance: \$[\d,]+/.test(stats) && /Bounty: \$0/.test(stats) && /Passive mode: off/.test(stats) && /Bag: none yet/.test(stats), stats)
+    check('stats show the real numbers', /Balance: \$[\d,]+/.test(stats) && /Bounty: \$0/.test(stats) && /Passive mode: off/.test(stats) && /Bag: none \(your hands carry \$1,000\)/.test(stats), stats)
 
     // ---------- Nothing can be taken ----------
     const before = await dump()

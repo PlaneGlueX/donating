@@ -177,7 +177,7 @@ on death of player:
 # The loot a death takes out of the bag lies on the ground as one duffel: a normal item entity that the
 # pack draws as a canvas duffel with a gold $ (donating:bag_loot), its value and time left over it
 # ("Loot duffel $2,700 · 1:42"). Walking over it takes as much as fits in your own bag; the rest stays
-# (owner, 2026-09-25). Nobody without a bag can take it, passive players can't take anyone else's, and
+# (owner, 2026-09-25; with no bag the hands carry up to $1,000: bag::hands::capacity). Passive players can't take anyone else's, and
 # a passive player's duffel is theirs alone (nobody takes a passive player's loot). The owner takes it
 # back only in the passive mode they died in (else dying and switching would change the payout mode
 # after robbing). It's gone after cfg duffel::despawn (2 min). A heist's 0:00 treats the duffels inside
