@@ -1,0 +1,374 @@
+# quests.sk: quest givers you visit in person. Built 2026-09-26 (owner, 2026-09-26: "quests be in game/in
+# person where you go to a certain place (such as a scrap yard) and theres an npc there to give you the car
+# heist quests (this will be the idea for future quests too)").
+#
+# A quest giver is an NPC standing at a place (a mannequin, like the shopkeepers: looks like a player, no AI):
+# its name, what it gives under it ("Car contracts · right-click"), and something in its hand. Right-click it
+# for its quest's menu. Taking a job and buying its tools only work next to a giver of that kind (within
+# quest::reach blocks); the quest's menu from anywhere else (/contracts, the phone's app) shows the offers and
+# pins the nearest giver on the GPS. Every giver is a dot on the locator bar (nav.sk, poi::quest::color) and a
+# place in /gps.
+#
+# Kinds (core.sk): quests + quest::<kind>::name (what it gives), ::npc (the NPC's name; "{place}" is replaced
+# by the giver's place), ::place (the default place name), ::hold and ::hold-model (the item in its hand).
+# Adding a quest later: its settings, a line in questOpen that opens its menu, and questNear(p, kind) in front
+# of every action that should only happen at a giver.
+#
+# Saved: {quest::giver::<n>} = "kind|world|x|y|z|yaw|place" (the counter {questcounter} lives outside the
+# list). The NPC has the tags donating_quest, quest_<kind> and questg_<n>; a missing one comes back within
+# 30 s while its chunk is loaded (extras go). Givers stand in the main world (the console summons them).
+# Staff: /dquest add <kind> [place], addat <kind> <x> <y> <z> <yaw> [place], remove <n>, list, dump (the addat
+# lines for Minehut), open <player> <n> (for a Citizens NPC's click command later).
+# Log: plugins\Skript\logs\quests.log.
+
+function questLog(text: text):
+	log {_text} to "quests"
+
+function questIsKind(k: text) :: boolean:
+	loop {-cfg::quests::*}:
+		if loop-value is {_k}:
+			return true
+	return false
+
+function questField(n: text, i: number) :: text:
+	set {_v} to {quest::giver::%{_n}%}
+	if {_v} is set:
+		set {_a::*} to {_v} split at "|"
+		if {_a::%{_i}%} is set:
+			return {_a::%{_i}%}
+	return ""
+
+function questKind(n: text) :: text:
+	return questField({_n}, 1)
+
+function questPlace(n: text) :: text:
+	return questField({_n}, 7)
+
+function questLoc(n: text) :: location:
+	set {_v} to {quest::giver::%{_n}%}
+	if {_v} is set:
+		set {_a::*} to {_v} split at "|"
+		set {_l} to location(({_a::3} parsed as number), ({_a::4} parsed as number), ({_a::5} parsed as number), world({_a::2}))
+		set yaw of {_l} to ({_a::6} parsed as number)
+		return {_l}
+
+# The NPC's name: the kind's npc setting with "{place}" replaced by the giver's place.
+function questNpcName(n: text) :: text:
+	set {_name} to {-cfg::quest::%questKind({_n})%::npc}
+	if {_name} is not set:
+		set {_name} to "{place}"
+	replace all "{place}" with questPlace({_n}) in {_name}
+	return {_name}
+
+# The giver of a kind within quest::reach blocks of the player ("" if none): taking a job needs one.
+function questNear(p: player, kind: text) :: text:
+	set {_best} to cfg("quest::reach")
+	set {_found} to ""
+	set {_w} to "%world of {_p}%"
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_kind}:
+			if {_a::2} is {_w}:
+				set {_d} to distance between (location of {_p}) and questLoc(loop-index)
+				if {_d} <= {_best}:
+					set {_best} to {_d}
+					set {_found} to loop-index
+	return {_found}
+
+# The nearest giver of a kind in the player's world ("" if none).
+function questNearest(p: player, kind: text) :: text:
+	set {_found} to ""
+	set {_w} to "%world of {_p}%"
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_kind}:
+			if {_a::2} is {_w}:
+				set {_d} to distance between (location of {_p}) and questLoc(loop-index)
+				if {_found} is "":
+					set {_best} to {_d}
+					set {_found} to loop-index
+				else if {_d} < {_best}:
+					set {_best} to {_d}
+					set {_found} to loop-index
+	return {_found}
+
+# "Scrap Yard (140m)" for the nearest giver of a kind, "" if none.
+function questNearestText(p: player, kind: text) :: text:
+	set {_n} to questNearest({_p}, {_kind})
+	if {_n} is "":
+		return ""
+	set {_d} to round(distance between (location of {_p}) and questLoc({_n}))
+	return "%questPlace({_n})% (%{_d}%m)"
+
+# Pins the nearest giver of a kind on the GPS (the pin clears on arrival, like any pin).
+function questFind(p: player, kind: text):
+	set {_n} to questNearest({_p}, {_kind})
+	set {_what} to {-cfg::quest::%{_kind}%::name}
+	if {_n} is "":
+		msg({_p}, "&7There's no %{_what}% giver yet. Tell staff.")
+		stop
+	gpsPin({_p}, questLoc({_n}), questPlace({_n}))
+	msg({_p}, "&6%{_what}%: &fthe GPS leads you to the &e%questPlace({_n})%&f. Talk to &e%questNpcName({_n})%&f there.")
+
+# Every giver as a /gps place ("world|x|y|z|name|quest", as gps.sk's gpsPlaces).
+function questPlaces() :: texts:
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		add "%{_a::2}%|%{_a::3}%|%{_a::4}%|%{_a::5}%|%{_a::7}%|quest" to {_out::*}
+	return {_out::*}
+
+# ---------- The NPC ----------
+
+function questSpawn(n: text):
+	set {_l} to questLoc({_n})
+	{_l} is set
+	set {_k} to questKind({_n})
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_yaw} to yaw of {_l}
+	set {_name} to questNpcName({_n})
+	set {_what} to {-cfg::quest::%{_k}%::name}
+	set {_hold} to ""
+	set {_item} to {-cfg::quest::%{_k}%::hold}
+	if {_item} is set:
+		set {_model} to {-cfg::quest::%{_k}%::hold-model}
+		if {_model} is set:
+			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1,components:{""minecraft:custom_model_data"":{strings:[""%{_model}%""]}}}}"
+		else:
+			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1}}"
+	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}% · right-click"",color:""gray""}%{_hold}%,Rotation:[%{_yaw}%f,0f]}"
+
+# One NPC per giver while its chunk is loaded: a missing one comes back, extras go.
+function questCheck(n: text):
+	set {_l} to questLoc({_n})
+	{_l} is set
+	chunk at {_l} is loaded
+	set {_c} to 0
+	loop entities in radius 3 around {_l}:
+		if loop-entity has scoreboard tag "questg_%{_n}%":
+			add 1 to {_c}
+			if {_c} > 1:
+				kill loop-entity
+	if {_c} is 0:
+		questSpawn({_n})
+
+# NPCs whose giver has no record any more go (a world uploaded with its NPCs while the records came from
+# /dquest dump lines with other numbers, or lost variables): a click on one would do nothing (review fix).
+function questSweep():
+	loop all entities:
+		if loop-entity has scoreboard tag "donating_quest":
+			set {_known} to false
+			loop scoreboard tags of loop-entity:
+				if loop-value-2 starts with "questg_":
+					set {_n} to subtext of loop-value-2 from characters 8 to (length of loop-value-2)
+					if {quest::giver::%{_n}%} is set:
+						set {_known} to true
+			if {_known} is false:
+				questLog("sweep: removed an NPC with no giver record at %location of loop-entity%")
+				kill loop-entity
+
+every 30 seconds:
+	loop {quest::giver::*}:
+		questCheck(loop-index)
+	questSweep()
+
+on load:
+	wait 3 seconds
+	loop {quest::giver::*}:
+		questCheck(loop-index)
+	questSweep()
+
+# ---------- Talking to it ----------
+
+on right click on entity:
+	event-entity has scoreboard tag "donating_quest"
+	event-entity does not have metadata "NPC"
+	cancel event
+	set {-quest::guard::%player%} to now
+	loop scoreboard tags of event-entity:
+		if loop-value starts with "questg_":
+			set {_n} to subtext of loop-value from characters 8 to (length of loop-value)
+	{_n} is set
+	questOpen(player, {_n})
+
+# The click on an NPC comes with a plain right-click right after it (the held item's use). In the same tick
+# Skript's click tracker cancels it with the NPC click; one that lands a tick or more later (the packets
+# straddling ticks) does nothing for a moment here, so a held gun doesn't fire and the phone's map doesn't
+# open. Cancelled at the lowest priority, before WeaponMechanics (normal) and phone.sk see it (as loot.sk's
+# guard). Checked with bots: without it, a use 150 ms after the click opened the phone's map.
+on right click with priority lowest:
+	clicked entity is not set
+	set {_g} to {-quest::guard::%player%}
+	{_g} is set
+	difference between {_g} and now < 0.5 seconds
+	cancel event
+
+# Opens a giver's quest menu (a right-click on it, or dquest open from a Citizens NPC later).
+function questOpen(p: player, n: text):
+	set {_k} to questKind({_n})
+	if {_k} is "":
+		stop
+	# Both hands fire a click: one menu per 5 ticks.
+	if {-quest::openat::%{_p}%} is set:
+		if difference between {-quest::openat::%{_p}%} and now < 0.25 seconds:
+			stop
+	set {-quest::openat::%{_p}%} to now
+	if {_k} is "contracts":
+		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.8 to {_p}
+		ctMenu({_p})
+	else:
+		msg({_p}, "&7Nothing to do here yet.")
+
+on quit:
+	delete {-quest::guard::%player%}
+	delete {-quest::openat::%player%}
+
+# ---------- Staff ----------
+
+# "" when a giver may stand here, else why not.
+function questSpotBlock(l: location, kind: text, place: text) :: text:
+	if questIsKind({_kind}) is false:
+		set {_all} to join {-cfg::quests::*} with ", "
+		return "no quest kind %{_kind}% (kinds: %{_all}%)"
+	if world of {_l} is not poiMainWorld():
+		return "only in the main world (%poiMainWorld()%): the console summons the NPC there"
+	if heistAt({_l}) is not "":
+		return "inside a heist"
+	if {_place} contains "|":
+		return "a place name can't contain |"
+	if {_place} contains """":
+		return "a place name can't contain quotes"
+	if {_place} contains "\":
+		return "a place name can't contain \"
+	if length of {_place} > 32:
+		return "a place name is 32 characters at most"
+	return ""
+
+function questAdd(sender: text, l: location, kind: text, place: text) :: text:
+	set {_why} to questSpotBlock({_l}, {_kind}, {_place})
+	if {_why} is not "":
+		return "QUEST refused: %{_why}%"
+	add 1 to {questcounter}
+	set {_n} to "%{questcounter}%"
+	# Coordinates in locals first: "x-coordinate of {_l} * 100" parses as the x of (location * 100).
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_x} to round({_x} * 100) / 100
+	set {_y} to round({_y} * 100) / 100
+	set {_z} to round({_z} * 100) / 100
+	set {_yaw} to round(yaw of {_l})
+	set {quest::giver::%{_n}%} to "%{_kind}%|%world of {_l}%|%{_x}%|%{_y}%|%{_z}%|%{_yaw}%|%{_place}%"
+	# A leftover entity with this number must not stay.
+	execute console command "minecraft:kill @e[tag=questg_%{_n}%]"
+	questSpawn({_n})
+	poiReconcile()
+	questLog("add %{_n}% %{_kind}% %{_place}% at %{_x}% %{_y}% %{_z}% yaw=%{_yaw}% by=%{_sender}%")
+	set {_out} to "QUEST giver %{_n}% (%{_kind}%) added: %questNpcName({_n})% at the %{_place}%"
+	if isSafeZone({_l}) is false:
+		set {_out} to "%{_out}% (not in a safe zone: players can be shot while in its menu)"
+	return {_out}
+
+# The words from the from-th on, joined with spaces ("" if none).
+function questRest(line: text, from: number) :: text:
+	set {_a::*} to {_line} split at " "
+	set {_out} to ""
+	if size of {_a::*} >= {_from}:
+		loop integers from {_from} to size of {_a::*}:
+			if {_out} is "":
+				set {_out} to {_a::%loop-value%}
+			else:
+				set {_out} to "%{_out}% %{_a::%loop-value%}%"
+	return {_out}
+
+command /dquest [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "add":
+			if sender is not a player:
+				send "QUEST add: in game only (stand where the NPC goes, facing the way it looks), or addat" to sender
+				stop
+			set {_k} to {_a::2}
+			if {_k} is not set:
+				send "QUEST add <kind> [place name]" to sender
+				stop
+			set {_place} to questRest(arg-1, 3)
+			if {_place} is "":
+				set {_place} to {-cfg::quest::%{_k}%::place}
+			if {_place} is not set:
+				set {_place} to "Quest"
+			set {_x} to floor(x-coordinate of player) + 0.5
+			set {_y} to y-coordinate of player
+			set {_z} to floor(z-coordinate of player) + 0.5
+			set {_l} to location({_x}, {_y}, {_z}, world of player)
+			set yaw of {_l} to yaw of player
+			send questAdd("%sender%", {_l}, {_k}, {_place}) to sender
+		else if {_sub} is "addat":
+			set {_k} to {_a::2}
+			set {_x} to {_a::3} parsed as number
+			set {_y} to {_a::4} parsed as number
+			set {_z} to {_a::5} parsed as number
+			set {_yaw} to {_a::6} parsed as number
+			# Every number checked: an unset one would skip the call below and answer nothing (review fix).
+			set {_ok} to true
+			if {_x} is not set:
+				set {_ok} to false
+			if {_y} is not set:
+				set {_ok} to false
+			if {_z} is not set:
+				set {_ok} to false
+			if {_yaw} is not set:
+				set {_ok} to false
+			if {_ok} is false:
+				send "QUEST addat <kind> <x> <y> <z> <yaw> [place name]" to sender
+				stop
+			set {_place} to questRest(arg-1, 7)
+			if {_place} is "":
+				set {_place} to {-cfg::quest::%{_k}%::place}
+			if {_place} is not set:
+				set {_place} to "Quest"
+			set {_l} to location({_x}, {_y}, {_z}, poiMainWorld())
+			set yaw of {_l} to {_yaw}
+			send questAdd("%sender%", {_l}, {_k}, {_place}) to sender
+		else if {_sub} is "remove":
+			set {_n} to {_a::2}
+			if {quest::giver::%{_n}%} is not set:
+				send "QUEST remove: no giver %{_n}% (/dquest list)" to sender
+				stop
+			# minecraft:kill only reaches loaded entities: keep the record until someone is near it.
+			if chunk at questLoc({_n}) is not loaded:
+				send "QUEST remove: go near giver %{_n}% first (its chunk isn't loaded)" to sender
+				stop
+			execute console command "minecraft:kill @e[tag=questg_%{_n}%]"
+			delete {quest::giver::%{_n}%}
+			# Its locator-bar dot and force-loaded chunk (nav.sk).
+			execute console command "minecraft:kill @e[tag=poi_q_%{_n}%]"
+			poiRelease("q_%{_n}%")
+			questLog("remove %{_n}% by=%sender%")
+			send "QUEST giver %{_n}% removed" to sender
+		else if {_sub} is "list":
+			loop {quest::giver::*}:
+				send "QUEST %loop-index%: %loop-value% (%questNpcName(loop-index)%)" to sender
+			send "QUEST end" to sender
+		else if {_sub} is "dump":
+			# The lines that recreate every giver (for Minehut).
+			loop {quest::giver::*}:
+				set {_q::*} to loop-value split at "|"
+				send "dquest addat %{_q::1}% %{_q::3}% %{_q::4}% %{_q::5}% %{_q::6}% %{_q::7}%" to sender
+				questLog("dump: dquest addat %{_q::1}% %{_q::3}% %{_q::4}% %{_q::5}% %{_q::6}% %{_q::7}%")
+		else if {_sub} is "open":
+			set {_who} to {_a::2} parsed as player
+			set {_n} to {_a::3}
+			if {_who} is not set:
+				send "QUEST open <player> <giver n>" to sender
+				stop
+			if {quest::giver::%{_n}%} is not set:
+				send "QUEST open: no giver %{_n}%" to sender
+				stop
+			questOpen({_who}, {_n})
+		else:
+			send "QUEST usage: /dquest add <kind> [place] | addat <kind> <x> <y> <z> <yaw> [place] | remove <n> | list | dump | open <player> <n>" to sender

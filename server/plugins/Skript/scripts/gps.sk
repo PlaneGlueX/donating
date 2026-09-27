@@ -193,7 +193,7 @@ function gpsPlaceNear(p: player, l: location, reach: number) :: text:
 				set {_found} to loop-value
 	return {_found}
 
-# Places to pick in /gps, as "world|x|y|z|name|kind": staff POIs, open heists, your car.
+# Places to pick in /gps, as "world|x|y|z|name|kind": staff POIs, quest givers, open heists, your car.
 function gpsPlaces(p: player) :: texts:
 	loop {poi::*}:
 		set {_a::*} to loop-value split at "|"
@@ -207,6 +207,8 @@ function gpsPlaces(p: player) :: texts:
 		if {_n} is "":
 			set {_n} to "%{_a::1}% %loop-index%"
 		add "%{_a::2}%|%{_a::3}%|%{_a::4}%|%{_a::5}%|%{_n}%|%{_a::1}%" to {_out::*}
+	loop questPlaces():
+		add loop-value to {_out::*}
 	loop {heists::*}:
 		set {_h} to loop-index
 		set {_s} to heistState({_h})
@@ -393,6 +395,8 @@ function gpsMenu(p: player):
 			set {_icon} to gold ingot
 		else if {_a::6} is "car":
 			set {_icon} to minecart
+		else if {_a::6} is "quest":
+			set {_icon} to flint
 		set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))
 		set {_where} to ""
 		if world of {_l} is world of {_p}:

@@ -80,7 +80,7 @@ function openPhone(p: player):
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
 	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
-	set {_jobs} to flint named "&6Contracts" with lore "&7Car-theft jobs: steal a car and" and "&7bring it to a chop shop for cash." and "&7Lockpicks are sold here too."
+	set {_jobs} to flint named "&6Contracts" with lore "&7Car-theft jobs: steal a car and" and "&7bring it to a chop shop for cash." and "&7Jobs and lockpicks: from contract givers."
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_jobs} to "donating:lockpick_basic"
 	set slot 9 of {_gui} to tagItem({_jobs}, "phone:contracts")
 	set slot 4 of {_gui} to tagItem(compass named "&bGPS" with lore "&7Pin a place and follow the way" and "&7along the roads (it finds a new one" and "&7if you take another street)." and "&7Or left-click the big map.", "phone:gps")

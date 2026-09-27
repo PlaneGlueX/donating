@@ -61,7 +61,8 @@ on respawn:
 # hologram, in its difficulty's color; off while it cools down). Robbers inside a heist receive no
 # waypoints (applyWaypointReceive above), so the ammo bar stays there. A waypoint entity is only sent
 # while its chunk is loaded, so every POI's chunk is force-loaded. Stands are summoned like the
-# shopkeepers: every 10 s each POI gets exactly one (a missing one comes back, extras go).
+# shopkeepers: every 10 s each POI gets exactly one (a missing one comes back, extras go). Quest givers
+# (quests.sk) get one too ("q_<n>", poi::quest::color), always shown.
 # Saved: {poi::<n>} = "type|world|x|y|z|name" (only POIs under poi::, the counter is {poicounter}). Colors: core.sk poi::<type>::color and
 # difficulty::<d>::waypoint (names from Minecraft's /waypoint command: aqua, yellow, gold, ...). POIs live in
 # the main world (Nether and End are off): the console summons them there, so /dpoi refuses other worlds
@@ -172,6 +173,14 @@ function poiReconcile():
 			if {_color} is not set:
 				set {_color} to "red"
 			poiEnsure("h_%{_h}%", {_l}, {_color}, {_on})
+	# Quest givers (quests.sk): a dot at each, always shown.
+	loop {quest::giver::*}:
+		set {_l} to questLoc(loop-index)
+		if {_l} is set:
+			set {_color} to {-cfg::poi::quest::color}
+			if {_color} is not set:
+				set {_color} to "blue"
+			poiEnsure("q_%loop-index%", {_l}, {_color}, true)
 	# Stands nothing refers to any more (a removed POI, a deleted heist) go.
 	loop all entities:
 		if loop-entity has scoreboard tag "donating_poi":
@@ -180,6 +189,10 @@ function poiReconcile():
 				if loop-value-2 starts with "poi_h_":
 					set {_hid} to subtext of loop-value-2 from characters 7 to (length of loop-value-2)
 					if {heists::%{_hid}%} is set:
+						set {_known} to true
+				else if loop-value-2 starts with "poi_q_":
+					set {_qid} to subtext of loop-value-2 from characters 7 to (length of loop-value-2)
+					if {quest::giver::%{_qid}%} is set:
 						set {_known} to true
 				else if loop-value-2 starts with "poi_":
 					set {_pid} to subtext of loop-value-2 from characters 5 to (length of loop-value-2)
@@ -194,6 +207,10 @@ function poiReconcile():
 		if {_id} starts with "h_":
 			set {_hid} to subtext of {_id} from characters 3 to (length of {_id})
 			if {heists::%{_hid}%} is set:
+				set {_known} to true
+		else if {_id} starts with "q_":
+			set {_qid} to subtext of {_id} from characters 3 to (length of {_id})
+			if {quest::giver::%{_qid}%} is set:
 				set {_known} to true
 		else if {poi::%{_id}%} is set:
 			set {_known} to true
