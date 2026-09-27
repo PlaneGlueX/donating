@@ -1317,6 +1317,13 @@ command /dhit [<text>]:
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
+		# Commands that pay, grant or rebuild progress: donating.quests.admin (the owner through *) and the console only.
+		if sender is a player:
+			loop "give", "reset" and "window":
+				if {_sub} is loop-value:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
 		if {_sub} is "node":
 			set {_op} to {_a::2}
 			if {_op} is "add":

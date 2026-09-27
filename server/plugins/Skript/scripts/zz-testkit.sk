@@ -1098,3 +1098,9 @@ command /zzpvleak <player>:
 		if {_e} is valid:
 			set {_va} to true
 		send "PVLEAK %arg-1% adopted=%{_ad}% valid=%{_va}% ready=%pvReady()%"
+
+# A contract offer (contracts.sk) for tests: "model|color|spot" or <none>.
+command /zzctofferget <player> <text>:
+	executable by: console
+	trigger:
+		send "CTOFFERGET %arg-1% %arg-2% %{-ctoffer::%uuid of arg-1%::%arg-2%}%"

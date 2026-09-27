@@ -112,8 +112,14 @@ function fenceRoll(w: number):
 		set {_rate} to cfg("fence::diff::rate")
 		set {_cap} to cfg("fence::diff::cap::%{_dstar}%")
 		set {fence::order::2} to "diff|%{_dstar}%|%{_rate}%|%{_cap}%"
-	# 3. A car, when the map has car jobs.
-	if size of {contract::spot::*} > 0:
+	# 3. A car, when the map has car jobs (a contracts giver, a car spot and a chop shop).
+	set {_giver} to false
+	loop {quest::giver::*}:
+		if loop-value starts with "contracts|":
+			set {_giver} to true
+	if {_giver} is false:
+		delete {_ms::*}
+	else if size of {contract::spot::*} > 0:
 		if size of {contract::chop::*} > 0:
 			set {_tn} to size of {-cfg::fence::car::tiers::*}
 			set {_ti} to mod({_w}, {_tn}) + 1
@@ -335,13 +341,14 @@ function fenceRow(p: player, gui: inventory):
 
 # ---------- Hints ----------
 
-on join:
-	wait 6 seconds
-	player is online
-	fenceArcDone(player) is true
-	getData(player, "fence::took") is set
-	getData(player, "fence::took") is not progWeek()
-	hudBar(player, "&6✉ Vic has a new Wanted List &7· the Pawn Shop", 1)
+# Whether Vic has a new list for this player (jobs.sk's join hint shows it with the waiting jobs).
+function fenceJoinHint(p: player) :: boolean:
+	if fenceArcDone({_p}) is true:
+		set {_t} to getData({_p}, "fence::took")
+		if {_t} is set:
+			if {_t} is not progWeek():
+				return true
+	return false
 
 on quit:
 	delete {-fence::sale::%player%}
@@ -356,6 +363,13 @@ command /dfence [<text>]:
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
+		# Commands that pay, grant or rebuild progress: donating.quests.admin (the owner through *) and the console only.
+		if sender is a player:
+			loop "reset" and "roll":
+				if {_sub} is loop-value:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
 		if {_sub} is "list":
 			send "FENCE week=%{fence::week}% now=%progWeek()% o1=%{fence::order::1}% o2=%{fence::order::2}% o3=%{fence::order::3}%" to sender
 			stop

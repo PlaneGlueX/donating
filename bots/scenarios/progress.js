@@ -76,10 +76,12 @@ module.exports = async ({ check }) => {
     const left = Number(field(r, 'left'))
     check('walking out notes the seconds left on the clock', Math.abs(left - leftBefore) <= 6 && left > 500, `left=${left} before=${leftBefore} | ${r}`)
     await cmd(`dtrap dry ${B} on`)
+    const tb = Date.now()
     await walkIn(B)
     const rb = await run(B)
     await walkOut(B)
-    check('a dry-mode hit (staff testing traps) never notes "touched"', !/touched=true/.test(rb), rb)
+    const dry = messagesSince(bots[B], tb).some(m => /DRY HIT/.test(m.text))
+    check('a dry-mode hit (staff testing traps) never notes "touched" (B did get the DRY HIT)', dry && !/touched=true/.test(rb), `dry=${dry} | ${rb}`)
 
     // ---------- The ledger: own loot, sales, duffels ----------
     await cmd(`zzprog ${A} rob 1500 ${TAG}`)
@@ -119,7 +121,6 @@ module.exports = async ({ check }) => {
     const w3 = Number(((await cmd('zzweek')).match(/WEEK (\d+)/) || [])[1])
     await cmd('zzweek off')
     check('the week is floor(unix / 604800) (Thursday 00:00 UTC), week::offset moves it, a test override works', wk === Math.floor(unix / 604800) && w2 === wk + 1 && w3 === 7, `${w} ${w2} ${w3}`)
-    void messagesSince
   } finally {
     await rcon.cmd('zzweek off').catch(() => {})
     await rcon.cmd('zzcfgreload').catch(() => {})

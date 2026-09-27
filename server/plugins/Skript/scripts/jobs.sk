@@ -446,6 +446,14 @@ function jobsPayNow(p: player, c: text, k: number, kept: boolean) :: number:
 
 # ---------- Picking up, in person ----------
 
+# A taken Special Order: that tier's Scrap Yard offer rolls again, now with the ordered model (spec §11).
+function jobsOfferReset(p: player, c: text, k: number):
+	if {_c} is "boss":
+		if jobsState({_p}, {_c}, {_k}) is "taken":
+			if jobsGetT({_p}, {_c}, {_k}, "tpl") is "model":
+				set {_jt} to jobsGetT({_p}, {_c}, {_k}, "t")
+				delete {-ctoffer::%uuid of {_p}%::%{_jt}%}
+
 # Every waiting job of this contact becomes taken. Returns how many.
 function jobsPickup(p: player, c: text) :: number:
 	set {_n} to 0
@@ -453,6 +461,7 @@ function jobsPickup(p: player, c: text) :: number:
 		if jobsState({_p}, {_c}, loop-number) is "waiting":
 			setData({_p}, "job::%{_c}%::%loop-number%", "taken")
 			jobsSet({_p}, {_c}, loop-number, "takenat", progUnix())
+			jobsOfferReset({_p}, {_c}, loop-number)
 			jobsStat(jobsGetT({_p}, {_c}, loop-number, "tpl"), "taken")
 			add 1 to {_n}
 			# The first job ever from this contact: the GPS follows it.
@@ -528,11 +537,31 @@ function jobsBonusHolds(p: player, b: text, tag: text) :: boolean:
 	return false
 
 function jobsEvent(p: player, ev: text, n: number, detail: text, own: number):
+	set {_tr} to ""
+	set {_trv} to getData({_p}, "quest-track")
+	if {_trv} is set:
+		set {_tr} to "%{_trv}%"
 	loop {-cfg::jobs::contacts::*}:
 		set {_c} to loop-value
 		if jobsUnlocked({_p}, {_c}) is true:
 			set {_hit} to false
+			delete {_ks::*}
+			delete {_in::*}
+			# The tracked job first (spec §5), then Special Orders (only the ordered car counts for them), then slot
+			# order: a cheaper job in an earlier slot never uses up a delivery meant for another.
 			loop jobsSlots({_p}, {_c}) times:
+				if {_tr} is "job:%{_c}%:%loop-value-2%":
+					add loop-value-2 to {_ks::*}
+					set {_in::%loop-value-2%} to true
+			loop jobsSlots({_p}, {_c}) times:
+				if {_in::%loop-value-2%} is not set:
+					if jobsGetT({_p}, {_c}, loop-value-2, "tpl") is "model":
+						add loop-value-2 to {_ks::*}
+						set {_in::%loop-value-2%} to true
+			loop jobsSlots({_p}, {_c}) times:
+				if {_in::%loop-value-2%} is not set:
+					add loop-value-2 to {_ks::*}
+			loop {_ks::*}:
 				if {_hit} is false:
 					if jobsState({_p}, {_c}, loop-value-2) is "taken":
 						set {_hit} to jobsCount({_p}, {_c}, loop-value-2, {_ev}, {_n}, {_detail}, {_own})
@@ -699,6 +728,19 @@ function jobsVoidWhy(p: player, c: text, k: number) :: text:
 		return "level"
 	if heistIsPvp({_h}) is true:
 		return "pvp"
+	# What the template needs must still be in the heist (a rebuild can take a safe or the vault out).
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	if storyHasGate({_h}, "pile") is false:
+		return "content"
+	if {_tpl} is "safe":
+		if storyHasGate({_h}, "safe") is false:
+			return "content"
+	if {_tpl} is "vault":
+		if storyHasGate({_h}, "drill") is false:
+			return "content"
+	if {_tpl} is "getaway":
+		if heistIsAdvanced({_h}) is false:
+			return "content"
 	return ""
 
 function jobsVoidCheck(p: player, c: text):
@@ -708,7 +750,9 @@ function jobsVoidCheck(p: player, c: text):
 		if {_s} is "waiting" or "taken":
 			set {_why} to jobsVoidWhy({_p}, {_c}, {_k})
 			if {_why} is "":
-				jobsSet({_p}, {_c}, {_k}, "goneat", "")
+				# Only written when it changes (a saved variable per job every 30 s otherwise).
+				if jobsGet({_p}, {_c}, {_k}, "goneat") is set:
+					deleteData({_p}, "job::%{_c}%::%{_k}%::goneat")
 			else:
 				set {_ga} to jobsGet({_p}, {_c}, {_k}, "goneat")
 				set {_started} to false
@@ -734,6 +778,7 @@ function jobsReplace(p: player, c: text, k: number, s: text):
 		if {_s} is "taken":
 			setData({_p}, "job::%{_c}%::%{_k}%", "taken")
 			jobsSet({_p}, {_c}, {_k}, "takenat", progUnix())
+			jobsOfferReset({_p}, {_c}, {_k})
 		storyText({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::void})
 	else:
 		jobsForget({_p}, {_c}, {_k})
@@ -778,7 +823,8 @@ function jobsPass(p: player):
 				jobsForget({_p}, {_c}, loop-value-2)
 			else if {_s} is "met":
 				if {_gapok} is true:
-					if progUnix() - jobsGet({_p}, {_c}, loop-value-2, "metat") >= 2:
+					# Whole unix seconds: >= 3 is at least 2 real seconds, so JOB DONE never replaces a sale's title.
+					if progUnix() - jobsGet({_p}, {_c}, loop-value-2, "metat") >= 3:
 						set {_gapok} to false
 						jobsComplete({_p}, {_c}, loop-value-2)
 
@@ -792,8 +838,35 @@ on quit:
 	delete {-jobs::gui::%player%}
 	delete {-jobs::act::%player%::*}
 	delete {-jobs::arm::%player%}
+	delete {-jobs::armat::%player%}
+	delete {-jobs::gen::%player%}
 	delete {-jobs::swapmode::%player%}
 	delete {-ph::jobs::%player%}
+
+# The join hint (spec §8), after the first pass so fresh arrivals are counted (fence.sk's hint is folded in here).
+on join:
+	wait 7 seconds
+	player is online
+	set {_total} to 0
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		if jobsUnlocked(player, {_c}) is true:
+			set {_w} to 0
+			loop jobsSlots(player, {_c}) times:
+				if jobsState(player, {_c}, loop-value-2) is "waiting":
+					add 1 to {_w}
+			if {_w} > 0:
+				add {_w} to {_total}
+				set {_nm} to {-cfg::jobs::%{_c}%::name}
+				add "%{_nm}% %{_w}%" to {_names::*}
+	set {_vic} to fenceJoinHint(player)
+	if {_total} > 0:
+		set {_extra} to ""
+		if {_vic} is true:
+			set {_extra} to " &7· &6Vic has a new list"
+		hudBar(player, "&e✉ %{_total}% job(s) waiting (%join {_names::*} with ", "%)%{_extra}% &7· /jobs", 1)
+	else if {_vic} is true:
+		hudBar(player, "&6✉ Vic has a new Wanted List &7· the Pawn Shop", 1)
 
 # ---------- Swap and drop ----------
 
@@ -819,13 +892,30 @@ function jobsSwap(p: player, c: text, k: number):
 		set {_maxd} to jobsTierRank(jobsGetT({_p}, {_c}, {_k}, "t"))
 	set {_at} to jobsGet({_p}, {_c}, {_k}, "at")
 	set {_old} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	# A swap never fishes for more pay (spec): the new job pays, gives and counts at most what the old one did.
+	set {_oldpay} to jobsGet({_p}, {_c}, {_k}, "pay")
+	set {_oldxp} to jobsGet({_p}, {_c}, {_k}, "xp")
+	set {_oldrep} to jobsGet({_p}, {_c}, {_k}, "rep")
+	set {_oldcold} to jobsGet({_p}, {_c}, {_k}, "cold")
 	if jobsRoll({_p}, {_c}, {_k}, {_maxd}) is false:
 		hudBar({_p}, "&7Nothing else fits right now.", 1)
 		stop
 	jobsSet({_p}, {_c}, {_k}, "at", {_at})
+	if {_oldpay} is set:
+		if jobsGet({_p}, {_c}, {_k}, "pay") > {_oldpay}:
+			jobsSet({_p}, {_c}, {_k}, "pay", {_oldpay})
+	if {_oldxp} is set:
+		if jobsGet({_p}, {_c}, {_k}, "xp") > {_oldxp}:
+			jobsSet({_p}, {_c}, {_k}, "xp", {_oldxp})
+	if {_oldrep} is set:
+		if jobsGet({_p}, {_c}, {_k}, "rep") > {_oldrep}:
+			jobsSet({_p}, {_c}, {_k}, "rep", {_oldrep})
+	if {_oldcold} is not true:
+		jobsSet({_p}, {_c}, {_k}, "cold", false)
 	if {_s} is "taken":
 		setData({_p}, "job::%{_c}%::%{_k}%", "taken")
 		jobsSet({_p}, {_c}, {_k}, "takenat", progUnix())
+		jobsOfferReset({_p}, {_c}, {_k})
 	setData({_p}, "jobs::%{_c}%::swap", progUnix())
 	jobsStat({_old}, "swapped")
 	set {_newt} to jobsGetT({_p}, {_c}, {_k}, "tpl")
@@ -833,6 +923,11 @@ function jobsSwap(p: player, c: text, k: number):
 	hudBar({_p}, "&aSwapped: &f%jobsTitleOf({_p}, {_c}, {_k})%", 1)
 
 function jobsDrop(p: player, c: text, k: number):
+	# Only a taken job (a stale card can't drop a met one before it pays, or an empty slot).
+	if jobsState({_p}, {_c}, {_k}) is not "taken":
+		stop
+	# Arrivals first: a full board wastes them, so a drop never turns them into a free re-roll.
+	jobsFill({_p}, {_c})
 	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
 	jobsStat({_tpl}, "dropped")
 	jobsLog("drop %{_p}% %{_c}%:%{_k}% %{_tpl}%")
@@ -912,14 +1007,13 @@ function jobsHud(p: player) :: boolean:
 	set {_u} to "%uuid of {_p}%"
 	if gpsActive({_p}) is "quest":
 		if {-gps::questby::%{_u}%} is "job":
-			set {_t} to getData({_p}, "quest-track")
+			# The job the GPS routes to (questGps's objective "job:<c>:<k>:<id>"), not the tracked or first one.
 			set {_key} to ""
-			if {_t} is set:
-				if "%{_t}%" starts with "job:":
-					set {_key} to "%{_t}%"
-			if {_key} is "":
-				set {_key} to first element out of jobsKeys({_p})
-			if {_key} is set:
+			set {_obj} to {-gps::questobj::%{_u}%}
+			if {_obj} is set:
+				if "%{_obj}%" starts with "job:":
+					set {_key} to "%{_obj}%"
+			if {_key} is not "":
 				set {_a::*} to {_key} split at ":"
 				set {_c} to {_a::2}
 				set {_k} to {_a::3} parsed as number
@@ -1066,6 +1160,9 @@ function jobsCard(p: player, c: text, k: number, near: boolean) :: item:
 function jobsMenu(p: player):
 	closePhoneMap({_p})
 	jobsUnlockCheck({_p})
+	# Arrivals are counted before the board is drawn (spec §2).
+	loop {-cfg::jobs::contacts::*}:
+		jobsFill({_p}, loop-value)
 	set {_gui} to chest inventory with 5 rows named "&8Jobs"
 	delete {-jobs::act::%{_p}%::*}
 	set {_pane} to gray stained glass pane named "&r"
@@ -1203,6 +1300,8 @@ on inventory click:
 		delete {-jobs::swapmode::%player%}
 		if questNear(player, jobsGiver({_a::2})) is not "":
 			jobsSwap(player, {_a::2}, {_a::3} parsed as number)
+		else:
+			hudBar(player, "&7Swaps only at the contact, in person.", 1)
 		jobsMenu(player)
 	else if {_a::1} is "job":
 		set {_k} to {_a::3} parsed as number
@@ -1231,6 +1330,10 @@ on inventory close:
 	event-inventory is {-jobs::gui::%player%}
 	delete {-jobs::gui::%player%}
 	delete {-jobs::act::%player%::*}
+	# Swap mode and an armed drop end with the menu (a redraw sets the new menu first, so it doesn't land here).
+	delete {-jobs::swapmode::%player%}
+	delete {-jobs::arm::%player%}
+	delete {-jobs::armat::%player%}
 
 command /jobs:
 	description: Your jobs from Mara and the Scrap Yard Boss.
@@ -1247,6 +1350,13 @@ command /djobs [<text>]:
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
+		# Commands that pay, grant or rebuild progress: donating.quests.admin (the owner through *) and the console only.
+		if sender is a player:
+			loop "met", "post", "unlock", "empty", "lock", "clear" and "rep":
+				if {_sub} is loop-value:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
 		if {_sub} is "stats":
 			loop {-cfg::jobs::mara::templates::*} and {-cfg::jobs::boss::templates::*}:
 				set {_t} to loop-value

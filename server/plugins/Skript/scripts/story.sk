@@ -107,14 +107,15 @@ function storyReached(p: player, id: text) :: boolean:
 		set {_now} to subtext of {_now} from characters 8 to (length of {_now})
 		if {_now} is {_id}:
 			return true
+	# On a mission after id (on id itself isn't "got to" it: that's still to do).
 	set {_seen} to false
 	loop storyList({_c}):
-		if loop-value is {_id}:
-			set {_seen} to true
 		if loop-value is {_now}:
 			if {_seen} is true:
 				return true
 			return false
+		if loop-value is {_id}:
+			set {_seen} to true
 	return false
 
 function storyProgOf(p: player, c: text) :: number:
@@ -852,6 +853,8 @@ function storyTalkKind(p: player, k: text):
 		if storyIdOf({_p}, "story") is "done":
 			jobsTalk({_p}, "mara", true)
 			stop
+		# Her board can open mid-story (jobs::mara::unlock story:<id>): take her waiting jobs, then the missions.
+		jobsTalk({_p}, "mara", false)
 		storyMenu({_p})
 	else if {_k} is "fence":
 		fenceTalk({_p})
@@ -1019,6 +1022,13 @@ command /dstory [<text>]:
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
+		# Commands that pay, grant or rebuild progress: donating.quests.admin (the owner through *) and the console only.
+		if sender is a player:
+			loop "set" and "reset":
+				if {_sub} is loop-value:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
 		set {_who} to {_a::2} parsed as player
 		if {_who} is not set:
 			send "STORY usage: /dstory info|reset|skip <online player> [chain] | set <online player> <mission id>" to sender
