@@ -119,6 +119,20 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-afk::is::%player%} is set:
 			set the placeholder result to " &7AFK"
+	else if {_i} is "season":
+		set the placeholder result to "&r"
+		if {-ph::season::%player%} is set:
+			set the placeholder result to {-ph::season::%player%}
+	else if {_i} is "season_short":
+		set the placeholder result to "&r"
+		if {season::state} is "live":
+			set the placeholder result to "&7Season %{season::num}%"
+	else if {_i} starts with "lb_":
+		# lb_<board>_<rank>: "&e#1 &fName &7· &a$12,340" (seasons.sk ranks into memory).
+		set {_parts::*} to {_i} split at "_"
+		set the placeholder result to "&7#%{_parts::3}% &8—"
+		if {-ph::lb::%{_parts::2}%::%{_parts::3}%} is set:
+			set the placeholder result to {-ph::lb::%{_parts::2}%::%{_parts::3}%}
 	else if {_i} is "booster":
 		set the placeholder result to "&r"
 		if {-ph::booster} is set:

@@ -928,6 +928,8 @@ function lootTake(p: player, h: text, n: text, i: number) :: number:
 		lootMarker({_h}, {_n})
 	heistStartRun({_h})
 	lootLog("take %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}% cell=%{_cell}% slot=%{_slot}% got=%{_got}% left=%{-lootleft::%{_c}%}% pieces=%{-lootn::%{_c}%}% run=%heistRun({_h})%")
+	# The dollars the player took from this run themselves (the season counts only up to that: progress.sk).
+	progEvent({_p}, "rob", {_got}, "%{_h}%#%heistRun({_h})%")
 	set {_pct} to bagPct({_p})
 	play sound "item.bundle.insert" with volume 0.8 and pitch (0.9 + 0.5 * {_pct} / 100) at location of {_p}
 	if bagRoom({_p}) <= 0:
@@ -1224,6 +1226,7 @@ function lootCrack(p: player, h: text, n: text):
 	if {-lootc::%{_c}%::alarm} is true:
 		heistTripAlarm({_h}, "loot:safe:%{_h}%-%{_n}%")
 	lootLog("crack %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}% guesses=%{-lootguessn::%{_c}%::%{_p}%}%")
+	progEvent({_p}, "crack", 1, {_h})
 
 function lootKeypadForget(p: player):
 	delete {-lootkp::%{_p}%}
@@ -1591,6 +1594,9 @@ function lootDrillDone(h: text, n: text):
 		else:
 			send title colored "&6&lVAULT OPEN" to loop-value for 2 seconds
 	lootLog("drilled %{_h}%-%{_n}% by=%{_who}% claim=%{_got}%")
+	# The vault counts for whoever gets its head start (still inside when it opened).
+	if {_got} is true:
+		progEvent({_owner}, "drill", 1, {_h})
 
 # ---------- Head starts ----------
 

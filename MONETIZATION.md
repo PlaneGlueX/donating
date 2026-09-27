@@ -179,7 +179,10 @@ The Hacked crate is never sold: its keys only come from special events. Every Ha
   - The time only counts down while someone is online.
   - The start and end are announced, and everyone's tab list shows the booster and who bought it.
 - **Robber levels can't be bought.** They're earned by selling loot and doing car contracts. An XP booster multiplies the XP a player earns that way while it runs (for everyone); nothing gives XP by itself, and crates never give XP.
-- **Season leaderboards (when seasons start)** count what players do; a booster's extra money or XP never counts toward them.
+- **Seasons and leaderboards** (added 2026-09-27; nothing about them is sold): three boards per season (Top Earners, Master Thieves, Wheelmen) with prizes for the top 10 (a title that can't be traded, in-game money, Season keys).
+  - **A rank's bigger bag counts** on Top Earners (it counts money from loot sold, and a rank's bag holds 5-25% more); the other two boards count points per heist run (capped per run: a bigger bag, a rank's included, only reaches the cap in fewer trips), safes, vaults, getaways and car contracts.
+  - **A booster's extra never counts** (Top Earners counts loot at its normal price; an XP booster only changes levels). Heist Refresh and Heist Rush open heists for everyone and count like any other run.
+  - **Season keys and season titles are never sold**, can't be given by any store command, and season titles can't be traded or won from crates. No rank includes them.
 - **Crates only open at crate stands in safe zones,** never inside a heist or in combat, so nobody restocks mid-fight. Only Legendary and Hacked cosmetic pulls are announced to the server.
 
 ## Setting up Tebex (the owner does these steps)

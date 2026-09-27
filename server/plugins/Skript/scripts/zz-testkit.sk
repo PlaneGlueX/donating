@@ -939,3 +939,58 @@ command /zzcarflags <text> <text>:
 		set {_j} to ctOfferIcon(player("Explosde"), "basic", true)
 		send "OFFER %nbt of {_j}%"
 
+
+# ---------- Seasons (seasons.sk, progress.sk) ----------
+
+# Fires a progress event as if it happened: /zzprog <player> <ev> <n> <detail>
+command /zzprog <player> <text> <number> <text>:
+	executable by: console
+	trigger:
+		progEvent(arg-1, arg-2, arg-3, arg-4)
+		send "PROG %arg-1% %arg-2% %arg-3% %arg-4%"
+
+# A player's season in one line.
+command /zzseason <offline player>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		set {_s} to seasonNum()
+		loop {-cfg::season::boards::*}:
+			add "%loop-value%=%{ss::%{_s}%::%loop-value%::%{_u}%}%#%{-lb::rank::%loop-value%::%{_u}%}%" to {_o::*}
+		set {_all} to join {_o::*} with " "
+		set {_keys} to crateKeys(arg-1, "season")
+		send "SEASON %arg-1% s=%{_s}% state=%{season::state}% %{_all}% points=%seasonPoints({_u})% ms=%{ss::%{_s}%::ms::%{_u}%}% mins=%{ss::%{_s}%::mins::%{_u}%}% keys=%{_keys}% line=%{-ph::season::%arg-1%}%"
+
+# Sets a player's minutes played this season.
+command /zzseasonmins <offline player> <number>:
+	executable by: console
+	trigger:
+		set {ss::%seasonNum()%::mins::%uuid of arg-1%} to arg-2
+		send "SEASONMINS %arg-1% %arg-2%"
+
+# Wipes every season (tests only): back to no season at all, so the real first season is Season 1.
+command /zzseasonwipe:
+	executable by: console
+	trigger:
+		delete {season::*}
+		delete {ss::*}
+		delete {ssfinal::*}
+		delete {seasonreward::*}
+		delete {seasonreview::*}
+		delete {seasonpaid::*}
+		delete {seasonx::*}
+		delete {seasoncos::*}
+		delete {-lb::*}
+		delete {-ph::lb::*}
+		loadSettings()
+		send "SEASONWIPE"
+
+# Sets a heist's alarm wave number (a number, unlike /zzheistvar): /zzheistwave <heist> <n> (0 deletes it).
+command /zzheistwave <text> <number>:
+	executable by: console
+	trigger:
+		if arg-2 <= 0:
+			delete {-heist::%arg-1%::wave}
+		else:
+			set {-heist::%arg-1%::wave} to arg-2
+		send "HEISTWAVE %arg-1% %heistWave(arg-1)%"

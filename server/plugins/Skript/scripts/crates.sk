@@ -125,6 +125,9 @@ function crateLineLive(line: text) :: boolean:
 				return false
 			if cosHidden(loop-value) is true:
 				return false
+			# Earned titles (seasons, the story) never come from a crate.
+			if {-cfg::cos::%loop-value%::bound} is true:
+				return false
 	if {_a::2} is "car":
 		if {-cfg::crate::cars} is not true:
 			return false
@@ -540,6 +543,8 @@ function crateKeySource(t: text) :: texts:
 		add "&7Buy keys: &f/store" to {_l::*}
 	else if {_t} is "daily":
 		add "&7A free key every day: &f/daily" to {_l::*}
+	else if {_t} is "season":
+		add "&7Keys from season milestones and prizes: &f/season" to {_l::*}
 	else:
 		add "&7Keys only at special events." to {_l::*}
 	return {_l::*}
@@ -934,6 +939,11 @@ function dcrateKeys(s: command sender, a: texts, sign: number):
 		dcrateReply({_s}, "CRATE %{_sub}%: the count must be a whole number from 1 to 10000")
 		stop
 	if {_sign} > 0:
+		# Season keys only come from seasons (never sold, so no store command may give them).
+		if {-cfg::crate::%{_t}%::never-give} is true:
+			crateLog("refused %{_line}% by=%{_s}% (%{_t}% keys are never given by command)")
+			dcrateReply({_s}, "CRATE give: %{_t}% keys only come from seasons")
+			stop
 		crateAddKeys({_p}, {_t}, {_n}, "dcrate by=%{_s}%")
 		dcrateReply({_s}, "CRATE %{_a::2}% +%{_n}% %{_t}% (now %crateKeys({_p}, {_t})%)")
 		loop all players:

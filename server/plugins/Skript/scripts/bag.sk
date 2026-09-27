@@ -403,6 +403,8 @@ function bagSell(p: player) :: number:
 	loop {data::%{_p}%::loot::*}:
 		add 1 to {_hauls}
 		set {_lines} to "%{_lines}% %loop-index%=%loop-value%"
+		# For the season's boards (progress.sk), after the level XP below.
+		set {_runs::%loop-index%} to loop-value
 		set {_parts::*} to loop-index split at "#"
 		set {_hid} to {_parts::1}
 		add loop-value to {_by::%{_hid}%}
@@ -454,6 +456,9 @@ function bagSell(p: player) :: number:
 		msg({_p}, "&6⚡ Money booster %boosterText({_boost})%: &e+%formatMoney({_extra})%")
 	# Robber level XP (levels.sk), last: a level-up's title replaces the sale's.
 	levelSale({_p}, {_pay}, {_credit})
+	# Each heist run's loot (before passive and boosters) for the season (progress.sk).
+	loop {_runs::*}:
+		progEvent({_p}, "sell", loop-value, loop-index)
 	return {_pay} + {_extra}
 
 on region enter:

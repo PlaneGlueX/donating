@@ -445,6 +445,37 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 eye.getZ() + Math.cos(yaw) * Math.cos(pitch) * far, LookAnchor.EYES);
     }
 
+    /** Tab completion for /dphone (owner, 2026-09-27: every command completes its arguments). */
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
+        List<String> options = new ArrayList<>();
+        List<String> players = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) players.add(p.getName());
+        if (args.length == 1) {
+            options.addAll(List.of("reload", "status", "roads", "gps"));
+        } else if (args.length == 2) {
+            switch (args[0].toLowerCase()) {
+                case "status", "gps" -> options.addAll(players);
+                case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
+                default -> { }
+            }
+        } else if (args.length == 3) {
+            if (args[0].equalsIgnoreCase("gps")) options.addAll(List.of("set", "clear", "active"));
+            else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
+        } else if (args.length == 4) {
+            if (args[0].equalsIgnoreCase("gps")) {
+                if (args[2].equalsIgnoreCase("active")) options.addAll(List.of("pin", "quest", "loot", "none"));
+                else options.addAll(List.of("pin", "quest", "loot"));
+            } else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) {
+                options.addAll(List.of("on", "off"));
+            }
+        }
+        String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+        List<String> out = new ArrayList<>();
+        for (String o : options) if (o.toLowerCase().startsWith(typed)) out.add(o);
+        return out;
+    }
+
     /** /dphone: reload. /dphone status <player>: one line for tests and staff. /dphone gps|roads: the GPS. */
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {

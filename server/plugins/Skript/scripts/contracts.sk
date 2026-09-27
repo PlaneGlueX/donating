@@ -698,6 +698,7 @@ function ctDeliver(u: text, chop: text):
 		msg({_p}, "&7Your bounty went up by &c%formatMoney({_bounty})%&7.")
 	# Last: a level-up's title replaces the delivery's.
 	levelAddXp({_p}, {_xp}, "contract")
+	progEvent({_p}, "contract", {_pay}, {_t})
 
 # ---------- Ending a job ----------
 

@@ -1,0 +1,922 @@
+# seasons.sk: seasons, three leaderboards and prizes for the top. Built 2026-09-27 (owner, 2026-09-27: "need to
+# implement more competition. might add a system with seasons, leaderboard, and rewards for being the top";
+# "there should be 3 different leaderboards with different metrics being measured, earned titles untradable,
+# close farming loops (except for heist refresh since its balanced for everyone), dont leave out things from
+# the paid ranks").
+#
+# A season lasts season::days (PROPOSAL 28; the owner starts the first one with /dseason start at the launch).
+# Soft seasons: only the boards reset; money, levels, cars and cosmetics stay. Three boards (core.sk
+# season::board::<b>::*), each its own metric:
+#   earners   Top Earners: money from loot sold at its normal price (a rank's bigger bag counts, passive players'
+#             75%; a money booster's extra doesn't) and car contract pay.
+#   heisters  Master Thieves: heist skill points. A heist run pays up to w_d points, w_d × min(1, V / T_d) with
+#             V = that run's loot sold (d = the heist's difficulty; several trips pay what one would), plus a
+#             safe cracked, a vault drilled and a getaway with that run's loot.
+#   wheelmen  Wheelmen: car contracts, points per tier.
+# Farming loops closed: loot counts only up to the dollars the player took from that run themselves (a duffel
+# picked up from someone else, even of the same run, pays money but no season score; loot robbed just before a
+# season ended still counts when sold in the next); a run's heist points are capped, so tapping one piece per
+# heist or selling in tiny trips pays nothing extra; a getaway counts once per run, with loot the player robbed
+# in that run, after a wave; passive players count at their 75% (a run sold partly passive keeps the lower share). A Heist Refresh
+# run counts like any other (balanced for everyone). Staff (donating.season.exempt; the owner through *) aren't
+# counted.
+# Prizes (PROPOSAL, core.sk season::prize::<r>::*): the top 10 of each board, if they played season::min-hours
+# (not AFK): a title that can't be traded (#1 «S1 Top Earner», #2-3 «S1 Top 3 Earner», #4-10 «S1 Top 10 Earner»),
+# money and Season keys (the Season crate: never sold). Free milestones for everyone on season points (the
+# Master Thieves and Wheelmen points added up): Season keys, and «S1 Veteran» at the last one.
+# The end (every minute and on load; each step can run again safely): the boards are frozen into finals and the
+# prizes set aside for season::review-hours (staff can /dseason void a cheater, which re-freezes), then paid:
+# at once to players online, at the next join to the rest. The next season starts at once (season::auto).
+#
+# Saved: {season::num|start|end|state} (unix seconds; state live|ending|off), {season::ending},
+# {ss::<n>::<board>::<uuid>} (values > 0), {ss::<n>::t::<board>::<uuid>} (unix time of the last increase: ties),
+# {ss::<n>::run::<uuid>::<h>#<run>} = "loot counted|points|lowest passive share", {ss::<n>::robbedv::<uuid>::<h>#<run>}
+# ($ the player took themselves), {ss::<n>::soldv::<uuid>::<h>#<run>} ($ of it counted so far),
+# {seasonx::<n>::start|end} (each season's own times, for ranking it after it ended),
+# {ss::<n>::esc::<uuid>::<h>} = run, {ss::<n>::ms::<uuid>} (milestones given), {ss::<n>::mins::<uuid>},
+# {ss::<n>::banned::<uuid>}, {ssname::<uuid>}, {ssfinal::<n>::<board>::<rank>} = "uuid|name|value",
+# {seasonreward::<n>::<uuid>} = "money:N;keys:N;cos:<id>;...", {seasonreview::<n>} = when it pays,
+# {seasonpaid::<n>}, {seasoncos::<id>} = "title|<name>|season" (core.sk defines them again at every load),
+# data season-paid::<n>, season-seen.
+# Memory: {-lb::dirty::<b>}, {-lb::rank::<b>::<uuid>}, {-lb::top::<b>::<r>}, {-ph::lb::<b>::<r>},
+# {-ph::season::<player>}.
+# Players: /season, /leaderboard and /lb (the phone's Season app). Staff: /dseason. Log: plugins\Skript\logs\seasons.log.
+
+function seasonLog(text: text):
+	log {_text} to "seasons"
+
+function seasonUnix() :: number:
+	return floor(unix timestamp of now)
+
+function seasonNum() :: number:
+	if {season::num} is set:
+		return {season::num}
+	return 0
+
+# Counting only while a season runs (also in the first moments after Minehut wakes past its end).
+function seasonLive() :: boolean:
+	if {season::state} is "live":
+		if seasonUnix() < {season::end}:
+			return true
+	return false
+
+function seasonExempt(p: player) :: boolean:
+	if {_p} has permission "donating.season.exempt":
+		return true
+	return false
+
+function seasonBoardName(b: text) :: text:
+	set {_n} to {-cfg::season::board::%{_b}%::name}
+	if {_n} is set:
+		return {_n}
+	return {_b}
+
+# "$12,340" on the earners board, "1,240" (points) on the others.
+function seasonValueText(b: text, v: number) :: text:
+	if {_b} is "earners":
+		return formatMoney({_v})
+	return "%levelNum({_v})% pts"
+
+# "12d 4h", "3h 20m", "14m".
+function seasonLeftText() :: text:
+	set {_s} to {season::end} - seasonUnix()
+	if {_s} <= 0:
+		return "ending"
+	set {_d} to floor({_s} / 86400)
+	set {_h} to floor(mod({_s}, 86400) / 3600)
+	set {_m} to floor(mod({_s}, 3600) / 60)
+	if {_d} > 0:
+		return "%{_d}%d %{_h}%h"
+	if {_h} > 0:
+		return "%{_h}%h %{_m}%m"
+	return "%{_m}%m"
+
+# ---------- Counting (progress.sk calls this) ----------
+
+function seasonAdd(p: player, b: text, n: number, why: text):
+	{_n} > 0
+	set {_s} to seasonNum()
+	set {_u} to "%uuid of {_p}%"
+	{ss::%{_s}%::banned::%{_u}%} is not set
+	add {_n} to {ss::%{_s}%::%{_b}%::%{_u}%}
+	set {ss::%{_s}%::t::%{_b}%::%{_u}%} to seasonUnix()
+	set {ssname::%{_u}%} to name of {_p}
+	set {-lb::dirty::%{_b}%} to true
+	seasonLog("add s%{_s}% %{_p}% %{_u}% %{_b}% +%{_n}% now=%{ss::%{_s}%::%{_b}%::%{_u}%}% why=%{_why}%")
+	if {_b} is not "earners":
+		seasonMilestones({_p})
+
+function seasonEvent(p: player, ev: text, n: number, detail: text):
+	seasonLive() is true
+	seasonExempt({_p}) is false
+	set {_s} to seasonNum()
+	set {_u} to "%uuid of {_p}%"
+	# Passive players count at their pay's share (75%).
+	set {_m} to 1
+	if isPassive({_p}) is true:
+		set {_m} to cfg("passive::payout-multiplier")
+	if {_ev} is "rob":
+		add {_n} to {ss::%{_s}%::robbedv::%{_u}%::%{_detail}%}
+	else if {_ev} is "sell":
+		# Only up to the dollars the player took from that run themselves (a duffel picked up from someone else,
+		# even of the same run, pays money but no score). A run robbed in the last season counts if sold now.
+		set {_rs} to {_s}
+		if {ss::%{_s}%::robbedv::%{_u}%::%{_detail}%} is not set:
+			if {ss::%{_s} - 1%::robbedv::%{_u}%::%{_detail}%} is set:
+				set {_rs} to {_s} - 1
+		set {_rv} to {ss::%{_rs}%::robbedv::%{_u}%::%{_detail}%}
+		if {_rv} is not set:
+			set {_rv} to 0
+		set {_sv} to {ss::%{_rs}%::soldv::%{_u}%::%{_detail}%}
+		if {_sv} is not set:
+			set {_sv} to 0
+		set {_c} to min({_n}, {_rv} - {_sv})
+		if {_c} <= 0:
+			seasonLog("skip s%{_s}% %{_p}% %{_u}% sell %{_detail}% $%{_n}% (not robbed by them: robbed=%{_rv}% counted=%{_sv}%)")
+			stop
+		add {_c} to {ss::%{_rs}%::soldv::%{_u}%::%{_detail}%}
+		if {_c} < {_n}:
+			seasonLog("part s%{_s}% %{_p}% %{_u}% sell %{_detail}% $%{_n}% counts $%{_c}% (the rest wasn't robbed by them)")
+		set {_n} to {_c}
+		seasonAdd({_p}, "earners", floor({_n} * {_m}), "sell %{_detail}%")
+		set {_parts::*} to {_detail} split at "#"
+		set {_d} to 1
+		if heistExists({_parts::1}) is true:
+			set {_d} to heistDifficulty({_parts::1})
+		set {_w} to {-cfg::season::heist::%{_d}%::points}
+		set {_t} to {-cfg::season::heist::%{_d}%::full}
+		if {_w} is set:
+			if {_t} is set:
+				set {_v} to 0
+				set {_had} to 0
+				# A run sold partly while passive keeps the lower share (switching off can't win it back).
+				set {_mr} to {_m}
+				set {_run} to {ss::%{_s}%::run::%{_u}%::%{_detail}%}
+				if {_run} is set:
+					set {_r::*} to {_run} split at "|"
+					set {_v} to {_r::1} parsed as number
+					set {_had} to {_r::2} parsed as number
+					if {_r::3} is set:
+						set {_mr} to min({_m}, {_r::3} parsed as number)
+				set {_v} to {_v} + {_n}
+				set {_pts} to floor({_w} * min(1, {_v} / {_t}) * {_mr})
+				set {ss::%{_s}%::run::%{_u}%::%{_detail}%} to "%{_v}%|%max({_pts}, {_had})%|%{_mr}%"
+				if {_pts} > {_had}:
+					seasonAdd({_p}, "heisters", {_pts} - {_had}, "haul %{_detail}% d=%{_d}% sold=%{_v}%")
+	else if {_ev} is "crack":
+		seasonAdd({_p}, "heisters", floor(cfg("season::points::safe") * {_m}), "safe %{_detail}%")
+	else if {_ev} is "drill":
+		seasonAdd({_p}, "heisters", floor(cfg("season::points::vault") * {_m}), "vault %{_detail}%")
+	else if {_ev} is "getaway":
+		# Once per run, with that run's loot, after the cops came (not a chase re-started by shooting a cop).
+		set {_h} to {_detail}
+		set {_runN} to heistRun({_h})
+		if heistWave({_h}) < 1:
+			seasonLog("skip s%{_s}% %{_p}% %{_u}% getaway %{_h}% (no wave yet)")
+			stop
+		if bagRunLoot({_p}, {_h}) <= 0:
+			seasonLog("skip s%{_s}% %{_p}% %{_u}% getaway %{_h}% (no loot from this run)")
+			stop
+		# Loot the player robbed in this run themselves (not only a picked-up duffel of it).
+		# (The key in a string first: a # in a script line starts a comment, even inside a variable name.)
+		set {_rk} to "%{_h}%#%{_runN}%"
+		set {_rv} to {ss::%{_s}%::robbedv::%{_u}%::%{_rk}%}
+		if {_rv} is not set:
+			seasonLog("skip s%{_s}% %{_p}% %{_u}% getaway %{_h}%#%{_runN}% (robbed nothing in this run)")
+			stop
+		if {ss::%{_s}%::esc::%{_u}%::%{_h}%} is {_runN}:
+			seasonLog("skip s%{_s}% %{_p}% %{_u}% getaway %{_h}% (this run's getaway counted already)")
+			stop
+		set {ss::%{_s}%::esc::%{_u}%::%{_h}%} to {_runN}
+		seasonAdd({_p}, "heisters", floor(cfg("season::points::getaway") * {_m}), "getaway %{_h}%#%{_runN}%")
+	else if {_ev} is "contract":
+		# The pay is already the passive share (ctPay).
+		seasonAdd({_p}, "earners", floor({_n}), "contract %{_detail}%")
+		set {_c} to {-cfg::season::contract::%{_detail}%::points}
+		if {_c} is set:
+			seasonAdd({_p}, "wheelmen", floor({_c} * {_m}), "contract %{_detail}%")
+
+# Season points: the Master Thieves and Wheelmen points added up.
+function seasonPoints(u: text) :: number:
+	set {_s} to seasonNum()
+	set {_a} to {ss::%{_s}%::heisters::%{_u}%}
+	if {_a} is not set:
+		set {_a} to 0
+	set {_b} to {ss::%{_s}%::wheelmen::%{_u}%}
+	if {_b} is not set:
+		set {_b} to 0
+	return {_a} + {_b}
+
+# Free milestones (core.sk season::milestones: "points|Season keys[|veteran]"), each once (set before given).
+function seasonMilestones(p: player):
+	set {_s} to seasonNum()
+	set {_u} to "%uuid of {_p}%"
+	set {_pts} to seasonPoints({_u})
+	set {_done} to {ss::%{_s}%::ms::%{_u}%}
+	if {_done} is not set:
+		set {_done} to 0
+	set {_i} to 0
+	loop {-cfg::season::milestones::*}:
+		add 1 to {_i}
+		if {_i} > {_done}:
+			set {_a::*} to loop-value split at "|"
+			set {_need} to {_a::1} parsed as number
+			if {_pts} >= {_need}:
+				set {ss::%{_s}%::ms::%{_u}%} to {_i}
+				set {_done} to {_i}
+				set {_k} to {_a::2} parsed as number
+				crateAddKeys({_p}, "season", {_k}, "season:%{_s}%:milestone%{_i}%")
+				set {_what} to "%{_k}% Season key"
+				if {_k} is not 1:
+					set {_what} to "%{_what}%s"
+				if {_a::3} is "veteran":
+					set {_vid} to "s%{_s}%_veteran"
+					cosGive({_p}, {_vid}, "season:%{_s}%:milestone%{_i}%")
+					set {_what} to "%{_what}% and the title %cosColored({_vid})%"
+				seasonLog("milestone s%{_s}% %{_p}% %{_u}% %{_i}% points=%{_pts}% gave=%{_what}%")
+				msg({_p}, "&6Season milestone: &f%levelNum({_need})% points &7· &a+%{_what}%&7. &f/season")
+				play sound "ui.toast.challenge_complete" with volume 0.7 to {_p}
+
+# ---------- Ranking ----------
+
+# The board's players in order (the best first; ties: whoever got there first), without banned players.
+function seasonOrder(s: number, b: text) :: texts:
+	set {_start} to {season::start}
+	set {_end} to {season::end}
+	# A season that ended (re-frozen by a void during its review): its own times (review fix: 0 and 1 swamped
+	# the scores with the tie-break).
+	if {_s} is not seasonNum():
+		set {_start} to {seasonx::%{_s}%::start}
+		set {_end} to {seasonx::%{_s}%::end}
+		if {_start} is not set:
+			set {_start} to 0
+		if {_end} is not set:
+			set {_end} to seasonUnix()
+	loop {ss::%{_s}%::%{_b}%::*}:
+		set {_u} to loop-index
+		if {ss::%{_s}%::banned::%{_u}%} is not set:
+			set {_t} to {ss::%{_s}%::t::%{_b}%::%{_u}%}
+			if {_t} is not set:
+				set {_t} to {_start}
+			set {_k::%{_u}%} to loop-value + 0.5 * (1 - ({_t} - {_start}) / ({_end} - {_start} + 1))
+	loop sorted indices of {_k::*} in descending order:
+		add loop-value to {_out::*}
+	return {_out::*}
+
+# Re-ranks one board into memory for the placeholders, the menus and everyone's own rank.
+function seasonRank(b: text):
+	set {_s} to seasonNum()
+	delete {-lb::rank::%{_b}%::*}
+	delete {-lb::top::%{_b}%::*}
+	delete {-ph::lb::%{_b}%::*}
+	set {_r} to 0
+	loop seasonOrder({_s}, {_b}):
+		add 1 to {_r}
+		set {-lb::rank::%{_b}%::%loop-value%} to {_r}
+		if {_r} <= 10:
+			set {-lb::top::%{_b}%::%{_r}%} to loop-value
+			set {_name} to {ssname::%loop-value%}
+			set {_v} to {ss::%{_s}%::%{_b}%::%loop-value%}
+			set {-ph::lb::%{_b}%::%{_r}%} to "&e#%{_r}% &f%{_name}% &7· &a%seasonValueText({_b}, {_v})%"
+	set {-lb::size::%{_b}%} to {_r}
+	delete {-lb::dirty::%{_b}%}
+
+# Every 5 s one board that changed (in turn), so a busy moment never ranks all three at once.
+every 5 seconds:
+	seasonNum() > 0
+	set {_next} to ""
+	loop {-cfg::season::boards::*}:
+		if {_next} is "":
+			if {-lb::dirty::%loop-value%} is true:
+				set {_next} to loop-value
+	{_next} is not ""
+	seasonRank({_next})
+
+# The sidebar line: "S1 · 12d 4h left · #8 Master Thieves" (the player's best rank), else the time left.
+function seasonLine(p: player) :: text:
+	if seasonLive() is false:
+		return "&r"
+	set {_u} to "%uuid of {_p}%"
+	set {_best} to 0
+	set {_bb} to ""
+	loop {-cfg::season::boards::*}:
+		set {_r} to {-lb::rank::%loop-value%::%{_u}%}
+		if {_r} is set:
+			if {_best} is 0:
+				set {_best} to {_r}
+				set {_bb} to loop-value
+			else if {_r} < {_best}:
+				set {_best} to {_r}
+				set {_bb} to loop-value
+	if {_best} > 0:
+		return "&6S%seasonNum()% &7· &f%seasonLeftText()% &7· &e#%{_best}% &7%seasonBoardName({_bb})%"
+	return "&6S%seasonNum()% &7· &f%seasonLeftText()% left &7· /season"
+
+every second:
+	loop all players:
+		set {-ph::season::%loop-player%} to seasonLine(loop-player)
+
+on join:
+	set {ssname::%uuid of player%} to name of player
+	wait 3 seconds
+	player is online
+	seasonDeliver(player)
+	seasonSeen(player)
+
+on quit:
+	delete {-ph::season::%player%}
+
+# Playtime for the prizes: every minute of the season online and not AFK.
+every minute:
+	seasonLive() is true
+	set {_s} to seasonNum()
+	loop all players:
+		if seasonExempt(loop-player) is false:
+			if isAfk(loop-player) is false:
+				add 1 to {ss::%{_s}%::mins::%uuid of loop-player%}
+
+# ---------- The season's life ----------
+
+# The season's titles (bound: never traded, never in crates, never a rank's), saved so core.sk defines them again.
+function seasonDefineCos(s: number):
+	loop {-cfg::season::boards::*}:
+		set {_short} to {-cfg::season::board::%loop-value%::short}
+		set {seasoncos::s%{_s}%_%loop-value%_1} to "title|S%{_s}% Top %{_short}%|season"
+		set {seasoncos::s%{_s}%_%loop-value%_3} to "title|S%{_s}% Top 3 %{_short}%|season"
+		set {seasoncos::s%{_s}%_%loop-value%_10} to "title|S%{_s}% Top 10 %{_short}%|season"
+	set {seasoncos::s%{_s}%_veteran} to "title|S%{_s}% Veteran|season"
+	loop {seasoncos::*}:
+		if loop-index starts with "s%{_s}%_":
+			set {_a::*} to loop-value split at "|"
+			set {-cfg::cos::%loop-index%::type} to {_a::1}
+			set {-cfg::cos::%loop-index%::name} to {_a::2}
+			set {-cfg::cos::%loop-index%::rarity} to {_a::3}
+			set {-cfg::cos::%loop-index%::bound} to true
+			if {-cfg::cosmetics::*} does not contain loop-index:
+				add loop-index to {-cfg::cosmetics::*}
+
+# Starts season n+1 now, ending on the hour L days later.
+function seasonStart(days: number, by: text):
+	set {_n} to seasonNum() + 1
+	set {_now} to seasonUnix()
+	set {season::num} to {_n}
+	set {season::start} to {_now}
+	set {season::end} to ceil(({_now} + {_days} * 86400) / 3600) * 3600
+	set {seasonx::%{_n}%::start} to {_now}
+	set {seasonx::%{_n}%::end} to {season::end}
+	seasonDefineCos({_n})
+	set {season::state} to "live"
+	delete {-lb::rank::*}
+	delete {-lb::top::*}
+	delete {-ph::lb::*}
+	seasonLog("start s%{_n}% start=%{_now}% end=%{season::end}% days=%{_days}% by=%{_by}%")
+	broadcastMsg("&6&lSeason %{_n}% has started!&r &7Three leaderboards, prizes for the top 10 of each: &f/season")
+
+function seasonTick():
+	set {_now} to seasonUnix()
+	if {season::state} is "live":
+		set {_s} to seasonNum()
+		set {_left} to {season::end} - {_now}
+		if {_left} <= 86400:
+			if {seasonx::%{_s}%::warn24} is not set:
+				set {seasonx::%{_s}%::warn24} to true
+				if {_left} > 3600:
+					broadcastMsg("&6Season %{_s}% ends in &f%seasonLeftText()%&6. Last chance to climb: &f/lb")
+		if {_left} <= 3600:
+			if {seasonx::%{_s}%::warn1} is not set:
+				set {seasonx::%{_s}%::warn1} to true
+				if {_left} > 0:
+					broadcastMsg("&6Season %{_s}% ends in &f%seasonLeftText()%&6! &f/lb")
+		if {_now} >= {season::end}:
+			set {season::state} to "ending"
+			set {season::ending} to {_s}
+			set {seasonx::%{_s}%::end} to {season::end}
+			seasonLog("ending s%{_s}% at=%{_now}% end=%{season::end}%")
+	if {season::state} is "ending":
+		seasonFinish({season::ending})
+	# Collected first: paying deletes from the list being looped.
+	loop {seasonreview::*}:
+		if {_now} >= loop-value:
+			add loop-index parsed as number to {_due::*}
+	loop {_due::*}:
+		seasonPay(loop-value, "review over")
+
+# Freezes season n and sets its prizes aside (can run again: it sets, never adds).
+function seasonFreeze(s: number):
+	# (A flag: {ssfinal::<n>::*} holds only sub-lists, which never count as "set".)
+	set {seasonx::%{_s}%::frozen} to true
+	delete {ssfinal::%{_s}%::*}
+	delete {seasonreward::%{_s}%::*}
+	set {_mins} to cfg("season::min-hours") * 60
+	loop {-cfg::season::boards::*}:
+		set {_b} to loop-value
+		set {_r} to 0
+		loop seasonOrder({_s}, {_b}):
+			set {_u} to loop-value-2
+			set {_v} to {ss::%{_s}%::%{_b}%::%{_u}%}
+			set {_played} to {ss::%{_s}%::mins::%{_u}%}
+			if {_played} is not set:
+				set {_played} to 0
+			if {_r} < 10:
+				if {_played} >= {_mins}:
+					add 1 to {_r}
+					set {ssfinal::%{_s}%::%{_b}%::%{_r}%} to "%{_u}%|%{ssname::%{_u}%}%|%{_v}%"
+					set {_tier} to 10
+					if {_r} is 1:
+						set {_tier} to 1
+					else if {_r} <= 3:
+						set {_tier} to 3
+					set {_money} to {-cfg::season::prize::%{_tier}%::money}
+					set {_keys} to {-cfg::season::prize::%{_tier}%::keys}
+					set {_prize} to "money:%{_money}%;keys:%{_keys}%;cos:s%{_s}%_%{_b}%_%{_tier}%;place:%{_b}%:%{_r}%"
+					if {_rw::%{_u}%} is set:
+						set {_rw::%{_u}%} to "%{_rw::%{_u}%}%;%{_prize}%"
+					else:
+						set {_rw::%{_u}%} to {_prize}
+				else:
+					seasonLog("freeze s%{_s}% %{_b}% skip %{_u}% %{ssname::%{_u}%}% value=%{_v}% minutes=%{_played}% (under %{_mins}%)")
+	loop {_rw::*}:
+		set {seasonreward::%{_s}%::%loop-index%} to loop-value
+	loop {ssfinal::%{_s}%::*}:
+		seasonLog("final s%{_s}% %loop-index% %loop-value%")
+	loop {seasonreward::%{_s}%::*}:
+		seasonLog("prize s%{_s}% %loop-index% %loop-value%")
+
+function seasonFinish(s: number):
+	seasonFreeze({_s})
+	set {seasonreview::%{_s}%} to seasonUnix() + cfg("season::review-hours") * 3600
+	# Everyone hears the top 3 of each board.
+	loop {-cfg::season::boards::*}:
+		delete {_top::*}
+		loop 3 times:
+			set {_f} to {ssfinal::%{_s}%::%loop-value-1%::%loop-number%}
+			if {_f} is set:
+				set {_a::*} to {_f} split at "|"
+				add "&e#%loop-number% &f%{_a::2}%" to {_top::*}
+		set {_line} to join {_top::*} with "&7, "
+		if {_line} is "":
+			set {_line} to "&7nobody"
+		add "&6%seasonBoardName(loop-value)%: %{_line}%" to {_lines::*}
+	set {_rh} to cfg("season::review-hours")
+	broadcastMsg("&6&lSeason %{_s}% is over!&r &7Prizes are paid after a %{_rh}%-hour check.")
+	loop {_lines::*}:
+		broadcast colored "&7 » %loop-value%"
+	# Only this and the last season's scores are kept (for voids and /lb).
+	delete {ss::%{_s} - 2%::*}
+	delete {season::ending}
+	seasonLog("finished s%{_s}%")
+	if {-cfg::season::auto} is true:
+		set {_len} to cfg("season::days") * 86400
+		set {_oldEnd} to {season::end}
+		set {_now} to seasonUnix()
+		# The next end keeps the weekday and hour, also after a long sleep.
+		set {_k} to max(1, ceil(({_now} + 86400 - {_oldEnd}) / {_len}))
+		set {season::num} to {_s} + 1
+		set {season::start} to {_now}
+		# (On the hour also after staff ended a season early.)
+		set {season::end} to ceil(({_oldEnd} + {_k} * {_len}) / 3600) * 3600
+		set {seasonx::%{_s} + 1%::start} to {_now}
+		set {seasonx::%{_s} + 1%::end} to {season::end}
+		seasonDefineCos({_s} + 1)
+		set {season::state} to "live"
+		delete {-lb::rank::*}
+		delete {-lb::top::*}
+		delete {-ph::lb::*}
+		seasonLog("start s%{_s} + 1% start=%{_now}% end=%{season::end}% (auto)")
+		broadcastMsg("&6&lSeason %{_s} + 1% has started!&r &f/season")
+	else:
+		set {season::state} to "off"
+	loop all players:
+		seasonSeen(loop-player)
+
+function seasonPay(s: number, why: text):
+	{seasonreview::%{_s}%} is set
+	delete {seasonreview::%{_s}%}
+	set {seasonpaid::%{_s}%} to true
+	seasonLog("paid s%{_s}% why=%{_why}%")
+	loop all players:
+		seasonDeliver(loop-player)
+
+# Gives a player their prizes from paid seasons (the flag first, then the prize: never twice).
+function seasonDeliver(p: player):
+	set {_u} to "%uuid of {_p}%"
+	loop {seasonpaid::*}:
+		set {_s} to loop-index
+		set {_rw} to {seasonreward::%{_s}%::%{_u}%}
+		if {_rw} is set:
+			delete {seasonreward::%{_s}%::%{_u}%}
+			if {data::%{_u}%::season-paid::%{_s}%} is not set:
+				set {data::%{_u}%::season-paid::%{_s}%} to true
+				seasonGive({_p}, {_s} parsed as number, {_rw})
+
+function seasonGive(p: player, s: number, rw: text):
+	set {_money} to 0
+	set {_keys} to 0
+	loop {_rw} split at ";":
+		set {_a::*} to loop-value split at ":"
+		if {_a::1} is "money":
+			add ({_a::2} parsed as number) to {_money}
+		else if {_a::1} is "keys":
+			add ({_a::2} parsed as number) to {_keys}
+		else if {_a::1} is "cos":
+			cosGive({_p}, {_a::2}, "season:%{_s}%")
+			add cosColored({_a::2}) to {_titles::*}
+		else if {_a::1} is "place":
+			add "#%{_a::3}% %seasonBoardName({_a::2})%" to {_places::*}
+	if {_money} > 0:
+		giveMoney({_p}, {_money})
+	if {_keys} > 0:
+		crateAddKeys({_p}, "season", {_keys}, "season:%{_s}%:prize")
+	set {_pl} to join {_places::*} with ", "
+	set {_tl} to join {_titles::*} with "&7, "
+	seasonLog("give s%{_s}% %{_p}% %uuid of {_p}% %{_rw}%")
+	msg({_p}, "&6&lSeason %{_s}% prize!&r &7You placed %{_pl}%: %{_tl}%&7, &a%formatMoney({_money})%&7, &b%{_keys}% Season keys&7. &f/titles")
+	send title colored "&6&lSEASON %{_s}% PRIZE" with subtitle colored "&f%{_pl}%" to {_p} for 3 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+
+# The last season's placing, once per player.
+function seasonSeen(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_last} to seasonNum() - 1
+	if {season::state} is "off":
+		set {_last} to seasonNum()
+	{_last} >= 1
+	{seasonx::%{_last}%::frozen} is true
+	set {_seen} to {data::%{_u}%::season-seen}
+	if {_seen} is set:
+		if {_seen} >= {_last}:
+			stop
+	set {data::%{_u}%::season-seen} to {_last}
+	loop {-cfg::season::boards::*}:
+		loop 10 times:
+			set {_f} to {ssfinal::%{_last}%::%loop-value-1%::%loop-number%}
+			if {_f} is set:
+				set {_a::*} to {_f} split at "|"
+				if {_a::1} is {_u}:
+					add "#%loop-number% %seasonBoardName(loop-value-1)%" to {_mine::*}
+	if size of {_mine::*} > 0:
+		set {_m} to join {_mine::*} with ", "
+		if {seasonreview::%{_last}%} is set:
+			msg({_p}, "&6Season %{_last}% ended: &fyou placed %{_m}%&6. &7Prizes come after the check. &f/lb")
+		else:
+			msg({_p}, "&6Season %{_last}% ended: &fyou placed %{_m}%&6. &f/lb")
+	else:
+		msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. A new season is on: &f/season")
+
+every minute:
+	seasonTick()
+
+on load:
+	wait 5 seconds
+	seasonTick()
+	loop {-cfg::season::boards::*}:
+		seasonRank(loop-value)
+
+every 10 seconds:
+	size of {seasonpaid::*} > 0
+	loop all players:
+		seasonDeliver(loop-player)
+
+# ---------- Players: /season, /leaderboard ----------
+
+command /season:
+	description: The season: its three leaderboards, your ranks, the prizes.
+	executable by: players
+	trigger:
+		set {_u} to "%uuid of player%"
+		if seasonLive() is false:
+			msg(player, "&7No season is running right now. &fThe next one is announced to everyone.")
+			stop
+		set {_s} to seasonNum()
+		msg(player, "&6&lSeason %{_s}%&r &7· &f%seasonLeftText()% left")
+		if seasonExempt(player) is true:
+			send colored "&7 Staff: your play isn't counted (donating.season.exempt)." to player
+		loop {-cfg::season::boards::*}:
+			set {_v} to {ss::%{_s}%::%loop-value%::%{_u}%}
+			set {_r} to {-lb::rank::%loop-value%::%{_u}%}
+			if {_v} is set:
+				set {_rt} to "#%{_r}%"
+				if {_r} is not set:
+					set {_rt} to "ranking..."
+				send colored "&7 » &e%seasonBoardName(loop-value)%&7: &f%{_rt}% &7(%seasonValueText(loop-value, {_v})%) &8· &7%{-cfg::season::board::%loop-value%::what}%" to player
+			else:
+				send colored "&7 » &e%seasonBoardName(loop-value)%&7: not ranked yet &8· &7%{-cfg::season::board::%loop-value%::what}%" to player
+		set {_pts} to seasonPoints({_u})
+		set {_next} to ""
+		set {_i} to 0
+		set {_done} to {ss::%{_s}%::ms::%{_u}%}
+		if {_done} is not set:
+			set {_done} to 0
+		loop {-cfg::season::milestones::*}:
+			add 1 to {_i}
+			if {_next} is "":
+				if {_i} > {_done}:
+					set {_a::*} to loop-value split at "|"
+					set {_next} to "%levelNum({_a::1} parsed as number)% points: %{_a::2}% Season key(s)"
+		if {_next} is "":
+			set {_next} to "all done"
+		send colored "&7 Season points &f%levelNum({_pts})% &7(Master Thieves + Wheelmen). Next milestone: &f%{_next}%" to player
+		set {_mh} to cfg("season::min-hours")
+		send colored "&7 Prizes: the top 10 of each board win a title nobody can trade, money and Season keys (%{_mh}%+ hours played). &f/lb" to player
+		send colored "&7 Only loot from runs you robbed counts. Boosters' extra money never counts." to player
+
+function lbButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-lb::act::%{_p}%::%{_slot}%} to {_act}
+
+# The board menu: the three boards as tabs, the top 10, your own place; "last" = last season's finals.
+function lbMenu(p: player, b: text, last: boolean):
+	closePhoneMap({_p})
+	set {_u} to "%uuid of {_p}%"
+	set {_s} to seasonNum()
+	if {_last} is true:
+		set {_s} to seasonNum() - 1
+		if {season::state} is "off":
+			set {_s} to seasonNum()
+	set {_title} to "&8Season %{_s}% · %seasonBoardName({_b})%"
+	if {_last} is true:
+		set {_title} to "&8Season %{_s}% (final) · %seasonBoardName({_b})%"
+	set {_gui} to chest inventory with 6 rows named {_title}
+	delete {-lb::act::%{_p}%::*}
+	set {_pane} to gray stained glass pane named "&r"
+	loop 54 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {_slot} to 2
+	loop {-cfg::season::boards::*}:
+		set {_icon} to {-cfg::season::board::%loop-value%::icon}
+		set {_i} to {_icon} named "&6%seasonBoardName(loop-value)%" with lore "&7%{-cfg::season::board::%loop-value%::what}%"
+		if loop-value is {_b}:
+			set {_i} to glint({_i})
+		if {_last} is true:
+			lbButton({_p}, {_gui}, {_slot}, {_i}, "last:%loop-value%")
+		else:
+			lbButton({_p}, {_gui}, {_slot}, {_i}, "board:%loop-value%")
+		add 2 to {_slot}
+	set {_slots::*} to 20, 21, 22, 23, 24, 29, 30, 31, 32 and 33
+	loop 10 times:
+		set {_r} to loop-number
+		set {_who} to ""
+		set {_v} to 0
+		if {_last} is true:
+			set {_f} to {ssfinal::%{_s}%::%{_b}%::%{_r}%}
+			if {_f} is set:
+				set {_a::*} to {_f} split at "|"
+				set {_who} to {_a::1}
+				set {_name} to {_a::2}
+				set {_v} to {_a::3} parsed as number
+		else:
+			set {_t} to {-lb::top::%{_b}%::%{_r}%}
+			if {_t} is set:
+				set {_who} to {_t}
+				set {_name} to {ssname::%{_t}%}
+				set {_v} to {ss::%{_s}%::%{_b}%::%{_t}%}
+		if {_who} is not "":
+			set {_head} to skull of ({_who} parsed as offline player)
+			set {_i} to {_head} named "&e#%{_r}% &f%{_name}%" with lore "&a%seasonValueText({_b}, {_v})%"
+		else:
+			set {_i} to light gray stained glass pane named "&7#%{_r}% &8—"
+		set slot {_slots::%{_r}%} of {_gui} to {_i}
+	if {_last} is false:
+		set {_mine} to {-lb::rank::%{_b}%::%{_u}%}
+		set {_mv} to {ss::%{_s}%::%{_b}%::%{_u}%}
+		if {_mine} is set:
+			set slot 40 of {_gui} to skull of {_p} named "&fYou: &e#%{_mine}%" with lore "&a%seasonValueText({_b}, {_mv})%" and "&7Season %{_s}% · %seasonLeftText()% left"
+		else:
+			set slot 40 of {_gui} to skull of {_p} named "&fYou: &7not ranked yet" with lore "&7%{-cfg::season::board::%{_b}%::what}%"
+		if seasonNum() > 1:
+			lbButton({_p}, {_gui}, 45, book named "&fLast season" with lore "&7The final top 10 of Season %seasonNum() - 1%.", "last:%{_b}%")
+	else if {season::state} is "live":
+		lbButton({_p}, {_gui}, 45, arrow named "&fThis season", "board:%{_b}%")
+	set {_mh} to cfg("season::min-hours")
+	set slot 49 of {_gui} to paper named "&6Prizes" with lore "&7Top 10 of each board: a title nobody" and "&7can trade, money and Season keys." and "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7Play %{_mh}%+ hours (not AFK) to qualify." and "&7Only loot from runs you robbed counts;" and "&7boosters' extra money never counts."
+	lbButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
+	set {-lb::gui::%{_p}%} to {_gui}
+	if {-lb::gen::%{_p}%} is not set:
+		set {-lb::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+on inventory click:
+	{-lb::gui::%player%} is set
+	player's current inventory is {-lb::gui::%player%}
+	cancel event
+	event-inventory is {-lb::gui::%player%}
+	set {_act} to {-lb::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_gen} to {-lb::gen::%player%}
+	wait 1 tick
+	player is online
+	{-lb::gen::%player%} is {_gen}
+	add 1 to {-lb::gen::%player%}
+	set {_a::*} to {_act} split at ":"
+	if {_a::1} is "close":
+		close player's inventory
+	else if {_a::1} is "board":
+		lbMenu(player, {_a::2}, false)
+	else if {_a::1} is "last":
+		lbMenu(player, {_a::2}, true)
+
+on inventory drag:
+	{-lb::gui::%player%} is set
+	player's current inventory is {-lb::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-lb::gui::%player%} is set
+	event-inventory is {-lb::gui::%player%}
+	delete {-lb::gui::%player%}
+	delete {-lb::act::%player%::*}
+
+function lbOpen(p: player, a: text):
+	set {_b} to "earners"
+	if {-cfg::season::boards::*} contains {_a}:
+		set {_b} to {_a}
+	if seasonNum() is 0:
+		msg({_p}, "&7No season has started yet.")
+		stop
+	# No season running: the finals of the one that ended.
+	if {season::state} is not "live":
+		lbMenu({_p}, {_b}, true)
+		stop
+	lbMenu({_p}, {_b}, false)
+
+command /leaderboard [<text>]:
+	description: The season's leaderboards.
+	executable by: players
+	trigger:
+		set {_a} to ""
+		if arg-1 is set:
+			set {_a} to arg-1
+		lbOpen(player, {_a})
+
+command /lb [<text>]:
+	description: The season's leaderboards.
+	executable by: players
+	trigger:
+		set {_a} to ""
+		if arg-1 is set:
+			set {_a} to arg-1
+		lbOpen(player, {_a})
+
+# ---------- Staff: /dseason ----------
+
+command /dseason [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		set {_admin} to true
+		if sender is a player:
+			if player does not have permission "donating.season.admin":
+				set {_admin} to false
+		if {_sub} is "info":
+			set {_s} to seasonNum()
+			send "SEASON num=%{_s}% state=%{season::state}% left=%seasonLeftText()% start=%{season::start}% end=%{season::end}% review=%{seasonreview::*}% paid=%indices of {seasonpaid::*}%" to sender
+			loop {-cfg::season::boards::*}:
+				set {_line} to ""
+				loop 3 times:
+					set {_t} to {-lb::top::%loop-value-1%::%loop-number%}
+					if {_t} is set:
+						set {_line} to "%{_line}% #%loop-number%=%{ssname::%{_t}%}%(%{ss::%{_s}%::%loop-value-1%::%{_t}%}%)"
+				send "SEASON %loop-value%:%{_line}%" to sender
+			stop
+		if {_sub} is "finals":
+			set {_s} to {_a::2} parsed as number
+			set {_b} to {_a::3}
+			if {_s} is not set:
+				send "SEASON finals <season> <board>" to sender
+				stop
+			set {_line} to ""
+			loop 10 times:
+				set {_f} to {ssfinal::%{_s}%::%{_b}%::%loop-number%}
+				if {_f} is set:
+					set {_fa::*} to {_f} split at "|"
+					set {_line} to "%{_line}% #%loop-number%=%{_fa::2}%(%{_fa::3}%)"
+			send "SEASON finals s%{_s}% %{_b}%:%{_line}%" to sender
+			stop
+		if {_sub} is "rank":
+			loop {-cfg::season::boards::*}:
+				seasonRank(loop-value)
+			send "SEASON ranked" to sender
+			stop
+		if {_sub} is "holo":
+			set {_b} to {_a::2}
+			if {-cfg::season::boards::*} does not contain {_b}:
+				send "SEASON holo <earners|heisters|wheelmen> (stand where it goes)" to sender
+				stop
+			if sender is not a player:
+				send "SEASON holo: in game only" to sender
+				stop
+			set {_l} to location of player
+			set {_x} to x-coordinate of {_l}
+			set {_y} to y-coordinate of {_l}
+			set {_z} to z-coordinate of {_l}
+			set {_y} to {_y} + 3.5
+			set {_w} to "%world of {_l}%"
+			execute console command "dh hologram delete lb_%{_b}%"
+			execute console command "dh hologram create lb_%{_b}% -l:%{_w}%:%{_x}%:%{_y}%:%{_z}% &6&l%seasonBoardName({_b})%"
+			execute console command "dh line add lb_%{_b}% 1 %%donating_season_short%%"
+			loop 10 times:
+				execute console command "dh line add lb_%{_b}% 1 %%donating_lb_%{_b}%_%loop-number%%%"
+			seasonLog("holo %{_b}% at %{_w}% %{_x}% %{_y}% %{_z}% by=%sender%")
+			send "SEASON hologram lb_%{_b}% made (DecentHolograms saves it)" to sender
+			stop
+		if {_admin} is false:
+			send "SEASON: start, end, extend, approve, void and reset need donating.season.admin" to sender
+			stop
+		if {_sub} is "start":
+			if {season::state} is "live":
+				send "SEASON %seasonNum()% is running (/dseason end first)" to sender
+				stop
+			if {season::state} is "ending":
+				send "SEASON %{season::ending}% is still ending" to sender
+				stop
+			set {_d} to cfg("season::days")
+			if {_a::2} is set:
+				set {_d} to {_a::2} parsed as number
+			if {_d} is not set:
+				send "SEASON start [days]" to sender
+				stop
+			seasonStart({_d}, "%sender%")
+			send "SEASON %seasonNum()% started: %seasonLeftText()%" to sender
+		else if {_sub} is "end":
+			if {season::state} is not "live":
+				send "SEASON none running" to sender
+				stop
+			set {season::end} to seasonUnix()
+			seasonLog("end-now s%seasonNum()% by=%sender%")
+			seasonTick()
+			send "SEASON ended; state=%{season::state}% now num=%seasonNum()%" to sender
+		else if {_sub} is "extend":
+			set {_d} to {_a::2} parsed as number
+			if {_d} is not set:
+				send "SEASON extend <days>" to sender
+				stop
+			if {season::state} is not "live":
+				send "SEASON none running" to sender
+				stop
+			add {_d} * 86400 to {season::end}
+			set {seasonx::%seasonNum()%::end} to {season::end}
+			delete {seasonx::%seasonNum()%::warn24}
+			delete {seasonx::%seasonNum()%::warn1}
+			seasonLog("extend s%seasonNum()% +%{_d}%d by=%sender%")
+			send "SEASON %seasonNum()% now ends in %seasonLeftText()%" to sender
+		else if {_sub} is "approve":
+			set {_s} to {_a::2} parsed as number
+			if {_s} is not set:
+				loop {seasonreview::*}:
+					set {_s} to loop-index parsed as number
+			if {_s} is not set:
+				send "SEASON nothing waiting for review" to sender
+				stop
+			if {seasonreview::%{_s}%} is not set:
+				send "SEASON %{_s}% isn't waiting for review" to sender
+				stop
+			seasonPay({_s}, "approved by %sender%")
+			send "SEASON %{_s}% prizes paid (online now, the rest at their next join)" to sender
+		else if {_sub} is "void":
+			set {_who} to {_a::2} parsed as offline player
+			if {_who} is not set:
+				send "SEASON void <player> [season]" to sender
+				stop
+			set {_u} to "%uuid of {_who}%"
+			# Without a season number: the live season and every season still under review (review fix: the
+			# season whose prizes wait is the one that matters).
+			if {_a::3} is set:
+				add ({_a::3} parsed as number) to {_ss::*}
+			else:
+				add seasonNum() to {_ss::*}
+				loop {seasonreview::*}:
+					add (loop-index parsed as number) to {_ss::*}
+			loop {_ss::*}:
+				set {_s} to loop-value
+				set {ss::%{_s}%::banned::%{_u}%} to true
+				seasonLog("void s%{_s}% %{_who}% %{_u}% by=%sender%")
+				if {seasonreview::%{_s}%} is set:
+					seasonFreeze({_s})
+					send "SEASON %{_who}% taken off season %{_s}%; its prizes worked out again" to sender
+				else:
+					loop {-cfg::season::boards::*}:
+						set {-lb::dirty::%loop-value-2%} to true
+					send "SEASON %{_who}% taken off season %{_s}%" to sender
+		else if {_sub} is "reset":
+			set {_who} to {_a::2} parsed as offline player
+			if {_who} is not set:
+				send "SEASON reset <player> (their scores this season)" to sender
+				stop
+			set {_u} to "%uuid of {_who}%"
+			set {_s} to seasonNum()
+			loop {-cfg::season::boards::*}:
+				delete {ss::%{_s}%::%loop-value%::%{_u}%}
+				delete {ss::%{_s}%::t::%loop-value%::%{_u}%}
+				set {-lb::dirty::%loop-value%} to true
+			delete {ss::%{_s}%::run::%{_u}%::*}
+			delete {ss::%{_s}%::robbedv::%{_u}%::*}
+			delete {ss::%{_s}%::soldv::%{_u}%::*}
+			delete {ss::%{_s}%::esc::%{_u}%::*}
+			delete {ss::%{_s}%::mins::%{_u}%}
+			# (Milestones already given and a void stay: review fix.)
+			seasonLog("reset s%{_s}% %{_who}% %{_u}% by=%sender%")
+			send "SEASON reset %{_who}%" to sender
+		else:
+			send "SEASON usage: /dseason info | finals <season> <board> | rank | holo <board> | start [days] | end | extend <days> | approve [season] | void <player> [season] | reset <player>" to sender

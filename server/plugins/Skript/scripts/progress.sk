@@ -1,0 +1,28 @@
+# progress.sk: one call at each key moment of play, for the systems that count them (seasons.sk; the story
+# next). Built 2026-09-27.
+#
+# The scripts where it happens call progEvent(p, ev, n, detail) last (after their own titles and level XP), with
+# every argument set (a Skript function isn't called at all when one is missing). It never waits, sends titles
+# or gives rewards itself. Events:
+#   rob       loot.sk lootTake: a piece went into the player's own bag (n = its $, detail "<heist>#<run>")
+#   sell      bag.sk bagSell: once per heist run in the sale (n = that run's loot $ before passive and boosters,
+#             detail "<heist>#<run>")
+#   crack     loot.sk lootCrack: the player cracked a safe (detail = heist)
+#   drill     loot.sk lootDrillDone: the player who gets the vault's head start (detail = heist)
+#   getaway   heists.sk heistRelease with reason "range": a hunted robber lost the cops (detail = heist;
+#             seasons.sk decides whether it counts)
+#   contract  contracts.sk ctDeliver: a car delivered (n = the pay, detail = the tier)
+# Lifetime counters (saved per player, for later career pages): data life::crack, life::drill, life::getaway,
+# life::contract.
+
+function progEvent(p: player, ev: text, n: number, detail: text):
+	set {_count} to false
+	loop "crack", "drill", "getaway" and "contract":
+		if loop-value is {_ev}:
+			set {_count} to true
+	if {_count} is true:
+		set {_life} to getData({_p}, "life::%{_ev}%")
+		if {_life} is not set:
+			set {_life} to 0
+		setData({_p}, "life::%{_ev}%", {_life} + 1)
+	seasonEvent({_p}, {_ev}, {_n}, {_detail})
