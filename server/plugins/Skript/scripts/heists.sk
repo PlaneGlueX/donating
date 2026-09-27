@@ -520,6 +520,8 @@ function heistEvict(p: player, h: text, reason: text):
 			heistRelease({_p}, "staff")
 		set {_text} to "&7You were moved out of the %{_name}%."
 	heistTeleport({_p}, heistExit({_h}))
+	# 3 s of teleport immunity at the exit, so nobody camps it (pvp.sk).
+	tpImmune({_p})
 	# After the teleport: hud.sk's sound plays where the player is now.
 	heistNotify({_p}, "evict", {_text})
 	if heistAt(location of {_p}) is {_h}:
@@ -594,6 +596,7 @@ on join:
 			set {_toExit} to true
 	if {_toExit} is true:
 		heistTeleport(player, heistExit({_at}))
+		tpImmune(player)
 	else:
 		execute console command "essentialsspawn:spawn %name of player%"
 	if {_n} is set:

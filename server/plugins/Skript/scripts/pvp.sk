@@ -88,6 +88,41 @@ on damage of player:
 	cancel event
 	send action bar "&eThat player just spawned: they're protected for a few seconds." to attacker
 
+# ---------- Teleport immunity ----------
+# Owner, 2026-09-27: for cfg("pvp::teleport-immunity") (3 s) after a real teleport nobody hurts you and you hurt
+# nobody: a command (/spawn, /tpa, staff /tp) or being thrown out of a heist (heists.sk calls tpImmune). Never a
+# pushback: EssentialsX's own immunity (teleport-invulnerability) is 0, because it also covered WorldGuard pushing a
+# combat-tagged player back at a safe zone's edge, so bumping the edge kept them immune (bots/run.js tpimmune).
+# Cops and traps ignore it. Memory only: {-pvp::tp::<p>} = when it started.
+
+function tpImmune(p: player):
+	set {-pvp::tp::%{_p}%} to now
+
+function hasTpImmunity(p: player) :: boolean:
+	if {-pvp::tp::%{_p}%} is set:
+		if difference between {-pvp::tp::%{_p}%} and now < cfg("pvp::teleport-immunity"):
+			return true
+	return false
+
+# Monitor: a teleport another handler cancelled (into a safe zone while tagged) gives nothing.
+on teleport with priority monitor:
+	teleport cause is command
+	tpImmune(player)
+
+on quit:
+	delete {-pvp::tp::%player%}
+
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	if hasTpImmunity(victim) is true:
+		cancel event
+		send action bar "&eThat player just teleported: they're protected for a moment." to attacker
+	else if hasTpImmunity(attacker) is true:
+		cancel event
+		send action bar "&eYou just teleported: you can't fight for a moment." to attacker
+
 # ---------- Switching passive mode ----------
 
 # "" when the player may switch now, otherwise the reason to show them.
