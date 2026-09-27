@@ -172,12 +172,16 @@ module.exports = async ({ check }) => {
     const after = await cmd(`dphone gps ${A}`)
     check('carrying loot the search area gives way to the base, and comes back after', !/search_area/.test(withLoot) && /search_area/.test(after), `${withLoot} | ${after}`)
     // Going AFK mid-fight doesn't reset it (the copy stays while it fought the hunter lately).
+    const keepT = field(await info(A), 'target')
+    await cmd(`zzhp ${A} 20`)
+    await cmd(`minecraft:damage ${tu} 1 minecraft:player_attack by ${A}`) // a fresh engagement (the 30 s window)
     await cmd(`zzafk ${A}`)
-    await sleep(2500)
-    const afkKeep = field(await info(A), 'target')
+    const wentAfk = await until(async () => /: true/.test(await cmd(`zzafkstate ${A}`)), 11000) // afk.sk marks AFK every 10 s
+    await sleep(1500) // at least one pass of hitSecond while AFK
+    const afkInfo = await info(A)
     bots[A].chat('/level')
     await sleep(500)
-    check('going AFK in the middle of a fight doesn\'t take the copy away', /^\d+$/.test(afkKeep) && afkKeep === field(await info(A), 'target'), `${afkKeep} | ${await info(A)}`)
+    check('going AFK in the middle of a fight doesn\'t take the copy away', wentAfk && field(afkInfo, 'eligible') === 'false' && /^\d+$/.test(keepT) && field(afkInfo, 'target') === keepT && field(await info(A), 'target') === keepT, `${wentAfk} | ${afkInfo}`)
     // A target whose chunk unloaded (here: despawned): the copy goes after 3 s, and a new one comes.
     const oldT = field(await info(A), 'target')
     await cmd(`zzconsole npc despawn ${oldT}`)
@@ -244,11 +248,18 @@ module.exports = async ({ check }) => {
     // and Sentinel sets every hit by its NPCs to their damage setting (1 in this test): half a heart left.
     await cmd(`minecraft:damage ${field(await info(A), 'tuuid')} 1 minecraft:player_attack by ${A}`)
     await until(async () => field(await info(A), 'noticed') === 'true', 3000)
-    await cmd(`zzhp ${A} 1`)
+    await cmd(`eco set ${A} 100000`) // B x p = 3,000 > the Gym Bag's 2,000: the cap binds
     const b0d = await bal(A)
     t = Date.now()
-    const dmg = await cmd(`minecraft:damage ${A} 100 minecraft:mob_attack by ${gu2[0]}`)
-    await sleep(800)
+    // The bodyguards are shooting already: a real hit just before leaves Minecraft's half-second invulnerability,
+    // which swallows the test's blow. Retry until the hunter is down.
+    let dmg = ''
+    for (let k = 0; k < 4; k++) {
+      await cmd(`zzhp ${A} 1`)
+      dmg = await cmd(`minecraft:damage ${A} 100 minecraft:mob_attack by ${gu2[0]}`)
+      await sleep(800)
+      if (/= hit$/.test(await cmd(`zzdata ${A} last-death-cause`))) break
+    }
     const cause = await cmd(`zzdata ${A} last-death-cause`)
     const loss = Number(((await cmd(`zzdata ${A} last-death-loss`)).match(/= (\d+)/) || [])[1])
     const want = Math.floor(Math.min(b0d * 0.03, 2000))
@@ -328,6 +339,8 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`dphone gps ${name} clear`).catch(() => {})
       await rcon.cmd(`minecraft:tp ${name} ${FAR}`).catch(() => {})
     }
+    await rcon.cmd('zzweek off').catch(() => {})
+    await rcon.cmd('dhit week reroll').catch(() => {}) // a full schedule again (windows already past stay used)
     for (const n of nodes) if (n) await rcon.cmd(`dhit node remove ${n}`).catch(() => {})
     if (broker) await rcon.cmd(`dquest remove ${broker}`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot).catch(() => {})

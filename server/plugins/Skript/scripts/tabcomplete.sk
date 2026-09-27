@@ -533,14 +533,22 @@ on tab complete of "/dhit" and "/skript:dhit":
 			set tab completions for position 3 to {-cfg::hit::tiers::*}
 
 on tab complete of "/dgaragesite" and "/skript:dgaragesite":
-	set tab completions for position 1 to "exit", "return", "exitat", "returnat", "remove", "list", "show" and "dump"
+	set tab completions for position 1 to "exit", "return", "bay", "exitat", "returnat", "bayat", "remove", "list", "show", "dump" and "holo"
 	set {_s} to tab arg-1
-	if {_s} is "exit" or "return":
+	if {_s} is "exit" or "return" or "bay":
 		set tab completions for position 2 to "add"
-	else if {_s} is "remove" or "exitat" or "returnat":
+	else if {_s} is "remove" or "exitat" or "returnat" or "bayat" or "holo":
 		loop {garagesites::*}:
 			add loop-index to {_g::*}
 		if {_g::*} is set:
 			set tab completions for position 2 to {_g::*}
 		if {_s} is "remove":
-			set tab completions for position 3 to "exit" and "return"
+			set tab completions for position 3 to "exit", "return" and "bay"
+			set {_site} to tab arg-2
+			set {_kind} to tab arg-3
+			if {_site} is set:
+				if {_kind} is set:
+					loop {garagesite::%{_site}%::%{_kind}%::*}:
+						add loop-index to {_ix::*}
+					if {_ix::*} is set:
+						set tab completions for position 4 to {_ix::*}

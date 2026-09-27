@@ -568,7 +568,7 @@ function hitSpawnFor(p: player, l: location):
 					set {_fail} to true
 				else if "%{-hit::s::%{_u}%::tok}%" is not {_tok}:
 					# The hunt ended while it was made: gone at once.
-					execute console command "npc remove %{_id}%"
+					hitRemoveNpc({_id})
 					hitLog("spawn-dropped %{_p}% %{_role}% id=%{_id}%")
 					set {_fail} to true
 				else:
@@ -746,6 +746,9 @@ function hitSecond(p: player):
 			gpsQuestClear({_p}, "hit")
 	else if {-hit::s::%{_u}%::spotted} is not set:
 		if {-gps::questby::%{_u}%} is not set:
+			# The area coming back (after loot or a car job) isn't a new objective: a pin set meanwhile stays in front.
+			if {-hit::s::%{_u}%::shown} is set:
+				set {-gps::questobj::%{_u}%} to "hit:%progWeek()%:%{_t}%"
 			hitGpsArea({_p})
 	if {-hit::s::%{_u}%::a} is not set:
 		hitWalkerStart({_p})
@@ -783,6 +786,7 @@ function hitGpsArea(p: player):
 	set {_u} to "%uuid of {_p}%"
 	set {_cx} to {-hit::s::%{_u}%::cx}
 	{_cx} is set
+	set {-hit::s::%{_u}%::shown} to true
 	set {_spot} to "%{_cx}%,%{-hit::s::%{_u}%::cy}%,%{-hit::s::%{_u}%::cz}%"
 	set {_t} to hitTierOf({_p})
 	gpsQuest({_p}, "%world of {_p}%", {_spot}, "%hitTargetName()%: search area", {-hit::s::%{_u}%::r}, "hit", "hit:%progWeek()%:%{_t}%")
@@ -1540,14 +1544,21 @@ command /dhit [<text>]:
 					if player does not have permission "donating.quests.admin":
 						send "&cThat needs donating.quests.admin." to sender
 						stop
-				delete {hit::used::%progWeek()%::*}
-				hitRollWeek(progWeek())
-				set {_now} to progUnix()
 				set {_w} to progWeek()
+				# Windows already used (run or skipped) stay used: the week never gets more than n per tier.
+				loop hitTiers():
+					set {_ran::%loop-value%} to size of {hit::used::%{_w}%::%loop-value%::*}
+				delete {hit::used::%{_w}%::*}
+				hitRollWeek({_w})
+				set {_now} to progUnix()
 				loop hitTiers():
 					set {_t} to loop-value
+					set {_i} to 0
 					loop {hit::win::%{_w}%::%{_t}%::*}:
+						add 1 to {_i}
 						if loop-value-2 <= {_now}:
+							set {hit::used::%{_w}%::%{_t}%::%loop-index-2%} to true
+						else if {_i} <= {_ran::%{_t}%}:
 							set {hit::used::%{_w}%::%{_t}%::%loop-index-2%} to true
 				hitLog("reroll W=%{_w}% by=%sender%")
 			set {_w} to progWeek()

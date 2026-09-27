@@ -13,6 +13,7 @@ const C = 'BountyC'
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const bots = {}
+  let broker = ''
   try {
     const setup = async name => {
       bots[name] = await join(name)
@@ -67,6 +68,11 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`zzpassive ${B} off`)
 
     // ---------- Placing bounties ----------
+    // Bounties are posted with the Broker: one next to B (a Broker elsewhere on the map would refuse them).
+    await sleep(500)
+    const bp = bots[B].entity.position
+    broker = ((await rcon.cmd(`dquest addat hits ${Math.floor(bp.x) + 0.5} ${Math.floor(bp.y)} ${Math.floor(bp.z) + 2.5} 0 Bounty Desk`)).match(/giver (\d+) \(hits\) added/) || [])[1] || ''
+    check('a Broker stands next to the placer', broker !== '', broker)
     await rcon.cmd(`eco set ${B} 5000`)
     const place = async (who, cmd) => {
       const t0 = Date.now()
@@ -126,6 +132,7 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`zzbountyreset ${name}`).catch(() => {})
       await rcon.cmd(`zzdata ${name} passive-switched none`).catch(() => {})
     }
+    if (broker) await rcon.cmd(`dquest remove ${broker}`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot)
     rcon.close()
   }

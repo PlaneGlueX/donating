@@ -12,6 +12,20 @@ every 10 seconds:
 		set {_o} to carOwnerOf({_plate})
 		if {-car::driver::%{_plate}%} is set:
 			set {-car::used::%{_plate}%} to now
+			set {_d} to {-car::driver::%{_plate}%}
+			if garageInLane(location of {_d}) is false:
+				delete {-car::lanesince::%{_plate}%}
+			else if {-car::lanesince::%{_plate}%} is not set:
+				set {-car::lanesince::%{_plate}%} to now
+			else:
+				set {_lim} to cfg("car::idle-despawn")
+				if isAfk({_d}) is true:
+					set {_lim} to cfg("garage::pickup-idle")
+				if difference between {-car::lanesince::%{_plate}%} and now >= {_lim}:
+					delete {-car::lanesince::%{_plate}%}
+					make {_d} dismount
+					carStopDriving({_d}, {_plate})
+					carCleanupStore({_plate}, "lane")
 		else if {-car::fresh::%{_plate}%} is set:
 			# Taken out at a garage and never entered (citygarage.sk): back after garage::pickup-idle, freeing the lane.
 			if difference between {-car::fresh::%{_plate}%} and now >= cfg("garage::pickup-idle"):

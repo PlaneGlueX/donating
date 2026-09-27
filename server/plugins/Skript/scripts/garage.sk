@@ -211,8 +211,9 @@ function carSpawnSpot(p: player) :: location:
 		set {_l} to location(floor({_bx} + {_dx}) + 0.5, floor({_by}), floor({_bz} + {_dz}) + 0.5, world of {_base})
 		if carSpotClear({_l}) is true:
 			if garageSiteOf({_l}) is "":
-				set yaw of {_l} to {_yaw}
-				return {_l}
+				if garageInLane({_l}) is false:
+					set yaw of {_l} to {_yaw}
+					return {_l}
 	return {_nothing}
 
 function carSpotClear(l: location) :: boolean:
@@ -312,6 +313,7 @@ function carStore(plate: text, why: text):
 	delete {-car::driver::%{_plate}%}
 	delete {-car::used::%{_plate}%}
 	delete {-car::fresh::%{_plate}%}
+	delete {-car::lanesince::%{_plate}%}
 	set {_o} to carOwnerOf({_plate})
 	if {_o} is not "":
 		if {car::outof::%{_o}%} is {_plate}:
@@ -511,9 +513,9 @@ function carToggleLock(p: player, plate: text):
 	if carLocked({_plate}) is false:
 		# Where the car really is (it may be driving); a car in the garage can always be locked.
 		if {car::out::%{_plate}%} is set:
-			set {_where} to vehicle location of license plate {_plate}
-			if {_where} is not set:
-				set {_where} to {car::out::%{_plate}%}
+			set {_where} to {car::out::%{_plate}%}
+			if {-car::driver::%{_plate}%} is set:
+				set {_where} to location of {-car::driver::%{_plate}%}
 			if carNoLockAt({_where}) is true:
 				carFail({_p}, "You can't lock cars here.")
 				stop

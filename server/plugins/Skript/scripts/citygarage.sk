@@ -139,11 +139,19 @@ function garageLaneBusy(p: player, l: location) :: boolean:
 
 # Whether a spot is in one of its site's exit lanes (car-cleanup.sk: a car left there goes back after pickup-idle).
 function garageInLane(l: location) :: boolean:
-	set {_s} to garageSiteOf({_l})
-	if {_s} is "":
+	if world of {_l} is not poiMainWorld():
 		return false
-	loop {garagesite::%{_s}%::exit::*}:
-		if distance between garageSpotLoc(loop-value) and {_l} <= 3:
+	loop {garagesites::*}:
+		set {_s} to loop-index
+		loop {garagesite::%{_s}%::exit::*}:
+			if distance between garageSpotLoc(loop-value-2) and {_l} <= 3:
+				return true
+	return false
+
+# A real car stands on or next to a bay (its click box would swallow the clicks meant for the car).
+function garageBayCarThere(l: location) :: boolean:
+	loop all armor stands in radius 2.5 around {_l}:
+		if "%name of loop-entity%" starts with "MTVEHICLES_":
 			return true
 	return false
 
@@ -324,6 +332,12 @@ every 10 seconds:
 function garageBayBox(s: text, n: text, l: location):
 	chunk at {_l} is loaded
 	set {_tag} to "gbayi_%{_s}%_%{_n}%"
+	if garageBayCarThere({_l}) is true:
+		loop all entities in radius 3 around {_l}:
+			if loop-entity has scoreboard tag {_tag}:
+				delete {-bay::hit::%uuid of loop-entity%}
+				kill loop-entity
+		stop
 	set {_have} to 0
 	loop all entities in radius 3 around {_l}:
 		if loop-entity has scoreboard tag {_tag}:
@@ -346,6 +360,11 @@ on right click on interaction:
 	cancel event
 	# The held item's own click right after (a gun, the phone) is cancelled too (quests.sk's guard).
 	set {-quest::guard::%player%} to now
+	if garageBayCarThere(location of event-entity) is true:
+		delete {-bay::hit::%uuid of event-entity%}
+		kill event-entity
+		hudBar(player, "&7A car stands in this bay: click it again to get in.", 1)
+		stop
 	if {-bay::clickat::%player%} is set:
 		if difference between {-bay::clickat::%player%} and now < 0.25 seconds:
 			stop
@@ -380,6 +399,10 @@ command /dgaragesite [<text>]:
 				send "GSITE: in game (or exitat / returnat / bayat)" to sender
 				stop
 			set {_s} to garageRegionAt(location of player)
+			if {_s} is not "":
+				if {_s} does not match "[a-z0-9]{1,16}":
+					send "GSITE: a site id (after %cfg("garage::region-prefix")%) must be 1-16 lowercase letters or digits" to sender
+					stop
 			if {_s} is "":
 				send "GSITE: stand inside a %cfg("garage::region-prefix")%<id> region" to sender
 				stop
@@ -435,6 +458,9 @@ command /dgaragesite [<text>]:
 			set {_yw} to {_a::6} parsed as number
 			if {_yw} is not set:
 				send "GSITE usage: %{_sub}% <site> <x> <y> <z> <yaw>" to sender
+				stop
+			if {_s} does not match "[a-z0-9]{1,16}":
+				send "GSITE: a site id must be 1-16 lowercase letters or digits" to sender
 				stop
 			# Inside that site's own region (a mistyped id would make a phantom site).
 			if garageRegionAt(location({_x}, {_y}, {_z}, poiMainWorld())) is not {_s}:
@@ -505,6 +531,7 @@ command /dgaragesite [<text>]:
 					send "dgaragesite bayat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%" to sender
 					carLog("dump dgaragesite bayat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%")
 				send "dgaragesite holo %{_s}%" to sender
+				carLog("dump dgaragesite holo %{_s}%")
 		else if {_sub} is "holo":
 			# holo [site]: a DecentHolograms label over each bay (placeholders: every player reads their own).
 			set {_s} to {_a::2}
