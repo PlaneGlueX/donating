@@ -16,6 +16,18 @@
 #   talk      quests.sk questOpen: the player opened a quest giver in person (detail = its kind)
 # Lifetime counters (saved per player, for later career pages): data life::crack, life::drill, life::getaway,
 # life::contract.
+#
+# Built 2026-09-27 for contact jobs (jobs.sk) and Vic's Wanted List (fence.sk):
+# - Own loot: every "rob" adds its $ to data run::<h>#<run>::own; a "sell" of that run uses up to what's left
+#   (::sold), so only loot the player robbed themselves counts (a picked-up duffel pays money, never progress). The
+#   own dollars go to jobsEvent and fenceEvent as a 5th argument; seasons.sk keeps its own per-season ledger.
+# - Run notes (data run::<tag>::<key>, the flag run::<tag> = when it was first noted, since a list holding only
+#   sub-lists is never "set"): loud (an alarm hunted you), left (seconds on the clock when you last walked out),
+#   touched (a trap hit you), guesses (the keypad guesses of your crack), car (you lost the cops in a car).
+#   Pruned after a sale: 14 days old, or the run is over and none of its loot is left in the bag.
+# - Heat: {heat::last::<h>} (the last robbery, unix), {heat::w::<week>::<h>} (runs robbed that week).
+# - The week: progWeek() = floor((unix + week::offset) / 604800); unix 0 was a Thursday 00:00 UTC.
+# Tags "<h>#<run>" are only ever built inside strings: a # anywhere else in a script line starts a comment.
 
 function progEvent(p: player, ev: text, n: number, detail: text):
 	set {_count} to false
@@ -27,5 +39,107 @@ function progEvent(p: player, ev: text, n: number, detail: text):
 		if {_life} is not set:
 			set {_life} to 0
 		setData({_p}, "life::%{_ev}%", {_life} + 1)
+	set {_own} to 0
+	if {_ev} is "rob":
+		set {_own} to {_n}
+		progRobbed({_p}, {_n}, {_detail})
+	else if {_ev} is "sell":
+		set {_own} to progOwnTake({_p}, {_detail}, {_n})
 	seasonEvent({_p}, {_ev}, {_n}, {_detail})
 	storyEvent({_p}, {_ev}, {_n}, {_detail})
+	jobsEvent({_p}, {_ev}, {_n}, {_detail}, {_own})
+	fenceEvent({_p}, {_ev}, {_n}, {_detail}, {_own})
+
+# ---------- Time ----------
+
+function progUnix() :: number:
+	return floor(unix timestamp of now)
+
+# The week number (Thursday 00:00 UTC to the next; week::offset moves it). {-prog::weekoverride} is for tests.
+function progWeek() :: number:
+	if {-prog::weekoverride} is set:
+		return {-prog::weekoverride}
+	set {_off} to {-cfg::week::offset}
+	if {_off} is not set:
+		set {_off} to 0
+	return floor((progUnix() + {_off}) / 604800)
+
+# ---------- Heist runs: own loot, notes, heat ----------
+
+function progRunTag(h: text) :: text:
+	return "%{_h}%#%heistRun({_h})%"
+
+function progRunMark(p: player, h: text, key: text, v: object):
+	progTagMark({_p}, progRunTag({_h}), {_key}, {_v})
+
+function progTagMark(p: player, tag: text, key: text, v: object):
+	if getData({_p}, "run::%{_tag}%") is not set:
+		setData({_p}, "run::%{_tag}%", progUnix())
+	setData({_p}, "run::%{_tag}%::%{_key}%", {_v})
+
+function progRunGet(p: player, tag: text, key: text) :: object:
+	return getData({_p}, "run::%{_tag}%::%{_key}%")
+
+function progRobbed(p: player, n: number, tag: text):
+	set {_own} to getData({_p}, "run::%{_tag}%::own")
+	if {_own} is not set:
+		set {_own} to 0
+	progTagMark({_p}, {_tag}, "own", {_own} + {_n})
+	set {_parts::*} to {_tag} split at "#"
+	progHeat({_parts::1})
+
+# What of a sale (n $ of a run's loot) the player robbed themselves and hasn't sold yet; uses it up.
+function progOwnTake(p: player, tag: text, n: number) :: number:
+	set {_own} to getData({_p}, "run::%{_tag}%::own")
+	if {_own} is not set:
+		set {_own} to 0
+	set {_sold} to getData({_p}, "run::%{_tag}%::sold")
+	if {_sold} is not set:
+		set {_sold} to 0
+	set {_o} to max(0, min({_n}, {_own} - {_sold}))
+	if {_o} > 0:
+		setData({_p}, "run::%{_tag}%::sold", {_sold} + {_o})
+	return {_o}
+
+# A robbery in a heist: when it was last robbed, and once per run the week's count.
+function progHeat(h: text):
+	set {heat::last::%{_h}%} to progUnix()
+	set {_r} to heistRun({_h})
+	set {_lr} to {heat::lastrun::%{_h}%}
+	if {_lr} is not set:
+		set {_lr} to -1
+	if {_lr} is not {_r}:
+		set {heat::lastrun::%{_h}%} to {_r}
+		add 1 to {heat::w::%progWeek()%::%{_h}%}
+
+# After a sale (and on join): forgets runs that are 14 days old, or over with none of their loot left in the bag.
+function progRunPrune(p: player):
+	set {_now} to progUnix()
+	set {_keep} to cfg("progress::run-keep-days") * 86400
+	loop {data::%{_p}%::run::*}:
+		add loop-index to {_tags::*}
+	loop {_tags::*}:
+		set {_tag} to loop-value
+		set {_drop} to false
+		set {_at} to getData({_p}, "run::%{_tag}%")
+		if {_at} is set:
+			if {_now} - {_at} > {_keep}:
+				set {_drop} to true
+		if {_drop} is false:
+			if getData({_p}, "loot::%{_tag}%") is not set:
+				set {_parts::*} to {_tag} split at "#"
+				if heistExists({_parts::1}) is false:
+					set {_drop} to true
+				else:
+					set {_run} to {_parts::2} parsed as number
+					if {_run} is set:
+						if {_run} < heistRun({_parts::1}):
+							set {_drop} to true
+		if {_drop} is true:
+			delete {data::%{_p}%::run::%{_tag}%::*}
+			delete {data::%{_p}%::run::%{_tag}%}
+
+on join:
+	wait 3 seconds
+	player is online
+	progRunPrune(player)

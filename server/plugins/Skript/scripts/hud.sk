@@ -163,6 +163,9 @@ function hudBoss(p: player):
 	# A mission's target on the GPS (story.sk).
 	if storyHud({_p}) is true:
 		stop
+	# A contact job's target on the GPS (jobs.sk).
+	if jobsHud({_p}) is true:
+		stop
 	hudBossOff({_p})
 
 every 5 ticks:

@@ -199,7 +199,7 @@ function loadSettings():
 	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
 	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
 	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
-	set {-cfg::quests::*} to "contracts" and "story"
+	set {-cfg::quests::*} to "contracts", "story" and "fence"
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
@@ -209,6 +209,10 @@ function loadSettings():
 	set {-cfg::quest::story::npc} to "Mara"
 	set {-cfg::quest::story::place} to "Safehouse"
 	set {-cfg::quest::story::hold} to "paper"
+	set {-cfg::quest::fence::name} to "Wanted List"
+	set {-cfg::quest::fence::npc} to "Vic"
+	set {-cfg::quest::fence::place} to "Pawn Shop"
+	set {-cfg::quest::fence::hold} to "gold_ingot"
 	set {-cfg::quest::reach} to 6
 
 	# ---------- The story (story.sk): PROPOSAL texts, names and rewards ----------
@@ -221,6 +225,86 @@ function loadSettings():
 	# missions have none: without Mara on the map, /missions has a Call Mara button.
 	# A mission whose needs go missing (a heist disabled for a rebuild) is checked every needs-check seconds and
 	# only skipped after needs-grace seconds in a row.
+	# The chains (story.sk): each runs one mission at a time, side by side. Mara's list is story::missions.
+	set {-cfg::story::chains::*} to "story" and "vic"
+	set {-cfg::chain::story::giver} to "story"
+	set {-cfg::chain::story::from} to "Mara"
+	set {-cfg::chain::story::color} to "&d"
+	set {-cfg::chain::story::bar} to "&d&lMISSION"
+	set {-cfg::chain::story::barcolor} to "purple"
+	# Vic the Fence (owner, 2026-09-27: "Vic the Fence"): his own arc from level 3, next to Mara's; its end hands
+	# over his weekly Wanted List (fence.sk). PROPOSAL texts and rewards.
+	set {-cfg::chain::vic::giver} to "fence"
+	set {-cfg::chain::vic::from} to "Vic"
+	set {-cfg::chain::vic::color} to "&6"
+	set {-cfg::chain::vic::bar} to "&6&lVIC"
+	set {-cfg::chain::vic::barcolor} to "yellow"
+	set {-cfg::chain::vic::start} to "state|level|3"
+	set {-cfg::chain::vic::needs} to "fence"
+	set {-cfg::chain::vic::missions::*} to "v1_meet", "v2_appraisal", "v3_wheels", "v4_collector", "v5_auction" and "v6_end"
+	loop "v1_meet", "v2_appraisal", "v3_wheels", "v4_collector", "v5_auction" and "v6_end":
+		set {-cfg::story::%loop-value%::chain} to "vic"
+	set {-cfg::story::v1_meet::label} to "Meet Vic at the Pawn Shop"
+	set {-cfg::story::v1_meet::obj} to "talk|fence"
+	set {-cfg::story::v1_meet::gps} to "fence"
+	set {-cfg::story::v1_meet::brief} to "Mara says you've got quick hands. I buy what nobody else can sell. Come to the Pawn Shop."
+	set {-cfg::story::v1_meet::talk::*} to "So you're Mara's kid.", "Jewels, cars, art. Things with a history." and "Show me you can bring me something worth my time."
+	set {-cfg::story::v2_appraisal::label} to "Sell $4,000 from difficulty 2+ heists"
+	set {-cfg::story::v2_appraisal::obj} to "ev|sell|4000|d2+"
+	set {-cfg::story::v2_appraisal::gps} to "heist:d2+"
+	set {-cfg::story::v2_appraisal::needs} to "d2+"
+	set {-cfg::story::v2_appraisal::brief} to "Sell $4,000 of loot from medium heists or harder. Then we talk."
+	set {-cfg::story::v2_appraisal::done} to "Hm. Not bad. Not bad at all."
+	set {-cfg::story::v2_appraisal::rewards::*} to "money|2000" and "xp|50"
+	set {-cfg::story::v3_wheels::label} to "Deliver a Pro car job"
+	set {-cfg::story::v3_wheels::obj} to "ev|contract|1|pro+"
+	set {-cfg::story::v3_wheels::gps} to "contracts"
+	set {-cfg::story::v3_wheels::needs} to "contracts"
+	set {-cfg::story::v3_wheels::brief} to "I've got buyers for fast cars. Deliver a Pro job for the Boss: he owes me."
+	set {-cfg::story::v3_wheels::done} to "The buyer cried a little. Beautiful."
+	set {-cfg::story::v3_wheels::rewards::*} to "money|3000" and "xp|75"
+	set {-cfg::story::v4_collector::label} to "Crack a safe in a difficulty 3+ heist"
+	set {-cfg::story::v4_collector::obj} to "ev|crack|1|d3+"
+	set {-cfg::story::v4_collector::gps} to "heist:safe,d3+"
+	set {-cfg::story::v4_collector::needs} to "safe,d3+"
+	set {-cfg::story::v4_collector::brief} to "A collector wants what's in a hard heist's safe. Crack one: difficulty 3 or harder."
+	set {-cfg::story::v4_collector::done} to "The collector says you have a gift. I say you have a Safe Kit."
+	set {-cfg::story::v4_collector::rewards::*} to "money|4000" and "xp|100"
+	set {-cfg::story::v5_auction::label} to "Drill a vault and lose the cops, in one run"
+	set {-cfg::story::v5_auction::obj} to "combo|adv|drill,getaway"
+	set {-cfg::story::v5_auction::gps} to "heist:adv,drill"
+	set {-cfg::story::v5_auction::needs} to "adv,drill"
+	set {-cfg::story::v5_auction::brief} to "Auction's Friday. I need a centerpiece: in one run of an alarmed heist, drill the vault and lose the cops with the loot."
+	set {-cfg::story::v5_auction::done} to "Sold in four minutes. Kid... you're my favorite supplier."
+	set {-cfg::story::v5_auction::rewards::*} to "money|6000" and "xp|150"
+	set {-cfg::story::v6_end::label} to "Report to Vic"
+	set {-cfg::story::v6_end::obj} to "talk|fence"
+	set {-cfg::story::v6_end::gps} to "fence"
+	set {-cfg::story::v6_end::brief} to "Come by the shop. I've got a proposition."
+	set {-cfg::story::v6_end::talk::*} to "You've got taste, and you don't get caught.", "Here's my list. New names every Thursday." and "Bring me what's on it and I pay over the odds."
+	set {-cfg::story::v6_end::rewards::*} to "cos|vic_guy", "key|season|1" and "fence|list"
+	# Vic's weekly Wanted List (fence.sk): 3 orders a week for everyone, picked up in person at the Pawn Shop.
+	# A heist order pays heist::rate on up to L1 = min(cap::<d>, pool-share x the pool) of your own loot from it; a
+	# difficulty order diff::rate on up to cap::<d> of your own loot from heists that hard; a car order a flat pay once.
+	set {-cfg::fence::level} to 3
+	set {-cfg::fence::heist::rate} to 0.3
+	set {-cfg::fence::heist::min-difficulty} to 2
+	set {-cfg::fence::heist::pool-share} to 0.5
+	set {-cfg::fence::heist::cap::2} to 6000
+	set {-cfg::fence::heist::cap::3} to 15000
+	set {-cfg::fence::heist::cap::4} to 40000
+	set {-cfg::fence::diff::rate} to 0.15
+	set {-cfg::fence::diff::cycle::*} to 3, 2 and 4
+	set {-cfg::fence::diff::cap::2} to 9000
+	set {-cfg::fence::diff::cap::3} to 22500
+	set {-cfg::fence::diff::cap::4} to 60000
+	set {-cfg::fence::car::tiers::*} to "basic" and "pro"
+	set {-cfg::fence::car::basic::pay} to 1500
+	set {-cfg::fence::car::pro::pay} to 4500
+	# progress.sk: the week turns Thursday 00:00 UTC (seconds added to unix time move it), and run notes are kept
+	# 14 days at most.
+	set {-cfg::week::offset} to 0
+	set {-cfg::progress::run-keep-days} to 14
 	set {-cfg::story::needs-check} to 30
 	set {-cfg::story::needs-grace} to 900
 	set {-cfg::story::chapters::*} to 1, 2, 3, 4 and 5
@@ -1213,6 +1297,154 @@ function loadSettings():
 	set {-cfg::cos::story_made::rarity} to "story"
 	set {-cfg::cos::story_made::bound} to true
 	add "story_made" to {-cfg::cosmetics::*}
+	# Vic's title (the end of his arc; bound).
+	set {-cfg::cos::vic_guy::type} to "title"
+	set {-cfg::cos::vic_guy::name} to "Vic's Guy"
+	set {-cfg::cos::vic_guy::rarity} to "story"
+	set {-cfg::cos::vic_guy::bound} to true
+	add "vic_guy" to {-cfg::cosmetics::*}
+
+	# ---------- Contact jobs (jobs.sk): PROPOSAL numbers, names and texts ----------
+	# Owner, 2026-09-27: "Contact Jobs". Each contact leaves a player one job every jobs::hours; up to jobs::slots wait
+	# (they never expire); picked up in person. Pay R = max(min-pay, floor50(beta x S)), S = the job's loot goal N
+	# (Mara) or the contract's pay (the Boss); paid P = floor(R x (1 + bonus-share K) x (1 + cold-share C) x m).
+	# Mara's goal N = max(min-goal, floor100(min(run::<d>, bag-share x the best bag, pool-share x the heist's pool))).
+	set {-cfg::jobs::contacts::*} to "mara" and "boss"
+	set {-cfg::jobs::mara::name} to "Mara"
+	set {-cfg::jobs::mara::giver} to "story"
+	set {-cfg::jobs::mara::color} to "&d"
+	set {-cfg::jobs::mara::unlock} to "story:done"
+	set {-cfg::jobs::mara::templates::*} to "haul", "safe", "vault" and "getaway"
+	set {-cfg::jobs::boss::name} to "Boss"
+	set {-cfg::jobs::boss::giver} to "contracts"
+	set {-cfg::jobs::boss::color} to "&6"
+	set {-cfg::jobs::boss::unlock} to "contracts:1"
+	set {-cfg::jobs::boss::templates::*} to "tier", "model" and "double"
+	set {-cfg::jobs::hours} to 20
+	set {-cfg::jobs::slots} to 3
+	set {-cfg::jobs::slots-family} to 4
+	set {-cfg::jobs::swap-hours} to 20
+	set {-cfg::jobs::grace} to 900
+	set {-cfg::jobs::gap} to 3
+	set {-cfg::jobs::run::1} to 1000
+	set {-cfg::jobs::run::2} to 3000
+	set {-cfg::jobs::run::3} to 7500
+	set {-cfg::jobs::run::4} to 20000
+	set {-cfg::jobs::bag-share} to 0.6
+	set {-cfg::jobs::pool-share} to 0.25
+	set {-cfg::jobs::min-goal} to 500
+	set {-cfg::jobs::min-pay} to 500
+	set {-cfg::jobs::bonus-share} to 0.5
+	set {-cfg::jobs::cold-share} to 0.25
+	set {-cfg::jobs::cold-hours} to 24
+	set {-cfg::jobs::bonus-rep} to 5
+	set {-cfg::jobs::clock-left} to 120
+	set {-cfg::jobs::guesses} to 5
+	set {-cfg::jobs::fast-secs} to 240
+	# Templates: name (without a bonus), goal text ({heist}, {$}, {tier}, {car}), beta, xp, rep, weight, bonuses.
+	set {-cfg::jobs::tpl::haul::name} to "Special Delivery"
+	set {-cfg::jobs::tpl::haul::goal} to "Sell {$} of loot you robbed from the {heist}"
+	set {-cfg::jobs::tpl::haul::beta} to 0.2
+	set {-cfg::jobs::tpl::haul::xp} to 15
+	set {-cfg::jobs::tpl::haul::rep} to 10
+	set {-cfg::jobs::tpl::haul::weight} to 40
+	set {-cfg::jobs::tpl::haul::bonuses::*} to "clock", "quiet" and "untouched"
+	set {-cfg::jobs::tpl::safe::name} to "Safecracker"
+	set {-cfg::jobs::tpl::safe::goal} to "Crack a safe in the {heist}"
+	set {-cfg::jobs::tpl::safe::beta} to 0.25
+	set {-cfg::jobs::tpl::safe::xp} to 25
+	set {-cfg::jobs::tpl::safe::rep} to 15
+	set {-cfg::jobs::tpl::safe::weight} to 20
+	set {-cfg::jobs::tpl::safe::bonuses::*} to "guesses" and "untouched"
+	set {-cfg::jobs::tpl::vault::name} to "Vault Job"
+	set {-cfg::jobs::tpl::vault::goal} to "Drill the vault in the {heist}"
+	set {-cfg::jobs::tpl::vault::beta} to 0.35
+	set {-cfg::jobs::tpl::vault::xp} to 40
+	set {-cfg::jobs::tpl::vault::rep} to 20
+	set {-cfg::jobs::tpl::vault::weight} to 20
+	set {-cfg::jobs::tpl::vault::bonuses::*} to "untouched"
+	set {-cfg::jobs::tpl::getaway::name} to "Lose the Heat"
+	set {-cfg::jobs::tpl::getaway::goal} to "Rob the {heist} and lose its cops with the loot"
+	set {-cfg::jobs::tpl::getaway::beta} to 0.35
+	set {-cfg::jobs::tpl::getaway::xp} to 40
+	set {-cfg::jobs::tpl::getaway::rep} to 20
+	set {-cfg::jobs::tpl::getaway::weight} to 20
+	set {-cfg::jobs::tpl::getaway::bonuses::*} to "car"
+	set {-cfg::jobs::tpl::tier::name} to "Delivery"
+	set {-cfg::jobs::tpl::tier::goal} to "Deliver a {tier} (or better)"
+	set {-cfg::jobs::tpl::tier::beta} to 0.15
+	set {-cfg::jobs::tpl::tier::xp} to 15
+	set {-cfg::jobs::tpl::tier::rep} to 10
+	set {-cfg::jobs::tpl::tier::weight} to 40
+	set {-cfg::jobs::tpl::tier::bonuses::*} to "fast" and "clean"
+	set {-cfg::jobs::tpl::model::name} to "Special Order"
+	set {-cfg::jobs::tpl::model::goal} to "Deliver a {car} (any color, a {tier})"
+	set {-cfg::jobs::tpl::model::beta} to 0.2
+	set {-cfg::jobs::tpl::model::xp} to 25
+	set {-cfg::jobs::tpl::model::rep} to 15
+	set {-cfg::jobs::tpl::model::weight} to 35
+	set {-cfg::jobs::tpl::model::bonuses::*} to "fast" and "clean"
+	set {-cfg::jobs::tpl::double::name} to "Busy Day"
+	set {-cfg::jobs::tpl::double::goal} to "Deliver 2 {tier}s (or better)"
+	set {-cfg::jobs::tpl::double::beta} to 0.3
+	set {-cfg::jobs::tpl::double::xp} to 40
+	set {-cfg::jobs::tpl::double::rep} to 20
+	set {-cfg::jobs::tpl::double::weight} to 25
+	set {-cfg::jobs::tpl::double::bonuses::*} to "fast" and "clean"
+	# Bonuses (★, +bonus-share): the job's name when it has one, and what it asks.
+	set {-cfg::jobs::bonus::clock::name} to "In and Out"
+	set {-cfg::jobs::bonus::clock::text} to "walk out with 2:00+ on the clock"
+	set {-cfg::jobs::bonus::quiet::name} to "Quiet Hands"
+	set {-cfg::jobs::bonus::quiet::text} to "the cops never chase you"
+	set {-cfg::jobs::bonus::untouched::name} to "Ghost"
+	set {-cfg::jobs::bonus::untouched::text} to "no trap touches you"
+	set {-cfg::jobs::bonus::guesses::name} to "Code Breaker"
+	set {-cfg::jobs::bonus::guesses::text} to "crack it in 5 guesses or fewer"
+	set {-cfg::jobs::bonus::car::name} to "Wheelman"
+	set {-cfg::jobs::bonus::car::text} to "lose them in a car"
+	set {-cfg::jobs::bonus::fast::name} to "Speed Run"
+	set {-cfg::jobs::bonus::fast::text} to "deliver within 4:00 of taking the car job"
+	set {-cfg::jobs::bonus::clean::name} to "Clean Pick"
+	set {-cfg::jobs::bonus::clean::text} to "pick the lock without a miss"
+	# Rep: tiers per contact, a bound title at 2-4, a 4th slot at 4 (Family).
+	set {-cfg::jobs::reptier::1::rep} to 0
+	set {-cfg::jobs::reptier::1::name} to "Associate"
+	set {-cfg::jobs::reptier::2::rep} to 150
+	set {-cfg::jobs::reptier::2::name} to "Trusted"
+	set {-cfg::jobs::reptier::3::rep} to 500
+	set {-cfg::jobs::reptier::3::name} to "Partner"
+	set {-cfg::jobs::reptier::4::rep} to 1200
+	set {-cfg::jobs::reptier::4::name} to "Family"
+	set {-cfg::jobs::mara::title::2} to "rep_mara_2"
+	set {-cfg::jobs::mara::title::3} to "rep_mara_3"
+	set {-cfg::jobs::mara::title::4} to "rep_mara_4"
+	set {-cfg::jobs::boss::title::2} to "rep_boss_2"
+	set {-cfg::jobs::boss::title::3} to "rep_boss_3"
+	set {-cfg::jobs::boss::title::4} to "rep_boss_4"
+	loop "rep_mara_2|Mara's Crew", "rep_mara_3|Mara's Partner", "rep_mara_4|Mara's Family", "rep_boss_2|Yard Regular", "rep_boss_3|Chop Specialist" and "rep_boss_4|Scrap King":
+		set {_rt::*} to loop-value split at "|"
+		set {-cfg::cos::%{_rt::1}%::type} to "title"
+		set {-cfg::cos::%{_rt::1}%::name} to {_rt::2}
+		set {-cfg::cos::%{_rt::1}%::rarity} to "story"
+		set {-cfg::cos::%{_rt::1}%::bound} to true
+		add {_rt::1} to {-cfg::cosmetics::*}
+	# Texts.
+	set {-cfg::jobs::mara::line::unlock} to "I said I'd call. Three jobs at the Safehouse, whenever you're ready."
+	set {-cfg::jobs::boss::line::unlock} to "Got more work if you want it. Three jobs waiting at the Scrap Yard."
+	set {-cfg::jobs::mara::line::text} to "Can't meet today. Sending the details."
+	set {-cfg::jobs::boss::line::text} to "Can't meet today. Sending the details."
+	set {-cfg::jobs::mara::line::void} to "Change of plans. Here's something else."
+	set {-cfg::jobs::boss::line::void} to "Change of plans. Here's something else."
+	set {-cfg::jobs::mara::line::done::*} to "Clean work.", "That'll do nicely." and "Knew I could count on you."
+	set {-cfg::jobs::boss::line::done::*} to "Nice. Car's already in pieces.", "Good. Clean. Fast." and "That's how it's done."
+	set {-cfg::jobs::mara::line::tier::2} to "You're reliable. I like reliable."
+	set {-cfg::jobs::mara::line::tier::3} to "Partner. Don't let it go to your head."
+	set {-cfg::jobs::mara::line::tier::4} to "You're family now. Act like it."
+	set {-cfg::jobs::boss::line::tier::2} to "You don't scratch the paint. Good."
+	set {-cfg::jobs::boss::line::tier::3} to "Partner. My yard's your yard."
+	set {-cfg::jobs::boss::line::tier::4} to "Scrap King. Heh. Suits you."
+	set {-cfg::jobs::mara::greet::*} to "Yes?", "Good to see you.", "Partner. What do you need?" and "There's my favorite."
+	set {-cfg::jobs::boss::greet::*} to "Yeah?", "Oh, it's you.", "Partner." and "Kid! Come in."
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script

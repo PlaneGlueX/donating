@@ -1,64 +1,136 @@
-# story.sk: the personal questline, GTA-like. Built 2026-09-27 (owner, 2026-09-27: "a personal questline that helps
-# the player do stuff instead of just spam robberies (like gta)").
+# story.sk: the personal questlines, GTA-like. Built 2026-09-27 (owner, 2026-09-27: "a personal questline that
+# helps the player do stuff instead of just spam robberies (like gta)"); chains 2026-09-27 (Vic the Fence's arc runs
+# next to Mara's).
 #
-# A fixer, Mara (a quest giver of the kind "story" at the Safehouse, quests.sk), runs the player through the game
-# one mission at a time, in five chapters (core.sk story::missions, PROPOSAL texts and rewards): buying a gun, a
-# first heist and sale, a crate, safes, the Scrap Yard's car jobs, a better bag, vests, vaults, cars, cop chases,
-# the hard heists, and a finale. Chapters start and end in person at Mara (talk missions: her lines play 2 s apart
-# there); missions in between arrive as texts from her or the Scrap Yard Boss. Missions only guide: they never
-# unlock or lock anything (levels do that), give no season score, and a player can do anything in any order.
+# Chains (core.sk story::chains, chain::<c>::giver|from|color|bar|barcolor|start|needs|missions): "story" is Mara's
+# (a quest giver of the kind "story" at the Safehouse; her list is story::missions), "vic" is Vic the Fence's (kind
+# "fence", from level 3). Each chain has one mission at a time, and they run side by side. A mission's settings are
+# story::<id>::* (its chain: story::<id>::chain, unset = "story"). Missions only guide: they never unlock or lock
+# anything (levels do that), give no season score, and a player can do anything in any order.
 #
-# Objectives (story::<id>::obj): talk|<quest kind> (open that giver in person), ev|<event>|<n>[|<filter>] (the
-# progress.sk events while the mission is active: rob, sell ($), crack, drill, getaway, contract, crate; filters
-# d4 (from difficulty-4 heists), pro+ / master (contract tiers), distinct (different heists)),
-# state|level|<n>, state|gun, state|bagbest|<n>, state|vest, state|car (checked every second, so what a player
-# already has counts at once), combo|d4 (a safe, a vault and a getaway with loot in one run of a difficulty-4
-# heist). A mission whose content the map doesn't have (needs: heist, safe, drill, adv, finale, contracts, crate,
-# story) is skipped with one line, so the chain never blocks. A state mission already met when it starts is done
-# at once, without its text or reward (veterans skip ahead; one summary line).
-# The only place missions complete is the pass (every second, at most one per player): the rewards (money, XP,
-# tools through crates.sk's crateGrant, lockpicks, keys, a bound title), the contact's line, MISSION PASSED a
-# second later (a level-up's title first), then the next mission's text.
-# Shown: the sidebar (%donating_mission%: "▶ Crack a safe 0/1"), the GPS (the quest slot, "story", only while
-# there's no car job and no loot in the bag: those routes win), the boss bar while the GPS shows it, /missions
-# (the phone's Missions app, slot 6).
+# Objectives (story::<id>::obj): talk|<quest kind> (open that giver in person; a chain's own giver plays the
+# mission's lines 2 s apart first), ev|<event>|<n>[|<filter>] (progress.sk's events while the mission is active:
+# rob, sell ($), crack, drill, getaway, contract, crate; filters pro+ / master (contract tiers), distinct (different
+# heists), or a heist filter: d4, d<n>+, adv, safe, drill, finale, several with commas), state|level|<n>,
+# state|gun, state|bagbest|<n>, state|vest, state|car (checked every second, so what a player already has counts at
+# once), combo|<heist filter>[|<parts>] (parts crack,drill,getaway by default, all in one run of a fitting heist).
+# A mission whose content the map doesn't have (needs: heist, heist3, safe, drill, adv, finale, d<n>+, contracts,
+# crate, a quest kind) is skipped with one line, so a chain never blocks. A state mission already met when it
+# starts is done at once, without its text or reward (veterans skip ahead; one summary line).
+# The only place missions complete is the pass (every second, at most one per player every 3 s, shared with jobs.sk:
+# {-quest::doneat}): the rewards (money, XP, tools through crates.sk's crateGrant, lockpicks, keys, a bound title,
+# Vic's list), the contact's line, MISSION PASSED a second later (a level-up's title first), then the next text.
+# Shown: the sidebar (%donating_mission%: the tracked quest first), the GPS (the quest slot, one owner for every
+# chain and job: questGps; never over a car job or while carrying loot), the boss bar while the GPS shows it,
+# /missions (the phone's Missions app, slot 6).
 #
-# Saved per player: data story (the mission id, or "done"), story-prog, story-seen::<heist> (distinct),
-# story-combo::<heist>#<run>::<part>. Staff: /dstory info|set|reset|skip <player> [id]. Log: plugins\Skript\logs\story.log.
+# Saved per player: data <key> (the mission id, "paying:<id>" or "done"), <key>-prog, <key>-seen::<heist>
+# (distinct), <key>-combo::<heist>#<run>::<part>, where <key> is "story" for Mara and the chain's name otherwise;
+# quest-track (the quest the player follows: a chain or "job:<c>:<k>"). Staff: /dstory info|set|reset|skip.
+# Log: plugins\Skript\logs\story.log.
 
 function storyLog(text: text):
 	log {_text} to "story"
 
-function storyId(p: player) :: text:
-	set {_s} to getData({_p}, "story")
+# ---------- Chains ----------
+
+function storyChainOf(id: text) :: text:
+	set {_c} to {-cfg::story::%{_id}%::chain}
+	if {_c} is set:
+		return {_c}
+	return "story"
+
+function storyList(c: text) :: texts:
+	if {_c} is "story":
+		return {-cfg::story::missions::*}
+	return {-cfg::chain::%{_c}%::missions::*}
+
+# The data key of a chain: "story" for Mara (her saved keys never changed), else the chain's name.
+function storyKey(c: text) :: text:
+	return {_c}
+
+function storyIsChain(c: text) :: boolean:
+	loop {-cfg::story::chains::*}:
+		if loop-value is {_c}:
+			return true
+	return false
+
+# Whether a quest kind is a chain's own giver (its talk missions complete after the lines, in storyTalk).
+function storyIsChainGiver(k: text) :: boolean:
+	loop {-cfg::story::chains::*}:
+		if {-cfg::chain::%loop-value%::giver} is {_k}:
+			return true
+	return false
+
+function storyIdOf(p: player, c: text) :: text:
+	set {_s} to getData({_p}, storyKey({_c}))
 	if {_s} is set:
 		return "%{_s}%"
 	return ""
 
+function storyId(p: player) :: text:
+	return storyIdOf({_p}, "story")
+
 function storyExists(id: text) :: boolean:
-	loop {-cfg::story::missions::*}:
+	loop storyList(storyChainOf({_id})):
 		if loop-value is {_id}:
 			return true
 	return false
 
-# The mission after id ("" = the story is over).
+# A mission that is running (not "", "done" or "paying:", and still in its chain).
+function storyLive(id: text) :: boolean:
+	if {_id} is "":
+		return false
+	if {_id} is "done":
+		return false
+	if {_id} starts with "paying:":
+		return false
+	return storyExists({_id})
+
+# The mission after id in its chain ("" = the chain is over).
 function storyNextId(id: text) :: text:
 	set {_found} to false
-	loop {-cfg::story::missions::*}:
+	loop storyList(storyChainOf({_id})):
 		if {_found} is true:
 			return loop-value
 		if loop-value is {_id}:
 			set {_found} to true
 	return ""
 
-function storyProg(p: player) :: number:
-	set {_v} to getData({_p}, "story-prog")
+# Whether Mara's chain got to id (done, paying for it or a later one, or on a later mission).
+function storyReached(p: player, id: text) :: boolean:
+	set {_c} to storyChainOf({_id})
+	set {_now} to storyIdOf({_p}, {_c})
+	if {_now} is "done":
+		return true
+	if {_now} starts with "paying:":
+		set {_now} to subtext of {_now} from characters 8 to (length of {_now})
+		if {_now} is {_id}:
+			return true
+	set {_seen} to false
+	loop storyList({_c}):
+		if loop-value is {_id}:
+			set {_seen} to true
+		if loop-value is {_now}:
+			if {_seen} is true:
+				return true
+			return false
+	return false
+
+function storyProgOf(p: player, c: text) :: number:
+	set {_v} to getData({_p}, "%storyKey({_c})%-prog")
 	if {_v} is set:
 		return {_v}
 	return 0
 
+function storyProg(p: player) :: number:
+	return storyProgOf({_p}, "story")
+
 function storyFrom(id: text) :: text:
 	set {_f} to {-cfg::story::%{_id}%::from}
+	if {_f} is set:
+		return {_f}
+	set {_f} to {-cfg::chain::%storyChainOf({_id})%::from}
 	if {_f} is set:
 		return {_f}
 	return "Mara"
@@ -91,8 +163,14 @@ function storyHasGate(h: text, kind: text) :: boolean:
 			return true
 	return false
 
-# Whether a heist fits a filter: "" any, safe, drill, adv (advanced), d4, finale (advanced d4 with a safe and a vault).
+# Whether a heist fits a filter: "" any, safe, drill, adv (advanced), d4, d<n>+ (difficulty n or harder), finale
+# (advanced d4 with a safe and a vault); several with commas must all fit.
 function storyHeistFits(h: text, f: text) :: boolean:
+	if {_f} contains ",":
+		loop {_f} split at ",":
+			if storyHeistFits({_h}, loop-value) is false:
+				return false
+		return true
 	if {_f} is "safe":
 		return storyHasGate({_h}, "safe")
 	if {_f} is "drill":
@@ -110,16 +188,19 @@ function storyHeistFits(h: text, f: text) :: boolean:
 					if storyHasGate({_h}, "drill") is true:
 						return true
 		return false
+	if {_f} starts with "d":
+		if {_f} ends with "+":
+			set {_e} to (length of {_f}) - 1
+			set {_d} to (subtext of {_f} from characters 2 to {_e}) parsed as number
+			if {_d} is set:
+				if heistDifficulty({_h}) >= {_d}:
+					return true
+				return false
 	return true
 
 function storyNeedsMet(p: player, need: text) :: boolean:
 	if {_need} is "":
 		return true
-	if {_need} is "story":
-		loop {quest::giver::*}:
-			if loop-value starts with "story|":
-				return true
-		return false
 	if {_need} is "contracts":
 		set {_g} to false
 		loop {quest::giver::*}:
@@ -129,6 +210,11 @@ function storyNeedsMet(p: player, need: text) :: boolean:
 			if size of {contract::spot::*} > 0:
 				if size of {contract::chop::*} > 0:
 					return true
+		return false
+	if questIsKind({_need}) is true:
+		loop {quest::giver::*}:
+			if loop-value starts with "%{_need}%|":
+				return true
 		return false
 	if {_need} is "crate":
 		if size of {crateblock::*} > 0:
@@ -199,13 +285,14 @@ function storyMet(p: player, id: text) :: boolean:
 	set {_o} to storyObj({_id})
 	if {_o} starts with "state|":
 		return storyState({_p}, {_o})
-	if storyProg({_p}) >= storyNeed({_id}):
+	if storyProgOf({_p}, storyChainOf({_id})) >= storyNeed({_id}):
 		return true
 	return false
 
 # "0/1", "$4,000/$10,000", "done".
 function storyProgText(p: player, id: text) :: text:
 	set {_o} to storyObj({_id})
+	set {_prog} to storyProgOf({_p}, storyChainOf({_id}))
 	if {_o} starts with "state|":
 		set {_a::*} to {_o} split at "|"
 		if {_a::2} is "level":
@@ -215,26 +302,30 @@ function storyProgText(p: player, id: text) :: text:
 	set {_a::*} to {_o} split at "|"
 	if {_a::1} is "ev":
 		if {_a::2} is "sell":
-			return "&7%formatMoney(storyProg({_p}))%/%formatMoney(storyNeed({_id}))%"
-	return "&7%storyProg({_p})%/%storyNeed({_id})%"
+			return "&7%formatMoney({_prog})%/%formatMoney(storyNeed({_id}))%"
+	return "&7%{_prog}%/%storyNeed({_id})%"
 
 # ---------- Counting (progress.sk calls this; nothing completes here) ----------
 
 function storyEvent(p: player, ev: text, n: number, detail: text):
-	set {_id} to storyId({_p})
-	{_id} is not ""
-	{_id} is not "done"
+	loop {-cfg::story::chains::*}:
+		storyEventOf({_p}, loop-value, {_ev}, {_n}, {_detail})
+
+function storyEventOf(p: player, c: text, ev: text, n: number, detail: text):
+	set {_id} to storyIdOf({_p}, {_c})
+	storyLive({_id}) is true
+	set {_key} to storyKey({_c})
 	set {_o} to storyObj({_id})
 	set {_a::*} to {_o} split at "|"
 	if {_a::1} is "talk":
-		# Mara's own talks complete in storyTalk, after her lines; other givers (the Scrap Yard) by the event.
+		# A chain's own givers (Mara, Vic) complete in storyTalk, after their lines; others (the Scrap Yard) by the event.
 		if {_ev} is "talk":
 			if {_detail} is {_a::2}:
-				if {_detail} is not "story":
-					setData({_p}, "story-prog", 1)
+				if storyIsChainGiver({_detail}) is false:
+					setData({_p}, "%{_key}%-prog", 1)
 		stop
 	if {_a::1} is "combo":
-		storyCombo({_p}, {_ev}, {_detail})
+		storyComboOf({_p}, {_c}, {_o}, {_ev}, {_detail})
 		stop
 	{_a::1} is "ev"
 	{_a::2} is {_ev}
@@ -249,12 +340,7 @@ function storyEvent(p: player, ev: text, n: number, detail: text):
 	if {_detail} contains "#":
 		set {_hp::*} to {_detail} split at "#"
 		set {_h} to {_hp::1}
-	if {_f} is "d4":
-		if heistExists({_h}) is false:
-			stop
-		if heistDifficulty({_h}) is not 4:
-			stop
-	else if {_f} is "pro+":
+	if {_f} is "pro+":
 		if {_detail} is not "pro":
 			if {_detail} is not "master":
 				stop
@@ -262,27 +348,39 @@ function storyEvent(p: player, ev: text, n: number, detail: text):
 		if {_detail} is not "master":
 			stop
 	else if {_f} is "distinct":
-		if getData({_p}, "story-seen::%{_h}%") is true:
+		if getData({_p}, "%{_key}%-seen::%{_h}%") is true:
 			stop
-		setData({_p}, "story-seen::%{_h}%", true)
+		setData({_p}, "%{_key}%-seen::%{_h}%", true)
+	else if {_f} is not "":
+		if heistExists({_h}) is false:
+			stop
+		if storyHeistFits({_h}, {_f}) is false:
+			stop
 	# A getaway counts with that run's loot, after the cops came (as the season's).
 	if {_ev} is "getaway":
 		if heistWave({_h}) < 1:
 			stop
 		if bagRunLoot({_p}, {_h}) <= 0:
 			stop
-	setData({_p}, "story-prog", storyProg({_p}) + {_add})
+	setData({_p}, "%{_key}%-prog", storyProgOf({_p}, {_c}) + {_add})
 
-# The finale: a safe, a vault and a getaway with loot in one run of a difficulty-4 heist.
-function storyCombo(p: player, ev: text, detail: text):
+# combo|<heist filter>[|<parts>]: every part (crack, drill, getaway with loot after a wave) in one run of a fitting heist.
+function storyComboOf(p: player, c: text, obj: text, ev: text, detail: text):
+	set {_a::*} to {_obj} split at "|"
+	set {_f} to ""
+	if {_a::2} is set:
+		set {_f} to {_a::2}
+	set {_parts} to "crack,drill,getaway"
+	if {_a::3} is set:
+		set {_parts} to {_a::3}
 	set {_h} to {_detail}
 	if {_detail} contains "#":
 		set {_hp::*} to {_detail} split at "#"
 		set {_h} to {_hp::1}
 	heistExists({_h}) is true
-	heistDifficulty({_h}) is 4
+	storyHeistFits({_h}, {_f}) is true
 	set {_run} to heistRun({_h})
-	set {_k} to "story-combo::%{_h}%#%{_run}%"
+	set {_k} to "%storyKey({_c})%-combo::%{_h}%#%{_run}%"
 	if {_ev} is "crack":
 		setData({_p}, "%{_k}%::crack", true)
 	else if {_ev} is "drill":
@@ -291,32 +389,38 @@ function storyCombo(p: player, ev: text, detail: text):
 		if heistWave({_h}) >= 1:
 			if bagRunLoot({_p}, {_h}) > 0:
 				setData({_p}, "%{_k}%::getaway", true)
-	if getData({_p}, "%{_k}%::crack") is true:
-		if getData({_p}, "%{_k}%::drill") is true:
-			if getData({_p}, "%{_k}%::getaway") is true:
-				setData({_p}, "story-prog", 1)
+	set {_all} to true
+	loop {_parts} split at ",":
+		if getData({_p}, "%{_k}%::%loop-value%") is not true:
+			set {_all} to false
+	if {_all} is true:
+		setData({_p}, "%storyKey({_c})%-prog", 1)
 
 # ---------- Starting and finishing missions ----------
 
-function storyClear(p: player):
-	delete {-story::needsgone::%{_p}%}
-	deleteData({_p}, "story-prog")
-	delete {data::%{_p}%::story-seen::*}
-	delete {data::%{_p}%::story-combo::*}
+function storyClearOf(p: player, c: text):
+	set {_key} to storyKey({_c})
+	delete {-story::needsgone::%{_p}%::%{_c}%}
+	deleteData({_p}, "%{_key}%-prog")
+	delete {data::%{_p}%::%{_key}%-seen::*}
+	delete {data::%{_p}%::%{_key}%-combo::*}
 
-# Makes id the player's mission. Retired missions are passed over, missions the map can't do are skipped with a
-# line, a state already met is done at once (no text or reward): up to 12 in a row.
-function storyActivate(p: player, id: text):
-	set {_id} to {_id}
+function storyClear(p: player):
+	storyClearOf({_p}, "story")
+
+# Makes id the player's mission in its chain ("" = the chain is done). Retired missions are passed over, missions the
+# map can't do are skipped with a line, a state already met is done at once (no text or reward): up to 12 in a row.
+function storyActivateOf(p: player, c: text, id: text):
+	set {_key} to storyKey({_c})
 	set {_skipped} to 0
 	loop 12 times:
 		if {_id} is "":
-			setData({_p}, "story", "done")
-			storyClear({_p})
-			storyLog("done %{_p}% %uuid of {_p}%")
+			setData({_p}, {_key}, "done")
+			storyClearOf({_p}, {_c})
+			storyLog("done %{_p}% %uuid of {_p}% chain=%{_c}%")
 			stop
-		setData({_p}, "story", {_id})
-		storyClear({_p})
+		setData({_p}, {_key}, {_id})
+		storyClearOf({_p}, {_c})
 		set {_need} to {-cfg::story::%{_id}%::needs}
 		if {_need} is not set:
 			set {_need} to ""
@@ -338,20 +442,35 @@ function storyActivate(p: player, id: text):
 			storyStartText({_p}, {_id}, {_skipped})
 			stop
 
+function storyActivate(p: player, id: text):
+	set {_c} to "story"
+	if {_id} is not "":
+		set {_c} to storyChainOf({_id})
+	storyActivateOf({_p}, {_c}, {_id})
+
 function storyStartText(p: player, id: text, skipped: number):
+	set {_c} to storyChainOf({_id})
 	set {_label} to {-cfg::story::%{_id}%::label}
+	set {_from} to storyFrom({_id})
 	if {_skipped} > 0:
-		storyText({_p}, "Mara", "Heard you know your way around. Skipping ahead to: %{_label}%.")
+		storyText({_p}, {-cfg::chain::%{_c}%::from}, "Heard you know your way around. Skipping ahead to: %{_label}%.")
 	else:
-		storyText({_p}, storyFrom({_id}), {-cfg::story::%{_id}%::brief})
-		if storyObj({_id}) is "talk|story":
-			if storyNeedsMet({_p}, "story") is false:
-				msg({_p}, "&7(Mara isn't at the Safehouse right now: call her from &f/missions&7.)")
-	hudBar({_p}, "&d▶ New mission: &f%{_label}%", 1)
+		storyText({_p}, {_from}, {-cfg::story::%{_id}%::brief})
+		# A talk mission whose giver isn't on the map: how to reach them.
+		set {_k} to {-cfg::chain::%{_c}%::giver}
+		if storyObj({_id}) is "talk|%{_k}%":
+			if storyNeedsMet({_p}, {_k}) is false:
+				set {_place} to {-cfg::quest::%{_k}%::place}
+				set {_who} to {-cfg::chain::%{_c}%::from}
+				msg({_p}, "&7(%{_who}% isn't at the %{_place}% right now: call from &f/missions&7.)")
+	set {_col} to {-cfg::chain::%{_c}%::color}
+	hudBar({_p}, "%{_col}%▶ New mission: &f%{_label}%", 1)
+	# The newest objective is the one the player follows (sidebar, GPS).
+	setData({_p}, "quest-track", {_c})
 	storyLog("start %{_p}% %uuid of {_p}% %{_id}%")
 
 # Pays a mission's rewards: "money|N", "xp|N", "tool|<t>|N", "con|<W>|N", "key|<crate>|N", "lockpick|<tier>|N",
-# "cos|<id>". Returns what was given, for the chat line.
+# "cos|<id>", "fence|list" (Vic's first Wanted List). Returns what was given, for the chat line.
 function storyRewards(p: player, id: text) :: text:
 	loop {-cfg::story::%{_id}%::rewards::*}:
 		set {_a::*} to loop-value split at "|"
@@ -392,15 +511,20 @@ function storyRewards(p: player, id: text) :: text:
 		else if {_a::1} is "cos":
 			cosGive({_p}, {_a::2}, "story:%{_id}%")
 			add "&7the title %cosColored({_a::2})%" to {_got::*}
+		else if {_a::1} is "fence":
+			fenceTakeList({_p})
+			add "&6Vic's Wanted List" to {_got::*}
 	# No rewards: an empty list joins to nothing (unset), and storyTitle wouldn't run with an unset argument.
 	if size of {_got::*} is 0:
 		return ""
 	return join {_got::*} with "&7, "
 
 function storyComplete(p: player, id: text):
+	set {_c} to storyChainOf({_id})
 	set {_next} to storyNextId({_id})
 	# The mission moves on first (a second pass can't pay it again).
-	setData({_p}, "story", "paying:%{_id}%")
+	setData({_p}, storyKey({_c}), "paying:%{_id}%")
+	set {-quest::doneat::%{_p}%} to now
 	set {_got} to storyRewards({_p}, {_id})
 	storyLog("complete %{_p}% %uuid of {_p}% %{_id}% got=%{_got}%")
 	set {_done} to {-cfg::story::%{_id}%::done}
@@ -411,7 +535,7 @@ function storyComplete(p: player, id: text):
 	else:
 		msg({_p}, "&6Mission passed: &f%{-cfg::story::%{_id}%::label}%")
 	storyTitle({_p}, {_got})
-	storyActivate({_p}, {_next})
+	storyActivateOf({_p}, {_c}, {_next})
 
 # MISSION PASSED a second later, so a level-up's title (the XP reward) shows first.
 function storyTitle(p: player, got: text):
@@ -423,54 +547,77 @@ function storyTitle(p: player, got: text):
 # ---------- The pass: every second ----------
 
 function storyPass(p: player):
-	# After the tutorial (players from before it have no tutorial data), and not in the first seconds online.
-	tutorialStep({_p}) is not "bag"
+	# Not in the first seconds online, and never two completions (missions, jobs) within 3 s.
 	set {_j} to {-story::joined::%{_p}%}
 	if {_j} is set:
 		if difference between {_j} and now < 5 seconds:
 			stop
-	set {_id} to storyId({_p})
+	loop {-cfg::story::chains::*}:
+		set {_d} to {-quest::doneat::%{_p}%}
+		set {_gap} to false
+		if {_d} is set:
+			if difference between {_d} and now < 3 seconds:
+				set {_gap} to true
+		if {_gap} is false:
+			storyPassOf({_p}, loop-value)
+
+function storyPassOf(p: player, c: text):
+	# Mara's chain starts after the tutorial (players from before it have no tutorial data).
+	if {_c} is "story":
+		if tutorialStep({_p}) is "bag":
+			stop
+	set {_id} to storyIdOf({_p}, {_c})
+	set {_first} to first element out of storyList({_c})
 	if {_id} is "":
-		storyActivate({_p}, {-cfg::story::missions::1})
+		# Another chain starts when its start state holds and its giver is on the map.
+		set {_start} to {-cfg::chain::%{_c}%::start}
+		if {_start} is set:
+			if storyState({_p}, {_start}) is false:
+				stop
+		set {_needs} to {-cfg::chain::%{_c}%::needs}
+		if {_needs} is set:
+			if storyNeedsMet({_p}, {_needs}) is false:
+				stop
+		storyActivateOf({_p}, {_c}, {_first})
 		stop
 	# A crash mid-payment: the mission was paid (the rewards come first after the mark), move on.
 	if {_id} starts with "paying:":
 		set {_was} to subtext of {_id} from characters 8 to (length of {_id})
 		storyLog("resume %{_p}% %uuid of {_p}% after %{_was}%")
-		storyActivate({_p}, storyNextId({_was}))
+		storyActivateOf({_p}, {_c}, storyNextId({_was}))
 		stop
 	{_id} is not "done"
 	if storyExists({_id}) is false:
 		storyLog("gone %{_p}% %uuid of {_p}% %{_id}% (not in the missions any more)")
-		storyActivate({_p}, {-cfg::story::missions::1})
+		storyActivateOf({_p}, {_c}, {_first})
 		stop
 	if {-cfg::story::%{_id}%::retired} is true:
-		storyActivate({_p}, storyNextId({_id}))
+		storyActivateOf({_p}, {_c}, storyNextId({_id}))
 		stop
 	# Content can disappear (a heist disabled for a rebuild): checked every story::needs-check seconds, and the mission
 	# is only skipped once it has been missing for story::needs-grace seconds in a row (staff maintenance doesn't
 	# cost anyone their mission).
-	set {_at} to {-story::needsat::%{_p}%}
+	set {_at} to {-story::needsat::%{_p}%::%{_c}%}
 	if {_at} is not set:
 		set {_at} to now
-		set {-story::needsat::%{_p}%} to now
+		set {-story::needsat::%{_p}%::%{_c}%} to now
 	if difference between {_at} and now >= 1 second * cfg("story::needs-check"):
-		set {-story::needsat::%{_p}%} to now
+		set {-story::needsat::%{_p}%::%{_c}%} to now
 		set {_need} to {-cfg::story::%{_id}%::needs}
 		if {_need} is set:
 			if storyNeedsMet({_p}, {_need}) is true:
-				delete {-story::needsgone::%{_p}%}
-			else if {-story::needsgone::%{_p}%} is not set:
-				set {-story::needsgone::%{_p}%} to now
+				delete {-story::needsgone::%{_p}%::%{_c}%}
+			else if {-story::needsgone::%{_p}%::%{_c}%} is not set:
+				set {-story::needsgone::%{_p}%::%{_c}%} to now
 				storyLog("needs-gone %{_p}% %uuid of {_p}% %{_id}% needs=%{_need}% (waiting)")
-			else if difference between {-story::needsgone::%{_p}%} and now >= 1 second * cfg("story::needs-grace"):
-				delete {-story::needsgone::%{_p}%}
+			else if difference between {-story::needsgone::%{_p}%::%{_c}%} and now >= 1 second * cfg("story::needs-grace"):
+				delete {-story::needsgone::%{_p}%::%{_c}%}
 				storyLog("skip-needs %{_p}% %uuid of {_p}% %{_id}% needs=%{_need}% (gone)")
 				storyText({_p}, storyFrom({_id}), "That job fell through. On to the next one.")
-				storyActivate({_p}, storyNextId({_id}))
+				storyActivateOf({_p}, {_c}, storyNextId({_id}))
 				stop
 		else:
-			delete {-story::needsgone::%{_p}%}
+			delete {-story::needsgone::%{_p}%::%{_c}%}
 	if storyMet({_p}, {_id}) is true:
 		storyComplete({_p}, {_id})
 
@@ -479,17 +626,19 @@ every second:
 		set {_p} to loop-player
 		if {_p} is alive:
 			storyPass({_p})
-		storyShow({_p})
+		questShow({_p})
 
 on join:
 	set {-story::joined::%player%} to now
 
 on quit:
 	delete {-story::joined::%player%}
-	delete {-story::needsat::%player%}
-	delete {-story::needsgone::%player%}
-	delete {-story::gpsobj::%uuid of player%}
+	delete {-story::needsat::%player%::*}
+	delete {-story::needsgone::%player%::*}
 	delete {-story::talking::%player%}
+	delete {-quest::doneat::%player%}
+	delete {-gps::seenobj::%uuid of player%::*}
+	delete {-qt::%uuid of player%::*}
 	delete {-ph::mission::%player%}
 
 # ---------- Showing it: the sidebar, the GPS, the boss bar ----------
@@ -501,12 +650,7 @@ function storyGpsSpots(p: player, id: text) :: text:
 		return ""
 	set {_w} to "%world of {_p}%"
 	set {_out} to ""
-	set {_givers} to false
-	if {_g} is "story":
-		set {_givers} to true
-	else if {_g} is "contracts":
-		set {_givers} to true
-	if {_givers} is true:
+	if questIsKind({_g}) is true:
 		loop {quest::giver::*}:
 			set {_a::*} to loop-value split at "|"
 			if {_a::1} is {_g}:
@@ -531,10 +675,10 @@ function storyGpsSpots(p: player, id: text) :: text:
 					if {_a::6} contains {_word}:
 						add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
 	else if {_g} starts with "heist":
+		set {_key} to storyKey(storyChainOf({_id}))
 		set {_f} to ""
 		if {_g} contains ":":
-			set {_gp::*} to {_g} split at ":"
-			set {_f} to {_gp::2}
+			set {_f} to subtext of {_g} from characters 7 to (length of {_g})
 		loop storyHeists({_p}):
 			set {_st} to heistState(loop-value)
 			set {_open} to false
@@ -545,7 +689,7 @@ function storyGpsSpots(p: player, id: text) :: text:
 			if {_open} is true:
 				set {_fits} to true
 				if {_f} is "new":
-					if getData({_p}, "story-seen::%loop-value%") is true:
+					if getData({_p}, "%{_key}%-seen::%loop-value%") is true:
 						set {_fits} to false
 				else if storyHeistFits(loop-value, {_f}) is false:
 					set {_fits} to false
@@ -557,89 +701,192 @@ function storyGpsSpots(p: player, id: text) :: text:
 		set {_out} to join {_s::*} with ";"
 	return {_out}
 
-# The GPS's quest slot: the mission's target, but never over a car job's or while carrying loot (the base route).
-function storyGps(p: player, id: text):
+# The quests a player follows, in order: the tracked one (data quest-track) first, then each chain, then taken jobs.
+function questOrder(p: player) :: texts:
+	set {_t} to getData({_p}, "quest-track")
+	if {_t} is set:
+		add "%{_t}%" to {_o::*}
+		set {_in::%{_t}%} to true
+	loop {-cfg::story::chains::*}:
+		if {_in::%loop-value%} is not set:
+			set {_in::%loop-value%} to true
+			add loop-value to {_o::*}
+	loop jobsKeys({_p}):
+		if {_in::%loop-value%} is not set:
+			set {_in::%loop-value%} to true
+			add loop-value to {_o::*}
+	return {_o::*}
+
+# Fills {-qt::<uuid>::world|spots|label|radius|by|obj} with a quest's GPS target; false when it has none.
+function questTarget(p: player, key: text) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	delete {-qt::%{_u}%::*}
+	if {_key} starts with "job:":
+		return jobsTarget({_p}, {_key})
+	if storyIsChain({_key}) is false:
+		return false
+	set {_id} to storyIdOf({_p}, {_key})
+	if storyLive({_id}) is false:
+		return false
+	if storyMet({_p}, {_id}) is true:
+		return false
+	set {_spots} to storyGpsSpots({_p}, {_id})
+	if {_spots} is "":
+		return false
+	set {-qt::%{_u}%::world} to "%world of {_p}%"
+	set {-qt::%{_u}%::spots} to {_spots}
+	set {-qt::%{_u}%::label} to {-cfg::story::%{_id}%::label}
+	set {-qt::%{_u}%::radius} to 6
+	set {-qt::%{_u}%::by} to {_key}
+	set {-qt::%{_u}%::obj} to "%{_key}%:%{_id}%"
+	return true
+
+# Whether a GPS quest owner is one of the quests' (a chain or a job), not a car job's.
+function questOwns(by: text) :: boolean:
+	if {_by} is "job":
+		return true
+	return storyIsChain({_by})
+
+# The GPS's quest slot: one owner for every chain and job. Never over a car job (contracts.sk owns the slot while
+# one runs) or while carrying loot (the base route wins). An objective routed before doesn't take the slot back from
+# a pin set meanwhile; a new one does (the newest objective wins, as in gps.sk).
+function questGps(p: player):
 	set {_u} to "%uuid of {_p}%"
 	set {_by} to {-gps::questby::%{_u}%}
-	set {_mine} to true
-	if {_by} is set:
-		if {_by} is not "story":
-			set {_mine} to false
-	if {_mine} is false:
+	if {_by} is not set:
+		set {_by} to ""
+	set {_ours} to true
+	if {_by} is not "":
+		set {_ours} to questOwns({_by})
+	if {_ours} is false:
 		stop
-	if {-ctjob::%{_u}%} is set:
-		gpsQuestClear({_p}, "story")
+	set {_pick} to ""
+	if {-ctjob::%{_u}%} is not set:
+		if bagTotal({_p}) <= 0:
+			loop questOrder({_p}):
+				if {_pick} is "":
+					if questTarget({_p}, loop-value) is true:
+						set {_pick} to loop-value
+	if {_pick} is "":
+		if {_by} is not "":
+			gpsQuestClear({_p}, {_by})
 		stop
-	if bagTotal({_p}) > 0:
-		gpsQuestClear({_p}, "story")
-		stop
-	set {_spots} to ""
-	if {_id} is not "":
-		if {_id} is not "done":
-			if storyMet({_p}, {_id}) is false:
-				set {_spots} to storyGpsSpots({_p}, {_id})
-	if {_spots} is "":
-		gpsQuestClear({_p}, "story")
-		stop
-	# The same objective coming back after a clear (loot, a car job, no heist open) isn't new: a pin set meanwhile
-	# stays in front.
-	set {_obj} to "story:%{_id}%"
-	if {-story::gpsobj::%{_u}%} is {_obj}:
-		if {-gps::questobj::%{_u}%} is not set:
-			set {-gps::questobj::%{_u}%} to {_obj}
-	set {-story::gpsobj::%{_u}%} to {_obj}
-	gpsQuest({_p}, "%world of {_p}%", {_spots}, {-cfg::story::%{_id}%::label}, 6, "story", {_obj})
+	set {_obj} to {-qt::%{_u}%::obj}
+	if {-gps::seenobj::%{_u}%::%{_obj}%} is true:
+		set {-gps::questobj::%{_u}%} to {_obj}
+	set {-gps::seenobj::%{_u}%::%{_obj}%} to true
+	gpsQuest({_p}, {-qt::%{_u}%::world}, {-qt::%{_u}%::spots}, {-qt::%{_u}%::label}, {-qt::%{_u}%::radius}, {-qt::%{_u}%::by}, {_obj})
 
-function storyShow(p: player):
-	set {_id} to storyId({_p})
+# The sidebar line of a chain's mission ("" = none).
+function storyLine(p: player, c: text) :: text:
+	set {_id} to storyIdOf({_p}, {_c})
+	if storyLive({_id}) is true:
+		set {_col} to {-cfg::chain::%{_c}%::color}
+		return "%{_col}%▶ &f%{-cfg::story::%{_id}%::label}% %storyProgText({_p}, {_id})%"
+	return ""
+
+function questShow(p: player):
 	set {_line} to "&r"
-	if {_id} is not "":
-		if {_id} is not "done":
-			if {_id} does not start with "paying:":
-				if storyExists({_id}) is true:
-					set {_line} to "&d▶ &f%{-cfg::story::%{_id}%::label}% %storyProgText({_p}, {_id})%"
+	loop questOrder({_p}):
+		if {_line} is "&r":
+			set {_k} to loop-value
+			if {_k} starts with "job:":
+				set {_l} to jobsLine({_p}, {_k})
+			else:
+				set {_l} to storyLine({_p}, {_k})
+			if {_l} is not "":
+				set {_line} to {_l}
 	set {-ph::mission::%{_p}%} to {_line}
-	if {_id} does not start with "paying:":
-		storyGps({_p}, {_id})
+	questGps({_p})
 
-# The boss bar (hud.sk, after the GPS pin): only while the GPS shows the mission's target.
+# The boss bar (hud.sk, after the GPS pin): only while the GPS shows a chain's mission.
 function storyHud(p: player) :: boolean:
 	set {_u} to "%uuid of {_p}%"
 	if gpsActive({_p}) is "quest":
-		if {-gps::questby::%{_u}%} is "story":
-			set {_id} to storyId({_p})
-			if storyExists({_id}) is true:
-				set {_way} to gpsWay({_p})
-				hudBossSet({_p}, "&d&lMISSION&r &7· &f%{-cfg::story::%{_id}%::label}% %storyProgText({_p}, {_id})% %{_way}%", "purple", 1)
-				return true
+		set {_c} to {-gps::questby::%{_u}%}
+		if {_c} is set:
+			if storyIsChain({_c}) is true:
+				set {_id} to storyIdOf({_p}, {_c})
+				if storyLive({_id}) is true:
+					set {_way} to gpsWay({_p})
+					set {_bar} to {-cfg::chain::%{_c}%::bar}
+					hudBossSet({_p}, "%{_bar}%&r &7· &f%{-cfg::story::%{_id}%::label}% %storyProgText({_p}, {_id})% %{_way}%", {-cfg::chain::%{_c}%::barcolor}, 1)
+					return true
 	return false
 
-# ---------- Talking to Mara (quests.sk: the "story" giver) ----------
+# ---------- Talking in person (quests.sk: a chain's giver) ----------
 
+# Giver n (quests.sk), or Mara from the phone ("": Call Mara).
 function storyTalk(p: player, n: text):
-	set {_id} to storyId({_p})
-	if storyObj({_id}) is "talk|story":
+	set {_k} to "story"
+	if {_n} is not "":
+		set {_k} to questKind({_n})
+	storyTalkKind({_p}, {_k})
+
+function storyTalkKind(p: player, k: text):
+	# A talk mission with this giver in any chain: its lines, 2 s apart, then it's done.
+	set {_tc} to ""
+	loop {-cfg::story::chains::*}:
+		if {_tc} is "":
+			set {_cid} to storyIdOf({_p}, loop-value)
+			if storyObj({_cid}) is "talk|%{_k}%":
+				set {_tc} to loop-value
+				set {_id} to {_cid}
+	if {_tc} is not "":
 		if {-story::talking::%{_p}%} is set:
 			stop
 		set {-story::talking::%{_p}%} to true
 		loop {-cfg::story::%{_id}%::talk::*}:
-			storyText({_p}, "Mara", loop-value)
+			storyText({_p}, storyFrom({_id}), loop-value)
 			wait 2 seconds
 			if {_p} is not online:
 				delete {-story::talking::%{_p}%}
 				stop
 		delete {-story::talking::%{_p}%}
 		# The same mission still (a staff change meanwhile doesn't complete another).
-		if storyId({_p}) is {_id}:
-			setData({_p}, "story-prog", 1)
+		if storyIdOf({_p}, {_tc}) is {_id}:
+			setData({_p}, "%storyKey({_tc})%-prog", 1)
 		stop
-	storyMenu({_p})
+	# Nothing to talk about: the giver's own menu.
+	if {_k} is "story":
+		if storyIdOf({_p}, "story") is "done":
+			jobsTalk({_p}, "mara", true)
+			stop
+		storyMenu({_p})
+	else if {_k} is "fence":
+		fenceTalk({_p})
+	else:
+		storyMenu({_p})
 
 # ---------- /missions (the phone's Missions app) ----------
 
 function storyButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
 	set {-story::act::%{_p}%::%{_slot}%} to {_act}
+
+# A chain's mission card (the GPS button while the GPS can show it).
+function storyCard(p: player, id: text) :: item:
+	set {_c} to storyChainOf({_id})
+	set {_col} to {-cfg::chain::%{_c}%::color}
+	set {_label} to {-cfg::story::%{_id}%::label}
+	set {_hint} to {-cfg::story::%{_id}%::brief}
+	set {_from} to storyFrom({_id})
+	set {_prog} to storyProgText({_p}, {_id})
+	set {_ch} to {-cfg::story::%{_id}%::chapter}
+	set {_first} to "&7From: &f%{_from}%"
+	if {_ch} is set:
+		set {_chn} to {-cfg::story::chapter::%{_ch}%::name}
+		set {_first} to "&7Chapter %{_ch}%: %{_chn}% &7· &f%{_from}%"
+	set {_by} to {-gps::questby::%uuid of {_p}%}
+	if {_by} is not set:
+		set {_by} to ""
+	if storyGpsSpots({_p}, {_id}) is "":
+		return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%"""
+	if {-ctjob::%uuid of {_p}%} is set:
+		return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&7The GPS shows your car job first."
+	if bagTotal({_p}) > 0:
+		return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&7The GPS shows the base first (you're carrying loot)."
+	return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&eClick: the GPS shows the way."
 
 function storyMenu(p: player):
 	closePhoneMap({_p})
@@ -651,34 +898,31 @@ function storyMenu(p: player):
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	if {_id} is "done":
 		set slot 13 of {_gui} to nether star named "&6The story is done" with lore "&7You finished Mara's jobs." and "&7The city is yours: heists, contracts," and "&7the season's leaderboards (/lb)."
+		if {-cfg::jobs::contacts::*} is set:
+			storyButton({_p}, {_gui}, 22, paper named "&dMara's jobs" with lore "&7Daily jobs from Mara and the Boss." and "&eClick: open your jobs.", "jobs")
 	else if storyExists({_id}) is true:
-		set {_ch} to {-cfg::story::%{_id}%::chapter}
-		set {_chn} to {-cfg::story::chapter::%{_ch}%::name}
-		set {_label} to {-cfg::story::%{_id}%::label}
-		set {_hint} to {-cfg::story::%{_id}%::brief}
-		set {_from} to storyFrom({_id})
-		set {_prog} to storyProgText({_p}, {_id})
-		set {_by} to {-gps::questby::%uuid of {_p}%}
-		if {_by} is not set:
-			set {_by} to ""
-		if storyGpsSpots({_p}, {_id}) is "":
-			set {_by} to "none"
-		if {_by} is "story":
-			set {_i} to writable book named "&d%{_label}%" with lore "&7Chapter %{_ch}%: %{_chn}%" and "&7From: &f%{_from}%" and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&eClick: the GPS shows the way."
-			storyButton({_p}, {_gui}, 13, {_i}, "gps")
-		else if {_by} is not "none":
-			set {_i} to writable book named "&d%{_label}%" with lore "&7Chapter %{_ch}%: %{_chn}%" and "&7From: &f%{_from}%" and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&7The GPS shows your car job or the base first."
-			set slot 13 of {_gui} to {_i}
-		else:
-			set {_i} to writable book named "&d%{_label}%" with lore "&7Chapter %{_ch}%: %{_chn}%" and "&7From: &f%{_from}%" and "&7Progress: %{_prog}%" and "&7""%{_hint}%"""
-			set slot 13 of {_gui} to {_i}
+		storyButton({_p}, {_gui}, 13, storyCard({_p}, {_id}), "gps:story")
 		# No Mara on the map (yet): a talk mission can be done from here, so the chain never blocks.
 		if storyObj({_id}) is "talk|story":
 			if storyNeedsMet({_p}, "story") is false:
-				storyButton({_p}, {_gui}, 22, paper named "&dCall Mara" with lore "&7She's not at the Safehouse right now." and "&eClick: talk on the phone.", "call")
+				storyButton({_p}, {_gui}, 22, paper named "&dCall Mara" with lore "&7She's not at the Safehouse right now." and "&eClick: talk on the phone.", "call:story")
 	else:
 		set slot 13 of {_gui} to paper named "&7Your first mission comes soon" with lore "&7After the tutorial."
-	# The chapters: done, now, later.
+	# The other chains (Vic's): a card while running, a call button when their giver isn't on the map.
+	set {_slot} to 15
+	loop {-cfg::story::chains::*}:
+		set {_c} to loop-value
+		if {_c} is not "story":
+			set {_cid} to storyIdOf({_p}, {_c})
+			if storyLive({_cid}) is true:
+				storyButton({_p}, {_gui}, {_slot}, storyCard({_p}, {_cid}), "gps:%{_c}%")
+				set {_k} to {-cfg::chain::%{_c}%::giver}
+				if storyObj({_cid}) is "talk|%{_k}%":
+					if storyNeedsMet({_p}, {_k}) is false:
+						set {_who} to {-cfg::chain::%{_c}%::from}
+						storyButton({_p}, {_gui}, {_slot} + 9, paper named "&6Call %{_who}%" with lore "&7Not in the shop right now." and "&eClick: talk on the phone.", "call:%{_c}%")
+				add 1 to {_slot}
+	# Mara's chapters: done, now, later.
 	set {_slot} to 29
 	set {_nowch} to 0
 	if storyExists({_id}) is true:
@@ -702,6 +946,22 @@ function storyMenu(p: player):
 		set {-story::gen::%{_p}%} to 0
 	open {_gui} to {_p}
 
+# The GPS follows a chain's mission (the menu's card).
+function storyTrack(p: player, c: text):
+	setData({_p}, "quest-track", {_c})
+	questGps({_p})
+	set {_u} to "%uuid of {_p}%"
+	if {-gps::questby::%{_u}%} is {_c}:
+		set {-gps::active::%{_u}%} to "quest"
+		gpsPush({_p})
+		hudBar({_p}, "&dThe GPS shows your mission.", 1)
+	else if {-ctjob::%{_u}%} is set:
+		hudBar({_p}, "&7The GPS shows your car job first.", 1)
+	else if bagTotal({_p}) > 0:
+		hudBar({_p}, "&7The GPS shows the base first (you're carrying loot).", 1)
+	else:
+		hudBar({_p}, "&7Nothing to show on the GPS for it right now.", 1)
+
 on inventory click:
 	{-story::gui::%player%} is set
 	player's current inventory is {-story::gui::%player%}
@@ -715,18 +975,17 @@ on inventory click:
 	{-story::gen::%player%} is {_gen}
 	add 1 to {-story::gen::%player%}
 	close player's inventory
-	if {_act} is "gps":
-		# Take the quest slot back from a pin (the newest objective wins, as in gps.sk), if it's still the story's.
-		if {-gps::questby::%uuid of player%} is "story":
-			set {-gps::active::%uuid of player%} to "quest"
-			gpsPush(player)
-			hudBar(player, "&dThe GPS shows your mission.", 1)
-		else:
-			hudBar(player, "&7The GPS shows your car job or the base first.", 1)
-	else if {_act} is "call":
-		set {_id} to storyId(player)
-		if storyObj({_id}) is "talk|story":
-			storyTalk(player, "")
+	if {_act} starts with "gps:":
+		set {_c} to subtext of {_act} from characters 5 to (length of {_act})
+		storyTrack(player, {_c})
+	else if {_act} starts with "call:":
+		set {_c} to subtext of {_act} from characters 6 to (length of {_act})
+		set {_k} to {-cfg::chain::%{_c}%::giver}
+		set {_id} to storyIdOf(player, {_c})
+		if storyObj({_id}) is "talk|%{_k}%":
+			storyTalkKind(player, {_k})
+	else if {_act} is "jobs":
+		jobsMenu(player)
 
 on inventory drag:
 	{-story::gui::%player%} is set
@@ -740,14 +999,14 @@ on inventory close:
 	delete {-story::act::%player%::*}
 
 command /missions:
-	description: Your missions from Mara.
+	description: Your missions from Mara (and Vic).
 	aliases: /mission
 	executable by: players
 	trigger:
 		storyMenu(player)
 
 command /story:
-	description: Your missions from Mara.
+	description: Your missions from Mara (and Vic).
 	executable by: players
 	trigger:
 		storyMenu(player)
@@ -762,10 +1021,15 @@ command /dstory [<text>]:
 		set {_sub} to {_a::1}
 		set {_who} to {_a::2} parsed as player
 		if {_who} is not set:
-			send "STORY usage: /dstory info|set|reset|skip <online player> [mission id]" to sender
+			send "STORY usage: /dstory info|reset|skip <online player> [chain] | set <online player> <mission id>" to sender
 			stop
+		set {_c} to "story"
+		if {_a::3} is set:
+			if storyIsChain({_a::3}) is true:
+				set {_c} to {_a::3}
 		if {_sub} is "info":
-			send "STORY %{_who}% id=%storyId({_who})% prog=%storyProg({_who})% met=%storyMet({_who}, storyId({_who}))% line=%{-ph::mission::%{_who}%}%" to sender
+			set {_cid} to storyIdOf({_who}, {_c})
+			send "STORY %{_who}% chain=%{_c}% id=%{_cid}% prog=%storyProgOf({_who}, {_c})% met=%storyMet({_who}, {_cid})% line=%{-ph::mission::%{_who}%}%" to sender
 		else if {_sub} is "set":
 			set {_id} to {_a::3}
 			if storyExists({_id}) is false:
@@ -773,16 +1037,16 @@ command /dstory [<text>]:
 				stop
 			storyLog("staff-set %{_who}% %uuid of {_who}% %{_id}% by=%sender%")
 			storyActivate({_who}, {_id})
-			send "STORY %{_who}% now on %storyId({_who})%" to sender
+			send "STORY %{_who}% now on %storyIdOf({_who}, storyChainOf({_id}))%" to sender
 		else if {_sub} is "reset":
-			deleteData({_who}, "story")
-			storyClear({_who})
-			storyLog("staff-reset %{_who}% %uuid of {_who}% by=%sender%")
-			send "STORY %{_who}% reset (the first mission comes in a second)" to sender
+			deleteData({_who}, storyKey({_c}))
+			storyClearOf({_who}, {_c})
+			storyLog("staff-reset %{_who}% %uuid of {_who}% chain=%{_c}% by=%sender%")
+			send "STORY %{_who}% chain %{_c}% reset (it starts again in a second)" to sender
 		else if {_sub} is "skip":
-			set {_id} to storyId({_who})
+			set {_id} to storyIdOf({_who}, {_c})
 			storyLog("staff-skip %{_who}% %uuid of {_who}% %{_id}% by=%sender%")
-			storyActivate({_who}, storyNextId({_id}))
-			send "STORY %{_who}% now on %storyId({_who})%" to sender
+			storyActivateOf({_who}, {_c}, storyNextId({_id}))
+			send "STORY %{_who}% now on %storyIdOf({_who}, {_c})%" to sender
 		else:
-			send "STORY usage: /dstory info|set|reset|skip <online player> [mission id]" to sender
+			send "STORY usage: /dstory info|reset|skip <online player> [chain] | set <online player> <mission id>" to sender

@@ -675,6 +675,8 @@ function trapFire(p: player, h: text, n: text):
 	else:
 		play sound "entity.generic.explode" with volume 0.6 and pitch 1.6 at {_l}
 	tagCombat({_p}, "trap")
+	# A trap hit this robber in this run (progress.sk: a job's Ghost bonus).
+	progRunMark({_p}, {_h}, "touched", true)
 	set {_before} to health of {_p}
 	# Generic damage: no attacker (a death is "trap"), and it goes through armor (vests are for bullets).
 	# No invulnerability left from an earlier hit, so the hit is always exactly D.

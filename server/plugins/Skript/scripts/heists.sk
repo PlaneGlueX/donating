@@ -675,12 +675,16 @@ function heistHunt(p: player, h: text):
 function heistRelease(p: player, reason: text):
 	set {_h} to heistHuntedBy({_p})
 	{_h} is not ""
+	# Read before it's deleted: lost the cops in a car (progress.sk's run note for a job's Wheelman bonus).
+	set {_car} to {-heisthunt::car::%{_p}%}
 	delete {-heisthunt::%{_p}%}
 	delete {-heisthunt::car::%{_p}%}
 	delete {-heist::%{_h}%::hunted::%{_p}%}
 	if {_reason} is "range":
 		heistNotify({_p}, "lost-cops", "&aYou lost the cops.")
 		# A getaway (progress.sk; seasons.sk counts it only with that run's loot, once, after a wave).
+		if {_car} is {_h}:
+			progRunMark({_p}, {_h}, "car", true)
 		progEvent({_p}, "getaway", 1, {_h})
 	heistLog("release %name of {_p}% %{_h}% reason=%{_reason}%")
 	heistOnHunt({_p}, {_h}, false)
@@ -1442,6 +1446,7 @@ function heistNotify(p: player, kind: text, text: text):
 function heistOnOpen(h: text):
 	trapArm({_h})
 	lootArm({_h})
+	jobsOnHeistOpen({_h})
 
 function heistOnStart(h: text):
 	stop
@@ -1464,6 +1469,12 @@ function heistOnEnter(p: player, h: text):
 function heistOnLeave(p: player, h: text, reason: text):
 	trapForget({_p}, {_h})
 	lootForget({_p}, {_h})
+	# The clock when a robber walks out (progress.sk's run note; the last walk-out wins). Open: the full escape time.
+	if {_reason} is "exit":
+		set {_left} to heistSecondsLeft({_h})
+		if {_left} < 0:
+			set {_left} to heistEscape({_h}) / 1 second
+		progRunMark({_p}, {_h}, "left", {_left})
 
 # cops.sk: the temporary wanted permission (heistOnHunt), waves up to cfg alarm::max-cops (heistOnWave),
 # despawning (heistOnAlarmEnd).
@@ -1475,6 +1486,9 @@ function heistOnWave(h: text, wave: number):
 
 function heistOnHunt(p: player, h: text, on: boolean):
 	copOnHunt({_p}, {_h}, {_on})
+	# An alarm hunted this robber in this run (progress.sk: a job's Quiet Hands bonus).
+	if {_on} is true:
+		progRunMark({_p}, {_h}, "loud", true)
 
 function heistOnAlarmEnd(h: text):
 	trapOnAlarm({_h}, false)

@@ -1226,6 +1226,10 @@ function lootCrack(p: player, h: text, n: text):
 	if {-lootc::%{_c}%::alarm} is true:
 		heistTripAlarm({_h}, "loot:safe:%{_h}%-%{_n}%")
 	lootLog("crack %name of {_p}% %uuid of {_p}% %{_h}%-%{_n}% guesses=%{-lootguessn::%{_c}%::%{_p}%}%")
+	# How many guesses it took (progress.sk's run note: a job's Code Breaker bonus).
+	set {_gn} to {-lootguessn::%{_c}%::%{_p}%}
+	if {_gn} is set:
+		progRunMark({_p}, {_h}, "guesses", {_gn})
 	progEvent({_p}, "crack", 1, {_h})
 
 function lootKeypadForget(p: player):

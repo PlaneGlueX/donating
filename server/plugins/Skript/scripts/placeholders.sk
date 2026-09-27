@@ -127,6 +127,10 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-ph::mission::%player%} is set:
 			set the placeholder result to {-ph::mission::%player%}
+	else if {_i} is "jobs":
+		set the placeholder result to "&r"
+		if {-ph::jobs::%player%} is set:
+			set the placeholder result to {-ph::jobs::%player%}
 	else if {_i} is "season_short":
 		set the placeholder result to "&r"
 		if {season::state} is "live":

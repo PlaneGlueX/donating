@@ -201,7 +201,7 @@ module.exports = async ({ check }) => {
     bots[A].chat('/missions')
     const w2 = await o
     await sleep(300)
-    check('without Mara on the map a talk mission stays (not skipped), says how to call her, and /missions has Call Mara', (await id(A)) === 'c2_end' && /call her from/.test(text(A, t)) && w2 && /Call Mara/.test(itemText(w2.slots[22])), `${await info(A)} ${text(A, t).slice(0, 300)} | ${itemText(w2 && w2.slots[22]).slice(0, 120)}`)
+    check('without Mara on the map a talk mission stays (not skipped), says how to call her, and /missions has Call Mara', (await id(A)) === 'c2_end' && /call from/.test(text(A, t)) && w2 && /Call Mara/.test(itemText(w2.slots[22])), `${await info(A)} ${text(A, t).slice(0, 300)} | ${itemText(w2 && w2.slots[22]).slice(0, 120)}`)
     if (bots[A].currentWindow) bots[A].closeWindow(bots[A].currentWindow)
     await cmd(`zzdatatext ${B} tutorial bag`)
     await cmd(`zzdata ${B} story none`)
