@@ -90,6 +90,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final Renderer renderer = new Renderer();
     private final Gps gps = new Gps(this);
     private final Marks marks = new Marks(this);
+    private Nametags nametags; // null without TAB
     /** Personal views (pv.sk): entities tagged this are invisible to everyone before they exist; Skript reveals them. */
     static final String PV_TAG = "donating_pv";
     // GPS colors on the map (the route line; the road grid when staff look at it).
@@ -122,6 +123,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();
+        // TAB loads first (softdepend); its API is ready once the server has started.
+        Bukkit.getScheduler().runTask(this, () -> {
+            nametags = Nametags.create(this);
+            if (nametags != null) nametags.start();
+            else getLogger().info("TAB not found: nametags show through walls as in vanilla");
+        });
         for (Player p : Bukkit.getOnlinePlayers()) assign(p);
     }
 
@@ -129,6 +136,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     public void onDisable() {
         gps.shutdown(); // the worker thread, a running road scan, and every GPS dot stand
         marks.shutdown();
+        if (nametags != null) nametags.stop();
     }
 
     /** Makes a player's phone draw its whole view again (the GPS route or the road grid changed). */
@@ -472,15 +480,16 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "gps", "mark", "pv"));
+            options.addAll(List.of("reload", "status", "roads", "gps", "mark", "pv", "nametag"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
-                case "status", "gps", "mark" -> options.addAll(players);
+                case "status", "gps", "mark", "nametag" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
                 default -> { }
             }
         } else if (args.length == 3) {
             if (args[0].equalsIgnoreCase("gps")) options.addAll(List.of("set", "clear", "active"));
+            else if (args[0].equalsIgnoreCase("nametag")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
         } else if (args.length == 4) {
             if (args[0].equalsIgnoreCase("gps")) {
@@ -509,6 +518,15 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 return true;
             }
             return marks.command(sender, args);
+        }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("nametag")) {
+            // NAMETAG <viewer> sees <target> hidden=<TAB hides it> los=<a ray reaches it now> running=<checking>
+            Player v = args.length == 3 ? Bukkit.getPlayerExact(args[1]) : null;
+            Player t = args.length == 3 ? Bukkit.getPlayerExact(args[2]) : null;
+            if (nametags == null) sender.sendMessage("NAMETAG off (no TAB)");
+            else if (v == null || t == null) sender.sendMessage("NAMETAG usage: /dphone nametag <viewer> <target>");
+            else sender.sendMessage(nametags.status(v, t));
+            return true;
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("pv")) {
             // PV <uuid> default=<visibleByDefault> tracked=<players it's sent to> see=<players who can see it>
@@ -539,9 +557,11 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
             sender.sendMessage("/dphone mark <player> <entity-uuid> <color|#RRGGBB> <range> | <player> off | <player> status: a locator dot on an entity for one player (hits.sk)");
             sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
+            sender.sendMessage("/dphone nametag <viewer> <target>: whether TAB hides the target's name from the viewer (behind walls)");
             return true;
         }
         load();
+        if (nametags != null) nametags.start(); // the nametags settings
         sender.sendMessage("DonatingPhone reloaded: " + pool.size() + " phone maps, city " + cityDesc + ".");
         return true;
     }

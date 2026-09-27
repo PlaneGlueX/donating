@@ -60,3 +60,12 @@ gps:
   route: {pin: "#D040E0", quest: "#FF5A1F", loot: "#30C8C0"}
   # Skript sets this tag while the GPS should show nothing in the world (inside a heist).
   paused-tag: donating_gps_paused
+
+# Nametags only in the open (Nametags.java, needs TAB): a player's name is hidden from a viewer while full opaque
+# blocks stand between them (glass, leaves, bars and slabs don't count), checked every `every` ticks for players
+# within `range` blocks; hidden after `hide-after` checks in a row with no clear ray, shown again at once.
+nametags:
+  enabled: true
+  range: 64
+  every: 5
+  hide-after: 2
