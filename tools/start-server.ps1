@@ -1,5 +1,7 @@
-# Starts the LOCAL test server in the background with Minehut-like memory (1 GB).
-# Usage: powershell -ExecutionPolicy Bypass -File tools\start-server.ps1
+# Starts the LOCAL test server in the background. Memory: 2 GB by default (owner, 2026-09-27: Minehut may go to
+# 2-4 GB); -Memory 1G matches Minehut's free plan.
+# Usage: powershell -ExecutionPolicy Bypass -File tools\start-server.ps1 [-Memory 2G]
+param([string]$Memory = '2G')
 $ErrorActionPreference = 'Stop'
 $serverDir = (Resolve-Path (Join-Path $PSScriptRoot '..\server')).Path
 $pidFile = Join-Path $serverDir 'server.pid'
@@ -11,7 +13,7 @@ if (Test-Path $pidFile) {
 
 $jar = Get-ChildItem $serverDir -Filter 'paper-*.jar' | Sort-Object Name | Select-Object -Last 1
 $jvm = @(
-  '-Xms1G', '-Xmx1G',
+  "-Xms$Memory", "-Xmx$Memory",
   # Aikar's G1 flags (recommended by the Paper docs)
   '-XX:+UseG1GC', '-XX:+ParallelRefProcEnabled', '-XX:MaxGCPauseMillis=200', '-XX:+UnlockExperimentalVMOptions',
   '-XX:+DisableExplicitGC', '-XX:+AlwaysPreTouch', '-XX:G1NewSizePercent=30', '-XX:G1MaxNewSizePercent=40',
