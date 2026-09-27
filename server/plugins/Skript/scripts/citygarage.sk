@@ -17,7 +17,20 @@
 #   spot, {garagesitecounter}; memory {-garage::lane::<s>::<n>} = the plate reserving that exit, {-car::fresh::<plate>}.
 # Staff: /dgaragesite. Log: garage.log (carLog).
 
+# The site a spot is in: a garage region that has at least one exit spot ("" otherwise: a region with no exit lane
+# isn't a garage yet).
 function garageSiteOf(l: location) :: text:
+	set {_prefix} to cfg("garage::region-prefix")
+	loop regions at {_l}:
+		set {_n} to name of loop-value
+		if {_n} starts with {_prefix}:
+			set {_s} to subtext of {_n} from characters (length of {_prefix} + 1) to (length of {_n})
+			if garageHasExit({_s}) is true:
+				return {_s}
+	return ""
+
+# The region's site id, exits or not (staff laying a site out).
+function garageRegionAt(l: location) :: text:
 	set {_prefix} to cfg("garage::region-prefix")
 	loop regions at {_l}:
 		set {_n} to name of loop-value
@@ -25,14 +38,20 @@ function garageSiteOf(l: location) :: text:
 			return subtext of {_n} from characters (length of {_prefix} + 1) to (length of {_n})
 	return ""
 
+function garageHasExit(s: text) :: boolean:
+	loop {garagesite::%{_s}%::exit::*}:
+		return true
+	return false
+
 # The site the player stands in ("" if none).
 function garageAt(p: player) :: text:
 	return garageSiteOf(location of {_p})
 
-# Whether the map has any garage site (else cars come to players anywhere, the old rule).
+# Whether the map has any garage site with an exit lane (else cars come to players anywhere, the old rule).
 function garagesExist() :: boolean:
 	loop {garagesites::*}:
-		return true
+		if garageHasExit(loop-index) is true:
+			return true
 	return false
 
 # The nearest garage POI in the player's world (its {poi::*} index, "" if none).
@@ -105,27 +124,31 @@ function garageSpotLoc(v: text) :: location:
 	set yaw of {_l} to ({_a::4} parsed as number)
 	return {_l}
 
-# Whether an exit lane is taken by a car that came out there (until it's 6 blocks away, sent back or gone).
-function garageLaneBusy(s: text, n: text, l: location) :: boolean:
-	set {_pl} to {-garage::lane::%{_s}%::%{_n}%}
-	if {_pl} is not set:
-		return false
-	set {_plate} to "%{_pl}%"
-	set {_free} to false
-	if {car::out::%{_plate}%} is not set:
-		set {_free} to true
-	else if {-car::driver::%{_plate}%} is set:
-		set {_vl} to vehicle location of license plate {_plate}
-		if {_vl} is not set:
-			set {_free} to true
-		else if distance between {_vl} and {_l} >= 6:
-			set {_free} to true
-	if {_free} is true:
-		delete {-garage::lane::%{_s}%::%{_n}%}
-		return false
-	return true
+# Whether a car stands in an exit lane: any MTVehicles car within 3 blocks of the spot (a contract car, another
+# player's, one left there), except the player's own cars: carCall sends those back before the new one comes out.
+# A lane is free again the moment its car drives off or goes back.
+function garageLaneBusy(p: player, l: location) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	loop all armor stands in radius 3 around {_l}:
+		set {_nm} to "%name of loop-entity%"
+		if {_nm} starts with "MTVEHICLES_MAIN_":
+			set {_plate} to subtext of {_nm} from characters 17 to (length of {_nm})
+			if carOwnerOf({_plate}) is not {_u}:
+				return true
+	return false
 
-# A free exit lane at the player's site (its record "s|n" in {-garage::spotn::<p>}), none when all are busy.
+# Whether a spot is in one of its site's exit lanes (car-cleanup.sk: a car left there goes back after pickup-idle).
+function garageInLane(l: location) :: boolean:
+	set {_s} to garageSiteOf({_l})
+	if {_s} is "":
+		return false
+	loop {garagesite::%{_s}%::exit::*}:
+		if distance between garageSpotLoc(loop-value) and {_l} <= 3:
+			return true
+	return false
+
+# A free exit lane at the player's site (its record "s|n" in {-garage::spotn::<p>}), none when all are busy. The
+# player themselves standing in it doesn't block it (the car comes out around them).
 function garageSpot(p: player) :: location:
 	delete {-garage::spotn::%{_p}%}
 	set {_s} to garageAt({_p})
@@ -134,22 +157,22 @@ function garageSpot(p: player) :: location:
 	loop {garagesite::%{_s}%::exit::*}:
 		set {_l} to garageSpotLoc(loop-value)
 		set {_n} to loop-index
-		if garageLaneBusy({_s}, {_n}, {_l}) is false:
+		if garageLaneBusy({_p}, {_l}) is false:
 			if carSpotClear({_l}) is true:
 				set {_people} to 0
 				loop all players in radius 2 around {_l}:
-					add 1 to {_people}
+					if loop-player is not {_p}:
+						add 1 to {_people}
 				if {_people} is 0:
 					set {-garage::spotn::%{_p}%} to "%{_s}%|%{_n}%"
 					return {_l}
 	return {_none}
 
-# After a car came out in a lane (carCall): the lane is its own until it drives off.
+# After a car came out in a lane (carCall): the pickup-idle clock, and a puff for the player.
 function garageTookOut(p: player, plate: text):
 	set {_sn} to {-garage::spotn::%{_p}%}
 	{_sn} is set
 	set {_a::*} to "%{_sn}%" split at "|"
-	set {-garage::lane::%{_a::1}%::%{_a::2}%} to {_plate}
 	set {-car::fresh::%{_plate}%} to now
 	delete {-garage::spotn::%{_p}%}
 	set {_l} to garageSpotLoc({garagesite::%{_a::1}%::exit::%{_a::2}%})
@@ -350,10 +373,13 @@ command /dgaragesite [<text>]:
 		set {_sub} to {_a::1}
 		if {_sub} is "exit" or "return" or "bay":
 			# exit add / return add / bay add: where you stand, facing the way the car should point.
-			if player is not set:
-				send "GSITE: in game (or exitat / returnat)" to sender
+			if {_a::2} is not "add":
+				send "GSITE usage: /dgaragesite %{_sub}% add" to sender
 				stop
-			set {_s} to garageAt(player)
+			if player is not set:
+				send "GSITE: in game (or exitat / returnat / bayat)" to sender
+				stop
+			set {_s} to garageRegionAt(location of player)
 			if {_s} is "":
 				send "GSITE: stand inside a %cfg("garage::region-prefix")%<id> region" to sender
 				stop
@@ -410,13 +436,22 @@ command /dgaragesite [<text>]:
 			if {_yw} is not set:
 				send "GSITE usage: %{_sub}% <site> <x> <y> <z> <yaw>" to sender
 				stop
+			# Inside that site's own region (a mistyped id would make a phantom site).
+			if garageRegionAt(location({_x}, {_y}, {_z}, poiMainWorld())) is not {_s}:
+				send "GSITE: %{_x}% %{_y}% %{_z}% isn't inside %cfg("garage::region-prefix")%%{_s}% (main world)" to sender
+				stop
+			carLog("site %{_s}% %{_kind}% at %{_x}% %{_y}% %{_z}% yaw=%{_yw}% by=%sender% (addat)")
 			add 1 to {garagesitecounter}
 			set {_n} to "%{garagesitecounter}%"
 			set {garagesite::%{_s}%::%{_kind}%::%{_n}%} to "%{_x}%|%{_y}%|%{_z}%|%{_yw}%"
 			set {garagesites::%{_s}%} to true
 			send "GSITE %{_s}% %{_kind}% %{_n}% added" to sender
 		else if {_sub} is "remove":
-			# remove <site> <exit|return> <n>
+			# remove <site> <exit|return|bay> <n>
+			if {garagesite::%{_a::2}%::%{_a::3}%::%{_a::4}%} is not set:
+				send "GSITE: no %{_a::3}% %{_a::4}% at %{_a::2}% (/dgaragesite list)" to sender
+				stop
+			carLog("site %{_a::2}% remove %{_a::3}% %{_a::4}% by=%sender%")
 			if {_a::3} is "bay":
 				execute console command "minecraft:kill @e[tag=gbayi_%{_a::2}%_%{_a::4}%]"
 				execute console command "dh hologram delete gbay_%{_a::2}%_%{_a::4}%"

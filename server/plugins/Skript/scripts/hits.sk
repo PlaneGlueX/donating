@@ -458,8 +458,15 @@ function hitEntity(id: object) :: entity:
 	if {_e} is set:
 		if {_e} is valid:
 			return {_e}
-	# Citizens swaps the entity when the skin loads: find it again by its id.
-	loop all entities:
+	# Citizens swaps the entity when the skin loads: find it again by its id, near its holder only (a copy never
+	# strays far from them; a copy that did is despawned by hitPulse).
+	set {_h} to {-hit::npc::%{_id}%}
+	if {_h} is not set:
+		return {_none}
+	set {_hp} to playerByUuid("%{_h}%")
+	if {_hp} is not set:
+		return {_none}
+	loop all entities in radius 128 around {_hp}:
 		if loop-entity has metadata "NPC-ID":
 			set {_mv} to metadata value "NPC-ID" of loop-entity
 			if "%{_mv}%" is "%{_id}%":
@@ -500,6 +507,10 @@ function hitSpawnFor(p: player, l: location):
 		if difference between {-hit::spawning::%{_u}%} and now < 15 seconds:
 			stop
 	set {-hit::spawning::%{_u}%} to now
+	# A token: hitDespawn and hitEnd delete it, so a spawn still waiting on the lock or the id poll stops and removes
+	# what it made instead of registering a copy for a hunt that's over.
+	set {_tok} to "%unix timestamp of now%-%random integer between 1 and 1000000000%"
+	set {-hit::s::%{_u}%::tok} to {_tok}
 	set {_tname} to hitTargetNpc()
 	set {_gname} to cfg("hit::guard-name")
 	set {_roles::*} to "target"
@@ -522,6 +533,8 @@ function hitSpawnFor(p: player, l: location):
 				hitLog("busy-timeout %{_p}% %{_role}%")
 				set {_fail} to true
 			else if {_p} is not online:
+				set {_fail} to true
+			else if "%{-hit::s::%{_u}%::tok}%" is not {_tok}:
 				set {_fail} to true
 			if {_fail} is false:
 				set {-npc::busy} to now
@@ -553,6 +566,11 @@ function hitSpawnFor(p: player, l: location):
 				if {_id} is "":
 					hitLog("spawn-failed %{_p}% %{_role}% (the sweep removes it if it appears later)")
 					set {_fail} to true
+				else if "%{-hit::s::%{_u}%::tok}%" is not {_tok}:
+					# The hunt ended while it was made: gone at once.
+					execute console command "npc remove %{_id}%"
+					hitLog("spawn-dropped %{_p}% %{_role}% id=%{_id}%")
+					set {_fail} to true
 				else:
 					set {-hit::npc::%{_id}%} to {_u}
 					set {-hit::role::%{_id}%} to {_role}
@@ -567,9 +585,10 @@ function hitSpawnFor(p: player, l: location):
 						set {-hit::s::%{_u}%::target} to {_id}
 						set {_tex} to {-cfg::hit::target::%hitTarget()%::skin-texture}
 						set {_sig} to {-cfg::hit::target::%hitTarget()%::skin-signature}
+						# -t takes one word for the skin's name (the NPC names have a space): the target's id.
 						if {_tex} is set:
 							if {_sig} is set:
-								execute console command "npc skin -t %{_name}% %{_tex}% %{_sig}% --id %{_id}%"
+								execute console command "npc skin -t %hitTarget()% %{_tex}% %{_sig}% --id %{_id}%"
 						hitSentinel({_id}, "health %cfg("hit::target-health")%")
 						hitSentinel({_id}, "speed %cfg("hit::target-speed")%")
 					else:
@@ -589,10 +608,12 @@ function hitSpawnFor(p: player, l: location):
 						if {-hit::s::%{_u}%::noticed} is set:
 							hitSentinel({_id}, "addtarget uuid:%{_u}%")
 	delete {-hit::spawning::%{_u}%}
-	if {_p} is not online:
-		hitDespawn({_p}, "left")
-	else if {_tid} is "":
-		hitDespawn({_p}, "failed")
+	if "%{-hit::s::%{_u}%::tok}%" is {_tok}:
+		delete {-hit::s::%{_u}%::tok}
+		if {_p} is not online:
+			hitDespawn({_p}, "left")
+		else if {_tid} is "":
+			hitDespawn({_p}, "failed")
 
 function hitRemoveNpc(id: text):
 	delete {-hit::npc::%{_id}%}
@@ -607,8 +628,11 @@ function hitDespawn(p: player, why: text):
 	set {_t} to {-hit::s::%{_u}%::target}
 	if {_t} is set:
 		set {_e} to hitEntity({_t})
+		set {_last} to {-hit::s::%{_u}%::last}
 		if {_e} is set:
-			set {_n} to hitNearestNode(location of {_e})
+			set {_last} to location of {_e}
+		if {_last} is set:
+			set {_n} to hitNearestNode({_last})
 			if {_n} is not "":
 				set {-hit::s::%{_u}%::a} to {_n}
 				set {-hit::s::%{_u}%::b} to {_n}
@@ -622,6 +646,8 @@ function hitDespawn(p: player, why: text):
 	delete {-hit::s::%{_u}%::spotted}
 	delete {-hit::s::%{_u}%::noticed}
 	delete {-hit::s::%{_u}%::seen}
+	loop "close", "good", "last", "gone", "lostat", "farat", "goal", "moved", "gnode", "markuuid", "heart", "engaged" and "tok":
+		delete {-hit::s::%{_u}%::%loop-value%}
 	execute console command "dphone mark %name of {_p}% off"
 
 # A holder's hunt ends for now (the window over, the week turned, a switch): no copy, no GPS.
@@ -674,10 +700,6 @@ function hitNow(p: player) :: boolean:
 
 function hitSecond(p: player):
 	set {_u} to "%uuid of {_p}%"
-	if hitHas({_p}) is false:
-		if {-hit::s::%{_u}%::a} is set:
-			hitEnd({_p}, "week")
-		stop
 	# The sidebar line while not hunting now: done, the next sighting, or gone for the week.
 	set {_t} to hitTierOf({_p})
 	if hitStateOf({_p}) is "done":
@@ -698,11 +720,33 @@ function hitSecond(p: player):
 			delete {-hit::s::%{_u}%::overtime}
 			storyText({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
 			hitEnd({_p}, "overtime")
+		else if {-hit::s::%{_u}%::a} is set:
+			hitEnd({_p}, "window")
 		stop
 	if hitEligible({_p}) is false:
 		if {-hit::s::%{_u}%::target} is set:
-			hitDespawn({_p}, "away")
+			# Going AFK or into a heist mid-fight doesn't reset it: the copy stays while it fought the hunter lately.
+			set {_keep} to false
+			if {_p} is alive:
+				set {_eng} to {-hit::s::%{_u}%::engaged}
+				if {_eng} is set:
+					if difference between {_eng} and now < 30 seconds:
+						set {_keep} to true
+			if {_keep} is false:
+				hitDespawn({_p}, "away")
 		stop
+	# Carrying loot or on a car job: the base's or the job's route wins; the search area comes back after.
+	set {_busy} to false
+	if {-ctjob::%{_u}%} is set:
+		set {_busy} to true
+	else if bagTotal({_p}) > 0:
+		set {_busy} to true
+	if {_busy} is true:
+		if {-gps::questby::%{_u}%} is "hit":
+			gpsQuestClear({_p}, "hit")
+	else if {-hit::s::%{_u}%::spotted} is not set:
+		if {-gps::questby::%{_u}%} is not set:
+			hitGpsArea({_p})
 	if {-hit::s::%{_u}%::a} is not set:
 		hitWalkerStart({_p})
 		set {-hit::s::%{_u}%::r} to cfg("hit::%hitTierOf({_p})%::r0")
@@ -712,10 +756,18 @@ function hitSecond(p: player):
 		set {_x} to hitWalkerPos({_p})
 		if {_x} is set:
 			if distance between {_x} and {_p} <= cfg("hit::materialize"):
-				if chunk at {_x} is loaded:
-					if hitLiveCount() < cfg("hit::cap"):
-						if npcBusy() is false:
-							hitSpawnFor({_p}, {_x})
+				# Never made inside a heist or a safe zone (the walker's straight stretch can cross one).
+				if hitForbidden({_x}, 3) is false:
+					if chunk at {_x} is loaded:
+						if hitLiveCount() < cfg("hit::cap"):
+							if npcBusy() is false:
+								hitSpawnFor({_p}, {_x})
+						else if {-hit::s::%{_u}%::capat} is not set:
+							set {-hit::s::%{_u}%::capat} to now
+							hudBar({_p}, "&7Broker: the streets are busy. Your target shows up when there's room.", 1)
+						else if difference between {-hit::s::%{_u}%::capat} and now >= 30 seconds:
+							set {-hit::s::%{_u}%::capat} to now
+							hudBar({_p}, "&7Broker: the streets are busy. Your target shows up when there's room.", 1)
 	# Tips while it isn't spotted.
 	if {-hit::s::%{_u}%::spotted} is not set:
 		set {_lt} to {-hit::s::%{_u}%::tipat}
@@ -725,6 +777,15 @@ function hitSecond(p: player):
 	# The sidebar line.
 	set {_left} to hitLeft(hitTierOf({_p}))
 	set {-ph::hit::%{_p}%} to "&c◎ %hitTargetName()% &7· hunting %formatClock({_left})%"
+
+# The search area on the GPS (the quest slot "hit"), from the last tip.
+function hitGpsArea(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_cx} to {-hit::s::%{_u}%::cx}
+	{_cx} is set
+	set {_spot} to "%{_cx}%,%{-hit::s::%{_u}%::cy}%,%{-hit::s::%{_u}%::cz}%"
+	set {_t} to hitTierOf({_p})
+	gpsQuest({_p}, "%world of {_p}%", {_spot}, "%hitTargetName()%: search area", {-hit::s::%{_u}%::r}, "hit", "hit:%progWeek()%:%{_t}%")
 
 # A tip from the Broker: the search area (a circle on the GPS) shrinks while the holder keeps up.
 function hitTip(p: player):
@@ -752,17 +813,16 @@ function hitTip(p: player):
 	set {_ccz} to {_xz} + {_rho} * sin({_th})
 	set {-hit::s::%{_u}%::cx} to {_ccx}
 	set {-hit::s::%{_u}%::cz} to {_ccz}
-	set {_spot} to "%{_ccx}%,%{_xy}%,%{_ccz}%"
-	set {_name} to hitTargetName()
+	set {-hit::s::%{_u}%::cy} to {_xy}
 	# The GPS: never over a car job or the base route while carrying loot.
 	if {-ctjob::%{_u}%} is not set:
 		if bagTotal({_p}) <= 0:
-			gpsQuest({_p}, "%world of {_p}%", {_spot}, "%{_name}%: search area", {_r}, "hit", "hit:%progWeek()%:%{_t}%")
+			hitGpsArea({_p})
 	set {_where} to gpsPlaceNear({_p}, {_x}, 60)
 	if {_where} is not "":
 		set {_wp::*} to {_where} split at "|"
 		set {_where} to {_wp::5}
-	hitLog("tip %{_p}% at=%{_spot}% r=%{_r}%")
+	hitLog("tip %{_p}% at=%{_ccx}%,%{_ccz}% r=%{_r}%")
 	if {_where} is "":
 		set {_d} to hitNodeDistrict({-hit::s::%{_u}%::b})
 		if {_d} is not "":
@@ -785,6 +845,12 @@ every second:
 			hitSecond({_p})
 		else:
 			delete {-ph::hit::%{_p}%}
+			# The week turned (or staff reset the contract) mid-hunt: the copy, the walker and the GPS area go.
+			set {_u} to "%uuid of {_p}%"
+			if {-hit::s::%{_u}%::a} is set:
+				hitEnd({_p}, "week")
+			else if {-hit::s::%{_u}%::target} is set:
+				hitEnd({_p}, "week")
 
 # Every 5 ticks, for holders with a copy: forbidden areas, pathing, spotted, noticed, lost, the gunshots' look.
 every 5 ticks:
@@ -799,8 +865,14 @@ function hitPulse(p: player, tid: text):
 	set {_u} to "%uuid of {_p}%"
 	set {_e} to hitEntity({_tid})
 	if {_e} is not set:
+		if {-hit::s::%{_u}%::gone} is not set:
+			set {-hit::s::%{_u}%::gone} to now
+		else if difference between {-hit::s::%{_u}%::gone} and now >= 3 seconds:
+			hitDespawn({_p}, "unloaded")
 		stop
+	delete {-hit::s::%{_u}%::gone}
 	set {_l} to location of {_e}
+	set {-hit::s::%{_u}%::last} to {_l}
 	# Never into heists or safe zones: back to the last good spot.
 	if hitForbidden({_l}, 3) is true:
 		set {_g} to {-hit::s::%{_u}%::good}
@@ -873,6 +945,10 @@ function hitPulse(p: player, tid: text):
 					add 1 to {-hit::s::%{_u}%::close}
 					if {-hit::s::%{_u}%::close} >= 8:
 						hitNoticed({_p})
+				else:
+					set {-hit::s::%{_u}%::close} to 0
+			else:
+				set {-hit::s::%{_u}%::close} to 0
 		# Lost: far away for 20 s.
 		if {_d} > 64:
 			set {_lo} to {-hit::s::%{_u}%::lostat}
@@ -915,6 +991,7 @@ function hitLost(p: player):
 	set {_u} to "%uuid of {_p}%"
 	delete {-hit::s::%{_u}%::spotted}
 	delete {-hit::s::%{_u}%::lostat}
+	delete {-hit::s::%{_u}%::close}
 	set {-hit::s::%{_u}%::seen} to 0
 	set {_e} to hitEntity({-hit::s::%{_u}%::target})
 	if {_e} is set:
@@ -974,14 +1051,21 @@ on death with priority lowest:
 	set {_h} to hitHolderOfEntity(victim)
 	{_h} is not ""
 	clear drops
+	# Later handlers (cosmetics.sk's kill effect) can't read the NPC metadata any more (Citizens removes it at LOW).
+	set {-hit::deadnpc::%uuid of victim%} to true
 	set {_mv} to metadata value "NPC-ID" of victim
 	set {_id} to "%{_mv}%"
 	set {_role} to hitRoleOfEntity(victim)
 	set {_p} to playerByUuid({_h})
+	set {_vu} to "%uuid of victim%"
 	wait 1 tick
+	delete {-hit::deadnpc::%{_vu}%}
 	if {_role} is "target":
 		if {_p} is online:
 			hitDown({_p})
+			# hitDown refused (no window, no contract): the dead copy and its guards go anyway.
+			if "%{-hit::s::%{_h}%::target}%" is {_id}:
+				hitDespawn({_p}, "dead")
 		else:
 			hitRemoveNpc({_id})
 	else:
@@ -989,9 +1073,26 @@ on death with priority lowest:
 		if {_p} is online:
 			remove {_id} from {-hit::s::%{_h}%::guards::*}
 
+# No death message for the hunt: the target and its bodyguards are the hunter's only, and a hunter shot by a
+# bodyguard isn't announced either (nobody else can see who did it).
+on death with priority highest:
+	{-hit::deadnpc::%uuid of victim%} is set
+	delete the death message
+
+# The hunter killed by a bodyguard: flagged first (the copy is removed at normal priority, taking the NPC tags with it).
+on death of player with priority lowest:
+	attacker is set
+	hitHolderOfEntity(attacker) is not ""
+	set {-hit::deadnpc::%uuid of victim%} to true
+	set {_vu} to "%uuid of victim%"
+	wait 1 tick
+	delete {-hit::deadnpc::%{_vu}%}
+
 function hitDown(p: player):
 	set {_u} to "%uuid of {_p}%"
 	hitHunting({_p}) is true
+	# Only while the target is in town (or the fight's overtime).
+	hitNow({_p}) is true
 	setData({_p}, "hit::state", "paying")
 	set {_t} to hitTierOf({_p})
 	set {_w} to progWeek()
@@ -1018,7 +1119,6 @@ function hitDown(p: player):
 	set {_pay} to floor(cfg("hit::%{_t}%::pay") * (1 + {_bonus}) * {_m})
 	set {_xp} to cfg("hit::%{_t}%::xp")
 	giveMoney({_p}, {_pay})
-	levelAddXp({_p}, {_xp}, "hit")
 	set {_keys} to {-cfg::hit::%{_t}%::keys}
 	set {_extra} to ""
 	if {_keys} is set:
@@ -1044,6 +1144,8 @@ function hitDown(p: player):
 	msg({_p}, "&4Target down: &f%hitTargetName()% &7· &a%formatMoney({_pay})% &7· &b+%{_xp}% XP%{_extra}% &7· streak %{_s}%")
 	send title colored "&4&lTARGET DOWN&r" with subtitle colored "&a+%formatMoney({_pay})% &7· paid by the Broker" to {_p} for 3 seconds
 	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+	# Last: a level-up's title replaces TARGET DOWN.
+	levelAddXp({_p}, {_xp}, "hit")
 	progEvent({_p}, "hit", {_pay}, {_t})
 
 # ---------- Leaving, reloading, cleanup ----------
@@ -1434,7 +1536,20 @@ command /dhit [<text>]:
 			stop
 		if {_sub} is "week":
 			if {_a::2} is "reroll":
+				if sender is a player:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
+				delete {hit::used::%progWeek()%::*}
 				hitRollWeek(progWeek())
+				set {_now} to progUnix()
+				set {_w} to progWeek()
+				loop hitTiers():
+					set {_t} to loop-value
+					loop {hit::win::%{_w}%::%{_t}%::*}:
+						if loop-value-2 <= {_now}:
+							set {hit::used::%{_w}%::%{_t}%::%loop-index-2%} to true
+				hitLog("reroll W=%{_w}% by=%sender%")
 			set {_w} to progWeek()
 			send "HIT week=%{_w}% target=%hitTarget()% open-easy=%{hit::open::easy}% open-medium=%{hit::open::medium}% open-hard=%{hit::open::hard}%" to sender
 			loop hitTiers():

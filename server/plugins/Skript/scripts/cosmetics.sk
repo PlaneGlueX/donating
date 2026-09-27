@@ -122,8 +122,9 @@ on death of player:
 	attacker is a player
 	attacker does not have metadata "NPC"
 	attacker is not victim
-	# A hit target (hits.sk) is seen by its hunter only: no particles for everyone else.
-	hitHolderOfEntity(victim) is ""
+	# A hit target (hits.sk) is seen by its hunter only: no particles for everyone else. (Its NPC metadata is gone by
+	# now: hits.sk flags it at the lowest priority.)
+	{-hit::deadnpc::%uuid of victim%} is not set
 	set {_id} to getData(attacker, "killfx")
 	{_id} is set
 	cosOwned(attacker, {_id}) is true

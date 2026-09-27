@@ -1104,3 +1104,18 @@ command /zzctofferget <player> <text>:
 	executable by: console
 	trigger:
 		send "CTOFFERGET %arg-1% %arg-2% %{-ctoffer::%uuid of arg-1%::%arg-2%}%"
+
+# hits.sk windows for tests: /zzhitwin <tier> clear | <tier> <k> <unix> (a new unused window this week).
+command /zzhitwin <text>:
+	executable by: console
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_w} to progWeek()
+		if {_a::2} is "clear":
+			delete {hit::win::%{_w}%::%{_a::1}%::*}
+			delete {hit::used::%{_w}%::%{_a::1}%::*}
+			delete {hit::open::%{_a::1}%}
+		else:
+			set {hit::win::%{_w}%::%{_a::1}%::%{_a::2}%} to {_a::3} parsed as number
+			delete {hit::used::%{_w}%::%{_a::1}%::%{_a::2}%}
+		send "HITWIN %arg-1% W=%{_w}%"

@@ -437,7 +437,7 @@ on tab complete of "/dshopkeeper" and "/skript:dshopkeeper":
 	set tab completions for position 1 to "add", "remove" and "list"
 	set {_s} to tab arg-1
 	if {_s} is "add":
-		set tab completions for position 2 to "gun", "gear", "bag", "tools" and "cars"
+		set tab completions for position 2 to "gun", "gear", "bag", "tools", "cars" and "garage"
 	else if {_s} is "remove":
 		set {_l::*} to tabIndices("keeper")
 		if {_l::*} is set:

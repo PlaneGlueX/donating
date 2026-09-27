@@ -21,11 +21,17 @@ every 10 seconds:
 			if {-car::used::%{_plate}%} is not set:
 				# After a restart: start counting now.
 				set {-car::used::%{_plate}%} to now
-			# A parked car waits for its owner (owner, 2026-09-27): while they're near it or inside a heist.
-			if carWaitsFor({_plate}, {_o}) is true:
-				set {-car::used::%{_plate}%} to now
-			if difference between {-car::used::%{_plate}%} and now >= cfg("car::idle-despawn"):
-				carCleanupStore({_plate}, "idle")
+			set {_at} to {car::out::%{_plate}%}
+			if garageInLane({_at}) is true:
+				# Left standing in a garage's exit lane it blocks the lane: back after pickup-idle, owner near or not.
+				if difference between {-car::used::%{_plate}%} and now >= cfg("garage::pickup-idle"):
+					carCleanupStore({_plate}, "lane")
+			else:
+				# A parked car waits for its owner (owner, 2026-09-27): while they're near it or inside a heist.
+				if carWaitsFor({_plate}, {_o}) is true:
+					set {-car::used::%{_plate}%} to now
+				if difference between {-car::used::%{_plate}%} and now >= cfg("car::idle-despawn"):
+					carCleanupStore({_plate}, "idle")
 	carOtherCarCheck()
 	carSweep()
 
@@ -81,6 +87,8 @@ function carCleanupStore(plate: text, why: text):
 				msg(loop-player, "&7Your %carName({_m})% stood unused, so it went back to the garage. %{_how}%")
 			else if {_why} is "pickup-idle":
 				msg(loop-player, "&7Nobody picked up your %carName({_m})%, so it went back to the garage.")
+			else if {_why} is "lane":
+				msg(loop-player, "&7Your %carName({_m})% stood in the garage's exit lane, so it went back. %{_how}%")
 			else if {_why} is "other-car":
 				msg(loop-player, "&7You're in another car, so your %carName({_m})% went back to the garage. %{_how}%")
 

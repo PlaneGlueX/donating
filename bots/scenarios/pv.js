@@ -1,7 +1,7 @@
 // pv.sk + DonatingPhone's hide-at-spawn listener: a personal entity is sent to its owner only (the other player's
 // client never gets a spawn packet for it), a new one with the same key replaces the old, it goes when its owner quits,
 // and an entity that anyone else could see is removed at once and switches personal views off (fail closed).
-const { join, sleep, quit } = require('../lib')
+const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
 const A = 'PvA'
@@ -58,7 +58,8 @@ module.exports = async ({ check }) => {
     const t = Date.now()
     bots[B].chat('/dpv info PvA')
     await sleep(800)
-    void t
+    const said = messagesSince(bots[B], t).map(m => m.text).join(' | ')
+    check('/dpv is staff only', /Staff only/.test(said), said)
   } finally {
     await rcon.cmd('dpv reset').catch(() => {})
     for (const name of [A, B]) await rcon.cmd(`minecraft:tp ${name} ${FAR}`).catch(() => {})

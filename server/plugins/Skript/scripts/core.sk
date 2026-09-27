@@ -34,7 +34,7 @@ function loadSettings():
 	set {-cfg::combat::tag} to 15 seconds # PROPOSAL (combat-tag length isn't set yet)
 	set {-cfg::combat::player-hit-priority} to 5 seconds
 	# Commands a combat-tagged player can't use (combat-log.sk), without the slash.
-	set {-cfg::combat::blocked-commands::*} to "spawn", "home", "homes", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp" and "hub"
+	set {-cfg::combat::blocked-commands::*} to "spawn", "home", "homes", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp", "hub" and "afk"
 	set {-cfg::pvp::spawn-shield} to 10 seconds
 	# WorldGuard regions whose id starts with this are safe zones (pvp.sk).
 	set {-cfg::pvp::safe-prefix} to "safe"

@@ -210,8 +210,9 @@ function carSpawnSpot(p: player) :: location:
 		set {_dz} to cos({_a}) * 3.5
 		set {_l} to location(floor({_bx} + {_dx}) + 0.5, floor({_by}), floor({_bz} + {_dz}) + 0.5, world of {_base})
 		if carSpotClear({_l}) is true:
-			set yaw of {_l} to {_yaw}
-			return {_l}
+			if garageSiteOf({_l}) is "":
+				set yaw of {_l} to {_yaw}
+				return {_l}
 	return {_nothing}
 
 function carSpotClear(l: location) :: boolean:
@@ -508,12 +509,14 @@ function carToggleLock(p: player, plate: text):
 		carFail({_p}, "That's not your car.")
 		stop
 	if carLocked({_plate}) is false:
-		set {_where} to location of {_p}
+		# Where the car really is (it may be driving); a car in the garage can always be locked.
 		if {car::out::%{_plate}%} is set:
-			set {_where} to {car::out::%{_plate}%}
-		if carNoLockAt({_where}) is true:
-			carFail({_p}, "You can't lock cars here.")
-			stop
+			set {_where} to vehicle location of license plate {_plate}
+			if {_where} is not set:
+				set {_where} to {car::out::%{_plate}%}
+			if carNoLockAt({_where}) is true:
+				carFail({_p}, "You can't lock cars here.")
+				stop
 		set {car::lock::%{_plate}%} to true
 		set {_car} to mtv vehicle with license plate {_plate}
 		if {_car} is set:
@@ -759,7 +762,10 @@ function garageOptions(p: player, id: text):
 	set {_n} to size of carColorLabels({_id})
 	if {_n} > 1:
 		set {_price} to formatMoney(cfg("car::paint-price"))
-		carButton({_p}, {_gui}, 13, red dye named "&dRepaint" with lore "&7Another color: &a%{_price}%." and "&7Only while it's in the garage," and "&7at a garage.", "paint:%{_id}%")
+		if garagesExist() is true:
+			carButton({_p}, {_gui}, 13, red dye named "&dRepaint" with lore "&7Another color: &a%{_price}%." and "&7Only while it's in the garage," and "&7at a garage.", "paint:%{_id}%")
+		else:
+			carButton({_p}, {_gui}, 13, red dye named "&dRepaint" with lore "&7Another color: &a%{_price}%." and "&7Only while it's in the garage.", "paint:%{_id}%")
 	if {car::out::%{_plate}%} is set:
 		carButton({_p}, {_gui}, 15, chest named "&eSend it back" with lore "&7Back to the garage.", "store:%{_id}%")
 	carButton({_p}, {_gui}, 18, arrow named "&fBack", "garage")
@@ -976,7 +982,9 @@ function garageGrantCar(p: player, id: text, why: text) :: text:
 	if {_plate} is "":
 		return ""
 	carLog("grant %{_p}% %uuid of {_p}% %{_id}% %{_plate}% why=%{_why}%")
-	return "&6%carName({_id})% &7car (in your garage: take it out at any garage, &f/garage&7)"
+	if garagesExist() is true:
+		return "&6%carName({_id})% &7car (in your garage: take it out at any garage, &f/garage&7)"
+	return "&6%carName({_id})% &7car (in your garage: &f/garage&7)"
 
 # ---------- Commands ----------
 
