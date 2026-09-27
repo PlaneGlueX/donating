@@ -103,7 +103,7 @@ function storeText() :: text:
 	return "Store: &f%{_u}%"
 
 command /store:
-	description: The server's store: ranks and money boosters.
+	description: The server's store: ranks, boosters and crate keys.
 	aliases: /donate
 	executable by: players
 	trigger:

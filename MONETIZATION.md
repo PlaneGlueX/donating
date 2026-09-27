@@ -14,7 +14,9 @@ Rank prices were picked on 2026-09-26 with the owner's OK (one-time purchases, t
 | **VIP+** rank | Aqua `[VIP+]` tag, sorted above VIP; Arctic and Camo bag looks; bags hold **+10%**; a **Common crate key** with every /daily | **Yes:** +10% bag capacity; a daily Common key | $9.99 once | `dranks give {username} vipplus` |
 | **Elite** rank | Gold `[Elite]` tag, sorted above VIP+; Gilded and lower bag looks; bags hold **+20%**; **Common and Uncommon keys** with every /daily; **Heist Refresh** every 12 hours | **Yes:** +20% bag capacity; daily keys; Heist Refresh | $19.99 once | `dranks give {username} elite` |
 | **Legend** rank | Pink `[Legend]` tag, sorted above Elite; Neon (glows in the dark) and every lower bag look; bags hold **+25%**; **Common, Uncommon and Rare keys** with every /daily; **Heist Refresh** every 6 hours; every retired and testing cosmetic | **Yes:** +25% bag capacity; daily keys; Heist Refresh | $34.99 once | `dranks give {username} legend` |
-| **Money booster** | For its time, every loot sale pays **1.5×** for everyone on the server; the buyer's own sales pay **2×** | **Yes:** everyone earns more while it runs; the buyer earns a bit more than others | **$1 per 5 minutes** (any quantity) | `dbooster add {username} 1.5 5 {purchaseQuantity}` |
+| **Money booster** | For its time, every loot sale pays **1.5×** for everyone on the server; the buyer's own sales pay **2×** | **Yes:** everyone earns more while it runs; the buyer earns a bit more than others | **$1 per 5 minutes** (any quantity) | `dbooster add {username} money 1.5 5 {purchaseQuantity}` |
+| **XP booster** (added 2026-09-27) | For its time, every loot sale and car contract gives **1.5×** robber-level XP for everyone on the server; the buyer's own XP is **2×** | **Yes:** everyone reaches levels (which unlock heists, tools and cars) sooner while it runs; the buyer a bit sooner than others | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} xp 1.5 5 {purchaseQuantity}` |
+| **Heist Rush** (added 2026-09-27) | For its time, heists reopen **2× faster** for everyone: a run that ends gets half its cooldown, and heists already cooling down have their time left halved when it starts | **Yes:** more heist runs for the whole server; the buyer gets nothing extra (no head start, no bonus) | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} rush 2 5 {purchaseQuantity}` |
 | **Crate keys** (Common, Uncommon, Rare, Epic, Legendary) | One opening of that crate per key, at a crate stand on the map: a random reward from its list below (the odds are shown in game: /crates, click a crate) | **Yes:** crates can give in-game money, ammo, Stims and heist tools; the rest are looks only | $0.49 / $0.99 / $1.99 / $3.99 / $8.99 each (Common to Legendary), any quantity | `dcrate give {username} <crate> {purchaseQuantity}` |
 
 A player has one rank at a time. Buying a higher rank replaces the lower one, and buying a lower rank never takes away a higher one.
@@ -172,11 +174,12 @@ The Hacked crate is never sold: its keys only come from special events. Every Ha
 - **Never sold directly:** guns, helmets, vests, bags, loot, robber levels, access to heists, trap or cop protection. In-game money, ammo, Stims and heist tools only come from paid items at random, through crate keys (the chances are above and in game).
 - **Heist Refresh helps everyone.** A refreshed heist opens for the whole server, with no head start for the player who refreshed it.
 - **Boosters are server-wide.**
-  - Everyone online gets the multiplier.
-  - They run one at a time; more queue behind.
+  - Everyone online gets the multiplier. A money or XP booster's buyer gets a bit more (2× instead of 1.5×); Heist Rush gives its buyer nothing extra.
+  - One of each kind runs at a time (a money, an XP booster and a Heist Rush can run together); more of a kind queue behind it.
   - The time only counts down while someone is online.
   - The start and end are announced, and everyone's tab list shows the booster and who bought it.
-- **Robber levels can't be bought.** They're earned by selling loot, and boosters and crates don't add level XP.
+- **Robber levels can't be bought.** They're earned by selling loot and doing car contracts. An XP booster multiplies the XP a player earns that way while it runs (for everyone); nothing gives XP by itself, and crates never give XP.
+- **Season leaderboards (when seasons start)** count what players do; a booster's extra money or XP never counts toward them.
 - **Crates only open at crate stands in safe zones,** never inside a heist or in combat, so nobody restocks mid-fight. Only Legendary and Hacked cosmetic pulls are announced to the server.
 
 ## Setting up Tebex (the owner does these steps)
@@ -191,7 +194,7 @@ The Hacked crate is never sold: its keys only come from special events. Every Ha
    - For each rank, also add `dranks take {username} <that rank>` as its **chargeback** and **refund** command.
      - Example: `dranks take {username} vip`.
      - It removes that rank only if the player still has it, so refunding an old VIP never takes away a Legend they bought later.
-   - For the booster, allow a quantity of up to 10,000: `{purchaseQuantity}` turns 6 × "5 minutes" into 30 minutes.
+   - Boosters: make a **Boosters** category with three packages (Money Booster, XP Booster, Heist Rush), each "5 minutes" with a quantity of up to 10,000: `{purchaseQuantity}` turns 6 × "5 minutes" into 30 minutes. Their commands are in the table (`money`, `xp` or `rush`). The older money command without a kind (`dbooster add {username} 1.5 5 {purchaseQuantity}`) still works.
    - For each crate key, allow a quantity, and add `dcrate take {username} <crate> {purchaseQuantity}` as its **chargeback** and **refund** command (it takes back the keys not opened yet; opened ones are logged).
      - Crate ids: `common`, `uncommon`, `rare`, `epic`, `legendary`. Example: `dcrate give {username} rare {purchaseQuantity}`.
 5. **Show the store in game.** Put the store's address in `core.sk` as `store::url` (e.g. `donating.tebex.io`). `/store` and `/ranks` show it.
@@ -256,32 +259,112 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - Your own sales pay **2×**
 > - The whole server is told you started it, and your name shows in everyone's tab list while it runs
 > - Stack it: buy 6 for 30 minutes
-> - Never wasted: if another booster is running, yours waits its turn, and the clock only runs while players are online
+> - Never wasted: if another money booster is running, yours waits its turn, and the clock only runs while players are online
+> - Runs alongside an XP Booster or a Heist Rush
 >
 > Every purchase helps keep Donating online and growing.
 
-**Crate keys.** One package per crate. The owner adds their own line about what the rewards are worth.
+**XP Booster (5 minutes)** (proposal: $1 each)
 
-> **Common Crate Key**: cash, ammo, Stims, a Safe Kit, or a Common title, kill effect or bag skin.
-> **Uncommon Crate Key**: bigger cash, more ammo, Stims, Safe Kits, or an Uncommon title, kill effect or bag skin.
-> **Rare Crate Key**: up to $5,400 cash, a Drill, Safe Kits, or a Rare title, kill effect or bag skin (Cash Print, Crimson).
-> **Epic Crate Key**: up to $13,500 cash, a Drill, or an Epic title, kill effect (Fireworks, Storm Cloud) or bag skin (Tiger, Carbon).
-> **Legendary Crate Key**: up to $34,000 cash, a Drill, a Legendary title, kill effect (Dragon's Breath, Totem) or glowing bag skin (Diamond, Molten), or the exclusive Vandal car.
->
-> Every key opens one crate at a crate stand in the city. See every reward and its exact chance in game: /crates, then click a crate. Already have a cosmetic? You get cash instead. Stack keys: buy as many as you like.
+> Level up faster, together.
+> - Every loot sale and car contract gives **1.5× robber-level XP** to everyone online
+> - Your own XP is **2×**
+> - Higher levels unlock bigger heists, the Drill and Safe Kit, and faster cars sooner
+> - The whole server is told you started it, and your name shows in everyone's tab list while it runs
+> - Stack it: buy 6 for 30 minutes
+> - Never wasted: if another XP booster is running, yours waits its turn, and the clock only runs while players are online
+> - Runs alongside a Money Booster or a Heist Rush
 >
 > Every purchase helps keep Donating online and growing.
+
+**Heist Rush (5 minutes)** (proposal: $1 each)
+
+> More heists, for everyone.
+> - Heists reopen **2× faster**: a heist that closes gets half its usual cooldown
+> - Heists already cooling down have their time left **cut in half** the moment it starts
+> - Fair for all: everyone robs the extra runs, and you get no head start (just like Heist Refresh)
+> - The whole server is told you started it, and your name shows in everyone's tab list while it runs
+> - Stack it: buy 6 for 30 minutes
+> - Never wasted: if another Heist Rush is running, yours waits its turn, and the clock only runs while players are online
+> - Runs alongside a Money Booster or an XP Booster
+>
+> Every purchase helps keep Donating online and growing.
+
+**Crate keys.** One package per crate (the ranges and chances come from "What's in each crate" above; update these when the crates change).
+
+**Common Crate Key** ($0.49)
+
+> A little something for your next job.
+> - Opens one **Common Crate** at a crate stand in the city
+> - Mostly cash (**$200 to $900**), ammo (Light Rounds, Shotgun Shells or Rifle Rounds), **2 Stims** or a **Safe Kit**
+> - A 3% chance of a Common cosmetic: the titles **Lookout**, **Wheelman** or **Hustler**, the **Smoke Bomb** kill effect or the **Desert** bag skin
+> - Already have that cosmetic? You get $200 instead. Ammo or gear that doesn't fit pays half its shop price
+> - See every reward and its exact chance in game: /crates, then click the crate
+> - Buy as many as you like
+>
+> Every purchase helps keep Donating online and growing.
+
+**Uncommon Crate Key** ($0.99)
+
+> A better cut.
+> - Opens one **Uncommon Crate** at a crate stand in the city
+> - Mostly cash (**$700 to $2,250**), more ammo, **3 Stims** or **2 Safe Kits**
+> - A 5% chance of an Uncommon cosmetic: the titles **Ghost**, **Smooth Operator** or **Night Owl**, the **Flames** or **Sparks** kill effect, or the **Urban** or **Cherry** bag skin
+> - Already have that cosmetic? You get $500 instead. Ammo or gear that doesn't fit pays half its shop price
+> - See every reward and its exact chance in game: /crates, then click the crate
+> - Buy as many as you like
+>
+> Every purchase helps keep Donating online and growing.
+
+**Rare Crate Key** ($1.99)
+
+> Where the real tools are.
+> - Opens one **Rare Crate** at a crate stand in the city
+> - Mostly cash (**$1,800 to $5,400**), a stack of ammo, **3 Stims**, **3 Safe Kits** or a **Drill** for vault doors
+> - A 7% chance of a Rare cosmetic: the titles **Inside Man** or **Phantom**, the **Cash Burst** or **Souls** kill effect, or the **Cash Print** or **Crimson** bag skin
+> - Already have that cosmetic? You get $1,500 instead. Gear that doesn't fit pays half its shop price
+> - See every reward and its exact chance in game: /crates, then click the crate
+> - Buy as many as you like
+>
+> Every purchase helps keep Donating online and growing.
+
+**Epic Crate Key** ($3.99)
+
+> Big money, bigger style.
+> - Opens one **Epic Crate** at a crate stand in the city
+> - Mostly cash (**$4,500 to $13,500**), a **Drill** or **3 Stims**
+> - A 10% chance of an Epic cosmetic: the titles **Untouchable** or **Big Fish**, the **Fireworks** or **Storm Cloud** kill effect, or the **Tiger** or **Carbon** bag skin
+> - Already have that cosmetic? You get $3,000 instead
+> - See every reward and its exact chance in game: /crates, then click the crate
+> - Buy as many as you like
+>
+> Every purchase helps keep Donating online and growing.
+
+**Legendary Crate Key** ($8.99)
+
+> The best crate you can open.
+> - Opens one **Legendary Crate** at a crate stand in the city
+> - Mostly cash (**$11,000 to $34,000**) or a **Drill**
+> - A 15% chance of a Legendary prize: the exclusive **Vandal** car (3%), the titles **Most Wanted** or **The Boss**, the **Dragon's Breath** or **Totem** kill effect, or the glowing **Diamond** or **Molten** bag skin
+> - A Legendary cosmetic or car pull is announced to the whole server
+> - Already have that prize? You get $5,000 instead
+> - See every reward and its exact chance in game: /crates, then click the crate
+> - Buy as many as you like
+>
+> Every purchase helps keep Donating online and growing.
+
+Cosmetics and cars won from crates can be traded with other players in person (/trade). Daily keys (free with /daily) and Hacked keys (special events only) are never sold.
 
 ## Commands the store uses (the owner can run them too)
 
 - `dranks give <player> <legend|elite|vipplus|vip|none>`: gives one paid rank and removes any other. A player who already has a higher rank keeps it. Works for players who haven't joined yet.
 - `dranks take <player> <rank>`: removes that rank, but only if it's the player's current rank (for refunds and chargebacks).
-- `dbooster add <player> <multiplier> <minutes> [count]`:
-  - Queues a server-wide money booster lasting minutes × count.
+- `dbooster add <player> <money|xp|rush> <multiplier> <minutes> [count]` (without a kind: a money booster):
+  - Queues a server-wide booster of that kind lasting minutes × count (money: loot sales pay × multiplier; xp: level XP × multiplier; rush: heists cool down multiplier times faster).
   - The multiplier is rounded to 2 decimals and must be more than 1 and at most 2.
   - The count is 1 to 10,000. One booster lasts at most 240 minutes; a longer purchase is split into several queued boosters.
   - A refused delivery is logged, so it can be refunded.
 - `dcrate give <player> <crate> [count]`: adds keys (count 1 to 10,000; the player is told if online). `dcrate take <player> <crate> [count]`: takes back up to that many unused keys. `dcrate info <player>`: their keys. Hacked keys are given this way at events.
-- `dbooster stop | clear | info`, `dranks list`, `dcrate list`: manage and inspect.
+- `dbooster stop [kind] | clear [kind] | info [kind]` (no kind: the money booster), `dranks list`, `dcrate list`: manage and inspect.
 
 Logs: `plugins/Skript/logs/ranks.log` (ranks, Heist Refresh), `boosters.log` and `crates.log` (every key given, taken and used, and what each opening paid) record who ran what, including refusals.

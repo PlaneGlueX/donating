@@ -872,7 +872,20 @@ function loadSettings():
 	set {-cfg::cos::glitch::name} to "Glitch"
 	set {-cfg::cos::glitch::rarity} to "hacked"
 
-	# ---------- Money boosters (boosters.sk) ----------
+	# ---------- Boosters (boosters.sk) ----------
+	# Kinds (owner, 2026-09-27: a booster category on Tebex): money (loot sales' pay), xp (robber-level XP from
+	# sales and contracts), rush (Heist Rush: heists cool down b times faster; no buyer bonus, balanced for
+	# everyone). Each kind: its name in messages, the most its multiplier may be, and its buyer's extra.
+	set {-cfg::booster::kinds::*} to "money", "xp" and "rush"
+	set {-cfg::booster::money::name} to "money"
+	set {-cfg::booster::money::max-multiplier} to 2
+	set {-cfg::booster::money::buyer-bonus} to 0.5
+	set {-cfg::booster::xp::name} to "XP"
+	set {-cfg::booster::xp::max-multiplier} to 2
+	set {-cfg::booster::xp::buyer-bonus} to 0.5
+	set {-cfg::booster::rush::name} to "Heist Rush"
+	set {-cfg::booster::rush::max-multiplier} to 2
+	# (The money booster's first settings, kept for anything that still reads them.)
 	# A server-wide booster multiplies every loot sale's pay for everyone; its buyer gets buyer-bonus on
 	# top (owner, 2026-09-26: 1.5× for everyone, 2× for the buyer; 0 = the same for all). Listed in
 	# MONETIZATION.md. PROPOSAL: the largest multiplier and the longest booster.

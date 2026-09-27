@@ -676,6 +676,8 @@ function ctDeliver(u: text, chop: text):
 	set {_label} to {-ctjob::%{_u}%::label}
 	set {_pay} to ctPay({_p}, {_t})
 	set {_xp} to cfg("contract::%{_t}%::xp")
+	# What an XP booster (boosters.sk) makes of it, for the title (levelAddXp applies it).
+	set {_xpShown} to levelBoosted({_p}, {_xp}, "contract")
 	make {_p} dismount
 	ctEnd({_u}, "done")
 	giveMoney({_p}, {_pay})
@@ -689,7 +691,7 @@ function ctDeliver(u: text, chop: text):
 		set {_earned} to 0
 	setData({_p}, "contracts-earned", {_earned} + {_pay})
 	ctLog("deliver %{_p}% %{_u}% %{_t}% %{_m}% chop=%{_chop}% pay=%{_pay}% xp=%{_xp}% bounty=+%{_bounty}% passive=%isPassive({_p})%")
-	send title colored "&a&lCAR DELIVERED" with subtitle colored "&f%formatMoney({_pay})% &7· &b+%{_xp}% XP" to {_p} for 3 seconds
+	send title colored "&a&lCAR DELIVERED" with subtitle colored "&f%formatMoney({_pay})% &7· &b+%{_xpShown}% XP" to {_p} for 3 seconds
 	play sound "entity.player.levelup" with volume 0.8 to {_p}
 	msg({_p}, "&aThe chop shop took the %{_label}% %carName({_m})%: &f%formatMoney({_pay})%&a.")
 	if {_bounty} > 0:

@@ -329,6 +329,8 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (2026-09-26).
 120. **Trading in the real client** (cu, 2026-09-27, a bot as the partner, cancelled so nothing moved): the bot's request, `/trade TradeBot` opens "Trade · TradeBot" with its offer on the right (the Ghost title and the Vandal crate car); "Add a car" lists "Black Sedan · Car · plate DZ-SB-QZ · Level 2 car · Click: add it."; "Add a cosmetic" lists the Hacked set (H4CK3R, "Title · Hacked"); both show on the left, the divider in the middle, the ready buttons and cancel at the bottom; closing the window: "The trade was cancelled: Explosde closed it." The owner's Sedan and cosmetics stayed.
     - Result: PASS. Polished: the cosmetic's type is capitalized ("title" read lowercase). Not tried in the client: a real swap (the bots do it).
+121. **XP boosters and Heist Rush** (`bots\run.js boosters`, now 22 checks; owner, 2026-09-27: a booster category on Tebex): an XP booster starts and is announced next to no money booster; while it runs a $1,000 sale's level XP is 30 instead of 20 (the buyer's 40) and the pay stays $1,000; a money booster runs next to it and the footer lists both; a Heist Rush is announced and a heist cooling down for 600 s drops to 300 s at once; a run that ends during the Rush cools down for 300 s; the Rush gives nobody extra money or XP. The money booster's checks all still pass (the old command without a kind is a money booster).
+    - Result: PASS (2026-09-27). Owner: the XP Booster and Heist Rush prices (proposal $1 per 5 minutes), and send the new MONETIZATION.md to Minehut.
 
 ## Needs a human (owner)
 

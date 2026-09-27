@@ -178,7 +178,7 @@ module.exports = async ({ check }) => {
     await closeAll(A)
     t = Date.now()
     await cmd(`zzcttake ${A} basic`)
-    await sleep(500)
+    await until(async () => /need level 1/.test(text(A, t)), 3000)
     check('taking it anyway is refused', /need level 1/.test(text(A, t)) && field(await state(A), 'job') === '<none>', text(A, t))
     await cmd(`dlevel set ${A} 1`)
     await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)

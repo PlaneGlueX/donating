@@ -117,6 +117,31 @@ function heistEscape(h: text) :: timespan:
 function heistCooldown(h: text) :: timespan:
 	return heistSetting({_h}, "cooldown")
 
+# The cooldown a run ending now gets: a Heist Rush (boosters.sk) makes it b times shorter.
+function heistCooldownNow(h: text) :: timespan:
+	set {_c} to heistCooldown({_h})
+	set {_b} to boosterMultiplierOf("rush")
+	if {_b} > 1:
+		set {_secs} to ceil(({_c} / 1 second) / {_b})
+		return 1 second * {_secs}
+	return {_c}
+
+# A Heist Rush just started: every cooldown already running gets b times shorter from now on.
+function heistRushStart(b: number):
+	{_b} > 1
+	loop {heists::*}:
+		set {_h} to loop-index
+		if heistState({_h}) is "cooldown":
+			set {_u} to {-heist::%{_h}%::until}
+			if {_u} is set:
+				if {_u} > now:
+					set {_left} to difference between now and {_u}
+					set {_secs} to ceil(({_left} / 1 second) / {_b})
+					set {-heist::%{_h}%::until} to now
+					add 1 second * {_secs} to {-heist::%{_h}%::until}
+					set {heist::%{_h}%::reopen} to {-heist::%{_h}%::until}
+					heistLog("rush %{_h}% run=%heistRun({_h})% left=%{_left}% now=%{_secs}%s b=%{_b}%")
+
 function heistRun(h: text) :: number:
 	set {_r} to {heist::%{_h}%::run}
 	if {_r} is set:
@@ -319,7 +344,7 @@ function heistEndRun(h: text, reason: text):
 	# Cooldown first, so the gates refuse from this moment on.
 	set {-heist::%{_h}%::state} to "cooldown"
 	set {-heist::%{_h}%::until} to now
-	add heistCooldown({_h}) to {-heist::%{_h}%::until}
+	add heistCooldownNow({_h}) to {-heist::%{_h}%::until}
 	# Saved, so a restart or Minehut sleep can't skip the cooldown.
 	set {heist::%{_h}%::reopen} to {-heist::%{_h}%::until}
 	set {-heist::%{_h}%::reset-next} to 1
