@@ -215,10 +215,10 @@ module.exports = async ({ check }) => {
     await until(async () => /CONTRACT/.test(barText()), 3000)
     check('the boss bar points the way: "CONTRACT · Steal the Sedan <arrow> <n>m · 9:5x"', /CONTRACT.*Steal the Sedan . \d+m .*9:5\d/.test(barText()), barText())
     await sleep(1500)
-    const markId = await uuidOf('@e[tag=donating_ctmark,limit=1]')
-    const markA = waypointsA.some(p => p.operation === 'track' && p.waypoint && p.waypoint.uuid === markId && p.waypoint.icon && p.waypoint.icon.color && p.waypoint.icon.color.red === 255 && p.waypoint.icon.color.green === 170 && p.waypoint.icon.color.blue === 0)
+    const markId = await uuidOf('@e[tag=donating_gps,limit=1]') // the phone plugin's GPS dot (gps.sk)
+    const markA = waypointsA.some(p => (p.operation === 'track' || p.operation === 'update') && p.waypoint && p.waypoint.uuid === markId && p.waypoint.icon && p.waypoint.icon.color && p.waypoint.icon.color.red === 255 && p.waypoint.icon.color.green === 90 && p.waypoint.icon.color.blue === 31)
     const markB = waypointsB.some(p => p.waypoint && p.waypoint.uuid === markId)
-    check('the car is a gold dot on the thief\'s locator bar, and not on anyone else\'s', markId !== '' && markA && !markB, `${markId} A=${markA} B=${markB} ${JSON.stringify(waypointsA.slice(-2)).slice(0, 300)}`)
+    check('the car is an orange GPS dot on the thief\'s locator bar, and not on anyone else\'s', markId !== '' && markA && !markB, `${markId} A=${markA} B=${markB} ${JSON.stringify(waypointsA.slice(-2)).slice(0, 300)}`)
 
     // ---------- Getting in: the lock ----------
     await cmd(`zzheisttp ${A} ${SPOT[0] - 2.5} ${Y} ${SPOT[2]}`)
@@ -332,7 +332,7 @@ module.exports = async ({ check }) => {
     check('driving into a chop shop: $3,000 and 30 XP, the job ends, the car is scrapped', (await bal(A)) - bal0 === 3000 && lvl === 30 && field(s, 'job') === '<none>' && !/exists=yes/.test(await car(plate)) && /CAR DELIVERED|chop shop took/.test(text(A, t)) && logged(/deliver ThiefA .* pay=3000 xp=30/).length === 1, `${(await bal(A)) - bal0} ${lvl} ${s} ${await car(plate)} ${text(A, t)}`)
     check('...the robbery bounty adds 10% ($300), and the thief is out of the car', /BOUNTY ThiefA 300/.test(await cmd(`zzbounty ${A}`)) && !/driver/.test(await cmd(`zzcarseat ${A}`)), `${await cmd(`zzbounty ${A}`)} ${await cmd(`zzcarseat ${A}`)}`)
     await sleep(2500)
-    check('the gold dot is gone, and so is the boss bar', !/CONTRACT/.test(barText()) && !/Test passed/.test(await cmd('execute if entity @e[tag=donating_ctmark]')), `${barText()} ${await cmd('execute if entity @e[tag=donating_ctmark]')}`)
+    check('the GPS dot is gone, and so is the boss bar', !/CONTRACT/.test(barText()) && !/Test passed/.test(await cmd('execute if entity @e[tag=donating_gps]')), `${barText()} ${await cmd('execute if entity @e[tag=donating_gps]')}`)
     t = Date.now()
     await cmd(`zzcttake ${A} basic`)
     await sleep(500)

@@ -384,15 +384,21 @@ function carSeatCheck(p: player, plate: text):
 	set {-car::riding::%uuid of {_p}%} to {_plate}
 	set {-car::used::%{_plate}%} to now
 	closePhoneMap({_p})
-	set slot 8 of {_p}'s inventory to carKey({_plate})
+	set slot 8 of {_p}'s inventory to carKey({_p}, {_plate})
 	carLog("drive %{_p}% %uuid of {_p}% %{_plate}%")
 
-function carKey(plate: text) :: item:
+# The key is the phone's map underneath (the player's phone map id), so holding it while driving still shows
+# the GPS view; the pack draws it as a key in the inventory (custom model data donating:carkey).
+function carKey(p: player, plate: text) :: item:
 	set {_m} to carModelOf({_plate})
 	set {_state} to "&aunlocked"
 	if carLocked({_plate}) is true:
 		set {_state} to "&clocked"
-	set {_i} to tripwire hook named "&6Car key &7· &f%carName({_m})%" with lore "&7Right-click: lock or unlock." and "&7Now: %{_state}%&7." and "&7Get out (sneak) and your phone is back."
+	set {_i} to filled map named "&6Car key &7· &f%carName({_m})%" with lore "&7Right-click: lock or unlock." and "&7Now: %{_state}%&7." and "&7Hold it: your GPS map." and "&7Get out (sneak) and your phone is back."
+	set {_id} to metadata value "donating_phone_map" of {_p}
+	if {_id} is set:
+		set int tag "minecraft:map_id" of nbt of {_i} to {_id}
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:carkey"
 	return tagItem({_i}, "carkey:%{_plate}%")
 
 # Out of the driver's seat (MTVehicles' leave event is the driver's only; the every-second check catches
@@ -494,7 +500,7 @@ function carToggleLock(p: player, plate: text):
 		play sound "block.iron_door.open" with volume 0.6 to {_p}
 	carLog("lock %{_p}% %{_plate}% locked=%carLocked({_plate})%")
 	if itemId(slot 8 of {_p}'s inventory) is "carkey:%{_plate}%":
-		set slot 8 of {_p}'s inventory to carKey({_plate})
+		set slot 8 of {_p}'s inventory to carKey({_p}, {_plate})
 
 function carNoLockAt(l: location) :: boolean:
 	set {_prefix} to cfg("car::nolock-prefix")

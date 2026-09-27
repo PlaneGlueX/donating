@@ -1,0 +1,474 @@
+# gps.sk: the GPS. Built 2026-09-26 (owner, 2026-09-26: waypoints you set on the minimap or that quests set
+# automatically, shown on the minimap, with an arrow or highlight in the game that goes away once you're in the
+# waypoint's area; it has to follow the roads and cope with a player taking another way).
+#
+# This script decides each player's target. The phone plugin (DonatingPhone: /dphone gps, see CLAUDE.md "GPS")
+# finds the way along the city's roads and shows it: a flow field, like water running downhill to a drain, so
+# from anywhere the best way is already known and taking another street is a new route at once. It draws the
+# route and the target on the phone (the name and distance in the held phone's strip), and in the world, to that
+# player only: a dust trail on the road ahead, a ring around the target's area and a dot on the locator bar at
+# the next corner. All of it goes away inside the area, and inside heists (the tag donating_gps_paused).
+#
+# Targets, the newest first (like GTA's custom waypoint): a pin (dropped on the phone's big map with a
+# left-click, or picked in /gps) or a quest's objective (contracts.sk: the car, then any chop shop). A new pin
+# puts the quest's route aside; the quest's next objective puts the pin aside; /gps switches back. With neither:
+# the base while you carry loot. A pin is cleared once you arrive.
+# Memory only (a restart clears pins; quests set theirs again):
+#   {-gps::pin::<u>} location, {-gps::pinlabel::<u>}
+#   {-gps::quest::<u>} spots "x,y,z;x,y,z", {-gps::questworld::<u>}, ::questlabel, ::questradius, ::questby,
+#   ::questobj (the objective: a new one makes the quest the active target)
+#   {-gps::active::<u>} "pin" or "quest": which was set last
+#   {-gps::sent::<u>::<pin|quest|loot|active>} the last line sent to the plugin for it (only changes are sent)
+# The plugin keeps a slot per kind (pin, quest, loot: all drawn as icons on the phone map) and routes to the
+# active one.
+
+function gpsSpot(l: location) :: text:
+	# Coordinates in locals first: "x-coordinate of {_l} * 10" parses as the x of (location * 10).
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_x} to round({_x} * 10) / 10
+	set {_y} to round({_y} * 10) / 10
+	set {_z} to round({_z} * 10) / 10
+	return "%{_x}%,%{_y}%,%{_z}%"
+
+# What the plugin worked out (player metadata, see Gps.java): the next corner, blocks left, the state.
+function gpsNext(p: player) :: location:
+	return metadata value "donating_gps_next" of {_p}
+
+function gpsLeft(p: player) :: number:
+	set {_v} to metadata value "donating_gps_left" of {_p}
+	if {_v} is set:
+		return {_v}
+	return -1
+
+function gpsState(p: player) :: text:
+	set {_v} to metadata value "donating_gps_state" of {_p}
+	if {_v} is set:
+		return "%{_v}%"
+	return "none"
+
+# "pin", "quest", "loot" or "": what the GPS is showing now.
+function gpsActive(p: player) :: text:
+	set {_u} to "%uuid of {_p}%"
+	set {_a} to {-gps::active::%{_u}%}
+	if {_a} is "pin":
+		if {-gps::pin::%{_u}%} is set:
+			return "pin"
+	if {-gps::quest::%{_u}%} is set:
+		return "quest"
+	if {-gps::pin::%{_u}%} is set:
+		return "pin"
+	if gpsLootSpots({_p}) is not "":
+		return "loot"
+	return ""
+
+# The base while carrying loot (outside heists): every staff base POI (nav.sk), the nearest by road wins.
+function gpsLootSpots(p: player) :: text:
+	set {_out} to ""
+	if bagTotal({_p}) > 0:
+		if heistOf({_p}) is "":
+			loop {poi::*}:
+				set {_a::*} to loop-value split at "|"
+				if {_a::1} is "base":
+					if {_a::2} is "%world of {_p}%":
+						if {_out} is "":
+							set {_out} to "%{_a::3}%,%{_a::4}%,%{_a::5}%"
+						else:
+							set {_out} to "%{_out}%;%{_a::3}%,%{_a::4}%,%{_a::5}%"
+	return {_out}
+
+# Tells the plugin each slot and which one is active (only what changed).
+function gpsPush(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_l} to {-gps::pin::%{_u}%}
+	set {_line} to "clear pin"
+	if {_l} is set:
+		set {_line} to "set pin %world of {_l}% %cfg("gps::pin-radius")% %gpsSpot({_l})% %{-gps::pinlabel::%{_u}%}%"
+	gpsSend({_p}, "pin", {_line})
+	set {_line} to "clear quest"
+	if {-gps::quest::%{_u}%} is set:
+		set {_line} to "set quest %{-gps::questworld::%{_u}%}% %{-gps::questradius::%{_u}%}% %{-gps::quest::%{_u}%}% %{-gps::questlabel::%{_u}%}%"
+	gpsSend({_p}, "quest", {_line})
+	set {_spots} to gpsLootSpots({_p})
+	set {_line} to "clear loot"
+	if {_spots} is not "":
+		set {_line} to "set loot %world of {_p}% %cfg("gps::base-radius")% %{_spots}% Base: sell loot"
+	gpsSend({_p}, "loot", {_line})
+	set {_a} to gpsActive({_p})
+	if {_a} is "":
+		set {_a} to "none"
+	gpsSend({_p}, "active", "active %{_a}%")
+
+function gpsSend(p: player, key: text, line: text):
+	set {_u} to "%uuid of {_p}%"
+	{-gps::sent::%{_u}%::%{_key}%} is not {_line}
+	set {-gps::sent::%{_u}%::%{_key}%} to {_line}
+	execute console command "dphone gps %name of {_p}% %{_line}%"
+
+# ---------- Pins ----------
+
+function gpsPin(p: player, l: location, label: text):
+	set {_u} to "%uuid of {_p}%"
+	set {-gps::pin::%{_u}%} to {_l}
+	set {-gps::pinlabel::%{_u}%} to {_label}
+	set {-gps::active::%{_u}%} to "pin"
+	gpsPush({_p})
+	set {_d} to round(distance between (location of {_p}) and {_l})
+	if {-gps::quest::%{_u}%} is set:
+		hudBar({_p}, "&dPin set · &f%{_label}% &7(%{_d}%m) · your job's route is on hold: &f/gps", 1)
+	else:
+		hudBar({_p}, "&dPin set · &f%{_label}% &7(%{_d}%m)", 1)
+	play sound "block.note_block.pling" with volume 0.5 and pitch 1.5 to {_p}
+
+function gpsUnpin(p: player, why: text):
+	set {_u} to "%uuid of {_p}%"
+	{-gps::pin::%{_u}%} is set
+	set {_label} to {-gps::pinlabel::%{_u}%}
+	delete {-gps::pin::%{_u}%}
+	delete {-gps::pinlabel::%{_u}%}
+	if {-gps::active::%{_u}%} is "pin":
+		delete {-gps::active::%{_u}%}
+	gpsPush({_p})
+	if {_why} is "arrived":
+		hudBar({_p}, "&aArrived · &f%{_label}%", 1)
+		play sound "block.note_block.chime" with volume 0.7 and pitch 1.2 to {_p}
+	else if {_why} is "removed":
+		hudBar({_p}, "&7Pin removed.", 1)
+		play sound "block.note_block.hat" with volume 0.6 to {_p}
+
+# The big map's left-click (the plugin runs this as the console): the pin under the cursor goes, else a new
+# pin there, named after the place it's on (a POI or a heist within reach) when there is one.
+command /gpspick <player> <number> <number> <number>:
+	executable by: console
+	trigger:
+		gpsPick(arg-1, arg-2, arg-3, arg-4)
+
+function gpsPick(p: player, x: number, z: number, reach: number):
+	set {_u} to "%uuid of {_p}%"
+	set {_pin} to {-gps::pin::%{_u}%}
+	if {_pin} is set:
+		if world of {_pin} is world of {_p}:
+			set {_px} to x-coordinate of {_pin}
+			set {_pz} to z-coordinate of {_pin}
+			set {_dx} to {_px} - {_x}
+			set {_dz} to {_pz} - {_z}
+			if sqrt({_dx} * {_dx} + {_dz} * {_dz}) <= {_reach}:
+				gpsUnpin({_p}, "removed")
+				stop
+	# At the player's own height (a pin counts by flat distance; reading the ground there could load or even
+	# make land anywhere on the city map: review fix).
+	set {_l} to location({_x}, y-coordinate of {_p}, {_z}, world of {_p})
+	set {_label} to "Pin"
+	# On a heist building: its exit spot (the building is a heist region, where the GPS pauses).
+	set {_h} to heistAt({_l})
+	if {_h} is not "":
+		set {_ex} to {heist::%{_h}%::exit}
+		if {_ex} is set:
+			set {_l} to {_ex}
+			set {_label} to heistName({_h})
+	else:
+		# Near a place: the place itself, by its name.
+		set {_near} to gpsPlaceNear({_p}, {_l}, max({_reach}, 12))
+		if {_near} is not "":
+			set {_a::*} to {_near} split at "|"
+			set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))
+			set {_label} to {_a::5}
+	gpsPin({_p}, {_l}, {_label})
+
+# The place nearest a spot within reach ("world|x|y|z|name|kind" as in gpsPlaces, "" if none).
+function gpsPlaceNear(p: player, l: location, reach: number) :: text:
+	set {_best} to {_reach}
+	set {_found} to ""
+	set {_lx} to x-coordinate of {_l}
+	set {_lz} to z-coordinate of {_l}
+	loop gpsPlaces({_p}):
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is "%world of {_l}%":
+			set {_dx} to ({_a::2} parsed as number) - {_lx}
+			set {_dz} to ({_a::4} parsed as number) - {_lz}
+			set {_d} to sqrt({_dx} * {_dx} + {_dz} * {_dz})
+			if {_d} <= {_best}:
+				set {_best} to {_d}
+				set {_found} to loop-value
+	return {_found}
+
+# Places to pick in /gps, as "world|x|y|z|name|kind": staff POIs, open heists, your car.
+function gpsPlaces(p: player) :: texts:
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_n} to {_a::6}
+		if {_n} is not set:
+			set {_n} to ""
+		# /dpoi add keeps a space before the name.
+		set {_n} to "%{_n}%"
+		if {_n} starts with " ":
+			set {_n} to subtext of {_n} from characters 2 to (length of {_n})
+		if {_n} is "":
+			set {_n} to "%{_a::1}% %loop-index%"
+		add "%{_a::2}%|%{_a::3}%|%{_a::4}%|%{_a::5}%|%{_n}%|%{_a::1}%" to {_out::*}
+	loop {heists::*}:
+		set {_h} to loop-index
+		set {_s} to heistState({_h})
+		if {_s} is "open" or "active":
+			# Its exit spot (outside the building: the GPS pauses inside heists), else the hologram or centre.
+			set {_l} to {heist::%{_h}%::exit}
+			if {_l} is not set:
+				set {_l} to {heist::%{_h}%::holo}
+			if {_l} is not set:
+				set {_l} to heistCenter({_h})
+			if {_l} is set:
+				add "%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%|%heistName({_h})%|heist" to {_out::*}
+	set {_plate} to {car::outof::%uuid of {_p}%}
+	if {_plate} is set:
+		set {_l} to {car::out::%{_plate}%}
+		if {_l} is set:
+			set {_car} to carName(carModelOf("%{_plate}%"))
+			add "%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%|Your %{_car}%|car" to {_out::*}
+	return {_out::*}
+
+# ---------- Quests (contracts.sk) ----------
+
+# A quest's target: spots "x,y,z;x,y,z" (the nearest along the roads wins), its name, the area's radius, which
+# quest (by) and which objective (obj: a new one puts a pin aside; the same one moving, e.g. a car, doesn't).
+function gpsQuest(p: player, w: text, spots: text, label: text, radius: number, by: text, obj: text):
+	set {_u} to "%uuid of {_p}%"
+	if {-gps::questobj::%{_u}%} is not {_obj}:
+		set {-gps::active::%{_u}%} to "quest"
+		if {-gps::pin::%{_u}%} is set:
+			hudBar({_p}, "&6New objective: &f%{_label}% &7· your pin is on hold: &f/gps", 1)
+	set {-gps::quest::%{_u}%} to {_spots}
+	set {-gps::questworld::%{_u}%} to {_w}
+	set {-gps::questlabel::%{_u}%} to {_label}
+	set {-gps::questradius::%{_u}%} to {_radius}
+	set {-gps::questby::%{_u}%} to {_by}
+	set {-gps::questobj::%{_u}%} to {_obj}
+	gpsPush({_p})
+
+function gpsQuestClear(p: player, by: text):
+	set {_u} to "%uuid of {_p}%"
+	{-gps::questby::%{_u}%} is {_by}
+	delete {-gps::quest::%{_u}%}
+	delete {-gps::questworld::%{_u}%}
+	delete {-gps::questlabel::%{_u}%}
+	delete {-gps::questradius::%{_u}%}
+	delete {-gps::questby::%{_u}%}
+	delete {-gps::questobj::%{_u}%}
+	if {-gps::active::%{_u}%} is "quest":
+		delete {-gps::active::%{_u}%}
+	gpsPush({_p})
+
+# ---------- Every second: arriving at a pin, the heist pause, the loot target ----------
+
+every second:
+	loop all players:
+		set {_p} to loop-player
+		if heistOf({_p}) is not "":
+			add "donating_gps_paused" to scoreboard tags of {_p}
+		else if scoreboard tags of {_p} contain "donating_gps_paused":
+			remove "donating_gps_paused" from scoreboard tags of {_p}
+		if gpsActive({_p}) is "pin":
+			if gpsState({_p}) is "arrived":
+				gpsUnpin({_p}, "arrived")
+		gpsPush({_p})
+
+on quit:
+	set {_u} to "%uuid of player%"
+	delete {-gps::pin::%{_u}%}
+	delete {-gps::pinlabel::%{_u}%}
+	delete {-gps::quest::%{_u}%}
+	delete {-gps::questworld::%{_u}%}
+	delete {-gps::questlabel::%{_u}%}
+	delete {-gps::questradius::%{_u}%}
+	delete {-gps::questby::%{_u}%}
+	delete {-gps::questobj::%{_u}%}
+	delete {-gps::active::%{_u}%}
+	delete {-gps::sent::%{_u}%::*}
+	delete {-gps::gui::%player%}
+	delete {-gps::act::%player%::*}
+	remove "donating_gps_paused" from scoreboard tags of player
+
+# ---------- The boss bar (hud.sk, after the heist, cop and contract bars) ----------
+
+# An arrow from where you look toward the next corner of the way ("↑" ahead), and the blocks left.
+function gpsArrow(p: player, to: location) :: text:
+	set {_from} to location of {_p}
+	set {_dx} to x-coordinate of {_to}
+	set {_fx} to x-coordinate of {_from}
+	set {_dx} to {_dx} - {_fx}
+	set {_dz} to z-coordinate of {_to}
+	set {_fz} to z-coordinate of {_from}
+	set {_dz} to {_dz} - {_fz}
+	# Minecraft's yaw: 0 faces +z (south), 90 faces -x (west); the yaw facing the spot is atan2(-dx, dz), and
+	# Skript's atan2(x, y) is Java's Math.atan2(y, x).
+	set {_want} to atan2({_dz}, 0 - {_dx})
+	set {_rel} to mod({_want} - (yaw of {_p}) + 540, 360) - 180
+	set {_i} to mod(round({_rel} / 45) + 8, 8)
+	set {_arrows::*} to "↑", "↗", "→", "↘", "↓", "↙", "←" and "↖"
+	return {_arrows::%{_i} + 1%}
+
+# "↗ 142m" toward the way's next corner, "turn right in 40m · 320m" with a turn coming up (the ↱ glyph was a tiny tick
+# in the boss bar, 26.3 client), "here" inside the area
+# ("" when the GPS has nothing yet).
+function gpsWay(p: player) :: text:
+	set {_s} to gpsState({_p})
+	if {_s} is "arrived":
+		return "&ahere"
+	set {_n} to gpsNext({_p})
+	set {_left} to gpsLeft({_p})
+	if {_n} is not set:
+		return ""
+	if world of {_n} is not world of {_p}:
+		return ""
+	set {_d} to round({_left})
+	if {_left} < 0:
+		set {_d} to round(distance between (location of {_p}) and {_n})
+	set {_tv} to metadata value "donating_gps_turn" of {_p}
+	set {_turn} to "%{_tv}%"
+	set {_in} to metadata value "donating_gps_turn_in" of {_p}
+	if {_in} is set:
+		if {_in} >= 0:
+			if {_in} <= 60:
+				if {_turn} is "right":
+					return "&eturn right in %round({_in})%m &7· %{_d}%m"
+				if {_turn} is "left":
+					return "&eturn left in %round({_in})%m &7· %{_d}%m"
+	return "&e%gpsArrow({_p}, {_n})% %{_d}%m"
+
+function gpsHud(p: player) :: boolean:
+	set {_shown} to false
+	set {_a} to gpsActive({_p})
+	if {_a} is "pin":
+		set {_label} to {-gps::pinlabel::%uuid of {_p}%}
+		hudBossSet({_p}, "&b&lGPS&r &7· &f%{_label}% %gpsWay({_p})%", "white", 1)
+		set {_shown} to true
+	else if {_a} is "loot":
+		hudBossSet({_p}, "&a&lLOOT&r &7· &fsell it at the base %gpsWay({_p})%", "green", 1)
+		set {_shown} to true
+	return {_shown}
+
+# ---------- /gps (and the phone's GPS app) ----------
+
+function gpsButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-gps::act::%{_p}%::%{_slot}%} to {_act}
+
+function gpsMenu(p: player):
+	closePhoneMap({_p})
+	set {_u} to "%uuid of {_p}%"
+	set {_gui} to chest inventory with 5 rows named "&8GPS"
+	delete {-gps::act::%{_p}%::*}
+	set {_pane} to gray stained glass pane named "&r"
+	loop 45 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {_a} to gpsActive({_p})
+	set {_way} to gpsWay({_p})
+	if {_a} is "":
+		set slot 4 of {_gui} to compass named "&bGPS" with lore "&7No target. Drop a pin on the map," and "&7or pick a place below."
+	else if {_a} is "pin":
+		gpsButton({_p}, {_gui}, 4, compass named "&bHeading to: &f%{-gps::pinlabel::%{_u}%}%" with lore "&7%{_way}%" and "&eClick: remove the pin.", "clear")
+	else if {_a} is "quest":
+		set slot 4 of {_gui} to compass named "&6Heading to: &f%{-gps::questlabel::%{_u}%}%" with lore "&7%{_way}%" and "&7Your job's target."
+	else:
+		set slot 4 of {_gui} to compass named "&aHeading to: &fthe base" with lore "&7%{_way}%" and "&7You carry loot: sell it there."
+	# The one on hold: click to switch back to it.
+	if {-gps::pin::%{_u}%} is set:
+		if {_a} is not "pin":
+			gpsButton({_p}, {_gui}, 2, red dye named "&dYour pin: &f%{-gps::pinlabel::%{_u}%}%" with lore "&7On hold." and "&eClick: head there." and "&eRight-click: remove it.", "active:pin")
+	if {-gps::quest::%{_u}%} is set:
+		if {_a} is not "quest":
+			gpsButton({_p}, {_gui}, 6, orange dye named "&6Your job: &f%{-gps::questlabel::%{_u}%}%" with lore "&7On hold." and "&eClick: head there.", "active:quest")
+	set {_slot} to 18
+	loop gpsPlaces({_p}):
+		{_slot} <= 35
+		set {_a::*} to loop-value split at "|"
+		set {_icon} to paper
+		if {_a::6} is "base":
+			set {_icon} to chest
+		else if {_a::6} is "shop":
+			set {_icon} to emerald
+		else if {_a::6} is "spawn":
+			set {_icon} to white bed
+		else if {_a::6} is "heist":
+			set {_icon} to gold ingot
+		else if {_a::6} is "car":
+			set {_icon} to minecart
+		set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))
+		set {_where} to ""
+		if world of {_l} is world of {_p}:
+			set {_where} to "%round(distance between (location of {_p}) and {_l})%m away"
+		gpsButton({_p}, {_gui}, {_slot}, {_icon} named "&f%{_a::5}%" with lore "&7%{_where}%" and "&eClick: pin it.", "place:%loop-value%")
+		add 1 to {_slot}
+	set slot 40 of {_gui} to book named "&fDrop a pin anywhere" with lore "&7Right-click the phone for the big map," and "&7aim with your head, left-click." and "&7Left-click the pin again to remove it." and "&7The GPS follows the roads and finds" and "&7a new way if you take another street."
+	gpsButton({_p}, {_gui}, 44, barrier named "&cClose", "close")
+	set {-gps::gui::%{_p}%} to {_gui}
+	if {-gps::gen::%{_p}%} is not set:
+		set {-gps::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+on inventory click:
+	{-gps::gui::%player%} is set
+	player's current inventory is {-gps::gui::%player%}
+	cancel event
+	event-inventory is {-gps::gui::%player%}
+	set {_act} to {-gps::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_right} to false
+	set {_ok} to false
+	if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_ok} to true
+		set {_right} to true
+	{_ok} is true
+	set {_gen} to {-gps::gen::%player%}
+	wait 1 tick
+	player is online
+	{-gps::gui::%player%} is set
+	{-gps::gen::%player%} is {_gen}
+	add 1 to {-gps::gen::%player%}
+	gpsAction(player, {_act}, {_right})
+
+on inventory drag:
+	{-gps::gui::%player%} is set
+	player's current inventory is {-gps::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-gps::gui::%player%} is set
+	event-inventory is {-gps::gui::%player%}
+	delete {-gps::gui::%player%}
+	delete {-gps::act::%player%::*}
+
+function gpsAction(p: player, act: text, right: boolean):
+	set {_u} to "%uuid of {_p}%"
+	if {_act} is "close":
+		close {_p}'s inventory
+	else if {_act} is "clear":
+		close {_p}'s inventory
+		gpsUnpin({_p}, "removed")
+	else if {_act} is "active:pin":
+		close {_p}'s inventory
+		if {_right} is true:
+			gpsUnpin({_p}, "removed")
+		else:
+			set {-gps::active::%{_u}%} to "pin"
+			gpsPush({_p})
+	else if {_act} is "active:quest":
+		close {_p}'s inventory
+		set {-gps::active::%{_u}%} to "quest"
+		gpsPush({_p})
+	else if {_act} starts with "place:":
+		close {_p}'s inventory
+		set {_a::*} to (subtext of {_act} from characters 7 to (length of {_act})) split at "|"
+		set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))
+		gpsPin({_p}, {_l}, {_a::5})
+
+command /gps [<text>]:
+	description: The GPS: pin a place, or see where you're headed.
+	executable by: players
+	trigger:
+		if arg-1 is "clear" or "off":
+			gpsUnpin(player, "removed")
+			stop
+		gpsMenu(player)

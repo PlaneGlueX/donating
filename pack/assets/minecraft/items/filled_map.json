@@ -6,9 +6,22 @@
     "cases": [
       {
         "when": "donating:phone",
-        "model": { "type": "minecraft:model", "model": "donating:item/phone" }
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/phone"
+        }
+      },
+      {
+        "when": "donating:carkey",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/tripwire_hook"
+        }
       }
     ],
-    "fallback": { "type": "minecraft:model", "model": "minecraft:item/filled_map" }
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/filled_map"
+    }
   }
 }

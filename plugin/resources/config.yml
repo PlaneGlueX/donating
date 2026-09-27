@@ -26,3 +26,37 @@ passive-tag: donating_passive
 open-tag: donating_phone_open
 # Bottom line on the held phone (ASCII only; "" = none).
 hint: "R-click: map  F: apps"
+
+# ---------- GPS (gps.sk sets each player's target; this finds the way along the roads and draws it) ----------
+gps:
+  # The road grid: /dphone roads scan reads the city (only land that already exists) for these blocks and
+  # saves roads.bin next to this file. Build streets from blocks used nowhere else (never indoors or on
+  # roofs), and list the lane lines and crosswalks too. Rescan after changing the streets or this list.
+  road-blocks: [black_concrete, gray_concrete, black_concrete_powder, gray_concrete_powder, white_concrete, yellow_concrete]
+  # The heights people walk and drive at: street-y-min a few blocks below the street, street-y-max the street
+  # level + 2 (so anything taller than a curb, a wall or a building, is solid in the band and reads as
+  # blocked). Leave these out to use the whole world height; then roofs count as open ground, so set them
+  # once the city exists. Wall, fence and pane tops never count as ground.
+  # street-y-min: 58
+  # street-y-max: 66
+  # Step costs by kind of ground (1 = a road step). Walkers may cut through an alley; cars keep to roads.
+  foot-cost: {road: 1.0, open: 1.5, blocked: 15}
+  car-cost: {road: 1.0, open: 6, blocked: 40}
+  # The grid stays under this many cells (a bigger city gets bigger cells).
+  max-cells: 262144
+  # The locator-bar dot sits at the next corner, lead-min..lead-max blocks ahead (farther when faster).
+  lead-min: 16
+  lead-max: 40
+  # The dust trail on the way ahead: trail-min..trail-max blocks (farther when faster).
+  trail-min: 24
+  trail-max: 64
+  # The ring around the target's area shows within this many blocks of it.
+  ring-range: 48
+  # Colors: the locator-bar dot, the trail and ring (color), and the route on the phone map (route). Keep
+  # them apart from the POI and heist dots (aqua, yellow, white, light purple, green, gold, dark red).
+  # A pin is a bigger area for someone in a car (they cover 6 blocks between two checks).
+  car-pin-radius: 14
+  color: {pin: "#D040E0", quest: "#FF5A1F", loot: "#30C8C0"}
+  route: {pin: "#D040E0", quest: "#FF5A1F", loot: "#30C8C0"}
+  # Skript sets this tag while the GPS should show nothing in the world (inside a heist).
+  paused-tag: donating_gps_paused

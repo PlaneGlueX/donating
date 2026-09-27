@@ -8,9 +8,11 @@
 # The plugin reads the scoreboard tag "donating_phone_open" to know which view to draw.
 #
 # Apps menu (3 rows, slot numbers 0-26):
-#   11 stats           13 passive mode       15 garage
-#   21 bounties        23 how to play        26 close
-# Garage opens garage.sk's garageMenu (your cars).
+#    4 GPS (gps.sk)
+#    9 contracts   11 stats       13 passive mode   15 garage   17 cosmetics
+#   19 crates      21 bounties    23 how to play    25 bag      26 close
+# Garage opens garage.sk's garageMenu (your cars). The big map doesn't open while driving (a stolen car
+# keeps the phone in slot 9); left-click on it drops a GPS pin (the plugin runs gps.sk's /gpspick).
 # with a call to its menu. Bounties shows bounty.sk's list in chat.
 #
 # Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
@@ -38,10 +40,18 @@ on right click:
 # The tag first, so inventory.sk's watchdog doesn't put the bag straight back. Only the bag leaves
 # the offhand: anything else there (staff with the inventory bypass) stays, and the map stays small.
 function openPhoneMap(p: player):
+	# Not while driving (a stolen car keeps the phone in slot 9): the held phone's GPS view still shows.
+	if carSeatOf({_p}) starts with "driver:":
+		hudBar({_p}, "&7Stop the car to open the big map.", 1)
+		stop
 	add "donating_phone_open" to scoreboard tags of {_p}
 	if itemId(offhand tool of {_p}) starts with "bag:":
 		set offhand tool of {_p} to air
 	play sound "item.book.page_turn" with volume 0.6 to {_p}
+	# Once per player: how to drop a GPS pin (gps.sk).
+	if getData({_p}, "gps-tip") is not set:
+		setData({_p}, "gps-tip", true)
+		msg({_p}, "&bTip: &7left-click the big map to drop a GPS pin where the cursor is (aim with your head). The GPS shows the way along the roads. &f/gps")
 
 # Does nothing when the big map isn't open.
 function closePhoneMap(p: player):
@@ -73,6 +83,7 @@ function openPhone(p: player):
 	set {_jobs} to flint named "&6Contracts" with lore "&7Car-theft jobs: steal a car and" and "&7bring it to a chop shop for cash." and "&7Lockpicks are sold here too."
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_jobs} to "donating:lockpick_basic"
 	set slot 9 of {_gui} to tagItem({_jobs}, "phone:contracts")
+	set slot 4 of {_gui} to tagItem(compass named "&bGPS" with lore "&7Pin a place and follow the way" and "&7along the roads (it finds a new one" and "&7if you take another street)." and "&7Or left-click the big map.", "phone:gps")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
@@ -133,6 +144,9 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 9:
 		close {_p}'s inventory
 		ctMenu({_p})
+	else if {_slot} is 4:
+		close {_p}'s inventory
+		gpsMenu({_p})
 	else if {_slot} is 19:
 		close {_p}'s inventory
 		crateMenu({_p})
