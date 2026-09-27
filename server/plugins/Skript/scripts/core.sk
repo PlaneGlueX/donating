@@ -207,6 +207,14 @@ function loadSettings():
 	set {-cfg::quest::contracts::hold-model} to "donating:lockpick_basic"
 	set {-cfg::quest::reach} to 6
 
+	# ---------- Trading (trade.sk): PROPOSAL numbers ----------
+	# Owner, 2026-09-26: cars and crate cosmetics, in person, no tax; the server never moves money.
+	# Players trade within trade::reach blocks of each other; a request lasts trade::request-time; both being
+	# ready starts a countdown of trade::countdown seconds (anything changing stops it).
+	set {-cfg::trade::reach} to 5
+	set {-cfg::trade::request-time} to 30 seconds
+	set {-cfg::trade::countdown} to 5
+
 	# ---------- GPS (gps.sk; the phone plugin finds the way along the roads: CLAUDE.md "GPS") ----------
 	# Decided (the owner left the GPS numbers to Claude, 2026-09-26), with the plugin's costs and colors.
 	# A pin counts as reached within this many blocks (then it's cleared); the base while carrying loot too.

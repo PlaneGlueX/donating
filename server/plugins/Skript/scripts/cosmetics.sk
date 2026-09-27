@@ -6,7 +6,8 @@
 #   bagskin  the bag's look, whatever tier you carry (the art is tools\make-item-art.js BAGS): /bagskin
 #            (ranks.sk; a rank's own skins stay rank-only)
 #   killfx   particles and a sound where your victim dies: /killeffect
-# Owned: data cos::<id> = true (saved per player, never taken away). Chosen: data "title", "killfx"
+# Owned: data cos::<id> = true (saved per player, never taken away except by a trade: trade.sk moves it to the
+# other player and takes it off if worn). Chosen: data "title", "killfx"
 # ("bag-skin" for bags, ranks.sk). Legends also own every retired and testing cosmetic (owner,
 # 2026-09-26: "Receives all testing/retired cosmetics"; core.sk paidrank::<id>::retired-cosmetics),
 # checked live, so it follows the rank. Crates never roll a retired or testing cosmetic.
