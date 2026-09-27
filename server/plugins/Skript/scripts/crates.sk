@@ -428,6 +428,7 @@ function crateFinish(p: player):
 	delete {cratepending::%{_u}%::*}
 	set {_got} to crateGrant({_p}, {_line}, {_t})
 	crateLog("grant %{_p}% %{_u}% %{_t}% line=%{_line}% got=%{_got}%")
+	progEvent({_p}, "crate", 1, {_t})
 	msg({_p}, "%crateColored({_t})%&7: you got %{_got}%&7!")
 	set {_r} to crateLineRarity({_line}, {_t})
 	if {_r} is "epic":

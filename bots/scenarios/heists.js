@@ -160,11 +160,13 @@ module.exports = async ({ check }) => {
     check('no teleporting into a heist', p[0] < EDGE && /teleport into a heist/.test(bars(A, t)), `x ${p[0]}; ${bars(A, t)}`)
 
     // ---------- Enable ----------
+    const run0 = Number(await field('run'))
+    const run = n => String(run0 + n)
     setMark()
     let tOpen = Date.now()
     await cmd(`dheist enable ${ID}`)
     const opened = await until(async () => (await field('state')) === 'open', 5000)
-    check('enable: the room resets, then the heist opens (run 1)', opened && (await field('run')) === '1' && logged(/reset ztest/).length === 1, await heist())
+    check('enable: the room resets, then the heist opens (the next run)', opened && (await field('run')) === run(1) && logged(/reset ztest/).length === 1, await heist())
     await sleep(300)
     check('everyone hears that it\'s open (one of the two heist messages that go to everyone)', /The Test Vault is open!/.test(text(A, tOpen)) && /The Test Vault is open!/.test(text(B, tOpen)), `${text(A, tOpen)} // ${text(B, tOpen)}`)
     check('...and the hologram says OPEN', /OPEN/.test(await papi(A, 'donating_heist_status_ztest')))
@@ -199,7 +201,7 @@ module.exports = async ({ check }) => {
     const tB = Date.now()
     await walkIn(A)
     let left = Number(await field('left'))
-    check('walking into the open heist starts run 1 (60 s)', (await member(A)) === ID && (await field('state')) === 'active' && (await field('run')) === '1' && left >= 54 && left <= 60, await heist())
+    check('walking into the open heist starts the run (60 s)', (await member(A)) === ID && (await field('state')) === 'active' && (await field('run')) === run(1) && left >= 54 && left <= 60, await heist())
     check('the robber is told the time and that everyone inside is their crew', /You're in the Test Vault/.test(text(A, t)) && /crew/.test(text(A, t)), text(A, t))
     check('nobody outside hears about the clock (heist chat goes only to the robbers inside)', !/Test Vault/.test(text(B, tB)), text(B, tB))
     check('enable refuses a heist that is already enabled (it would strand the robbers)', /already enabled/.test(await cmd(`dheist enable ${ID}`)) && (await field('state')) === 'active')
@@ -216,7 +218,7 @@ module.exports = async ({ check }) => {
     check('no switching passive mode inside a heist', /inside a heist/.test(await cmd(`zzpassivewhy ${A}`)) && /PASSIVEWHY\s*$/.test(await cmd(`zzpassivewhy ${B}`)), `${await cmd(`zzpassivewhy ${A}`)} / ${await cmd(`zzpassivewhy ${B}`)}`)
     left = Number(await field('left'))
     await walkIn(B)
-    check('a second robber joins the same run; the clock keeps going', (await field('inside')) === '2' && (await field('run')) === '1' && Number(await field('left')) <= left, await heist())
+    check('a second robber joins the same run; the clock keeps going', (await field('inside')) === '2' && (await field('run')) === run(1) && Number(await field('left')) <= left, await heist())
 
     // ---------- The heist crew ----------
     await sleep(4500) // EssentialsX: no PvP for 4 s after a teleport (place() before walking in)
@@ -250,7 +252,7 @@ module.exports = async ({ check }) => {
     await sleep(800)
     p = await pos(A)
     check('at 0:00 robbers inside are thrown out to the exit spot', near(p, EXIT[0], EXIT[1]) && (await member(A)) === 'none' && /Too late/.test(text(A, t)), `${p}; ${text(A, t)}`)
-    check('...and lose that heist\'s loot (one forfeit, only for them)', logged(new RegExp(`forfeit ${A} \\S+ ztest#1 `)).length === 1 && logged(new RegExp(`forfeit ${B} `)).length === 0, logged(/forfeit/).join(' / '))
+    check('...and lose that heist\'s loot (one forfeit, only for them)', logged(new RegExp(`forfeit ${A} \\S+ ztest#${run(1)} `)).length === 1 && logged(new RegExp(`forfeit ${B} `)).length === 0, logged(/forfeit/).join(' / '))
     check('...then the heist is closed for its cooldown', (await field('state')) === 'cooldown' && Number(await field('left')) <= 14, await heist())
     check('everyone hears that it\'s closed and when it reopens', /The Test Vault is closed\. It reopens in 0:1\d\./.test(text(B, t)), text(B, t))
     // A restart or Minehut sleep wipes memory: the saved reopen time keeps the cooldown.
@@ -263,7 +265,7 @@ module.exports = async ({ check }) => {
     const ejected = await until(async () => near(await pos(B), EXIT[0], EXIT[1]), 2500)
     check('anyone inside a closed heist is moved out', ejected && (await member(B)) === 'none', `${await pos(B)}`)
     t = Date.now()
-    check('after the cooldown it opens again (run 2)', await until(async () => (await field('state')) === 'open' && (await field('run')) === '2', 14000), await heist())
+    check('after the cooldown it opens again (the next run)', await until(async () => (await field('state')) === 'open' && (await field('run')) === run(2), 14000), await heist())
     await sleep(300)
     check('...announced to everyone (a cooldown that ran through a restart still counts)', /The Test Vault is open!/.test(text(B, t)), text(B, t))
     await heistSet('cooldown', 6)
@@ -273,13 +275,13 @@ module.exports = async ({ check }) => {
     setMark()
     t = await walkIn(A)
     left = Number(await field('left'))
-    check('run 2 starts with a 15 s clock', (await field('state')) === 'active' && left <= 15 && left >= 11, await heist())
+    check('the second run starts with a 15 s clock', (await field('state')) === 'active' && left <= 15 && left >= 11, await heist())
     await cmd('setblock 736 203 731 air')
     await cmd('setblock 740 206 735 air')
     const warned = await until(async () => /0:10 left/.test(text(A, t)), 8000)
     check('a warning at 10 s, none for 60 s or 30 s in a 15 s run', warned && !/1:00 left|0:30 left/.test(text(A, t)), text(A, t))
     const out = await until(async () => near(await pos(A), EXIT[0], EXIT[1]), 14000)
-    check('the clock runs out: thrown out, forfeit, waypoints back', out && /Too late/.test(text(A, t)) && logged(/forfeit HeistA \S+ ztest#2 /).length === 1 && Number(await range(A)) > 1e7, `${await pos(A)}; ${logged(/forfeit/)}`)
+    check('the clock runs out: thrown out, forfeit, waypoints back', out && /Too late/.test(text(A, t)) && logged(new RegExp(`forfeit HeistA \\S+ ztest#${run(2)} `)).length === 1 && Number(await range(A)) > 1e7, `${await pos(A)}; ${logged(/forfeit/)}`)
     const restored = await until(async () => (await isBlock(736, 203, 731, 'gold_block')) && (await isBlock(740, 206, 735, 'diamond_block')), 4000)
     check('the room resets during the cooldown (both corners of the box)', restored)
     await until(async () => (await field('reset')) === 'none', 5000)
@@ -288,7 +290,7 @@ module.exports = async ({ check }) => {
     await cmd('sk reload heists')
     await sleep(2000)
     check('/sk reload keeps the state (the counter is saved)', (await field('state')) === 'cooldown' || (await field('state')) === 'open', `${before} -> ${await heist()}`)
-    check('...and it opens again (run 3)', await until(async () => (await field('state')) === 'open' && (await field('run')) === '3', 10000), await heist())
+    check('...and it opens again (the third run)', await until(async () => (await field('state')) === 'open' && (await field('run')) === run(3), 10000), await heist())
     check('...without a second room reset (the memory was kept)', logged(/reset ztest sections=/).length === 0, logged(/reset|open/).join(' / '))
 
     // ---------- Deaths inside: death.sk uses the heist's numbers ----------
@@ -429,8 +431,13 @@ module.exports = async ({ check }) => {
     check('disabling an open heist tells everyone it\'s closed', /The Test Vault is closed\./.test(text(B, t)), text(B, t))
 
     // ---------- Delete ----------
+    const lastRun = await field('run')
     const del = await cmd(`dheist delete ${ID} confirm`)
     check('delete removes the heist, its room file and hologram (the region stays)', /rg remove/.test(del) && /unknown/.test(await heist()) && !fs.existsSync(NBT) && !fs.existsSync(HOLO), `${del}; nbt ${fs.existsSync(NBT)}; holo ${fs.existsSync(HOLO)}`)
+    await cmd(`dheist create ${ID} 3`)
+    const again = await field('run')
+    check('a heist made again keeps its run counter (an old run\'s loot or season score is never shared with a new one)', again === lastRun && Number(again) > 0, `before ${lastRun}, again ${again}`)
+    await cmd(`dheist delete ${ID} confirm`)
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     await rcon.cmd(`dheist delete ${ID} confirm`).catch(() => {})

@@ -43,6 +43,8 @@ command /zzclear <player>:
 		deleteData(arg-1, "bag-tier")
 		# Test bots skip the first-join tutorial (it blocks shops until the first bag): tutorial.js sets it.
 		setData(arg-1, "tutorial", "done")
+		# ...and the story's missions (story.js sets its own state).
+		setData(arg-1, "story", "done")
 		applyLayout(arg-1)
 		applyMapVisibility(arg-1)
 

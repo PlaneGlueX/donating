@@ -1,16 +1,19 @@
 // story.sk: the personal questline (owner, 2026-09-27: "a personal questline that helps the player do stuff instead
 // of just spam robberies (like gta)"). A player's first mission comes after the tutorial (texts from Mara, the sidebar
-// line, the GPS leading to Mara); talking to her in person plays her lines and completes it (a Daily key); a state
-// mission (a gun) completes as soon as it's true; event missions count only while active (money sold, distinct
-// heists, contract tiers); a mission the map can't do is skipped with one line; a mission already done is skipped
-// (veterans); a chapter's end pays money, XP and a tool (cash when the level is too low); /missions shows it; staff only.
+// line, the GPS leading to Mara, a pin set meanwhile staying in front); talking to her in person plays her lines
+// and completes it; a state mission (a gun) completes as soon as it's true, with the MISSION PASSED title even
+// without a reward; selling the first loot gives the Daily key; event missions count only while active (money sold,
+// distinct heists, contract tiers); a mission the map can't do is skipped with one line, and one whose content goes
+// missing only after a grace period; a mission already done is skipped (veterans); a chapter's end pays money, XP and
+// a tool (cash when the level is too low); without Mara on the map a talk mission waits for a call from /missions;
+// /missions shows it; staff only.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
 const A = 'StoryA'
 const B = 'StoryB'
 const Y = 200
-const CHUNKS = '2190 2190 2220 2220'
+const CHUNKS = '2190 2190 2295 2220'
 const PLATFORM = `2190 ${Y - 1} 2190 2220 ${Y - 1} 2220`
 const FAR = '0.5 68 -656.5'
 const MARA = [2205.5, Y, 2205.5]
@@ -20,6 +23,9 @@ module.exports = async ({ check }) => {
   const cmd = async c => (await rcon.cmd(c)).trim()
   const bots = {}
   let giverN = ''
+  let ctGiver = ''
+  let spotN = ''
+  let chopN = ''
   try {
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const until = async (fn, ms = 5000) => {
@@ -42,6 +48,8 @@ module.exports = async ({ check }) => {
 
     // ---------- Setup ----------
     await cmd('zzcfgreload')
+    await cmd('zzcfgtext story::c2_bank::needs story')
+    await cmd('zzcfgtext story::c3_spread::needs story')
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} glass`)
     for (const name of [A, B]) {
@@ -57,6 +65,10 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${B} ${MARA[0] + 2} ${Y} ${MARA[2] + 3}`)
     const r = await cmd(`dquest addat story ${MARA.join(' ')} 90 Safehouse`)
     giverN = (r.match(/giver (\d+) \(story\) added/) || [])[1] || ''
+    // Car contracts on the map (the Scrap Yard missions need a giver, a car spot and a chop shop).
+    ctGiver = ((await cmd(`dquest addat contracts 2195.5 ${Y} 2195.5 0 Test Yard`)).match(/giver (\d+) \(contracts\) added/) || [])[1] || ''
+    spotN = ((await cmd(`dcontract spot addat 2215.5 ${Y} 2215.5 90`)).match(/spot (\d+) added/) || [])[1] || ''
+    chopN = ((await cmd(`dcontract chop addat 2290.5 ${Y} 2215.5`)).match(/chop (\d+) added/) || [])[1] || ''
     await sleep(1500)
 
     // ---------- The first mission ----------
@@ -68,6 +80,18 @@ module.exports = async ({ check }) => {
     await until(async () => /active=quest/.test(await cmd(`dphone gps ${A}`)), 4000)
     const g = await cmd(`dphone gps ${A}`)
     check('the GPS leads to Mara', /active=quest/.test(g) && /label=Meet_Mara/.test(g) && /target=2205\.5,200/.test(g), g)
+    await cmd(`gpspick ${A} 2212 2190 2`)
+    await sleep(500)
+    const pinned = await cmd(`dphone gps ${A}`)
+    t = Date.now()
+    await cmd(`zzbagadd ${A} zh#9 500`)
+    await sleep(1600)
+    await cmd(`zzbagadd ${A} zh#9 0`)
+    await sleep(1600)
+    const back = await cmd(`dphone gps ${A}`)
+    check('a pin set meanwhile stays in front when the mission\'s target comes back (after carrying loot)', /active=pin/.test(pinned) && /active=pin/.test(back) && !/New objective/.test(text(A, t)), `${pinned} | ${back} | ${text(A, t).slice(0, 200)}`)
+    bots[A].chat('/gps clear')
+    await sleep(600)
     // Talking to her in person: her lines, 2 s apart, then the mission is done.
     const e = Object.values(bots[A].entities).find(x => x.name === 'mannequin' && x.position.distanceTo(new (require('vec3').Vec3)(...MARA)) < 1)
     t = Date.now()
@@ -76,12 +100,21 @@ module.exports = async ({ check }) => {
     const early = await id(A)
     await until(async () => (await id(A)) !== 'c1_meet', 9000)
     const lines = text(A, t)
-    check('talking to Mara in person plays her lines (not all at once), then the mission is done: a Daily key', early === 'c1_meet' && /So you're the new face/.test(lines) && /First, get yourself armed/.test(lines) && /Mission passed: Meet Mara/.test(lines) && /keys=\S*daily=1|daily=1/.test(await cmd(`dcrate info ${A}`)), `early=${early} ${lines.slice(0, 500)} | ${await cmd(`dcrate info ${A}`)}`)
+    check('talking to Mara in person plays her lines (not all at once), then the mission is done (no "<none>")', early === 'c1_meet' && /So you're the new face/.test(lines) && /First, get yourself armed/.test(lines) && /Mission passed: Meet Mara/.test(lines) && !/<none>/.test(lines), `early=${early} ${lines.slice(0, 500)}`)
     check('the next mission arrives as a text (Buy a gun)', (await id(A)) === 'c1_gun' && /Gun Shop/.test(text(A, t)), `${await info(A)} ${text(A, t).slice(-200)}`)
     t = Date.now()
     await cmd(`dshop unlock ${A} 50_GS`)
     await until(async () => (await id(A)) !== 'c1_gun', 4000)
     check('a state mission (own a gun) completes as soon as it\'s true', (await id(A)) !== 'c1_gun' && /Mission passed: Buy a gun/.test(text(A, t)), `${await info(A)} ${text(A, t).slice(0, 300)}`)
+    await until(async () => /MISSION PASSED/.test(text(A, t)), 3000)
+    check('...with the MISSION PASSED title although it has no reward (and no "<none>")', /MISSION PASSED/.test(text(A, t)) && !/<none>/.test(text(A, t)), text(A, t).slice(0, 400))
+    await set(A, 'c1_sell')
+    const k0 = await cmd(`dcrate info ${A}`)
+    t = Date.now()
+    await ev(A, 'sell', 500, 'zh#3')
+    await until(async () => (await id(A)) !== 'c1_sell', 4000)
+    const k1 = await cmd(`dcrate info ${A}`)
+    check('selling the first loot gives the Daily key (for the crate mission right after)', !/daily=1/.test(k0) && /daily=1/.test(k1) && /Mission passed: Sell your loot/.test(text(A, t)), `${k0} | ${k1} | ${text(A, t).slice(0, 300)}`)
 
     // ---------- Counting ----------
     await set(A, 'c2_bank')
@@ -114,6 +147,19 @@ module.exports = async ({ check }) => {
     await set(A, 'c5_finale')
     const afterFinale = await id(A)
     check('a mission the map can\'t do (no advanced difficulty-4 heist with a safe and a vault) is skipped with one line', afterFinale !== 'c5_finale' && /That job fell through/.test(text(A, t)), `${afterFinale} ${text(A, t)}`)
+    await set(A, 'c2_bank')
+    await cmd('zzcfgset story::needs-check 1')
+    await cmd('zzcfgset story::needs-grace 4')
+    await cmd('zzcfgtext story::c2_bank::needs finale')
+    t = Date.now()
+    await sleep(2500)
+    const waiting = await id(A)
+    await until(async () => (await id(A)) !== 'c2_bank', 9000)
+    const gone = Date.now() - t
+    check('a mission whose content goes missing waits out the grace period, then is skipped', waiting === 'c2_bank' && (await id(A)) !== 'c2_bank' && gone >= 3500 && /That job fell through/.test(text(A, t)), `waiting=${waiting} after=${gone}ms ${await info(A)}`)
+    await cmd('zzcfgset story::needs-check 30')
+    await cmd('zzcfgset story::needs-grace 900')
+    await cmd('zzcfgtext story::c2_bank::needs story')
     t = Date.now()
     await set(A, 'c1_gun')
     const vet = await id(A)
@@ -146,13 +192,27 @@ module.exports = async ({ check }) => {
     bots[B].chat(`/dstory info ${A}`)
     await sleep(800)
     check('/dstory is staff only', /Staff only/.test(text(B, t)), text(B, t))
-    await cmd(`zzdata ${B} story none`)
+    await cmd(`dquest remove ${giverN}`)
+    giverN = ''
+    t = Date.now()
+    await set(A, 'c2_end')
+    await sleep(1500)
+    o = windowOpen(bots[A])
+    bots[A].chat('/missions')
+    const w2 = await o
+    await sleep(300)
+    check('without Mara on the map a talk mission stays (not skipped), says how to call her, and /missions has Call Mara', (await id(A)) === 'c2_end' && /call her from/.test(text(A, t)) && w2 && /Call Mara/.test(itemText(w2.slots[22])), `${await info(A)} ${text(A, t).slice(0, 300)} | ${itemText(w2 && w2.slots[22]).slice(0, 120)}`)
+    if (bots[A].currentWindow) bots[A].closeWindow(bots[A].currentWindow)
     await cmd(`zzdatatext ${B} tutorial bag`)
+    await cmd(`zzdata ${B} story none`)
     await sleep(7000)
     check('no story while the tutorial still runs (no bag yet)', (await id(B)) === '' || (await id(B)) === '<none>', await info(B))
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     if (giverN) await rcon.cmd(`dquest remove ${giverN}`).catch(() => {})
+    if (ctGiver) await rcon.cmd(`dquest remove ${ctGiver}`).catch(() => {})
+    if (spotN) await rcon.cmd(`dcontract spot remove ${spotN}`).catch(() => {})
+    if (chopN) await rcon.cmd(`dcontract chop remove ${chopN}`).catch(() => {})
     for (const name of [A, B]) {
       await rcon.cmd(`zzclear ${name}`).catch(() => {})
       await rcon.cmd(`zzdata ${name} keys::daily none`).catch(() => {})

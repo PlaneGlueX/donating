@@ -12,6 +12,8 @@
 #   getaway   heists.sk heistRelease with reason "range": a hunted robber lost the cops (detail = heist;
 #             seasons.sk decides whether it counts)
 #   contract  contracts.sk ctDeliver: a car delivered (n = the pay, detail = the tier)
+#   crate     crates.sk crateFinish: a crate opened (detail = the crate)
+#   talk      quests.sk questOpen: the player opened a quest giver in person (detail = its kind)
 # Lifetime counters (saved per player, for later career pages): data life::crack, life::drill, life::getaway,
 # life::contract.
 
@@ -26,3 +28,4 @@ function progEvent(p: player, ev: text, n: number, detail: text):
 			set {_life} to 0
 		setData({_p}, "life::%{_ev}%", {_life} + 1)
 	seasonEvent({_p}, {_ev}, {_n}, {_detail})
+	storyEvent({_p}, {_ev}, {_n}, {_detail})
