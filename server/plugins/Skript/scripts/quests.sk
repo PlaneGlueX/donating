@@ -214,9 +214,14 @@ function questOpen(p: player, n: text):
 		if difference between {-quest::openat::%{_p}%} and now < 0.25 seconds:
 			stop
 	set {-quest::openat::%{_p}%} to now
+	# Talking to a giver in person counts for the story (progress.sk).
+	progEvent({_p}, "talk", 1, {_k})
 	if {_k} is "contracts":
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.8 to {_p}
 		ctMenu({_p})
+	else if {_k} is "story":
+		play sound "entity.villager.ambient" with volume 0.6 and pitch 1.1 to {_p}
+		storyTalk({_p}, {_n})
 	else:
 		msg({_p}, "&7Nothing to do here yet.")
 

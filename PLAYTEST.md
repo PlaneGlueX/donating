@@ -337,6 +337,11 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
 123. **Seasons in the real client** (cu): the sidebar's season line, /lb's heads and tabs, a leaderboard hologram, the milestone and prize messages.
     - Result: TODO
 
+124. **Mara's missions** (`bots\run.js story`, 20 checks): after the tutorial the first mission starts with a text from Mara and the sidebar line; the GPS leads to Mara; a pin set meanwhile stays in front when the mission's target comes back after carrying loot; talking to her plays her lines one by one and then the mission is done; the next mission arrives as a text; a state mission (a gun) completes as soon as it's true, with the MISSION PASSED title although it has no reward; selling the first loot gives the Daily key; a mission whose content goes missing waits out the grace period, then is skipped; an event mission counts while active ($4,000/$10,000 shown) and completes at $10,000; "Rob 3 different heists" counts heists, not pieces; "Deliver a Pro job" ignores a Street job; a mission the map can't do is skipped with one line; a mission already done is skipped at once with a "Skipping ahead" line and no reward; Report to Mara pays $1,000, 25 XP and the Safe Kit (as cash below its level), then MISSION PASSED; /missions shows the mission, its chapter and progress, and the five chapters; /dstory is staff only; without Mara on the map a talk mission stays, says how to call her, and /missions has Call Mara; no story while the tutorial still runs.
+    - Result: PASS (2026-09-27).
+125. **Mara in the real client** (cu): her texts, the sidebar line, the MISSION boss bar with the GPS, talking to her, MISSION PASSED.
+    - Result: TODO
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

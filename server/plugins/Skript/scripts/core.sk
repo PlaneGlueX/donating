@@ -199,13 +199,226 @@ function loadSettings():
 	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
 	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
 	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
-	set {-cfg::quests::*} to "contracts"
+	set {-cfg::quests::*} to "contracts" and "story"
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
 	set {-cfg::quest::contracts::hold} to "flint"
 	set {-cfg::quest::contracts::hold-model} to "donating:lockpick_basic"
+	set {-cfg::quest::story::name} to "Missions"
+	set {-cfg::quest::story::npc} to "Mara"
+	set {-cfg::quest::story::place} to "Safehouse"
+	set {-cfg::quest::story::hold} to "paper"
 	set {-cfg::quest::reach} to 6
+
+	# ---------- The story (story.sk): PROPOSAL texts, names and rewards ----------
+	# Owner, 2026-09-27: a personal questline, like GTA. Mara (a quest giver of the kind "story") runs the player
+	# through the game in five chapters. Per mission: chapter, from (the contact), label, obj, gps (story, contracts,
+	# crate, heist[:safe|drill|adv|d4|finale|new], poi:shop:<word in the shop POI's name>), needs (what the map must
+	# have, else it's skipped), brief (the text when it starts), done (the line when it's done), talk (Mara's lines
+	# in person, for talk|story), rewards. Never delete a mission id: set story::<id>::retired true instead.
+	# needs: heist, heist3 (3 heists the player can enter), safe, drill, adv, d4, finale, contracts, crate. Talk
+	# missions have none: without Mara on the map, /missions has a Call Mara button.
+	# A mission whose needs go missing (a heist disabled for a rebuild) is checked every needs-check seconds and
+	# only skipped after needs-grace seconds in a row.
+	set {-cfg::story::needs-check} to 30
+	set {-cfg::story::needs-grace} to 900
+	set {-cfg::story::chapters::*} to 1, 2, 3, 4 and 5
+	set {-cfg::story::chapter::1::name} to "Fresh Start"
+	set {-cfg::story::chapter::2::name} to "Tools of the Trade"
+	set {-cfg::story::chapter::3::name} to "Heavy Metal"
+	set {-cfg::story::chapter::4::name} to "Heat"
+	set {-cfg::story::chapter::5::name} to "The Big Score"
+	set {-cfg::story::missions::*} to "c1_meet", "c1_gun", "c1_rob", "c1_sell", "c1_crate", "c1_level", "c1_end", "c2_safe", "c2_yard", "c2_street", "c2_duffel", "c2_bank", "c2_level", "c2_end", "c3_vest", "c3_drill", "c3_spread", "c3_car", "c3_level", "c3_end", "c4_getaway", "c4_pro", "c4_big", "c4_level", "c4_end", "c5_finale", "c5_level", "c5_master" and "c5_end"
+	set {-cfg::story::c1_meet::chapter} to 1
+	set {-cfg::story::c1_meet::label} to "Meet Mara at the Safehouse"
+	set {-cfg::story::c1_meet::obj} to "talk|story"
+	set {-cfg::story::c1_meet::gps} to "story"
+	set {-cfg::story::c1_meet::brief} to "New in town? I've got work for someone with nerve. Come see me at the Safehouse."
+	set {-cfg::story::c1_meet::talk::*} to "So you're the new face.", "This city runs on heists: banks, jewelers, vaults. All waiting." and "First, get yourself armed. The Gun Shop's on your GPS."
+	set {-cfg::story::c1_gun::chapter} to 1
+	set {-cfg::story::c1_gun::label} to "Buy a gun"
+	set {-cfg::story::c1_gun::obj} to "state|gun"
+	set {-cfg::story::c1_gun::gps} to "poi:shop:Gun"
+	set {-cfg::story::c1_gun::brief} to "Pick up a piece at the Gun Shop. The .50 GS is cheap and does the job."
+	set {-cfg::story::c1_gun::done} to "Nice. Now let's put it to use."
+	set {-cfg::story::c1_rob::chapter} to 1
+	set {-cfg::story::c1_rob::label} to "Rob a heist"
+	set {-cfg::story::c1_rob::obj} to "ev|rob|1"
+	set {-cfg::story::c1_rob::gps} to "heist"
+	set {-cfg::story::c1_rob::needs} to "heist"
+	set {-cfg::story::c1_rob::brief} to "There's an open heist on your GPS. Grab what you can and watch for traps."
+	set {-cfg::story::c1_rob::done} to "That's the spirit. Now get out of there."
+	set {-cfg::story::c1_sell::chapter} to 1
+	set {-cfg::story::c1_sell::label} to "Sell your loot at the base"
+	set {-cfg::story::c1_sell::obj} to "ev|sell|1"
+	set {-cfg::story::c1_sell::brief} to "Loot's worth nothing in a bag. Take it to the base: your GPS knows the way."
+	set {-cfg::story::c1_sell::done} to "Cash in hand. Feels good, huh? Here's a crate key for your trouble."
+	set {-cfg::story::c1_sell::rewards::*} to "key|daily|1"
+	set {-cfg::story::c1_crate::chapter} to 1
+	set {-cfg::story::c1_crate::label} to "Open a crate at a crate stand"
+	set {-cfg::story::c1_crate::obj} to "ev|crate|1"
+	set {-cfg::story::c1_crate::gps} to "crate"
+	set {-cfg::story::c1_crate::needs} to "crate"
+	set {-cfg::story::c1_crate::brief} to "Use that key at a crate stand. And grab /daily every day: free keys."
+	set {-cfg::story::c1_crate::done} to "Lucky you."
+	set {-cfg::story::c1_level::chapter} to 1
+	set {-cfg::story::c1_level::label} to "Reach level 1"
+	set {-cfg::story::c1_level::obj} to "state|level|1"
+	set {-cfg::story::c1_level::gps} to "heist"
+	set {-cfg::story::c1_level::brief} to "Keep robbing and selling. Level 1 opens the Safe Kit."
+	set {-cfg::story::c1_end::chapter} to 1
+	set {-cfg::story::c1_end::label} to "Report to Mara"
+	set {-cfg::story::c1_end::obj} to "talk|story"
+	set {-cfg::story::c1_end::gps} to "story"
+	set {-cfg::story::c1_end::brief} to "Level 1 already? Come by the Safehouse. I've got something for you."
+	set {-cfg::story::c1_end::talk::*} to "You've got talent. Most rookies don't make it this far." and "Safes hold the good stuff. Here's a Safe Kit: guess the code, green means right."
+	set {-cfg::story::c1_end::rewards::*} to "money|1000", "xp|25" and "tool|safe-kit|1"
+	set {-cfg::story::c2_safe::chapter} to 2
+	set {-cfg::story::c2_safe::label} to "Crack a safe"
+	set {-cfg::story::c2_safe::obj} to "ev|crack|1"
+	set {-cfg::story::c2_safe::gps} to "heist:safe"
+	set {-cfg::story::c2_safe::needs} to "safe"
+	set {-cfg::story::c2_safe::brief} to "Find a heist with a safe and crack it. Yellow means the digit's in the code, somewhere else."
+	set {-cfg::story::c2_safe::done} to "Smooth. You're a natural."
+	set {-cfg::story::c2_yard::chapter} to 2
+	set {-cfg::story::c2_yard::label} to "Meet the Scrap Yard Boss"
+	set {-cfg::story::c2_yard::obj} to "talk|contracts"
+	set {-cfg::story::c2_yard::gps} to "contracts"
+	set {-cfg::story::c2_yard::needs} to "contracts"
+	set {-cfg::story::c2_yard::brief} to "A friend at the Scrap Yard needs drivers. Tell him I sent you."
+	set {-cfg::story::c2_yard::done} to "Mara sent you? First pick's on me."
+	set {-cfg::story::c2_yard::from} to "Boss"
+	set {-cfg::story::c2_yard::rewards::*} to "lockpick|basic|1"
+	set {-cfg::story::c2_street::chapter} to 2
+	set {-cfg::story::c2_street::label} to "Deliver a Street job"
+	set {-cfg::story::c2_street::obj} to "ev|contract|1"
+	set {-cfg::story::c2_street::needs} to "contracts"
+	set {-cfg::story::c2_street::from} to "Boss"
+	set {-cfg::story::c2_street::brief} to "Take a Street job, pick the lock, and bring the car to a chop shop."
+	set {-cfg::story::c2_street::done} to "Clean work. Come back any time."
+	set {-cfg::story::c2_duffel::chapter} to 2
+	set {-cfg::story::c2_duffel::label} to "Get a Duffel Bag"
+	set {-cfg::story::c2_duffel::obj} to "state|bagbest|2"
+	set {-cfg::story::c2_duffel::gps} to "poi:shop:Bag"
+	set {-cfg::story::c2_duffel::brief} to "That Gym Bag won't cut it. Get a Duffel Bag at the Bag Shop."
+	set {-cfg::story::c2_duffel::done} to "Now you can carry a real haul."
+	set {-cfg::story::c2_bank::chapter} to 2
+	set {-cfg::story::c2_bank::label} to "Sell $10,000 of loot"
+	set {-cfg::story::c2_bank::obj} to "ev|sell|10000"
+	set {-cfg::story::c2_bank::gps} to "heist"
+	set {-cfg::story::c2_bank::needs} to "heist"
+	set {-cfg::story::c2_bank::brief} to "Fill that new bag. Bank $10,000 from heists."
+	set {-cfg::story::c2_bank::done} to "Ten grand. You're making a name."
+	set {-cfg::story::c2_level::chapter} to 2
+	set {-cfg::story::c2_level::label} to "Reach level 2"
+	set {-cfg::story::c2_level::obj} to "state|level|2"
+	set {-cfg::story::c2_level::gps} to "heist"
+	set {-cfg::story::c2_level::brief} to "Level 2 opens the Drill and harder heists. Keep at it."
+	set {-cfg::story::c2_end::chapter} to 2
+	set {-cfg::story::c2_end::label} to "Report to Mara"
+	set {-cfg::story::c2_end::obj} to "talk|story"
+	set {-cfg::story::c2_end::gps} to "story"
+	set {-cfg::story::c2_end::brief} to "Come see me. It's time you learned about vaults."
+	set {-cfg::story::c2_end::talk::*} to "You're moving up. People are starting to talk." and "Vault doors need a Drill. Here's one: when it jams, fix it fast."
+	set {-cfg::story::c2_end::rewards::*} to "money|3000", "xp|75" and "tool|drill|1"
+	set {-cfg::story::c3_vest::chapter} to 3
+	set {-cfg::story::c3_vest::label} to "Wear a vest"
+	set {-cfg::story::c3_vest::obj} to "state|vest"
+	set {-cfg::story::c3_vest::gps} to "poi:shop:Gear"
+	set {-cfg::story::c3_vest::brief} to "The bigger jobs have cops. Get a vest at the Gear Shop."
+	set {-cfg::story::c3_vest::done} to "Better safe than dead."
+	set {-cfg::story::c3_drill::chapter} to 3
+	set {-cfg::story::c3_drill::label} to "Drill a vault"
+	set {-cfg::story::c3_drill::obj} to "ev|drill|1"
+	set {-cfg::story::c3_drill::gps} to "heist:drill"
+	set {-cfg::story::c3_drill::needs} to "drill"
+	set {-cfg::story::c3_drill::brief} to "Mount the Drill on a vault door and stay close. When it jams, fix it."
+	set {-cfg::story::c3_drill::done} to "The vault's yours. That's how it's done."
+	set {-cfg::story::c3_spread::chapter} to 3
+	set {-cfg::story::c3_spread::label} to "Rob 3 different heists"
+	set {-cfg::story::c3_spread::obj} to "ev|rob|3|distinct"
+	set {-cfg::story::c3_spread::gps} to "heist:new"
+	set {-cfg::story::c3_spread::needs} to "heist3"
+	set {-cfg::story::c3_spread::brief} to "Don't be predictable. Hit 3 different places."
+	set {-cfg::story::c3_spread::done} to "Nobody saw that coming."
+	set {-cfg::story::c3_car::chapter} to 3
+	set {-cfg::story::c3_car::label} to "Buy a car"
+	set {-cfg::story::c3_car::obj} to "state|car"
+	set {-cfg::story::c3_car::gps} to "poi:shop:Car"
+	set {-cfg::story::c3_car::brief} to "Every crew needs wheels. The Car Dealer has what you need."
+	set {-cfg::story::c3_car::done} to "Nice ride. Now you can outrun them."
+	set {-cfg::story::c3_level::chapter} to 3
+	set {-cfg::story::c3_level::label} to "Reach level 3"
+	set {-cfg::story::c3_level::obj} to "state|level|3"
+	set {-cfg::story::c3_level::gps} to "heist"
+	set {-cfg::story::c3_level::brief} to "Level 3 opens the big heists. The ones with alarms."
+	set {-cfg::story::c3_end::chapter} to 3
+	set {-cfg::story::c3_end::label} to "Report to Mara"
+	set {-cfg::story::c3_end::obj} to "talk|story"
+	set {-cfg::story::c3_end::gps} to "story"
+	set {-cfg::story::c3_end::brief} to "Get over here. The big leagues are calling."
+	set {-cfg::story::c3_end::talk::*} to "A car, a drill, a record. Look at you." and "The big jobs have alarms. The cops come in waves. These Stims will keep you standing."
+	set {-cfg::story::c3_end::rewards::*} to "money|7500", "xp|200" and "con|Stim|3"
+	set {-cfg::story::c4_getaway::chapter} to 4
+	set {-cfg::story::c4_getaway::label} to "Get away from the cops with loot"
+	set {-cfg::story::c4_getaway::obj} to "ev|getaway|1"
+	set {-cfg::story::c4_getaway::gps} to "heist:adv"
+	set {-cfg::story::c4_getaway::needs} to "adv"
+	set {-cfg::story::c4_getaway::brief} to "Trip an alarm and they come in waves. Get out with the loot and lose them. A car helps."
+	set {-cfg::story::c4_getaway::done} to "You lost them? Ha! I knew you had it in you."
+	set {-cfg::story::c4_pro::chapter} to 4
+	set {-cfg::story::c4_pro::label} to "Deliver a Pro job"
+	set {-cfg::story::c4_pro::obj} to "ev|contract|1|pro+"
+	set {-cfg::story::c4_pro::needs} to "contracts"
+	set {-cfg::story::c4_pro::from} to "Boss"
+	set {-cfg::story::c4_pro::brief} to "Pro jobs pay better. Faster cars, harder locks. You up for it?"
+	set {-cfg::story::c4_pro::done} to "Now that's a car. Nice work."
+	set {-cfg::story::c4_big::chapter} to 4
+	set {-cfg::story::c4_big::label} to "Sell $10,000 from difficulty-4 heists"
+	set {-cfg::story::c4_big::obj} to "ev|sell|10000|d4"
+	set {-cfg::story::c4_big::gps} to "heist:d4"
+	set {-cfg::story::c4_big::needs} to "d4"
+	set {-cfg::story::c4_big::brief} to "The big banks. Bring back $10,000 from the hardest heists."
+	set {-cfg::story::c4_big::done} to "That's serious money."
+	set {-cfg::story::c4_level::chapter} to 4
+	set {-cfg::story::c4_level::label} to "Reach level 4"
+	set {-cfg::story::c4_level::obj} to "state|level|4"
+	set {-cfg::story::c4_level::gps} to "heist"
+	set {-cfg::story::c4_level::brief} to "Keep climbing. Level 4 and we talk about the big score."
+	set {-cfg::story::c4_end::chapter} to 4
+	set {-cfg::story::c4_end::label} to "Report to Mara"
+	set {-cfg::story::c4_end::obj} to "talk|story"
+	set {-cfg::story::c4_end::gps} to "story"
+	set {-cfg::story::c4_end::brief} to "It's time. Come to the Safehouse."
+	set {-cfg::story::c4_end::talk::*} to "One more job. The biggest this city has seen." and "A safe, a vault, and out past the cops. All in one run."
+	set {-cfg::story::c4_end::rewards::*} to "money|15000", "xp|500" and "key|season|1"
+	set {-cfg::story::c5_finale::chapter} to 5
+	set {-cfg::story::c5_finale::label} to "The Big Score"
+	set {-cfg::story::c5_finale::obj} to "combo|d4"
+	set {-cfg::story::c5_finale::gps} to "heist:finale"
+	set {-cfg::story::c5_finale::needs} to "finale"
+	set {-cfg::story::c5_finale::brief} to "This is it. One run of a difficulty-4 heist: crack the safe, drill the vault, and get away from the cops with the loot."
+	set {-cfg::story::c5_finale::done} to "You actually did it. Unbelievable."
+	set {-cfg::story::c5_level::chapter} to 5
+	set {-cfg::story::c5_level::label} to "Reach level 5"
+	set {-cfg::story::c5_level::obj} to "state|level|5"
+	set {-cfg::story::c5_level::gps} to "heist"
+	set {-cfg::story::c5_level::brief} to "Level 5. Then the Boss has one last job for you."
+	set {-cfg::story::c5_master::chapter} to 5
+	set {-cfg::story::c5_master::label} to "Deliver a Master job"
+	set {-cfg::story::c5_master::obj} to "ev|contract|1|master"
+	set {-cfg::story::c5_master::needs} to "contracts"
+	set {-cfg::story::c5_master::from} to "Boss"
+	set {-cfg::story::c5_master::brief} to "The best cars in the city. Bring me one."
+	set {-cfg::story::c5_master::done} to "Mara was right about you."
+	set {-cfg::story::c5_end::chapter} to 5
+	set {-cfg::story::c5_end::label} to "Report to Mara"
+	set {-cfg::story::c5_end::obj} to "talk|story"
+	set {-cfg::story::c5_end::gps} to "story"
+	set {-cfg::story::c5_end::brief} to "Come by. We need to talk about your future."
+	set {-cfg::story::c5_end::talk::*} to "Everyone in this city knows your name now." and "You're Made. The city is yours. I'll call when I need you."
+	set {-cfg::story::c5_end::rewards::*} to "money|25000", "cos|story_made" and "key|season|2"
 
 	# ---------- Seasons (seasons.sk): PROPOSAL numbers ----------
 	# Owner, 2026-09-27: seasons, three leaderboards with different metrics, prizes for the top; earned titles
@@ -757,6 +970,8 @@ function loadSettings():
 	# Season titles (seasons.sk: bound, never in crates) and the Season crate's name and color.
 	set {-cfg::rarity::season::name} to "Season"
 	set {-cfg::rarity::season::color} to "&b"
+	set {-cfg::rarity::story::name} to "Story"
+	set {-cfg::rarity::story::color} to "&d"
 	# Crates, in menu order (all of them always show in /crates; owner, 2026-09-26). sold = Tebex sells
 	# its keys.
 	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "hacked" and "season"
@@ -992,6 +1207,12 @@ function loadSettings():
 		set {-cfg::cos::%loop-index%::rarity} to {_sc::3}
 		set {-cfg::cos::%loop-index%::bound} to true
 		add loop-index to {-cfg::cosmetics::*}
+	# The story's title (story.sk: bound, only for finishing Mara's chapters).
+	set {-cfg::cos::story_made::type} to "title"
+	set {-cfg::cos::story_made::name} to "Made"
+	set {-cfg::cos::story_made::rarity} to "story"
+	set {-cfg::cos::story_made::bound} to true
+	add "story_made" to {-cfg::cosmetics::*}
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script

@@ -91,6 +91,8 @@ function hudBossSet(p: player, title: text, color: text, progress: number):
 			set color of {_b} to yellow
 		else if {_color} is "green":
 			set color of {_b} to green
+		else if {_color} is "purple":
+			set color of {_b} to purple
 		else:
 			set color of {_b} to white
 	set {_last} to {-hud::bosslast::%{_p}%::progress}
@@ -157,6 +159,9 @@ function hudBoss(p: player):
 		stop
 	# The GPS (gps.sk): a pin, or the base while carrying loot.
 	if gpsHud({_p}) is true:
+		stop
+	# A mission's target on the GPS (story.sk).
+	if storyHud({_p}) is true:
 		stop
 	hudBossOff({_p})
 

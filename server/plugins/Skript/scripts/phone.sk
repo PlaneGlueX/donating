@@ -85,6 +85,7 @@ function openPhone(p: player):
 	set slot 9 of {_gui} to tagItem({_jobs}, "phone:contracts")
 	set slot 4 of {_gui} to tagItem(compass named "&bGPS" with lore "&7Pin a place and follow the way" and "&7along the roads (it finds a new one" and "&7if you take another street)." and "&7Or left-click the big map.", "phone:gps")
 	set slot 2 of {_gui} to tagItem(nether star named "&6Season" with lore "&7Three leaderboards: Top Earners," and "&7Master Thieves, Wheelmen. The top 10" and "&7of each win titles, money and keys.", "phone:season")
+	set slot 6 of {_gui} to tagItem(writable book named "&dMissions" with lore "&7Mara's jobs: your next step" and "&7through the city, one at a time.", "phone:missions")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
@@ -154,6 +155,9 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 2:
 		close {_p}'s inventory
 		lbOpen({_p}, "")
+	else if {_slot} is 6:
+		close {_p}'s inventory
+		storyMenu({_p})
 	else if {_slot} is 21:
 		close {_p}'s inventory
 		showBounties({_p})

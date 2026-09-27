@@ -113,6 +113,7 @@ scoreboard:
         - "&7Heists open: &f%donating_heists_open% &7/heists"
         - "&7Daily: %donating_daily%"
         - "%donating_season%"
+        - "%donating_mission%"
         - "%donating_wanted%"
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout

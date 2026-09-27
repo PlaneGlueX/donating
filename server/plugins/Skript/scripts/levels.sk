@@ -130,6 +130,9 @@ function levelAddXp(p: player, xp: number, why: text) :: number:
 function levelBoosted(p: player, xp: number, why: text) :: number:
 	if {_why} is "staff":
 		return {_xp}
+	# A mission's reward (story.sk) is a fixed amount.
+	if {_why} is "story":
+		return {_xp}
 	return floor({_xp} * boosterForKind({_p}, "xp"))
 
 function levelUp(p: player, old: number, new: number):
