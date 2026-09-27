@@ -80,6 +80,18 @@ function bagItem(tier: number, loot: number = 0, skin: text = "", capacity: numb
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to {_model}
 	return tagItem({_i}, "bag:%{_tier}%")
 
+# No bag, loot in the hands (owner, 2026-09-27): a cash stack in the offhand where the bag would be (the pack's
+# cash sprite). Looks only: it can't be used, moved or dropped (the locks), like the bag.
+function handsItem(loot: number, capacity: number) :: item:
+	set {_pct} to 0
+	if {_capacity} > 0:
+		set {_pct} to min(99, floor(100 * {_loot} / {_capacity}))
+		if {_loot} >= {_capacity}:
+			set {_pct} to 100
+	set {_i} to paper named "&aCash in hand &7(%{_pct}%%%)" with lore "&7Loot: &f%formatMoney({_loot})% &7/ %formatMoney({_capacity})%" and "&7Sells automatically at the base" and "&7A bag holds more (bag shop)"
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:loot_cash"
+	return tagItem({_i}, "hands")
+
 # Puts the phone and the owned bag in their slots. Run on join, respawn, and after anything that
 # resets the inventory. Overwrites slots 8 and 40, and closes the phone's big map.
 function applyLayout(p: player):
@@ -98,6 +110,11 @@ function applyBag(p: player):
 			set offhand tool of {_p} to bagItem({_tier}, bagTotal({_p}), {_skin}, {_cap})
 			set {-bag::shown::%{_p}%} to "%{_tier}%:%bagTotal({_p})%:%{_skin}%:%{_cap}%"
 			stop
+	# No bag: the cash in the hands, if any (bag.sk).
+	set {-bag::shown::%{_p}%} to "hands:%bagTotal({_p})%"
+	if bagTotal({_p}) > 0:
+		set offhand tool of {_p} to handsItem(bagTotal({_p}), bagCapacity({_p}))
+		stop
 	set offhand tool of {_p} to air
 
 on join:
@@ -255,6 +272,12 @@ function repairLayout(p: player):
 					swapSlots({_p}, {_at}, 40)
 				else if offhand tool of {_p} is air:
 					# Like applyBag: the rank's skin and real capacity, and the redraw key.
+					applyBag({_p})
+	else:
+		# No bag: loot in the hands shows as cash in the offhand.
+		if bagTotal({_p}) > 0:
+			if itemId(offhand tool of {_p}) is not "hands":
+				if offhand tool of {_p} is air:
 					applyBag({_p})
 
 on inventory slot change:

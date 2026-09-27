@@ -105,6 +105,12 @@ function heistIsAdvanced(h: text) :: boolean:
 		return true
 	return false
 
+# A store (difficulty 0): no escape clock; it closes when cleaned out or left empty (see heistTick).
+function heistIsStore(h: text) :: boolean:
+	if heistDifficulty({_h}) is 0:
+		return true
+	return false
+
 # PvP heist: no crew rule inside, and passive players can't enter.
 function heistIsPvp(h: text) :: boolean:
 	if heistSetting({_h}, "pvp-only") is true:
@@ -277,9 +283,12 @@ function heistTick(h: text):
 			set {-heist::%{_h}%::quiet-open} to true
 	set {_s} to {-heist::%{_h}%::state}
 	if {_s} is "active":
-		heistWarnings({_h})
-		if {-heist::%{_h}%::until} <= now:
-			heistEndRun({_h}, "time")
+		if heistIsStore({_h}) is true:
+			heistStoreTick({_h})
+		else:
+			heistWarnings({_h})
+			if {-heist::%{_h}%::until} <= now:
+				heistEndRun({_h}, "time")
 	else if {_s} is "cooldown":
 		if {-heist::%{_h}%::reset-next} is set:
 			heistResetStep({_h})
@@ -288,24 +297,65 @@ function heistTick(h: text):
 	heistAlarmTick({_h})
 	heistRefreshText({_h})
 
+# A running store: cleaned out -> closed after store::empty-grace (robbers keep their loot); nobody inside for
+# store::idle-close -> closed.
+function heistStoreTick(h: text):
+	if {-heist::%{_h}%::storeclose} is set:
+		if {-heist::%{_h}%::storeclose} <= now:
+			delete {-heist::%{_h}%::storeclose}
+			heistEndRun({_h}, "store")
+		stop
+	if heistRobberCount({_h}) > 0:
+		set {-heist::%{_h}%::lastin} to now
+		stop
+	if {-heist::%{_h}%::lastin} is not set:
+		set {-heist::%{_h}%::lastin} to now
+	if difference between {-heist::%{_h}%::lastin} and now >= cfg("store::idle-close"):
+		heistEndRun({_h}, "idle")
+
+# loot.sk: every pile of a running store is empty. The robbers inside get store::empty-grace to walk out.
+function heistStoreCleaned(h: text):
+	heistIsStore({_h}) is true
+	heistState({_h}) is "active"
+	{-heist::%{_h}%::storeclose} is not set
+	set {-heist::%{_h}%::storeclose} to now
+	add cfg("store::empty-grace") to {-heist::%{_h}%::storeclose}
+	set {_g} to formatClock(cfg("store::empty-grace") / 1 second)
+	heistLog("store-cleaned %{_h}% run=%heistRun({_h})%")
+	loop heistRobbers({_h}):
+		heistNotify(loop-value, "warn", "&6The %heistName({_h})% is cleaned out. &7Head out: it closes in %{_g}% (you keep your loot).")
+
 function heistOpen(h: text):
 	# The last run's chase ends here (robbers still hiding in range would otherwise hunt the new run).
 	heistEndAlarm({_h})
 	set {-heist::%{_h}%::state} to "open"
 	delete {-heist::%{_h}%::until}
 	delete {-heist::%{_h}%::warned::*}
+	delete {-heist::%{_h}%::storeclose}
+	delete {-heist::%{_h}%::lastin}
 	set {_run} to heistRun({_h}) + 1
 	set {heist::%{_h}%::run} to {_run}
 	heistLog("open %{_h}% run=%{_run}%")
 	if {-heist::%{_h}%::quiet-open} is set:
 		delete {-heist::%{_h}%::quiet-open}
 	else:
-		heistAnnounce("&aThe %heistName({_h})% is open! &7/heists")
+		if heistSetting({_h}, "announce") is not false:
+			heistAnnounce("&aThe %heistName({_h})% is open! &7/heists")
 	heistOnOpen({_h})
 
 # Starts the escape clock (first robbery, first entry with start-on "enter", or an alarm).
 function heistStartRun(h: text):
 	heistState({_h}) is "open"
+	if heistIsStore({_h}) is true:
+		# No clock: the store closes when it's cleaned out (loot.sk) or left empty (heistTick).
+		set {-heist::%{_h}%::state} to "active"
+		delete {-heist::%{_h}%::until}
+		set {-heist::%{_h}%::lastin} to now
+		heistLog("start %{_h}% run=%heistRun({_h})% store")
+		loop heistRobbers({_h}):
+			heistNotify(loop-value, "start", "&eRobbing the %heistName({_h})%: &fno clock. &7It closes once it's cleaned out.")
+		heistOnStart({_h})
+		stop
 	set {_e} to heistEscape({_h})
 	set {-heist::%{_h}%::state} to "active"
 	set {-heist::%{_h}%::until} to now
@@ -352,7 +402,8 @@ function heistEndRun(h: text, reason: text):
 	loop {_m::*}:
 		heistEvict(loop-value, {_h}, {_reason})
 	heistLog("end %{_h}% run=%heistRun({_h})% reason=%{_reason}%")
-	heistAnnounce("&7The %heistName({_h})% is closed. &7It reopens in %formatClock(heistSecondsLeft({_h}))%.")
+	if heistSetting({_h}, "announce") is not false:
+		heistAnnounce("&7The %heistName({_h})% is closed. &7It reopens in %formatClock(heistSecondsLeft({_h}))%.")
 	heistOnEnd({_h}, {_reason})
 
 function heistWarnings(h: text):
@@ -416,12 +467,19 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 		if {_s} is not "active":
 			return "The %{_name}% is closed."
 	if {_s} is "active":
-		if heistSecondsLeft({_h}) < cfg("heist::entry-cutoff") / 1 second:
+		if heistIsStore({_h}) is true:
+			if {-heist::%{_h}%::storeclose} is set:
+				return "The %{_name}% is cleaned out. It reopens soon."
+		else if heistSecondsLeft({_h}) < cfg("heist::entry-cutoff") / 1 second:
 			return "The %{_name}%'s doors are locked."
 	if heistIsPvp({_h}) is true:
 		if isPassive({_p}) is true:
 			return "The %{_name}% is a PvP heist. Turn passive mode off first (phone)."
 	if heistLevelOk({_p}, {_h}) is not true:
+		set {_max} to heistMaxLevel({_h})
+		if {_max} > 0:
+			if levelOf({_p}) > {_max}:
+				return "The %{_name}% is for new robbers (up to level %{_max}%)."
 		set {_need} to heistLevel({_h})
 		return "You need level %{_need}% (%levelName({_need})%) for the %{_name}%. /level"
 	return ""
@@ -477,7 +535,8 @@ function heistJoin(p: player, h: text):
 	if {_bag} is not set:
 		set {_bag} to 0
 	if {_bag} <= 0:
-		heistNotify({_p}, "enter", "&eYou have no bag, so you can't carry loot. Get one at a Bag Shop.")
+		set {_hands} to formatMoney(cfg("bag::hands::capacity"))
+		heistNotify({_p}, "enter", "&eNo bag: your hands carry up to %{_hands}% of loot. A bag holds more (Bag Shop).")
 	heistLog("join %name of {_p}% %{_h}% run=%heistRun({_h})%")
 	heistOnEnter({_p}, {_h})
 
@@ -515,6 +574,8 @@ function heistEvict(p: player, h: text, reason: text):
 			set {_text} to "&c&lToo late!&r &cYou were thrown out of the %{_name}% and lost %{_money}% of loot."
 		else:
 			set {_text} to "&c&lToo late!&r &cYou were thrown out of the %{_name}%."
+	else if {_reason} is "store":
+		set {_text} to "&aThe %{_name}% closed. &7You keep your loot: sell it at the base."
 	else:
 		if {_own} is true:
 			heistRelease({_p}, "staff")
@@ -871,7 +932,9 @@ function heistRefreshText(h: text):
 	set {-heist::%{_h}%::title} to "%{_color}%&l%{_name}%"
 	set {_s} to heistState({_h})
 	if {_s} is "open":
-		if cfg("heist::start-on") is "enter":
+		if heistIsStore({_h}) is true:
+			set {_status} to "&aOPEN &7· no clock"
+		else if cfg("heist::start-on") is "enter":
 			set {_status} to "&aOPEN &7· walk in to start"
 		else:
 			set {_status} to "&aOPEN &7· the clock starts at the first robbery"
@@ -881,7 +944,11 @@ function heistRefreshText(h: text):
 		set {_status} to "%{_status}%%lootLeftText({_h})%"
 	else if {_s} is "active":
 		set {_clock} to formatClock(heistSecondsLeft({_h}))
-		if {-heist::%{_h}%::alarm} is set:
+		if heistIsStore({_h}) is true:
+			set {_status} to "&eBEING ROBBED &7· no clock · %heistRobberCount({_h})% inside"
+			if {-heist::%{_h}%::storeclose} is set:
+				set {_status} to "&6CLEANED OUT &7· closing"
+		else if {-heist::%{_h}%::alarm} is set:
 			set {_status} to "&4&lALARM&r &f%{_clock}% &7· wave %heistWave({_h})%"
 		else:
 			set {_status} to "&eBEING ROBBED &f%{_clock}% &7· %heistRobberCount({_h})% inside"
@@ -900,6 +967,8 @@ function heistRefreshText(h: text):
 	set {_r} to heistLevel({_h})
 	if {_r} > 0:
 		set {_info} to "%{_info}% &7· Level %{_r}%+"
+	if heistMaxLevel({_h}) > 0:
+		set {_info} to "%{_info}% &7· up to level %heistMaxLevel({_h})%"
 	if heistIsPvp({_h}) is true:
 		set {_info} to "%{_info}% &7· &cPvP"
 	if heistIsAdvanced({_h}) is true:
@@ -1135,7 +1204,7 @@ function dheistCreate(s: command sender, h: text, d: text):
 	set {_diff} to {_d} parsed as integer
 	if {_diff} is not set:
 		set {_diff} to 1
-	if {_diff} < 1:
+	if {_diff} < 0:
 		set {_diff} to 1
 	if {_diff} > 4:
 		set {_diff} to 4
@@ -1193,8 +1262,8 @@ function dheistSet(s: command sender, h: text, a: texts):
 		if {_d} is not set:
 			dheistReply({_s}, "HEIST %{_h}% set difficulty: 1-4")
 			stop
-		if {_d} < 1:
-			dheistReply({_s}, "HEIST %{_h}% set difficulty: 1-4")
+		if {_d} < 0:
+			dheistReply({_s}, "HEIST %{_h}% set difficulty: 0-4 (0 = a store)")
 			stop
 		if {_d} > 4:
 			dheistReply({_s}, "HEIST %{_h}% set difficulty: 1-4")
@@ -1432,7 +1501,18 @@ function dheistDelete(s: command sender, h: text):
 
 # levels.sk: may this player rob this heist?
 function heistLevelOk(p: player, h: text) :: boolean:
+	set {_max} to heistMaxLevel({_h})
+	if {_max} > 0:
+		if levelOf({_p}) > {_max}:
+			return false
 	return levelOk({_p}, heistLevel({_h}))
+
+# The highest robber level that may enter (0 = no limit; a store's is 9).
+function heistMaxLevel(h: text) :: number:
+	set {_m} to heistSetting({_h}, "max-level")
+	if {_m} is set:
+		return {_m}
+	return 0
 
 # bag.sk: remove every loot line tagged "<h>#<run>" from the player's bag; return its value.
 function heistForfeit(p: player, h: text, run: number) :: number:

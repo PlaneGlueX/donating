@@ -71,6 +71,8 @@ function openPhoneMap(p: player):
 	add "donating_phone_open" to scoreboard tags of {_p}
 	if itemId(offhand tool of {_p}) starts with "bag:":
 		set offhand tool of {_p} to air
+	else if itemId(offhand tool of {_p}) is "hands":
+		set offhand tool of {_p} to air
 	play sound "item.book.page_turn" with volume 0.6 to {_p}
 	# Once per player: how to drop a GPS pin (gps.sk).
 	if getData({_p}, "gps-tip") is not set:
@@ -142,7 +144,7 @@ function phoneStats(p: player) :: item:
 			set {_capacity} to bagCapacity({_p})
 			set {_bag} to "&6%{_bagName}% &7(holds %formatMoney({_capacity})%)"
 	if {_bag} is not set:
-		set {_bag} to "&7none yet"
+		set {_bag} to "&7none &7(your hands carry %formatMoney(bagCapacity({_p}))%)"
 	add "&7Bag: %{_bag}%" to {_l::*}
 	if isPassive({_p}) is true:
 		add "&7Passive mode: &aon" to {_l::*}

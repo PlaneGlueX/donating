@@ -172,6 +172,11 @@ function storyHeistFits(h: text, f: text) :: boolean:
 			if storyHeistFits({_h}, loop-value) is false:
 				return false
 		return true
+	# A store (difficulty 0: no clock, for new robbers).
+	if {_f} is "store":
+		if heistDifficulty({_h}) is 0:
+			return true
+		return false
 	if {_f} is "safe":
 		return storyHasGate({_h}, "safe")
 	if {_f} is "drill":
@@ -270,6 +275,11 @@ function storyState(p: player, o: text) :: boolean:
 		return levelOk({_p}, {_a::3} parsed as number)
 	if {_a::2} is "gun":
 		return storyOwnsGun({_p})
+	# One weapon unlocked (state|wpn|Combat_Knife).
+	if {_a::2} is "wpn":
+		if getData({_p}, "wpn::%{_a::3}%") is true:
+			return true
+		return false
 	if {_a::2} is "bagbest":
 		if bestBag({_p}) >= ({_a::3} parsed as number):
 			return true
@@ -563,10 +573,6 @@ function storyPass(p: player):
 			storyPassOf({_p}, loop-value)
 
 function storyPassOf(p: player, c: text):
-	# Mara's chain starts after the tutorial (players from before it have no tutorial data).
-	if {_c} is "story":
-		if tutorialStep({_p}) is "bag":
-			stop
 	set {_id} to storyIdOf({_p}, {_c})
 	set {_first} to first element out of storyList({_c})
 	if {_id} is "":
@@ -698,6 +704,19 @@ function storyGpsSpots(p: player, id: text) :: text:
 					set {_l} to heistExit(loop-value)
 					if "%world of {_l}%" is {_w}:
 						add gpsSpot({_l}) to {_s::*}
+		# "heist:store": a store first, else any open heist.
+		if size of {_s::*} is 0:
+			if {_f} is "store":
+				loop storyHeists({_p}):
+					set {_st} to heistState(loop-value)
+					if {_st} is "open":
+						set {_l} to heistExit(loop-value)
+						if "%world of {_l}%" is {_w}:
+							add gpsSpot({_l}) to {_s::*}
+					else if {_st} is "active":
+						set {_l} to heistExit(loop-value)
+						if "%world of {_l}%" is {_w}:
+							add gpsSpot({_l}) to {_s::*}
 	if size of {_s::*} > 0:
 		set {_out} to join {_s::*} with ";"
 	return {_out}

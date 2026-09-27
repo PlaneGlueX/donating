@@ -53,12 +53,8 @@ function deathLoss(p: player, cause: text) :: number:
 		set {_share} to cfg("hit::death-p")
 	else:
 		set {_share} to cfg("difficulty::%{_d}%::p")
-	set {_cap} to 0
-	set {_tier} to getData({_p}, "bag-tier")
-	if {_tier} is set:
-		if {_tier} > 0:
-			# The real capacity (a paid rank's bigger bag also risks more).
-			set {_cap} to bagCapacity({_p})
+	# The real capacity (a paid rank's bigger bag also risks more); no bag: the hands' (bag.sk, $1,000).
+	set {_cap} to bagCapacity({_p})
 	set {_pool} to deathLootPool({_p}, {_cause})
 	if {_pool} >= 0:
 		set {_cap} to min({_cap}, {_pool})

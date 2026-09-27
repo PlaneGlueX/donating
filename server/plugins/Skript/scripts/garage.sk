@@ -775,7 +775,13 @@ function garageMenu(p: player):
 			carButton({_p}, {_gui}, {_slot}, {_i}, "car:%{_id}%")
 			add 1 to {_slot}
 	if {_slot} is 9:
-		set slot 13 of {_gui} to paper named "&7No cars yet" with lore "&7Buy one at the Car Dealer." and "&7The first cars need level 2 (&f/level&7)."
+		# The cheapest level a dealer car needs (crate cars need none).
+		set {_low} to 1000
+		loop {-cfg::cars::*}:
+			if {-cfg::car::%loop-value%::crate} is not true:
+				if {-cfg::car::%loop-value%::level} is set:
+					set {_low} to min({_low}, {-cfg::car::%loop-value%::level})
+		set slot 13 of {_gui} to paper named "&7No cars yet" with lore "&7Buy one at the Car Dealer." and "&7The first cars need level %{_low}% (&f/level&7)."
 	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
 	carOpen({_p}, {_gui})
 

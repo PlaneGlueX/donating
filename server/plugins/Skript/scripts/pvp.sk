@@ -88,6 +88,27 @@ on damage of player:
 	cancel event
 	send action bar "&eThat player just spawned: they're protected for a few seconds." to attacker
 
+# ---------- Stores ----------
+# Stores (heists.sk, difficulty 0) are for new robbers: with store::no-pvp (PROPOSAL) nobody hurts or is hurt by a
+# player inside one (the crew rule already covers robbers inside; this stops shots from outside).
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	{-cfg::store::no-pvp} is true
+	set {_hv} to heistOf(victim)
+	set {_ha} to heistOf(attacker)
+	set {_store} to false
+	if {_hv} is not "":
+		if heistIsStore({_hv}) is true:
+			set {_store} to true
+	if {_ha} is not "":
+		if heistIsStore({_ha}) is true:
+			set {_store} to true
+	{_store} is true
+	cancel event
+	send action bar "&aNo fighting in stores: they're for new robbers." to attacker
+
 # ---------- Teleport immunity ----------
 # Owner, 2026-09-27: for cfg("pvp::teleport-immunity") (3 s) after a real teleport nobody hurts you and you hurt
 # nobody: a command (/spawn, /tpa, staff /tp) or being thrown out of a heist (heists.sk calls tpImmune). Never a

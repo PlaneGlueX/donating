@@ -123,6 +123,12 @@ function hudBoss(p: player):
 		if {_s} is not "active":
 			hudBossOff({_p})
 			stop
+		# A store has no clock: what's left to grab instead.
+		if heistIsStore({_h}) is true:
+			set {_rolled} to max(1, heistLootPool({_h}))
+			set {_lootLeft} to lootLeft({_h})
+			hudBossSet({_p}, "&f%{_name}% &7· no clock · &a%formatMoneyShort({_lootLeft})% &7left", "white", min(1, {_lootLeft} / {_rolled}))
+			stop
 		set {_left} to heistSecondsLeft({_h})
 		set {_total} to max(1, heistEscape({_h}) / 1 second)
 		set {_clock} to formatClock({_left})

@@ -190,6 +190,9 @@ function seasonEvent(p: player, ev: text, n: number, detail: text):
 		set {ss::%{_s}%::esc::%{_u}%::%{_h}%} to {_runN}
 		seasonAdd({_p}, "heisters", floor(cfg("season::points::getaway") * {_m}), "getaway %{_h}%#%{_runN}%")
 	else if {_ev} is "contract":
+		# The tutorial's first car job counts on no board (contracts.sk).
+		if {_detail} is "starter":
+			stop
 		# The pay is already the passive share (ctPay).
 		seasonAdd({_p}, "earners", floor({_n}), "contract %{_detail}%")
 		set {_c} to {-cfg::season::contract::%{_detail}%::points}

@@ -29,12 +29,19 @@ function bagTier(p: player) :: number:
 		return {_t}
 	return 0
 
-# The carried bag's capacity, with the paid rank's bag bonus (ranks.sk): floor(C × (1 + b)).
+# The carried bag's capacity, with the paid rank's bag bonus (ranks.sk): floor(C × (1 + b)). No bag: the hands
+# (owner, 2026-09-27: up to bag::hands::capacity, $1,000, with no rank bonus; the cash shows in the offhand).
 function bagCapacity(p: player) :: number:
 	set {_t} to bagTier({_p})
 	if {_t} <= 0:
-		return 0
+		return cfg("bag::hands::capacity")
 	return floor(cfg("bag::%{_t}%::capacity") * (1 + paidRankBagBonus({_p})))
+
+# "BAG FULL", or "HANDS FULL" without a bag.
+function bagFullWord(p: player) :: text:
+	if bagTier({_p}) <= 0:
+		return "HANDS FULL"
+	return "BAG FULL"
 
 function bagRecount(p: player) :: number:
 	set {_sum} to 0
@@ -74,7 +81,7 @@ function bagRunLoot(p: player, h: text) :: number:
 function bagFillText(p: player) :: text:
 	set {_t} to bagTier({_p})
 	if {_t} <= 0:
-		return "&7no bag"
+		return "&7hands &f%bagPct({_p})%%%"
 	set {_name} to cfg("bag::%{_t}%::name")
 	return "&6%{_name}% &f%bagPct({_p})%%%"
 
@@ -117,7 +124,23 @@ function bagForfeit(p: player, h: text, run: number) :: number:
 # hand_animation_on_swap false, so the duffel doesn't dip at each take.
 function bagRefresh(p: player):
 	set {_tier} to bagTier({_p})
-	{_tier} > 0
+	# No bag: the cash in the offhand while the hands hold loot, else nothing (inventory.sk handsItem).
+	if {_tier} <= 0:
+		set {_key} to "hands:%bagTotal({_p})%"
+		if {-bag::shown::%{_p}%} is {_key}:
+			stop
+		if {_p} has scoreboard tag "donating_phone_open":
+			stop
+		# Only the hands' own cash or an empty offhand is replaced (staff with the bypass may hold something).
+		if itemId(offhand tool of {_p}) is not "hands":
+			if offhand tool of {_p} is not air:
+				stop
+		set {-bag::shown::%{_p}%} to {_key}
+		if bagTotal({_p}) > 0:
+			set offhand tool of {_p} to handsItem(bagTotal({_p}), bagCapacity({_p}))
+		else:
+			set offhand tool of {_p} to air
+		stop
 	set {_skin} to bagSkinOf({_p})
 	set {_cap} to bagCapacity({_p})
 	set {_key} to "%{_tier}%:%bagTotal({_p})%:%{_skin}%:%{_cap}%"
@@ -252,12 +275,9 @@ function duffelGrab(p: player, e: entity):
 		if {_was} is "true":
 			duffelTell({_p}, "&7A passive player's loot: only they can take it.")
 			stop
-	if bagTier({_p}) <= 0:
-		duffelTell({_p}, "&cYou need a bag to carry loot. &7Buy one at a bag shop.")
-		stop
 	set {_room} to bagRoom({_p})
 	if {_room} <= 0:
-		duffelTell({_p}, "&c&lBAG FULL&r &7· it stays in the duffel")
+		duffelTell({_p}, "&c&l%bagFullWord({_p})%&r &7· it stays in the duffel")
 		stop
 	set {_took} to 0
 	set {_rest} to ""
@@ -501,7 +521,8 @@ function bagMenu(p: player):
 		set {_i} to bagItem({_t}, bagTotal({_p}), bagSkinOf({_p}), bagCapacity({_p}))
 		set lore of {_i} to "&7Loot: &f%formatMoney(bagTotal({_p}))% &7/ %formatMoney(bagCapacity({_p}))%" and "&7Sells by itself at the base." and "&7Lost (dropped as a duffel) if you die."
 	else:
-		set {_i} to barrier named "&7No bag" with lore "&7Buy one at a bag shop."
+		set {_i} to handsItem(bagTotal({_p}), bagCapacity({_p}))
+		set lore of {_i} to "&7No bag: your hands carry up to &f%formatMoney(bagCapacity({_p}))%&7." and "&7Loot: &f%formatMoney(bagTotal({_p}))%" and "&7A bag holds more: buy one at a bag shop."
 	set slot 4 of {_gui} to {_i}
 	set {_in} to heistOf({_p})
 	set {_slot} to 9

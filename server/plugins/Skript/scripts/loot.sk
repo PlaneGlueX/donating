@@ -811,9 +811,7 @@ function lootClick(p: player, hit: text):
 
 function lootClickPile(p: player, h: text, n: text, i: number):
 	set {_c} to "%{_h}%::%{_n}%"
-	if bagTier({_p}) <= 0:
-		lootBar({_p}, "&cYou need a bag to carry loot: buy one at a Bag Shop.")
-		stop
+	# No bag: the hands carry up to bag::hands::capacity (bag.sk).
 	if bagRoom({_p}) <= 0:
 		lootBagFull({_p})
 		stop
@@ -884,7 +882,7 @@ function lootPick(c: text, i: number, p: player) :: text:
 # One piece into the bag (or what fits: the piece then shrinks and stays). Returns the $ taken.
 function lootTake(p: player, h: text, n: text, i: number) :: number:
 	set {_c} to "%{_h}%::%{_n}%"
-	if bagTier({_p}) <= 0:
+	if bagRoom({_p}) <= 0:
 		return 0
 	set {_pick} to lootPick({_c}, {_i}, {_p})
 	if {_pick} is "":
@@ -941,7 +939,7 @@ function lootTake(p: player, h: text, n: text, i: number) :: number:
 	play sound "item.bundle.insert" with volume 0.8 and pitch (0.9 + 0.5 * {_pct} / 100) at location of {_p}
 	if bagRoom({_p}) <= 0:
 		play sound "block.amethyst_block.chime" with volume 1 to {_p}
-		lootBar({_p}, "&a+%formatMoney({_got})% &7· &6&lBAG FULL &7· sell it at the base")
+		lootBar({_p}, "&a+%formatMoney({_got})% &7· &6&l%bagFullWord({_p})%&r &7· sell it at the base")
 	else:
 		set {_name} to {-lootc::%{_c}%::name}
 		lootBar({_p}, "&a+%formatMoney({_got})% &7%{_name}% · %bagFillText({_p})% &7(%formatMoney(bagTotal({_p}))%/%formatMoney(bagCapacity({_p}))%)")
@@ -962,7 +960,10 @@ function lootShrink(d: entity, c: text, frac: number):
 	set display scale of {_d} to vector({_s}, {_s}, {_s})
 
 function lootBagFull(p: player):
-	lootBar({_p}, "&6&lBAG FULL &7· sell it at the base")
+	if bagTier({_p}) <= 0:
+		lootBar({_p}, "&6&lHANDS FULL&r &7· sell it at the base, or buy a bag to carry more")
+	else:
+		lootBar({_p}, "&6&lBAG FULL&r &7· sell it at the base")
 	set {_at} to {-lootfull::%{_p}%}
 	if {_at} is set:
 		if difference between {_at} and now < 1 second:
@@ -974,6 +975,14 @@ function lootBagFull(p: player):
 # 2026-09-25): T' = max(min, ceil(T × factor)), unchanged when T <= min. E.g. 5:00 -> 2:30, 1:40 -> 1:00.
 function lootCleanCheck(h: text):
 	{-lootclean::%{_h}%} is not set
+	# A store (no clock) closes instead (heists.sk).
+	if heistIsStore({_h}) is true:
+		if heistState({_h}) is "active":
+			if lootLeft({_h}) <= 0:
+				set {-lootclean::%{_h}%} to true
+				heistStoreCleaned({_h})
+				lootLog("cleaned %{_h}% run=%heistRun({_h})% store")
+		stop
 	set {_min} to {-cfg::loot::cleaned-out}
 	{_min} > 0
 	heistState({_h}) is "active"
@@ -1739,10 +1748,9 @@ function lootPlayerSecond(p: player):
 	set {_t} to bagTier({_p})
 	if {_t} > 0:
 		set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))%"
-		set {-ph::bagpct::%{_p}%} to "%bagPct({_p})%%%"
 	else:
-		set {-ph::bag::%{_p}%} to "no bag"
-		set {-ph::bagpct::%{_p}%} to "-"
+		set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))% (hands)"
+	set {-ph::bagpct::%{_p}%} to "%bagPct({_p})%%%"
 	set {_h} to heistOf({_p})
 	if {_h} is not "":
 		set {-ph::haul::%{_p}%} to formatMoney(bagRunLoot({_p}, {_h}))
@@ -2079,6 +2087,11 @@ function dlootAdd(s: command sender, a: texts):
 	if {_k} is not "pile" or "smash" or "safe" or "drill":
 		dlootReply({_s}, "LOOT add: /dloot add <heist> pile|smash|safe|drill [x1 y1 z1 x2 y2 z2] key=value...")
 		stop
+	# Stores are for new robbers: no Safe Kit or Drill needed (they need levels).
+	if heistIsStore({_h}) is true:
+		if {_k} is "safe" or "drill":
+			dlootReply({_s}, "LOOT add: a store (difficulty 0) has piles and glass only, no safes or vault doors")
+			stop
 	if heistRobberCount({_h}) > 0:
 		dlootReply({_s}, "LOOT add: robbers are inside")
 		stop

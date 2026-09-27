@@ -296,6 +296,20 @@ function toolIcon(p: player, t: text) :: item:
 	set lore of {_i} to "&7%{_about}%" and "&e%{_money}% each, carry up to %{_max}%" and "&7You have %{_have}%." and "&eClick: buy 1. Shift-click: fill up." and "&7Lost when you die."
 	return tagItem({_i}, "shopicon:tool")
 
+# The robber level a weapon's first unlock needs (levels.sk; 0 when core.sk sets none).
+function wpnLevel(w: text) :: number:
+	set {_r} to {-cfg::wpn::%{_w}%::level}
+	if {_r} is set:
+		return {_r}
+	return 0
+
+# The robber level a bag tier's first unlock needs (a new one after losing it needs none).
+function bagLevel(t: number) :: number:
+	set {_r} to {-cfg::bag::%{_t}%::level}
+	if {_r} is set:
+		return {_r}
+	return 0
+
 # The robber level a tool needs (levels.sk; 0 when core.sk sets none).
 function toolLevel(t: text) :: number:
 	set {_r} to cfg("tool::%{_t}%::level")
@@ -647,6 +661,9 @@ function renderGun(p: player):
 			else:
 				set {_money} to formatMoney(cfg("wpn::%{_w}%::price"))
 				add "&ePrice: %{_money}%" to {_lore::*}
+				set {_need} to wpnLevel({_w})
+				if levelOk({_p}, {_need}) is false:
+					add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_lore::*}
 			button({_p}, {_cells::%{_k}%}, tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore {_lore::*}, "shopicon:wpn"), "buy:%{_w}%")
 			delete {_lore::*}
 			add 1 to {_k}
@@ -737,6 +754,9 @@ function renderBag(p: player):
 		else:
 			set {_money} to formatMoney(cfg("bag::%{_t}%::price"))
 			add "&7Unlock: &e%{_money}%" to {_lore::*}
+			set {_need} to bagLevel({_t})
+			if levelOk({_p}, {_need}) is false:
+				add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_lore::*}
 		set {_i} to bagIcon({_t}) named "&6%{_name}%" with lore {_lore::*}
 		if {_t} is {_carry}:
 			set {_i} to glint({_i})
@@ -878,6 +898,11 @@ function buyWeapon(p: player, w: text):
 			shopOk({_p}, "The %{_name}% is in hotbar %{_slot} + 1%.")
 		else:
 			shopFail({_p}, "Couldn't equip the %{_name}%.")
+		stop
+	# Owner, 2026-09-27: melee first; each weapon's first unlock needs its level (owning one never does).
+	set {_need} to wpnLevel({_w})
+	if levelOk({_p}, {_need}) is false:
+		shopFail({_p}, "The %{_name}% needs level %{_need}% (%levelName({_need})%). /level")
 		stop
 	set {_price} to cfg("wpn::%{_w}%::price")
 	if needsConfirm({_p}, "buy:%{_w}%", {_price}, false) is true:
@@ -1212,23 +1237,20 @@ function buyBag(p: player, t: number):
 	if {_t} is {_carry}:
 		shopFail({_p}, "You're carrying the %{_name}% already.")
 		stop
+	# Swapping a bag that holds loot could lose some (a smaller one); loot in the hands (no bag) goes into the new one.
 	if shopBagLoot({_p}) > 0:
-		shopFail({_p}, "Sell your loot at the base first.")
-		stop
+		if {_carry} > 0:
+			shopFail({_p}, "Sell your loot at the base first.")
+			stop
+	# Owner, 2026-09-27: no bag is ever free (with none, the hands carry up to $1,000: bag.sk).
 	set {_price} to cfg("bag::%{_t}%::price")
-	# The first Gym Bag is free for a new player who somehow can't pay for it (never stuck in spawn).
-	if {_t} is 1:
-		if bestBag({_p}) < 1:
-			if {-cfg::bag::free-if-broke} is true:
-				if balance of {_p} < {_price}:
-					set {_price} to 0
 	if {_t} <= bestBag({_p}):
 		set {_price} to cfg("bag::%{_t}%::replace")
-		# A robber who can't pay for a new Gym Bag gets one free (never stuck without a bag).
-		if {_t} is 1:
-			if {-cfg::bag::free-if-broke} is true:
-				if balance of {_p} < {_price}:
-					set {_price} to 0
+	else:
+		set {_need} to bagLevel({_t})
+		if levelOk({_p}, {_need}) is false:
+			shopFail({_p}, "The %{_name}% needs level %{_need}% (%levelName({_need})%). /level")
+			stop
 	set {_force} to false
 	if {_carry} > 0:
 		set {_force} to true
