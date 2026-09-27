@@ -193,6 +193,153 @@ function garageReturnCheck(p: player, s: text):
 	send title colored "&a&lPARKED&r" with subtitle colored "&7Your %carName({_m})% is back in the garage." to {_p} for 2 seconds
 	play sound "block.note_block.chime" with volume 0.6 to {_p}
 
+# ---------- Stage 2: the bays (each player sees their own cars) ----------
+# Staff bays (/dgaragesite bay add: standing where the car should stand, facing along it). Inside a site, a player's
+# n-th car in the garage (not out; in core.sk's cars order) shows in bay n as a personal item display (pv.sk: only
+# they see it; the pack draws the car item). Past the last bay a car is only in the menu. One shared, unresponsive click
+# box per bay (right-click: that bay's car comes out in the exit lane); labels by DecentHolograms placeholders that
+# read memory per viewer (/dgaragesite holo). Without DonatingPhone (pvReady false) the models are missing; clicks and
+# labels still work. Memory: {-bay::key::<u>} (what's drawn), {-bay::car::<u>::<s>::<n>} (the car id in a bay),
+# {-ph::bay::<p>::<s>::<n>} / {-ph::bayhint::<p>::<s>::<n>}, {-bay::hit::<entity uuid>} = "<s>|<n>".
+
+# "id:label" of each car in the garage (not out), in the cars order.
+function garageBayCars(p: player) :: texts:
+	loop {-cfg::cars::*}:
+		set {_id} to loop-value
+		if carOwned({_p}, {_id}) is true:
+			set {_plate} to carPlate({_p}, {_id})
+			if {car::out::%{_plate}%} is not set:
+				add "%{_id}%:%carColorOf({_p}, {_id})%" to {_out::*}
+	return {_out::*}
+
+function garageBayClear(p: player):
+	set {_u} to "%uuid of {_p}%"
+	pvClear({_p}, "bay:")
+	delete {-bay::key::%{_u}%}
+	delete {-bay::site::%{_u}%}
+	delete {-bay::leftat::%{_u}%}
+	delete {-bay::car::%{_u}%::*}
+	delete {-ph::bay::%{_p}%::*}
+	delete {-ph::bayhint::%{_p}%::*}
+
+# Draws a player's bays at their site when what they should see changed (a buy, a car out or back, a repaint, a trade).
+function garageBaySync(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_s} to garageAt({_p})
+	if {_s} is "":
+		if {-bay::site::%{_u}%} is set:
+			if {-bay::leftat::%{_u}%} is not set:
+				set {-bay::leftat::%{_u}%} to now
+			else if difference between {-bay::leftat::%{_u}%} and now >= cfg("garage::view-grace"):
+				garageBayClear({_p})
+		stop
+	delete {-bay::leftat::%{_u}%}
+	# A repaint preview runs out.
+	if {-bay::preview::%{_u}%} is set:
+		if difference between {-bay::preview::%{_u}%} and now >= cfg("garage::preview-time"):
+			delete {-bay::preview::%{_u}%}
+			delete {-bay::key::%{_u}%}
+		else:
+			stop
+	set {_cars::*} to garageBayCars({_p})
+	# The bays themselves are in the key too (staff adding or moving one redraws).
+	loop {garagesite::%{_s}%::bay::*}:
+		add "%loop-index%=%loop-value%" to {_bays::*}
+	set {_key} to "%{_s}%|%join {_cars::*} with ","%|%join {_bays::*} with ","%|%pvReady()%"
+	if {-bay::key::%{_u}%} is {_key}:
+		stop
+	garageBayClear({_p})
+	set {-bay::key::%{_u}%} to {_key}
+	set {-bay::site::%{_u}%} to {_s}
+	set {_k} to 0
+	loop {garagesite::%{_s}%::bay::*}:
+		add 1 to {_k}
+		set {_n} to loop-index
+		set {_c} to {_cars::%{_k}%}
+		if {_c} is set:
+			set {_a::*} to "%{_c}%" split at ":"
+			set {_id} to {_a::1}
+			set {-bay::car::%{_u}%::%{_s}%::%{_n}%} to {_id}
+			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&6%carName({_id})% &7· %{_a::2}%"
+			set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&eRight-click: take it out"
+			set {_l} to garageSpotLoc(loop-value)
+			set {_l} to {_l} ~ vector(0, cfg("garage::bay-lift"), 0)
+			set {_e} to pvItem({_p}, "bay:%{_s}%:%{_n}%", {_l}, carIcon({_id}, {_a::2}), cfg("garage::bay-scale"))
+			if {_e} is set:
+				set item transform of {_e} to head
+		else:
+			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&7Empty bay"
+			set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&7Buy a car at the Car Dealer"
+
+every second:
+	loop all players:
+		garageBaySync(loop-player)
+
+on quit:
+	garageBayClear(player)
+
+# The repaint preview (carPaint's first click at a site): the car's bay shows the new color for garage::preview-time.
+function garageBayPreview(p: player, id: text, label: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_s} to garageAt({_p})
+	{_s} is not ""
+	loop {-bay::car::%{_u}%::%{_s}%::*}:
+		if loop-value is {_id}:
+			set {_e} to pvGet({_p}, "bay:%{_s}%:%loop-index%")
+			if {_e} is set:
+				set item of {_e} to carIcon({_id}, {_label})
+				set {-bay::preview::%{_u}%} to now
+				hudBar({_p}, "&7Look at your bay: that's the new color. &eClick again to pay.", 1)
+
+# One shared click box per bay while its chunk is loaded (every 10 s; spawned again if lost to an unload).
+every 10 seconds:
+	loop {garagesites::*}:
+		set {_s} to loop-index
+		loop {garagesite::%{_s}%::bay::*}:
+			garageBayBox({_s}, loop-index-2, garageSpotLoc(loop-value-2))
+
+function garageBayBox(s: text, n: text, l: location):
+	chunk at {_l} is loaded
+	set {_tag} to "gbayi_%{_s}%_%{_n}%"
+	set {_have} to 0
+	loop all entities in radius 3 around {_l}:
+		if loop-entity has scoreboard tag {_tag}:
+			add 1 to {_have}
+			set {-bay::hit::%uuid of loop-entity%} to "%{_s}%|%{_n}%"
+	{_have} is 0
+	spawn an interaction at {_l}:
+		make event-entity not persistent
+		add "donating_bay" to scoreboard tags of event-entity
+		add {_tag} to scoreboard tags of event-entity
+		set interaction width of event-entity to cfg("garage::bay-width")
+		set interaction height of event-entity to cfg("garage::bay-height")
+		make event-entity unresponsive
+	set {_e} to last spawned entity
+	set {-bay::hit::%uuid of {_e}%} to "%{_s}%|%{_n}%"
+
+on right click on interaction:
+	set {_hit} to {-bay::hit::%uuid of event-entity%}
+	{_hit} is set
+	cancel event
+	# The held item's own click right after (a gun, the phone) is cancelled too (quests.sk's guard).
+	set {-quest::guard::%player%} to now
+	if {-bay::clickat::%player%} is set:
+		if difference between {-bay::clickat::%player%} and now < 0.25 seconds:
+			stop
+	set {-bay::clickat::%player%} to now
+	set {_a::*} to "%{_hit}%" split at "|"
+	garageBayClick(player, {_a::1}, {_a::2})
+
+function garageBayClick(p: player, s: text, n: text):
+	if garageAt({_p}) is not {_s}:
+		hudBar({_p}, "&7Take cars out inside the garage.", 1)
+		stop
+	set {_id} to {-bay::car::%uuid of {_p}%::%{_s}%::%{_n}%}
+	if {_id} is not set:
+		hudBar({_p}, "&7This bay is empty for you. All your cars: the attendant or &f/garage", 1)
+		stop
+	carCall({_p}, "%{_id}%")
+
 # ---------- Staff ----------
 
 command /dgaragesite [<text>]:
@@ -201,8 +348,8 @@ command /dgaragesite [<text>]:
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
-		if {_sub} is "exit" or "return":
-			# exit add / return add: where you stand, facing the way the car should point.
+		if {_sub} is "exit" or "return" or "bay":
+			# exit add / return add / bay add: where you stand, facing the way the car should point.
 			if player is not set:
 				send "GSITE: in game (or exitat / returnat)" to sender
 				stop
@@ -219,6 +366,13 @@ command /dgaragesite [<text>]:
 				if carSpotClear({_c}) is false:
 					send "GSITE: no room for a car here (3x3, 2 high, solid ground)" to sender
 					stop
+			if {_sub} is "bay":
+				set {_nb} to 0
+				loop {garagesite::%{_s}%::bay::*}:
+					add 1 to {_nb}
+				if {_nb} >= cfg("garage::bays-max"):
+					send "GSITE: %{_nb}% bays already (garage::bays-max)" to sender
+					stop
 			add 1 to {garagesitecounter}
 			set {_n} to "%{garagesitecounter}%"
 			set {_x} to floor(x-coordinate of {_l}) + 0.5
@@ -233,16 +387,22 @@ command /dgaragesite [<text>]:
 			set {_other} to "return"
 			if {_sub} is "return":
 				set {_other} to "exit"
+			if {_sub} is "bay":
+				garageBayBox({_s}, {_n}, garageSpotLoc({garagesite::%{_s}%::bay::%{_n}%}))
+				send "GSITE: now /dgaragesite holo here for the bay labels" to sender
+				stop
 			set {_warn} to cfg("garage::return-radius") + 3
 			loop {garagesite::%{_s}%::%{_other}%::*}:
 				if distance between garageSpotLoc(loop-value) and {_l} < {_warn}:
 					send "&eGSITE: %{_other}% %loop-index% is only %round(distance between garageSpotLoc(loop-value) and {_l})%m away: keep exits and returns %{_warn}%+ blocks apart (a car taken out would park at once)." to sender
-		else if {_sub} is "exitat" or "returnat":
-			# exitat|returnat <site> <x> <y> <z> <yaw>: the dump's lines (Minehut).
+		else if {_sub} is "exitat" or "returnat" or "bayat":
+			# exitat|returnat|bayat <site> <x> <y> <z> <yaw>: the dump's lines (Minehut).
 			set {_s} to {_a::2}
 			set {_kind} to "exit"
 			if {_sub} is "returnat":
 				set {_kind} to "return"
+			if {_sub} is "bayat":
+				set {_kind} to "bay"
 			set {_x} to {_a::3} parsed as number
 			set {_y} to {_a::4} parsed as number
 			set {_z} to {_a::5} parsed as number
@@ -257,12 +417,17 @@ command /dgaragesite [<text>]:
 			send "GSITE %{_s}% %{_kind}% %{_n}% added" to sender
 		else if {_sub} is "remove":
 			# remove <site> <exit|return> <n>
+			if {_a::3} is "bay":
+				execute console command "minecraft:kill @e[tag=gbayi_%{_a::2}%_%{_a::4}%]"
+				execute console command "dh hologram delete gbay_%{_a::2}%_%{_a::4}%"
 			delete {garagesite::%{_a::2}%::%{_a::3}%::%{_a::4}%}
 			delete {-garage::lane::%{_a::2}%::%{_a::4}%}
 			set {_left} to 0
 			loop {garagesite::%{_a::2}%::exit::*}:
 				add 1 to {_left}
 			loop {garagesite::%{_a::2}%::return::*}:
+				add 1 to {_left}
+			loop {garagesite::%{_a::2}%::bay::*}:
 				add 1 to {_left}
 			if {_left} is 0:
 				delete {garagesites::%{_a::2}%}
@@ -274,6 +439,8 @@ command /dgaragesite [<text>]:
 					send "GSITE %{_s}% exit %loop-index-2% = %loop-value-2%" to sender
 				loop {garagesite::%{_s}%::return::*}:
 					send "GSITE %{_s}% return %loop-index-2% = %loop-value-2%" to sender
+				loop {garagesite::%{_s}%::bay::*}:
+					send "GSITE %{_s}% bay %loop-index-2% = %loop-value-2%" to sender
 		else if {_sub} is "show":
 			loop {garagesites::*}:
 				set {_s} to loop-index
@@ -283,7 +450,10 @@ command /dgaragesite [<text>]:
 				loop {garagesite::%{_s}%::return::*}:
 					set {_fx} to garageSpotLoc(loop-value-2)
 					draw 12 flame particles with offset vector(1, 0.3, 1) at {_fx} for player
-			send "GSITE shown: exits green, returns flames" to sender
+				loop {garagesite::%{_s}%::bay::*}:
+					set {_fx} to garageSpotLoc(loop-value-2)
+					draw 12 end rod particles with offset vector(1, 0.3, 1) at {_fx} for player
+			send "GSITE shown: exits green, returns flames, bays white" to sender
 		else if {_sub} is "dump":
 			loop {garagesites::*}:
 				set {_s} to loop-index
@@ -295,5 +465,32 @@ command /dgaragesite [<text>]:
 					set {_v::*} to loop-value-2 split at "|"
 					send "dgaragesite returnat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%" to sender
 					carLog("dump dgaragesite returnat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%")
+				loop {garagesite::%{_s}%::bay::*}:
+					set {_v::*} to loop-value-2 split at "|"
+					send "dgaragesite bayat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%" to sender
+					carLog("dump dgaragesite bayat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%")
+				send "dgaragesite holo %{_s}%" to sender
+		else if {_sub} is "holo":
+			# holo [site]: a DecentHolograms label over each bay (placeholders: every player reads their own).
+			set {_s} to {_a::2}
+			if {_s} is not set:
+				if player is set:
+					set {_s} to garageAt(player)
+			if {_s} is not set:
+				send "GSITE usage: holo <site> (or stand in it)" to sender
+				stop
+			if {_s} is "":
+				send "GSITE usage: holo <site> (or stand in it)" to sender
+				stop
+			set {_hn} to 0
+			loop {garagesite::%{_s}%::bay::*}:
+				set {_v::*} to loop-value split at "|"
+				set {_name} to "gbay_%{_s}%_%loop-index%"
+				set {_y} to ({_v::2} parsed as number) + cfg("garage::bay-label-height")
+				execute console command "dh hologram delete %{_name}%"
+				execute console command "dh hologram create %{_name}% -l:%poiMainWorld()%:%{_v::1}%:%{_y}%:%{_v::3}% %%donating_bay_%{_s}%_%loop-index%%%"
+				execute console command "dh line add %{_name}% 1 %%donating_bayhint_%{_s}%_%loop-index%%%"
+				add 1 to {_hn}
+			send "GSITE %{_s}%: %{_hn}% bay labels" to sender
 		else:
-			send "GSITE usage: /dgaragesite exit|return add | exitat|returnat <site> <x> <y> <z> <yaw> | remove <site> <exit|return> <n> | list | show | dump" to sender
+			send "GSITE usage: /dgaragesite exit|return|bay add | exitat|returnat|bayat <site> <x> <y> <z> <yaw> | remove <site> <exit|return|bay> <n> | list | show | dump | holo [site]" to sender

@@ -16,6 +16,8 @@ const SITE = 'zt'
 const EXIT = [1508.5, Y, 1508.5]
 const RET = [1508.5, Y, 1502.5]
 const INSIDE = [1504.5, Y, 1513.5]
+const BAY1 = [1503.5, Y, 1516.5]
+const BAY2 = [1512.5, Y, 1516.5]
 const AWAY = [1545.5, Y, 1545.5]
 const FAR = '0.5 68 -656.5'
 
@@ -85,8 +87,39 @@ module.exports = async ({ check }) => {
     bots[A].chat('/dpoi add garage Test Garage')
     await sleep(800)
     poi = (text(A, t).match(/POI (\d+) garage/) || [])[1] || ''
+    // Two bays and their labels.
+    await tp(A, BAY1, 90)
+    bots[A].chat('/dgaragesite bay add')
+    await sleep(800)
+    await tp(A, BAY2, 90)
+    bots[A].chat('/dgaragesite bay add')
+    await sleep(800)
+    t = Date.now()
+    bots[A].chat('/dgaragesite holo')
+    await sleep(1000)
+    const holo = text(A, t)
     await cmd(`lp user ${A} permission unset donating.staff`)
     const list = await cmd('dgaragesite list')
+    const bay1 = (list.match(new RegExp(`GSITE ${SITE} bay (\\d+) = 1503\\.5`)) || [])[1] || ''
+
+    // ---------- Stage 2: the bays ----------
+    await tp(A, INSIDE)
+    await tp(B, [INSIDE[0] + 1, Y, INSIDE[2]])
+    await sleep(2500)
+    const lift = new Vec3(BAY1[0], Y + 1.69, BAY1[2])
+    const models = name => Object.values(bots[name].entities).filter(e => e.name === 'item_display' && e.position.distanceTo(lift) < 0.6)
+    const mA = models(A)
+    const mB = models(B)
+    const label = await cmd(`zzpapi ${A} %donating_bay_${SITE}_${bay1}%`)
+    check('each player sees only their own car in bay 1 (a personal model: A one, B one, never each other\'s), and its label', /bay labels/.test(holo) && bay1 !== '' && mA.length === 1 && mB.length === 1 && mA[0].uuid !== mB[0].uuid && /Sedan/.test(label), `${holo} | bay1=${bay1} A=${mA.map(e => e.uuid)} B=${mB.map(e => e.uuid)} | ${label}`)
+    const box = Object.values(bots[A].entities).find(e => e.name === 'interaction' && e.position.distanceTo(new Vec3(BAY1[0], Y, BAY1[2])) < 0.6)
+    t = Date.now()
+    if (box) await bots[A].activateEntity(box).catch(() => {})
+    await sleep(1500)
+    const emptied = await cmd(`zzpapi ${A} %donating_bay_${SITE}_${bay1}%`)
+    check('right-clicking a bay takes that car out into the exit lane, and the bay empties for its owner', Boolean(box) && (await stateOf(A)) === 'out' && /waiting in the exit lane/.test(text(A, t)) && /Empty bay/.test(emptied) && models(A).length === 0 && models(B).length === 1, `box=${Boolean(box)} ${await stateOf(A)} | ${text(A, t).slice(0, 150)} | ${emptied} | A=${models(A).length} B=${models(B).length}`)
+    await cmd(`dgarage store ${A}`)
+    await sleep(5500) // the take-out cooldown
     check('staff lay out a site: an exit and a return inside the safe_garage_ region (refused outside), and a garage POI', /stand inside/.test(outside) && new RegExp(`GSITE ${SITE} exit \\d+ = 1508\\.5\\|200\\|1508\\.5\\|`).test(list) && new RegExp(`GSITE ${SITE} return \\d+`).test(list) && poi !== '', `${outside} | ${list} | poi=${poi}`)
     await cmd(`dranks give ${B} legend`)
     await sleep(2000)
@@ -195,7 +228,7 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`zzclear ${name}`).catch(() => {})
     }
     const list = await rcon.cmd('dgaragesite list').catch(() => '')
-    for (const m of String(list).matchAll(new RegExp(`GSITE ${SITE} (exit|return) (\\d+)`, 'g'))) await rcon.cmd(`dgaragesite remove ${SITE} ${m[1]} ${m[2]}`).catch(() => {})
+    for (const m of String(list).matchAll(new RegExp(`GSITE ${SITE} (exit|return|bay) (\\d+)`, 'g'))) await rcon.cmd(`dgaragesite remove ${SITE} ${m[1]} ${m[2]}`).catch(() => {})
     if (poi) await rcon.cmd(`dpoi remove ${poi}`).catch(() => {})
     await rcon.cmd(`rg remove -w world safe_garage_${SITE}`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot).catch(() => {})

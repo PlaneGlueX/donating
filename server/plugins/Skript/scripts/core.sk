@@ -151,6 +151,18 @@ function loadSettings():
 	set {-cfg::garage::takeout-cooldown} to 5 seconds
 	set {-cfg::garage::pickup-idle} to 90 seconds
 	set {-cfg::garage::return-radius} to 4
+	# Stage 2, the bays: each player's cars as personal models (pv.sk). A model sits bay-lift above the bay at bay-scale
+	# (the pack's car model is made for an armor stand's head: 0.625 of an item display's head transform); up to
+	# bays-max bays a site; labels bay-label-height above; a click box bay-width x bay-height; the view stays view-grace
+	# after walking out; a repaint's color preview lasts preview-time.
+	set {-cfg::garage::bay-lift} to 1.69
+	set {-cfg::garage::bay-scale} to 0.625
+	set {-cfg::garage::bays-max} to 8
+	set {-cfg::garage::bay-label-height} to 2.4
+	set {-cfg::garage::bay-width} to 2.6
+	set {-cfg::garage::bay-height} to 1.8
+	set {-cfg::garage::view-grace} to 2 seconds
+	set {-cfg::garage::preview-time} to 10 seconds
 	set {-cfg::car::idle-near} to 64
 	# Owner, 2026-09-26: cars are the getaway, but the cops' chase radius is this many times bigger while
 	# the hunted robber is in a car (heists.sk heistInRange).

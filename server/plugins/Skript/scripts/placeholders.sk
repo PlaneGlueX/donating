@@ -178,6 +178,17 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&2Hacked Crate"
 		if {-ph::hackedcrate} is set:
 			set the placeholder result to {-ph::hackedcrate}
+	else if {_i} starts with "bayhint_":
+		# citygarage.sk: bayhint_<site>_<n>, what a bay's label says to this viewer.
+		set {_bp::*} to {_i} split at "_"
+		set the placeholder result to "&r"
+		if {-ph::bayhint::%player%::%{_bp::2}%::%{_bp::3}%} is set:
+			set the placeholder result to {-ph::bayhint::%player%::%{_bp::2}%::%{_bp::3}%}
+	else if {_i} starts with "bay_":
+		set {_bp::*} to {_i} split at "_"
+		set the placeholder result to "&7Garage bay"
+		if {-ph::bay::%player%::%{_bp::2}%::%{_bp::3}%} is set:
+			set the placeholder result to {-ph::bay::%player%::%{_bp::2}%::%{_bp::3}%}
 	else if {_i} starts with "keys_":
 		set {_c} to subtext of {_i} from characters 6 to (length of {_i})
 		set {_n} to {data::%player%::keys::%{_c}%}

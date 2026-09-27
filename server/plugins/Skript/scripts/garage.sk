@@ -937,6 +937,8 @@ function carPaint(p: player, id: text, label: text):
 		stop
 	if carConfirm({_p}, "paint:%{_id}%:%{_label}%@%{_price}%") is false:
 		msg({_p}, "&eClick again to repaint it %{_label}% for %formatMoney({_price})%.")
+		# At a garage its bay shows the new color for a moment (citygarage.sk).
+		garageBayPreview({_p}, {_id}, {_label})
 		play sound "block.note_block.pling" with volume 0.6 to {_p}
 		stop
 	if chargeMoney({_p}, {_price}) is not true:
