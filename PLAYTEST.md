@@ -341,6 +341,10 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (2026-09-27).
 125. **Mara in the real client** (cu): her texts, the sidebar line, the MISSION boss bar with the GPS, talking to her, MISSION PASSED.
     - Result: TODO
+126. **Tab completion** (`bots\run.js tabcomplete`, 27 checks; owner, 2026-09-27: "make sure all commands have tab fill feature for args and names"): /trade suggests "cancel" and the player next to you, not yourself, not a player out of reach; /bounty other players then the amounts from the minimum, only amounts you can pay, never a passive player (also as /skript:bounty), nobody while you're passive; a hidden player is never suggested; /lb, /gps, /title, /killeffect, /bagskin; /heistrefresh nothing without the rank, and with Elite a heist cooling down but never a disabled one; commands without arguments suggest nothing, also after a typed word; console-only commands suggest nothing (also /skript:gpspick); staff: /dheist subcommands and settings (no "default" after name), lock/holo/create/info, heists only in the state a subcommand takes, kick only robbers; an empty list sends nothing (no blank entry); /dtrap ids, effect=alarm only in an advanced heist, show; /dloot ids, a pile's settings and values, regate/preview/roll; /dcrate give never Season; /dgarage cars and colors; /dstory missions; /dbooster positions; ranks, cops, POI types, quest kinds, shopkeepers, contract spots, tutorial, levels, laser heights; /dseason admin-only subcommands and holo boards; /sc and /bc nothing; hidden players skipped in staff lists and /dphone; /dphone parts and worlds.
+    - Result: PASS (bot, 2026-09-27). 27/27. Two reviews (3 reviewers + a skeptic each): 22 + 20 problems confirmed, all fixed (see CLAUDE.md "Tab completion"). Regression after the phone plugin rebuild: phone 33, phone-map 48, gps 19, bounty 19, trade 18, join-quit 15.
+127. **Tab completion in the real client** (cu or the owner): type /trade, /bounty, /title, /dheist with a space and a few letters; the suggestions match, and nothing blank appears or erases a word.
+    - Result: TODO
 
 ## Needs a human (owner)
 
