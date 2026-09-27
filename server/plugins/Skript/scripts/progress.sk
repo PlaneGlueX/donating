@@ -15,7 +15,7 @@
 #   crate     crates.sk crateFinish: a crate opened (detail = the crate)
 #   talk      quests.sk questOpen: the player opened a quest giver in person (detail = its kind)
 # Lifetime counters (saved per player, for later career pages): data life::crack, life::drill, life::getaway,
-# life::contract.
+# life::contract, life::hit (hits.sk: a hit target taken down).
 #
 # Built 2026-09-27 for contact jobs (jobs.sk) and Vic's Wanted List (fence.sk):
 # - Own loot: every "rob" adds its $ to data run::<h>#<run>::own; a "sell" of that run uses up to what's left
@@ -31,7 +31,7 @@
 
 function progEvent(p: player, ev: text, n: number, detail: text):
 	set {_count} to false
-	loop "crack", "drill", "getaway" and "contract":
+	loop "crack", "drill", "getaway", "contract" and "hit":
 		if loop-value is {_ev}:
 			set {_count} to true
 	if {_count} is true:

@@ -1,0 +1,1486 @@
+# hits.sk: hit contracts. Built 2026-09-27 (owner, 2026-09-27: "take on a hitman for a specific npc quest for the week,
+# different difficulties (easy = npc spawns twice a day randomly for an hour and roams the city, medium= once a day,
+# hard = 5 times spread out through the real life week, and the reward will get better with harder difficulty)";
+# answers: "shared clock windows but only while server is active (2+ players or any specific player with the same
+# difficulty hitman quest active is online) and not asleep"; "bodyguards have guns and are the same strength
+# (medium), just the thing that makes it harder it catching the npc on time").
+#
+# One wanted target a week for everyone (a name, a crime, a look). A contract is taken in person from the Broker (a
+# quest giver of the kind "hits") for one tier; one contract a week (switching down is allowed until the takedown).
+# Windows (shared, the same for everyone): Easy 14 a week (2 a day), Medium 7 (1 a day), Hard 5 (on 5 of the 7 days),
+# each at a random time. A window runs only while its tier is active: 2+ players online, or a holder of a contract of
+# that tier online (the server sleeps when empty). One that comes due while it isn't active waits until it is (only
+# the latest waits); its hour counts only active time. While a window runs, each eligible holder of that tier (online,
+# alive, not AFK, not in a heist, in the main world) hunts their OWN copy: a Citizens NPC (the target) and 2 armed
+# bodyguards that only they can see, hit or be hit by (Citizens' PlayerFilter). The target roams the street nodes
+# staff lay out; tips from the Broker narrow a search area on the GPS; within sight it's SPOTTED (glow, a locator dot
+# for the hunter only: DonatingPhone's /dphone mark); once it notices the hunter it runs and the bodyguards shoot
+# (Sentinel melee with a long reach: no projectile anyone else could see or be hit by; the shot's sound and tracer go
+# to the hunter only). Taking the target down pays at once (never boosted, no season points): the tier's pay, a streak
+# bonus for weeks in a row, XP, a Season key on Hard, bound titles for streaks. A death to them costs hit::death-p of
+# the balance (capped at the bag). A window ending mid-fight runs up to 5 minutes of overtime.
+# Saved: {hit::target::<W>}, {hit::win::<W>::<t>::<k>} (start, unix), {hit::used::<W>::<t>::<k>}, {hit::open::<t>}
+# ("W|k|left"), {hit::node::<n>} ("world|x|y|z|district"), {hit::edge::<a>::<b>}, {hitnodecounter},
+# {hit::npcids::<id>}; per player data hit::week, tier, state (hunting | paying | done), streak, streak-week,
+# hard-total. Memory {-hit::s::<uuid>::*} (the sighting), {-hit::npc::<id>} (holder uuid), {-hit::role::<id>}.
+# Staff: /dhit. Players: /hits (/hit; the phone's Hits app). Log: plugins\Skript\logs\hits.log.
+
+function hitLog(text: text):
+	log {_text} to "hits"
+
+function hitTiers() :: texts:
+	return {-cfg::hit::tiers::*}
+
+function hitTierName(t: text) :: text:
+	return {-cfg::hit::%{_t}%::name}
+
+# ---------- The week: its target and windows ----------
+
+function hitTargetOf(w: number) :: text:
+	set {_t} to {hit::target::%{_w}%}
+	if {_t} is set:
+		return "%{_t}%"
+	return ""
+
+function hitTarget() :: text:
+	return hitTargetOf(progWeek())
+
+function hitTargetName() :: text:
+	set {_t} to hitTarget()
+	if {_t} is "":
+		return "nobody"
+	return {-cfg::hit::target::%{_t}%::name}
+
+function hitTargetNpc() :: text:
+	return {-cfg::hit::target::%hitTarget()%::npc}
+
+function hitRollWeek(w: number):
+	# A target not used the last two weeks.
+	set {_a} to hitTargetOf({_w} - 1)
+	set {_b} to hitTargetOf({_w} - 2)
+	loop {-cfg::hit::targets::*}:
+		if loop-value is not {_a}:
+			if loop-value is not {_b}:
+				add loop-value to {_pool::*}
+	set {_pick} to random element out of {_pool::*}
+	if {_pick} is not set:
+		set {_pick} to random element out of {-cfg::hit::targets::*}
+	set {hit::target::%{_w}%} to {_pick}
+	delete {hit::target::%{_w} - 3%}
+	# The windows: random starts, shared by everyone.
+	set {_off} to {-cfg::week::offset}
+	if {_off} is not set:
+		set {_off} to 0
+	set {_w0} to {_w} * 604800 - {_off}
+	delete {hit::win::%{_w} - 2%::*}
+	delete {hit::used::%{_w} - 2%::*}
+	loop hitTiers():
+		set {_t} to loop-value
+		delete {hit::win::%{_w}%::%{_t}%::*}
+		set {_n} to cfg("hit::%{_t}%::windows")
+		set {_k} to 0
+		if {_n} >= 14:
+			loop 7 times:
+				set {_dn} to loop-value-2
+				set {_d} to {_w0} + ({_dn} - 1) * 86400
+				add 1 to {_k}
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and 39600)
+				add 1 to {_k}
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + 43200 + random number between 0 and 39600)
+		else if {_n} >= 7:
+			loop 7 times:
+				set {_dn} to loop-value-2
+				set {_d} to {_w0} + ({_dn} - 1) * 86400
+				add 1 to {_k}
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and 82800)
+		else:
+			# n of the 7 days, one window each.
+			set {_days::*} to 1, 2, 3, 4, 5, 6 and 7
+			set {_days::*} to shuffled {_days::*}
+			loop {_n} times:
+				set {_day} to {_days::%loop-value-2%}
+				add {_day} to {_chosen::*}
+			set {_chosen::*} to sorted {_chosen::*}
+			loop {_chosen::*}:
+				set {_dn} to loop-value-2
+				set {_d} to {_w0} + ({_dn} - 1) * 86400
+				add 1 to {_k}
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and 82800)
+		delete {_chosen::*}
+	set {hit::week} to {_w}
+	hitLog("week W=%{_w}% target=%{_pick}%")
+
+# ---------- Contracts ----------
+
+function hitHas(p: player) :: boolean:
+	if getData({_p}, "hit::week") is progWeek():
+		return true
+	return false
+
+function hitTierOf(p: player) :: text:
+	if hitHas({_p}) is true:
+		return "%getData({_p}, "hit::tier")%"
+	return ""
+
+function hitStateOf(p: player) :: text:
+	if hitHas({_p}) is true:
+		set {_s} to getData({_p}, "hit::state")
+		if {_s} is set:
+			return "%{_s}%"
+	return ""
+
+function hitHunting(p: player) :: boolean:
+	if hitStateOf({_p}) is "hunting":
+		return true
+	return false
+
+# "" = the player may take (or switch to) this tier here; else why not.
+function hitTakeBlock(p: player, t: text) :: text:
+	if questNear({_p}, "hits") is "":
+		return "Contracts are taken from the Broker, in person."
+	if levelOk({_p}, cfg("hit::%{_t}%::level")) is false:
+		set {_l} to cfg("hit::%{_t}%::level")
+		return "Needs level %{_l}%."
+	if hitTarget() is "":
+		return "The Broker has nothing yet."
+	if size of {hit::node::*} < 2:
+		return "The Broker has nothing yet."
+	if tutorialNeedsBag({_p}) is true:
+		return "Buy your bag first."
+	if hitHas({_p}) is true:
+		set {_s} to hitStateOf({_p})
+		if {_s} is not "hunting":
+			return "You already took this week's contract."
+		set {_now} to hitTierRank(hitTierOf({_p}))
+		if hitTierRank({_t}) >= {_now}:
+			return "You can only switch to an easier contract."
+	return ""
+
+function hitTierRank(t: text) :: number:
+	set {_i} to 0
+	loop hitTiers():
+		add 1 to {_i}
+		if loop-value is {_t}:
+			return {_i}
+	return 0
+
+function hitTake(p: player, t: text):
+	set {_why} to hitTakeBlock({_p}, {_t})
+	if {_why} is not "":
+		hudBar({_p}, "&c%{_why}%", 1)
+		stop
+	set {_was} to hitTierOf({_p})
+	setData({_p}, "hit::week", progWeek())
+	setData({_p}, "hit::tier", {_t})
+	setData({_p}, "hit::state", "hunting")
+	set {_name} to hitTargetName()
+	if {_was} is "":
+		storyText({_p}, "Broker", "%{_name}%. %{-cfg::hit::target::%hitTarget()%::crime}% I'll text you when they're seen.")
+		hitLog("take %{_p}% %uuid of {_p}% %{_t}% W=%progWeek()% target=%hitTarget()%")
+	else:
+		hudBar({_p}, "&aYour contract is now %hitTierName({_t})%.", 1)
+		hitLog("switch %{_p}% %uuid of {_p}% %{_was}% -> %{_t}%")
+		hitEnd({_p}, "switch")
+
+# ---------- Windows ----------
+
+# The tier's window is running ("W|k|left" in {hit::open::<t>}).
+function hitOpen(t: text) :: boolean:
+	set {_o} to {hit::open::%{_t}%}
+	if {_o} is set:
+		set {_a::*} to "%{_o}%" split at "|"
+		if ({_a::1} parsed as number) is progWeek():
+			return true
+	return false
+
+function hitLeft(t: text) :: number:
+	if hitOpen({_t}) is false:
+		return 0
+	set {_a::*} to "%{hit::open::%{_t}%}%" split at "|"
+	return {_a::3} parsed as number
+
+# 2+ players online, or a holder of this tier online (and hunting).
+function hitActive(t: text) :: boolean:
+	if size of all players >= 2:
+		return true
+	loop all players:
+		if hitHunting(loop-player) is true:
+			if hitTierOf(loop-player) is {_t}:
+				return true
+	return false
+
+function hitWindowTick(t: text):
+	set {_w} to progWeek()
+	set {_act} to hitActive({_t})
+	if hitOpen({_t}) is true:
+		if {_act} is false:
+			stop
+		set {_a::*} to "%{hit::open::%{_t}%}%" split at "|"
+		set {_left} to ({_a::3} parsed as number) - 1
+		if {_left} <= 0:
+			delete {hit::open::%{_t}%}
+			hitLog("window-end %{_t}% W=%{_w}% k=%{_a::2}%")
+			loop all players:
+				if hitTierOf(loop-player) is {_t}:
+					hitWindowOver(loop-player)
+			stop
+		set {hit::open::%{_t}%} to "%{_a::1}%|%{_a::2}%|%{_left}%"
+		stop
+	# The latest window that came due and wasn't used: opens once the tier is active (older ones are dropped).
+	set {_now} to progUnix()
+	set {_due} to ""
+	loop {hit::win::%{_w}%::%{_t}%::*}:
+		if loop-value <= {_now}:
+			if {hit::used::%{_w}%::%{_t}%::%loop-index%} is not set:
+				add loop-index to {_pending::*}
+				set {_due} to loop-index
+	if {_due} is "":
+		stop
+	{_act} is true
+	loop {_pending::*}:
+		set {hit::used::%{_w}%::%{_t}%::%loop-value%} to true
+	set {hit::open::%{_t}%} to "%{_w}%|%{_due}%|%cfg("hit::window-length")%"
+	hitLog("window-open %{_t}% W=%{_w}% k=%{_due}% skipped=%size of {_pending::*} - 1%")
+	loop all players:
+		if hitTierOf(loop-player) is {_t}:
+			if hitHunting(loop-player) is true:
+				storyText(loop-player, "Broker", "%hitTargetName()%'s in town. I'll text you what I hear.")
+				play sound "block.bell.use" with volume 0.6 to loop-player
+
+# The next window of a tier (unix, 0 = none left this week) for the menu.
+function hitNextWindow(t: text) :: number:
+	set {_w} to progWeek()
+	set {_now} to progUnix()
+	set {_best} to 0
+	loop {hit::win::%{_w}%::%{_t}%::*}:
+		if {hit::used::%{_w}%::%{_t}%::%loop-index%} is not set:
+			if loop-value > {_now}:
+				if {_best} is 0:
+					set {_best} to loop-value
+				else if loop-value < {_best}:
+					set {_best} to loop-value
+	return {_best}
+
+# How many windows of a tier are left this week (not used yet, the waiting one included).
+function hitWindowsLeft(t: text) :: number:
+	set {_w} to progWeek()
+	set {_n} to 0
+	loop {hit::win::%{_w}%::%{_t}%::*}:
+		if {hit::used::%{_w}%::%{_t}%::%loop-index%} is not set:
+			add 1 to {_n}
+	return {_n}
+
+# ---------- Street nodes ----------
+
+function hitNodeLoc(n: text) :: location:
+	set {_v} to {hit::node::%{_n}%}
+	if {_v} is set:
+		set {_a::*} to "%{_v}%" split at "|"
+		return location({_a::2} parsed as number, {_a::3} parsed as number, {_a::4} parsed as number, world {_a::1})
+	return {_none}
+
+function hitNodeDistrict(n: text) :: text:
+	set {_a::*} to "%{hit::node::%{_n}%}%" split at "|"
+	if {_a::5} is set:
+		return {_a::5}
+	return ""
+
+function hitNeighbors(n: text) :: texts:
+	loop {hit::edge::%{_n}%::*}:
+		if {hit::node::%loop-index%} is set:
+			add loop-index to {_out::*}
+	return {_out::*}
+
+# Whether a spot is too close to a heist or a safe zone (targets and nodes stay out).
+function hitForbidden(l: location, pad: number) :: boolean:
+	if heistAt({_l}) is not "":
+		return true
+	if isSafeZone({_l}) is true:
+		return true
+	loop 4 times:
+		set {_dx} to 0
+		set {_dz} to 0
+		if loop-value is 1:
+			set {_dx} to {_pad}
+		else if loop-value is 2:
+			set {_dx} to 0 - {_pad}
+		else if loop-value is 3:
+			set {_dz} to {_pad}
+		else:
+			set {_dz} to 0 - {_pad}
+		set {_q} to {_l} ~ vector({_dx}, 0, {_dz})
+		if heistAt({_q}) is not "":
+			return true
+		if isSafeZone({_q}) is true:
+			return true
+	return false
+
+function hitNodeAdd(l: location, district: text, linkto: text) :: text:
+	add 1 to {hitnodecounter}
+	set {_n} to "%{hitnodecounter}%"
+	set {hit::node::%{_n}%} to "%world of {_l}%|%floor(x-coordinate of {_l}) + 0.5%|%floor(y-coordinate of {_l})%|%floor(z-coordinate of {_l}) + 0.5%|%{_district}%"
+	if {_linkto} is not "":
+		hitLink({_n}, {_linkto})
+	return {_n}
+
+function hitLink(a: text, b: text):
+	set {hit::edge::%{_a}%::%{_b}%} to true
+	set {hit::edge::%{_b}%::%{_a}%} to true
+
+# ---------- The walker (where the target is, with no entity: memory only, loads nothing) ----------
+
+function hitWalkerStart(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_pl} to location of {_p}
+	set {_best} to ""
+	set {_bestd} to -1
+	loop {hit::node::*}:
+		set {_l} to hitNodeLoc(loop-index)
+		if {_l} is set:
+			if world of {_l} is world of {_p}:
+				set {_d} to distance between {_l} and {_pl}
+				if {_d} >= cfg("hit::start-away"):
+					add loop-index to {_far::*}
+				if {_d} > {_bestd}:
+					set {_bestd} to {_d}
+					set {_best} to loop-index
+	set {_a} to random element out of {_far::*}
+	if {_a} is not set:
+		set {_a} to {_best}
+	set {-hit::s::%{_u}%::a} to {_a}
+	set {-hit::s::%{_u}%::b} to {_a}
+	set {-hit::s::%{_u}%::t0} to now
+	set {-hit::s::%{_u}%::pause} to now
+
+function hitNextNode(from: text, back: text) :: text:
+	set {_n::*} to hitNeighbors({_from})
+	loop {_n::*}:
+		if loop-value is not {_back}:
+			add loop-value to {_fwd::*}
+	set {_c} to random element out of {_fwd::*}
+	if {_c} is set:
+		return {_c}
+	set {_c} to random element out of {_n::*}
+	if {_c} is set:
+		return {_c}
+	return {_from}
+
+# Where the target is now (the NPC while it exists, else the walker on its street).
+# f of the way from a to b, as a vector.
+function hitDelta(a: location, b: location, f: number) :: vector:
+	set {_ax} to x-coordinate of {_a}
+	set {_ay} to y-coordinate of {_a}
+	set {_az} to z-coordinate of {_a}
+	set {_bx} to x-coordinate of {_b}
+	set {_by} to y-coordinate of {_b}
+	set {_bz} to z-coordinate of {_b}
+	return vector({_f} * ({_bx} - {_ax}), {_f} * ({_by} - {_ay}), {_f} * ({_bz} - {_az}))
+
+function hitWalkerPos(p: player) :: location:
+	set {_u} to "%uuid of {_p}%"
+	set {_e} to hitEntity({-hit::s::%{_u}%::target})
+	if {_e} is set:
+		return location of {_e}
+	set {_a} to {-hit::s::%{_u}%::a}
+	set {_b} to {-hit::s::%{_u}%::b}
+	if {_a} is not set:
+		return {_none}
+	set {_la} to hitNodeLoc({_a})
+	set {_lb} to hitNodeLoc({_b})
+	if {_la} is not set:
+		return {_none}
+	if {_lb} is not set:
+		return {_la}
+	set {_len} to distance between {_la} and {_lb}
+	if {_len} < 0.5:
+		return {_lb}
+	set {_el} to (difference between {-hit::s::%{_u}%::t0} and now) / 1 second
+	set {_f} to min(1, {_el} * cfg("hit::walk-speed") / {_len})
+	# Each coordinate in a local: "x-coordinate of {_a} - ..." would read as the coordinate of a difference.
+	return {_la} ~ hitDelta({_la}, {_lb}, {_f})
+
+# Moves the walker on (every second, while no NPC exists).
+function hitWalkerStep(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_a} to {-hit::s::%{_u}%::a}
+	{_a} is set
+	set {_b} to {-hit::s::%{_u}%::b}
+	set {_la} to hitNodeLoc({_a})
+	set {_lb} to hitNodeLoc({_b})
+	if {_la} is not set:
+		hitWalkerStart({_p})
+		stop
+	if {_lb} is not set:
+		set {_lb} to {_la}
+	set {_len} to distance between {_la} and {_lb}
+	set {_el} to (difference between {-hit::s::%{_u}%::t0} and now) / 1 second
+	if {_el} * cfg("hit::walk-speed") < {_len}:
+		stop
+	# Arrived: a pause, then the next street.
+	if {-hit::s::%{_u}%::pause} is set:
+		if {-hit::s::%{_u}%::pause} > now:
+			stop
+		if {-hit::s::%{_u}%::paused} is not set:
+			set {-hit::s::%{_u}%::paused} to true
+			set {_w} to random number between 10 and 30
+			set {-hit::s::%{_u}%::pause} to now
+			add 1 second * {_w} to {-hit::s::%{_u}%::pause}
+			stop
+	delete {-hit::s::%{_u}%::paused}
+	set {_c} to hitNextNode({_b}, {_a})
+	set {-hit::s::%{_u}%::a} to {_b}
+	set {-hit::s::%{_u}%::b} to {_c}
+	set {-hit::s::%{_u}%::t0} to now
+
+# The node nearest to a spot (to restart the walker where the NPC was).
+function hitNearestNode(l: location) :: text:
+	set {_best} to ""
+	set {_bd} to -1
+	loop {hit::node::*}:
+		set {_n} to hitNodeLoc(loop-index)
+		if {_n} is set:
+			if world of {_n} is world of {_l}:
+				set {_d} to distance between {_n} and {_l}
+				if {_bd} < 0:
+					set {_bd} to {_d}
+					set {_best} to loop-index
+				else if {_d} < {_bd}:
+					set {_bd} to {_d}
+					set {_best} to loop-index
+	return {_best}
+
+# ---------- The NPCs ----------
+
+function hitEntity(id: object) :: entity:
+	if {_id} is not set:
+		return {_none}
+	set {_e} to {-hit::ent::%{_id}%}
+	if {_e} is set:
+		if {_e} is valid:
+			return {_e}
+	# Citizens swaps the entity when the skin loads: find it again by its id.
+	loop all entities:
+		if loop-entity has metadata "NPC-ID":
+			set {_mv} to metadata value "NPC-ID" of loop-entity
+			if "%{_mv}%" is "%{_id}%":
+				set {-hit::ent::%{_id}%} to loop-entity
+				return loop-entity
+	return {_none}
+
+# The holder (uuid) of a hit NPC entity, "" for anything else.
+function hitHolderOfEntity(e: entity) :: text:
+	if {_e} has metadata "NPC-ID":
+		set {_mv} to metadata value "NPC-ID" of {_e}
+		set {_id} to "%{_mv}%"
+		set {_h} to {-hit::npc::%{_id}%}
+		if {_h} is set:
+			return "%{_h}%"
+	return ""
+
+function hitRoleOfEntity(e: entity) :: text:
+	if {_e} has metadata "NPC-ID":
+		set {_mv} to metadata value "NPC-ID" of {_e}
+		set {_id} to "%{_mv}%"
+		set {_r} to {-hit::role::%{_id}%}
+		if {_r} is set:
+			return "%{_r}%"
+	return ""
+
+function hitLiveCount() :: number:
+	return size of {-hit::npc::*}
+
+function hitSentinel(id: text, args: text):
+	execute console command "sentinel %{_args}% --id %{_id}%"
+
+# The holder's copy: the target, then its bodyguards, made one at a time (the lock shared with the cops). The waits
+# are in this function itself: Skript doesn't wait for a called function that waits, it runs on without its result.
+function hitSpawnFor(p: player, l: location):
+	set {_u} to "%uuid of {_p}%"
+	if {-hit::spawning::%{_u}%} is set:
+		if difference between {-hit::spawning::%{_u}%} and now < 15 seconds:
+			stop
+	set {-hit::spawning::%{_u}%} to now
+	set {_tname} to hitTargetNpc()
+	set {_gname} to cfg("hit::guard-name")
+	set {_roles::*} to "target"
+	loop cfg("hit::guards") times:
+		add "guard" to {_roles::*}
+	set {_tid} to ""
+	set {_fail} to false
+	loop {_roles::*}:
+		set {_role} to loop-value
+		if {_fail} is false:
+			set {_name} to {_gname}
+			set {_at} to {_l} ~ vector(random number between -1.5 and 1.5, 0, random number between -1.5 and 1.5)
+			if {_role} is "target":
+				set {_name} to {_tname}
+				set {_at} to {_l}
+			loop 80 times:
+				if npcBusy() is true:
+					wait 1 tick
+			if npcBusy() is true:
+				hitLog("busy-timeout %{_p}% %{_role}%")
+				set {_fail} to true
+			else if {_p} is not online:
+				set {_fail} to true
+			if {_fail} is false:
+				set {-npc::busy} to now
+				set {_x} to x-coordinate of {_at}
+				set {_y} to y-coordinate of {_at}
+				set {_z} to z-coordinate of {_at}
+				set {_w} to "%world of {_at}%"
+				execute console command "npc create %{_name}% --at %{_x}%,%{_y}%,%{_z}%,%{_w}% --type PLAYER --trait sentinel --nameplate false -s"
+				# The new NPC is still selected: only this holder will ever be sent it.
+				execute console command "npc playerfilter -a --add %{_u}%"
+				set {_id} to ""
+				set {_tries} to 0
+				loop 40 times:
+					if {_id} is "":
+						loop all entities in radius 3 around {_at}:
+							set {_ce} to loop-entity
+							if {_ce} has metadata "NPC-ID":
+								if name of {_ce} is {_name}:
+									set {_mv} to metadata value "NPC-ID" of {_ce}
+									set {_raw} to "%{_mv}%"
+									if {-hit::npc::%{_raw}%} is not set:
+										if {-cop::heist::%{_raw}%} is not set:
+											set {_id} to {_raw}
+											set {-hit::ent::%{_raw}%} to {_ce}
+						if {_id} is "":
+							add 1 to {_tries}
+							wait 1 tick
+				delete {-npc::busy}
+				if {_id} is "":
+					hitLog("spawn-failed %{_p}% %{_role}% (the sweep removes it if it appears later)")
+					set {_fail} to true
+				else:
+					set {-hit::npc::%{_id}%} to {_u}
+					set {-hit::role::%{_id}%} to {_role}
+					set {hit::npcids::%{_id}%} to "%{_u}%|%{_role}%"
+					hitSentinel({_id}, "respawntime -1")
+					hitSentinel({_id}, "deathxp 0")
+					hitSentinel({_id}, "fightback false")
+					hitSentinel({_id}, "needammo false")
+					hitSentinel({_id}, "chaserange %cfg("hit::chase")%")
+					if {_role} is "target":
+						set {_tid} to {_id}
+						set {-hit::s::%{_u}%::target} to {_id}
+						set {_tex} to {-cfg::hit::target::%hitTarget()%::skin-texture}
+						set {_sig} to {-cfg::hit::target::%hitTarget()%::skin-signature}
+						if {_tex} is set:
+							if {_sig} is set:
+								execute console command "npc skin -t %{_name}% %{_tex}% %{_sig}% --id %{_id}%"
+						hitSentinel({_id}, "health %cfg("hit::target-health")%")
+						hitSentinel({_id}, "speed %cfg("hit::target-speed")%")
+					else:
+						add {_id} to {-hit::s::%{_u}%::guards::*}
+						set {_model} to cfg("hit::guard-model")
+						execute console command "npc setequipment hand feather[custom_model_data={floats:[%{_model}%f]}] --id %{_id}%"
+						hitSentinel({_id}, "health %cfg("hit::guard-health")%")
+						hitSentinel({_id}, "damage %cfg("hit::guard-damage")%")
+						hitSentinel({_id}, "attackrate %cfg("hit::guard-rate")%")
+						hitSentinel({_id}, "reach %cfg("hit::guard-reach")%")
+						hitSentinel({_id}, "speed %cfg("hit::guard-speed")%")
+						hitSentinel({_id}, "guard npc:%{_tid}%")
+						hitSentinel({_id}, "guarddistance 3 12")
+					hitLog("npc %{_p}% %{_role}% id=%{_id}% after %{_tries}% ticks")
+					# Already noticed (a copy made again mid-chase): the bodyguards join in at once.
+					if {_role} is "guard":
+						if {-hit::s::%{_u}%::noticed} is set:
+							hitSentinel({_id}, "addtarget uuid:%{_u}%")
+	delete {-hit::spawning::%{_u}%}
+	if {_p} is not online:
+		hitDespawn({_p}, "left")
+	else if {_tid} is "":
+		hitDespawn({_p}, "failed")
+
+function hitRemoveNpc(id: text):
+	delete {-hit::npc::%{_id}%}
+	delete {-hit::role::%{_id}%}
+	delete {-hit::ent::%{_id}%}
+	delete {hit::npcids::%{_id}%}
+	execute console command "npc remove %{_id}%"
+
+# Removes a holder's copy; the walker goes on from where the target was.
+function hitDespawn(p: player, why: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_t} to {-hit::s::%{_u}%::target}
+	if {_t} is set:
+		set {_e} to hitEntity({_t})
+		if {_e} is set:
+			set {_n} to hitNearestNode(location of {_e})
+			if {_n} is not "":
+				set {-hit::s::%{_u}%::a} to {_n}
+				set {-hit::s::%{_u}%::b} to {_n}
+				set {-hit::s::%{_u}%::t0} to now
+		hitRemoveNpc("%{_t}%")
+		hitLog("despawn %{_p}% why=%{_why}%")
+	loop {-hit::s::%{_u}%::guards::*}:
+		hitRemoveNpc("%loop-value%")
+	delete {-hit::s::%{_u}%::target}
+	delete {-hit::s::%{_u}%::guards::*}
+	delete {-hit::s::%{_u}%::spotted}
+	delete {-hit::s::%{_u}%::noticed}
+	delete {-hit::s::%{_u}%::seen}
+	execute console command "dphone mark %name of {_p}% off"
+
+# A holder's hunt ends for now (the window over, the week turned, a switch): no copy, no GPS.
+function hitEnd(p: player, why: text):
+	hitDespawn({_p}, {_why})
+	set {_u} to "%uuid of {_p}%"
+	delete {-hit::s::%{_u}%::*}
+	gpsQuestClear({_p}, "hit")
+
+function hitWindowOver(p: player):
+	set {_u} to "%uuid of {_p}%"
+	# Overtime while engaged: a fight never ends in the middle.
+	set {_eng} to {-hit::s::%{_u}%::engaged}
+	if {_eng} is set:
+		if difference between {_eng} and now < 30 seconds:
+			set {-hit::s::%{_u}%::overtime} to now
+			add 1 second * cfg("hit::overtime") to {-hit::s::%{_u}%::overtime}
+			hudBar({_p}, "&c%hitTargetName()% is leaving town: take them down now!", 2)
+			stop
+	if hitHunting({_p}) is true:
+		if {-hit::s::%{_u}%::a} is set:
+			storyText({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
+	hitEnd({_p}, "window")
+
+# ---------- The hunt (every second, and every 5 ticks while a copy exists) ----------
+
+function hitEligible(p: player) :: boolean:
+	if {_p} is not alive:
+		return false
+	if isAfk({_p}) is true:
+		return false
+	if heistOf({_p}) is not "":
+		return false
+	if world of {_p} is not poiMainWorld():
+		return false
+	return true
+
+# Whether the holder may hunt now (their tier's window open, or their overtime running).
+function hitNow(p: player) :: boolean:
+	if hitHunting({_p}) is false:
+		return false
+	set {_t} to hitTierOf({_p})
+	if hitOpen({_t}) is true:
+		return true
+	set {_ot} to {-hit::s::%uuid of {_p}%::overtime}
+	if {_ot} is set:
+		if {_ot} > now:
+			return true
+	return false
+
+function hitSecond(p: player):
+	set {_u} to "%uuid of {_p}%"
+	if hitHas({_p}) is false:
+		if {-hit::s::%{_u}%::a} is set:
+			hitEnd({_p}, "week")
+		stop
+	# The sidebar line while not hunting now: done, the next sighting, or gone for the week.
+	set {_t} to hitTierOf({_p})
+	if hitStateOf({_p}) is "done":
+		set {-ph::hit::%{_p}%} to "&a◎ Target down &7· a new name Thursday"
+	else if hitNow({_p}) is false:
+		set {_nx} to hitNextWindow({_t})
+		if hitWindowsLeft({_t}) <= 0:
+			set {-ph::hit::%{_p}%} to "&7◎ %hitTargetName()% · gone for the week"
+		else if {_nx} <= 0:
+			set {-ph::hit::%{_p}%} to "&7◎ %hitTargetName()% · due soon"
+		else:
+			set {_in} to {_nx} - progUnix()
+			set {-ph::hit::%{_p}%} to "&7◎ %hitTargetName()% · next in %fenceLeftText({_in})%"
+	if hitNow({_p}) is false:
+		if {-hit::s::%{_u}%::overtime} is set:
+			delete {-hit::s::%{_u}%::overtime}
+			storyText({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
+			hitEnd({_p}, "overtime")
+		stop
+	if hitEligible({_p}) is false:
+		if {-hit::s::%{_u}%::target} is set:
+			hitDespawn({_p}, "away")
+		stop
+	if {-hit::s::%{_u}%::a} is not set:
+		hitWalkerStart({_p})
+		set {-hit::s::%{_u}%::r} to cfg("hit::%hitTierOf({_p})%::r0")
+		hitTip({_p})
+	if {-hit::s::%{_u}%::target} is not set:
+		hitWalkerStep({_p})
+		set {_x} to hitWalkerPos({_p})
+		if {_x} is set:
+			if distance between {_x} and {_p} <= cfg("hit::materialize"):
+				if chunk at {_x} is loaded:
+					if hitLiveCount() < cfg("hit::cap"):
+						if npcBusy() is false:
+							hitSpawnFor({_p}, {_x})
+	# Tips while it isn't spotted.
+	if {-hit::s::%{_u}%::spotted} is not set:
+		set {_lt} to {-hit::s::%{_u}%::tipat}
+		if {_lt} is set:
+			if difference between {_lt} and now >= 1 second * cfg("hit::%hitTierOf({_p})%::tip"):
+				hitTip({_p})
+	# The sidebar line.
+	set {_left} to hitLeft(hitTierOf({_p}))
+	set {-ph::hit::%{_p}%} to "&c◎ %hitTargetName()% &7· hunting %formatClock({_left})%"
+
+# A tip from the Broker: the search area (a circle on the GPS) shrinks while the holder keeps up.
+function hitTip(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {-hit::s::%{_u}%::tipat} to now
+	set {_x} to hitWalkerPos({_p})
+	{_x} is set
+	set {_t} to hitTierOf({_p})
+	set {_r} to {-hit::s::%{_u}%::r}
+	if {_r} is not set:
+		set {_r} to cfg("hit::%{_t}%::r0")
+	# Inside the last circle: it narrows.
+	set {_cx} to {-hit::s::%{_u}%::cx}
+	if {_cx} is set:
+		set {_c} to location({_cx}, y-coordinate of {_p}, {-hit::s::%{_u}%::cz}, world of {_p})
+		if distance between {_c} and {_p} <= {_r}:
+			set {_r} to max(cfg("hit::%{_t}%::rmin"), 0.7 * {_r})
+	set {-hit::s::%{_u}%::r} to {_r}
+	set {_rho} to random number between 0 and {_r} / 2
+	set {_th} to random number between 0 and 360
+	set {_xx} to x-coordinate of {_x}
+	set {_xz} to z-coordinate of {_x}
+	set {_xy} to y-coordinate of {_x}
+	set {_ccx} to {_xx} + {_rho} * cos({_th})
+	set {_ccz} to {_xz} + {_rho} * sin({_th})
+	set {-hit::s::%{_u}%::cx} to {_ccx}
+	set {-hit::s::%{_u}%::cz} to {_ccz}
+	set {_spot} to "%{_ccx}%,%{_xy}%,%{_ccz}%"
+	set {_name} to hitTargetName()
+	# The GPS: never over a car job or the base route while carrying loot.
+	if {-ctjob::%{_u}%} is not set:
+		if bagTotal({_p}) <= 0:
+			gpsQuest({_p}, "%world of {_p}%", {_spot}, "%{_name}%: search area", {_r}, "hit", "hit:%progWeek()%:%{_t}%")
+	set {_where} to gpsPlaceNear({_p}, {_x}, 60)
+	if {_where} is not "":
+		set {_wp::*} to {_where} split at "|"
+		set {_where} to {_wp::5}
+	hitLog("tip %{_p}% at=%{_spot}% r=%{_r}%")
+	if {_where} is "":
+		set {_d} to hitNodeDistrict({-hit::s::%{_u}%::b})
+		if {_d} is not "":
+			set {_where} to "in %{_d}%"
+		else:
+			set {_where} to "somewhere around here"
+	else:
+		set {_where} to "near the %{_where}%"
+	hudBar({_p}, "&4Broker: &fseen %{_where}% &7(search area %floor({_r})%m)", 1)
+
+every second:
+	# The week and the windows.
+	if {hit::week} is not progWeek():
+		hitRollWeek(progWeek())
+	loop hitTiers():
+		hitWindowTick(loop-value)
+	loop all players:
+		set {_p} to loop-player
+		if hitHas({_p}) is true:
+			hitSecond({_p})
+		else:
+			delete {-ph::hit::%{_p}%}
+
+# Every 5 ticks, for holders with a copy: forbidden areas, pathing, spotted, noticed, lost, the gunshots' look.
+every 5 ticks:
+	loop all players:
+		set {_p} to loop-player
+		set {_u} to "%uuid of {_p}%"
+		set {_tid} to {-hit::s::%{_u}%::target}
+		if {_tid} is set:
+			hitPulse({_p}, "%{_tid}%")
+
+function hitPulse(p: player, tid: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_e} to hitEntity({_tid})
+	if {_e} is not set:
+		stop
+	set {_l} to location of {_e}
+	# Never into heists or safe zones: back to the last good spot.
+	if hitForbidden({_l}, 3) is true:
+		set {_g} to {-hit::s::%{_u}%::good}
+		if {_g} is set:
+			execute console command "npc moveto %x-coordinate of {_g}% %y-coordinate of {_g}% %z-coordinate of {_g}% %world of {_g}% --id %{_tid}%"
+	else:
+		set {-hit::s::%{_u}%::good} to {_l}
+	set {_d} to distance between {_l} and {_p}
+	# Far away: the copy goes (the walker goes on).
+	if {_d} > cfg("hit::dematerialize"):
+		set {_far} to {-hit::s::%{_u}%::farat}
+		if {_far} is not set:
+			set {-hit::s::%{_u}%::farat} to now
+		else if difference between {_far} and now >= 10 seconds:
+			hitDespawn({_p}, "far")
+			stop
+	else:
+		delete {-hit::s::%{_u}%::farat}
+	# Calm: walking the streets.
+	if {-hit::s::%{_u}%::noticed} is not set:
+		set {_goal} to {-hit::s::%{_u}%::goal}
+		set {_new} to false
+		if {_goal} is not set:
+			set {_new} to true
+		else if distance between {_goal} and {_l} <= 2:
+			set {_new} to true
+		else:
+			set {_st} to {-hit::s::%{_u}%::moved}
+			if {_st} is set:
+				if difference between {_st} and now >= 5 seconds:
+					set {_new} to true
+		if {_new} is true:
+			set {_near} to hitNearestNode({_l})
+			set {_nx} to hitNextNode({_near}, {-hit::s::%{_u}%::gnode})
+			set {-hit::s::%{_u}%::gnode} to {_near}
+			set {_gl} to hitNodeLoc({_nx})
+			if {_gl} is set:
+				set {-hit::s::%{_u}%::goal} to {_gl}
+				set {-hit::s::%{_u}%::moved} to now
+				execute console command "npc pathto %x-coordinate of {_gl}% %y-coordinate of {_gl}% %z-coordinate of {_gl}% --id %{_tid}%"
+	# Spotted: in range and in sight for 4 pulses in a row.
+	set {_eye} to {_l} ~ vector(0, 1.6, 0)
+	set {_sees} to false
+	if {_d} <= cfg("hit::spot-range"):
+		if {_p} has line of sight to {_eye}:
+			set {_sees} to true
+	if {_sees} is true:
+		add 1 to {-hit::s::%{_u}%::seen}
+	else:
+		set {-hit::s::%{_u}%::seen} to 0
+	if {-hit::s::%{_u}%::spotted} is not set:
+		if {-hit::s::%{_u}%::seen} >= 4:
+			hitSpotted({_p}, {_e})
+		else if {_d} <= 20:
+			set {_hb} to {-hit::s::%{_u}%::heart}
+			if {_hb} is not set:
+				set {_hb} to now
+				subtract 3 seconds from {_hb}
+			if difference between {_hb} and now >= 2 seconds:
+				set {-hit::s::%{_u}%::heart} to now
+				hudBar({_p}, "&cYou're close...", 0)
+				play sound "entity.warden.heartbeat" with volume 0.7 to {_p}
+	else:
+		set {-hit::s::%{_u}%::engaged} to now
+		set glowing of {_e} to true
+		# Noticed: within 16 blocks and in sight for a moment, or hit first.
+		if {-hit::s::%{_u}%::noticed} is not set:
+			if {_sees} is true:
+				if {_d} <= 16:
+					add 1 to {-hit::s::%{_u}%::close}
+					if {-hit::s::%{_u}%::close} >= 8:
+						hitNoticed({_p})
+		# Lost: far away for 20 s.
+		if {_d} > 64:
+			set {_lo} to {-hit::s::%{_u}%::lostat}
+			if {_lo} is not set:
+				set {-hit::s::%{_u}%::lostat} to now
+			else if difference between {_lo} and now >= 20 seconds:
+				hitLost({_p})
+		else:
+			delete {-hit::s::%{_u}%::lostat}
+		# A new entity after the skin loads: the mark follows it.
+		if {-hit::s::%{_u}%::markuuid} is not "%uuid of {_e}%":
+			set {-hit::s::%{_u}%::markuuid} to "%uuid of {_e}%"
+			execute console command "dphone mark %name of {_p}% %uuid of {_e}% red 48"
+
+function hitSpotted(p: player, e: entity):
+	set {_u} to "%uuid of {_p}%"
+	set {-hit::s::%{_u}%::spotted} to true
+	set {-hit::s::%{_u}%::engaged} to now
+	set glowing of {_e} to true
+	gpsQuestClear({_p}, "hit")
+	set {-hit::s::%{_u}%::markuuid} to "%uuid of {_e}%"
+	execute console command "dphone mark %name of {_p}% %uuid of {_e}% red 48"
+	send title colored "&4&lTARGET SPOTTED&r" with subtitle colored "&f%hitTargetName()%" to {_p} for 2 seconds
+	play sound "entity.elder_guardian.curse" with volume 0.4 and pitch 1.6 to {_p}
+	hitLog("spot %{_p}%")
+
+function hitNoticed(p: player):
+	set {_u} to "%uuid of {_p}%"
+	{-hit::s::%{_u}%::noticed} is not set
+	set {-hit::s::%{_u}%::noticed} to true
+	set {_tid} to "%{-hit::s::%{_u}%::target}%"
+	hitSentinel({_tid}, "addavoid uuid:%{_u}%")
+	hitSentinel({_tid}, "avoidrange 16")
+	loop {-hit::s::%{_u}%::guards::*}:
+		hitSentinel("%loop-value%", "addtarget uuid:%{_u}%")
+	hudBar({_p}, "&c%hitTargetName()% has seen you! Watch the bodyguards.", 2)
+	hitLog("noticed %{_p}%")
+
+function hitLost(p: player):
+	set {_u} to "%uuid of {_p}%"
+	delete {-hit::s::%{_u}%::spotted}
+	delete {-hit::s::%{_u}%::lostat}
+	set {-hit::s::%{_u}%::seen} to 0
+	set {_e} to hitEntity({-hit::s::%{_u}%::target})
+	if {_e} is set:
+		set glowing of {_e} to false
+	execute console command "dphone mark %name of {_p}% off"
+	set {-hit::s::%{_u}%::r} to cfg("hit::%hitTierOf({_p})%::rmin") * 2
+	delete {-hit::s::%{_u}%::cx}
+	storyText({_p}, "Broker", "You lost %hitTargetName()%. I'm asking around.")
+	hitTip({_p})
+	hitLog("lost %{_p}%")
+
+# ---------- Damage and death ----------
+
+on damage with priority lowest:
+	# A hit NPC is hurt only by its own holder.
+	set {_vh} to hitHolderOfEntity(victim)
+	if {_vh} is not "":
+		set {_ok} to false
+		if attacker is set:
+			if attacker is a player:
+				if "%uuid of attacker%" is {_vh}:
+					set {_ok} to true
+		if {_ok} is false:
+			cancel event
+			stop
+		set {_p} to attacker
+		set {-hit::s::%{_vh}%::engaged} to now
+		if {-hit::s::%{_vh}%::noticed} is not set:
+			hitNoticed({_p})
+		stop
+	# A hit NPC hurts only its own holder (never in a safe zone): its bodyguards' "shots".
+	attacker is set
+	set {_ah} to hitHolderOfEntity(attacker)
+	{_ah} is not ""
+	set {_ok} to false
+	if victim is a player:
+		if "%uuid of victim%" is {_ah}:
+			if isSafeZone(location of victim) is false:
+				set {_ok} to true
+	if {_ok} is false:
+		cancel event
+		stop
+	set {-hit::s::%{_ah}%::engaged} to now
+	# The shot, for the holder only: a crack and a tracer.
+	set {_from} to (location of attacker) ~ vector(0, 1.5, 0)
+	set {_to} to (location of victim) ~ vector(0, 1.2, 0)
+	play sound "entity.firework_rocket.blast" with volume 0.9 and pitch 1.7 to victim
+	set {_len} to distance between {_from} and {_to}
+	set {_steps} to min(24, floor({_len} * 1.5))
+	loop {_steps} times:
+		set {_f} to loop-value / max(1, {_steps})
+		set {_pt} to {_from} ~ hitDelta({_from}, {_to}, {_f})
+		draw 1 crit particle at {_pt} for victim
+
+# The takedown (or a bodyguard down).
+on death with priority lowest:
+	set {_h} to hitHolderOfEntity(victim)
+	{_h} is not ""
+	clear drops
+	set {_mv} to metadata value "NPC-ID" of victim
+	set {_id} to "%{_mv}%"
+	set {_role} to hitRoleOfEntity(victim)
+	set {_p} to playerByUuid({_h})
+	wait 1 tick
+	if {_role} is "target":
+		if {_p} is online:
+			hitDown({_p})
+		else:
+			hitRemoveNpc({_id})
+	else:
+		hitRemoveNpc({_id})
+		if {_p} is online:
+			remove {_id} from {-hit::s::%{_h}%::guards::*}
+
+function hitDown(p: player):
+	set {_u} to "%uuid of {_p}%"
+	hitHunting({_p}) is true
+	setData({_p}, "hit::state", "paying")
+	set {_t} to hitTierOf({_p})
+	set {_w} to progWeek()
+	# The streak: weeks in a row (one missed week is forgiven).
+	set {_last} to getData({_p}, "hit::streak-week")
+	set {_s} to getData({_p}, "hit::streak")
+	if {_s} is not set:
+		set {_s} to 0
+	set {_gap} to 99
+	if {_last} is set:
+		set {_gap} to {_w} - {_last}
+	if {_gap} is 1 or 2:
+		add 1 to {_s}
+	else:
+		set {_s} to 1
+	setData({_p}, "hit::streak", {_s})
+	setData({_p}, "hit::streak-week", {_w})
+	set {_m} to 1
+	if {-hit::s::%{_u}%::passive} is true:
+		set {_m} to cfg("passive::payout-multiplier")
+	if isPassive({_p}) is true:
+		set {_m} to cfg("passive::payout-multiplier")
+	set {_bonus} to cfg("hit::streak-bonus") * min({_s} - 1, cfg("hit::streak-max"))
+	set {_pay} to floor(cfg("hit::%{_t}%::pay") * (1 + {_bonus}) * {_m})
+	set {_xp} to cfg("hit::%{_t}%::xp")
+	giveMoney({_p}, {_pay})
+	levelAddXp({_p}, {_xp}, "hit")
+	set {_keys} to {-cfg::hit::%{_t}%::keys}
+	set {_extra} to ""
+	if {_keys} is set:
+		crateAddKeys({_p}, "season", {_keys}, "hit")
+		set {_extra} to " &7· &f%{_keys}% Season key(s)"
+	if {_t} is "hard":
+		set {_ht} to getData({_p}, "hit::hard-total")
+		if {_ht} is not set:
+			set {_ht} to 0
+		add 1 to {_ht}
+		setData({_p}, "hit::hard-total", {_ht})
+		if {_ht} >= cfg("hit::pro-at"):
+			if cosGive({_p}, "hit_pro", "hit") is true:
+				msg({_p}, "&c★ The title %cosColored("hit_pro")% &7(/titles)")
+	loop {-cfg::hit::streak-titles::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_s} >= ({_a::1} parsed as number):
+			if cosGive({_p}, {_a::2}, "hit") is true:
+				msg({_p}, "&c★ %{_s}% weeks in a row: the title %cosColored({_a::2})% &7(/titles)")
+	hitLog("down %{_p}% %{_u}% %{_t}% W=%{_w}% streak=%{_s}% m=%{_m}% pay=%{_pay}% xp=%{_xp}% ip=%ip of {_p}%")
+	setData({_p}, "hit::state", "done")
+	hitEnd({_p}, "down")
+	msg({_p}, "&4Target down: &f%hitTargetName()% &7· &a%formatMoney({_pay})% &7· &b+%{_xp}% XP%{_extra}% &7· streak %{_s}%")
+	send title colored "&4&lTARGET DOWN&r" with subtitle colored "&a+%formatMoney({_pay})% &7· paid by the Broker" to {_p} for 3 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+	progEvent({_p}, "hit", {_pay}, {_t})
+
+# ---------- Leaving, reloading, cleanup ----------
+
+on quit:
+	hitDespawn(player, "quit")
+	delete {-hit::s::%uuid of player%::*}
+	delete {-ph::hit::%player%}
+
+on death of player:
+	isNpc(victim) is false
+	set {_u} to "%uuid of victim%"
+	{-hit::s::%{_u}%::target} is set
+	hitDespawn(victim, "death")
+	set {-hit::s::%{_u}%::r} to cfg("hit::%hitTierOf(victim)%::r0") / 2
+
+# A switch to passive mode during a sighting pays the passive share.
+every 5 seconds:
+	loop all players:
+		if {-hit::s::%uuid of loop-player%::a} is set:
+			if isPassive(loop-player) is true:
+				set {-hit::s::%uuid of loop-player%::passive} to true
+
+on load:
+	wait 5 seconds
+	loop {hit::npcids::*}:
+		if {-hit::npc::%loop-index%} is not set:
+			execute console command "npc remove %loop-index%"
+			delete {hit::npcids::%loop-index%}
+
+# Whether a hit NPC still belongs to its holder's copy (the target, a bodyguard, or one being made).
+function hitNpcOwned(id: text) :: boolean:
+	set {_u} to {-hit::npc::%{_id}%}
+	if {_u} is not set:
+		return false
+	if {-hit::spawning::%{_u}%} is set:
+		if difference between {-hit::spawning::%{_u}%} and now < 15 seconds:
+			return true
+	if "%{-hit::s::%{_u}%::target}%" is {_id}:
+		return true
+	loop {-hit::s::%{_u}%::guards::*}:
+		if "%loop-value%" is {_id}:
+			return true
+	return false
+
+# Hit NPCs nobody's copy has any more (saved ids, also in unloaded chunks), and NPCs named like a target or a
+# bodyguard that were never recorded (a spawn that timed out, a crash).
+every 10 seconds:
+	npcBusy() is false
+	loop {hit::npcids::*}:
+		if hitNpcOwned(loop-index) is false:
+			add loop-index to {_stale::*}
+	loop {_stale::*}:
+		hitRemoveNpc(loop-value)
+		hitLog("sweep id=%loop-value%")
+	loop {-cfg::hit::targets::*}:
+		add {-cfg::hit::target::%loop-value%::npc} to {_names::*}
+	add cfg("hit::guard-name") to {_names::*}
+	loop all entities:
+		if loop-entity has metadata "NPC-ID":
+			if {_names::*} contains name of loop-entity:
+				set {_mv} to metadata value "NPC-ID" of loop-entity
+				set {_id} to "%{_mv}%"
+				if hitNpcOwned({_id}) is false:
+					hitRemoveNpc({_id})
+					hitLog("sweep id=%{_id}%")
+
+# ---------- Staff laying out the streets ----------
+
+every second:
+	loop all players:
+		if {-hit::route::%loop-player%} is set:
+			hitRouteStep(loop-player)
+
+function hitRouteStep(p: player):
+	set {_last} to {-hit::route::%{_p}%}
+	set {_l} to location of {_p}
+	if world of {_p} is not poiMainWorld():
+		stop
+	if hitForbidden({_l}, 6) is true:
+		stop
+	if {_last} is not "":
+		set {_ll} to hitNodeLoc({_last})
+		if {_ll} is set:
+			if distance between {_ll} and {_l} < 24:
+				stop
+	set {_n} to hitNodeAdd({_l}, {-hit::routedistrict::%{_p}%}, {_last})
+	# A crossing: any other node within 6 blocks.
+	loop {hit::node::*}:
+		if loop-index is not {_n}:
+			if loop-index is not {_last}:
+				set {_o} to hitNodeLoc(loop-index)
+				if {_o} is set:
+					if world of {_o} is world of {_l}:
+						if distance between {_o} and {_l} <= 6:
+							hitLink({_n}, loop-index)
+	set {-hit::route::%{_p}%} to {_n}
+	hudBar({_p}, "&7Street node %{_n}% added", 0)
+
+# ---------- /hits and the Broker's menu ----------
+
+function hitButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-hit::act::%{_p}%::%{_slot}%} to {_act}
+
+function hitWindowText(t: text) :: text:
+	if hitOpen({_t}) is true:
+		return "&aIn town now: %formatClock(hitLeft({_t}))% left"
+	set {_nx} to hitNextWindow({_t})
+	if {_nx} <= 0:
+		if hitWindowsLeft({_t}) > 0:
+			return "&eDue: shows up while 2+ players are on"
+		return "&7No more sightings this week"
+	set {_s} to {_nx} - progUnix()
+	return "&7Next sighting in %fenceLeftText({_s})%"
+
+function hitMenu(p: player):
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 4 rows named "&8Hit contracts"
+	delete {-hit::act::%{_p}%::*}
+	set {_pane} to gray stained glass pane named "&r"
+	loop 36 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {_near} to questNear({_p}, "hits")
+	set {_tid} to hitTarget()
+	if {_tid} is "":
+		set slot 4 of {_gui} to paper named "&7No target yet" with lore "&7The Broker has nothing this week."
+	else:
+		set {_left} to fenceLeftText(fenceWeekLeft())
+		add "&7%{-cfg::hit::target::%{_tid}%::crime}%" to {_wl::*}
+		# The looks only once the target has its own skin (else every target has the default look).
+		if {-cfg::hit::target::%{_tid}%::skin-texture} is set:
+			add "&7Looks: &f%{-cfg::hit::target::%{_tid}%::looks}%" to {_wl::*}
+		add "&7Leaves town in %{_left}%" to {_wl::*}
+		add "&7Only you see your target and the bodyguards." to {_wl::*}
+		set slot 4 of {_gui} to player head named "&4WANTED: &f%{-cfg::hit::target::%{_tid}%::name}%" with lore {_wl::*}
+	set {_slot} to 11
+	set {_mine} to hitTierOf({_p})
+	loop hitTiers():
+		set {_t} to loop-value
+		delete {_l::*}
+		set {_lvl} to cfg("hit::%{_t}%::level")
+		add "&7%{-cfg::hit::%{_t}%::when}%" to {_l::*}
+		add hitWindowText({_t}) to {_l::*}
+		add "&7Two armed bodyguards. Harder = fewer chances to catch them." to {_l::*}
+		set {_pay} to cfg("hit::%{_t}%::pay")
+		set {_xp} to cfg("hit::%{_t}%::xp")
+		add "&7Pays &a%formatMoney({_pay})% &7· &b+%{_xp}% XP" to {_l::*}
+		if {-cfg::hit::%{_t}%::keys} is set:
+			add "&7+ %{-cfg::hit::%{_t}%::keys}% Season key" to {_l::*}
+		set {_why} to hitTakeBlock({_p}, {_t})
+		set {_act} to ""
+		if {_mine} is {_t}:
+			add "&aYour contract" to {_l::*}
+		else if levelOk({_p}, {_lvl}) is false:
+			add "&cNeeds level %{_lvl}%" to {_l::*}
+		else if {_near} is "":
+			add "&eTake it at the Broker: click, the GPS leads you there." to {_l::*}
+			set {_act} to "find"
+		else if {_why} is "":
+			if {-hit::arm::%{_p}%} is "take:%{_t}%":
+				add "&aClick again to take it." to {_l::*}
+			else:
+				add "&eClick: take this contract." to {_l::*}
+			set {_act} to "take:%{_t}%"
+		else:
+			add "&c%{_why}%" to {_l::*}
+		set {_icon} to crossbow named "&c%hitTierName({_t})%" with lore {_l::*}
+		if {-hit::arm::%{_p}%} is "take:%{_t}%":
+			set {_icon} to lime concrete named "&aTake the %hitTierName({_t})% contract?" with lore {_l::*}
+		if {_act} is "":
+			set slot {_slot} of {_gui} to {_icon}
+		else:
+			hitButton({_p}, {_gui}, {_slot}, {_icon}, {_act})
+		add 2 to {_slot}
+	# Your contract.
+	set {_st} to hitStateOf({_p})
+	if {_st} is "hunting":
+		set slot 22 of {_gui} to crossbow named "&cYour contract: %hitTierName({_mine})%" with lore hitWindowText({_mine}) and "&7Hunt while they're in town: tips come to your phone."
+	else if {_st} is "done":
+		set slot 22 of {_gui} to lime dye named "&aTarget down this week" with lore "&7A new name on Thursday."
+	if {_near} is "":
+		hitButton({_p}, {_gui}, 27, compass named "&6Find the Broker" with lore "&7Contracts are taken in person." and "&eClick: the GPS leads you there.", "find")
+	set {_s} to getData({_p}, "hit::streak")
+	if {_s} is not set:
+		set {_s} to 0
+	set slot 31 of {_gui} to nether star named "&6Streak: %{_s}% week(s)" with lore "&7Each week in a row: +5%% pay (up to +20%%)." and "&7Titles at 3, 6 and 10 weeks."
+	hitButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
+	set {-hit::gui::%{_p}%} to {_gui}
+	if {-hit::gen::%{_p}%} is not set:
+		set {-hit::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+on inventory click:
+	{-hit::gui::%player%} is set
+	player's current inventory is {-hit::gui::%player%}
+	cancel event
+	event-inventory is {-hit::gui::%player%}
+	set {_act} to {-hit::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_gen} to {-hit::gen::%player%}
+	wait 1 tick
+	player is online
+	{-hit::gen::%player%} is {_gen}
+	add 1 to {-hit::gen::%player%}
+	set {_a::*} to {_act} split at ":"
+	if {_a::1} is "close":
+		close player's inventory
+	else if {_a::1} is "find":
+		close player's inventory
+		questFind(player, "hits")
+	else if {_a::1} is "take":
+		if {-hit::arm::%player%} is {_act}:
+			if difference between {-hit::armat::%player%} and now < 5 seconds:
+				delete {-hit::arm::%player%}
+				hitTake(player, {_a::2})
+				hitMenu(player)
+				stop
+		set {-hit::arm::%player%} to {_act}
+		set {-hit::armat::%player%} to now
+		hitMenu(player)
+
+on inventory drag:
+	{-hit::gui::%player%} is set
+	player's current inventory is {-hit::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-hit::gui::%player%} is set
+	event-inventory is {-hit::gui::%player%}
+	delete {-hit::gui::%player%}
+	delete {-hit::act::%player%::*}
+
+command /hits:
+	description: This week's hit contract.
+	aliases: /hit
+	executable by: players
+	trigger:
+		hitMenu(player)
+
+# The boss bar (hud.sk): spotted, or searching while the GPS shows the search area, or overtime.
+function hitHud(p: player) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	if hitHas({_p}) is false:
+		return false
+	if {-hit::s::%{_u}%::a} is not set:
+		return false
+	set {_t} to hitTierOf({_p})
+	set {_left} to hitLeft({_t})
+	set {_ot} to {-hit::s::%{_u}%::overtime}
+	if {_ot} is set:
+		if {_ot} > now:
+			set {_s} to ceil((difference between now and {_ot}) / 1 second)
+			hudBossSet({_p}, "&4&lHIT&r &7· &f%hitTargetName()% is leaving &7· &c%formatClock({_s})%", "red", 1)
+			return true
+	if {-hit::s::%{_u}%::spotted} is set:
+		set {_e} to hitEntity({-hit::s::%{_u}%::target})
+		if {_e} is set:
+			set {_d} to floor(distance between {_e} and {_p})
+			hudBossSet({_p}, "&4&lHIT&r &7· &f%hitTargetName()% &c%{_d}%m &7· %formatClock({_left})%", "red", {_left} / cfg("hit::window-length"))
+			return true
+	if gpsActive({_p}) is "quest":
+		if {-gps::questby::%{_u}%} is "hit":
+			hudBossSet({_p}, "&4&lHIT&r &7· &fsearch area %gpsWay({_p})% &7· %formatClock({_left})%", "red", {_left} / cfg("hit::window-length"))
+			return true
+	return false
+
+# ---------- Staff ----------
+
+command /dhit [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "node":
+			set {_op} to {_a::2}
+			if {_op} is "add":
+				if player is not set:
+					send "HIT node add: in game (or addat)" to sender
+					stop
+				if hitForbidden(location of player, 6) is true:
+					send "HIT node: too close to a heist or a safe zone (6 blocks)" to sender
+					stop
+				set {_d} to ""
+				if {_a::3} is set:
+					set {_d} to {_a::3}
+				set {_last} to {-hit::lastnode::%player%}
+				if {_last} is not set:
+					set {_last} to ""
+				if {_last} is not "":
+					set {_ll} to hitNodeLoc({_last})
+					if {_ll} is not set:
+						set {_last} to ""
+					else if distance between {_ll} and player > 48:
+						set {_last} to ""
+				set {_n} to hitNodeAdd(location of player, {_d}, {_last})
+				set {-hit::lastnode::%player%} to {_n}
+				send "HIT node %{_n}% added (linked to %{_last}%)" to sender
+			else if {_op} is "addat":
+				set {_x} to {_a::3} parsed as number
+				set {_y} to {_a::4} parsed as number
+				set {_z} to {_a::5} parsed as number
+				set {_l} to location({_x}, {_y}, {_z}, poiMainWorld())
+				if hitForbidden({_l}, 6) is true:
+					send "HIT node: too close to a heist or a safe zone (6 blocks)" to sender
+					stop
+				set {_d} to ""
+				if {_a::6} is set:
+					set {_d} to {_a::6}
+				set {_n} to hitNodeAdd({_l}, {_d}, "")
+				send "HIT node %{_n}% added at %{_x}% %{_y}% %{_z}%" to sender
+			else if {_op} is "link":
+				hitLink({_a::3}, {_a::4})
+				send "HIT linked %{_a::3}% %{_a::4}%" to sender
+			else if {_op} is "unlink":
+				delete {hit::edge::%{_a::3}%::%{_a::4}%}
+				delete {hit::edge::%{_a::4}%::%{_a::3}%}
+				send "HIT unlinked %{_a::3}% %{_a::4}%" to sender
+			else if {_op} is "remove":
+				set {_n} to {_a::3}
+				loop {hit::edge::%{_n}%::*}:
+					delete {hit::edge::%loop-index%::%{_n}%}
+				delete {hit::edge::%{_n}%::*}
+				delete {hit::node::%{_n}%}
+				send "HIT node %{_n}% removed" to sender
+			else if {_op} is "clear":
+				delete {hit::node::*}
+				delete {hit::edge::*}
+				delete {hitnodecounter}
+				send "HIT every node removed (the next is 1 again: run a dump's lines right after)" to sender
+			else if {_op} is "list":
+				loop {hit::node::*}:
+					set {_e::*} to hitNeighbors(loop-index)
+					send "HIT node %loop-index% = %loop-value% links=%join {_e::*} with ","%" to sender
+			else if {_op} is "dump":
+				loop {hit::node::*}:
+					set {_v::*} to loop-value split at "|"
+					send "dhit node addat %{_v::2}% %{_v::3}% %{_v::4}% %{_v::5}%" to sender
+					hitLog("dump dhit node addat %{_v::2}% %{_v::3}% %{_v::4}% %{_v::5}% (was %loop-index%)")
+				# Links by the dump's own numbering (addat numbers nodes anew, in this order). {hit::edge::*} holds only
+				# sub-lists, so it's never looped itself.
+				set {_k} to 0
+				loop {hit::node::*}:
+					add 1 to {_k}
+					set {_newid::%loop-index%} to {_k}
+				loop {hit::node::*}:
+					set {_ai} to loop-index
+					loop hitNeighbors({_ai}):
+						set {_bi} to loop-value-2
+						if {_newid::%{_bi}%} > {_newid::%{_ai}%}:
+							send "dhit node link %{_newid::%{_ai}%}% %{_newid::%{_bi}%}%" to sender
+							hitLog("dump dhit node link %{_newid::%{_ai}%}% %{_newid::%{_bi}%}%")
+			else if {_op} is "show":
+				loop {hit::node::*}:
+					set {_l} to hitNodeLoc(loop-index)
+					if {_l} is set:
+						draw 10 happy villager particles at {_l} ~ vector(0, 1, 0) for player
+				send "HIT nodes shown" to sender
+			else:
+				send "HIT node add [district] | addat <x> <y> <z> [district] | link|unlink <a> <b> | remove <n> | clear | list | dump | show" to sender
+			stop
+		if {_sub} is "route":
+			if {_a::2} is "off":
+				delete {-hit::route::%player%}
+				send "HIT route off" to sender
+			else:
+				set {_last} to {-hit::lastnode::%player%}
+				if {_last} is not set:
+					set {_last} to ""
+				set {-hit::route::%player%} to {_last}
+				set {-hit::routedistrict::%player%} to ""
+				if {_a::3} is set:
+					set {-hit::routedistrict::%player%} to {_a::3}
+				send "HIT route on: a node every 24 blocks you walk or drive" to sender
+			stop
+		if {_sub} is "week":
+			if {_a::2} is "reroll":
+				hitRollWeek(progWeek())
+			set {_w} to progWeek()
+			send "HIT week=%{_w}% target=%hitTarget()% open-easy=%{hit::open::easy}% open-medium=%{hit::open::medium}% open-hard=%{hit::open::hard}%" to sender
+			loop hitTiers():
+				set {_t} to loop-value
+				set {_n} to size of {hit::win::%{_w}%::%{_t}%::*}
+				send "HIT %{_t}% windows=%{_n}% left=%hitWindowsLeft({_t})% next=%hitNextWindow({_t})%" to sender
+				if {_a::2} is "list":
+					set {_now} to progUnix()
+					loop {hit::win::%{_w}%::%{_t}%::*}:
+						set {_at} to loop-value-2
+						set {_in} to {_at} - {_now}
+						set {_used} to "open"
+						if {hit::used::%{_w}%::%{_t}%::%loop-index-2%} is set:
+							set {_used} to "used"
+						send "HIT   %{_t}% #%loop-index-2% at=%loop-value-2% in=%{_in}%s %{_used}%" to sender
+			stop
+		if {_sub} is "window":
+			# window <tier> open|close [seconds]: for tests and events.
+			set {_t} to {_a::2}
+			if {_a::3} is "close":
+				delete {hit::open::%{_t}%}
+				loop all players:
+					if hitTierOf(loop-player) is {_t}:
+						hitWindowOver(loop-player)
+				send "HIT window %{_t}% closed" to sender
+			else:
+				set {_len} to cfg("hit::window-length")
+				if {_a::4} is set:
+					set {_len} to {_a::4} parsed as number
+				set {hit::open::%{_t}%} to "%progWeek()%|0|%{_len}%"
+				send "HIT window %{_t}% open for %{_len}% s" to sender
+			stop
+		set {_who} to {_a::2} parsed as player
+		if {_who} is not set:
+			send "HIT usage: /dhit node ... | route on|off | week [reroll] | window <tier> open|close | info|give|end|reset <player> [tier]" to sender
+			stop
+		if {_sub} is "info":
+			set {_u} to "%uuid of {_who}%"
+			set {_tid} to {-hit::s::%{_u}%::target}
+			set {_gs::*} to {-hit::s::%{_u}%::guards::*}
+			set {_te} to hitEntity({_tid})
+			set {_tu} to "none"
+			if {_te} is set:
+				set {_tu} to "%uuid of {_te}%"
+			loop {_gs::*}:
+				set {_ge} to hitEntity(loop-value)
+				if {_ge} is set:
+					add "%uuid of {_ge}%" to {_gu::*}
+			send "HIT %{_who}% tier=%hitTierOf({_who})% state=%hitStateOf({_who})% now=%hitNow({_who})% eligible=%hitEligible({_who})% target=%{_tid}% guards=%join {_gs::*} with ","% spotted=%{-hit::s::%{_u}%::spotted}% noticed=%{-hit::s::%{_u}%::noticed}% r=%{-hit::s::%{_u}%::r}% node=%{-hit::s::%{_u}%::b}% streak=%getData({_who}, "hit::streak")% tuuid=%{_tu}% guuids=%join {_gu::*} with ","%" to sender
+		else if {_sub} is "give":
+			setData({_who}, "hit::week", progWeek())
+			setData({_who}, "hit::tier", {_a::3})
+			setData({_who}, "hit::state", "hunting")
+			send "HIT %{_who}% has a %{_a::3}% contract" to sender
+		else if {_sub} is "end":
+			hitEnd({_who}, "staff")
+			send "HIT %{_who}% hunt ended" to sender
+		else if {_sub} is "reset":
+			hitEnd({_who}, "staff")
+			delete {data::%{_who}%::hit::*}
+			send "HIT %{_who}% reset" to sender
+		else:
+			send "HIT usage: /dhit node ... | route on|off | week [reroll] | window <tier> open|close | info|give|end|reset <player> [tier]" to sender

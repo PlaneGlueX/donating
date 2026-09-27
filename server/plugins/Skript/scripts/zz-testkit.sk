@@ -1070,3 +1070,31 @@ command /zzfencepay <player>:
 	trigger:
 		fenceSalePay(arg-1)
 		send "FENCEPAY %arg-1%"
+
+# pv.sk: a personal item display for a player at x y z: /zzpv <player> <key> <x> <y> <z>
+command /zzpv <player> <text> <number> <number> <number>:
+	executable by: console
+	trigger:
+		set {_l} to location(arg-3, arg-4, arg-5, world of arg-1)
+		set {_e} to pvItem(arg-1, arg-2, {_l}, gold ingot, 1)
+		if {_e} is set:
+			send "PVITEM %arg-1% %arg-2% %uuid of {_e}%"
+		else:
+			send "PVITEM %arg-1% %arg-2% none"
+
+# pv.sk: a display spawned WITHOUT the pv tag, then adopted (a leak: personal views must switch off).
+command /zzpvleak <player>:
+	executable by: console
+	trigger:
+		spawn an item display at location of arg-1:
+			make event-display not persistent
+			set item of event-display to gold ingot
+		set {_e} to last spawned entity
+		set {_r} to pvAdopt(arg-1, "leaktest", {_e})
+		set {_ad} to false
+		if {_r} is set:
+			set {_ad} to true
+		set {_va} to false
+		if {_e} is valid:
+			set {_va} to true
+		send "PVLEAK %arg-1% adopted=%{_ad}% valid=%{_va}% ready=%pvReady()%"

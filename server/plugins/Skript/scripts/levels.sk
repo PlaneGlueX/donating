@@ -136,6 +136,9 @@ function levelBoosted(p: player, xp: number, why: text) :: number:
 	# A contact job's reward (jobs.sk) too.
 	if {_why} is "job":
 		return {_xp}
+	# A hit contract's (hits.sk) too.
+	if {_why} is "hit":
+		return {_xp}
 	return floor({_xp} * boosterForKind({_p}, "xp"))
 
 function levelUp(p: player, old: number, new: number):

@@ -199,7 +199,7 @@ function loadSettings():
 	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
 	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
 	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
-	set {-cfg::quests::*} to "contracts", "story" and "fence"
+	set {-cfg::quests::*} to "contracts", "story", "fence" and "hits"
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
@@ -213,6 +213,10 @@ function loadSettings():
 	set {-cfg::quest::fence::npc} to "Vic"
 	set {-cfg::quest::fence::place} to "Pawn Shop"
 	set {-cfg::quest::fence::hold} to "gold_ingot"
+	set {-cfg::quest::hits::name} to "Hit contracts"
+	set {-cfg::quest::hits::npc} to "The Broker"
+	set {-cfg::quest::hits::place} to "Pool Hall"
+	set {-cfg::quest::hits::hold} to "book"
 	set {-cfg::quest::reach} to 6
 
 	# ---------- The story (story.sk): PROPOSAL texts, names and rewards ----------
@@ -1445,6 +1449,90 @@ function loadSettings():
 	set {-cfg::jobs::boss::line::tier::4} to "Scrap King. Heh. Suits you."
 	set {-cfg::jobs::mara::greet::*} to "Yes?", "Good to see you.", "Partner. What do you need?" and "There's my favorite."
 	set {-cfg::jobs::boss::greet::*} to "Yeah?", "Oh, it's you.", "Partner." and "Kid! Come in."
+
+	# ---------- Hit contracts (hits.sk): PROPOSAL numbers, names and texts ----------
+	# Owner, 2026-09-27: one wanted target a week; Easy = in town twice a day for an hour, Medium = once a day, Hard =
+	# 5 times spread over the week; harder pays more. Windows are shared and run only while the tier is active (2+
+	# online, or a holder of that tier online). Every tier has the same 2 bodyguards (medium strength): only the
+	# number of chances to catch the target changes. Pay is never boosted and gives no season points.
+	set {-cfg::hit::tiers::*} to "easy", "medium" and "hard"
+	set {-cfg::hit::easy::name} to "Easy contract"
+	set {-cfg::hit::easy::when} to "In town twice a day, an hour each time"
+	set {-cfg::hit::easy::windows} to 14
+	set {-cfg::hit::easy::level} to 2
+	set {-cfg::hit::easy::pay} to 10000
+	set {-cfg::hit::easy::xp} to 100
+	set {-cfg::hit::easy::r0} to 120
+	set {-cfg::hit::easy::rmin} to 30
+	set {-cfg::hit::easy::tip} to 60
+	set {-cfg::hit::medium::name} to "Medium contract"
+	set {-cfg::hit::medium::when} to "In town once a day, for an hour"
+	set {-cfg::hit::medium::windows} to 7
+	set {-cfg::hit::medium::level} to 3
+	set {-cfg::hit::medium::pay} to 25000
+	set {-cfg::hit::medium::xp} to 250
+	set {-cfg::hit::medium::r0} to 160
+	set {-cfg::hit::medium::rmin} to 40
+	set {-cfg::hit::medium::tip} to 90
+	set {-cfg::hit::hard::name} to "Hard contract"
+	set {-cfg::hit::hard::when} to "In town 5 times a week, an hour each time"
+	set {-cfg::hit::hard::windows} to 5
+	set {-cfg::hit::hard::level} to 4
+	set {-cfg::hit::hard::pay} to 60000
+	set {-cfg::hit::hard::xp} to 600
+	set {-cfg::hit::hard::keys} to 1
+	set {-cfg::hit::hard::r0} to 200
+	set {-cfg::hit::hard::rmin} to 50
+	set {-cfg::hit::hard::tip} to 120
+	# A window: its length in active seconds, and up to overtime seconds more while the hunter is fighting.
+	set {-cfg::hit::window-length} to 3600
+	set {-cfg::hit::overtime} to 300
+	# Dying to a bodyguard: L = min(B x death-p, C), C = the bag's capacity (like a death outside a heist).
+	set {-cfg::hit::death-p} to 0.03
+	# Streaks: each week in a row adds streak-bonus to the pay (at most streak-max weeks' worth; one missed week is
+	# forgiven); titles at 3, 6 and 10 weeks; "Hitman" after pro-at Hard takedowns.
+	set {-cfg::hit::streak-bonus} to 0.05
+	set {-cfg::hit::streak-max} to 4
+	set {-cfg::hit::streak-titles::*} to "3|hit_streak_3", "6|hit_streak_6" and "10|hit_streak_10"
+	set {-cfg::hit::pro-at} to 5
+	# The target walks the street nodes (/dhit node) at walk-speed blocks/s, starts at least start-away blocks from
+	# the hunter, becomes an NPC within materialize blocks and goes back to a walker past dematerialize (10 s); seen
+	# within spot-range for a second = spotted. At most cap hit NPCs on the server (3 per hunter).
+	set {-cfg::hit::walk-speed} to 1.3
+	set {-cfg::hit::start-away} to 150
+	set {-cfg::hit::materialize} to 64
+	set {-cfg::hit::dematerialize} to 96
+	set {-cfg::hit::spot-range} to 40
+	set {-cfg::hit::cap} to 15
+	set {-cfg::hit::chase} to 48
+	set {-cfg::hit::target-health} to 40
+	set {-cfg::hit::target-speed} to 1.25
+	# The bodyguards: difficulty 2's cop numbers, a .50 GS, and a "shot" = a Sentinel hit from up to guard-reach
+	# blocks with line of sight (no projectile anyone else could see or be hit by).
+	set {-cfg::hit::guards} to 2
+	set {-cfg::hit::guard-name} to "Hired Gun"
+	set {-cfg::hit::guard-model} to 9
+	set {-cfg::hit::guard-health} to 20
+	set {-cfg::hit::guard-damage} to 2.5
+	set {-cfg::hit::guard-rate} to 1.75
+	set {-cfg::hit::guard-reach} to 16
+	set {-cfg::hit::guard-speed} to 1.2
+	# The targets: one a week, never one of the last two. npc = the NPC's name (hidden; a space in it keeps Citizens
+	# from showing the skin of a Minecraft account with that name). skin-texture / skin-signature: optional.
+	set {-cfg::hit::targets::*} to "vinnie", "dmitri", "sal", "rico", "pike" and "lena"
+	loop "vinnie|Vinnie Marchetti|Vinnie M|Skimmed the Broker's cut from three bank jobs.|a white suit and a gold chain", "dmitri|Dmitri Volkov|Dmitri V|Sold a whole crew out to the cops.|a black coat, shaved head", "sal|Sal Esposito|Sal E|Runs fake IDs on the Broker's turf.|a brown jacket and a cap", "rico|Rico Vance|Rico V|Hijacked a truck meant for the Broker.|a red hoodie", "pike|Officer Pike|Officer P|A crooked cop on three payrolls.|a blue uniform shirt" and "lena|Lena Kross|Lena K|Double-crossed the Broker on a vault job.|a green jacket":
+		set {_ht::*} to loop-value split at "|"
+		set {-cfg::hit::target::%{_ht::1}%::name} to {_ht::2}
+		set {-cfg::hit::target::%{_ht::1}%::npc} to {_ht::3}
+		set {-cfg::hit::target::%{_ht::1}%::crime} to {_ht::4}
+		set {-cfg::hit::target::%{_ht::1}%::looks} to {_ht::5}
+	loop "hit_streak_3|Cleaner", "hit_streak_6|Professional", "hit_streak_10|The Reaper" and "hit_pro|Hitman":
+		set {_rt::*} to loop-value split at "|"
+		set {-cfg::cos::%{_rt::1}%::type} to "title"
+		set {-cfg::cos::%{_rt::1}%::name} to {_rt::2}
+		set {-cfg::cos::%{_rt::1}%::rarity} to "story"
+		set {-cfg::cos::%{_rt::1}%::bound} to true
+		add {_rt::1} to {-cfg::cosmetics::*}
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script
@@ -1617,6 +1705,14 @@ function isNpc(e: entity) :: boolean:
 		return true
 	if {_e} has scoreboard tag "CITIZENS_NPC":
 		return true
+	return false
+
+# True while a Citizens NPC is being made (cops.sk, hits.sk): one at a time on the whole server, so the new NPC
+# with that name at the spot is the one just made. At most 3 s (a stuck flag can't block NPCs for good).
+function npcBusy() :: boolean:
+	if {-npc::busy} is set:
+		if difference between {-npc::busy} and now < 3 seconds:
+			return true
 	return false
 
 function isStaff(p: player) :: boolean:

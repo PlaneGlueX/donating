@@ -11,7 +11,8 @@
 #     pool (heists.sk, through deathDifficulty / deathLootPool below).
 #   Lost balance disappears (a money sink).
 # Cop deaths: killed by a cop (Citizens NPC, metadata "NPC"), or a combat log credited to the cops.
-# The cause is saved as data "last-death-cause": "player:<uuid>", "cop", "trap" (traps.sk) or "other"
+# Hit deaths: killed by a hit target's bodyguard (hits.sk), p = hit::death-p.
+# The cause is saved as data "last-death-cause": "player:<uuid>", "cop", "hit", "trap" (traps.sk) or "other"
 # (bounty.sk).
 #
 # Runs before inventory.sk's death handler (scripts load alphabetically), which keeps the inventory,
@@ -37,6 +38,9 @@ function deathLoss(p: player, cause: text) :: number:
 	set {_d} to deathDifficulty({_p})
 	if {_cause} is "cop":
 		set {_share} to cfg("difficulty::%{_d}%::cop-p")
+	else if {_cause} is "hit":
+		# A hit target's bodyguards (hits.sk): their own p, the same on every tier.
+		set {_share} to cfg("hit::death-p")
 	else:
 		set {_share} to cfg("difficulty::%{_d}%::p")
 	set {_cap} to 0
@@ -66,6 +70,8 @@ on death of player:
 	else if attacker is a player:
 		if attacker has metadata "NPC":
 			set {_cause} to "cop"
+			if hitHolderOfEntity(attacker) is not "":
+				set {_cause} to "hit"
 		else if attacker is not victim:
 			set {_cause} to "player:%uuid of attacker%"
 	setData(victim, "last-death-cause", {_cause})

@@ -131,6 +131,11 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-ph::jobs::%player%} is set:
 			set the placeholder result to {-ph::jobs::%player%}
+	else if {_i} is "hit":
+		# hits.sk: the hunt's line (the target and the window's time left).
+		set the placeholder result to "&r"
+		if {-ph::hit::%player%} is set:
+			set the placeholder result to {-ph::hit::%player%}
 	else if {_i} is "season_short":
 		set the placeholder result to "&r"
 		if {season::state} is "live":

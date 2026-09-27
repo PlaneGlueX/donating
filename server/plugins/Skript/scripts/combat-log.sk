@@ -2,7 +2,7 @@
 #
 # A player is combat-tagged for cfg("combat::tag") after:
 #   - hurting another player, or being hurt by one
-#   - being hurt by a cop (Citizens NPC, metadata "NPC")
+#   - being hurt by a cop (Citizens NPC, metadata "NPC"), or a hit target's bodyguard (hits.sk: "hit")
 #   - being hurt by a trap (traps.sk calls tagCombat(victim, "trap"))
 # and for as long as they're wanted (hunted by an alarm, see isWanted).
 # Damage that another script cancelled (passive players, safe zones, EssentialsX's teleport
@@ -78,7 +78,11 @@ on damage of player with priority monitor:
 	attacker is a player
 	attacker is not victim
 	if attacker has metadata "NPC":
-		tagCombat(victim, "cop")
+		# A hit target's bodyguard (hits.sk) credits a combat log to the hit, not the cops.
+		if hitHolderOfEntity(attacker) is not "":
+			tagCombat(victim, "hit")
+		else:
+			tagCombat(victim, "cop")
 	else:
 		# A shot cop (a Citizens NPC) is never tagged: nothing would ever clear its variables.
 		if isNpc(victim) is false:

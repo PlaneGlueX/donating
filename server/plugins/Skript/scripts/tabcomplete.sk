@@ -506,3 +506,26 @@ on tab complete of "/dfence" and "/skript:dfence":
 on tab complete of "/dtutorial" and "/skript:dtutorial":
 	set tab completions for position 1 to tabPlayerNames(player)
 	set tab completions for position 2 to "reset" and "done"
+
+on tab complete of "/dhit" and "/skript:dhit":
+	set tab completions for position 1 to "node", "route", "week", "window", "info", "give", "end" and "reset"
+	set {_s} to tab arg-1
+	if {_s} is "node":
+		set tab completions for position 2 to "add", "addat", "link", "unlink", "remove", "clear", "list", "dump" and "show"
+		if tab arg-2 is "remove" or "link" or "unlink":
+			loop {hit::node::*}:
+				add loop-index to {_n::*}
+			if {_n::*} is set:
+				set tab completions for position 3 to {_n::*}
+				set tab completions for position 4 to {_n::*}
+	else if {_s} is "route":
+		set tab completions for position 2 to "on" and "off"
+	else if {_s} is "week":
+		set tab completions for position 2 to "reroll"
+	else if {_s} is "window":
+		set tab completions for position 2 to {-cfg::hit::tiers::*}
+		set tab completions for position 3 to "open" and "close"
+	else if {_s} is "info" or "give" or "end" or "reset":
+		set tab completions for position 2 to tabPlayerNames(player)
+		if {_s} is "give":
+			set tab completions for position 3 to {-cfg::hit::tiers::*}
