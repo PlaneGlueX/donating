@@ -1168,7 +1168,7 @@ function jobsMenu(p: player):
 	set {_pane} to gray stained glass pane named "&r"
 	loop 45 times:
 		set slot (loop-number - 1) of {_gui} to {_pane}
-	set slot 4 of {_gui} to book named "&6Jobs" with lore "&7Mara and the Scrap Yard Boss leave you a job every day." and "&7Up to 3 wait: they never expire. Pick them up in person." and "&e★ Bonus: +50%% &7· &b❄ cold heist: +25%%"
+	set slot 4 of {_gui} to book named "&6Jobs" with lore "&7Mara and the Scrap Yard Boss leave you a job every %cfg("jobs::hours")% hours." and "&7Up to 3 wait: they never expire. Pick them up in person." and "&e★ Bonus: +50%% &7· &b❄ cold heist: +25%%"
 	set {_row} to 0
 	loop {-cfg::jobs::contacts::*}:
 		set {_c} to loop-value
@@ -1197,7 +1197,7 @@ function jobsMenu(p: player):
 				set {_nt} to {_t} + 1
 				set {_repl} to "&7Rep: &f%{_rep}%/%{-cfg::jobs::reptier::%{_nt}%::rep}% &7to %{-cfg::jobs::reptier::%{_nt}%::name}%"
 			set {_nx} to getData({_p}, "jobs::%{_c}%::next")
-			set {_nl} to "&7A new job every 20 hours"
+			set {_nl} to "&7A new job every %cfg("jobs::hours")% hours"
 			if jobsUsed({_p}, {_c}) >= jobsSlots({_p}, {_c}):
 				set {_nl} to "&7Board full: finish one to get more"
 			else if {_nx} is set:
@@ -1212,7 +1212,7 @@ function jobsMenu(p: player):
 				set {_k} to loop-value-2
 				set {_slot} to {_base} + {_k}
 				if jobsState({_p}, {_c}, {_k}) is "":
-					set slot {_slot} of {_gui} to light gray stained glass pane named "&7Empty" with lore "&7A new job comes every 20 hours."
+					set slot {_slot} of {_gui} to light gray stained glass pane named "&7Empty" with lore "&7A new job comes every %cfg("jobs::hours")% hours."
 				else:
 					set {_card} to jobsCard({_p}, {_c}, {_k}, {_near})
 					if {-jobs::arm::%{_p}%} is "drop:%{_c}%:%{_k}%":

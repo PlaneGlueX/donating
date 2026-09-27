@@ -100,7 +100,9 @@ function ctFail(p: player, text: text):
 function ctPay(p: player, t: text) :: number:
 	set {_m} to 1
 	if isPassive({_p}) is true:
-		set {_m} to cfg("passive::payout-multiplier")
+		# The tutorial's first job pays in full: it pays for the Gym Bag (review fix).
+		if {_t} is not "starter":
+			set {_m} to cfg("passive::payout-multiplier")
 	return floor(cfg("contract::%{_t}%::pay") * {_m})
 
 # ---------- Lockpicks (hotbar 6-8 = slots 5-7) ----------
@@ -637,7 +639,15 @@ function ctQteHit(p: player):
 function ctPicked(p: player):
 	set {_u} to "%uuid of {_p}%"
 	set {_t} to {-ctjob::%{_u}%}
-	if lockpickUse({_p}, ctPickTier({_t}), "used") is false:
+	set {_ok} to true
+	if {_t} is "starter":
+		# Mara's lockpick is used up only at the delivery (ctDeliver): a first job that ends early (time, a logout, a
+		# restart) can be taken again with the same pick (review fix: nothing else gives a level-0 player one).
+		if lockpickCount({_p}, "basic") < 1:
+			set {_ok} to false
+	else if lockpickUse({_p}, ctPickTier({_t}), "used") is false:
+		set {_ok} to false
+	if {_ok} is false:
 		ctQteClose({_p}, "nopick")
 		hudBar({_p}, "&cYou need a %ctPickName(ctPickTier({_t}))%.", 2)
 		stop
@@ -736,8 +746,9 @@ function ctDeliver(u: text, chop: text):
 	giveMoney({_p}, {_pay})
 	set {_bounty} to 0
 	if {_t} is "starter":
-		# The first job: no bounty, not a delivered contract (the Boss's board), done once.
+		# The first job: no bounty, not a delivered contract (the Boss's board), done once; Mara's lockpick goes now.
 		setData({_p}, "ct-starter", "done")
+		lockpickUse({_p}, "basic", "used")
 	else:
 		set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "contract")
 		set {_done} to getData({_p}, "contracts-done")
@@ -1015,7 +1026,7 @@ function ctMenu(p: player):
 		add 2 to {_slot}
 	# His side jobs (jobs.sk), once his board is open.
 	if jobsUnlocked({_p}, "boss") is true:
-		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Daily jobs: /jobs" and "&eClick: open your jobs.", "jobs")
+		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Side jobs: /jobs" and "&eClick: open your jobs.", "jobs")
 	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-ctgui::%{_p}%} to {_gui}
 	if {-ctgen::%{_p}%} is not set:

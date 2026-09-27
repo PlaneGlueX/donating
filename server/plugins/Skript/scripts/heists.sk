@@ -457,6 +457,11 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 	set {_name} to heistName({_h})
 	if {_tp} is true:
 		return "You can't teleport into a heist. Walk in."
+	# Nobody fights in a store (store::no-pvp): not a place to hide from a fight either (review fix).
+	if heistIsStore({_h}) is true:
+		if {-cfg::store::no-pvp} is true:
+			if isCombatTagged({_p}) is true:
+				return "You can't go into the %heistName({_h})% while in combat."
 	set {_s} to heistState({_h})
 	if {_s} is "cooldown":
 		set {_left} to heistSecondsLeft({_h})
@@ -522,7 +527,9 @@ function heistJoin(p: player, h: text):
 	if {-heist::%{_h}%::alarm} is set:
 		heistHunt({_p}, {_h})
 	applyWaypointReceive({_p})
-	if heistState({_h}) is "active":
+	if heistIsStore({_h}) is true:
+		heistNotify({_p}, "enter", "&6You're in the %{_name}%. &7No clock: it closes once it's cleaned out.")
+	else if heistState({_h}) is "active":
 		set {_clock} to formatClock(heistSecondsLeft({_h}))
 		heistNotify({_p}, "enter", "&6You're in the %{_name}%. &7Get out before the clock runs out: &f%{_clock}%&7.")
 	else:
@@ -581,6 +588,8 @@ function heistEvict(p: player, h: text, reason: text):
 			heistRelease({_p}, "staff")
 		set {_text} to "&7You were moved out of the %{_name}%."
 	heistTeleport({_p}, heistExit({_h}))
+	# The locator bar back (any reason: a store closing on its robbers left it off, review fix).
+	applyWaypointReceive({_p})
 	# 3 s of teleport immunity at the exit, so nobody camps it (pvp.sk).
 	tpImmune({_p})
 	# After the teleport: hud.sk's sound plays where the player is now.

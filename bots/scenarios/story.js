@@ -1,5 +1,5 @@
 // story.sk: the personal questline (owner, 2026-09-27: "a personal questline that helps the player do stuff instead
-// of just spam robberies (like gta)"). A player's first mission comes after the tutorial (texts from Mara, the sidebar
+// of just spam robberies (like gta)"). A player's first mission comes at once (2026-09-27: no bag needed first) (texts from Mara, the sidebar
 // line, the GPS leading to Mara, a pin set meanwhile staying in front); talking to her in person plays her lines
 // and completes it; a state mission (a gun) completes as soon as it's true, with the MISSION PASSED title even
 // without a reward; selling the first loot gives the Daily key; event missions count only while active (money sold,
@@ -188,7 +188,7 @@ module.exports = async ({ check }) => {
     bots[A].chat('/missions')
     const w = await o
     await sleep(300)
-    check('/missions shows the mission, its chapter and progress, and the five chapters', w && /Sell \$10,000/.test(itemText(w.slots[13])) && /Tools of the Trade/.test(itemText(w.slots[13])) && [29, 30, 31, 32, 33].every(i => w.slots[i]), itemText(w && w.slots[13]).slice(0, 300))
+    check('/missions shows the mission, its chapter and progress, and the five chapters', w && /Sell \$20,000/.test(itemText(w.slots[13])) && /Tools of the Trade/.test(itemText(w.slots[13])) && [29, 30, 31, 32, 33].every(i => w.slots[i]), itemText(w && w.slots[13]).slice(0, 300))
     if (bots[A].currentWindow) bots[A].closeWindow(bots[A].currentWindow)
     t = Date.now()
     bots[B].chat(`/dstory info ${A}`)
@@ -205,10 +205,11 @@ module.exports = async ({ check }) => {
     await sleep(300)
     check('without Mara on the map a talk mission stays (not skipped), says how to call her, and /missions has Call Mara', (await id(A)) === 'c2_end' && /call from/.test(text(A, t)) && w2 && /Call Mara/.test(itemText(w2.slots[22])), `${await info(A)} ${text(A, t).slice(0, 300)} | ${itemText(w2 && w2.slots[22]).slice(0, 120)}`)
     if (bots[A].currentWindow) bots[A].closeWindow(bots[A].currentWindow)
-    await cmd(`zzdatatext ${B} tutorial bag`)
+    // Owner, 2026-09-27: no bag needed first; Mara's chapter 1 is how a new robber earns their bag.
+    await cmd(`zzdatatext ${B} tutorial welcomed`)
     await cmd(`zzdata ${B} story none`)
-    await sleep(7000)
-    check('no story while the tutorial still runs (no bag yet)', (await id(B)) === '' || (await id(B)) === '<none>', await info(B))
+    await until(async () => (await id(B)) === 'c1_meet', 9000)
+    check('a new robber\'s story starts at once, with no bag yet (the first car job pays for it)', (await id(B)) === 'c1_meet', await info(B))
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     if (giverN) await rcon.cmd(`dquest remove ${giverN}`).catch(() => {})

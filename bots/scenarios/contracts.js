@@ -136,7 +136,7 @@ module.exports = async ({ check }) => {
       await cmd(`eco set ${name} 100000`)
       await cmd(`zzctreset ${name}`)
       // The tutorial's first job is tested at the end (B); here the regular Street jobs.
-      await cmd(`zzdata ${name} ct-starter done`)
+      await cmd(`zzdatatext ${name} ct-starter done`)
       for (const t of ['basic', 'pro', 'master']) await cmd(`zzpick ${name} ${t} 0`)
     }
     // Boss bars and waypoints as A's client sees them.
@@ -427,7 +427,7 @@ module.exports = async ({ check }) => {
     check('three misses on the first job don\'t break Mara\'s lockpick (the game goes on)', (await picks(B, 'basic')) === 1 && Boolean(bots[B].currentWindow) && !/lockpick broke/.test(text(B, t)), `picks=${await picks(B, 'basic')} window=${Boolean(bots[B].currentWindow)} ${text(B, t)}`)
     for (let i = 0; i < 3 && bots[B].currentWindow; i++) { await hitOnce(B); await sleep(450) }
     await sleep(500)
-    check('2 hits in a row open it (the first job is easier)', field(await state(B), 'stage') === 'open' && (await picks(B, 'basic')) === 0, await state(B))
+    check('2 hits in a row open it (the first job is easier), and Mara\'s lockpick stays until the delivery', field(await state(B), 'stage') === 'open' && (await picks(B, 'basic')) === 1, await state(B))
     await cmd(`zzcartp ${p3} ${CHOP[0] - 2} ${Y} ${CHOP[2]}`)
     await cmd(`zzheisttp ${B} ${CHOP[0] - 4.5} ${Y} ${CHOP[2]}`)
     await sleep(1200)
@@ -437,7 +437,7 @@ module.exports = async ({ check }) => {
     await sleep(900)
     const xpB = Number(((await cmd(`dlevel info ${B}`)).match(/xp=(\d+)/) || [])[1] || -1)
     const doneB = await cmd(`zzdata ${B} contracts-done`)
-    check('delivered: $1,500 and 40 XP (level 1), no bounty, and it doesn\'t count as a delivered contract', (await bal(B)) - balB === 1500 && xpB === 40 && /BOUNTY StarterB 0|BOUNTY ThiefB 0/.test(await cmd(`zzbounty ${B}`)) && !/= \d/.test(doneB) && /= done/.test(await cmd(`zzdata ${B} ct-starter`)), `+${(await bal(B)) - balB} xp=${xpB} ${await cmd(`zzbounty ${B}`)} ${doneB}`)
+    check('delivered: $1,500 and 40 XP (level 1), no bounty, Mara\'s lockpick used up now, and it doesn\'t count as a delivered contract', (await picks(B, 'basic')) === 0 && (await bal(B)) - balB === 1500 && xpB === 40 && /BOUNTY StarterB 0|BOUNTY ThiefB 0/.test(await cmd(`zzbounty ${B}`)) && !/= \d/.test(doneB) && /= done/.test(await cmd(`zzdata ${B} ct-starter`)), `+${(await bal(B)) - balB} xp=${xpB} ${await cmd(`zzbounty ${B}`)} ${doneB}`)
     await cmd(`zzctreset ${B}`)
     await cmd(`zzheisttp ${B} 1410.5 ${Y} 1412.5`)
     await sleep(1200)
@@ -448,7 +448,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd('zzcfgreload').catch(() => {})
     for (const name of [A, B]) {
       await rcon.cmd(`zzctreset ${name}`).catch(() => {})
-      await rcon.cmd(`zzdata ${name} ct-starter done`).catch(() => {})
+      await rcon.cmd(`zzdatatext ${name} ct-starter done`).catch(() => {})
       for (const t of ['basic', 'pro', 'master']) await rcon.cmd(`zzpick ${name} ${t} 0`).catch(() => {})
       await rcon.cmd(`zzpassive ${name} off`).catch(() => {})
       await rcon.cmd(`zzbountyreset ${name}`).catch(() => {})

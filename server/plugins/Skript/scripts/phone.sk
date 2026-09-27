@@ -46,7 +46,7 @@ on right click:
 # Blocks a player would use with a right-click (by the block's name: "oak button", "iron trapdoor", ...).
 function phoneUsable(b: block) :: boolean:
 	set {_t} to "%type of {_b}%"
-	loop "button", "lever", "door", "fence gate", "bell", "note block", "repeater", "comparator", "daylight detector", "chest", "barrel", "shulker box", "hopper", "dispenser", "dropper", "furnace", "smoker", "anvil", "table", "lectern", "loom", "grindstone", "stonecutter", "brewing stand", "beacon", "jukebox", "bed", "cake", "candle", "composter", "cauldron", "campfire", "flower pot", "respawn anchor", "sign", "crafter" and "vault":
+	loop "button", "lever", "door", "fence gate", "bell", "note block", "repeater", "comparator", "daylight detector", "chest", "barrel", "shulker box", "hopper", "dispenser", "dropper", "furnace", "smoker", "anvil", "table", "lectern", "loom", "grindstone", "stonecutter", "brewing stand", "beacon", "jukebox", " bed", "cake", "candle", "composter", "cauldron", "campfire", "flower pot", "respawn anchor", "sign", "crafter" and "vault":
 		if {_t} contains loop-value:
 			return true
 	return false
@@ -117,7 +117,7 @@ function openPhone(p: player):
 	set slot 2 of {_gui} to tagItem(nether star named "&6Season" with lore "&7Three leaderboards: Top Earners," and "&7Master Thieves, Wheelmen. The top 10" and "&7of each win titles, money and keys.", "phone:season")
 	set slot 6 of {_gui} to tagItem(writable book named "&dMissions" with lore "&7Mara's jobs: your next step" and "&7through the city, one at a time.", "phone:missions")
 	set slot 8 of {_gui} to tagItem(crossbow named "&cHits" with lore "&7This week's wanted target: take a" and "&7contract from the Broker, hunt them" and "&7while they're in town.", "phone:hits")
-	set slot 7 of {_gui} to tagItem(paper named "&eJobs" with lore "&7Daily jobs from Mara and the Boss." and "&7Picked up in person, they never expire.", "phone:jobs")
+	set slot 7 of {_gui} to tagItem(paper named "&eJobs" with lore "&7Side jobs from Mara and the Boss." and "&7Picked up in person, they never expire.", "phone:jobs")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online." and "&7Post one with the Broker.", "phone:bounties")

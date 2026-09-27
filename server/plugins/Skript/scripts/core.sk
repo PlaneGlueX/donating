@@ -361,7 +361,7 @@ function loadSettings():
 	# Owner, 2026-09-27: the bag is earned. Chapter 1 now starts with Mara's lockpick and a first car job (the money for
 	# the bag), then the bag, a store or heist, the sale, a knife (guns need level 5), a crate and level 5. The gun moved
 	# to chapter 2 (c1_gun keeps its id).
-	set {-cfg::story::missions::*} to "c1_meet", "c1_wheels", "c1_bag", "c1_rob", "c1_sell", "c1_knife", "c1_crate", "c1_level", "c1_end", "c1_gun", "c2_safe", "c2_yard", "c2_street", "c2_duffel", "c2_bank", "c2_level", "c2_end", "c3_vest", "c3_drill", "c3_spread", "c3_car", "c3_level", "c3_end", "c4_getaway", "c4_pro", "c4_big", "c4_level", "c4_end", "c5_finale", "c5_level", "c5_master" and "c5_end"
+	set {-cfg::story::missions::*} to "c1_meet", "c1_wheels", "c1_bag", "c1_rob", "c1_sell", "c1_knife", "c1_crate", "c1_level", "c1_end", "c1_gun", "c2_safe", "c2_yard", "c2_street", "c2_duffel", "c2_bank", "c2_level", "c2_end", "c3_vest", "c3_drill", "c3_spread", "c3_level", "c3_car", "c3_end", "c4_getaway", "c4_pro", "c4_big", "c4_level", "c4_end", "c5_finale", "c5_level", "c5_master" and "c5_end"
 	set {-cfg::story::c1_meet::chapter} to 1
 	set {-cfg::story::c1_meet::label} to "Meet Mara at the Safehouse"
 	set {-cfg::story::c1_meet::obj} to "talk|story"
@@ -404,7 +404,8 @@ function loadSettings():
 	set {-cfg::story::c1_sell::rewards::*} to "key|daily|1"
 	set {-cfg::story::c1_knife::chapter} to 1
 	set {-cfg::story::c1_knife::label} to "Buy a Combat Knife"
-	set {-cfg::story::c1_knife::obj} to "state|wpn|Combat_Knife"
+	# Any weapon counts (someone who already has a gun skips it).
+	set {-cfg::story::c1_knife::obj} to "state|weapon"
 	set {-cfg::story::c1_knife::gps} to "poi:shop:Gun"
 	set {-cfg::story::c1_knife::brief} to "Guns need a name on the street: level 5. Until then, a knife from the Gun Shop."
 	set {-cfg::story::c1_knife::done} to "Keep it sharp."

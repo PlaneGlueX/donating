@@ -88,7 +88,7 @@ module.exports = async ({ check }) => {
       await cmd(`gamemode survival ${name}`)
       await cmd(`zzclear ${name}`)
       await cmd(`zzcombatend ${name}`)
-      await cmd(`dlevel set ${name} 2`)
+      await cmd(`dlevel set ${name} 20`)
     }
     await reset()
     await cmd(`dgarage give ${A} sedan Red`)
@@ -166,7 +166,7 @@ module.exports = async ({ check }) => {
     const vandalRow = byName('Vandal')
     const vandalLore = list ? loreOf(list.slots.find(i => i && /Vandal/.test(itemText(i)))) : ''
     check('a crate car shows its serial in the list (#N of M so far)', /Serial #\d+ of \d+/.test(vandalLore), vandalLore)
-    check('the list says why not (the car\'s level), a crate car needs none, and a model they have says they must give theirs', /has a Sedan: they must/.test(sedanRow) && /give theirs in this trade/.test(sedanRow) && /Click: add it/.test(sedanRow) && /needs level 6/.test(suvRow) && /Click: add it/.test(vandalRow), `${sedanRow.slice(-300)} | ${suvRow.slice(-200)} | ${vandalRow.slice(-200)}`)
+    check('the list says why not (the car\'s level), a crate car needs none, and a model they have says they must give theirs', /has a Sedan: they must/.test(sedanRow) && /give theirs in this trade/.test(sedanRow) && /Click: add it/.test(sedanRow) && /needs level 150/.test(suvRow) && /Click: add it/.test(vandalRow), `${sedanRow.slice(-300)} | ${suvRow.slice(-200)} | ${vandalRow.slice(-200)}`)
     const suvSlot = list.slots.findIndex(i => i && /SUV/.test(itemText(i)))
     await click(A, suvSlot)
     const stillList = /Add a car/.test(title(bots[A].currentWindow))

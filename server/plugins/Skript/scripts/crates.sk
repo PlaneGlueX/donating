@@ -262,6 +262,18 @@ function crateGrant(p: player, line: text, t: text) :: text:
 		set {_type} to {_a::3}
 		set {_n} to {_a::4} parsed as number
 		set {_name} to {-cfg::ammo::%{_type}%::name}
+		# Rounds for a gun the player can't own yet (its level) pay cash instead (review fix).
+		set {_usable} to false
+		loop {-cfg::shop::weapons::*}:
+			if {-cfg::wpn::%loop-value%::ammo} is {_type}:
+				if getData({_p}, "wpn::%loop-value%") is true:
+					set {_usable} to true
+				else if levelOk({_p}, wpnLevel(loop-value)) is true:
+					set {_usable} to true
+		if {_usable} is false:
+			set {_cash} to crateOverflowCash({_n}, {-cfg::ammo::%{_type}%::price})
+			giveMoney({_p}, {_cash})
+			return "&a%formatMoney({_cash})% &7(%{_name}%: no gun for them at your level yet, cash instead)"
 		set {_got} to addAmmo({_p}, {_type}, min({_n}, ammoRoom({_p}, {_type})))
 		set {_cash} to crateOverflowCash({_n} - {_got}, {-cfg::ammo::%{_type}%::price})
 		giveMoney({_p}, {_cash})

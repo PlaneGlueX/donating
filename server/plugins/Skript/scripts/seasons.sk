@@ -564,7 +564,10 @@ function seasonSeen(p: player):
 		else:
 			msg({_p}, "&6Season %{_last}% ended: &fyou placed %{_m}%&6. &f/lb")
 	else:
-		msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. A new season is on: &f/season")
+		if {season::state} is "live":
+			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. A new season is on: &f/season")
+		else:
+			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. The next one is announced when it starts.")
 
 every minute:
 	seasonTick()

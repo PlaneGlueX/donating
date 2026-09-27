@@ -32,10 +32,10 @@ function tutorialSteps(p: player):
 	set {_start} to formatMoney(cfg("money::start"))
 	set {_hands} to formatMoney(cfg("bag::hands::capacity"))
 	msg({_p}, "&6New in town? &7You've got %{_start}% and nothing else. Here's how it starts:")
-	send colored "&7 1. &eMeet Mara &7at the Safehouse: the purple line on your phone (slot 9) and the dot above your hotbar lead there." to {_p}
+	send colored "&7 1. &eMeet Mara &7at the Safehouse: the orange line on your phone (slot 9) and the dot above your hotbar lead there." to {_p}
 	send colored "&7 2. &eYour first job: &7steal a car for the Scrap Yard with her lockpick. It pays for a bag." to {_p}
 	send colored "&7 3. &eLoot &7goes in your &ebag &7(your hands carry %{_hands}% without one). It sells by itself at the base." to {_p}
-	send colored "&7 4. &eGuns need level 5. &7Until then a knife does. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
+	send colored "&7 4. &eGuns need level 5. &7Once you have your bag, a knife does until then. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
 
 on join:
 	getData(player, "tutorial") is not set

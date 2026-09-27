@@ -25,25 +25,32 @@ import org.bukkit.scheduler.BukkitTask;
  */
 final class Nametags {
     private final JavaPlugin plugin;
-    private final NameTagManager tags;
     private final Map<String, Integer> blocked = new HashMap<>(); // "viewer:target" -> passes in a row with no clear ray
     private BukkitTask task;
     private double range;
     private int hideAfter;
 
-    private Nametags(JavaPlugin plugin, NameTagManager tags) { this.plugin = plugin; this.tags = tags; }
+    private Nametags(JavaPlugin plugin) { this.plugin = plugin; }
+
+    /** TAB's nametag manager, looked up every time: /tab reload builds a new one (review fix). */
+    private static NameTagManager tags() {
+        TabAPI api = TabAPI.getInstance();
+        return api == null ? null : api.getNameTagManager();
+    }
 
     /** Null when TAB is missing or its nametag feature is off (then vanilla names show as always). */
     static Nametags create(JavaPlugin plugin) {
         if (Bukkit.getPluginManager().getPlugin("TAB") == null) return null;
         TabAPI api = TabAPI.getInstance();
         if (api == null || api.getNameTagManager() == null) return null;
-        return new Nametags(plugin, api.getNameTagManager());
+        return new Nametags(plugin);
     }
 
+    /** (Re)starts the checks with the config's settings. A reload keeps what's hidden (review fix: stop() would show
+     * every name for a moment); turned off in the config, every name shows again. */
     void start() {
-        stop();
-        if (!plugin.getConfig().getBoolean("nametags.enabled", true)) return;
+        if (task != null) { task.cancel(); task = null; }
+        if (!plugin.getConfig().getBoolean("nametags.enabled", true)) { stop(); return; }
         range = plugin.getConfig().getDouble("nametags.range", 64);
         hideAfter = Math.max(1, plugin.getConfig().getInt("nametags.hide-after", 2));
         long every = Math.max(1, plugin.getConfig().getInt("nametags.every", 5));
@@ -85,7 +92,8 @@ final class Nametags {
     /** Tells TAB, only when its state differs (also after a /tab reload forgot it). */
     private void set(Player viewer, Player target, boolean hide) {
         TabAPI api = TabAPI.getInstance();
-        if (api == null) return;
+        NameTagManager tags = tags();
+        if (api == null || tags == null) return;
         TabPlayer tv = api.getPlayer(viewer.getUniqueId());
         TabPlayer tt = api.getPlayer(target.getUniqueId());
         if (tv == null || tt == null || !tt.isLoaded() || !tv.isLoaded()) return;
@@ -137,7 +145,8 @@ final class Nametags {
         TabAPI api = TabAPI.getInstance();
         TabPlayer tv = api == null ? null : api.getPlayer(v.getUniqueId());
         TabPlayer tt = api == null ? null : api.getPlayer(t.getUniqueId());
-        String hidden = tv == null || tt == null ? "unknown" : String.valueOf(tags.hasHiddenNameTag(tt, tv));
+        NameTagManager tags = tags();
+        String hidden = tv == null || tt == null || tags == null ? "unknown" : String.valueOf(tags.hasHiddenNameTag(tt, tv));
         return "NAMETAG " + v.getName() + " sees " + t.getName() + " hidden=" + hidden + " los=" + canSeeName(v, t)
                 + " running=" + (task != null);
     }

@@ -275,6 +275,12 @@ function storyState(p: player, o: text) :: boolean:
 		return levelOk({_p}, {_a::3} parsed as number)
 	if {_a::2} is "gun":
 		return storyOwnsGun({_p})
+	# Any weapon unlocked (state|weapon: the knife or a gun).
+	if {_a::2} is "weapon":
+		loop {-cfg::shop::weapons::*}:
+			if getData({_p}, "wpn::%loop-value%") is true:
+				return true
+		return false
 	# One weapon unlocked (state|wpn|Combat_Knife).
 	if {_a::2} is "wpn":
 		if getData({_p}, "wpn::%{_a::3}%") is true:
@@ -921,7 +927,7 @@ function storyMenu(p: player):
 	if {_id} is "done":
 		set slot 13 of {_gui} to nether star named "&6The story is done" with lore "&7You finished Mara's jobs." and "&7The city is yours: heists, contracts," and "&7the season's leaderboards (/lb)."
 		if {-cfg::jobs::contacts::*} is set:
-			storyButton({_p}, {_gui}, 22, paper named "&dMara's jobs" with lore "&7Daily jobs from Mara and the Boss." and "&eClick: open your jobs.", "jobs")
+			storyButton({_p}, {_gui}, 22, paper named "&dMara's jobs" with lore "&7Side jobs from Mara and the Boss." and "&eClick: open your jobs.", "jobs")
 	else if storyExists({_id}) is true:
 		storyButton({_p}, {_gui}, 13, storyCard({_p}, {_id}), "gps:story")
 		# No Mara on the map (yet): a talk mission can be done from here, so the chain never blocks.
