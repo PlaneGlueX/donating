@@ -12,7 +12,7 @@ The exact steps to move the local test server to Minehut (free plan). Local-only
 ## 2. Minehut dashboard
 
 - Server type **Paper**, version **1.21.11**.
-- **Resource pack**: Minehut takes a URL. Upload `Donating-pack.zip` somewhere with a direct download link (a public file host). It includes WeaponMechanics' official pack, which its README allows merging and hosting for your own players, but never selling or publishing as a pack. Tick "require" so every player gets the guns, bags, phone and tracers.
+- **Resource pack**: Minehut takes a URL. Upload `Donating-pack.zip` somewhere with a direct download link (a public file host). It includes WeaponMechanics' official pack, which its README allows merging and hosting for your own players, but never selling or publishing as a pack, and MTVehicles' car models (merged the same way, with their credits; the file host link must not be shared as a pack download). Tick "require" so every player gets the guns, cars, bags, phone and tracers. After every pack build the file changes: upload the new one and update the URL (and hash, if the dashboard asks).
 - **MOTD** (the server list text): the proposal in CLAUDE.md, or your own.
 - Online mode stays on (Minehut's default). Nothing from the local `server.properties` goes up.
 
@@ -41,9 +41,10 @@ Every jar below is in `server\plugins\` locally (tools\fetch.ps1 re-downloads mi
 | CoreProtect CE | `CoreProtect-CE-23.2.jar` |
 | Citizens + Sentinel (cops) | `Citizens-2.0.43-b4250.jar`, `Sentinel-2.9.4-SNAPSHOT-b534.jar` |
 | Tebex | `tebex-bukkit-2.4.6.jar` |
+| MTVehicles (cars; downloaded by hand from SpigotMC) | `MTVehicles.jar` (2.5.9) |
 | DonatingPhone (ours) | `DonatingPhone.jar` |
 
-Not spark (Paper has it built in). MTVehicles (`MTVehicles.jar` (2.5.9), downloaded by hand from SpigotMC, in `server\plugins\` locally) only once cars are built (garage.sk).
+Not spark (Paper has it built in).
 
 Start the server once so every plugin makes its folders, then stop it and upload the configs.
 
@@ -58,11 +59,12 @@ Start the server once so every plugin makes its folders, then stop it and upload
 | `plugins/LPC/config.yml` | same |
 | `plugins/WeaponMechanics/config.yml` (armor: `Per_Armor_Point: -6%`) and the folders `weapons/` (the nerfed gun damage), `ammos/`, `projectiles/` | same |
 | `plugins/WorldGuard/config.yml` | same |
+| `plugins/MTVehicles/config.yml` (no auto-update, no fuel, trunks or pickup), `vehicles.yml` (Donating's 24 cars), `supersecretsettings.yml` (English messages). Never `vehicleData.yml` (local test cars) | same |
 | `bukkit.yml`, `spigot.yml` (only if you keep the End off: `allow-end: false`) | server root |
 | The world folder (`world/`, with `world/generated/donating/structures/` = the heist rooms, `world/data/map_*.dat` = the city map) and `plugins/WorldGuard/worlds/world/regions.yml` (safe zones, heist regions) | server root / same |
 | `plugins/DecentHolograms/holograms/` (heist and crate stand holograms) | same |
 
-Never upload: `server.properties`, `plugins/Skript/variables.csv` (full of test data), `plugins/Tebex/config.yml` (holds the local secret key), `plugins/LuckPerms/` data, CoreProtect's database, `logs/`.
+Never upload: `server.properties`, `plugins/Skript/variables.csv` (full of test data), `plugins/MTVehicles/vehicleData.yml` (test cars), `plugins/Tebex/config.yml` (holds the local secret key), `plugins/LuckPerms/` data, CoreProtect's database, `logs/`.
 
 ## 5. First start: console commands
 
@@ -76,6 +78,8 @@ lp group owner meta setprefix 100 "&4[Owner]"
 lp group owner permission set * true
 lp group owner permission set donating.inventory.bypass false
 lp group owner permission set donating.wanted false
+lp group owner permission set mtvehicles.ride false
+lp group owner permission set mtvehicles.oppakken false
 lp user Explosde parent add owner
 lp group default permission set weaponmechanics.use.* true
 lp group default permission set donating.inventory.bypass false
@@ -98,7 +102,7 @@ The heists, traps, loot, cop spots: locally, run `/dheist dump <id>`, `/dtrap du
 
 Places, standing where they go:
 - Safe zones: WorldEdit wand (a structure void), `/rg define safe_spawn`, `/rg flag safe_spawn passthrough allow`, `/rg flag safe_spawn weapon-shoot deny`; the base is a safe zone whose id starts with `safe_base` (loot sells there). The spawn zone must be called `safe_spawn` (core.sk `tutorial::region`): new players stay in it until they buy their first bag (tutorial.sk), so a Bag Shop shopkeeper must stand inside it.
-- Shopkeepers: `/dshopkeeper add gun|gear|bag|tools` (at least a bag shop inside `safe_spawn`).
+- Shopkeepers: `/dshopkeeper add gun|gear|bag|tools|cars` (at least a bag shop inside `safe_spawn`; `cars` is the Car Dealer). Cars spawn next to the player who calls them, so the dealer wants an open street nearby.
 - Crate stands: look at a block inside a safe zone (crates only open in safe zones), `/dcrate place daily|common|uncommon|rare|epic|legendary|hacked`. `/crates` only shows odds and keys, so without stands nobody can open a crate.
 - Points of interest (the locator bar's dots): locally `/dpoi dump` prints a `/minecraft:tp` and a `/dpoi add` line per POI; on Minehut run each pair (the add uses where you stand). Heist dots come by themselves once the heists exist.
 - The spawn: EssentialsX `/setspawn`.

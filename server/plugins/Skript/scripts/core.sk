@@ -93,6 +93,59 @@ function loadSettings():
 	set {-cfg::cop::skin-signature} to "jbmsFMheKX66NCk/w6ZHKDjIpGMpcNLJMu1rpi+SIp5LQezM/Wd9v+5mHBb54CQ2KYZkji2nfCUjakYhf3KFiYNp5qK5zSu29t1CgT4MK1GiZgRZYR6IOFFAvnSWBjlHpaHxLbNxZ5ZCraE52IO8Sk2ANjZjf42uJYYc3b18rZwAwSyJGvAP6hxHPTChDYu78/0kkHf4PopS9sL+puycGf9oskT2Jb4jknOFOAejTos9kU3iiFngeThm9+EeVOgNAQVQr8D7jRXUdnAlqGl5yRrRe9EhjB2HYb1GaZSDveVRpYDNrH3UUSTs528bhM7qZ36pE4YKnfs9/wzxCXp+2ZNXHfcabQut0u0+DfO+7fYnF7bZaUVY9A9es/AJEluCT2XLA/0lRF9BPthGvwn0CeN8q6tuuuyVaLe9bBo/a3sy09Bd6mJH+f1D2MLwTA0KQ/VyCdQsvhdrttX+WERXpaeE5LDAGl243Jrc/L2J6GkkMO5a8ewTWZASXBK7A/rXGUm7IMfzCUXStsLfdO70mcC84KK84s4DXingVNcRU+ahNWsyMjXeV0l61tWXaaQhhtC689qSs0dz5bqEaKcGwvJ0ED392GIlCn0Jqlu3wGvlRW5DqPMur8ON1wbTZ91rJYATjK22LKAumaK0RYgGnDjE2hgYxXg/0k/KYF9/LVE="
 	set {-cfg::car::idle-despawn} to 5 minutes
 	set {-cfg::car::other-car-despawn} to 1 minute
+
+	# ---------- Cars (garage.sk, car-cleanup.sk): PROPOSALS ----------
+	# Owner, 2026-09-26: cars are a mid-game goal (no starter car; the cheapest about $40,000 at level 2, the
+	# best about $1M at level 6). A model is bought once, in a color; it can be repainted in the garage.
+	# colors: "Label=MTV uuid=itemDamage" (server\plugins\MTVehicles\vehicles.yml; every uuid there is used here;
+	# the damage picks the model in the pack, for the menu icons).
+	# crate = only from crates (never sold at the dealer); a crate car needs no level.
+	set {-cfg::cars::*} to "sedan", "sportsedan", "jeep", "sports", "hotrod", "suv", "vandal", "specter" and "overclock"
+	set {-cfg::car::sedan::name} to "Sedan"
+	set {-cfg::car::sedan::price} to 40000
+	set {-cfg::car::sedan::level} to 2
+	set {-cfg::carcolors::sedan::*} to "Red=GKAH5U=1017", "Gray=BV3W2A=1019", "Black=FFW36Q=1111", "Navy=7JWQYB=1003" and "Beige=58UUXF=1110"
+	set {-cfg::car::sportsedan::name} to "Sport Sedan"
+	set {-cfg::car::sportsedan::price} to 90000
+	set {-cfg::car::sportsedan::level} to 3
+	set {-cfg::carcolors::sportsedan::*} to "Obsidian=KG59SJ=1116", "Emerald=RBG6HW=1115" and "Quartz=7BEQ5K=1023"
+	set {-cfg::car::jeep::name} to "Jeep"
+	set {-cfg::car::jeep::price} to 150000
+	set {-cfg::car::jeep::level} to 3
+	set {-cfg::carcolors::jeep::*} to "Blue=G2KQ4V=1073" and "Gold=5Z95XA=1074"
+	set {-cfg::car::sports::name} to "Sports Car"
+	set {-cfg::car::sports::price} to 250000
+	set {-cfg::car::sports::level} to 4
+	set {-cfg::carcolors::sports::*} to "White=5CD8N4=1060", "Black=W32FND=1070", "Orange=8CUSCG=1068", "Navy=SMV4M6=1002" and "Flame Red=LHBM2X=1063"
+	set {-cfg::car::hotrod::name} to "Hotrod"
+	set {-cfg::car::hotrod::price} to 450000
+	set {-cfg::car::hotrod::level} to 5
+	set {-cfg::carcolors::hotrod::*} to "Red=CJF7WX=1006", "Black=6GBKXT=1161" and "Blue=2FWFAS=1159"
+	set {-cfg::car::suv::name} to "SUV"
+	set {-cfg::car::suv::price} to 1000000
+	set {-cfg::car::suv::level} to 6
+	set {-cfg::carcolors::suv::*} to "Black=FC98KS=1141", "White=88WPRU=1139" and "Criminal=5R7QP3=1220"
+	# The crate cars (crates.sk car lines use these ids): looks only, they drive like their family.
+	set {-cfg::car::vandal::name} to "Vandal"
+	set {-cfg::car::vandal::crate} to true
+	set {-cfg::carcolors::vandal::*} to "Diamond=6FHXGA=1069"
+	set {-cfg::car::specter::name} to "Specter"
+	set {-cfg::car::specter::crate} to true
+	set {-cfg::carcolors::specter::*} to "Rainbow=XJ4Q29=1027"
+	set {-cfg::car::overclock::name} to "Overclock"
+	set {-cfg::car::overclock::crate} to true
+	set {-cfg::carcolors::overclock::*} to "Gold=6WDK7U=1158"
+	# Repainting an owned car (another color of its model) in the garage.
+	set {-cfg::car::paint-price} to 2500
+	# Calling your car to you from the garage: once per this long, and never while in combat.
+	set {-cfg::car::call-cooldown} to 20 seconds
+	# How far a player may be from a car they send back or lock from the garage menu (0 = anywhere).
+	set {-cfg::car::lock-range} to 0
+	# Regions whose id starts with this are no-lock zones (car spawn areas): no locking there.
+	set {-cfg::car::nolock-prefix} to "nolock"
+	# Owner, 2026-09-26: cars are the getaway, but the cops' chase radius is this many times bigger while
+	# the hunted robber is in a car (heists.sk heistInRange).
+	set {-cfg::alarm::car-chase-factor} to 2
 	set {-cfg::lockpick::max-fails} to 3
 
 	# ---------- Multipliers (decided) ----------
@@ -383,6 +436,7 @@ function loadSettings():
 	set {-cfg::shop::title::gear} to "Gear Shop"
 	set {-cfg::shop::title::bag} to "Bag Shop"
 	set {-cfg::shop::title::tools} to "Heist Tools"
+	set {-cfg::shop::title::cars} to "Car Dealer"
 
 	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles. Owner, 2026-09-26:
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
@@ -611,9 +665,9 @@ function loadSettings():
 	set {-cfg::crate::epic::rewards::*} to "330|money|4500", "240|money|9000", "130|money|13500", "120|tool|drill|1", "80|con|Stim|3", "17|cos|untouchable", "17|cos|bigfish", "17|cos|fireworks", "17|cos|stormcloud", "16|cos|tiger" and "16|cos|carbon"
 	set {-cfg::crate::legendary::rewards::*} to "380|money|11000", "250|money|22500", "120|money|34000", "100|tool|drill|1", "30|car|vandal|Vandal", "20|cos|mostwanted", "20|cos|theboss", "20|cos|dragon", "20|cos|totem", "20|cos|diamond" and "20|cos|molten"
 	set {-cfg::crate::hacked::rewards::*} to "200|car|vandal|Vandal", "200|car|specter|Specter", "200|car|overclock|Overclock", "200|cos|hacker,matrix" and "200|cos|zeroday,glitch"
-	# Cars in crates: garage.sk sets this to true once cars exist; until then car lines are left out
-	# (the other lines share their chance) and the menu shows them as "coming with cars".
-	set {-cfg::crate::cars} to false
+	# Cars in crates (garage.sk, 2026-09-26): car lines roll. False leaves them out (the other lines share
+	# their chance) and the menu shows them as "coming with cars".
+	set {-cfg::crate::cars} to true
 	# Rewards that don't fit pay this share of their shop price (owner, 2026-09-26: 50%).
 	set {-cfg::crate::overflow-rate} to 0.5
 	# Crates whose cosmetic and car pulls are announced to everyone (owner, 2026-09-26).

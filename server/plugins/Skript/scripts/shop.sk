@@ -462,6 +462,10 @@ on right click on entity:
 	event-entity has scoreboard tag "donating_shop"
 	event-entity does not have metadata "NPC"
 	cancel event
+	# The Car Dealer is garage.sk's.
+	if event-entity has scoreboard tag "shop_cars":
+		garageDealer(player)
+		stop
 	loop "gun", "gear", "bag" and "tools":
 		if event-entity has scoreboard tag "shop_%loop-value%":
 			openShop(player, loop-value)
@@ -1253,7 +1257,11 @@ command /dshop <text> <player> [<text>]:
 	trigger:
 		if arg-1 is "open":
 			if arg-3 is not set:
-				send "usage: dshop open <player> gun|gear|bag|tools"
+				send "usage: dshop open <player> gun|gear|bag|tools|cars"
+				stop
+			if arg-3 is "cars":
+				garageDealer(arg-2)
+				send "SHOP opened cars for %arg-2%"
 				stop
 			openShop(arg-2, arg-3)
 			send "SHOP opened %arg-3% for %arg-2%"

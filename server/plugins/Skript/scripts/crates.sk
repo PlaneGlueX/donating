@@ -128,6 +128,8 @@ function crateLineLive(line: text) :: boolean:
 	if {_a::2} is "car":
 		if {-cfg::crate::cars} is not true:
 			return false
+		if carExists({_a::3}) is false:
+			return false
 	return true
 
 function crateLines(t: text) :: texts:
@@ -235,7 +237,7 @@ function crateLineIcon(line: text) :: item:
 		else:
 			set {_i} to name tag
 	else if {_k} is "car":
-		set {_i} to minecart
+		set {_i} to carIcon({_a::3}, carFirstColor({_a::3}))
 	else:
 		set {_i} to barrier
 	set name of {_i} to colored crateLineText({_line})
@@ -339,11 +341,13 @@ function crateGrant(p: player, line: text, t: text) :: text:
 		giveMoney({_p}, {_dupe})
 		return "%crateCosText({_line})% &7(you have it: &a%formatMoney({_dupe})% &7instead)"
 	if {_k} is "car":
-		# Cars aren't rolled until garage.sk exists (crateLineLive); if one ever is, pay the dupe.
+		# garage.sk makes the car (in the player's garage); one they have already pays the dupe value.
+		set {_got} to garageGrantCar({_p}, {_a::3}, "crate:%{_t}%")
+		if {_got} is not "":
+			return {_got}
 		set {_dupe} to {-cfg::rarity::%{_t}%::dupe}
 		giveMoney({_p}, {_dupe})
-		send "[Donating] crates: a car (%{_line}%) was rolled but there is no garage yet" to console
-		return "&6%{_a::4}% &7car (not in the game yet: &a%formatMoney({_dupe})% &7instead)"
+		return "&6%{_a::4}% &7car (you have it: &a%formatMoney({_dupe})% &7instead)"
 	send "[Donating] crates: unknown reward %{_line}% in %{_t}%" to console
 	return "&cnothing (unknown reward, tell staff)"
 

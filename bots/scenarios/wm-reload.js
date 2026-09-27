@@ -21,6 +21,11 @@ module.exports = async ({ check }) => {
     await sleep(200)
     await rcon.cmd('minecraft:kill @e[type=item]') // loot from the mobs killed above
     await rcon.cmd(`gamemode survival ${NAME}`)
+    // Solid ground first: the bot rejoins where it last was (once under water after another test's
+    // platform went away, and it drowned mid-test).
+    await rcon.cmd(`zzheisttp ${NAME} 0.5 68 -656.5`)
+    await rcon.cmd(`minecraft:effect give ${NAME} minecraft:instant_health 1 5 true`)
+    await sleep(1500)
     await rcon.cmd(`zzclear ${NAME}`)
     // Start with 5 of 30 rounds so a reload is visible.
     const give = await rcon.cmd(`wm give ${NAME} AK_47 1 {slot:0,ammo:5}`)

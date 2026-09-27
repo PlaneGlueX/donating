@@ -143,7 +143,7 @@ function hudBoss(p: player):
 		set {_c} to heistCenter({_h})
 		if {_c} is set:
 			if world of {_c} is world of {_p}:
-				set {_r} to cfg("alarm::chase-radius")
+				set {_r} to heistChaseRadius({_p}, {_h})
 				set {_away} to max(0, ceil({_r} - distance between (location of {_p}) and {_c}))
 				set {_n} to heistNextWaveIn({_h})
 				if heistAlarmStage({_h}) is "warning":

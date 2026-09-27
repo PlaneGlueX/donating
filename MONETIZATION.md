@@ -29,7 +29,7 @@ A player has one rank at a time. Buying a higher rank replaces the lower one, an
 
 A crate gives exactly one reward per key, picked at random with the chances below (every crate's weights add up to 1,000, so they're exact). Crates open only at crate stands, special places on the map inside safe zones; the reward is given when the spin stops (closing the menu gives it at once, and a logout or crash mid-spin gives it at the next join). Ammo, Stims and tools that don't fit (full inventory, carry limit, a tool above the player's level) pay **half** their shop price in in-game money instead. A cosmetic the player already has pays its rarity's repeat value ($200 Daily or Common, $500 Uncommon, $1,500 Rare, $3,000 Epic, $5,000 Legendary, $7,500 Hacked). Titles, bag skins, kill effects and cars are looks only. Every cosmetic belongs to one crate only.
 
-Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more likely (60-75% of openings from Common to Legendary), cosmetics at most 1% (Daily), 3% (Common), 5% (Uncommon), 7% (Rare), 10% (Epic) and 15% (Legendary, its exclusive car included). Cars aren't in the game yet: until they are, their lines are left out and the other lines share their chance ("Chance now").
+Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more likely (60-75% of openings from Common to Legendary), cosmetics at most 1% (Daily), 3% (Common), 5% (Uncommon), 7% (Rare), 10% (Epic) and 15% (Legendary, its exclusive car included). Cars are in the game since 2026-09-26 (garage.sk): a crate car lands in the player's garage, and one they already have pays the repeat value. Crate cars are looks only: each drives exactly like the regular car of its family (Vandal like the Sports Car, Specter like the Sedan, Overclock like the Hotrod).
 
 **Daily Crate**
 
@@ -134,33 +134,33 @@ Gameplay items (money, ammo, consumables, tools): 90% of openings.
 
 **Legendary Crate**
 
-| Reward | Kind | Chance now | Once cars exist |
-|---|---|---|---|
-| $11,000 | in-game money | 39.2% | 38% |
-| $22,500 | in-game money | 25.8% | 25% |
-| $34,000 | in-game money | 12.4% | 12% |
-| 1 Drill | heist tool | 10.3% | 10% |
-| Vandal (exclusive car) | looks only | not in the game yet | 3% |
-| Most Wanted (title, Legendary) | looks only | 2.1% | 2% |
-| The Boss (title, Legendary) | looks only | 2.1% | 2% |
-| Dragon's Breath (kill effect, Legendary) | looks only | 2.1% | 2% |
-| Totem (kill effect, Legendary) | looks only | 2.1% | 2% |
-| Diamond (bag skin, Legendary) | looks only | 2.1% | 2% |
-| Molten (bag skin, Legendary) | looks only | 2.1% | 2% |
+| Reward | Kind | Chance |
+|---|---|---|
+| $11,000 | in-game money | 38% |
+| $22,500 | in-game money | 25% |
+| $34,000 | in-game money | 12% |
+| 1 Drill | heist tool | 10% |
+| Vandal (exclusive car) | looks only | 3% |
+| Most Wanted (title, Legendary) | looks only | 2% |
+| The Boss (title, Legendary) | looks only | 2% |
+| Dragon's Breath (kill effect, Legendary) | looks only | 2% |
+| Totem (kill effect, Legendary) | looks only | 2% |
+| Diamond (bag skin, Legendary) | looks only | 2% |
+| Molten (bag skin, Legendary) | looks only | 2% |
 
-Gameplay items (money, ammo, consumables, tools): 87.7% of openings now.
+Gameplay items (money, ammo, consumables, tools): 85% of openings.
 
 **Hacked Crate**
 
-| Reward | Kind | Chance now | Once cars exist |
-|---|---|---|---|
-| Vandal (exclusive car) | looks only | not in the game yet | 20% |
-| Specter (exclusive car) | looks only | not in the game yet | 20% |
-| Overclock (exclusive car) | looks only | not in the game yet | 20% |
-| H4CK3R (title, Hacked) + Matrix (bag skin, Hacked) | looks only | 50% | 20% |
-| Zero Day (title, Hacked) + Glitch (kill effect, Hacked) | looks only | 50% | 20% |
+| Reward | Kind | Chance |
+|---|---|---|
+| Vandal (exclusive car) | looks only | 20% |
+| Specter (exclusive car) | looks only | 20% |
+| Overclock (exclusive car) | looks only | 20% |
+| H4CK3R (title, Hacked) + Matrix (bag skin, Hacked) | looks only | 20% |
+| Zero Day (title, Hacked) + Glitch (kill effect, Hacked) | looks only | 20% |
 
-Gameplay items (money, ammo, consumables, tools): 0% of openings now.
+Gameplay items (money, ammo, consumables, tools): 0% of openings.
 
 The Hacked crate is never sold: its keys only come from special events. Every Hacked prize has the same chance (the owner's rule: about the same odds, all good prizes); its cosmetics come in sets.
 
@@ -266,7 +266,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > **Uncommon Crate Key**: bigger cash, more ammo, Stims, Safe Kits, or an Uncommon title, kill effect or bag skin.
 > **Rare Crate Key**: up to $5,400 cash, a Drill, Safe Kits, or a Rare title, kill effect or bag skin (Cash Print, Crimson).
 > **Epic Crate Key**: up to $13,500 cash, a Drill, or an Epic title, kill effect (Fireworks, Storm Cloud) or bag skin (Tiger, Carbon).
-> **Legendary Crate Key**: up to $34,000 cash, a Drill, or a Legendary title, kill effect (Dragon's Breath, Totem) or glowing bag skin (Diamond, Molten). An exclusive car joins it when cars come out.
+> **Legendary Crate Key**: up to $34,000 cash, a Drill, a Legendary title, kill effect (Dragon's Breath, Totem) or glowing bag skin (Diamond, Molten), or the exclusive Vandal car.
 >
 > Every key opens one crate at a crate stand in the city. See every reward and its exact chance in game: /crates, then click a crate. Already have a cosmetic? You get cash instead. Stack keys: buy as many as you like.
 >

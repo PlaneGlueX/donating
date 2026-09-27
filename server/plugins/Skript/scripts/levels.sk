@@ -95,6 +95,12 @@ function levelUnlocks(n: number) :: texts:
 			if heistLevel(loop-index) is {_n}:
 				set {_heist} to heistName(loop-index)
 				add "the %{_heist}%" to {_u::*}
+	# Cars at the Car Dealer (garage.sk; crate cars need no level).
+	loop {-cfg::cars::*}:
+		if {-cfg::car::%loop-value%::crate} is not true:
+			if {-cfg::car::%loop-value%::level} is {_n}:
+				set {_car} to {-cfg::car::%loop-value%::name}
+				add "the %{_car}% (car)" to {_u::*}
 	return {_u::*}
 
 # ---------- Earning ----------

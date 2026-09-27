@@ -1,0 +1,961 @@
+# garage.sk: cars (MTVehicles 2.5.9). Built 2026-09-26 (Phase 2; owner, 2026-09-26: cars are a mid-game
+# goal and the getaway: allowed while wanted, but the cops' chase radius doubles in a car, heists.sk).
+#
+# Models (core.sk cars::*, car::<id>::name|price|level|crate, carcolors::<id>::* = "Label=MTV uuid=damage"):
+# a player buys a model once at the Car Dealer, in one of its colors, and can repaint it in the garage.
+# Crate cars (car::<id>::crate) come only from crates (garageGrantCar) and need no level.
+#
+# A car is an MTVehicles vehicle: a license plate in its data, made with "a new mtv vehicle with uuid <color
+# uuid> and owner <player>". Players never hold the car item (the fixed inventory): the garage spawns it.
+#   {data::<uuid>::car::<id>}        the plate of the player's <id>
+#   {data::<uuid>::carcolor::<id>}   its color label
+#   {car::owner::<plate>}            the owner's uuid (text); {car::model::<plate>} the model id
+#   {car::lock::<plate>}             true = locked (the default): nobody but the owner gets in
+#   {car::out::<plate>}              where it is while spawned; {car::outof::<uuid>} the player's car out
+#   {-car::driver::<plate>}          who's driving it; {-car::riding::<uuid>} the plate a player drives
+#   {-car::members::<plate>::<uuid>} passengers let in while it was unlocked (MTVehicles "members")
+#   {-car::used::<plate>}            when it was last driven or left (car-cleanup.sk: idle despawn)
+# MTVehicles saves its own data only every 10 minutes: after a crash a plate can be gone, so every use
+# goes through carEnsure (it makes the car again, same model and color, and moves the data over).
+#
+# Rules:
+#   - Only the owner drives (MTVehicles checks too). Unlocked: others may sit as passengers.
+#   - One car out per player; calling it spawns it next to you (not in heists, not while in combat, once
+#     per car::call-cooldown); calling another car sends the first back.
+#   - No cars in heists: no getting in inside one, and driving into one throws you out (MTVehicles' region
+#     event: a car doesn't fire WorldGuard's walking events). No driving into a safe zone while in combat.
+#   - While driving, slot 9 is the car key (right-click: lock / unlock); the phone comes back when you get
+#     out. No locking in no-lock zones (regions whose id starts with car::nolock-prefix).
+#   - Car stands can't be damaged (MTVehicles doesn't protect them; a broken one drops the car item).
+#   - /vehicle and its aliases are staff only (MTVehicles' own commands hand out car items).
+# car-cleanup.sk sends cars back to the garage (idle, owner gone, owner in another car) and sweeps stands.
+#   /garage          your cars (also the phone's Garage app): call, send back, lock, repaint
+#   the Car Dealer   a shopkeeper (/dshopkeeper add cars; Citizens: dshop open <player> cars)
+#   /dgarage give|take|info|store <player> [car] [color]   staff
+# Log: plugins\Skript\logs\garage.log.
+
+function carLog(text: text):
+	log {_text} to "garage"
+
+function carExists(id: text) :: boolean:
+	if {-cfg::car::%{_id}%::name} is set:
+		return true
+	return false
+
+function carName(id: text) :: text:
+	set {_n} to {-cfg::car::%{_id}%::name}
+	if {_n} is set:
+		return "%{_n}%"
+	return {_id}
+
+function carIsCrate(id: text) :: boolean:
+	if {-cfg::car::%{_id}%::crate} is true:
+		return true
+	return false
+
+# A part of a color entry "Label=uuid=damage": 1 label, 2 uuid, 3 damage.
+function carColorPart(id: text, label: text, n: number) :: text:
+	loop {-cfg::carcolors::%{_id}%::*}:
+		set {_a::*} to loop-value split at "="
+		if {_a::1} is {_label}:
+			return {_a::%{_n}%}
+	return ""
+
+function carFirstColor(id: text) :: text:
+	loop {-cfg::carcolors::%{_id}%::*}:
+		set {_a::*} to loop-value split at "="
+		return {_a::1}
+	return ""
+
+function carColorLabels(id: text) :: texts:
+	loop {-cfg::carcolors::%{_id}%::*}:
+		set {_a::*} to loop-value split at "="
+		add {_a::1} to {_out::*}
+	return {_out::*}
+
+# The car as a menu icon: a diamond hoe with the model's damage, unbreakable (the pack draws the car).
+# Only ever in menus: players never hold diamond hoes.
+function carIcon(id: text, label: text) :: item:
+	set {_i} to diamond hoe
+	set {_d} to carColorPart({_id}, {_label}, 3) parsed as number
+	if {_d} is set:
+		set damage of {_i} to {_d}
+	set {_i} to unbreakable {_i}
+	return {_i}
+
+function carPlate(p: offline player, id: text) :: text:
+	set {_plate} to {data::%{_p}%::car::%{_id}%}
+	if {_plate} is set:
+		return "%{_plate}%"
+	return ""
+
+function carColorOf(p: offline player, id: text) :: text:
+	set {_c} to {data::%{_p}%::carcolor::%{_id}%}
+	if {_c} is set:
+		return "%{_c}%"
+	return carFirstColor({_id})
+
+function carOwned(p: offline player, id: text) :: boolean:
+	if carPlate({_p}, {_id}) is "":
+		return false
+	return true
+
+function carOwnerOf(plate: text) :: text:
+	set {_o} to {car::owner::%{_plate}%}
+	if {_o} is set:
+		return "%{_o}%"
+	return ""
+
+function carModelOf(plate: text) :: text:
+	set {_m} to {car::model::%{_plate}%}
+	if {_m} is set:
+		return "%{_m}%"
+	return ""
+
+function carLocked(plate: text) :: boolean:
+	if {car::lock::%{_plate}%} is false:
+		return false
+	return true
+
+# Whether MTVehicles still has this plate.
+function carAlive(plate: text) :: boolean:
+	set {_ok} to false
+	set {_car} to mtv vehicle with license plate {_plate}
+	if {_car} is set:
+		if vehicle {_car} exists:
+			set {_ok} to true
+	return {_ok}
+
+# Makes a new MTVehicles car of a model and color for a player; returns its plate ("" if it failed).
+function carCreate(p: offline player, id: text, label: text) :: text:
+	set {_uuid} to carColorPart({_id}, {_label}, 2)
+	if {_uuid} is "":
+		carLog("create-failed %{_p}% %{_id}% %{_label}% (no such color)")
+		return ""
+	set {_car} to a new mtv vehicle with uuid {_uuid} and owner {_p}
+	if {_car} is not set:
+		carLog("create-failed %{_p}% %{_id}% %{_label}% (MTVehicles refused %{_uuid}%)")
+		return ""
+	set {_plate} to vehicle license plate of {_car}
+	set {data::%{_p}%::car::%{_id}%} to {_plate}
+	set {data::%{_p}%::carcolor::%{_id}%} to {_label}
+	set {car::owner::%{_plate}%} to "%uuid of {_p}%"
+	set {car::model::%{_plate}%} to {_id}
+	set {car::lock::%{_plate}%} to true
+	return {_plate}
+
+# Forgets a plate everywhere (its owner's data points elsewhere, or the car is gone).
+function carForget(plate: text):
+	delete {car::owner::%{_plate}%}
+	delete {car::model::%{_plate}%}
+	delete {car::lock::%{_plate}%}
+	delete {car::out::%{_plate}%}
+	delete {-car::driver::%{_plate}%}
+	delete {-car::used::%{_plate}%}
+	delete {-car::members::%{_plate}%::*}
+
+# The player's plate for a model, made again if MTVehicles lost it (same model and color). "" if they
+# don't own the model.
+function carEnsure(p: offline player, id: text) :: text:
+	set {_plate} to carPlate({_p}, {_id})
+	if {_plate} is "":
+		return ""
+	if carAlive({_plate}) is true:
+		return {_plate}
+	set {_label} to carColorOf({_p}, {_id})
+	set {_wasout} to false
+	if {car::out::%{_plate}%} is set:
+		set {_wasout} to true
+	carForget({_plate})
+	if {car::outof::%uuid of {_p}%} is {_plate}:
+		delete {car::outof::%uuid of {_p}%}
+	set {_new} to carCreate({_p}, {_id}, {_label})
+	carLog("recreated %{_p}% %uuid of {_p}% %{_id}% %{_label}% old=%{_plate}% new=%{_new}% wasout=%{_wasout}%")
+	return {_new}
+
+# "" when a player may call a car now, else why not.
+function carCallBlock(p: player) :: text:
+	if {_p} is not alive:
+		return "You can't call a car right now."
+	if heistOf({_p}) is not "":
+		return "No cars in heists."
+	if isCombatTagged({_p}) is true:
+		return "You can't call a car while in combat."
+	if {-car::riding::%uuid of {_p}%} is set:
+		return "You're driving already."
+	set {_at} to {-car::callat::%uuid of {_p}%}
+	if {_at} is set:
+		if difference between {_at} and now < cfg("car::call-cooldown"):
+			return "Your mechanic needs a moment. Try again soon."
+	return ""
+
+# A clear spot for a car near the player: ahead, right, left or behind (solid ground, room around it,
+# not in a heist); none = not set.
+function carSpawnSpot(p: player) :: location:
+	set {_base} to location of {_p}
+	set {_yaw} to yaw of {_p}
+	# Coordinates in locals first: "x-coordinate of {_base} + {_dx}" parses as the x of (location + number).
+	set {_bx} to x-coordinate of {_base}
+	set {_by} to y-coordinate of {_base}
+	set {_bz} to z-coordinate of {_base}
+	loop 0, 90, -90 and 180:
+		set {_a} to {_yaw} + loop-value
+		set {_dx} to 0 - sin({_a}) * 3.5
+		set {_dz} to cos({_a}) * 3.5
+		set {_l} to location(floor({_bx} + {_dx}) + 0.5, floor({_by}), floor({_bz} + {_dz}) + 0.5, world of {_base})
+		if carSpotClear({_l}) is true:
+			set yaw of {_l} to {_yaw}
+			return {_l}
+	return {_nothing}
+
+function carSpotClear(l: location) :: boolean:
+	if heistAt({_l}) is not "":
+		return false
+	set {_under} to block at ({_l} ~ vector(0, -1, 0))
+	if {_under} is passable:
+		return false
+	loop -1, 0 and 1:
+		loop -1, 0 and 1:
+			loop 0 and 1:
+				set {_b} to block at ({_l} ~ vector(loop-value-1, loop-value-3, loop-value-2))
+				if {_b} is not passable:
+					return false
+				if "%type of {_b}%" is "water":
+					return false
+				if "%type of {_b}%" is "lava":
+					return false
+	return true
+
+# Loaded MAIN stands of a plate (a spawned car has one).
+function carStands(plate: text) :: number:
+	set {_n} to 0
+	set {_name} to "MTVEHICLES_MAIN_%{_plate}%"
+	loop all armor stands:
+		if "%name of loop-entity%" is {_name}:
+			add 1 to {_n}
+	return {_n}
+
+# Brings a player's car next to them (sends another car of theirs back first).
+function carCall(p: player, id: text):
+	set {_why} to carCallBlock({_p})
+	if {_why} is not "":
+		carFail({_p}, {_why})
+		stop
+	if carOwned({_p}, {_id}) is false:
+		carFail({_p}, "You don't own a %carName({_id})%.")
+		stop
+	set {_plate} to carEnsure({_p}, {_id})
+	if {_plate} is "":
+		carFail({_p}, "Something went wrong with your car. Tell staff.")
+		stop
+	if {-car::driver::%{_plate}%} is set:
+		carFail({_p}, "Someone is in your %carName({_id})%.")
+		stop
+	set {_spot} to carSpawnSpot({_p})
+	if {_spot} is not set:
+		carFail({_p}, "No room for a car here. Try an open street.")
+		stop
+	set {_other} to {car::outof::%uuid of {_p}%}
+	if {_other} is set:
+		carStore("%{_other}%", "swap")
+	if {car::out::%{_plate}%} is set:
+		carStore({_plate}, "recall")
+	spawn mtv vehicle with license plate {_plate} at {_spot}
+	if carStands({_plate}) < 1:
+		carLog("call-failed %{_p}% %uuid of {_p}% %{_plate}% at %{_spot}%")
+		carFail({_p}, "Your car couldn't get here. Try another spot.")
+		stop
+	set {car::out::%{_plate}%} to {_spot}
+	set {car::outof::%uuid of {_p}%} to {_plate}
+	set {-car::used::%{_plate}%} to now
+	set {-car::callat::%uuid of {_p}%} to now
+	carLog("call %{_p}% %uuid of {_p}% %{_id}% %{_plate}% at %{_spot}%")
+	msg({_p}, "&aYour %carName({_id})% is here. &7Right-click it to get in.")
+	play sound "block.note_block.bell" with volume 0.6 to {_p}
+
+# Sends a car back to the garage (despawns it; the data stays). why: store, swap, recall, idle, quit...
+function carStore(plate: text, why: text):
+	# Load the car's chunk first so the despawn reaches it (the sweep removes what's still left later).
+	set {_at} to {car::out::%{_plate}%}
+	if {_at} is set:
+		set {_chunk} to chunk at {_at}
+	set {_car} to mtv vehicle with license plate {_plate}
+	if {_car} is set:
+		despawn mtv vehicle {_car}
+		loop {-car::members::%{_plate}%::*}:
+			remove loop-value as member of mtv vehicle {_car}
+	delete {-car::members::%{_plate}%::*}
+	delete {car::out::%{_plate}%}
+	delete {-car::driver::%{_plate}%}
+	delete {-car::used::%{_plate}%}
+	set {_o} to carOwnerOf({_plate})
+	if {_o} is not "":
+		if {car::outof::%{_o}%} is {_plate}:
+			delete {car::outof::%{_o}%}
+	carLog("store %{_plate}% owner=%{_o}% why=%{_why}%")
+
+function carFail(p: player, text: text):
+	msg({_p}, "&c%{_text}%")
+	play sound "entity.villager.no" with volume 0.6 to {_p}
+
+# ---------- Getting in and out ----------
+
+# MTVehicles fires this before its own checks (drivers and passengers). A click on a car that has a
+# driver is a passenger seat; on an empty car it's the driver's.
+on mtv vehicle enter:
+	set {_plate} to event-text
+	set {_o} to carOwnerOf({_plate})
+	# Not one of ours (NPC cars later: npc-cars.sk): MTVehicles' own rules.
+	{_o} is not ""
+	if heistOf(player) is not "":
+		cancel event
+		hudBar(player, "&cNo cars in heists.", 2)
+		stop
+	# A copy that shouldn't be here (left behind in an unloaded chunk): not usable, the sweep removes it.
+	set {_track} to {car::out::%{_plate}%}
+	if {-car::driver::%{_plate}%} is set:
+		set {_track} to location of {-car::driver::%{_plate}%}
+	set {_stray} to false
+	if {_track} is not set:
+		set {_stray} to true
+	else if world of {_track} is not world of event-location:
+		set {_stray} to true
+	else if distance between {_track} and event-location > 8:
+		set {_stray} to true
+	if {_stray} is true:
+		cancel event
+		hudBar(player, "&7This car was towed. &f/garage", 2)
+		stop
+	# No car rides into a safe zone for someone in combat: not even getting into one parked inside.
+	if isCombatTagged(player) is true:
+		if isSafeZone(event-location) is true:
+			cancel event
+			hudBar(player, "&cYou can't get into a car in a safe zone while in combat.", 3)
+			stop
+	set {_mine} to false
+	if "%uuid of player%" is {_o}:
+		set {_mine} to true
+	if {-car::driver::%{_plate}%} is set:
+		# A passenger seat (the owner always may).
+		if {_mine} is false:
+			if carLocked({_plate}) is true:
+				cancel event
+				hudBar(player, "&cThe car is locked.", 2)
+				play sound "block.iron_door.close" with volume 0.5 to player
+				stop
+			set {_car} to mtv vehicle with license plate {_plate}
+			set {_who} to player
+			if {_car} is set:
+				add {_who} as a member of the mtv vehicle {_car}
+				set {-car::members::%{_plate}%::%uuid of player%} to {_who}
+		stop
+	# The driver's seat: only the owner.
+	if {_mine} is false:
+		cancel event
+		if carLocked({_plate}) is true:
+			hudBar(player, "&cThe car is locked.", 2)
+		else:
+			hudBar(player, "&cOnly the owner drives this car.", 2)
+		stop
+	wait 2 ticks
+	player is online
+	carSeatCheck(player, {_plate})
+
+# The seat a player is on right now ("" if none): the plate of the car and whether it's the driver's.
+function carSeatOf(p: player) :: text:
+	set {_v} to vehicle of {_p}
+	if {_v} is not set:
+		return ""
+	set {_n} to "%name of {_v}%"
+	if {_n} starts with "MTVEHICLES_MAINSEAT_":
+		return "driver:%subtext of {_n} from characters 21 to (length of {_n})%"
+	if {_n} starts with "MTVEHICLES_SEAT":
+		set {_a::*} to {_n} split at "_"
+		return "passenger:%{_a::3}%"
+	return ""
+
+# After an entry: really in the driver's seat -> the key replaces the phone.
+function carSeatCheck(p: player, plate: text):
+	if carSeatOf({_p}) is not "driver:%{_plate}%":
+		stop
+	set {-car::driver::%{_plate}%} to {_p}
+	set {-car::riding::%uuid of {_p}%} to {_plate}
+	set {-car::used::%{_plate}%} to now
+	closePhoneMap({_p})
+	set slot 8 of {_p}'s inventory to carKey({_plate})
+	carLog("drive %{_p}% %uuid of {_p}% %{_plate}%")
+
+function carKey(plate: text) :: item:
+	set {_m} to carModelOf({_plate})
+	set {_state} to "&aunlocked"
+	if carLocked({_plate}) is true:
+		set {_state} to "&clocked"
+	set {_i} to tripwire hook named "&6Car key &7· &f%carName({_m})%" with lore "&7Right-click: lock or unlock." and "&7Now: %{_state}%&7." and "&7Get out (sneak) and your phone is back."
+	return tagItem({_i}, "carkey:%{_plate}%")
+
+# Out of the driver's seat (MTVehicles' leave event is the driver's only; the every-second check catches
+# everything else: a teleport, a death, a quit).
+on mtv vehicle leave:
+	carStopDriving(player, "%event-text%")
+
+function carStopDriving(p: player, plate: text):
+	delete {-car::riding::%uuid of {_p}%}
+	if {-car::driver::%{_plate}%} is {_p}:
+		delete {-car::driver::%{_plate}%}
+	set {-car::used::%{_plate}%} to now
+	if {car::out::%{_plate}%} is set:
+		set {_l} to vehicle location of license plate {_plate}
+		if {_l} is set:
+			set {car::out::%{_plate}%} to {_l}
+	carPhoneBack({_p})
+
+function carPhoneBack(p: player):
+	if itemId(slot 8 of {_p}'s inventory) starts with "carkey:":
+		set slot 8 of {_p}'s inventory to phoneItem({_p})
+
+every second:
+	loop all players:
+		set {_seat} to carSeatOf(loop-player)
+		set {_plate} to {-car::riding::%uuid of loop-player%}
+		if {_plate} is set:
+			if {_seat} is not "driver:%{_plate}%":
+				carStopDriving(loop-player, "%{_plate}%")
+			else if heistAt(location of loop-player) is not "":
+				# A backstop for MTVehicles' region event (it only runs on driving input): out, and towed.
+				carTow(loop-player, "%{_plate}%")
+		else if itemId(slot 8 of loop-player's inventory) starts with "carkey:":
+			carPhoneBack(loop-player)
+		# Anyone in a car: combat-tagged inside a safe zone (a car that got in anyway) -> out, and back
+		# to where they last were outside one.
+		if {_seat} is not "":
+			if isSafeZone(location of loop-player) is false:
+				set {-car::outside::%uuid of loop-player%} to location of loop-player
+			else if isCombatTagged(loop-player) is true:
+				carKickOut(loop-player)
+
+# Out of the car, and back outside the safe zone (or just out, if we never saw them outside one).
+function carKickOut(p: player):
+	make {_p} dismount
+	set {_back} to {-car::outside::%uuid of {_p}%}
+	if {_back} is set:
+		teleport {_p} to {_back}
+	hudBar({_p}, "&cYou can't be in a safe zone while in combat.", 3)
+
+# Throws a driver out of a car that ended up in a heist and sends the car back to the garage.
+function carTow(p: player, plate: text):
+	make {_p} dismount
+	carStopDriving({_p}, {_plate})
+	carStore({_plate}, "heist")
+	hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 2)
+
+on quit:
+	set {_plate} to {-car::riding::%uuid of player%}
+	{_plate} is set
+	delete {-car::riding::%uuid of player%}
+	if {-car::driver::%{_plate}%} is player:
+		delete {-car::driver::%{_plate}%}
+
+# ---------- The key: lock and unlock ----------
+
+on right click with priority lowest:
+	itemId(player's tool) starts with "carkey:"
+	cancel event
+	if {-car::keyat::%player%} is set:
+		difference between {-car::keyat::%player%} and now < 0.3 seconds
+		stop
+	set {-car::keyat::%player%} to now
+	set {_id} to itemId(player's tool)
+	carToggleLock(player, subtext of {_id} from characters 8 to (length of {_id}))
+
+function carToggleLock(p: player, plate: text):
+	if carOwnerOf({_plate}) is not "%uuid of {_p}%":
+		carFail({_p}, "That's not your car.")
+		stop
+	if carLocked({_plate}) is false:
+		set {_where} to location of {_p}
+		if {car::out::%{_plate}%} is set:
+			set {_where} to {car::out::%{_plate}%}
+		if carNoLockAt({_where}) is true:
+			carFail({_p}, "You can't lock cars here.")
+			stop
+		set {car::lock::%{_plate}%} to true
+		set {_car} to mtv vehicle with license plate {_plate}
+		if {_car} is set:
+			loop {-car::members::%{_plate}%::*}:
+				remove loop-value as member of mtv vehicle {_car}
+		delete {-car::members::%{_plate}%::*}
+		hudBar({_p}, "&cLocked. &7Only you get in.", 1)
+		play sound "block.iron_door.close" with volume 0.6 to {_p}
+	else:
+		set {car::lock::%{_plate}%} to false
+		hudBar({_p}, "&aUnlocked. &7Others can ride with you.", 1)
+		play sound "block.iron_door.open" with volume 0.6 to {_p}
+	carLog("lock %{_p}% %{_plate}% locked=%carLocked({_plate})%")
+	if itemId(slot 8 of {_p}'s inventory) is "carkey:%{_plate}%":
+		set slot 8 of {_p}'s inventory to carKey({_plate})
+
+function carNoLockAt(l: location) :: boolean:
+	set {_prefix} to cfg("car::nolock-prefix")
+	loop regions at {_l}:
+		if name of loop-value starts with {_prefix}:
+			return true
+	return false
+
+# ---------- Where cars may go ----------
+
+# MTVehicles checks the car's regions every tick; cancelling throws the driver out.
+on mtv vehicle region enter:
+	set {_r} to event-text
+	if {_r} starts with cfg("heist::region-prefix"):
+		cancel event
+		hudBar(player, "&cNo cars in heists. &7Go in on foot.", 2)
+		stop
+	if {_r} starts with cfg("pvp::safe-prefix"):
+		# The driver, or anyone riding along (passengers fire no region events of their own).
+		set {_tagged} to isCombatTagged(player)
+		set {_plate} to {-car::riding::%uuid of player%}
+		if {_plate} is set:
+			loop all players:
+				if carSeatOf(loop-player) is "passenger:%{_plate}%":
+					if isCombatTagged(loop-player) is true:
+						set {_tagged} to true
+		if {_tagged} is true:
+			cancel event
+			hudBar(player, "&cNo driving into a safe zone with someone in combat.", 3)
+
+# MTVehicles never protects its stands: two hits (or a cop's arrow) would break a car and drop its item.
+on damage:
+	victim is an armor stand
+	"%name of victim%" starts with "MTVEHICLES"
+	cancel event
+
+# MTVehicles' own commands hand out car items and change owners: staff only.
+on command:
+	player is set
+	set {_c} to command in lower case
+	set {_mtv} to false
+	if {_c} starts with "mtvehicles:":
+		set {_mtv} to true
+	else if {_c} is "minetopiavehicles":
+		set {_mtv} to true
+	else if {_c} is "mtv":
+		set {_mtv} to true
+	else if {_c} is "minetopiav":
+		set {_mtv} to true
+	else if {_c} is "mtvehicles":
+		set {_mtv} to true
+	else if {_c} is "mtvehicle":
+		set {_mtv} to true
+	else if {_c} is "vehicle":
+		set {_mtv} to true
+	{_mtv} is true
+	player does not have permission "donating.staff"
+	cancel event
+	msg(player, "&7Your cars: &f/garage&7. Buy one at the Car Dealer.")
+
+# ---------- Menus ----------
+
+function carClearGui(p: player):
+	delete {-car::gui::%{_p}%}
+	delete {-car::act::%{_p}%::*}
+
+function carButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-car::act::%{_p}%::%{_slot}%} to {_act}
+
+function carOpen(p: player, gui: inventory):
+	set {-car::gui::%{_p}%} to {_gui}
+	if {-car::gen::%{_p}%} is not set:
+		set {-car::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+function carPane(gui: inventory, rows: number):
+	set {_pane} to gray stained glass pane named "&r"
+	loop {_rows} * 9 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+
+# "&aLevel 2 (Burglar)" in green when the player has it, red when not.
+function carLevelText(p: player, need: number) :: text:
+	set {_c} to "&c"
+	if levelOk({_p}, {_need}) is true:
+		set {_c} to "&a"
+	return "%{_c}%Level %{_need}% (%levelName({_need})%)"
+
+# The Car Dealer: every model sold (not crate cars), then a model's colors.
+function garageDealer(p: player):
+	closePhoneMap({_p})
+	set {_title} to "&8%{-cfg::shop::title::cars}%"
+	set {_gui} to chest inventory with 3 rows named {_title}
+	carClearGui({_p})
+	carPane({_gui}, 3)
+	set {_slot} to 10
+	loop {-cfg::cars::*}:
+		set {_id} to loop-value
+		if carIsCrate({_id}) is false:
+			set {_price} to formatMoney({-cfg::car::%{_id}%::price})
+			set {_need} to {-cfg::car::%{_id}%::level}
+			set {_n} to size of carColorLabels({_id})
+			delete {_l::*}
+			add "&7Price: &a%{_price}%" to {_l::*}
+			add "&7Needs: %carLevelText({_p}, {_need})%" to {_l::*}
+			add "&7Colors: &f%{_n}%" to {_l::*}
+			if carOwned({_p}, {_id}) is true:
+				add "&aYou own one." to {_l::*}
+			else:
+				add "&eClick: pick a color." to {_l::*}
+			set {_i} to carIcon({_id}, carFirstColor({_id})) named "&6%carName({_id})%" with lore {_l::*}
+			carButton({_p}, {_gui}, {_slot}, {_i}, "dealer:%{_id}%")
+			add 1 to {_slot}
+	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	carOpen({_p}, {_gui})
+
+# A model's colors: mode "buy" (the dealer) or "paint" (the garage).
+function garageColors(p: player, id: text, mode: text):
+	set {_title} to "&8%carName({_id})%: pick a color"
+	set {_gui} to chest inventory with 3 rows named {_title}
+	carClearGui({_p})
+	carPane({_gui}, 3)
+	set {_slot} to 10
+	set {_now} to ""
+	if {_mode} is "paint":
+		set {_now} to carColorOf({_p}, {_id})
+	loop carColorLabels({_id}):
+		set {_label} to loop-value
+		delete {_l::*}
+		if {_mode} is "buy":
+			set {_price} to formatMoney({-cfg::car::%{_id}%::price})
+			add "&7Price: &a%{_price}%" to {_l::*}
+			add "&eClick to buy (twice to confirm)." to {_l::*}
+		else if {_label} is {_now}:
+			add "&aYour car's color now." to {_l::*}
+		else:
+			set {_price} to formatMoney(cfg("car::paint-price"))
+			add "&7Repaint: &a%{_price}%" to {_l::*}
+			add "&eClick to repaint (twice to confirm)." to {_l::*}
+		set {_i} to carIcon({_id}, {_label}) named "&f%{_label}% &6%carName({_id})%" with lore {_l::*}
+		carButton({_p}, {_gui}, {_slot}, {_i}, "%{_mode}%:%{_id}%:%{_label}%")
+		add 1 to {_slot}
+	if {_mode} is "buy":
+		carButton({_p}, {_gui}, 18, arrow named "&fAll cars", "dealer")
+	else:
+		carButton({_p}, {_gui}, 18, arrow named "&fBack", "options:%{_id}%")
+	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	carOpen({_p}, {_gui})
+
+# The garage: every car the player owns.
+function garageMenu(p: player):
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8Your garage"
+	carClearGui({_p})
+	carPane({_gui}, 3)
+	set {_slot} to 9
+	loop {-cfg::cars::*}:
+		set {_id} to loop-value
+		if carOwned({_p}, {_id}) is true:
+			set {_plate} to carPlate({_p}, {_id})
+			set {_label} to carColorOf({_p}, {_id})
+			delete {_l::*}
+			add "&7Color: &f%{_label}%  &7Plate: &f%{_plate}%" to {_l::*}
+			if {-car::driver::%{_plate}%} is set:
+				add "&eBeing driven." to {_l::*}
+			else if {car::out::%{_plate}%} is set:
+				set {_at} to {car::out::%{_plate}%}
+				add "&eOut at %floor(x-coordinate of {_at})%, %floor(z-coordinate of {_at})%." to {_l::*}
+				add "&eLeft-click: bring it here." to {_l::*}
+			else:
+				add "&aIn the garage." to {_l::*}
+				add "&eLeft-click: call it here." to {_l::*}
+			if carLocked({_plate}) is true:
+				add "&7Locked: &cyes" to {_l::*}
+			else:
+				add "&7Locked: &ano" to {_l::*}
+			add "&eRight-click: lock, repaint, send back." to {_l::*}
+			set {_i} to carIcon({_id}, {_label}) named "&6%carName({_id})%" with lore {_l::*}
+			carButton({_p}, {_gui}, {_slot}, {_i}, "car:%{_id}%")
+			add 1 to {_slot}
+	if {_slot} is 9:
+		set slot 13 of {_gui} to paper named "&7No cars yet" with lore "&7Buy one at the Car Dealer." and "&7The first cars need level 2 (&f/level&7)."
+	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	carOpen({_p}, {_gui})
+
+# One car's options: lock, repaint, send back.
+function garageOptions(p: player, id: text):
+	set {_plate} to carPlate({_p}, {_id})
+	{_plate} is not ""
+	set {_gui} to chest inventory with 3 rows named "&8%carName({_id})%"
+	carClearGui({_p})
+	carPane({_gui}, 3)
+	set {_label} to carColorOf({_p}, {_id})
+	set slot 4 of {_gui} to carIcon({_id}, {_label}) named "&6%carName({_id})%" with lore "&7%{_label}% · %{_plate}%"
+	if carLocked({_plate}) is true:
+		carButton({_p}, {_gui}, 11, iron door named "&cLocked" with lore "&7Only you get in." and "&eClick to unlock: others can ride along.", "lock:%{_id}%")
+	else:
+		carButton({_p}, {_gui}, 11, oak door named "&aUnlocked" with lore "&7Others can ride along (only you drive)." and "&eClick to lock.", "lock:%{_id}%")
+	set {_n} to size of carColorLabels({_id})
+	if {_n} > 1:
+		set {_price} to formatMoney(cfg("car::paint-price"))
+		carButton({_p}, {_gui}, 13, red dye named "&dRepaint" with lore "&7Another color: &a%{_price}%." and "&7Only while it's in the garage.", "paint:%{_id}%")
+	if {car::out::%{_plate}%} is set:
+		carButton({_p}, {_gui}, 15, chest named "&eSend it back" with lore "&7Back to the garage.", "store:%{_id}%")
+	carButton({_p}, {_gui}, 18, arrow named "&fBack", "garage")
+	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	carOpen({_p}, {_gui})
+
+on inventory click:
+	{-car::gui::%player%} is set
+	player's current inventory is {-car::gui::%player%}
+	cancel event
+	event-inventory is {-car::gui::%player%}
+	set {_act} to {-car::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_right} to false
+	set {_ok} to false
+	if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_ok} to true
+		set {_right} to true
+	{_ok} is true
+	# One action per drawn screen, a tick later (as in crates.sk and shop.sk).
+	set {_gen} to {-car::gen::%player%}
+	wait 1 tick
+	player is online
+	{-car::gui::%player%} is set
+	{-car::gen::%player%} is {_gen}
+	add 1 to {-car::gen::%player%}
+	carAction(player, {_act}, {_right})
+
+on inventory drag:
+	{-car::gui::%player%} is set
+	player's current inventory is {-car::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-car::gui::%player%} is set
+	event-inventory is {-car::gui::%player%}
+	carClearGui(player)
+
+function carAction(p: player, act: text, right: boolean):
+	set {_a::*} to {_act} split at ":"
+	set {_k} to {_a::1}
+	if {_k} is "close":
+		close {_p}'s inventory
+	else if {_k} is "dealer":
+		if {_a::2} is set:
+			garageColors({_p}, {_a::2}, "buy")
+		else:
+			garageDealer({_p})
+	else if {_k} is "garage":
+		garageMenu({_p})
+	else if {_k} is "car":
+		if {_right} is true:
+			garageOptions({_p}, {_a::2})
+		else:
+			close {_p}'s inventory
+			carCall({_p}, {_a::2})
+	else if {_k} is "options":
+		garageOptions({_p}, {_a::2})
+	else if {_k} is "lock":
+		set {_plate} to carPlate({_p}, {_a::2})
+		if {_plate} is not "":
+			carToggleLock({_p}, {_plate})
+		garageOptions({_p}, {_a::2})
+	else if {_k} is "store":
+		set {_plate} to carPlate({_p}, {_a::2})
+		if {_plate} is not "":
+			if {-car::driver::%{_plate}%} is set:
+				carFail({_p}, "Someone is in it.")
+			else:
+				carStore({_plate}, "store")
+				msg({_p}, "&aYour %carName({_a::2})% went back to the garage.")
+		garageMenu({_p})
+	else if {_k} is "paint":
+		if {_a::3} is set:
+			carPaint({_p}, {_a::2}, {_a::3})
+		else:
+			garageColors({_p}, {_a::2}, "paint")
+	else if {_k} is "buy":
+		carBuy({_p}, {_a::2}, {_a::3})
+
+# A second click within 5 s confirms (the key is the action and the price).
+function carConfirm(p: player, key: text) :: boolean:
+	if {-car::confirm::%{_p}%} is {_key}:
+		if difference between {-car::confirmat::%{_p}%} and now < 5 seconds:
+			delete {-car::confirm::%{_p}%}
+			return true
+	set {-car::confirm::%{_p}%} to {_key}
+	set {-car::confirmat::%{_p}%} to now
+	return false
+
+# ---------- Buying and repainting ----------
+
+function carBuyBlock(p: player, id: text) :: text:
+	if {_p} is not alive:
+		return "You can't buy a car right now."
+	if isCombatTagged({_p}) is true:
+		return "You can't buy a car while in combat."
+	if carExists({_id}) is false:
+		return "That car isn't for sale."
+	if carIsCrate({_id}) is true:
+		return "That car only comes from crates."
+	if carOwned({_p}, {_id}) is true:
+		return "You own a %carName({_id})% already (repaint it in /garage)."
+	set {_need} to {-cfg::car::%{_id}%::level}
+	if levelOk({_p}, {_need}) is false:
+		return "The %carName({_id})% needs level %{_need}% (%levelName({_need})%)."
+	return ""
+
+function carBuy(p: player, id: text, label: text):
+	set {_why} to carBuyBlock({_p}, {_id})
+	if {_why} is not "":
+		carFail({_p}, {_why})
+		stop
+	if carColorPart({_id}, {_label}, 2) is "":
+		stop
+	set {_price} to {-cfg::car::%{_id}%::price}
+	if balance of {_p} < {_price}:
+		carFail({_p}, "The %carName({_id})% costs %formatMoney({_price})%.")
+		stop
+	if carConfirm({_p}, "buy:%{_id}%:%{_label}%@%{_price}%") is false:
+		msg({_p}, "&eClick again to buy the %{_label}% %carName({_id})% for %formatMoney({_price})%.")
+		play sound "block.note_block.pling" with volume 0.6 to {_p}
+		stop
+	if chargeMoney({_p}, {_price}) is not true:
+		carFail({_p}, "The %carName({_id})% costs %formatMoney({_price})%.")
+		stop
+	set {_plate} to carCreate({_p}, {_id}, {_label})
+	if {_plate} is "":
+		giveMoney({_p}, {_price})
+		carFail({_p}, "The dealer couldn't register your car (refunded). Tell staff.")
+		carLog("buy-failed %{_p}% %uuid of {_p}% %{_id}% %{_label}% refunded=%{_price}%")
+		stop
+	carLog("buy %{_p}% %uuid of {_p}% %{_id}% %{_label}% %{_plate}% price=%{_price}%")
+	close {_p}'s inventory
+	send title colored "&6&lNEW CAR" with subtitle colored "&f%{_label}% %carName({_id})%" to {_p} for 3 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.7 to {_p}
+	msg({_p}, "&aYou bought a %{_label}% %carName({_id})%! &7Call it from your garage: &f/garage &7(or the phone's Garage app).")
+
+function carPaint(p: player, id: text, label: text):
+	set {_plate} to carPlate({_p}, {_id})
+	if {_plate} is "":
+		stop
+	if carColorPart({_id}, {_label}, 2) is "":
+		stop
+	if carColorOf({_p}, {_id}) is {_label}:
+		carFail({_p}, "It's %{_label}% already.")
+		stop
+	if {car::out::%{_plate}%} is set:
+		carFail({_p}, "Send it back to the garage first.")
+		stop
+	if isCombatTagged({_p}) is true:
+		carFail({_p}, "Not while in combat.")
+		stop
+	set {_price} to cfg("car::paint-price")
+	if balance of {_p} < {_price}:
+		carFail({_p}, "A repaint costs %formatMoney({_price})%.")
+		stop
+	if carConfirm({_p}, "paint:%{_id}%:%{_label}%@%{_price}%") is false:
+		msg({_p}, "&eClick again to repaint it %{_label}% for %formatMoney({_price})%.")
+		play sound "block.note_block.pling" with volume 0.6 to {_p}
+		stop
+	if chargeMoney({_p}, {_price}) is not true:
+		carFail({_p}, "A repaint costs %formatMoney({_price})%.")
+		stop
+	# A new plate in the new color (MTVehicles finds a car's model by its look); the old one is deleted.
+	set {_lock} to carLocked({_plate})
+	set {_new} to carCreate({_p}, {_id}, {_label})
+	if {_new} is "":
+		giveMoney({_p}, {_price})
+		carFail({_p}, "The paint shop failed (refunded). Tell staff.")
+		carLog("paint-failed %{_p}% %uuid of {_p}% %{_id}% %{_label}% refunded=%{_price}%")
+		stop
+	set {car::lock::%{_new}%} to {_lock}
+	set {_old} to mtv vehicle with license plate {_plate}
+	if {_old} is set:
+		delete mtv vehicle {_old}
+	carForget({_plate})
+	carLog("paint %{_p}% %uuid of {_p}% %{_id}% %{_label}% old=%{_plate}% new=%{_new}% price=%{_price}%")
+	msg({_p}, "&aYour %carName({_id})% is %{_label}% now. &7New plate: &f%{_new}%")
+	play sound "entity.villager.work_cartographer" with volume 0.7 to {_p}
+	garageMenu({_p})
+
+# ---------- Crate cars (crates.sk) ----------
+
+# Gives a crate car: its text for chat and crates.log, or "" when the player already has it or it
+# isn't a known car (crates.sk then pays the dupe value). No wait: called while granting a reward.
+function garageGrantCar(p: player, id: text, why: text) :: text:
+	if carExists({_id}) is false:
+		carLog("grant-unknown %{_p}% %uuid of {_p}% %{_id}% why=%{_why}%")
+		return ""
+	if carOwned({_p}, {_id}) is true:
+		return ""
+	set {_plate} to carCreate({_p}, {_id}, carFirstColor({_id}))
+	if {_plate} is "":
+		return ""
+	carLog("grant %{_p}% %uuid of {_p}% %{_id}% %{_plate}% why=%{_why}%")
+	return "&6%carName({_id})% &7car (in your garage: &f/garage&7)"
+
+# ---------- Commands ----------
+
+command /garage:
+	description: Your cars: call them, send them back, lock, repaint.
+	aliases: /cars
+	executable by: players
+	trigger:
+		garageMenu(player)
+
+command /dgarage <text> [<offline player>] [<text>] [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		if arg-1 is "give":
+			if arg-3 is not set:
+				send "GARAGE give <player> <car> [color]" to sender
+				stop
+			if carExists(arg-3) is false:
+				send "GARAGE no car %arg-3%" to sender
+				stop
+			if carOwned(arg-2, arg-3) is true:
+				send "GARAGE %arg-2% owns a %arg-3% already (%carPlate(arg-2, arg-3)%)" to sender
+				stop
+			set {_label} to carFirstColor(arg-3)
+			if arg-4 is set:
+				set {_label} to arg-4
+			set {_plate} to carCreate(arg-2, arg-3, {_label})
+			carLog("staff-give %arg-2% %uuid of arg-2% %arg-3% %{_label}% %{_plate}% by=%sender%")
+			send "GARAGE gave %arg-2% a %{_label}% %arg-3%: %{_plate}%" to sender
+		else if arg-1 is "take":
+			set {_plate} to carPlate(arg-2, arg-3)
+			if {_plate} is "":
+				send "GARAGE %arg-2% has no %arg-3%" to sender
+				stop
+			carStore({_plate}, "staff-take")
+			set {_car} to mtv vehicle with license plate {_plate}
+			if {_car} is set:
+				delete mtv vehicle {_car}
+			carForget({_plate})
+			delete {data::%arg-2%::car::%arg-3%}
+			delete {data::%arg-2%::carcolor::%arg-3%}
+			carLog("staff-take %arg-2% %uuid of arg-2% %arg-3% %{_plate}% by=%sender%")
+			send "GARAGE took %arg-2%'s %arg-3% (%{_plate}%)" to sender
+		else if arg-1 is "info":
+			loop {-cfg::cars::*}:
+				if carOwned(arg-2, loop-value) is true:
+					set {_plate} to carPlate(arg-2, loop-value)
+					set {_st} to "garage"
+					if {car::out::%{_plate}%} is set:
+						set {_st} to "out"
+					if {-car::driver::%{_plate}%} is set:
+						set {_st} to "driven"
+					add "%loop-value%=%{_plate}%(%carColorOf(arg-2, loop-value)%,%{_st}%,locked=%carLocked({_plate})%,alive=%carAlive({_plate})%)" to {_o::*}
+			set {_all} to join {_o::*} with " "
+			send "GARAGE %arg-2% %{_all}% outof=%{car::outof::%uuid of arg-2%}%" to sender
+		else if arg-1 is "store":
+			set {_plate} to {car::outof::%uuid of arg-2%}
+			if {_plate} is not set:
+				send "GARAGE %arg-2% has no car out" to sender
+				stop
+			carStore("%{_plate}%", "staff")
+			send "GARAGE stored %{_plate}%" to sender
+		else:
+			send "GARAGE usage: /dgarage give|take|info|store <player> [car] [color]" to sender
