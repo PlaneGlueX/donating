@@ -1,0 +1,495 @@
+# tabcomplete.sk: tab completion for Donating's commands. Built 2026-09-27 (owner, 2026-09-27: "make sure all
+# commands have tab fill feature for args and names (where applicable)").
+#
+# SkBee's tab complete event (checked in SkBee 3.25.4 and Paper 1.21.11): it runs on the main thread, for players only;
+# "tab completions for position N" only apply while the player types the Nth word after the command, and SkBee keeps
+# the entries that contain what's typed so far; "tab arg-N" is the Nth word as typed. Setting an empty list (or
+# clearing it) leaves one blank entry, and a blank entry would erase the word being typed, so lists that can be empty
+# are only set when they have values. SkBee's "remove ... from tab completions" can't remove anything from Bukkit's
+# own lists (they can't be changed; SkBee ignores the error), so a list is always built here, never trimmed. A
+# cancelled event suggests nothing; Paper sends nothing for an empty list.
+# Commands without arguments and free-text arguments (chat, broadcasts) are left alone: Skript's own completer
+# suggests nothing there. Player names are only the players the viewer can see (EssentialsX vanish hides staff).
+# Console-only commands suggest nothing; local test helpers (zz-*) have no completions. Every handler also answers the
+# namespaced label ("/skript:bounty"): SkBee compares the typed label with each listed one, so both are listed.
+# /dphone completes in Java (DonatingPhone).
+
+# ---------- Lists ----------
+
+# The players the viewer can see (a vanished staff member never shows up), the viewer included.
+function tabPlayerNames(viewer: player) :: texts:
+	loop all players:
+		if {_viewer} can see loop-player:
+			add name of loop-player to {_out::*}
+	return {_out::*}
+
+function tabHeists() :: texts:
+	loop {heists::*}:
+		add loop-index to {_out::*}
+	return {_out::*}
+
+# "<heist>-<n>" of every trap (kind "trap") or loot spot (kind "loot"). {traps::<h>} and {loots::<h>} hold only
+# sub-lists (never a value of their own), so a loop over them runs zero times: go through the heists instead.
+function tabSpots(kind: text) :: texts:
+	loop {heists::*}:
+		set {_h} to loop-index
+		if {_kind} is "trap":
+			loop {traps::%{_h}%::*}:
+				add "%{_h}%-%loop-index-2%" to {_out::*}
+		else:
+			loop {loots::%{_h}%::*}:
+				add "%{_h}%-%loop-index-2%" to {_out::*}
+	return {_out::*}
+
+function tabOwnedCos(p: player, type: text) :: texts:
+	loop cosOwnedOf({_p}, {_type}):
+		add loop-value to {_out::*}
+	return {_out::*}
+
+function tabIndices(kind: text) :: texts:
+	if {_kind} is "poi":
+		loop {poi::*}:
+			add loop-index to {_out::*}
+	else if {_kind} is "giver":
+		loop {quest::giver::*}:
+			add loop-index to {_out::*}
+	else if {_kind} is "keeper":
+		loop {shop::keepers::*}:
+			add loop-index to {_out::*}
+	else if {_kind} is "spot":
+		loop {contract::spot::*}:
+			add loop-index to {_out::*}
+	else if {_kind} is "chop":
+		loop {contract::chop::*}:
+			add loop-index to {_out::*}
+	return {_out::*}
+
+# ---------- Players ----------
+
+# Only the players you could trade with right now (next to you, the command's own check), and "cancel".
+on tab complete of "/trade" and "/skript:trade":
+	if {-trade::sid::%uuid of player%} is not set:
+		loop all players:
+			if player can see loop-player:
+				if {-trade::sid::%uuid of loop-player%} is not set:
+					if tradeBlock(player, loop-player, false) is "":
+						add name of loop-player to {_n::*}
+	set tab completions for position 1 to "cancel" and {_n::*}
+
+# The players you could place a bounty on: the ones you can see, not yourself, not passive players, and nobody while
+# you're passive or still in the tutorial. With nobody to suggest the event is cancelled, or Bukkit's own list for the
+# <offline player> argument (everyone) would come back. Then the amounts (the minimum, 5x, 10x) you can pay.
+on tab complete of "/bounty" and "/skript:bounty":
+	if isPassive(player) is false:
+		if tutorialNeedsBag(player) is false:
+			loop all players:
+				if loop-player is not player:
+					if player can see loop-player:
+						if isPassive(loop-player) is false:
+							add name of loop-player to {_n::*}
+	if {_n::*} is not set:
+		cancel event
+		stop
+	set tab completions for position 1 to {_n::*}
+	set {_min} to cfg("bounty::min-placed")
+	set {_m5} to {_min} * 5
+	set {_m10} to {_min} * 10
+	loop {_min}, {_m5} and {_m10}:
+		if balance of player >= loop-value:
+			add "%loop-value%" to {_amt::*}
+	if {_amt::*} is set:
+		set tab completions for position 2 to {_amt::*}
+
+on tab complete of "/title" and "/skript:title":
+	set tab completions for position 1 to "none" and tabOwnedCos(player, "title")
+
+on tab complete of "/killeffect" and "/skript:killeffect":
+	set tab completions for position 1 to "none" and tabOwnedCos(player, "killfx")
+
+on tab complete of "/bagskin" and "/skript:bagskin":
+	set tab completions for position 1 to "default" and bagSkinsOwned(player)
+
+# Only for a player whose refresh is ready and who isn't in combat: the heists it would take (cooling down, their
+# level allows).
+on tab complete of "/heistrefresh" and "/skript:heistrefresh":
+	if refreshLeft(player) is 0:
+		if isCombatTagged(player) is false:
+			loop {heists::*}:
+				if heistRefreshBlock(loop-index) is "":
+					if heistLevelOk(player, loop-index) is true:
+						add loop-index to {_h::*}
+	if {_h::*} is set:
+		set tab completions for position 1 to {_h::*}
+
+on tab complete of "/gps" and "/skript:gps":
+	set tab completions for position 1 to "clear" and "off"
+
+on tab complete of "/leaderboard", "/lb", "/skript:leaderboard" and "/skript:lb":
+	set tab completions for position 1 to {-cfg::season::boards::*}
+
+# ---------- Console only: nothing ----------
+
+on tab complete of "/dshop", "/gpspick", "/skript:dshop" and "/skript:gpspick":
+	cancel event
+
+# ---------- Staff ----------
+
+on tab complete of "/dheist" and "/skript:dheist":
+	set tab completions for position 1 to "create", "set", "exit", "snapshot", "holo", "lock", "enable", "disable", "open", "start", "end", "reset", "alarm", "kick", "info", "list", "dump" and "delete"
+	set {_s} to tab arg-1
+	if {_s} is "list":
+		stop
+	if {_s} is "kick":
+		loop all players:
+			if player can see loop-player:
+				if heistOf(loop-player) is not "":
+					add name of loop-player to {_k::*}
+		if {_k::*} is set:
+			set tab completions for position 2 to {_k::*}
+		stop
+	if {_s} is "create":
+		# The heist regions you stand in that aren't a heist yet (trap sub-regions like heist_bank_vault aren't ids).
+		set {_pre} to {-cfg::heist::region-prefix}
+		loop regions at location of player:
+			set {_rid} to name of loop-value
+			if {_rid} starts with {_pre}:
+				set {_id} to subtext of {_rid} from characters (length of {_pre} + 1) to (length of {_rid})
+				if {_id} matches "[a-z0-9]{1,16}":
+					if {heists::%{_id}%} is not set:
+						add {_id} to {_new::*}
+		if {_new::*} is set:
+			set tab completions for position 2 to {_new::*}
+		set tab completions for position 3 to "1", "2", "3" and "4"
+	else:
+		# Only the heists this subcommand takes in their state (heists.sk refuses the others).
+		loop {heists::*}:
+			set {_st} to heistState(loop-index)
+			if {_s} is "enable" or "snapshot":
+				if {_st} is "disabled":
+					add loop-index to {_l::*}
+			else if {_s} is "open":
+				if {_st} is "cooldown":
+					add loop-index to {_l::*}
+			else if {_s} is "start":
+				if {_st} is "open":
+					add loop-index to {_l::*}
+			else if {_s} is "end":
+				if {_st} is "active":
+					add loop-index to {_l::*}
+			else if {_s} is "reset":
+				if {_st} is "open" or "cooldown":
+					add loop-index to {_l::*}
+			else if {_s} is "alarm":
+				if heistIsAdvanced(loop-index) is true:
+					if {-heist::%loop-index%::alarm} is not set:
+						if {_st} is "open" or "active":
+							add loop-index to {_l::*}
+			else:
+				add loop-index to {_l::*}
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+		if {_s} is "set":
+			set tab completions for position 3 to "name", "difficulty", "escape", "cooldown", "pool", "level", "advanced", "pvp" and "trap-damage"
+			set {_k} to tab arg-3
+			if {_k} is "advanced" or "pvp":
+				set tab completions for position 4 to "true", "false" and "default"
+			else if {_k} is "level":
+				set tab completions for position 4 to "0", "1", "2", "3", "4", "5", "6" and "default"
+			else if {_k} is "difficulty":
+				set tab completions for position 4 to "1", "2", "3" and "4"
+			else if {_k} is not "name":
+				set tab completions for position 4 to "default"
+		else if {_s} is "lock":
+			set tab completions for position 3 to "add", "list", "clear" and "test"
+		else if {_s} is "holo":
+			set tab completions for position 3 to "remove"
+		else if {_s} is "delete":
+			set tab completions for position 3 to "confirm"
+
+on tab complete of "/dtrap" and "/skript:dtrap":
+	set tab completions for position 1 to "pos1", "pos2", "add", "set", "list", "info", "remove", "clear", "show", "dry", "dump" and "reload"
+	set {_s} to tab arg-1
+	if {_s} is "set" or "info" or "remove":
+		set {_l::*} to tabSpots("trap")
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+		if {_s} is "set":
+			set tab completions for position 3 to "damage", "effect", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "period" and "grace"
+			set {_key} to tab arg-3
+			if {_key} is "effect":
+				set {_tp::*} to (tab arg-2) split at "-"
+				if heistIsAdvanced({_tp::1}) is true:
+					set tab completions for position 4 to "damage", "alarm" and "default"
+				else:
+					set tab completions for position 4 to "damage" and "default"
+			else if {_key} is "blink":
+				set tab completions for position 4 to "true", "false" and "default"
+			else:
+				set tab completions for position 4 to "default"
+	else if {_s} is "dry":
+		set tab completions for position 2 to tabPlayerNames(player)
+		set tab completions for position 3 to "on" and "off"
+	else if {_s} is "add" or "list" or "clear" or "show" or "dump":
+		set {_l::*} to tabHeists()
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+		if {_s} is "add":
+			set tab completions for position 3 to "laser", "plate", "floor" and "camera"
+			if tab arg-3 is "laser":
+				set tab completions for position 4 to "here"
+				set tab completions for position 5 to "low", "mid" and "high"
+		else if {_s} is "clear":
+			set tab completions for position 3 to "confirm"
+		else if {_s} is "show":
+			set tab completions for position 3 to "30", "60" and "off"
+
+on tab complete of "/dloot" and "/skript:dloot":
+	set tab completions for position 1 to "pos1", "pos2", "add", "set", "list", "info", "remove", "clear", "show", "preview", "roll", "regate", "check", "dump" and "reload"
+	set {_s} to tab arg-1
+	if {_s} is "regate":
+		loop tabSpots("loot"):
+			set {_q::*} to loop-value split at "-"
+			if lootIsGate({loots::%{_q::1}%::%{_q::2}%}) is true:
+				if heistState({_q::1}) is "disabled":
+					add loop-value to {_g::*}
+		if {_g::*} is set:
+			set tab completions for position 2 to {_g::*}
+	else if {_s} is "preview" or "roll":
+		set {_want} to "disabled"
+		if {_s} is "roll":
+			set {_want} to "open"
+		loop {heists::*}:
+			if heistState(loop-index) is {_want}:
+				add loop-index to {_hl::*}
+		if {_hl::*} is set:
+			set tab completions for position 2 to {_hl::*}
+	else if {_s} is "set" or "info" or "remove":
+		set {_l::*} to tabSpots("loot")
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+		if {_s} is "set":
+			# The settings of that spot's kind (loot.sk lootKeyType).
+			set {_p::*} to (tab arg-2) split at "-"
+			set {_kind} to {loots::%{_p::1}%::%{_p::2}%}
+			if {_kind} is "pile":
+				set tab completions for position 3 to "name", "value", "style", "behind", "piece", "take", "per-cell", "layers" and "lift"
+			else if {_kind} is "smash":
+				set tab completions for position 3 to "name", "alarm" and "take"
+			else if {_kind} is "safe":
+				set tab completions for position 3 to "name", "alarm", "digits" and "claim"
+			else if {_kind} is "drill":
+				set tab completions for position 3 to "name", "alarm", "time", "mount", "claim" and "jams"
+			set {_key} to tab arg-3
+			if {_key} is "style":
+				set tab completions for position 4 to {-cfg::loot::styles::*} and "default"
+			else if {_key} is "alarm":
+				set tab completions for position 4 to "true", "false" and "default"
+			else if {_key} is "per-cell":
+				set tab completions for position 4 to "1", "2", "4" and "default"
+			else if {_key} is "layers":
+				set tab completions for position 4 to "1", "2", "3" and "default"
+			else if {_key} is "digits":
+				set tab completions for position 4 to "3", "4", "5" and "default"
+			else if {_key} is "jams":
+				set tab completions for position 4 to "0", "1", "2", "3", "4", "5" and "default"
+			else if {_key} is "behind":
+				# The gate numbers of that heist.
+				loop {loots::%{_p::1}%::*}:
+					if lootIsGate(loop-value) is true:
+						add loop-index to {_gn::*}
+				set tab completions for position 4 to {_gn::*} and "default"
+			else if {_key} is not "value":
+				set tab completions for position 4 to "default"
+	else if {_s} is "add" or "list" or "clear" or "show" or "check" or "dump":
+		set {_l::*} to tabHeists()
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+		if {_s} is "add":
+			set tab completions for position 3 to "pile", "smash", "safe" and "drill"
+		else if {_s} is "clear":
+			set tab completions for position 3 to "confirm"
+		else if {_s} is "show":
+			set tab completions for position 3 to "20" and "60"
+
+on tab complete of "/dcops" and "/skript:dcops":
+	set {_l::*} to tabHeists()
+	if {_l::*} is set:
+		set tab completions for position 1 to {_l::*}
+	set tab completions for position 2 to "add", "list", "clear", "spawn", "removeall" and "dump"
+
+on tab complete of "/dcrate" and "/skript:dcrate":
+	set tab completions for position 1 to "give", "take", "info", "place", "remove" and "list"
+	set {_s} to tab arg-1
+	if {_s} is "give" or "take" or "info":
+		set tab completions for position 2 to tabPlayerNames(player)
+		if {_s} is "give":
+			# Never a crate that's never given (the Season crate).
+			loop {-cfg::crates::*}:
+				if {-cfg::crate::%loop-value%::never-give} is not set:
+					add loop-value to {_give::*}
+			set tab completions for position 3 to {_give::*}
+			set tab completions for position 4 to "1", "5" and "10"
+		else if {_s} is "take":
+			set tab completions for position 3 to {-cfg::crates::*}
+			set tab completions for position 4 to "1", "5" and "10"
+	else if {_s} is "place":
+		set tab completions for position 2 to {-cfg::crates::*}
+
+on tab complete of "/dranks" and "/skript:dranks":
+	set tab completions for position 1 to "setup", "give", "take" and "list"
+	set {_s} to tab arg-1
+	if {_s} is "give" or "take":
+		set tab completions for position 2 to tabPlayerNames(player)
+		if {_s} is "give":
+			set tab completions for position 3 to {-cfg::paidranks::*} and "none"
+		else:
+			set tab completions for position 3 to {-cfg::paidranks::*}
+
+# dbooster add <player> [money|xp|rush] <multiplier> <minutes> [count]: without a kind the multiplier comes third.
+on tab complete of "/dbooster" and "/skript:dbooster":
+	set tab completions for position 1 to "add", "stop", "clear" and "info"
+	set {_s} to tab arg-1
+	if {_s} is "add":
+		set tab completions for position 2 to tabPlayerNames(player)
+		set tab completions for position 3 to {-cfg::booster::kinds::*}, "1.5" and "2"
+		if {-cfg::booster::kinds::*} contains tab arg-3:
+			set tab completions for position 4 to "1.5" and "2"
+			set tab completions for position 5 to "5", "30" and "60"
+		else:
+			set tab completions for position 4 to "5", "30" and "60"
+	else:
+		set tab completions for position 2 to {-cfg::booster::kinds::*}
+
+on tab complete of "/dlevel" and "/skript:dlevel":
+	set tab completions for position 1 to "info", "set", "xp" and "reset"
+	set tab completions for position 2 to tabPlayerNames(player)
+	if tab arg-1 is "set":
+		set tab completions for position 3 to "0", "1", "2", "3", "4", "5" and "6"
+
+on tab complete of "/dpoi" and "/skript:dpoi":
+	set tab completions for position 1 to "add", "remove", "list" and "dump"
+	set {_s} to tab arg-1
+	if {_s} is "add":
+		set tab completions for position 2 to {-cfg::poi::types::*}
+	else if {_s} is "remove":
+		set {_l::*} to tabIndices("poi")
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+
+on tab complete of "/dquest" and "/skript:dquest":
+	set tab completions for position 1 to "add", "addat", "remove", "list", "dump" and "open"
+	set {_s} to tab arg-1
+	if {_s} is "add" or "addat":
+		set tab completions for position 2 to {-cfg::quests::*}
+	else if {_s} is "remove":
+		set {_l::*} to tabIndices("giver")
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+	else if {_s} is "open":
+		set tab completions for position 2 to tabPlayerNames(player)
+		set {_l::*} to tabIndices("giver")
+		if {_l::*} is set:
+			set tab completions for position 3 to {_l::*}
+
+on tab complete of "/dseason" and "/skript:dseason":
+	if player has permission "donating.season.admin":
+		set tab completions for position 1 to "info", "finals", "rank", "holo", "start", "end", "extend", "approve", "void" and "reset"
+	else:
+		set tab completions for position 1 to "info", "finals", "rank" and "holo"
+	set {_s} to tab arg-1
+	if {_s} is "holo":
+		set tab completions for position 2 to {-cfg::season::boards::*}
+	else if {_s} is "void" or "reset":
+		set tab completions for position 2 to tabPlayerNames(player)
+		if {_s} is "void":
+			# The season under review, and any other one whose prizes wait.
+			add "%seasonNum()%" to {_v::*}
+			loop {seasonreview::*}:
+				add loop-index to {_v::*}
+			set tab completions for position 3 to {_v::*}
+	else if {_s} is "finals":
+		# Only seasons that have finals (frozen).
+		loop seasonNum() times:
+			if {seasonx::%loop-number%::frozen} is true:
+				add "%loop-number%" to {_f::*}
+		if {_f::*} is set:
+			set tab completions for position 2 to {_f::*}
+		set tab completions for position 3 to {-cfg::season::boards::*}
+	else if {_s} is "approve":
+		loop {seasonreview::*}:
+			add loop-index to {_r::*}
+		if {_r::*} is set:
+			set tab completions for position 2 to {_r::*}
+	else if {_s} is "start" or "extend":
+		set tab completions for position 2 to "7", "14" and "28"
+
+on tab complete of "/dstory" and "/skript:dstory":
+	set tab completions for position 1 to "info", "set", "reset" and "skip"
+	set tab completions for position 2 to tabPlayerNames(player)
+	if tab arg-1 is "set":
+		set tab completions for position 3 to {-cfg::story::missions::*}
+
+on tab complete of "/dshopkeeper" and "/skript:dshopkeeper":
+	set tab completions for position 1 to "add", "remove" and "list"
+	set {_s} to tab arg-1
+	if {_s} is "add":
+		set tab completions for position 2 to "gun", "gear", "bag", "tools" and "cars"
+	else if {_s} is "remove":
+		set {_l::*} to tabIndices("keeper")
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+
+on tab complete of "/dgarage" and "/skript:dgarage":
+	set tab completions for position 1 to "give", "take", "info" and "store"
+	set {_s} to tab arg-1
+	if {_s} is "store":
+		loop all players:
+			if player can see loop-player:
+				if {car::outof::%uuid of loop-player%} is set:
+					add name of loop-player to {_o::*}
+		if {_o::*} is set:
+			set tab completions for position 2 to {_o::*}
+	else:
+		set tab completions for position 2 to tabPlayerNames(player)
+	if {_s} is "give" or "take":
+		set {_t} to (tab arg-2) parsed as player
+		if {_t} is set:
+			loop {-cfg::cars::*}:
+				if {_s} is "give":
+					if carOwned({_t}, loop-value) is false:
+						add loop-value to {_c3::*}
+				else if carOwned({_t}, loop-value) is true:
+					add loop-value to {_c3::*}
+			if {_c3::*} is set:
+				set tab completions for position 3 to {_c3::*}
+		else:
+			set tab completions for position 3 to {-cfg::cars::*}
+		if {_s} is "give":
+			set {_car} to tab arg-3
+			if {_car} is set:
+				set {_c::*} to carColorLabels({_car})
+				if {_c::*} is set:
+					set tab completions for position 4 to {_c::*}
+
+on tab complete of "/dcontract" and "/skript:dcontract":
+	set tab completions for position 1 to "spot", "chop", "dump", "info" and "end"
+	set {_s} to tab arg-1
+	if {_s} is "spot" or "chop":
+		set tab completions for position 2 to "add", "addat", "remove" and "list"
+		if tab arg-2 is "remove":
+			set {_l::*} to tabIndices({_s})
+			if {_l::*} is set:
+				set tab completions for position 3 to {_l::*}
+	else if {_s} is "info":
+		set tab completions for position 2 to tabPlayerNames(player)
+	else if {_s} is "end":
+		loop all players:
+			if player can see loop-player:
+				if {-ctjob::%uuid of loop-player%} is set:
+					add name of loop-player to {_j::*}
+		if {_j::*} is set:
+			set tab completions for position 2 to {_j::*}
+
+on tab complete of "/dtutorial" and "/skript:dtutorial":
+	set tab completions for position 1 to tabPlayerNames(player)
+	set tab completions for position 2 to "reset" and "done"

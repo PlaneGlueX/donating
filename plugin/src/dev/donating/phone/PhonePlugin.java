@@ -450,7 +450,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         List<String> options = new ArrayList<>();
         List<String> players = new ArrayList<>();
-        for (Player p : Bukkit.getOnlinePlayers()) players.add(p.getName());
+        // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
+        for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
             options.addAll(List.of("reload", "status", "roads", "gps"));
         } else if (args.length == 2) {
@@ -469,6 +470,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             } else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) {
                 options.addAll(List.of("on", "off"));
             }
+        } else if (args.length == 5 && args[0].equalsIgnoreCase("gps") && args[2].equalsIgnoreCase("set")) {
+            for (org.bukkit.World w : Bukkit.getWorlds()) options.add(w.getName());
         }
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
         List<String> out = new ArrayList<>();
@@ -494,7 +497,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone [reload]: reload the config and re-read the city (after adding banner labels)");
             sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
             sender.sendMessage("/dphone roads [info | scan [x1 z1 x2 z2] | cancel | show <player> [on|off]]: the GPS road grid");
-            sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <x> <y> <z> <radius> <label> | clear]: the GPS target (gps.sk)");
+            sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
             return true;
         }
         load();
