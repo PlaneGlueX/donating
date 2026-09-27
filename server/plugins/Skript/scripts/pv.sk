@@ -1,0 +1,157 @@
+# pv.sk: personal views (built 2026-09-27; owner, 2026-09-27: "keep in mind all the player specific
+# renders/interactions needed ... player specific things like the city garage showing player specific inventory").
+# Like AR stickers: the street is shared, the stickers on it are yours.
+#
+# A personal entity (an item or text display) is spawned with the tags donating_pv and pvo_<owner uuid> inside its
+# spawn section (pvSetup); DonatingPhone makes every donating_pv entity invisible to everyone before it's added to the
+# world, and pvAdopt reveals it to its owner only (after the spawn: setting visibleByDefault resets every viewer). If
+# anyone else can see it (the plugin missing or misfiring), it's removed and personal views switch off (fail closed).
+# Rules: only displays (no hitbox, no AI, no locator dot); never persistent; only Skript's hide/reveal touch them;
+# sounds and particles for a personal moment go to that player only. NPCs that move and fight (hits.sk) use Citizens'
+# PlayerFilter instead; per-viewer text uses DecentHolograms placeholders that read memory.
+# Memory only: {-pv::e::<uuid>::<key>} = the entity, {-pv::of::<entity uuid>} = "<uuid>|<key>". A restart forgets
+# them (non-persistent entities go too); each feature draws its views again. Staff: /dpv. Log: plugins\Skript\logs\pv.log.
+
+function pvLog(text: text):
+	log {_text} to "pv"
+
+function pvReady() :: boolean:
+	if {-pv::broken} is set:
+		return false
+	if plugin "DonatingPhone" is enabled:
+		return true
+	return false
+
+# Inside the spawn section: before the entity exists in the world.
+function pvSetup(e: entity, p: player, key: text):
+	make {_e} not persistent
+	add "donating_pv" to scoreboard tags of {_e}
+	add "pvo_%uuid of {_p}%" to scoreboard tags of {_e}
+
+# After the spawn: shown to its owner, or removed (and personal views off) when anyone else can see it.
+function pvAdopt(p: player, key: text, e: entity) :: entity:
+	set {_leak} to ""
+	loop all players:
+		if loop-player is not {_p}:
+			if loop-player can see {_e}:
+				set {_leak} to name of loop-player
+	if {_leak} is not "":
+		kill {_e}
+		set {-pv::broken} to true
+		pvLog("leak %{_key}% owner=%{_p}% seen-by=%{_leak}%: personal views OFF")
+		send "[Donating] Personal views switched off: a personal entity was visible to %{_leak}%. Is DonatingPhone loaded?" to console
+		return {_none}
+	reveal {_e} to {_p}
+	set {_u} to "%uuid of {_p}%"
+	set {-pv::e::%{_u}%::%{_key}%} to {_e}
+	set {-pv::of::%uuid of {_e}%} to "%{_u}%|%{_key}%"
+	return {_e}
+
+# An item display at l (its yaw from l), shown to p only. Returns it (nothing when personal views are off).
+function pvItem(p: player, key: text, l: location, i: item, scale: number) :: entity:
+	pvKill({_p}, {_key})
+	if pvReady() is false:
+		return {_none}
+	spawn an item display at {_l}:
+		pvSetup(event-display, {_p}, {_key})
+		set item of event-display to {_i}
+		set display scale of event-display to vector({_scale}, {_scale}, {_scale})
+		set view range of event-display to 0.5
+	set {_e} to last spawned entity
+	return pvAdopt({_p}, {_key}, {_e})
+
+# A text display at l, shown to p only.
+function pvText(p: player, key: text, l: location, t: text) :: entity:
+	pvKill({_p}, {_key})
+	if pvReady() is false:
+		return {_none}
+	spawn a text display at {_l}:
+		pvSetup(event-display, {_p}, {_key})
+		set text of event-display to colored {_t}
+		set billboard of event-display to center
+	set {_e} to last spawned entity
+	return pvAdopt({_p}, {_key}, {_e})
+
+function pvGet(p: player, key: text) :: entity:
+	set {_e} to {-pv::e::%uuid of {_p}%::%{_key}%}
+	if {_e} is set:
+		if {_e} is valid:
+			return {_e}
+	return {_none}
+
+function pvKill(p: player, key: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_e} to {-pv::e::%{_u}%::%{_key}%}
+	if {_e} is set:
+		delete {-pv::of::%uuid of {_e}%}
+		if {_e} is valid:
+			kill {_e}
+	delete {-pv::e::%{_u}%::%{_key}%}
+
+# Every personal entity of p whose key starts with prefix ("" = all).
+function pvClear(p: player, prefix: text):
+	set {_u} to "%uuid of {_p}%"
+	loop {-pv::e::%{_u}%::*}:
+		if loop-index starts with {_prefix}:
+			add loop-index to {_keys::*}
+	loop {_keys::*}:
+		pvKill({_p}, loop-value)
+
+# Another viewer (a friend looking at your bay), or hiding it again.
+function pvShow(e: entity, p: player):
+	reveal {_e} to {_p}
+
+function pvHide(e: entity, p: player):
+	hide {_e} from {_p}
+
+on quit:
+	pvClear(player, "")
+
+# Personal entities nobody owns any more (a reload, a quit that missed), and records whose entity is gone.
+every 30 seconds:
+	loop all entities:
+		if loop-entity has scoreboard tag "donating_pv":
+			if {-pv::of::%uuid of loop-entity%} is not set:
+				kill loop-entity
+	loop {-pv::of::*}:
+		set {_r::*} to loop-value split at "|"
+		set {_e} to {-pv::e::%{_r::1}%::%{_r::2}%}
+		set {_gone} to true
+		if {_e} is set:
+			if {_e} is valid:
+				set {_gone} to false
+		if {_gone} is true:
+			add loop-index to {_dead::*}
+	loop {_dead::*}:
+		delete {-pv::of::%loop-value%}
+
+# ---------- Staff ----------
+
+command /dpv [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		if {_a::1} is "xray":
+			set {_n} to 0
+			loop all entities:
+				if loop-entity has scoreboard tag "donating_pv":
+					if {_a::2} is "off":
+						hide loop-entity from player
+					else:
+						reveal loop-entity to player
+					add 1 to {_n}
+			send "PV xray %{_a::2}%: %{_n}% personal entities" to player
+		else if {_a::1} is "info":
+			set {_who} to {_a::2} parsed as player
+			if {_who} is not set:
+				send "PV usage: /dpv info <online player>" to sender
+				stop
+			loop {-pv::e::%uuid of {_who}%::*}:
+				add loop-index to {_k::*}
+			send "PV %{_who}% ready=%pvReady()% keys=%join {_k::*} with ","%" to sender
+		else if {_a::1} is "reset":
+			delete {-pv::broken}
+			send "PV personal views back on (ready=%pvReady()%)" to sender
+		else:
+			send "PV usage: /dpv xray on|off | info <player> | reset" to sender

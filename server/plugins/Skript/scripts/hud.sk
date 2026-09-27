@@ -154,6 +154,9 @@ function hudBoss(p: player):
 					set {_what} to "wave %heistWave({_h})% · next in %{_n}%s"
 				hudBossSet({_p}, "&4&lCOPS&r &c· %{_what}% &7· &f%{_away}% &7blocks to lose them", "red", {_away} / max(1, {_r}))
 				stop
+	# A hit contract (hits.sk): the target spotted, the search area, or overtime.
+	if hitHud({_p}) is true:
+		stop
 	# A car-theft job (contracts.sk): where to go, and the time left.
 	if ctHud({_p}) is true:
 		stop
@@ -162,6 +165,9 @@ function hudBoss(p: player):
 		stop
 	# A mission's target on the GPS (story.sk).
 	if storyHud({_p}) is true:
+		stop
+	# A contact job's target on the GPS (jobs.sk).
+	if jobsHud({_p}) is true:
 		stop
 	hudBossOff({_p})
 

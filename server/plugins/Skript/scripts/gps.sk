@@ -395,6 +395,8 @@ function gpsMenu(p: player):
 			set {_icon} to gold ingot
 		else if {_a::6} is "car":
 			set {_icon} to minecart
+		else if {_a::6} is "garage":
+			set {_icon} to minecart
 		else if {_a::6} is "quest":
 			set {_icon} to flint
 		set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))

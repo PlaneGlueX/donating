@@ -80,8 +80,10 @@ on tab complete of "/trade" and "/skript:trade":
 # you're passive or still in the tutorial. With nobody to suggest the event is cancelled, or Bukkit's own list for the
 # <offline player> argument (everyone) would come back. Then the amounts (the minimum, 5x, 10x) you can pay.
 on tab complete of "/bounty" and "/skript:bounty":
+	# Names only where a bounty can be posted (next to the Broker, or anywhere without one).
 	if isPassive(player) is false:
 		if tutorialNeedsBag(player) is false:
+			bountyPostBlock(player) is ""
 			loop all players:
 				if loop-player is not player:
 					if player can see loop-player:
@@ -427,13 +429,15 @@ on tab complete of "/dstory" and "/skript:dstory":
 	set tab completions for position 1 to "info", "set", "reset" and "skip"
 	set tab completions for position 2 to tabPlayerNames(player)
 	if tab arg-1 is "set":
-		set tab completions for position 3 to {-cfg::story::missions::*}
+		set tab completions for position 3 to {-cfg::story::missions::*} and {-cfg::chain::vic::missions::*}
+	else:
+		set tab completions for position 3 to {-cfg::story::chains::*}
 
 on tab complete of "/dshopkeeper" and "/skript:dshopkeeper":
 	set tab completions for position 1 to "add", "remove" and "list"
 	set {_s} to tab arg-1
 	if {_s} is "add":
-		set tab completions for position 2 to "gun", "gear", "bag", "tools" and "cars"
+		set tab completions for position 2 to "gun", "gear", "bag", "tools", "cars" and "garage"
 	else if {_s} is "remove":
 		set {_l::*} to tabIndices("keeper")
 		if {_l::*} is set:
@@ -490,6 +494,61 @@ on tab complete of "/dcontract" and "/skript:dcontract":
 		if {_j::*} is set:
 			set tab completions for position 2 to {_j::*}
 
+on tab complete of "/djobs" and "/skript:djobs":
+	set tab completions for position 1 to "info", "take", "fill", "unlock", "empty", "lock", "clear", "rep", "met", "post" and "stats"
+	if tab arg-1 is not "stats":
+		set tab completions for position 2 to tabPlayerNames(player)
+		set tab completions for position 3 to {-cfg::jobs::contacts::*}
+
+on tab complete of "/dfence" and "/skript:dfence":
+	set tab completions for position 1 to "list", "roll", "info", "take" and "reset"
+	if tab arg-1 is "info" or "take" or "reset":
+		set tab completions for position 2 to tabPlayerNames(player)
+
 on tab complete of "/dtutorial" and "/skript:dtutorial":
 	set tab completions for position 1 to tabPlayerNames(player)
 	set tab completions for position 2 to "reset" and "done"
+
+on tab complete of "/dhit" and "/skript:dhit":
+	set tab completions for position 1 to "node", "route", "week", "window", "info", "give", "end" and "reset"
+	set {_s} to tab arg-1
+	if {_s} is "node":
+		set tab completions for position 2 to "add", "addat", "link", "unlink", "remove", "clear", "list", "dump" and "show"
+		if tab arg-2 is "remove" or "link" or "unlink":
+			loop {hit::node::*}:
+				add loop-index to {_n::*}
+			if {_n::*} is set:
+				set tab completions for position 3 to {_n::*}
+				set tab completions for position 4 to {_n::*}
+	else if {_s} is "route":
+		set tab completions for position 2 to "on" and "off"
+	else if {_s} is "week":
+		set tab completions for position 2 to "reroll"
+	else if {_s} is "window":
+		set tab completions for position 2 to {-cfg::hit::tiers::*}
+		set tab completions for position 3 to "open" and "close"
+	else if {_s} is "info" or "give" or "end" or "reset":
+		set tab completions for position 2 to tabPlayerNames(player)
+		if {_s} is "give":
+			set tab completions for position 3 to {-cfg::hit::tiers::*}
+
+on tab complete of "/dgaragesite" and "/skript:dgaragesite":
+	set tab completions for position 1 to "exit", "return", "bay", "exitat", "returnat", "bayat", "remove", "list", "show", "dump" and "holo"
+	set {_s} to tab arg-1
+	if {_s} is "exit" or "return" or "bay":
+		set tab completions for position 2 to "add"
+	else if {_s} is "remove" or "exitat" or "returnat" or "bayat" or "holo":
+		loop {garagesites::*}:
+			add loop-index to {_g::*}
+		if {_g::*} is set:
+			set tab completions for position 2 to {_g::*}
+		if {_s} is "remove":
+			set tab completions for position 3 to "exit", "return" and "bay"
+			set {_site} to tab arg-2
+			set {_kind} to tab arg-3
+			if {_site} is set:
+				if {_kind} is set:
+					loop {garagesite::%{_site}%::%{_kind}%::*}:
+						add loop-index to {_ix::*}
+					if {_ix::*} is set:
+						set tab completions for position 4 to {_ix::*}

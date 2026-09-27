@@ -20,6 +20,7 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   const bots = {}
+  let broker = ''
   try {
     // A suggestion request with its own transaction id, answered only by the reply with that id (Mineflayer's own
     // tabComplete takes whatever reply comes next). Paper sends no reply at all for an empty list.
@@ -82,6 +83,12 @@ module.exports = async ({ check }) => {
     check('...but not a player out of reach (trading is in person)', has(t, 'cancel') && !t.includes(B), t.join(','))
     await next(B, HERE[0] + 1.5, HERE[2])
 
+    // Bounties are posted with the Broker: away from him /bounty suggests nobody; next to him it does.
+    broker = ((await cmd(`dquest addat hits ${HERE[0] + 30} ${Y} ${HERE[2]} 0 Tab Desk`)).match(/giver (\d+) \(hits\) added/) || [])[1] || ''
+    const away = await tab(A, '/bounty ')
+    check('/bounty suggests nobody away from the Broker (bounties are posted with him)', broker !== '' && !away.includes(B), `${broker} | ${away.join(',')}`)
+    await cmd(`dquest remove ${broker}`)
+    broker = ((await cmd(`dquest addat hits ${HERE[0]} ${Y} ${HERE[2] + 3} 0 Tab Desk`)).match(/giver (\d+) \(hits\) added/) || [])[1] || ''
     let bn = await tab(A, '/bounty ')
     let amounts = await tab(A, `/bounty ${B} `)
     check('/bounty suggests other players (not yourself), then amounts from the minimum', has(bn, B) && !bn.includes(A) && has(amounts, '1000', '5000', '10000'), `${bn.join(',')} | ${amounts.join(',')}`)
@@ -249,6 +256,7 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`zzclear ${name}`).catch(() => {})
       await rcon.cmd(`minecraft:tp ${name} ${FAR}`).catch(() => {})
     }
+    if (broker) await rcon.cmd(`dquest remove ${broker}`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot).catch(() => {})
     for (const c of ['dtrap clear ztab confirm', 'dloot clear ztab confirm', 'dheist delete ztab confirm']) await rcon.cmd(c).catch(() => {})
     for (const r of ['heist_ztab', 'heist_ztabnew']) await rcon.cmd(`rg remove -w world ${r}`).catch(() => {})

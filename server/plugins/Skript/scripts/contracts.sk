@@ -280,6 +280,11 @@ function ctRollOffer(p: player, t: text):
 		if carExists(loop-value) is true:
 			add loop-value to {_models::*}
 	set {_m} to random element out of {_models::*}
+	# A car Vic ordered or a Boss job wants (jobs.sk, fence.sk): that tier's offer is always that model.
+	set {_want} to questWantModel({_p}, {_t})
+	if {_want} is not "":
+		if {_models::*} contains {_want}:
+			set {_m} to {_want}
 	{_m} is set
 	set {_labels::*} to carColorLabels({_m})
 	set {_label} to random element out of {_labels::*}
@@ -405,6 +410,8 @@ function ctTake(p: player, t: text):
 	set {-ctjob::%{_u}%::until} to {_until}
 	set {-ctjob::%{_u}%::stage} to "find"
 	set {-ctjob::%{_u}%::fails} to 0
+	# Every missed pick of the job (fails goes back to 0 after a success or a broken lockpick).
+	set {-ctjob::%{_u}%::misses} to 0
 	set {-ctplate::%{_plate}%} to {_u}
 	ctRollOffer({_p}, {_t})
 	ctLog("take %{_p}% %{_u}% %{_t}% %{_m}% %{_label}% %{_plate}% spot=%{_n}% at %{_spot}%")
@@ -578,6 +585,7 @@ function ctQteHit(p: player):
 	else:
 		set {-ctqte::%{_p}%::hits} to 0
 		add 1 to {-ctjob::%{_u}%::fails}
+		add 1 to {-ctjob::%{_u}%::misses}
 		add 1 tick * cfg("contract::qte-miss-lock") to {_until}
 		set {-ctqte::%{_p}%::lock} to {_until}
 		play sound "block.note_block.bass" with volume 0.8 to {_p}
@@ -678,6 +686,11 @@ function ctDeliver(u: text, chop: text):
 	set {_xp} to cfg("contract::%{_t}%::xp")
 	# What an XP booster (boosters.sk) makes of it, for the title (levelAddXp applies it).
 	set {_xpShown} to levelBoosted({_p}, {_xp}, "contract")
+	# For contact jobs and Vic (progress.sk): how long it took and how many picks missed, read before ctEnd.
+	set {_took} to max(0, (cfg("contract::time") / 1 second) - ctLeft({_u}))
+	set {_miss} to {-ctjob::%{_u}%::misses}
+	if {_miss} is not set:
+		set {_miss} to 0
 	make {_p} dismount
 	ctEnd({_u}, "done")
 	giveMoney({_p}, {_pay})
@@ -698,7 +711,9 @@ function ctDeliver(u: text, chop: text):
 		msg({_p}, "&7Your bounty went up by &c%formatMoney({_bounty})%&7.")
 	# Last: a level-up's title replaces the delivery's.
 	levelAddXp({_p}, {_xp}, "contract")
+	set {-prog::ct::%{_u}%} to "%{_m}%|%{_took}%|%{_miss}%"
 	progEvent({_p}, "contract", {_pay}, {_t})
+	delete {-prog::ct::%{_u}%}
 
 # ---------- Ending a job ----------
 
@@ -953,6 +968,9 @@ function ctMenu(p: player):
 		else:
 			ctButton({_p}, {_gui}, {_slot}, ctPickIcon({_p}, loop-value, false), "find")
 		add 2 to {_slot}
+	# His side jobs (jobs.sk), once his board is open.
+	if jobsUnlocked({_p}, "boss") is true:
+		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Daily jobs: /jobs" and "&eClick: open your jobs.", "jobs")
 	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-ctgui::%{_p}%} to {_gui}
 	if {-ctgen::%{_p}%} is not set:
@@ -977,6 +995,8 @@ function ctOfferIcon(p: player, t: text, at: boolean) :: item:
 	add "&7Pays: &a%formatMoney({_pay})% &7· &b+%{_xp}% XP" to {_l::*}
 	add "&7Needs: &f%ctPickName({_t})% &7(you have %lockpickCount({_p}, {_t})%)" to {_l::*}
 	add "&7Time: &f%formatClock(cfg("contract::time") / 1 second)%" to {_l::*}
+	loop questOfferLines({_p}, {_t}, {_a::1}):
+		add loop-value to {_l::*}
 	set {_need} to cfg("contract::%{_t}%::level")
 	set {_left} to ctCooldownLeft({_p})
 	if levelOk({_p}, {_need}) is false:
@@ -1080,6 +1100,8 @@ function ctAction(p: player, act: text):
 	set {_k} to {_a::1}
 	if {_k} is "close":
 		close {_p}'s inventory
+	else if {_k} is "jobs":
+		jobsMenu({_p})
 	else if {_k} is "find":
 		close {_p}'s inventory
 		questFind({_p}, "contracts")

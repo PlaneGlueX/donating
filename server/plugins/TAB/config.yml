@@ -114,6 +114,8 @@ scoreboard:
         - "&7Daily: %donating_daily%"
         - "%donating_season%"
         - "%donating_mission%"
+        - "%donating_jobs%"
+        - "%donating_hit%"
         - "%donating_wanted%"
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout

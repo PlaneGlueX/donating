@@ -43,8 +43,11 @@ command /zzclear <player>:
 		deleteData(arg-1, "bag-tier")
 		# Test bots skip the first-join tutorial (it blocks shops until the first bag): tutorial.js sets it.
 		setData(arg-1, "tutorial", "done")
-		# ...and the story's missions (story.js sets its own state).
+		# ...and the story's missions (story.js sets its own state), Vic's too, and no job boards (jobs.js).
 		setData(arg-1, "story", "done")
+		setData(arg-1, "vic", "done")
+		setData(arg-1, "jobs::mara::unlocked", "off")
+		setData(arg-1, "jobs::boss::unlocked", "off")
 		applyLayout(arg-1)
 		applyMapVisibility(arg-1)
 
@@ -996,3 +999,123 @@ command /zzheistwave <text> <number>:
 		else:
 			set {-heist::%arg-1%::wave} to arg-2
 		send "HEISTWAVE %arg-1% %heistWave(arg-1)%"
+
+# progress.sk (2026-09-27): a player's notes on one heist run ("<heist>#<run>").
+command /zzrun <player> <text>:
+	executable by: console
+	trigger:
+		set {_k} to "run::%arg-2%"
+		set {_flag} to getData(arg-1, {_k})
+		set {_out} to ""
+		loop "own", "sold", "loud", "left", "touched", "guesses" and "car":
+			set {_v} to getData(arg-1, "%{_k}%::%loop-value%")
+			set {_out} to "%{_out}% %loop-value%=%{_v}%"
+		send "RUN %arg-1% %arg-2% flag=%{_flag}%%{_out}%"
+
+# progress.sk: forget a player's finished runs now (as after a sale).
+command /zzprune <player>:
+	executable by: console
+	trigger:
+		progRunPrune(arg-1)
+		send "PRUNED %arg-1%"
+
+# progress.sk: the week number; /zzweek <n> overrides it, /zzweek off goes back to the clock.
+command /zzweek [<text>]:
+	executable by: console
+	trigger:
+		if arg-1 is "off":
+			delete {-prog::weekoverride}
+		else if arg-1 is set:
+			set {-prog::weekoverride} to arg-1 parsed as number
+		send "WEEK %progWeek()% unix=%progUnix()%"
+
+# progress.sk: a heist's heat; /zzheat <h> <week> <runs> sets that week's count.
+command /zzheat <text> [<number>] [<number>]:
+	executable by: console
+	trigger:
+		if arg-3 is set:
+			set {heat::w::%arg-2%::%arg-1%} to arg-3
+		set {_w} to progWeek()
+		set {_c} to {heat::w::%{_w}%::%arg-1%}
+		send "HEAT %arg-1% last=%{heat::last::%arg-1%}% lastrun=%{heat::lastrun::%arg-1%}% week=%{_c}%"
+
+# progress.sk: set a run note (true/false, a number, or text): /zzrunset <player> <tag> <key> <value>
+command /zzrunset <player> <text> <text> <text>:
+	executable by: console
+	trigger:
+		if arg-4 is "true":
+			progTagMark(arg-1, arg-2, arg-3, true)
+		else if arg-4 is "false":
+			progTagMark(arg-1, arg-2, arg-3, false)
+		else if arg-4 parsed as number is set:
+			progTagMark(arg-1, arg-2, arg-3, arg-4 parsed as number)
+		else:
+			progTagMark(arg-1, arg-2, arg-3, arg-4)
+		send "RUNSET %arg-1% %arg-2% %arg-3% = %arg-4%"
+
+# A car delivery as progress.sk sees it (jobs.sk, fence.sk): /zzctdeliver <player> <tier> <model> <took s> <misses>
+command /zzctdeliver <player> <text> <text> <number> <number>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		set {-prog::ct::%{_u}%} to "%arg-3%|%arg-4%|%arg-5%"
+		progEvent(arg-1, "contract", cfg("contract::%arg-2%::pay"), arg-2)
+		delete {-prog::ct::%{_u}%}
+		send "CTDELIVER %arg-1% %arg-2% %arg-3% took=%arg-4% misses=%arg-5%"
+
+
+# fence.sk: pay the premium of the sales made so far (bag.sk calls fenceSalePay after a real sale).
+command /zzfencepay <player>:
+	executable by: console
+	trigger:
+		fenceSalePay(arg-1)
+		send "FENCEPAY %arg-1%"
+
+# pv.sk: a personal item display for a player at x y z: /zzpv <player> <key> <x> <y> <z>
+command /zzpv <player> <text> <number> <number> <number>:
+	executable by: console
+	trigger:
+		set {_l} to location(arg-3, arg-4, arg-5, world of arg-1)
+		set {_e} to pvItem(arg-1, arg-2, {_l}, gold ingot, 1)
+		if {_e} is set:
+			send "PVITEM %arg-1% %arg-2% %uuid of {_e}%"
+		else:
+			send "PVITEM %arg-1% %arg-2% none"
+
+# pv.sk: a display spawned WITHOUT the pv tag, then adopted (a leak: personal views must switch off).
+command /zzpvleak <player>:
+	executable by: console
+	trigger:
+		spawn an item display at location of arg-1:
+			make event-display not persistent
+			set item of event-display to gold ingot
+		set {_e} to last spawned entity
+		set {_r} to pvAdopt(arg-1, "leaktest", {_e})
+		set {_ad} to false
+		if {_r} is set:
+			set {_ad} to true
+		set {_va} to false
+		if {_e} is valid:
+			set {_va} to true
+		send "PVLEAK %arg-1% adopted=%{_ad}% valid=%{_va}% ready=%pvReady()%"
+
+# A contract offer (contracts.sk) for tests: "model|color|spot" or <none>.
+command /zzctofferget <player> <text>:
+	executable by: console
+	trigger:
+		send "CTOFFERGET %arg-1% %arg-2% %{-ctoffer::%uuid of arg-1%::%arg-2%}%"
+
+# hits.sk windows for tests: /zzhitwin <tier> clear | <tier> <k> <unix> (a new unused window this week).
+command /zzhitwin <text>:
+	executable by: console
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_w} to progWeek()
+		if {_a::2} is "clear":
+			delete {hit::win::%{_w}%::%{_a::1}%::*}
+			delete {hit::used::%{_w}%::%{_a::1}%::*}
+			delete {hit::open::%{_a::1}%}
+		else:
+			set {hit::win::%{_w}%::%{_a::1}%::%{_a::2}%} to {_a::3} parsed as number
+			delete {hit::used::%{_w}%::%{_a::1}%::%{_a::2}%}
+		send "HITWIN %arg-1% W=%{_w}%"

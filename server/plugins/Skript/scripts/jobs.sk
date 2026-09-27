@@ -1,0 +1,1450 @@
+# jobs.sk: contact jobs. Built 2026-09-27 (owner, 2026-09-27: picked "Contact Jobs" from the quest research: daily
+# jobs with twists from Mara and the Scrap Yard Boss, banked so missing a day costs nothing, rep for titles).
+#
+# Each contact (core.sk jobs::contacts: mara, boss) leaves each player one job every jobs::hours (20 h); up to
+# jobs::slots (3; 4 at Family rep) wait and they never expire (the research: nothing should expire hard). Boards
+# open: the Boss's after your first delivered car job, Mara's when her story is done. Jobs are picked up in person:
+# talking to the contact takes every waiting job (with no giver of that kind on the map, they come by text). Jobs are
+# built only from what the map has: Mara's name one heist you can rob now (haul: sell loot you robbed yourself from
+# it; safe; vault; getaway), the Boss's a contract tier your level allows (tier, model, double). Each job has an
+# optional bonus (★ +50%: walk out with 2:00 left, no alarm on you, no trap touched, 5 guesses or fewer, lose them in
+# a car, deliver fast, no missed pick), and a heist nobody robbed in 24 h is "cold" (+25%). Progress only counts on
+# taken jobs; one event counts for at most one job per contact. A job that's met pays in the pass (at least 2 s later,
+# never two completions within 3 s: {-quest::doneat}): money (never boosted, no season points, no bounty; passive
+# 0.75x), XP (never boosted), rep (bound titles at Trusted, Partner, Family; a 4th slot at Family).
+# The GPS: story.sk's questGps (jobs.sk gives each taken job's target: jobsTarget); the sidebar line and boss bar.
+#
+# Saved per player: jobs::<c>::unlocked (true, or "off" for test bots), next (unix: when the next job arrives), swap,
+# rep, tier, done, first; job::<c>::<k> = waiting | taken | met | paying (the flag: a list holding only sub-lists is
+# never "set") and job::<c>::<k>::tpl|h|t|m|bonus|n|pay|xp|rep|cold|at|takenat|prog|bonusok|passive|metat|goneat.
+# Global: {jobstats::<tpl>::posted|taken|done|bonus|dropped|swapped|voided}. Log: plugins\Skript\logs\jobs.log.
+# Staff: /djobs. Players: /jobs (/job; the phone's Jobs app).
+
+function jobsLog(text: text):
+	log {_text} to "jobs"
+
+function jobsName(c: text) :: text:
+	return "%{-cfg::jobs::%{_c}%::color}%%{-cfg::jobs::%{_c}%::name}%"
+
+function jobsGiver(c: text) :: text:
+	return {-cfg::jobs::%{_c}%::giver}
+
+function jobsState(p: player, c: text, k: number) :: text:
+	set {_s} to getData({_p}, "job::%{_c}%::%{_k}%")
+	if {_s} is set:
+		return "%{_s}%"
+	return ""
+
+function jobsGet(p: player, c: text, k: number, f: text) :: object:
+	return getData({_p}, "job::%{_c}%::%{_k}%::%{_f}%")
+
+# The same as text ("" when unset), for comparisons: a quoted field name can't go inside a string's %...%.
+function jobsGetT(p: player, c: text, k: number, f: text) :: text:
+	set {_v} to getData({_p}, "job::%{_c}%::%{_k}%::%{_f}%")
+	if {_v} is set:
+		return "%{_v}%"
+	return ""
+
+function jobsSet(p: player, c: text, k: number, f: text, v: object):
+	setData({_p}, "job::%{_c}%::%{_k}%::%{_f}%", {_v})
+
+function jobsForget(p: player, c: text, k: number):
+	delete {data::%{_p}%::job::%{_c}%::%{_k}%::*}
+	deleteData({_p}, "job::%{_c}%::%{_k}%")
+
+function jobsTier(p: player, c: text) :: number:
+	set {_t} to getData({_p}, "jobs::%{_c}%::tier")
+	if {_t} is set:
+		return {_t}
+	return 1
+
+function jobsRep(p: player, c: text) :: number:
+	set {_r} to getData({_p}, "jobs::%{_c}%::rep")
+	if {_r} is set:
+		return {_r}
+	return 0
+
+function jobsSlots(p: player, c: text) :: number:
+	if jobsTier({_p}, {_c}) >= 4:
+		return cfg("jobs::slots-family")
+	return cfg("jobs::slots")
+
+function jobsUnlocked(p: player, c: text) :: boolean:
+	if getData({_p}, "jobs::%{_c}%::unlocked") is true:
+		return true
+	return false
+
+function jobsStat(tpl: text, key: text):
+	add 1 to {jobstats::%{_tpl}%::%{_key}%}
+
+# The contract tier's rank (basic 1, pro 2, master 3).
+function jobsTierRank(t: text) :: number:
+	set {_i} to 0
+	loop {-cfg::contract::tiers::*}:
+		add 1 to {_i}
+		if loop-value is {_t}:
+			return {_i}
+	return 0
+
+# ---------- Unlocking ----------
+
+# Whether a contact's unlock condition holds: story:done, story:<mission id> (Mara got there), contracts:<n>.
+function jobsUnlockMet(p: player, c: text) :: boolean:
+	set {_u} to {-cfg::jobs::%{_c}%::unlock}
+	if {_u} is not set:
+		return false
+	set {_a::*} to {_u} split at ":"
+	if {_a::1} is "story":
+		if {_a::2} is "done":
+			if storyIdOf({_p}, "story") is "done":
+				return true
+			return false
+		return storyReached({_p}, {_a::2})
+	if {_a::1} is "contracts":
+		set {_d} to getData({_p}, "contracts-done")
+		if {_d} is not set:
+			set {_d} to 0
+		if {_d} >= ({_a::2} parsed as number):
+			return true
+		return false
+	return false
+
+function jobsUnlockCheck(p: player):
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		if getData({_p}, "jobs::%{_c}%::unlocked") is not set:
+			if jobsUnlockMet({_p}, {_c}) is true:
+				setData({_p}, "jobs::%{_c}%::unlocked", true)
+				# The first arrivals: a full board at once.
+				setData({_p}, "jobs::%{_c}%::next", progUnix() - 2 * cfg("jobs::hours") * 3600)
+				jobsFill({_p}, {_c})
+				storyText({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::unlock})
+				jobsLog("unlock %{_p}% %uuid of {_p}% %{_c}%")
+
+# ---------- Arrivals ----------
+
+function jobsUsed(p: player, c: text) :: number:
+	set {_j} to 0
+	loop jobsSlots({_p}, {_c}) times:
+		if jobsState({_p}, {_c}, loop-number) is not "":
+			add 1 to {_j}
+	return {_j}
+
+function jobsFreeSlot(p: player, c: text) :: number:
+	loop jobsSlots({_p}, {_c}) times:
+		if jobsState({_p}, {_c}, loop-number) is "":
+			return loop-number
+	return 0
+
+# One job arrives every jobs::hours; a full board wastes arrivals (jobs bank, they don't pile up forever).
+function jobsFill(p: player, c: text):
+	jobsUnlocked({_p}, {_c}) is true
+	set {_t} to progUnix()
+	set {_H} to cfg("jobs::hours") * 3600
+	set {_nx} to getData({_p}, "jobs::%{_c}%::next")
+	if {_nx} is not set:
+		set {_nx} to {_t}
+	{_t} >= {_nx}
+	set {_K} to floor(({_t} - {_nx}) / {_H}) + 1
+	set {_S} to jobsSlots({_p}, {_c})
+	set {_A} to min({_K}, {_S} - jobsUsed({_p}, {_c}))
+	if {_A} > 0:
+		loop {_A} times:
+			set {_k} to jobsFreeSlot({_p}, {_c})
+			if {_k} > 0:
+				if jobsRoll({_p}, {_c}, {_k}, 0) is false:
+					# Nothing on the map fits yet: try again in an hour.
+					setData({_p}, "jobs::%{_c}%::next", {_t} + 3600)
+					jobsLog("none %{_p}% %{_c}%")
+					stop
+	setData({_p}, "jobs::%{_c}%::next", {_nx} + {_K} * {_H})
+
+# ---------- Rolling a job ----------
+
+# A heist is "cold" when nobody robbed it for jobs::cold-hours.
+function jobsCold(h: text) :: boolean:
+	set {_l} to {heat::last::%{_h}%}
+	if {_l} is not set:
+		return true
+	if progUnix() - {_l} > cfg("jobs::cold-hours") * 3600:
+		return true
+	return false
+
+function jobsBoardHas(p: player, c: text, field: text, v: text) :: boolean:
+	loop jobsSlots({_p}, {_c}) times:
+		if jobsState({_p}, {_c}, loop-number) is not "":
+			if jobsGetT({_p}, {_c}, loop-number, {_field}) is {_v}:
+				return true
+	return false
+
+# Whether a pile in this heist isn't behind an alarmed gate (so a run can stay quiet).
+function jobsQuietOk(h: text) :: boolean:
+	loop {loots::%{_h}%::*}:
+		if loop-value is "pile":
+			set {_b} to lootSetting({_h}, loop-index, "behind")
+			if {_b} is not set:
+				return true
+			if lootSetting({_h}, "%{_b}%", "alarm") is not true:
+				return true
+	return false
+
+function jobsBonusOk(p: player, b: text, h: text) :: boolean:
+	if {_b} is "quiet":
+		if heistIsAdvanced({_h}) is true:
+			return jobsQuietOk({_h})
+		return false
+	if {_b} is "untouched":
+		if trapCount({_h}) > 0:
+			return true
+		return false
+	if {_b} is "car":
+		return storyOwnsCar({_p})
+	return true
+
+function jobsPickBonus(p: player, tpl: text, h: text) :: text:
+	loop {-cfg::jobs::tpl::%{_tpl}%::bonuses::*}:
+		if jobsBonusOk({_p}, loop-value, {_h}) is true:
+			add loop-value to {_ok::*}
+	set {_b} to random element out of {_ok::*}
+	if {_b} is set:
+		return {_b}
+	return ""
+
+# Mara's goal: about one trip's loot. N = max(min-goal, floor100(min(run::<d>, bag-share x best bag, pool-share x pool))).
+function jobsGoal(p: player, h: text) :: number:
+	set {_d} to heistDifficulty({_h})
+	set {_best} to bestBag({_p})
+	if {_best} < 1:
+		set {_best} to 1
+	set {_cb} to cfg("bag::%{_best}%::capacity")
+	set {_pool} to heistSetting({_h}, "loot-pool")
+	set {_x} to min(cfg("jobs::run::%{_d}%"), cfg("jobs::bag-share") * {_cb}, cfg("jobs::pool-share") * {_pool})
+	return max(cfg("jobs::min-goal"), floor({_x} / 100) * 100)
+
+function jobsBasePay(beta: number, s: number) :: number:
+	return max(cfg("jobs::min-pay"), floor({_beta} * {_s} / 50) * 50)
+
+# Rolls a new job into slot k (maxd > 0: a swap, never a harder heist or tier than that). False = nothing fits.
+function jobsRoll(p: player, c: text, k: number, maxd: number) :: boolean:
+	if {_c} is "mara":
+		return jobsRollMara({_p}, {_k}, {_maxd})
+	return jobsRollBoss({_p}, {_k}, {_maxd})
+
+function jobsRollMara(p: player, k: number, maxd: number) :: boolean:
+	set {_dmax} to 0
+	loop storyHeists({_p}):
+		if heistIsPvp(loop-value) is false:
+			if storyHasGate(loop-value, "pile") is true:
+				add loop-value to {_c::*}
+				if heistDifficulty(loop-value) > {_dmax}:
+					set {_dmax} to heistDifficulty(loop-value)
+	if size of {_c::*} is 0:
+		return false
+	set {_dlo} to max(1, {_dmax} - 1)
+	loop {_c::*}:
+		set {_d} to heistDifficulty(loop-value)
+		set {_fit} to true
+		if {_d} < {_dlo}:
+			set {_fit} to false
+		if {_maxd} > 0:
+			if {_d} > {_maxd}:
+				set {_fit} to false
+		if {_fit} is true:
+			add loop-value to {_hs::*}
+	if size of {_hs::*} is 0:
+		return false
+	# Prefer heists no other job on the board names.
+	loop {_hs::*}:
+		if jobsBoardHas({_p}, "mara", "h", loop-value) is false:
+			add loop-value to {_fresh::*}
+	if size of {_fresh::*} > 0:
+		set {_hs::*} to {_fresh::*}
+	set {_coldUsed} to jobsBoardHas({_p}, "mara", "cold", "true")
+	set {_total} to 0
+	loop {_hs::*}:
+		set {_h} to loop-value
+		loop {-cfg::jobs::mara::templates::*}:
+			set {_t} to loop-value-2
+			set {_ok} to false
+			if {_t} is "haul":
+				set {_ok} to true
+			else if {_t} is "safe":
+				if storyHasGate({_h}, "safe") is true:
+					if levelOk({_p}, toolLevel("safe-kit")) is true:
+						set {_ok} to true
+			else if {_t} is "vault":
+				if storyHasGate({_h}, "drill") is true:
+					if levelOk({_p}, toolLevel("drill")) is true:
+						set {_ok} to true
+			else if {_t} is "getaway":
+				if heistIsAdvanced({_h}) is true:
+					set {_ok} to true
+			if {_ok} is true:
+				set {_w} to cfg("jobs::tpl::%{_t}%::weight")
+				if {_coldUsed} is false:
+					if jobsCold({_h}) is true:
+						set {_w} to {_w} * 2
+				add 1 to {_np}
+				set {_pair::%{_np}%} to "%{_t}%|%{_h}%"
+				set {_pw::%{_np}%} to {_w}
+				add {_w} to {_total}
+	if {_total} <= 0:
+		return false
+	set {_r} to random number between 0 and {_total}
+	set {_acc} to 0
+	set {_pick} to ""
+	loop {_np} times:
+		if {_pick} is "":
+			add {_pw::%loop-number%} to {_acc}
+			if {_r} <= {_acc}:
+				set {_pick} to {_pair::%loop-number%}
+	if {_pick} is "":
+		set {_pick} to {_pair::%{_np}%}
+	set {_a::*} to {_pick} split at "|"
+	set {_t} to {_a::1}
+	set {_h} to {_a::2}
+	set {_n} to jobsGoal({_p}, {_h})
+	set {_pay} to jobsBasePay(cfg("jobs::tpl::%{_t}%::beta"), {_n})
+	set {_cold} to false
+	if {_coldUsed} is false:
+		set {_cold} to jobsCold({_h})
+	jobsWrite({_p}, "mara", {_k}, {_t}, {_h}, "", "", jobsPickBonus({_p}, {_t}, {_h}), {_n}, {_pay}, {_cold})
+	return true
+
+function jobsRollBoss(p: player, k: number, maxd: number) :: boolean:
+	if storyNeedsMet({_p}, "contracts") is false:
+		return false
+	set {_top} to 0
+	loop {-cfg::contract::tiers::*}:
+		if levelOk({_p}, cfg("contract::%loop-value%::level")) is true:
+			set {_rank} to jobsTierRank(loop-value)
+			set {_fit} to true
+			if {_maxd} > 0:
+				if {_rank} > {_maxd}:
+					set {_fit} to false
+			if {_fit} is true:
+				add loop-value to {_ts::*}
+				if {_rank} > {_top}:
+					set {_top} to {_rank}
+	if size of {_ts::*} is 0:
+		return false
+	# The highest allowed tier twice as often.
+	loop {_ts::*}:
+		add loop-value to {_tw::*}
+		if jobsTierRank(loop-value) is {_top}:
+			add loop-value to {_tw::*}
+	loop 8 times:
+		if {_done} is not set:
+			set {_t} to random element out of {_tw::*}
+			set {_total} to 0
+			loop {-cfg::jobs::boss::templates::*}:
+				add cfg("jobs::tpl::%loop-value-2%::weight") to {_total}
+			set {_r} to random number between 0 and {_total}
+			set {_acc} to 0
+			set {_tpl} to ""
+			loop {-cfg::jobs::boss::templates::*}:
+				if {_tpl} is "":
+					add cfg("jobs::tpl::%loop-value-2%::weight") to {_acc}
+					if {_r} <= {_acc}:
+						set {_tpl} to loop-value-2
+			if {_tpl} is "":
+				set {_tpl} to "tier"
+			set {_m} to ""
+			if {_tpl} is "model":
+				delete {_ms::*}
+				loop {-cfg::contractcars::%{_t}%::*}:
+					if carExists(loop-value-2) is true:
+						add loop-value-2 to {_ms::*}
+				set {_m} to random element out of {_ms::*}
+				if {_m} is not set:
+					set {_tpl} to "tier"
+					set {_m} to ""
+			# Never the same job twice on a board.
+			set {_dup} to false
+			loop jobsSlots({_p}, "boss") times:
+				if jobsState({_p}, "boss", loop-value-2) is not "":
+					if jobsGetT({_p}, "boss", loop-value-2, "tpl") is {_tpl}:
+						if jobsGetT({_p}, "boss", loop-value-2, "t") is {_t}:
+							if jobsGetT({_p}, "boss", loop-value-2, "m") is {_m}:
+								set {_dup} to true
+			if {_dup} is false:
+				set {_done} to true
+	if {_done} is not set:
+		return false
+	set {_pay} to jobsBasePay(cfg("jobs::tpl::%{_tpl}%::beta"), cfg("contract::%{_t}%::pay"))
+	set {_n} to 1
+	if {_tpl} is "double":
+		set {_n} to 2
+	jobsWrite({_p}, "boss", {_k}, {_tpl}, "", {_t}, {_m}, jobsPickBonus({_p}, {_tpl}, ""), {_n}, {_pay}, false)
+	return true
+
+function jobsWrite(p: player, c: text, k: number, tpl: text, h: text, t: text, m: text, bonus: text, n: number, pay: number, cold: boolean):
+	jobsForget({_p}, {_c}, {_k})
+	setData({_p}, "job::%{_c}%::%{_k}%", "waiting")
+	jobsSet({_p}, {_c}, {_k}, "tpl", {_tpl})
+	jobsSet({_p}, {_c}, {_k}, "h", {_h})
+	jobsSet({_p}, {_c}, {_k}, "t", {_t})
+	jobsSet({_p}, {_c}, {_k}, "m", {_m})
+	jobsSet({_p}, {_c}, {_k}, "bonus", {_bonus})
+	jobsSet({_p}, {_c}, {_k}, "n", {_n})
+	jobsSet({_p}, {_c}, {_k}, "pay", {_pay})
+	jobsSet({_p}, {_c}, {_k}, "xp", cfg("jobs::tpl::%{_tpl}%::xp"))
+	jobsSet({_p}, {_c}, {_k}, "rep", cfg("jobs::tpl::%{_tpl}%::rep"))
+	jobsSet({_p}, {_c}, {_k}, "cold", {_cold})
+	jobsSet({_p}, {_c}, {_k}, "at", progUnix())
+	jobsSet({_p}, {_c}, {_k}, "prog", 0)
+	jobsSet({_p}, {_c}, {_k}, "bonusok", true)
+	jobsStat({_tpl}, "posted")
+	jobsLog("post %{_p}% %uuid of {_p}% %{_c}%:%{_k}% %{_tpl}% h=%{_h}% t=%{_t}% m=%{_m}% bonus=%{_bonus}% n=%{_n}% pay=%{_pay}% cold=%{_cold}%")
+
+# ---------- Texts ----------
+
+# The job's name: the bonus's name when it has one ("Quiet Hands"), else the template's.
+function jobsTitleOf(p: player, c: text, k: number) :: text:
+	set {_b} to jobsGetT({_p}, {_c}, {_k}, "bonus")
+	if {_b} is not "":
+		if {_b} is not "<none>":
+			return {-cfg::jobs::bonus::%{_b}%::name}
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	return {-cfg::jobs::tpl::%{_tpl}%::name}
+
+function jobsGoalText(p: player, c: text, k: number) :: text:
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	set {_s} to {-cfg::jobs::tpl::%{_tpl}%::goal}
+	set {_h} to jobsGetT({_p}, {_c}, {_k}, "h")
+	set {_t} to jobsGetT({_p}, {_c}, {_k}, "t")
+	set {_m} to jobsGetT({_p}, {_c}, {_k}, "m")
+	set {_n} to jobsGet({_p}, {_c}, {_k}, "n")
+	if heistExists({_h}) is true:
+		replace all "{heist}" with heistName({_h}) in {_s}
+	replace all "{$}" with formatMoney({_n}) in {_s}
+	if {_t} is not "":
+		replace all "{tier}" with ctTierName({_t}) in {_s}
+	if {_m} is not "":
+		replace all "{car}" with carName({_m}) in {_s}
+	return {_s}
+
+function jobsProgText(p: player, c: text, k: number) :: text:
+	set {_prog} to jobsGet({_p}, {_c}, {_k}, "prog")
+	set {_n} to jobsGet({_p}, {_c}, {_k}, "n")
+	if jobsGetT({_p}, {_c}, {_k}, "tpl") is "haul":
+		return "%formatMoney({_prog})%/%formatMoney({_n})%"
+	return "%{_prog}%/%{_n}%"
+
+# What the job pays now: R x (1 + bonus-share K) x (1 + cold-share C) x m.
+function jobsPayNow(p: player, c: text, k: number, kept: boolean) :: number:
+	set {_r} to jobsGet({_p}, {_c}, {_k}, "pay")
+	set {_mult} to 1
+	if {_kept} is true:
+		if jobsGetT({_p}, {_c}, {_k}, "bonus") is not "":
+			set {_mult} to {_mult} * (1 + cfg("jobs::bonus-share"))
+	if jobsGet({_p}, {_c}, {_k}, "cold") is true:
+		set {_mult} to {_mult} * (1 + cfg("jobs::cold-share"))
+	if jobsGet({_p}, {_c}, {_k}, "passive") is true:
+		set {_mult} to {_mult} * cfg("passive::payout-multiplier")
+	return floor({_r} * {_mult})
+
+# ---------- Picking up, in person ----------
+
+# A taken Special Order: that tier's Scrap Yard offer rolls again, now with the ordered model (spec §11).
+function jobsOfferReset(p: player, c: text, k: number):
+	if {_c} is "boss":
+		if jobsState({_p}, {_c}, {_k}) is "taken":
+			if jobsGetT({_p}, {_c}, {_k}, "tpl") is "model":
+				set {_jt} to jobsGetT({_p}, {_c}, {_k}, "t")
+				delete {-ctoffer::%uuid of {_p}%::%{_jt}%}
+
+# Every waiting job of this contact becomes taken. Returns how many.
+function jobsPickup(p: player, c: text) :: number:
+	set {_n} to 0
+	loop jobsSlots({_p}, {_c}) times:
+		if jobsState({_p}, {_c}, loop-number) is "waiting":
+			setData({_p}, "job::%{_c}%::%loop-number%", "taken")
+			jobsSet({_p}, {_c}, loop-number, "takenat", progUnix())
+			jobsOfferReset({_p}, {_c}, loop-number)
+			jobsStat(jobsGetT({_p}, {_c}, loop-number, "tpl"), "taken")
+			add 1 to {_n}
+			# The first job ever from this contact: the GPS follows it.
+			if getData({_p}, "jobs::%{_c}%::first") is not set:
+				setData({_p}, "jobs::%{_c}%::first", true)
+				setData({_p}, "quest-track", "job:%{_c}%:%loop-number%")
+	if {_n} > 0:
+		jobsLog("take %{_p}% %uuid of {_p}% %{_c}% n=%{_n}%")
+	return {_n}
+
+# Talking to a contact in person (quests.sk: the Boss; story.sk: Mara once her story is done).
+function jobsTalk(p: player, c: text, menu: boolean):
+	jobsUnlockCheck({_p})
+	if jobsUnlocked({_p}, {_c}) is false:
+		if {_menu} is true:
+			storyMenu({_p})
+		stop
+	jobsFill({_p}, {_c})
+	set {_n} to jobsPickup({_p}, {_c})
+	set {_who} to {-cfg::jobs::%{_c}%::name}
+	if {_n} > 0:
+		if {_n} is 1:
+			storyText({_p}, {_who}, "One for you. It's on your phone: /jobs.")
+		else:
+			storyText({_p}, {_who}, "%{_n}% for you. They're on your phone: /jobs.")
+		hudBar({_p}, "&e✉ %{_who}%: %{_n}% job(s) for you &7· /jobs", 1)
+	else:
+		set {_g} to {-cfg::jobs::%{_c}%::greet::%jobsTier({_p}, {_c})%}
+		if {_g} is set:
+			hudBar({_p}, "%jobsName({_c})%: &f%{_g}%", 1)
+	if {_menu} is true:
+		jobsMenu({_p})
+
+# ---------- Counting (progress.sk calls this; nothing pays here) ----------
+
+# Whether the bonus holds for this step (the run notes of progress.sk, the contract's context).
+function jobsBonusHolds(p: player, b: text, tag: text) :: boolean:
+	if {_b} is "clock":
+		set {_l} to progRunGet({_p}, {_tag}, "left")
+		if {_l} is set:
+			if {_l} >= cfg("jobs::clock-left"):
+				return true
+		return false
+	if {_b} is "quiet":
+		if progRunGet({_p}, {_tag}, "loud") is true:
+			return false
+		return true
+	if {_b} is "untouched":
+		if progRunGet({_p}, {_tag}, "touched") is true:
+			return false
+		return true
+	if {_b} is "guesses":
+		set {_g} to progRunGet({_p}, {_tag}, "guesses")
+		if {_g} is set:
+			if {_g} <= cfg("jobs::guesses"):
+				return true
+		return false
+	if {_b} is "car":
+		if progRunGet({_p}, {_tag}, "car") is true:
+			return true
+		return false
+	set {_ct} to {-prog::ct::%uuid of {_p}%}
+	if {_ct} is set:
+		set {_a::*} to {_ct} split at "|"
+		if {_b} is "fast":
+			if ({_a::2} parsed as number) <= cfg("jobs::fast-secs"):
+				return true
+			return false
+		if {_b} is "clean":
+			if ({_a::3} parsed as number) is 0:
+				return true
+			return false
+	return false
+
+function jobsEvent(p: player, ev: text, n: number, detail: text, own: number):
+	set {_tr} to ""
+	set {_trv} to getData({_p}, "quest-track")
+	if {_trv} is set:
+		set {_tr} to "%{_trv}%"
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		if jobsUnlocked({_p}, {_c}) is true:
+			set {_hit} to false
+			delete {_ks::*}
+			delete {_in::*}
+			# The tracked job first (spec §5), then Special Orders (only the ordered car counts for them), then slot
+			# order: a cheaper job in an earlier slot never uses up a delivery meant for another.
+			loop jobsSlots({_p}, {_c}) times:
+				if {_tr} is "job:%{_c}%:%loop-value-2%":
+					add loop-value-2 to {_ks::*}
+					set {_in::%loop-value-2%} to true
+			loop jobsSlots({_p}, {_c}) times:
+				if {_in::%loop-value-2%} is not set:
+					if jobsGetT({_p}, {_c}, loop-value-2, "tpl") is "model":
+						add loop-value-2 to {_ks::*}
+						set {_in::%loop-value-2%} to true
+			loop jobsSlots({_p}, {_c}) times:
+				if {_in::%loop-value-2%} is not set:
+					add loop-value-2 to {_ks::*}
+			loop {_ks::*}:
+				if {_hit} is false:
+					if jobsState({_p}, {_c}, loop-value-2) is "taken":
+						set {_hit} to jobsCount({_p}, {_c}, loop-value-2, {_ev}, {_n}, {_detail}, {_own})
+
+# Counts one event for one job. True when it counted (so the event counts for no other job of this contact).
+function jobsCount(p: player, c: text, k: number, ev: text, n: number, detail: text, own: number) :: boolean:
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	set {_h} to jobsGetT({_p}, {_c}, {_k}, "h")
+	set {_hd} to {_detail}
+	if {_detail} contains "#":
+		set {_hp::*} to {_detail} split at "#"
+		set {_hd} to {_hp::1}
+	set {_add} to 0
+	set {_tag} to ""
+	if {_tpl} is "haul":
+		if {_ev} is "sell":
+			if {_hd} is {_h}:
+				if {_own} > 0:
+					set {_left} to jobsGet({_p}, {_c}, {_k}, "n") - jobsGet({_p}, {_c}, {_k}, "prog")
+					set {_add} to min({_own}, {_left})
+					set {_tag} to {_detail}
+	else if {_tpl} is "safe":
+		if {_ev} is "crack":
+			if {_detail} is {_h}:
+				set {_add} to 1
+				set {_tag} to progRunTag({_h})
+	else if {_tpl} is "vault":
+		if {_ev} is "drill":
+			if {_detail} is {_h}:
+				set {_add} to 1
+				set {_tag} to progRunTag({_h})
+	else if {_tpl} is "getaway":
+		if {_ev} is "getaway":
+			if {_detail} is {_h}:
+				if heistWave({_h}) >= 1:
+					if bagRunLoot({_p}, {_h}) > 0:
+						set {_tag} to progRunTag({_h})
+						if progRunGet({_p}, {_tag}, "own") > 0:
+							set {_add} to 1
+	else:
+		if {_ev} is "contract":
+			set {_t} to jobsGetT({_p}, {_c}, {_k}, "t")
+			if jobsTierRank({_detail}) >= jobsTierRank({_t}):
+				if {_tpl} is "model":
+					set {_ct} to {-prog::ct::%uuid of {_p}%}
+					if {_ct} is set:
+						set {_cp::*} to {_ct} split at "|"
+						if {_cp::1} is jobsGetT({_p}, {_c}, {_k}, "m"):
+							set {_add} to 1
+				else:
+					set {_add} to 1
+	if {_add} <= 0:
+		return false
+	set {_prog} to jobsGet({_p}, {_c}, {_k}, "prog") + {_add}
+	jobsSet({_p}, {_c}, {_k}, "prog", {_prog})
+	if isPassive({_p}) is true:
+		jobsSet({_p}, {_c}, {_k}, "passive", true)
+	set {_b} to jobsGetT({_p}, {_c}, {_k}, "bonus")
+	set {_bt} to ""
+	if {_b} is not "":
+		if jobsGet({_p}, {_c}, {_k}, "bonusok") is true:
+			if jobsBonusHolds({_p}, {_b}, {_tag}) is false:
+				jobsSet({_p}, {_c}, {_k}, "bonusok", false)
+				msg({_p}, "&7★ Bonus missed this time: %{-cfg::jobs::bonus::%{_b}%::text}%. The job still counts.")
+		if jobsGet({_p}, {_c}, {_k}, "bonusok") is true:
+			set {_bt} to " &7· &a★ on track"
+		else:
+			set {_bt} to " &7· &c★ missed"
+	hudBar({_p}, "&e✉ %jobsTitleOf({_p}, {_c}, {_k})%: &f%jobsProgText({_p}, {_c}, {_k})%%{_bt}%", 1)
+	jobsLog("count %{_p}% %{_c}%:%{_k}% %{_tpl}% ev=%{_ev}% detail=%{_detail}% add=%{_add}% prog=%{_prog}% ct=%{-prog::ct::%uuid of {_p}%}%")
+	if {_prog} >= jobsGet({_p}, {_c}, {_k}, "n"):
+		setData({_p}, "job::%{_c}%::%{_k}%", "met")
+		jobsSet({_p}, {_c}, {_k}, "metat", progUnix())
+		jobsLog("met %{_p}% %{_c}%:%{_k}%")
+	return true
+
+# ---------- Paying ----------
+
+function jobsComplete(p: player, c: text, k: number):
+	setData({_p}, "job::%{_c}%::%{_k}%", "paying")
+	set {-quest::doneat::%{_p}%} to now
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	set {_kept} to false
+	if jobsGetT({_p}, {_c}, {_k}, "bonus") is not "":
+		if jobsGet({_p}, {_c}, {_k}, "bonusok") is true:
+			set {_kept} to true
+	set {_pay} to jobsPayNow({_p}, {_c}, {_k}, {_kept})
+	set {_xp} to jobsGet({_p}, {_c}, {_k}, "xp")
+	set {_rep} to jobsGet({_p}, {_c}, {_k}, "rep")
+	if {_kept} is true:
+		add cfg("jobs::bonus-rep") to {_rep}
+	set {_name} to jobsTitleOf({_p}, {_c}, {_k})
+	giveMoney({_p}, {_pay})
+	levelAddXp({_p}, {_xp}, "job")
+	set {_done} to getData({_p}, "jobs::%{_c}%::done")
+	if {_done} is not set:
+		set {_done} to 0
+	setData({_p}, "jobs::%{_c}%::done", {_done} + 1)
+	jobsStat({_tpl}, "done")
+	if {_kept} is true:
+		jobsStat({_tpl}, "bonus")
+	set {_lh} to jobsGetT({_p}, {_c}, {_k}, "h")
+	set {_lt} to jobsGetT({_p}, {_c}, {_k}, "t")
+	set {_lm} to jobsGetT({_p}, {_c}, {_k}, "m")
+	set {_lr} to jobsGetT({_p}, {_c}, {_k}, "pay")
+	set {_lc} to jobsGetT({_p}, {_c}, {_k}, "cold")
+	set {_lp} to jobsGetT({_p}, {_c}, {_k}, "passive")
+	jobsLog("pay %{_p}% %uuid of {_p}% %{_c}%:%{_k}% %{_tpl}% h=%{_lh}% t=%{_lt}% m=%{_lm}% R=%{_lr}% K=%{_kept}% C=%{_lc}% passive=%{_lp}% P=%{_pay}% xp=%{_xp}% rep=%{_rep}% ip=%ip of {_p}%")
+	set {_star} to ""
+	if {_kept} is true:
+		set {_star} to " &7· &e★"
+	msg({_p}, "&6Job done: &f%{_name}% &7· &a%formatMoney({_pay})% &7· &b+%{_xp}% XP &7· &d+%{_rep}% rep%{_star}%")
+	set {_lines::*} to {-cfg::jobs::%{_c}%::line::done::*}
+	storyText({_p}, {-cfg::jobs::%{_c}%::name}, random element out of {_lines::*})
+	if getData({_p}, "quest-track") is "job:%{_c}%:%{_k}%":
+		deleteData({_p}, "quest-track")
+	jobsForget({_p}, {_c}, {_k})
+	jobsRepAdd({_p}, {_c}, {_rep})
+	jobsTitle({_p}, "&a%formatMoney({_pay})% &7· &b+%{_xp}% XP%{_star}%")
+
+function jobsTitle(p: player, sub: text):
+	wait 1 second
+	{_p} is online
+	send title colored "&e&l✉ JOB DONE&r" with subtitle colored {_sub} to {_p} for 3 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+
+function jobsRepAdd(p: player, c: text, r: number):
+	set {_rep} to jobsRep({_p}, {_c}) + {_r}
+	setData({_p}, "jobs::%{_c}%::rep", {_rep})
+	set {_tier} to jobsTier({_p}, {_c})
+	set {_new} to {_tier}
+	loop 4 times:
+		if {_rep} >= cfg("jobs::reptier::%loop-number%::rep"):
+			set {_new} to max({_new}, loop-number)
+	if {_new} > {_tier}:
+		setData({_p}, "jobs::%{_c}%::tier", {_new})
+		set {_tn} to {-cfg::jobs::reptier::%{_new}%::name}
+		set {_title} to {-cfg::jobs::%{_c}%::title::%{_new}%}
+		if {_title} is set:
+			cosGive({_p}, {_title}, "jobs:rep")
+			msg({_p}, "&d★ %{-cfg::jobs::%{_c}%::name}% trusts you more: &f%{_tn}% &7· the title %cosColored({_title})% &7(/titles)")
+		else:
+			msg({_p}, "&d★ %{-cfg::jobs::%{_c}%::name}% trusts you more: &f%{_tn}%")
+		if {_new} >= 4:
+			msg({_p}, "&d★ A 4th job slot with %{-cfg::jobs::%{_c}%::name}%.")
+		set {_line} to {-cfg::jobs::%{_c}%::line::tier::%{_new}%}
+		if {_line} is set:
+			storyText({_p}, {-cfg::jobs::%{_c}%::name}, {_line})
+		play sound "entity.player.levelup" with volume 0.6 and pitch 1.3 to {_p}
+		jobsLog("tier %{_p}% %uuid of {_p}% %{_c}% %{_new}% rep=%{_rep}%")
+
+# ---------- Voids: a job's heist gone or out of reach ----------
+
+# "" = fine; else why the job can't be done now.
+function jobsVoidWhy(p: player, c: text, k: number) :: text:
+	if {_c} is not "mara":
+		return ""
+	set {_h} to jobsGetT({_p}, {_c}, {_k}, "h")
+	if heistExists({_h}) is false:
+		return "deleted"
+	if heistState({_h}) is "disabled":
+		return "disabled"
+	if heistLevelOk({_p}, {_h}) is false:
+		return "level"
+	if heistIsPvp({_h}) is true:
+		return "pvp"
+	# What the template needs must still be in the heist (a rebuild can take a safe or the vault out).
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	if storyHasGate({_h}, "pile") is false:
+		return "content"
+	if {_tpl} is "safe":
+		if storyHasGate({_h}, "safe") is false:
+			return "content"
+	if {_tpl} is "vault":
+		if storyHasGate({_h}, "drill") is false:
+			return "content"
+	if {_tpl} is "getaway":
+		if heistIsAdvanced({_h}) is false:
+			return "content"
+	return ""
+
+function jobsVoidCheck(p: player, c: text):
+	loop jobsSlots({_p}, {_c}) times:
+		set {_k} to loop-number
+		set {_s} to jobsState({_p}, {_c}, {_k})
+		if {_s} is "waiting" or "taken":
+			set {_why} to jobsVoidWhy({_p}, {_c}, {_k})
+			if {_why} is "":
+				# Only written when it changes (a saved variable per job every 30 s otherwise).
+				if jobsGet({_p}, {_c}, {_k}, "goneat") is set:
+					deleteData({_p}, "job::%{_c}%::%{_k}%::goneat")
+			else:
+				set {_ga} to jobsGet({_p}, {_c}, {_k}, "goneat")
+				set {_started} to false
+				if {_ga} is set:
+					if "%{_ga}%" is not "":
+						set {_started} to true
+				set {_now} to progUnix()
+				set {_replace} to false
+				if {_why} is "deleted":
+					set {_replace} to true
+				else if {_started} is false:
+					jobsSet({_p}, {_c}, {_k}, "goneat", {_now})
+				else if {_now} - {_ga} >= cfg("jobs::grace"):
+					set {_replace} to true
+				if {_replace} is true:
+					jobsReplace({_p}, {_c}, {_k}, {_s})
+
+function jobsReplace(p: player, c: text, k: number, s: text):
+	jobsStat(jobsGetT({_p}, {_c}, {_k}, "tpl"), "voided")
+	set {_lh} to jobsGetT({_p}, {_c}, {_k}, "h")
+	jobsLog("void %{_p}% %{_c}%:%{_k}% h=%{_lh}%")
+	if jobsRoll({_p}, {_c}, {_k}, 0) is true:
+		if {_s} is "taken":
+			setData({_p}, "job::%{_c}%::%{_k}%", "taken")
+			jobsSet({_p}, {_c}, {_k}, "takenat", progUnix())
+			jobsOfferReset({_p}, {_c}, {_k})
+		storyText({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::void})
+	else:
+		jobsForget({_p}, {_c}, {_k})
+
+# ---------- The pass ----------
+
+function jobsPass(p: player):
+	set {_j} to {-story::joined::%{_p}%}
+	if {_j} is set:
+		if difference between {_j} and now < 5 seconds:
+			stop
+	set {_d} to {-quest::doneat::%{_p}%}
+	set {_gapok} to true
+	if {_d} is set:
+		if difference between {_d} and now < 1 second * cfg("jobs::gap"):
+			set {_gapok} to false
+	# Every 30 s: unlocks, arrivals, voids, the text hand-over when no giver stands on the map.
+	set {_at} to {-jobs::pass::%{_p}%}
+	set {_slow} to false
+	if {_at} is not set:
+		set {_slow} to true
+	else if difference between {_at} and now >= 30 seconds:
+		set {_slow} to true
+	if {_slow} is true:
+		set {-jobs::pass::%{_p}%} to now
+		jobsUnlockCheck({_p})
+		loop {-cfg::jobs::contacts::*}:
+			set {_c} to loop-value
+			if jobsUnlocked({_p}, {_c}) is true:
+				jobsFill({_p}, {_c})
+				jobsVoidCheck({_p}, {_c})
+				if storyNeedsMet({_p}, jobsGiver({_c})) is false:
+					if jobsPickup({_p}, {_c}) > 0:
+						storyText({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::text})
+	# A crash mid-payment: never paid twice (at worst lost once, as in story.sk).
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		loop jobsSlots({_p}, {_c}) times:
+			set {_s} to jobsState({_p}, {_c}, loop-value-2)
+			if {_s} is "paying":
+				jobsLog("resume %{_p}% %{_c}%:%loop-value-2%")
+				jobsForget({_p}, {_c}, loop-value-2)
+			else if {_s} is "met":
+				if {_gapok} is true:
+					# Whole unix seconds: >= 3 is at least 2 real seconds, so JOB DONE never replaces a sale's title.
+					if progUnix() - jobsGet({_p}, {_c}, loop-value-2, "metat") >= 3:
+						set {_gapok} to false
+						jobsComplete({_p}, {_c}, loop-value-2)
+
+every second:
+	loop all players:
+		if loop-player is alive:
+			jobsPass(loop-player)
+
+on quit:
+	delete {-jobs::pass::%player%}
+	delete {-jobs::gui::%player%}
+	delete {-jobs::act::%player%::*}
+	delete {-jobs::arm::%player%}
+	delete {-jobs::armat::%player%}
+	delete {-jobs::gen::%player%}
+	delete {-jobs::swapmode::%player%}
+	delete {-ph::jobs::%player%}
+
+# The join hint (spec §8), after the first pass so fresh arrivals are counted (fence.sk's hint is folded in here).
+on join:
+	wait 7 seconds
+	player is online
+	set {_total} to 0
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		if jobsUnlocked(player, {_c}) is true:
+			set {_w} to 0
+			loop jobsSlots(player, {_c}) times:
+				if jobsState(player, {_c}, loop-value-2) is "waiting":
+					add 1 to {_w}
+			if {_w} > 0:
+				add {_w} to {_total}
+				set {_nm} to {-cfg::jobs::%{_c}%::name}
+				add "%{_nm}% %{_w}%" to {_names::*}
+	set {_vic} to fenceJoinHint(player)
+	if {_total} > 0:
+		set {_extra} to ""
+		if {_vic} is true:
+			set {_extra} to " &7· &6Vic has a new list"
+		hudBar(player, "&e✉ %{_total}% job(s) waiting (%join {_names::*} with ", "%)%{_extra}% &7· /jobs", 1)
+	else if {_vic} is true:
+		hudBar(player, "&6✉ Vic has a new Wanted List &7· the Pawn Shop", 1)
+
+# ---------- Swap and drop ----------
+
+function jobsSwap(p: player, c: text, k: number):
+	set {_s} to jobsState({_p}, {_c}, {_k})
+	if {_s} is not "waiting":
+		if {_s} is not "taken":
+			stop
+	if jobsGet({_p}, {_c}, {_k}, "prog") > 0:
+		hudBar({_p}, "&cThat job has progress: finish it or drop it.", 1)
+		stop
+	set {_last} to getData({_p}, "jobs::%{_c}%::swap")
+	if {_last} is set:
+		if progUnix() - {_last} < cfg("jobs::swap-hours") * 3600:
+			set {_wait} to ({_last} + cfg("jobs::swap-hours") * 3600) - progUnix()
+			hudBar({_p}, "&cOne swap per contact a day. Next: %formatClock({_wait})%.", 1)
+			stop
+	# Never a harder heist or tier than the old job.
+	set {_maxd} to 1
+	if {_c} is "mara":
+		set {_maxd} to heistDifficulty(jobsGetT({_p}, {_c}, {_k}, "h"))
+	else:
+		set {_maxd} to jobsTierRank(jobsGetT({_p}, {_c}, {_k}, "t"))
+	set {_at} to jobsGet({_p}, {_c}, {_k}, "at")
+	set {_old} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	# A swap never fishes for more pay (spec): the new job pays, gives and counts at most what the old one did.
+	set {_oldpay} to jobsGet({_p}, {_c}, {_k}, "pay")
+	set {_oldxp} to jobsGet({_p}, {_c}, {_k}, "xp")
+	set {_oldrep} to jobsGet({_p}, {_c}, {_k}, "rep")
+	set {_oldcold} to jobsGet({_p}, {_c}, {_k}, "cold")
+	if jobsRoll({_p}, {_c}, {_k}, {_maxd}) is false:
+		hudBar({_p}, "&7Nothing else fits right now.", 1)
+		stop
+	jobsSet({_p}, {_c}, {_k}, "at", {_at})
+	if {_oldpay} is set:
+		if jobsGet({_p}, {_c}, {_k}, "pay") > {_oldpay}:
+			jobsSet({_p}, {_c}, {_k}, "pay", {_oldpay})
+	if {_oldxp} is set:
+		if jobsGet({_p}, {_c}, {_k}, "xp") > {_oldxp}:
+			jobsSet({_p}, {_c}, {_k}, "xp", {_oldxp})
+	if {_oldrep} is set:
+		if jobsGet({_p}, {_c}, {_k}, "rep") > {_oldrep}:
+			jobsSet({_p}, {_c}, {_k}, "rep", {_oldrep})
+	if {_oldcold} is not true:
+		jobsSet({_p}, {_c}, {_k}, "cold", false)
+	if {_s} is "taken":
+		setData({_p}, "job::%{_c}%::%{_k}%", "taken")
+		jobsSet({_p}, {_c}, {_k}, "takenat", progUnix())
+		jobsOfferReset({_p}, {_c}, {_k})
+	setData({_p}, "jobs::%{_c}%::swap", progUnix())
+	jobsStat({_old}, "swapped")
+	set {_newt} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	jobsLog("swap %{_p}% %{_c}%:%{_k}% %{_old}% -> %{_newt}%")
+	hudBar({_p}, "&aSwapped: &f%jobsTitleOf({_p}, {_c}, {_k})%", 1)
+
+function jobsDrop(p: player, c: text, k: number):
+	# Only a taken job (a stale card can't drop a met one before it pays, or an empty slot).
+	if jobsState({_p}, {_c}, {_k}) is not "taken":
+		stop
+	# Arrivals first: a full board wastes them, so a drop never turns them into a free re-roll.
+	jobsFill({_p}, {_c})
+	set {_tpl} to jobsGetT({_p}, {_c}, {_k}, "tpl")
+	jobsStat({_tpl}, "dropped")
+	jobsLog("drop %{_p}% %{_c}%:%{_k}% %{_tpl}%")
+	if getData({_p}, "quest-track") is "job:%{_c}%:%{_k}%":
+		deleteData({_p}, "quest-track")
+	jobsForget({_p}, {_c}, {_k})
+	hudBar({_p}, "&7Job dropped.", 1)
+
+# ---------- The GPS, the sidebar, the boss bar (story.sk's questGps and questShow) ----------
+
+function jobsKeys(p: player) :: texts:
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		if jobsUnlocked({_p}, {_c}) is true:
+			loop jobsSlots({_p}, {_c}) times:
+				if jobsState({_p}, {_c}, loop-value-2) is "taken":
+					add "job:%{_c}%:%loop-value-2%" to {_out::*}
+	return {_out::*}
+
+function jobsTarget(p: player, key: text) :: boolean:
+	set {_a::*} to {_key} split at ":"
+	set {_c} to {_a::2}
+	set {_k} to {_a::3} parsed as number
+	if {_k} is not set:
+		return false
+	if jobsState({_p}, {_c}, {_k}) is not "taken":
+		return false
+	set {_u} to "%uuid of {_p}%"
+	set {_w} to "%world of {_p}%"
+	set {_spots} to ""
+	set {_label} to jobsTitleOf({_p}, {_c}, {_k})
+	if {_c} is "mara":
+		set {_h} to jobsGetT({_p}, {_c}, {_k}, "h")
+		if heistExists({_h}) is true:
+			if heistState({_h}) is not "disabled":
+				set {_l} to heistExit({_h})
+				if {_l} is set:
+					if "%world of {_l}%" is {_w}:
+						set {_spots} to gpsSpot({_l})
+						set {_label} to heistName({_h})
+	else:
+		loop {quest::giver::*}:
+			set {_g::*} to loop-value split at "|"
+			if {_g::1} is jobsGiver({_c}):
+				if {_g::2} is {_w}:
+					add "%{_g::3}%,%{_g::4}%,%{_g::5}%" to {_s::*}
+					if {_pl} is not set:
+						set {_pl} to {_g::7}
+		if size of {_s::*} > 0:
+			set {_spots} to join {_s::*} with ";"
+			set {_label} to {-cfg::quest::contracts::place}
+			if {_pl} is set:
+				set {_label} to {_pl}
+	if {_spots} is "":
+		return false
+	set {-qt::%{_u}%::world} to {_w}
+	set {-qt::%{_u}%::spots} to {_spots}
+	set {-qt::%{_u}%::label} to {_label}
+	set {-qt::%{_u}%::radius} to 6
+	set {-qt::%{_u}%::by} to "job"
+	set {_jat} to jobsGetT({_p}, {_c}, {_k}, "at")
+	set {-qt::%{_u}%::obj} to "%{_key}%:%{_jat}%"
+	return true
+
+function jobsLine(p: player, key: text) :: text:
+	set {_a::*} to {_key} split at ":"
+	set {_c} to {_a::2}
+	set {_k} to {_a::3} parsed as number
+	if {_k} is not set:
+		return ""
+	if jobsState({_p}, {_c}, {_k}) is not "taken":
+		return ""
+	return "&e✉ &f%jobsTitleOf({_p}, {_c}, {_k})% &7%jobsProgText({_p}, {_c}, {_k})%"
+
+# The tracked job's boss bar (hud.sk, after the missions').
+function jobsHud(p: player) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	if gpsActive({_p}) is "quest":
+		if {-gps::questby::%{_u}%} is "job":
+			# The job the GPS routes to (questGps's objective "job:<c>:<k>:<id>"), not the tracked or first one.
+			set {_key} to ""
+			set {_obj} to {-gps::questobj::%{_u}%}
+			if {_obj} is set:
+				if "%{_obj}%" starts with "job:":
+					set {_key} to "%{_obj}%"
+			if {_key} is not "":
+				set {_a::*} to {_key} split at ":"
+				set {_c} to {_a::2}
+				set {_k} to {_a::3} parsed as number
+				if {_k} is set:
+					if jobsState({_p}, {_c}, {_k}) is "taken":
+						set {_extra} to ""
+						set {_h} to jobsGetT({_p}, {_c}, {_k}, "h")
+						if heistExists({_h}) is true:
+							if heistState({_h}) is "cooldown":
+								set {_extra} to " &7· opens %formatClock(heistSecondsLeft({_h}))%"
+						set {_prog} to jobsGet({_p}, {_c}, {_k}, "prog") / max(1, jobsGet({_p}, {_c}, {_k}, "n"))
+						hudBossSet({_p}, "&e&lJOB&r &7· &f%jobsTitleOf({_p}, {_c}, {_k})% &7%jobsProgText({_p}, {_c}, {_k})% %gpsWay({_p})%%{_extra}%", "white", {_prog})
+						return true
+	return false
+
+# The main board's line: "✉ Jobs 2 new · 1 taken /jobs" (placeholders.sk %donating_jobs%).
+function jobsSidebar(p: player):
+	set {_new} to 0
+	set {_taken} to 0
+	set {_any} to false
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		if jobsUnlocked({_p}, {_c}) is true:
+			set {_any} to true
+			loop jobsSlots({_p}, {_c}) times:
+				set {_s} to jobsState({_p}, {_c}, loop-value-2)
+				if {_s} is "waiting":
+					add 1 to {_new}
+				else if {_s} is "taken":
+					add 1 to {_taken}
+	if {_any} is false:
+		set {-ph::jobs::%{_p}%} to "&r"
+		stop
+	set {_vic} to ""
+	if fenceArcDone({_p}) is true:
+		if getData({_p}, "fence::took") is not progWeek():
+			set {_vic} to " &7· &6Vic's list"
+	set {-ph::jobs::%{_p}%} to "&e✉ Jobs &f%{_new}% new &7· &f%{_taken}% taken%{_vic}% &7/jobs"
+
+every second:
+	loop all players:
+		jobsSidebar(loop-player)
+
+# heists.sk heistOnOpen: holders of a taken job on this heist hear it's open.
+function jobsOnHeistOpen(h: text):
+	loop all players:
+		loop jobsKeys(loop-player):
+			set {_a::*} to loop-value-2 split at ":"
+			set {_k} to {_a::3} parsed as number
+			if jobsGetT(loop-player, {_a::2}, {_k}, "h") is {_h}:
+				hudBar(loop-player, "&e✉ The %heistName({_h})% is open: your job's there.", 1)
+
+# contracts.sk ctRollOffer: a car model a Boss job or Vic's list wants for this tier ("" = none).
+function questWantModel(p: player, t: text) :: text:
+	set {_v} to fenceWantModel({_p}, {_t})
+	if {_v} is not "":
+		return {_v}
+	if jobsUnlocked({_p}, "boss") is true:
+		loop jobsSlots({_p}, "boss") times:
+			if jobsState({_p}, "boss", loop-number) is "taken":
+				if jobsGetT({_p}, "boss", loop-number, "tpl") is "model":
+					if jobsGetT({_p}, "boss", loop-number, "t") is {_t}:
+						return jobsGetT({_p}, "boss", loop-number, "m")
+	return ""
+
+# contracts.sk ctOfferIcon: lore lines when an offer counts for a job or Vic's order.
+function questOfferLines(p: player, t: text, m: text) :: texts:
+	if fenceWantModel({_p}, {_t}) is {_m}:
+		add "&6✉ Vic ordered this car" to {_out::*}
+	if jobsUnlocked({_p}, "boss") is true:
+		loop jobsSlots({_p}, "boss") times:
+			if jobsState({_p}, "boss", loop-number) is "taken":
+				set {_tpl} to jobsGetT({_p}, "boss", loop-number, "tpl")
+				set {_jt} to jobsGetT({_p}, "boss", loop-number, "t")
+				set {_jn} to jobsTitleOf({_p}, "boss", loop-number)
+				if {_tpl} is "model":
+					if jobsGetT({_p}, "boss", loop-number, "m") is {_m}:
+						add "&e✉ Counts for your job: %{_jn}%" to {_out::*}
+				else if jobsTierRank({_t}) >= jobsTierRank({_jt}):
+					add "&e✉ Counts for your job: %{_jn}%" to {_out::*}
+	return {_out::*}
+
+# ---------- /jobs ----------
+
+function jobsButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-jobs::act::%{_p}%::%{_slot}%} to {_act}
+
+function jobsHeistLine(h: text) :: text:
+	if heistExists({_h}) is false:
+		return ""
+	set {_s} to heistState({_h})
+	if {_s} is "open":
+		return "&aThe %heistName({_h})% is open now"
+	if {_s} is "active":
+		return "&eThe %heistName({_h})% is running, %formatClock(heistSecondsLeft({_h}))% left"
+	if {_s} is "cooldown":
+		return "&7The %heistName({_h})% reopens in %formatClock(heistSecondsLeft({_h}))%"
+	return "&cThe %heistName({_h})% is closed for now"
+
+function jobsCard(p: player, c: text, k: number, near: boolean) :: item:
+	set {_s} to jobsState({_p}, {_c}, {_k})
+	set {_name} to jobsTitleOf({_p}, {_c}, {_k})
+	set {_b} to jobsGetT({_p}, {_c}, {_k}, "bonus")
+	set {_r} to jobsGet({_p}, {_c}, {_k}, "pay")
+	add "&7%jobsGoalText({_p}, {_c}, {_k})%" to {_l::*}
+	if {_b} is not "":
+		add "&e★ Bonus: %{-cfg::jobs::bonus::%{_b}%::text}% (+50%%)" to {_l::*}
+	if jobsGet({_p}, {_c}, {_k}, "cold") is true:
+		add "&b❄ Cold heist: +25%%" to {_l::*}
+	set {_full} to floor({_r} * (1 + cfg("jobs::bonus-share")))
+	set {_jx} to jobsGetT({_p}, {_c}, {_k}, "xp")
+	set {_jr} to jobsGetT({_p}, {_c}, {_k}, "rep")
+	if {_b} is not "":
+		add "&7Pays &a%formatMoney({_r})% &7(★ &a%formatMoney({_full})%&7) · &b+%{_jx}% XP &7· &d+%{_jr}% rep" to {_l::*}
+	else:
+		add "&7Pays &a%formatMoney({_r})% &7· &b+%{_jx}% XP &7· &d+%{_jr}% rep" to {_l::*}
+	set {_hl} to jobsHeistLine(jobsGetT({_p}, {_c}, {_k}, "h"))
+	if {_hl} is not "":
+		add {_hl} to {_l::*}
+	if {_s} is "waiting":
+		set {_place} to {-cfg::quest::%jobsGiver({_c})%::place}
+		add "&7Waiting at the %{_place}%: pick it up in person." to {_l::*}
+		if {_near} is true:
+			add "&eClick: take your jobs." to {_l::*}
+		else:
+			add "&eClick: the GPS leads you there." to {_l::*}
+		return paper named "&6%{_name}% &7· %jobsName({_c})%" with lore {_l::*}
+	if {_s} is "met":
+		return lime dye named "&aDone: paying now" with lore {_l::*}
+	add "&7Progress: &f%jobsProgText({_p}, {_c}, {_k})%" to {_l::*}
+	if {_b} is not "":
+		if jobsGet({_p}, {_c}, {_k}, "bonusok") is true:
+			add "&a★ on track" to {_l::*}
+		else:
+			add "&c★ missed (the job still counts)" to {_l::*}
+	if getData({_p}, "quest-track") is "job:%{_c}%:%{_k}%":
+		add "&b◆ The GPS follows this job" to {_l::*}
+	else:
+		add "&eClick: show it on the GPS" to {_l::*}
+	add "&7Right-click twice: drop it" to {_l::*}
+	return writable book named "&6%{_name}% &7· %jobsName({_c})%" with lore {_l::*}
+
+function jobsMenu(p: player):
+	closePhoneMap({_p})
+	jobsUnlockCheck({_p})
+	# Arrivals are counted before the board is drawn (spec §2).
+	loop {-cfg::jobs::contacts::*}:
+		jobsFill({_p}, loop-value)
+	set {_gui} to chest inventory with 5 rows named "&8Jobs"
+	delete {-jobs::act::%{_p}%::*}
+	set {_pane} to gray stained glass pane named "&r"
+	loop 45 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	set slot 4 of {_gui} to book named "&6Jobs" with lore "&7Mara and the Scrap Yard Boss leave you a job every day." and "&7Up to 3 wait: they never expire. Pick them up in person." and "&e★ Bonus: +50%% &7· &b❄ cold heist: +25%%"
+	set {_row} to 0
+	loop {-cfg::jobs::contacts::*}:
+		set {_c} to loop-value
+		set {_base} to 9 + {_row} * 9
+		set {_who} to jobsName({_c})
+		set {_near} to false
+		if questNear({_p}, jobsGiver({_c})) is not "":
+			set {_near} to true
+		if jobsUnlocked({_p}, {_c}) is false:
+			if {_c} is "mara":
+				set slot {_base} of {_gui} to gray dye named "&7%{-cfg::jobs::%{_c}%::name}%" with lore "&7Finish Mara's missions to unlock."
+			else:
+				set slot {_base} of {_gui} to gray dye named "&7%{-cfg::jobs::%{_c}%::name}%" with lore "&7Deliver your first car job to unlock."
+		else:
+			set {_t} to jobsTier({_p}, {_c})
+			set {_tn} to {-cfg::jobs::reptier::%{_t}%::name}
+			set {_rep} to jobsRep({_p}, {_c})
+			set {_stars} to ""
+			loop 4 times:
+				if loop-value-2 <= {_t}:
+					set {_stars} to "%{_stars}%★"
+				else:
+					set {_stars} to "%{_stars}%☆"
+			set {_repl} to "&7Rep: &f%{_rep}%"
+			if {_t} < 4:
+				set {_nt} to {_t} + 1
+				set {_repl} to "&7Rep: &f%{_rep}%/%{-cfg::jobs::reptier::%{_nt}%::rep}% &7to %{-cfg::jobs::reptier::%{_nt}%::name}%"
+			set {_nx} to getData({_p}, "jobs::%{_c}%::next")
+			set {_nl} to "&7A new job every 20 hours"
+			if jobsUsed({_p}, {_c}) >= jobsSlots({_p}, {_c}):
+				set {_nl} to "&7Board full: finish one to get more"
+			else if {_nx} is set:
+				set {_nl} to "&7Next job in %formatClock(max(0, {_nx} - progUnix()))%"
+			set {_ic} to paper named "%{_who}% &7· %{_tn}% &e%{_stars}%" with lore {_repl} and {_nl} and "&7Where: &f%questNearestText({_p}, jobsGiver({_c}))%" and "&eClick: the GPS leads you there."
+			if {_near} is true:
+				set {_ic} to paper named "%{_who}% &7· %{_tn}% &e%{_stars}%" with lore {_repl} and {_nl} and "&eClick: take your jobs."
+				jobsButton({_p}, {_gui}, {_base}, {_ic}, "pickup:%{_c}%")
+			else:
+				jobsButton({_p}, {_gui}, {_base}, {_ic}, "find:%{_c}%")
+			loop jobsSlots({_p}, {_c}) times:
+				set {_k} to loop-value-2
+				set {_slot} to {_base} + {_k}
+				if jobsState({_p}, {_c}, {_k}) is "":
+					set slot {_slot} of {_gui} to light gray stained glass pane named "&7Empty" with lore "&7A new job comes every 20 hours."
+				else:
+					set {_card} to jobsCard({_p}, {_c}, {_k}, {_near})
+					if {-jobs::arm::%{_p}%} is "drop:%{_c}%:%{_k}%":
+						set {_card} to red concrete named "&cDrop this job?" with lore "&7Right-click again to confirm."
+					if {-jobs::swapmode::%{_p}%} is {_c}:
+						set {_card} to lime dye named "&aSwap this one?" with lore "&7%jobsTitleOf({_p}, {_c}, {_k})%" and "&eClick: a different job (at most as hard)."
+						jobsButton({_p}, {_gui}, {_slot}, {_card}, "swap:%{_c}%:%{_k}%")
+					else if jobsState({_p}, {_c}, {_k}) is "waiting":
+						if {_near} is true:
+							jobsButton({_p}, {_gui}, {_slot}, {_card}, "pickup:%{_c}%")
+						else:
+							jobsButton({_p}, {_gui}, {_slot}, {_card}, "find:%{_c}%")
+					else if jobsState({_p}, {_c}, {_k}) is "taken":
+						jobsButton({_p}, {_gui}, {_slot}, {_card}, "job:%{_c}%:%{_k}%")
+					else:
+						set slot {_slot} of {_gui} to {_card}
+			if {_near} is true:
+				jobsButton({_p}, {_gui}, {_base} + 8, lime dye named "&aSwap a job" with lore "&7Once a day per contact, here in person." and "&eClick, then click the job to swap.", "swapmode:%{_c}%")
+		add 1 to {_row}
+	# Vic the Fence's row: his arc, then his weekly Wanted List (fence.sk).
+	fenceRow({_p}, {_gui})
+	jobsButton({_p}, {_gui}, 36, writable book named "&dMissions" with lore "&7Mara's missions (and Vic's).", "missions")
+	jobsButton({_p}, {_gui}, 44, barrier named "&cClose", "close")
+	set {-jobs::gui::%{_p}%} to {_gui}
+	if {-jobs::gen::%{_p}%} is not set:
+		set {-jobs::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+function jobsTrack(p: player, c: text, k: number):
+	setData({_p}, "quest-track", "job:%{_c}%:%{_k}%")
+	questGps({_p})
+	set {_u} to "%uuid of {_p}%"
+	if {-gps::questby::%{_u}%} is "job":
+		set {-gps::active::%{_u}%} to "quest"
+		gpsPush({_p})
+		hudBar({_p}, "&eThe GPS shows your job.", 1)
+	else if {-ctjob::%{_u}%} is set:
+		hudBar({_p}, "&7The GPS shows your car job first.", 1)
+	else if bagTotal({_p}) > 0:
+		hudBar({_p}, "&7The GPS shows the base first (you're carrying loot).", 1)
+	else:
+		hudBar({_p}, "&7Nothing to show on the GPS for it right now.", 1)
+
+on inventory click:
+	{-jobs::gui::%player%} is set
+	player's current inventory is {-jobs::gui::%player%}
+	cancel event
+	event-inventory is {-jobs::gui::%player%}
+	set {_act} to {-jobs::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_right} to false
+	if click type is right mouse button:
+		set {_right} to true
+	else if click type is not left mouse button:
+		stop
+	set {_gen} to {-jobs::gen::%player%}
+	wait 1 tick
+	player is online
+	{-jobs::gen::%player%} is {_gen}
+	add 1 to {-jobs::gen::%player%}
+	set {_a::*} to {_act} split at ":"
+	if {_a::1} is "close":
+		close player's inventory
+	else if {_a::1} is "missions":
+		storyMenu(player)
+	else if {_a::1} is "find":
+		close player's inventory
+		questFind(player, jobsGiver({_a::2}))
+	else if {_a::1} is "vicfind":
+		close player's inventory
+		questFind(player, "fence")
+	else if {_a::1} is "vicgps":
+		close player's inventory
+		storyTrack(player, "vic")
+	else if {_a::1} is "pickup":
+		if questNear(player, jobsGiver({_a::2})) is not "":
+			jobsTalk(player, {_a::2}, true)
+	else if {_a::1} is "swapmode":
+		if {-jobs::swapmode::%player%} is {_a::2}:
+			delete {-jobs::swapmode::%player%}
+		else:
+			set {-jobs::swapmode::%player%} to {_a::2}
+		jobsMenu(player)
+	else if {_a::1} is "swap":
+		delete {-jobs::swapmode::%player%}
+		if questNear(player, jobsGiver({_a::2})) is not "":
+			jobsSwap(player, {_a::2}, {_a::3} parsed as number)
+		else:
+			hudBar(player, "&7Swaps only at the contact, in person.", 1)
+		jobsMenu(player)
+	else if {_a::1} is "job":
+		set {_k} to {_a::3} parsed as number
+		if {_right} is true:
+			set {_key} to "drop:%{_a::2}%:%{_k}%"
+			if {-jobs::arm::%player%} is {_key}:
+				if difference between {-jobs::armat::%player%} and now < 5 seconds:
+					delete {-jobs::arm::%player%}
+					jobsDrop(player, {_a::2}, {_k})
+					jobsMenu(player)
+					stop
+			set {-jobs::arm::%player%} to {_key}
+			set {-jobs::armat::%player%} to now
+			jobsMenu(player)
+		else:
+			close player's inventory
+			jobsTrack(player, {_a::2}, {_k})
+
+on inventory drag:
+	{-jobs::gui::%player%} is set
+	player's current inventory is {-jobs::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-jobs::gui::%player%} is set
+	event-inventory is {-jobs::gui::%player%}
+	delete {-jobs::gui::%player%}
+	delete {-jobs::act::%player%::*}
+	# Swap mode and an armed drop end with the menu (a redraw sets the new menu first, so it doesn't land here).
+	delete {-jobs::swapmode::%player%}
+	delete {-jobs::arm::%player%}
+	delete {-jobs::armat::%player%}
+
+command /jobs:
+	description: Your jobs from Mara and the Scrap Yard Boss.
+	aliases: /job
+	executable by: players
+	trigger:
+		jobsMenu(player)
+
+# ---------- Staff ----------
+
+command /djobs [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		# Commands that pay, grant or rebuild progress: donating.quests.admin (the owner through *) and the console only.
+		if sender is a player:
+			loop "met", "post", "unlock", "empty", "lock", "clear" and "rep":
+				if {_sub} is loop-value:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
+		if {_sub} is "stats":
+			loop {-cfg::jobs::mara::templates::*} and {-cfg::jobs::boss::templates::*}:
+				set {_t} to loop-value
+				send "JOBSTATS %{_t}% posted=%{jobstats::%{_t}%::posted}% taken=%{jobstats::%{_t}%::taken}% done=%{jobstats::%{_t}%::done}% bonus=%{jobstats::%{_t}%::bonus}% dropped=%{jobstats::%{_t}%::dropped}% swapped=%{jobstats::%{_t}%::swapped}% voided=%{jobstats::%{_t}%::voided}%" to sender
+			stop
+		set {_who} to {_a::2} parsed as player
+		if {_who} is not set:
+			send "JOBS usage: /djobs info|take|fill|unlock|lock|clear|rep|met|post <online player> [contact] [...] | stats" to sender
+			stop
+		set {_c} to {_a::3}
+		if {_sub} is "info":
+			loop {-cfg::jobs::contacts::*}:
+				set {_cc} to loop-value
+				set {_iu} to getData({_who}, "jobs::%{_cc}%::unlocked")
+				set {_in} to getData({_who}, "jobs::%{_cc}%::next")
+				set {_id} to getData({_who}, "jobs::%{_cc}%::done")
+				send "JOBS %{_who}% %{_cc}% unlocked=%{_iu}% next=%{_in}% rep=%jobsRep({_who}, {_cc})% tier=%jobsTier({_who}, {_cc})% done=%{_id}%" to sender
+				loop jobsSlots({_who}, {_cc}) times:
+					set {_k} to loop-value-2
+					set {_s} to jobsState({_who}, {_cc}, {_k})
+					if {_s} is not "":
+						set {_line} to "JOB %{_who}% %{_cc}%:%{_k}%=%{_s}%"
+						loop "tpl", "h", "t", "m", "bonus", "n", "pay", "prog", "bonusok", "cold" and "passive":
+							set {_fv} to jobsGetT({_who}, {_cc}, {_k}, loop-value-3)
+							set {_line} to "%{_line}% %loop-value-3%=%{_fv}%"
+						send {_line} to sender
+			stop
+		if {_c} is not set:
+			set {_c} to ""
+		if {_sub} is "take":
+			loop {-cfg::jobs::contacts::*}:
+				jobsPickup({_who}, loop-value)
+			send "JOBS %{_who}% took their waiting jobs" to sender
+		else if {_sub} is "fill":
+			loop {-cfg::jobs::contacts::*}:
+				jobsFill({_who}, loop-value)
+			send "JOBS %{_who}% filled" to sender
+		else if {_sub} is "unlock":
+			setData({_who}, "jobs::%{_c}%::unlocked", true)
+			setData({_who}, "jobs::%{_c}%::next", progUnix() - 2 * cfg("jobs::hours") * 3600)
+			jobsFill({_who}, {_c})
+			send "JOBS %{_who}% %{_c}% unlocked" to sender
+		else if {_sub} is "empty":
+			# Unlocked with an empty board and no arrivals for 30 days (tests post known jobs with "post").
+			setData({_who}, "jobs::%{_c}%::unlocked", true)
+			setData({_who}, "jobs::%{_c}%::next", progUnix() + 2592000)
+			loop 4 times:
+				jobsForget({_who}, {_c}, loop-number)
+			send "JOBS %{_who}% %{_c}% empty" to sender
+		else if {_sub} is "lock":
+			setData({_who}, "jobs::%{_c}%::unlocked", "off")
+			send "JOBS %{_who}% %{_c}% locked" to sender
+		else if {_sub} is "clear":
+			loop {-cfg::jobs::contacts::*}:
+				set {_cc} to loop-value
+				loop 4 times:
+					jobsForget({_who}, {_cc}, loop-value-2)
+				delete {data::%{_who}%::jobs::%{_cc}%::*}
+			deleteData({_who}, "quest-track")
+			send "JOBS %{_who}% cleared" to sender
+		else if {_sub} is "rep":
+			jobsRepAdd({_who}, {_c}, {_a::4} parsed as number)
+			send "JOBS %{_who}% %{_c}% rep=%jobsRep({_who}, {_c})% tier=%jobsTier({_who}, {_c})%" to sender
+		else if {_sub} is "met":
+			set {_k} to {_a::4} parsed as number
+			setData({_who}, "job::%{_c}%::%{_k}%", "met")
+			jobsSet({_who}, {_c}, {_k}, "metat", progUnix() - 5)
+			send "JOBS %{_who}% %{_c}%:%{_k}% met" to sender
+		else if {_sub} is "post":
+			# post <player> <contact> <slot> <tpl> <heist|tier> [bonus] [model]: a known job for tests.
+			set {_k} to {_a::4} parsed as number
+			set {_tpl} to {_a::5}
+			set {_x} to {_a::6}
+			set {_b} to ""
+			if {_a::7} is set:
+				if {_a::7} is not "-":
+					set {_b} to {_a::7}
+			set {_m} to ""
+			if {_a::8} is set:
+				set {_m} to {_a::8}
+			if {_c} is "mara":
+				set {_n} to jobsGoal({_who}, {_x})
+				jobsWrite({_who}, "mara", {_k}, {_tpl}, {_x}, "", "", {_b}, {_n}, jobsBasePay(cfg("jobs::tpl::%{_tpl}%::beta"), {_n}), false)
+			else:
+				set {_n} to 1
+				if {_tpl} is "double":
+					set {_n} to 2
+				jobsWrite({_who}, "boss", {_k}, {_tpl}, "", {_x}, {_m}, {_b}, {_n}, jobsBasePay(cfg("jobs::tpl::%{_tpl}%::beta"), cfg("contract::%{_x}%::pay")), false)
+			send "JOBS %{_who}% %{_c}%:%{_k}% posted %{_tpl}% %{_x}% bonus=%{_b}%" to sender
+		else:
+			send "JOBS usage: /djobs info|take|fill|unlock|lock|clear|rep|met|post <online player> [contact] [...] | stats" to sender

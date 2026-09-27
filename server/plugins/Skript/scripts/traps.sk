@@ -687,6 +687,8 @@ function trapFire(p: player, h: text, n: text):
 		set {_phase} to "-"
 	set {_where} to "x=%x-coordinate of {_l}% y=%y-coordinate of {_l}% z=%z-coordinate of {_l}% phase=%{_phase}%"
 	if {_p} is not alive:
+		# A trap hit this robber in this run (progress.sk: a job's Ghost bonus). Only a hit that landed.
+		progRunMark({_p}, {_h}, "touched", true)
 		trapLog("kill %name of {_p}% %uuid of {_p}% %{_id}% %{_k}% dmg=%{_dmg} * 2% %{_where}%")
 		stop
 	set {_after} to health of {_p}
@@ -698,6 +700,7 @@ function trapFire(p: player, h: text, n: text):
 		if trapCooldown("hitfail::%{_p}%", 2 seconds) is true:
 			trapLog("hit-failed %name of {_p}% %{_id}% %{_k}%")
 		stop
+	progRunMark({_p}, {_h}, "touched", true)
 	trapNotify({_p}, "hit", "&c-%{_dmg}% ❤ &7%{_k}%")
 	trapLog("hit %name of {_p}% %uuid of {_p}% %{_id}% %{_k}% dmg=%{_dmg} * 2% hp=%{_before} * 2%->%{_after} * 2% %{_where}%")
 

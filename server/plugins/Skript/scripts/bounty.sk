@@ -4,7 +4,8 @@
 #     cfg("bounty::repeat-kill-window") adds nothing.
 #   - Robberies: bag.sk calls addBounty(p, sale value × cfg("bounty::robbery-share"), "robbery").
 #   - Players can place a bounty on someone else: /bounty <player> <amount>, at least
-#     cfg("bounty::min-placed"). The money is taken from the placer.
+#     cfg("bounty::min-placed"). The money is taken from the placer. It's posted in person with the Broker (hits.sk's
+#     quest giver, within quest::reach); a map with no Broker keeps posting anywhere. /bounty alone lists them anywhere.
 #   - A bounty stays until a player kills you (combat logs count, credited by combat-log.sk), then the
 #     killer is paid all of it and it's gone. Cop and trap deaths leave it.
 #   - Passive players can't gain, claim or place bounties, and nobody can place one on them.
@@ -120,6 +121,15 @@ command /bounty [<offline player>] [<number>]:
 			stop
 		placeBounty(player, arg-1, arg-2)
 
+# "" when the player may post a bounty here: next to the Broker, or anywhere while no Broker stands in their world.
+function bountyPostBlock(p: player) :: text:
+	if questNear({_p}, "hits") is not "":
+		return ""
+	set {_n} to questNearestText({_p}, "hits")
+	if {_n} is "":
+		return ""
+	return "Bounties are posted with the Broker at the %{_n}%: the GPS leads you there."
+
 function placeBounty(p: player, target: offline player, amount: number):
 	set {_amount} to floor({_amount})
 	set {_tname} to name of {_target}
@@ -144,6 +154,15 @@ function placeBounty(p: player, target: offline player, amount: number):
 		msg({_p}, "&cA bounty is at least %{_min}%.")
 		stop
 	set {_money} to formatMoney({_amount})
+	if balance of {_p} < {_amount}:
+		msg({_p}, "&cYou don't have %{_money}%.")
+		stop
+	# Everything else checked first, so nobody walks to the Broker only to be refused there.
+	set {_bw} to bountyPostBlock({_p})
+	if {_bw} is not "":
+		msg({_p}, "&7%{_bw}%")
+		questFind({_p}, "hits")
+		stop
 	if chargeMoney({_p}, {_amount}) is not true:
 		msg({_p}, "&cYou don't have %{_money}%.")
 		stop

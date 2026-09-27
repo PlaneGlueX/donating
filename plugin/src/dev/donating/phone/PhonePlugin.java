@@ -29,6 +29,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.map.MapPalette;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.entity.EntitySpawnEvent;
+import org.bukkit.entity.Entity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapCanvas;
@@ -87,6 +89,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final Map<UUID, State> states = new HashMap<>();
     private final Renderer renderer = new Renderer();
     private final Gps gps = new Gps(this);
+    private final Marks marks = new Marks(this);
+    /** Personal views (pv.sk): entities tagged this are invisible to everyone before they exist; Skript reveals them. */
+    static final String PV_TAG = "donating_pv";
     // GPS colors on the map (the route line; the road grid when staff look at it).
     private byte routePin, routeQuest, routeLoot, gridRoad, gridBlocked;
 
@@ -116,12 +121,14 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         load();
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
+        marks.start();
         for (Player p : Bukkit.getOnlinePlayers()) assign(p);
     }
 
     @Override
     public void onDisable() {
         gps.shutdown(); // the worker thread, a running road scan, and every GPS dot stand
+        marks.shutdown();
     }
 
     /** Makes a player's phone draw its whole view again (the GPS route or the road grid changed). */
@@ -282,7 +289,19 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         assigned.remove(id);
         states.remove(id);
         gps.quit(e.getPlayer());
+        marks.remove(id);
         e.getPlayer().removeMetadata(META, this);
+    }
+
+    /**
+     * Personal views: an entity Skript tags "donating_pv" inside its spawn section is made invisible to everyone
+     * here, before it's added to the world (so no player is ever sent it); pv.sk then reveals it to its owner.
+     * Skript and SkBee can't set visibleByDefault, and a hide after the spawn line would already have leaked a packet.
+     * Every entity spawn event (creatures, items, projectiles) goes through EntitySpawnEvent.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPersonalSpawn(EntitySpawnEvent e) {
+        if (e.getEntity().getScoreboardTags().contains(PV_TAG)) e.getEntity().setVisibleByDefault(false);
     }
 
     /**
@@ -453,10 +472,10 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "gps"));
+            options.addAll(List.of("reload", "status", "roads", "gps", "mark", "pv"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
-                case "status", "gps" -> options.addAll(players);
+                case "status", "gps", "mark" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
                 default -> { }
             }
@@ -483,6 +502,26 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("mark")) {
+            if (args.length == 3 && args[2].equalsIgnoreCase("status")) {
+                Player p = Bukkit.getPlayerExact(args[1]);
+                sender.sendMessage(p == null ? "MARK no player " + args[1] : marks.status(p));
+                return true;
+            }
+            return marks.command(sender, args);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("pv")) {
+            // PV <uuid> default=<visibleByDefault> tracked=<players it's sent to> see=<players who can see it>
+            Entity en;
+            try { en = Bukkit.getEntity(UUID.fromString(args[1])); } catch (IllegalArgumentException ex) { en = null; }
+            if (en == null) { sender.sendMessage("PV " + args[1] + " none"); return true; }
+            List<String> tracked = new ArrayList<>();
+            for (Player p : en.getTrackedBy()) tracked.add(p.getName());
+            List<String> see = new ArrayList<>();
+            for (Player p : Bukkit.getOnlinePlayers()) if (p.canSee(en)) see.add(p.getName());
+            sender.sendMessage("PV " + args[1] + " default=" + en.isVisibleByDefault() + " tracked=" + String.join(",", tracked) + " see=" + String.join(",", see));
+            return true;
+        }
         if (args.length == 2 && args[0].equalsIgnoreCase("status")) {
             Player p = Bukkit.getPlayerExact(args[1]);
             MapView v = p == null ? null : assigned.get(p.getUniqueId());
@@ -498,6 +537,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
             sender.sendMessage("/dphone roads [info | scan [x1 z1 x2 z2] | cancel | show <player> [on|off]]: the GPS road grid");
             sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
+            sender.sendMessage("/dphone mark <player> <entity-uuid> <color|#RRGGBB> <range> | <player> off | <player> status: a locator dot on an entity for one player (hits.sk)");
+            sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
             return true;
         }
         load();

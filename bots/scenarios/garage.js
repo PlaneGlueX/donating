@@ -291,9 +291,13 @@ module.exports = async ({ check }) => {
     bots[A].clickWindow(9, 0, 0).catch(() => {})
     await sleep(1500)
     const wasOut = (await stands(plate)) === 3
+    // A parked car waits while its owner is within car::idle-near (citygarage.sk's rule): walk away first.
+    await cmd(`minecraft:tp ${A} ${FAR}`)
     t = Date.now()
     const gone = await until(async () => (await stands(plate)) === 0 && !/,out,/.test(await info(A)), 25000)
-    check('a car nobody uses goes back to the garage by itself (idle), and its owner is told', wasOut && gone && /stood unused/.test(text(A, t)), `${wasOut} ${gone} ${text(A, t)} ${await info(A)}`)
+    check('a car nobody uses goes back to the garage by itself (idle, once its owner is away), and its owner is told', wasOut && gone && /stood unused/.test(text(A, t)), `${wasOut} ${gone} ${text(A, t)} ${await info(A)}`)
+    await cmd(`minecraft:tp ${A} 1210.5 ${Y} 1210.5 -90 0`)
+    await sleep(800)
     await cmd('zzcfgtime car::idle-despawn 5 minutes')
     await sleep(1200)
     o2 = windowOpen(bots[A])

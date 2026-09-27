@@ -79,16 +79,22 @@ function openPhone(p: player):
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
-	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
+	# Cars come out at garages (citygarage.sk); Valet (Elite, Legend) calls them anywhere.
+	if garageAccessBlock({_p}) is "":
+		set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
+	else:
+		set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Where your cars are; lock or send them back." and "&7Cars come out at garages.", "phone:garage")
 	set {_jobs} to flint named "&6Contracts" with lore "&7Car-theft jobs: steal a car and" and "&7bring it to a chop shop for cash." and "&7Jobs and lockpicks: from contract givers."
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_jobs} to "donating:lockpick_basic"
 	set slot 9 of {_gui} to tagItem({_jobs}, "phone:contracts")
 	set slot 4 of {_gui} to tagItem(compass named "&bGPS" with lore "&7Pin a place and follow the way" and "&7along the roads (it finds a new one" and "&7if you take another street)." and "&7Or left-click the big map.", "phone:gps")
 	set slot 2 of {_gui} to tagItem(nether star named "&6Season" with lore "&7Three leaderboards: Top Earners," and "&7Master Thieves, Wheelmen. The top 10" and "&7of each win titles, money and keys.", "phone:season")
 	set slot 6 of {_gui} to tagItem(writable book named "&dMissions" with lore "&7Mara's jobs: your next step" and "&7through the city, one at a time.", "phone:missions")
+	set slot 8 of {_gui} to tagItem(crossbow named "&cHits" with lore "&7This week's wanted target: take a" and "&7contract from the Broker, hunt them" and "&7while they're in town.", "phone:hits")
+	set slot 7 of {_gui} to tagItem(paper named "&eJobs" with lore "&7Daily jobs from Mara and the Boss." and "&7Picked up in person, they never expire.", "phone:jobs")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
-	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
+	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online." and "&7Post one with the Broker.", "phone:bounties")
 	set slot 25 of {_gui} to tagItem(leather named "&6Bag" with lore "&7What's in your heist bag.", "phone:bag")
 	set slot 23 of {_gui} to tagItem(book named "&aHow to play" with lore "&7Heists, your bag, passive mode.", "phone:help")
 	set slot 26 of {_gui} to tagItem(barrier named "&cClose", "phone:close")
@@ -158,6 +164,12 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 6:
 		close {_p}'s inventory
 		storyMenu({_p})
+	else if {_slot} is 7:
+		close {_p}'s inventory
+		jobsMenu({_p})
+	else if {_slot} is 8:
+		close {_p}'s inventory
+		hitMenu({_p})
 	else if {_slot} is 21:
 		close {_p}'s inventory
 		showBounties({_p})

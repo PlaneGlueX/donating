@@ -74,12 +74,9 @@ function copWave(h: text, wave: number):
 	loop {_n} times:
 		copSpawn({_h})
 
-# True while a cop is being made (at most 3 s: a stuck flag can't block the cops for good).
+# True while a cop (or a hit NPC, hits.sk) is being made: core.sk's npcBusy, one Citizens NPC at a time.
 function copBusy() :: boolean:
-	if {-cop::busy} is set:
-		if difference between {-cop::busy} and now < 3 seconds:
-			return true
-	return false
+	return npcBusy()
 
 # Makes one cop at the next cop spot, then waits (up to 2 s) until Citizens has spawned it: Citizens
 # spawns a player NPC a tick or more after the command, and again once its skin is on. Only one cop is
@@ -100,7 +97,7 @@ function copSpawn(h: text):
 	if size of {_spots::*} is 0:
 		copLog("no-spot %{_h}%")
 		stop
-	set {-cop::busy} to now
+	set {-npc::busy} to now
 	add 1 to {-cop::next::%{_h}%}
 	set {_i} to mod({-cop::next::%{_h}%}, size of {_spots::*}) + 1
 	set {_base} to {_spots::%{_i}%}
@@ -127,14 +124,14 @@ function copSpawn(h: text):
 		if {_id} is "":
 			add 1 to {_tries}
 			if {_tries} > 40:
-				delete {-cop::busy}
+				delete {-npc::busy}
 				copLog("spawn-failed %{_h}% at %{_x}% %{_y}% %{_z}% (the sweep removes it if it appears later)")
 				stop
 			wait 1 tick
 	set {cops::ids::%{_id}%} to {_h}
 	set {-cop::heist::%{_id}%} to {_h}
 	set {-cop::ids::%{_h}%::%{_id}%} to true
-	delete {-cop::busy}
+	delete {-npc::busy}
 	copSetup({_id}, {_h})
 	copLog("spawn %{_h}% id=%{_id}% at %floor({_x})% %floor({_y})% %floor({_z})% after %{_tries}% ticks")
 	# The alarm may have ended while it was being made.

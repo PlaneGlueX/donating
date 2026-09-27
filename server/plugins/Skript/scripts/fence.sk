@@ -1,0 +1,398 @@
+# fence.sk: Vic the Fence's weekly Wanted List. Built 2026-09-27 (owner, 2026-09-27: picked "Vic the Fence" from the
+# quest research: a contact arc that unlocks a weekly business, GTA's story-then-loop pattern).
+#
+# Vic is a quest giver of the kind "fence" (the Pawn Shop). His arc is story.sk's chain "vic" (from level 3, next to
+# Mara's); its end (v6_end's reward "fence|list") hands over the first list. Every Thursday 00:00 UTC (progress.sk's
+# week) one list is rolled for everyone (saved, so a restart or Minehut sleep never re-rolls it):
+#   1. a heist (the least robbed last week, difficulty 2+, level 3 or lower, with loot piles): +30% on up to
+#      L1 = min(cap::<d>, 0.5 x its pool) of loot you robbed yourself from it;
+#   2. a difficulty (3, 2, 4 in turn): +15% on up to cap::<d> of your own loot from heists that hard;
+#   3. a car (a Street or Pro model): a flat pay once, delivered through any normal car job.
+# Each player picks the week's list up in person at the Pawn Shop; sales after that pay the premium (bag.sk calls
+# fenceSalePay after each sale): own loot only (progress.sk's ledger; a picked-up duffel pays none), each dollar
+# counts once (the heist order first), passive players 0.75x, never boosted, no season points, no XP, no bounty.
+# Saved: {fence::week}, {fence::order::1..3} ("heist|<h>|<rate>|<L>", "diff|<d>|<rate>|<L>", "car|<model>|<tier>|<pay>"),
+# {fence::lastheist}; per player data fence::took (the week picked up), fence::w, fence::used::1|2, fence::car (the week
+# the car order was filled). Staff: /dfence. Log: plugins\Skript\logs\fence.log.
+
+function fenceLog(text: text):
+	log {_text} to "fence"
+
+function fenceArcDone(p: player) :: boolean:
+	if storyIdOf({_p}, "vic") is "done":
+		return true
+	return false
+
+function fenceActive(p: player) :: boolean:
+	if fenceArcDone({_p}) is true:
+		if getData({_p}, "fence::took") is progWeek():
+			return true
+	return false
+
+# Resets a player's usage when the week turned.
+function fenceUsage(p: player):
+	set {_w} to progWeek()
+	if getData({_p}, "fence::w") is not {_w}:
+		setData({_p}, "fence::w", {_w})
+		setData({_p}, "fence::used::1", 0)
+		setData({_p}, "fence::used::2", 0)
+
+function fenceUsed(p: player, i: number) :: number:
+	fenceUsage({_p})
+	set {_u} to getData({_p}, "fence::used::%{_i}%")
+	if {_u} is set:
+		return {_u}
+	return 0
+
+function fenceOrder(i: number) :: text:
+	set {_o} to {fence::order::%{_i}%}
+	if {_o} is set:
+		return "%{_o}%"
+	return ""
+
+# ---------- The week's list ----------
+
+function fenceHeistOk(h: text, pile: boolean) :: boolean:
+	if heistExists({_h}) is false:
+		return false
+	if heistState({_h}) is "disabled":
+		return false
+	if heistIsPvp({_h}) is true:
+		return false
+	if heistDifficulty({_h}) < cfg("fence::heist::min-difficulty"):
+		return false
+	if heistLevel({_h}) > cfg("fence::level"):
+		return false
+	if {_pile} is true:
+		return storyHasGate({_h}, "pile")
+	return true
+
+function fenceRoll(w: number):
+	delete {fence::order::*}
+	# Heat older than last week isn't needed any more.
+	loop 9 times:
+		set {_old} to {_w} - loop-number - 1
+		delete {heat::w::%{_old}%::*}
+	# 1. The least robbed heist last week (not last week's order on a tie).
+	set {_prev} to {_w} - 1
+	set {_best} to -1
+	loop {heists::*}:
+		set {_h} to loop-index
+		if fenceHeistOk({_h}, true) is true:
+			set {_heat} to {heat::w::%{_prev}%::%{_h}%}
+			if {_heat} is not set:
+				set {_heat} to 0
+			if {_h} is {fence::lastheist}:
+				set {_heat} to {_heat} + 0.5
+			set {_heat} to {_heat} + random number between 0 and 0.1
+			if {_best} < 0:
+				set {_best} to {_heat}
+				set {_pick} to {_h}
+			else if {_heat} < {_best}:
+				set {_best} to {_heat}
+				set {_pick} to {_h}
+	if {_pick} is set:
+		set {_d} to heistDifficulty({_pick})
+		set {_l1} to min(cfg("fence::heist::cap::%{_d}%"), floor(cfg("fence::heist::pool-share") * heistSetting({_pick}, "loot-pool")))
+		set {fence::order::1} to "heist|%{_pick}%|%cfg("fence::heist::rate")%|%{_l1}%"
+		set {fence::lastheist} to {_pick}
+	# 2. A difficulty in turn (the next one when no heist is that hard).
+	set {_n} to size of {-cfg::fence::diff::cycle::*}
+	set {_start} to mod({_w}, {_n})
+	loop {_n} times:
+		if {_dstar} is not set:
+			set {_i} to mod({_start} + loop-number - 1, {_n}) + 1
+			set {_cand} to {-cfg::fence::diff::cycle::%{_i}%}
+			loop {heists::*}:
+				if {_dstar} is not set:
+					if fenceHeistOk(loop-index, false) is true:
+						if heistDifficulty(loop-index) >= {_cand}:
+							set {_dstar} to {_cand}
+	if {_dstar} is set:
+		set {_rate} to cfg("fence::diff::rate")
+		set {_cap} to cfg("fence::diff::cap::%{_dstar}%")
+		set {fence::order::2} to "diff|%{_dstar}%|%{_rate}%|%{_cap}%"
+	# 3. A car, when the map has car jobs (a contracts giver, a car spot and a chop shop).
+	set {_giver} to false
+	loop {quest::giver::*}:
+		if loop-value starts with "contracts|":
+			set {_giver} to true
+	if {_giver} is false:
+		delete {_ms::*}
+	else if size of {contract::spot::*} > 0:
+		if size of {contract::chop::*} > 0:
+			set {_tn} to size of {-cfg::fence::car::tiers::*}
+			set {_ti} to mod({_w}, {_tn}) + 1
+			set {_tier} to {-cfg::fence::car::tiers::%{_ti}%}
+			loop {-cfg::contractcars::%{_tier}%::*}:
+				if carExists(loop-value) is true:
+					add loop-value to {_ms::*}
+			set {_m} to random element out of {_ms::*}
+			if {_m} is set:
+				set {_pay} to cfg("fence::car::%{_tier}%::pay")
+				set {fence::order::3} to "car|%{_m}%|%{_tier}%|%{_pay}%"
+	set {fence::week} to {_w}
+	fenceLog("roll W=%{_w}% o1=%{fence::order::1}% o2=%{fence::order::2}% o3=%{fence::order::3}%")
+
+function fenceTick():
+	set {_w} to progWeek()
+	if {fence::week} is not {_w}:
+		fenceRoll({_w})
+
+on load:
+	wait 3 seconds
+	fenceTick()
+
+every minute:
+	fenceTick()
+
+# ---------- Picking it up, in person ----------
+
+function fenceTakeList(p: player):
+	fenceTick()
+	set {_w} to progWeek()
+	setData({_p}, "fence::took", {_w})
+	fenceUsage({_p})
+	# The car order's tier: its offer at the Scrap Yard rolls again (with the ordered model).
+	set {_o3} to fenceOrder(3)
+	if {_o3} is not "":
+		set {_a::*} to {_o3} split at "|"
+		delete {-ctoffer::%uuid of {_p}%::%{_a::3}%}
+	storyText({_p}, "Vic", "Fresh list. Don't make me wait.")
+	fenceLog("took %{_p}% %uuid of {_p}% W=%{_w}%")
+
+# Talking to Vic with no talk mission due (story.sk storyTalkKind).
+function fenceTalk(p: player):
+	if fenceArcDone({_p}) is true:
+		if getData({_p}, "fence::took") is not progWeek():
+			fenceTakeList({_p})
+		jobsMenu({_p})
+		stop
+	if storyLive(storyIdOf({_p}, "vic")) is true:
+		storyMenu({_p})
+		stop
+	hudBar({_p}, "&6Vic: &7Come back when people know your name. &f(Level %cfg("fence::level")%)", 1)
+
+# ---------- Premiums (progress.sk calls fenceEvent; bag.sk calls fenceSalePay after each sale) ----------
+
+function fenceEvent(p: player, ev: text, n: number, detail: text, own: number):
+	fenceActive({_p}) is true
+	if {_ev} is "sell":
+		{_own} > 0
+		set {_hp::*} to {_detail} split at "#"
+		set {_h} to {_hp::1}
+		set {_o} to {_own}
+		set {_v} to 0
+		set {_o1} to fenceOrder(1)
+		if {_o1} is not "":
+			set {_a::*} to {_o1} split at "|"
+			if {_a::2} is {_h}:
+				set {_cap} to {_a::4} parsed as number
+				set {_used} to fenceUsed({_p}, 1)
+				set {_x} to max(0, min({_o}, {_cap} - {_used}))
+				if {_x} > 0:
+					setData({_p}, "fence::used::1", {_used} + {_x})
+					set {_o} to {_o} - {_x}
+					add ({_a::3} parsed as number) * {_x} to {_v}
+					add "%heistName({_h})% %formatMoney({_used} + {_x})%/%formatMoney({_cap})%" to {-fence::saletext::%{_p}%::*}
+					if {_used} + {_x} >= {_cap}:
+						set {-fence::filled::%{_p}%} to "heist"
+		set {_o2} to fenceOrder(2)
+		if {_o2} is not "":
+			if heistExists({_h}) is true:
+				set {_b::*} to {_o2} split at "|"
+				if heistDifficulty({_h}) >= ({_b::2} parsed as number):
+					set {_cap} to {_b::4} parsed as number
+					set {_used} to fenceUsed({_p}, 2)
+					set {_x} to max(0, min({_o}, {_cap} - {_used}))
+					if {_x} > 0:
+						setData({_p}, "fence::used::2", {_used} + {_x})
+						add ({_b::3} parsed as number) * {_x} to {_v}
+						add "Difficulty %{_b::2}%+ %formatMoney({_used} + {_x})%/%formatMoney({_cap})%" to {-fence::saletext::%{_p}%::*}
+		if {_v} > 0:
+			add {_v} to {-fence::sale::%{_p}%}
+			fenceLog("prem %{_p}% %uuid of {_p}% tag=%{_detail}% own=%{_own}% v=%{_v}%")
+	else if {_ev} is "contract":
+		set {_o3} to fenceOrder(3)
+		{_o3} is not ""
+		getData({_p}, "fence::car") is not progWeek()
+		set {_ct} to {-prog::ct::%uuid of {_p}%}
+		{_ct} is set
+		set {_c::*} to {_ct} split at "|"
+		set {_a::*} to {_o3} split at "|"
+		{_c::1} is {_a::2}
+		set {_pay} to {_a::4} parsed as number
+		set {_m} to 1
+		if isPassive({_p}) is true:
+			set {_m} to cfg("passive::payout-multiplier")
+		set {_pay} to floor({_pay} * {_m})
+		giveMoney({_p}, {_pay})
+		setData({_p}, "fence::car", progWeek())
+		msg({_p}, "&6✉ Vic's list: &a+%formatMoney({_pay})% &7(the %carName({_a::2})% he ordered)")
+		storyText({_p}, "Vic", "That's the one.")
+		fenceLog("car %{_p}% %uuid of {_p}% model=%{_a::2}% pay=%{_pay}%")
+
+# After a sale: Vic's premium for it, as one line.
+function fenceSalePay(p: player):
+	set {_v} to {-fence::sale::%{_p}%}
+	delete {-fence::sale::%{_p}%}
+	set {_lines::*} to {-fence::saletext::%{_p}%::*}
+	delete {-fence::saletext::%{_p}%::*}
+	set {_filled} to {-fence::filled::%{_p}%}
+	delete {-fence::filled::%{_p}%}
+	{_v} is set
+	set {_m} to 1
+	if isPassive({_p}) is true:
+		set {_m} to cfg("passive::payout-multiplier")
+	set {_pay} to floor({_v} * {_m})
+	{_pay} > 0
+	giveMoney({_p}, {_pay})
+	msg({_p}, "&6✉ Vic's list: &a+%formatMoney({_pay})% &7(%join {_lines::*} with " · "%)")
+	if {_filled} is "heist":
+		storyText({_p}, "Vic", "That order's filled. Pleasure doing business.")
+	fenceLog("pay %{_p}% %uuid of {_p}% v=%{_v}% m=%{_m}% P=%{_pay}% ip=%ip of {_p}%")
+
+# jobs.sk questWantModel / questOfferLines: the car Vic ordered, for that tier, while it's open.
+function fenceWantModel(p: player, t: text) :: text:
+	if fenceActive({_p}) is false:
+		return ""
+	if getData({_p}, "fence::car") is progWeek():
+		return ""
+	set {_o3} to fenceOrder(3)
+	if {_o3} is "":
+		return ""
+	set {_a::*} to {_o3} split at "|"
+	if {_a::3} is {_t}:
+		return {_a::2}
+	return ""
+
+# ---------- Vic's row in /jobs (jobs.sk jobsMenu, slots 27-30) ----------
+
+function fenceWeekLeft() :: number:
+	set {_off} to {-cfg::week::offset}
+	if {_off} is not set:
+		set {_off} to 0
+	return (progWeek() + 1) * 604800 - (progUnix() + {_off})
+
+function fenceLeftText(s: number) :: text:
+	set {_d} to floor({_s} / 86400)
+	set {_h} to floor(mod({_s}, 86400) / 3600)
+	if {_d} > 0:
+		return "%{_d}%d %{_h}%h"
+	return "%{_h}%h %floor(mod({_s}, 3600) / 60)%m"
+
+function fenceRow(p: player, gui: inventory):
+	set {_lvl} to cfg("fence::level")
+	if storyNeedsMet({_p}, "fence") is false:
+		set slot 27 of {_gui} to gray dye named "&7Vic the Fence" with lore "&7Not in town yet."
+		stop
+	if levelOk({_p}, {_lvl}) is false:
+		set slot 27 of {_gui} to gray dye named "&7Vic the Fence" with lore "&7Reach level %{_lvl}%."
+		stop
+	set {_where} to questNearestText({_p}, "fence")
+	set {_left} to fenceLeftText(fenceWeekLeft())
+	set {_status} to "&eThis week's list: pick it up at the Pawn Shop"
+	if getData({_p}, "fence::took") is progWeek():
+		set {_status} to "&aThis week's list: taken ✔"
+	if fenceArcDone({_p}) is false:
+		set {_status} to "&7Finish his jobs first (/missions)"
+	jobsButton({_p}, {_gui}, 27, gold ingot named "&6Vic the Fence" with lore "&7Where: &f%{_where}%" and {_status} and "&7New list in %{_left}%" and "&eClick: the GPS leads you there.", "vicfind")
+	if fenceArcDone({_p}) is false:
+		set {_vid} to storyIdOf({_p}, "vic")
+		if storyLive({_vid}) is true:
+			jobsButton({_p}, {_gui}, 28, storyCard({_p}, {_vid}), "vicgps")
+		stop
+	set {_took} to false
+	if getData({_p}, "fence::took") is progWeek():
+		set {_took} to true
+	set {_slot} to 28
+	loop 3 times:
+		set {_o} to fenceOrder(loop-number)
+		if {_o} is not "":
+			set {_a::*} to {_o} split at "|"
+			delete {_l::*}
+			if {_a::1} is "heist":
+				set {_cap} to {_a::4} parsed as number
+				set {_used} to fenceUsed({_p}, 1)
+				set {_pct} to round(100 * ({_a::3} parsed as number))
+				add "&7+%{_pct}%%% on up to %formatMoney({_cap})% of loot you robbed yourself" to {_l::*}
+				add "&7Yours this week: &f%formatMoney({_used})%/%formatMoney({_cap})%" to {_l::*}
+				add jobsHeistLine({_a::2}) to {_l::*}
+				set {_icon} to gold ingot named "&6Anything from the %heistName({_a::2})%" with lore {_l::*}
+			else if {_a::1} is "diff":
+				set {_cap} to {_a::4} parsed as number
+				set {_used} to fenceUsed({_p}, 2)
+				set {_pct} to round(100 * ({_a::3} parsed as number))
+				add "&7+%{_pct}%%% on up to %formatMoney({_cap})% of your own loot" to {_l::*}
+				add "&7Yours this week: &f%formatMoney({_used})%/%formatMoney({_cap})%" to {_l::*}
+				set {_icon} to iron door named "&6Difficulty %{_a::2}%+ loot" with lore {_l::*}
+			else if {_a::1} is "car":
+				set {_pay} to {_a::4} parsed as number
+				add "&7Deliver it through a %ctTierName({_a::3})%: &a+%formatMoney({_pay})% &7once this week" to {_l::*}
+				if getData({_p}, "fence::car") is progWeek():
+					add "&a✔ Filled" to {_l::*}
+				set {_icon} to carIcon({_a::2}, carFirstColor({_a::2}))
+				set name of {_icon} to "&6Special order: a %carName({_a::2})%"
+				set lore of {_icon} to {_l::*}
+			if {_took} is false:
+				set {_icon} to paper named "&7Vic's order (locked)" with lore "&7Pick up this week's list at the Pawn Shop first."
+			set slot {_slot} of {_gui} to {_icon}
+			add 1 to {_slot}
+
+# ---------- Hints ----------
+
+# Whether Vic has a new list for this player (jobs.sk's join hint shows it with the waiting jobs).
+function fenceJoinHint(p: player) :: boolean:
+	if fenceArcDone({_p}) is true:
+		set {_t} to getData({_p}, "fence::took")
+		if {_t} is set:
+			if {_t} is not progWeek():
+				return true
+	return false
+
+on quit:
+	delete {-fence::sale::%player%}
+	delete {-fence::saletext::%player%::*}
+	delete {-fence::filled::%player%}
+
+# ---------- Staff ----------
+
+command /dfence [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		# Commands that pay, grant or rebuild progress: donating.quests.admin (the owner through *) and the console only.
+		if sender is a player:
+			loop "reset" and "roll":
+				if {_sub} is loop-value:
+					if player does not have permission "donating.quests.admin":
+						send "&cThat needs donating.quests.admin." to sender
+						stop
+		if {_sub} is "list":
+			send "FENCE week=%{fence::week}% now=%progWeek()% o1=%{fence::order::1}% o2=%{fence::order::2}% o3=%{fence::order::3}%" to sender
+			stop
+		if {_sub} is "roll":
+			set {_w} to progWeek()
+			if {_a::2} is set:
+				set {_w} to {_a::2} parsed as number
+			fenceRoll({_w})
+			send "FENCE rolled W=%{_w}% o1=%{fence::order::1}% o2=%{fence::order::2}% o3=%{fence::order::3}%" to sender
+			stop
+		set {_who} to {_a::2} parsed as player
+		if {_who} is not set:
+			send "FENCE usage: /dfence list | roll [week] | info|take|reset <online player>" to sender
+			stop
+		if {_sub} is "info":
+			set {_took} to getData({_who}, "fence::took")
+			set {_car} to getData({_who}, "fence::car")
+			send "FENCE %{_who}% arc=%storyIdOf({_who}, "vic")% took=%{_took}% week=%progWeek()% used1=%fenceUsed({_who}, 1)% used2=%fenceUsed({_who}, 2)% car=%{_car}%" to sender
+		else if {_sub} is "take":
+			fenceTakeList({_who})
+			send "FENCE %{_who}% took the list" to sender
+		else if {_sub} is "reset":
+			delete {data::%{_who}%::fence::*}
+			send "FENCE %{_who}% reset" to sender
+		else:
+			send "FENCE usage: /dfence list | roll [week] | info|take|reset <online player>" to sender

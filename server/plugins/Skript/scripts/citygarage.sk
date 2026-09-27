@@ -1,0 +1,558 @@
+# citygarage.sk: the City Garage, stage 1. Built 2026-09-27 (owner, 2026-09-27: "the city garage showing player
+# specific inventory (im going to make more things in game instead of easy access in the menu, maybe have the easy
+# access menu for high paid ranks)"; answers: Valet for Elite and Legend; a parked car waits near its owner or during
+# a heist).
+#
+# Cars come out and go back in person, like a real garage: a garage site is a WorldGuard region whose id starts with
+# garage::region-prefix ("safe_garage_": a safe zone, never a loot base) with staff exit spots (the lane where a car
+# comes out) and return spots (drive in and it's parked). Standing in a site, /garage (or its attendant, a shopkeeper
+# of the kind "garage", or the phone) takes a car out into a free exit lane. Away from a site the menu shows the cars
+# and a Find button (the GPS leads to the nearest garage POI); locking and sending a car back stay remote for everyone
+# (safety). Valet (paidrank::<r>::remote contains "garage": Elite and Legend) calls a car anywhere as before. Repaints
+# only at a site. A map with no garage site at all keeps the old rule (a car comes to you anywhere): the rule starts
+# with the first site, so a map being built never strands anyone.
+# A car taken out at a site and not entered within garage::pickup-idle goes back (it frees the lane). A car that stands
+# unused waits while its owner is within car::idle-near blocks or inside a heist (car-cleanup.sk).
+#   {garagesite::<s>::exit::<n>} / ::return::<n> = "x|y|z|yaw" (main world), {garagesites::<s>} = true once it has a
+#   spot, {garagesitecounter}; memory {-garage::lane::<s>::<n>} = the plate reserving that exit, {-car::fresh::<plate>}.
+# Staff: /dgaragesite. Log: garage.log (carLog).
+
+# The site a spot is in: a garage region that has at least one exit spot ("" otherwise: a region with no exit lane
+# isn't a garage yet).
+function garageSiteOf(l: location) :: text:
+	set {_prefix} to cfg("garage::region-prefix")
+	loop regions at {_l}:
+		set {_n} to name of loop-value
+		if {_n} starts with {_prefix}:
+			set {_s} to subtext of {_n} from characters (length of {_prefix} + 1) to (length of {_n})
+			if garageHasExit({_s}) is true:
+				return {_s}
+	return ""
+
+# The region's site id, exits or not (staff laying a site out).
+function garageRegionAt(l: location) :: text:
+	set {_prefix} to cfg("garage::region-prefix")
+	loop regions at {_l}:
+		set {_n} to name of loop-value
+		if {_n} starts with {_prefix}:
+			return subtext of {_n} from characters (length of {_prefix} + 1) to (length of {_n})
+	return ""
+
+function garageHasExit(s: text) :: boolean:
+	loop {garagesite::%{_s}%::exit::*}:
+		return true
+	return false
+
+# The site the player stands in ("" if none).
+function garageAt(p: player) :: text:
+	return garageSiteOf(location of {_p})
+
+# Whether the map has any garage site with an exit lane (else cars come to players anywhere, the old rule).
+function garagesExist() :: boolean:
+	loop {garagesites::*}:
+		if garageHasExit(loop-index) is true:
+			return true
+	return false
+
+# The nearest garage POI in the player's world (its {poi::*} index, "" if none).
+function garageNearest(p: player) :: text:
+	set {_found} to ""
+	set {_w} to "%world of {_p}%"
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is "garage":
+			if {_a::2} is {_w}:
+				set {_d} to distance between (location of {_p}) and poiLocation(loop-value)
+				if {_found} is "":
+					set {_best} to {_d}
+					set {_found} to loop-index
+				else if {_d} < {_best}:
+					set {_best} to {_d}
+					set {_found} to loop-index
+	return {_found}
+
+function garagePoiName(n: text) :: text:
+	set {_a::*} to "%{poi::%{_n}%}%" split at "|"
+	set {_nm} to "%{_a::6}%"
+	if {_nm} starts with " ":
+		set {_nm} to subtext of {_nm} from characters 2 to (length of {_nm})
+	if {_nm} is "":
+		return "City Garage"
+	if {_nm} is "<none>":
+		return "City Garage"
+	return {_nm}
+
+# "" when the player may take a car out here, else why not (with where the nearest garage is).
+function garageAccessBlock(p: player) :: text:
+	if garagesExist() is false:
+		return ""
+	if garageAt({_p}) is not "":
+		return ""
+	if remoteOk({_p}, "garage") is true:
+		return ""
+	set {_n} to garageNearest({_p})
+	if {_n} is "":
+		return "Cars come out at garages. Valet: Elite and Legend."
+	set {_d} to round(distance between (location of {_p}) and poiLocation({poi::%{_n}%}))
+	return "Cars come out at garages: the %garagePoiName({_n})% is %{_d}%m away (/gps). Valet: Elite and Legend."
+
+# Pins the nearest garage on the GPS.
+function garageFind(p: player):
+	set {_n} to garageNearest({_p})
+	if {_n} is "":
+		msg({_p}, "&7There's no garage on the map yet. Tell staff.")
+		stop
+	gpsPin({_p}, poiLocation({poi::%{_n}%}), garagePoiName({_n}))
+	msg({_p}, "&6Garage: &fthe GPS leads you to the &e%garagePoiName({_n})%&f.")
+
+# A car that's out: the GPS leads to it; in the garage: to the nearest garage.
+function garageFindCar(p: player, id: text):
+	set {_plate} to carPlate({_p}, {_id})
+	if {_plate} is not "":
+		set {_at} to {car::out::%{_plate}%}
+		if {_at} is set:
+			gpsPin({_p}, {_at}, "Your %carName({_id})%")
+			msg({_p}, "&6Your %carName({_id})%: &fthe GPS leads you to it.")
+			stop
+	garageFind({_p})
+
+# ---------- Exit lanes ----------
+
+function garageSpotLoc(v: text) :: location:
+	set {_a::*} to {_v} split at "|"
+	set {_l} to location(({_a::1} parsed as number), ({_a::2} parsed as number), ({_a::3} parsed as number), poiMainWorld())
+	set yaw of {_l} to ({_a::4} parsed as number)
+	return {_l}
+
+# Whether a car stands in an exit lane: any MTVehicles car within 3 blocks of the spot (a contract car, another
+# player's, one left there), except the player's own cars: carCall sends those back before the new one comes out.
+# A lane is free again the moment its car drives off or goes back.
+function garageLaneBusy(p: player, l: location) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	loop all armor stands in radius 3 around {_l}:
+		set {_nm} to "%name of loop-entity%"
+		if {_nm} starts with "MTVEHICLES_MAIN_":
+			set {_plate} to subtext of {_nm} from characters 17 to (length of {_nm})
+			if carOwnerOf({_plate}) is not {_u}:
+				return true
+	return false
+
+# Whether a spot is in one of its site's exit lanes (car-cleanup.sk: a car left there goes back after pickup-idle).
+function garageInLane(l: location) :: boolean:
+	if world of {_l} is not poiMainWorld():
+		return false
+	loop {garagesites::*}:
+		set {_s} to loop-index
+		loop {garagesite::%{_s}%::exit::*}:
+			if distance between garageSpotLoc(loop-value-2) and {_l} <= 3:
+				return true
+	return false
+
+# A real car stands on or next to a bay (its click box would swallow the clicks meant for the car).
+function garageBayCarThere(l: location) :: boolean:
+	loop all armor stands in radius 2.5 around {_l}:
+		if "%name of loop-entity%" starts with "MTVEHICLES_":
+			return true
+	return false
+
+# A free exit lane at the player's site (its record "s|n" in {-garage::spotn::<p>}), none when all are busy. The
+# player themselves standing in it doesn't block it (the car comes out around them).
+function garageSpot(p: player) :: location:
+	delete {-garage::spotn::%{_p}%}
+	set {_s} to garageAt({_p})
+	if {_s} is "":
+		return {_none}
+	loop {garagesite::%{_s}%::exit::*}:
+		set {_l} to garageSpotLoc(loop-value)
+		set {_n} to loop-index
+		if garageLaneBusy({_p}, {_l}) is false:
+			if carSpotClear({_l}) is true:
+				set {_people} to 0
+				loop all players in radius 2 around {_l}:
+					if loop-player is not {_p}:
+						add 1 to {_people}
+				if {_people} is 0:
+					set {-garage::spotn::%{_p}%} to "%{_s}%|%{_n}%"
+					return {_l}
+	return {_none}
+
+# After a car came out in a lane (carCall): the pickup-idle clock, and a puff for the player.
+function garageTookOut(p: player, plate: text):
+	set {_sn} to {-garage::spotn::%{_p}%}
+	{_sn} is set
+	set {_a::*} to "%{_sn}%" split at "|"
+	set {-car::fresh::%{_plate}%} to now
+	delete {-garage::spotn::%{_p}%}
+	set {_l} to garageSpotLoc({garagesite::%{_a::1}%::exit::%{_a::2}%})
+	set {_fx} to {_l} ~ vector(0, 0.5, 0)
+	draw 20 happy villager particles with offset vector(1, 0.5, 1) at {_fx} for {_p}
+
+# ---------- Return lanes: drive in, it's parked ----------
+
+every 5 ticks:
+	loop all players:
+		set {_p} to loop-player
+		set {_seat} to carSeatOf({_p})
+		if {_seat} starts with "driver:":
+			set {_s} to garageAt({_p})
+			if {_s} is not "":
+				garageReturnCheck({_p}, {_s})
+
+function garageReturnCheck(p: player, s: text):
+	set {_r} to cfg("garage::return-radius")
+	set {_near} to false
+	loop {garagesite::%{_s}%::return::*}:
+		if distance between (location of {_p}) and garageSpotLoc(loop-value) <= {_r}:
+			set {_near} to true
+	{_near} is true
+	set {_u} to "%uuid of {_p}%"
+	set {_plate} to {-car::riding::%{_u}%}
+	if {_plate} is not set:
+		# Not one of the player's garage cars (a stolen contract car).
+		if {-garage::stolenat::%{_p}%} is set:
+			if difference between {-garage::stolenat::%{_p}%} and now < 3 seconds:
+				stop
+		set {-garage::stolenat::%{_p}%} to now
+		hudBar({_p}, "&cStolen cars go to a chop shop.", 2)
+		stop
+	set {_plate} to "%{_plate}%"
+	carOwnerOf({_plate}) is {_u}
+	set {_m} to carModelOf({_plate})
+	make {_p} dismount
+	carStopDriving({_p}, {_plate})
+	carStore({_plate}, "returned")
+	send title colored "&a&lPARKED&r" with subtitle colored "&7Your %carName({_m})% is back in the garage." to {_p} for 2 seconds
+	play sound "block.note_block.chime" with volume 0.6 to {_p}
+
+# ---------- Stage 2: the bays (each player sees their own cars) ----------
+# Staff bays (/dgaragesite bay add: standing where the car should stand, facing along it). Inside a site, a player's
+# n-th car in the garage (not out; in core.sk's cars order) shows in bay n as a personal item display (pv.sk: only
+# they see it; the pack draws the car item). Past the last bay a car is only in the menu. One shared, unresponsive click
+# box per bay (right-click: that bay's car comes out in the exit lane); labels by DecentHolograms placeholders that
+# read memory per viewer (/dgaragesite holo). Without DonatingPhone (pvReady false) the models are missing; clicks and
+# labels still work. Memory: {-bay::key::<u>} (what's drawn), {-bay::car::<u>::<s>::<n>} (the car id in a bay),
+# {-ph::bay::<p>::<s>::<n>} / {-ph::bayhint::<p>::<s>::<n>}, {-bay::hit::<entity uuid>} = "<s>|<n>".
+
+# "id:label" of each car in the garage (not out), in the cars order.
+function garageBayCars(p: player) :: texts:
+	loop {-cfg::cars::*}:
+		set {_id} to loop-value
+		if carOwned({_p}, {_id}) is true:
+			set {_plate} to carPlate({_p}, {_id})
+			if {car::out::%{_plate}%} is not set:
+				add "%{_id}%:%carColorOf({_p}, {_id})%" to {_out::*}
+	return {_out::*}
+
+function garageBayClear(p: player):
+	set {_u} to "%uuid of {_p}%"
+	pvClear({_p}, "bay:")
+	delete {-bay::key::%{_u}%}
+	delete {-bay::site::%{_u}%}
+	delete {-bay::leftat::%{_u}%}
+	delete {-bay::car::%{_u}%::*}
+	delete {-ph::bay::%{_p}%::*}
+	delete {-ph::bayhint::%{_p}%::*}
+
+# Draws a player's bays at their site when what they should see changed (a buy, a car out or back, a repaint, a trade).
+function garageBaySync(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_s} to garageAt({_p})
+	if {_s} is "":
+		if {-bay::site::%{_u}%} is set:
+			if {-bay::leftat::%{_u}%} is not set:
+				set {-bay::leftat::%{_u}%} to now
+			else if difference between {-bay::leftat::%{_u}%} and now >= cfg("garage::view-grace"):
+				garageBayClear({_p})
+		stop
+	delete {-bay::leftat::%{_u}%}
+	# A repaint preview runs out.
+	if {-bay::preview::%{_u}%} is set:
+		if difference between {-bay::preview::%{_u}%} and now >= cfg("garage::preview-time"):
+			delete {-bay::preview::%{_u}%}
+			delete {-bay::key::%{_u}%}
+		else:
+			stop
+	set {_cars::*} to garageBayCars({_p})
+	# The bays themselves are in the key too (staff adding or moving one redraws).
+	loop {garagesite::%{_s}%::bay::*}:
+		add "%loop-index%=%loop-value%" to {_bays::*}
+	set {_key} to "%{_s}%|%join {_cars::*} with ","%|%join {_bays::*} with ","%|%pvReady()%"
+	if {-bay::key::%{_u}%} is {_key}:
+		stop
+	garageBayClear({_p})
+	set {-bay::key::%{_u}%} to {_key}
+	set {-bay::site::%{_u}%} to {_s}
+	set {_k} to 0
+	loop {garagesite::%{_s}%::bay::*}:
+		add 1 to {_k}
+		set {_n} to loop-index
+		set {_c} to {_cars::%{_k}%}
+		if {_c} is set:
+			set {_a::*} to "%{_c}%" split at ":"
+			set {_id} to {_a::1}
+			set {-bay::car::%{_u}%::%{_s}%::%{_n}%} to {_id}
+			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&6%carName({_id})% &7· %{_a::2}%"
+			set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&eRight-click: take it out"
+			set {_l} to garageSpotLoc(loop-value)
+			set {_l} to {_l} ~ vector(0, cfg("garage::bay-lift"), 0)
+			set {_e} to pvItem({_p}, "bay:%{_s}%:%{_n}%", {_l}, carIcon({_id}, {_a::2}), cfg("garage::bay-scale"))
+			if {_e} is set:
+				set item transform of {_e} to head
+		else:
+			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&7Empty bay"
+			set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&7Buy a car at the Car Dealer"
+
+every second:
+	loop all players:
+		garageBaySync(loop-player)
+
+on quit:
+	garageBayClear(player)
+
+# The repaint preview (carPaint's first click at a site): the car's bay shows the new color for garage::preview-time.
+function garageBayPreview(p: player, id: text, label: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_s} to garageAt({_p})
+	{_s} is not ""
+	loop {-bay::car::%{_u}%::%{_s}%::*}:
+		if loop-value is {_id}:
+			set {_e} to pvGet({_p}, "bay:%{_s}%:%loop-index%")
+			if {_e} is set:
+				set item of {_e} to carIcon({_id}, {_label})
+				set {-bay::preview::%{_u}%} to now
+				hudBar({_p}, "&7Look at your bay: that's the new color. &eClick again to pay.", 1)
+
+# One shared click box per bay while its chunk is loaded (every 10 s; spawned again if lost to an unload).
+every 10 seconds:
+	loop {garagesites::*}:
+		set {_s} to loop-index
+		loop {garagesite::%{_s}%::bay::*}:
+			garageBayBox({_s}, loop-index-2, garageSpotLoc(loop-value-2))
+
+function garageBayBox(s: text, n: text, l: location):
+	chunk at {_l} is loaded
+	set {_tag} to "gbayi_%{_s}%_%{_n}%"
+	if garageBayCarThere({_l}) is true:
+		loop all entities in radius 3 around {_l}:
+			if loop-entity has scoreboard tag {_tag}:
+				delete {-bay::hit::%uuid of loop-entity%}
+				kill loop-entity
+		stop
+	set {_have} to 0
+	loop all entities in radius 3 around {_l}:
+		if loop-entity has scoreboard tag {_tag}:
+			add 1 to {_have}
+			set {-bay::hit::%uuid of loop-entity%} to "%{_s}%|%{_n}%"
+	{_have} is 0
+	spawn an interaction at {_l}:
+		make event-entity not persistent
+		add "donating_bay" to scoreboard tags of event-entity
+		add {_tag} to scoreboard tags of event-entity
+		set interaction width of event-entity to cfg("garage::bay-width")
+		set interaction height of event-entity to cfg("garage::bay-height")
+		make event-entity unresponsive
+	set {_e} to last spawned entity
+	set {-bay::hit::%uuid of {_e}%} to "%{_s}%|%{_n}%"
+
+on right click on interaction:
+	set {_hit} to {-bay::hit::%uuid of event-entity%}
+	{_hit} is set
+	cancel event
+	# The held item's own click right after (a gun, the phone) is cancelled too (quests.sk's guard).
+	set {-quest::guard::%player%} to now
+	if garageBayCarThere(location of event-entity) is true:
+		delete {-bay::hit::%uuid of event-entity%}
+		kill event-entity
+		hudBar(player, "&7A car stands in this bay: click it again to get in.", 1)
+		stop
+	if {-bay::clickat::%player%} is set:
+		if difference between {-bay::clickat::%player%} and now < 0.25 seconds:
+			stop
+	set {-bay::clickat::%player%} to now
+	set {_a::*} to "%{_hit}%" split at "|"
+	garageBayClick(player, {_a::1}, {_a::2})
+
+function garageBayClick(p: player, s: text, n: text):
+	if garageAt({_p}) is not {_s}:
+		hudBar({_p}, "&7Take cars out inside the garage.", 1)
+		stop
+	set {_id} to {-bay::car::%uuid of {_p}%::%{_s}%::%{_n}%}
+	if {_id} is not set:
+		hudBar({_p}, "&7This bay is empty for you. All your cars: the attendant or &f/garage", 1)
+		stop
+	carCall({_p}, "%{_id}%")
+
+# ---------- Staff ----------
+
+command /dgaragesite [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "exit" or "return" or "bay":
+			# exit add / return add / bay add: where you stand, facing the way the car should point.
+			if {_a::2} is not "add":
+				send "GSITE usage: /dgaragesite %{_sub}% add" to sender
+				stop
+			if player is not set:
+				send "GSITE: in game (or exitat / returnat / bayat)" to sender
+				stop
+			set {_s} to garageRegionAt(location of player)
+			if {_s} is not "":
+				if {_s} does not match "[a-z0-9]{1,16}":
+					send "GSITE: a site id (after %cfg("garage::region-prefix")%) must be 1-16 lowercase letters or digits" to sender
+					stop
+			if {_s} is "":
+				send "GSITE: stand inside a %cfg("garage::region-prefix")%<id> region" to sender
+				stop
+			if world of player is not poiMainWorld():
+				send "GSITE: only in the main world" to sender
+				stop
+			set {_l} to location of player
+			if {_sub} is "exit":
+				set {_c} to location(floor(x-coordinate of {_l}) + 0.5, floor(y-coordinate of {_l}), floor(z-coordinate of {_l}) + 0.5, world of {_l})
+				if carSpotClear({_c}) is false:
+					send "GSITE: no room for a car here (3x3, 2 high, solid ground)" to sender
+					stop
+			if {_sub} is "bay":
+				set {_nb} to 0
+				loop {garagesite::%{_s}%::bay::*}:
+					add 1 to {_nb}
+				if {_nb} >= cfg("garage::bays-max"):
+					send "GSITE: %{_nb}% bays already (garage::bays-max)" to sender
+					stop
+			add 1 to {garagesitecounter}
+			set {_n} to "%{garagesitecounter}%"
+			set {_x} to floor(x-coordinate of {_l}) + 0.5
+			set {_y} to floor(y-coordinate of {_l})
+			set {_z} to floor(z-coordinate of {_l}) + 0.5
+			set {_yw} to round(yaw of player)
+			set {garagesite::%{_s}%::%{_sub}%::%{_n}%} to "%{_x}%|%{_y}%|%{_z}%|%{_yw}%"
+			set {garagesites::%{_s}%} to true
+			carLog("site %{_s}% %{_sub}% %{_n}% at %{_x}% %{_y}% %{_z}% yaw=%{_yw}% by=%sender%")
+			send "GSITE %{_s}% %{_sub}% %{_n}% added" to sender
+			# A return spot next to an exit parks every car the moment its owner gets in.
+			set {_other} to "return"
+			if {_sub} is "return":
+				set {_other} to "exit"
+			if {_sub} is "bay":
+				garageBayBox({_s}, {_n}, garageSpotLoc({garagesite::%{_s}%::bay::%{_n}%}))
+				send "GSITE: now /dgaragesite holo here for the bay labels" to sender
+				stop
+			set {_warn} to cfg("garage::return-radius") + 3
+			loop {garagesite::%{_s}%::%{_other}%::*}:
+				if distance between garageSpotLoc(loop-value) and {_l} < {_warn}:
+					send "&eGSITE: %{_other}% %loop-index% is only %round(distance between garageSpotLoc(loop-value) and {_l})%m away: keep exits and returns %{_warn}%+ blocks apart (a car taken out would park at once)." to sender
+		else if {_sub} is "exitat" or "returnat" or "bayat":
+			# exitat|returnat|bayat <site> <x> <y> <z> <yaw>: the dump's lines (Minehut).
+			set {_s} to {_a::2}
+			set {_kind} to "exit"
+			if {_sub} is "returnat":
+				set {_kind} to "return"
+			if {_sub} is "bayat":
+				set {_kind} to "bay"
+			set {_x} to {_a::3} parsed as number
+			set {_y} to {_a::4} parsed as number
+			set {_z} to {_a::5} parsed as number
+			set {_yw} to {_a::6} parsed as number
+			if {_yw} is not set:
+				send "GSITE usage: %{_sub}% <site> <x> <y> <z> <yaw>" to sender
+				stop
+			if {_s} does not match "[a-z0-9]{1,16}":
+				send "GSITE: a site id must be 1-16 lowercase letters or digits" to sender
+				stop
+			# Inside that site's own region (a mistyped id would make a phantom site).
+			if garageRegionAt(location({_x}, {_y}, {_z}, poiMainWorld())) is not {_s}:
+				send "GSITE: %{_x}% %{_y}% %{_z}% isn't inside %cfg("garage::region-prefix")%%{_s}% (main world)" to sender
+				stop
+			carLog("site %{_s}% %{_kind}% at %{_x}% %{_y}% %{_z}% yaw=%{_yw}% by=%sender% (addat)")
+			add 1 to {garagesitecounter}
+			set {_n} to "%{garagesitecounter}%"
+			set {garagesite::%{_s}%::%{_kind}%::%{_n}%} to "%{_x}%|%{_y}%|%{_z}%|%{_yw}%"
+			set {garagesites::%{_s}%} to true
+			send "GSITE %{_s}% %{_kind}% %{_n}% added" to sender
+		else if {_sub} is "remove":
+			# remove <site> <exit|return|bay> <n>
+			if {garagesite::%{_a::2}%::%{_a::3}%::%{_a::4}%} is not set:
+				send "GSITE: no %{_a::3}% %{_a::4}% at %{_a::2}% (/dgaragesite list)" to sender
+				stop
+			carLog("site %{_a::2}% remove %{_a::3}% %{_a::4}% by=%sender%")
+			if {_a::3} is "bay":
+				execute console command "minecraft:kill @e[tag=gbayi_%{_a::2}%_%{_a::4}%]"
+				execute console command "dh hologram delete gbay_%{_a::2}%_%{_a::4}%"
+			delete {garagesite::%{_a::2}%::%{_a::3}%::%{_a::4}%}
+			delete {-garage::lane::%{_a::2}%::%{_a::4}%}
+			set {_left} to 0
+			loop {garagesite::%{_a::2}%::exit::*}:
+				add 1 to {_left}
+			loop {garagesite::%{_a::2}%::return::*}:
+				add 1 to {_left}
+			loop {garagesite::%{_a::2}%::bay::*}:
+				add 1 to {_left}
+			if {_left} is 0:
+				delete {garagesites::%{_a::2}%}
+			send "GSITE %{_a::2}% %{_a::3}% %{_a::4}% removed (%{_left}% spots left)" to sender
+		else if {_sub} is "list":
+			loop {garagesites::*}:
+				set {_s} to loop-index
+				loop {garagesite::%{_s}%::exit::*}:
+					send "GSITE %{_s}% exit %loop-index-2% = %loop-value-2%" to sender
+				loop {garagesite::%{_s}%::return::*}:
+					send "GSITE %{_s}% return %loop-index-2% = %loop-value-2%" to sender
+				loop {garagesite::%{_s}%::bay::*}:
+					send "GSITE %{_s}% bay %loop-index-2% = %loop-value-2%" to sender
+		else if {_sub} is "show":
+			loop {garagesites::*}:
+				set {_s} to loop-index
+				loop {garagesite::%{_s}%::exit::*}:
+					set {_fx} to garageSpotLoc(loop-value-2)
+					draw 12 happy villager particles with offset vector(1, 0.3, 1) at {_fx} for player
+				loop {garagesite::%{_s}%::return::*}:
+					set {_fx} to garageSpotLoc(loop-value-2)
+					draw 12 flame particles with offset vector(1, 0.3, 1) at {_fx} for player
+				loop {garagesite::%{_s}%::bay::*}:
+					set {_fx} to garageSpotLoc(loop-value-2)
+					draw 12 end rod particles with offset vector(1, 0.3, 1) at {_fx} for player
+			send "GSITE shown: exits green, returns flames, bays white" to sender
+		else if {_sub} is "dump":
+			loop {garagesites::*}:
+				set {_s} to loop-index
+				loop {garagesite::%{_s}%::exit::*}:
+					set {_v::*} to loop-value-2 split at "|"
+					send "dgaragesite exitat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%" to sender
+					carLog("dump dgaragesite exitat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%")
+				loop {garagesite::%{_s}%::return::*}:
+					set {_v::*} to loop-value-2 split at "|"
+					send "dgaragesite returnat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%" to sender
+					carLog("dump dgaragesite returnat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%")
+				loop {garagesite::%{_s}%::bay::*}:
+					set {_v::*} to loop-value-2 split at "|"
+					send "dgaragesite bayat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%" to sender
+					carLog("dump dgaragesite bayat %{_s}% %{_v::1}% %{_v::2}% %{_v::3}% %{_v::4}%")
+				send "dgaragesite holo %{_s}%" to sender
+				carLog("dump dgaragesite holo %{_s}%")
+		else if {_sub} is "holo":
+			# holo [site]: a DecentHolograms label over each bay (placeholders: every player reads their own).
+			set {_s} to {_a::2}
+			if {_s} is not set:
+				if player is set:
+					set {_s} to garageAt(player)
+			if {_s} is not set:
+				send "GSITE usage: holo <site> (or stand in it)" to sender
+				stop
+			if {_s} is "":
+				send "GSITE usage: holo <site> (or stand in it)" to sender
+				stop
+			set {_hn} to 0
+			loop {garagesite::%{_s}%::bay::*}:
+				set {_v::*} to loop-value split at "|"
+				set {_name} to "gbay_%{_s}%_%loop-index%"
+				set {_y} to ({_v::2} parsed as number) + cfg("garage::bay-label-height")
+				execute console command "dh hologram delete %{_name}%"
+				execute console command "dh hologram create %{_name}% -l:%poiMainWorld()%:%{_v::1}%:%{_y}%:%{_v::3}% %%donating_bay_%{_s}%_%loop-index%%%"
+				execute console command "dh line add %{_name}% 1 %%donating_bayhint_%{_s}%_%loop-index%%%"
+				add 1 to {_hn}
+			send "GSITE %{_s}%: %{_hn}% bay labels" to sender
+		else:
+			send "GSITE usage: /dgaragesite exit|return|bay add | exitat|returnat|bayat <site> <x> <y> <z> <yaw> | remove <site> <exit|return|bay> <n> | list | show | dump | holo [site]" to sender

@@ -218,10 +218,19 @@ function questOpen(p: player, n: text):
 	progEvent({_p}, "talk", 1, {_k})
 	if {_k} is "contracts":
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.8 to {_p}
+		# His side jobs (jobs.sk): talking to him picks up the waiting ones.
+		jobsTalk({_p}, "boss", false)
 		ctMenu({_p})
 	else if {_k} is "story":
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 1.1 to {_p}
 		storyTalk({_p}, {_n})
+	else if {_k} is "fence":
+		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.9 to {_p}
+		storyTalk({_p}, {_n})
+	else if {_k} is "hits":
+		# The Broker (hits.sk): this week's hit contract.
+		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.7 to {_p}
+		hitMenu({_p})
 	else:
 		msg({_p}, "&7Nothing to do here yet.")
 

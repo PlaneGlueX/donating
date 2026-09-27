@@ -459,6 +459,9 @@ function bagSell(p: player) :: number:
 	# Each heist run's loot (before passive and boosters) for the season (progress.sk).
 	loop {_runs::*}:
 		progEvent({_p}, "sell", loop-value, loop-index)
+	# Vic's premium on this sale (fence.sk), then forget runs that are over.
+	fenceSalePay({_p})
+	progRunPrune({_p})
 	return {_pay} + {_extra}
 
 on region enter:

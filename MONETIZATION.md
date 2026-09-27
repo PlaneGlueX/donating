@@ -12,8 +12,8 @@ Rank prices were picked on 2026-09-26 with the owner's OK (one-time purchases, t
 |---|---|---|---|---|
 | **VIP** rank | Green `[VIP]` tag before their name in the tab list, chat and join messages; sorted above players without a rank in the tab list; the Camo bag look; their bags hold **+5%** | **Yes:** +5% bag capacity | $4.99 once | `dranks give {username} vip` |
 | **VIP+** rank | Aqua `[VIP+]` tag, sorted above VIP; Arctic and Camo bag looks; bags hold **+10%**; a **Common crate key** with every /daily | **Yes:** +10% bag capacity; a daily Common key | $9.99 once | `dranks give {username} vipplus` |
-| **Elite** rank | Gold `[Elite]` tag, sorted above VIP+; Gilded and lower bag looks; bags hold **+20%**; **Common and Uncommon keys** with every /daily; **Heist Refresh** every 12 hours | **Yes:** +20% bag capacity; daily keys; Heist Refresh | $19.99 once | `dranks give {username} elite` |
-| **Legend** rank | Pink `[Legend]` tag, sorted above Elite; Neon (glows in the dark) and every lower bag look; bags hold **+25%**; **Common, Uncommon and Rare keys** with every /daily; **Heist Refresh** every 6 hours; every retired and testing cosmetic | **Yes:** +25% bag capacity; daily keys; Heist Refresh | $34.99 once | `dranks give {username} legend` |
+| **Elite** rank | Gold `[Elite]` tag, sorted above VIP+; Gilded and lower bag looks; bags hold **+20%**; **Common and Uncommon keys** with every /daily; **Heist Refresh** every 12 hours; **Valet**: take their car out anywhere (everyone else takes cars out at a garage) | **Yes:** +20% bag capacity; daily keys; Heist Refresh; Valet (saves the walk to a garage) | $19.99 once | `dranks give {username} elite` |
+| **Legend** rank | Pink `[Legend]` tag, sorted above Elite; Neon (glows in the dark) and every lower bag look; bags hold **+25%**; **Common, Uncommon and Rare keys** with every /daily; **Heist Refresh** every 6 hours; every retired and testing cosmetic; **Valet**: take their car out anywhere | **Yes:** +25% bag capacity; daily keys; Heist Refresh; Valet (saves the walk to a garage) | $34.99 once | `dranks give {username} legend` |
 | **Money booster** | For its time, every loot sale pays **1.5×** for everyone on the server; the buyer's own sales pay **2×** | **Yes:** everyone earns more while it runs; the buyer earns a bit more than others | **$1 per 5 minutes** (any quantity) | `dbooster add {username} money 1.5 5 {purchaseQuantity}` |
 | **XP booster** (added 2026-09-27) | For its time, every loot sale and car contract gives **1.5×** robber-level XP for everyone on the server; the buyer's own XP is **2×** | **Yes:** everyone reaches levels (which unlock heists, tools and cars) sooner while it runs; the buyer a bit sooner than others | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} xp 1.5 5 {purchaseQuantity}` |
 | **Heist Rush** (added 2026-09-27) | For its time, heists reopen **2× faster** for everyone: a run that ends gets half its cooldown, and heists already cooling down have their time left halved when it starts | **Yes:** more heist runs for the whole server; the buyer gets nothing extra (no head start, no bonus) | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} rush 2 5 {purchaseQuantity}` |
@@ -26,6 +26,10 @@ A player has one rank at a time. Buying a higher rank replaces the lower one, an
 ### Heist Refresh (Elite and Legend)
 
 `/heistrefresh <heist>` reopens a heist that's cooling down, **for everyone**: it opens as soon as its room reset is done, and the whole server is told who refreshed it. It only works on a closed heist (never a running or open one) that the player's robber level allows, and it gives no head start. Elite can use it every 12 hours, Legend every 6.
+
+### Valet (Elite and Legend)
+
+Everyone owns and drives cars the same way. Cars come out at garages: one at every respawn point, one at the Car Dealer and one at the Scrap Yard. Elite and Legend can also call their car from anywhere with /garage or the phone's Garage app, with the same limits: never inside a heist, never in combat or while wanted, one car out at a time, once every 20 seconds. It saves the walk to a garage; it gives no car, speed or protection.
 
 ### What's in each crate
 
@@ -172,6 +176,7 @@ The Hacked crate is never sold: its keys only come from special events. Every Ha
 - **A bigger bag also risks more.** When a player dies, the balance they lose is capped at their bag's capacity, so the bonus raises that cap too.
 - **The bag tiers are the same for everyone,** unlocked and bought with in-game money. A rank adds its percentage to whichever tier the player carries. For example, the top bag (the Vault Bag) holds $100,000, or $125,000 for a Legend.
 - **Never sold directly:** guns, helmets, vests, bags, loot, robber levels, access to heists, trap or cop protection. In-game money, ammo, Stims and heist tools only come from paid items at random, through crate keys (the chances are above and in game).
+- **Valet only saves a walk.** Taking a car out anywhere is blocked in heists, in combat and while wanted, like any car call.
 - **Heist Refresh helps everyone.** A refreshed heist opens for the whole server, with no head start for the player who refreshed it.
 - **Boosters are server-wide.**
   - Everyone online gets the multiplier. A money or XP booster's buyer gets a bit more (2× instead of 1.5×); Heist Rush gives its buyer nothing extra.
