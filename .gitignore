@@ -19,6 +19,7 @@
 !/server/plugins/Essentials/
 /server/plugins/Essentials/*
 !/server/plugins/Essentials/config.yml
+!/server/plugins/Essentials/motd.txt
 !/server/plugins/TAB/
 /server/plugins/TAB/*
 !/server/plugins/TAB/config.yml

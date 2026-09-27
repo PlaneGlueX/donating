@@ -13,7 +13,8 @@ The exact steps to move the local test server to Minehut (free plan). Local-only
 
 - Server type **Paper**, version **1.21.11**.
 - **Resource pack**: Minehut takes a URL. Upload `Donating-pack.zip` somewhere with a direct download link (a public file host). It includes WeaponMechanics' official pack, which its README allows merging and hosting for your own players, but never selling or publishing as a pack, and MTVehicles' car models (merged the same way, with their credits; the file host link must not be shared as a pack download). Tick "require" so every player gets the guns, cars, bags, phone and tracers. After every pack build the file changes: upload the new one and update the URL (and hash, if the dashboard asks).
-- **MOTD** (the server list text): the proposal in CLAUDE.md, or your own.
+- **MOTD** (the server list text): one of the proposals in CLAUDE.md (Config notes), or your own.
+- **Server properties**: `allow-nether` false (owner, 2026-09-27: the Nether and the End stay off; the End is `allow-end: false` in `bukkit.yml`, uploaded below).
 - Online mode stays on (Minehut's default). Nothing from the local `server.properties` goes up.
 
 ## 3. Upload plugins (File Manager → `plugins/`)
@@ -60,7 +61,8 @@ Start the server once so every plugin makes its folders, then stop it and upload
 | `plugins/WeaponMechanics/config.yml` (armor: `Per_Armor_Point: -6%`) and the folders `weapons/` (the nerfed gun damage), `ammos/`, `projectiles/` | same |
 | `plugins/WorldGuard/config.yml` | same |
 | `plugins/MTVehicles/config.yml` (no auto-update, no fuel, trunks or pickup), `vehicles.yml` (Donating's 24 cars), `supersecretsettings.yml` (English messages). Never `vehicleData.yml` (local test cars) | same |
-| `bukkit.yml`, `spigot.yml` (only if you keep the End off: `allow-end: false`) | server root |
+| `bukkit.yml` (`allow-end: false`: the End stays off), `spigot.yml` | server root |
+| `plugins/Essentials/motd.txt` (empty: no join text) | same |
 | The world folder (`world/`, with `world/generated/donating/structures/` = the heist rooms, `world/data/map_*.dat` = the city map) and `plugins/WorldGuard/worlds/world/regions.yml` (safe zones, heist regions) | server root / same |
 | `plugins/DecentHolograms/holograms/` (heist and crate stand holograms; not `gbay_*`, the garage bay labels: see Places) | same |
 
