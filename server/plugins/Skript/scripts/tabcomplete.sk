@@ -80,8 +80,10 @@ on tab complete of "/trade" and "/skript:trade":
 # you're passive or still in the tutorial. With nobody to suggest the event is cancelled, or Bukkit's own list for the
 # <offline player> argument (everyone) would come back. Then the amounts (the minimum, 5x, 10x) you can pay.
 on tab complete of "/bounty" and "/skript:bounty":
+	# Names only where a bounty can be posted (next to the Broker, or anywhere without one).
 	if isPassive(player) is false:
 		if tutorialNeedsBag(player) is false:
+			bountyPostBlock(player) is ""
 			loop all players:
 				if loop-player is not player:
 					if player can see loop-player:

@@ -21,7 +21,7 @@
 # the balance (capped at the bag). A window ending mid-fight runs up to 5 minutes of overtime.
 # Saved: {hit::target::<W>}, {hit::win::<W>::<t>::<k>} (start, unix), {hit::used::<W>::<t>::<k>}, {hit::open::<t>}
 # ("W|k|left"), {hit::node::<n>} ("world|x|y|z|district"), {hit::edge::<a>::<b>}, {hitnodecounter},
-# {hit::npcids::<id>}; per player data hit::week, tier, state (hunting | paying | done), streak, streak-week,
+# {hit::npcids::<id>}; per player data hit::week, tier, state (hunting | paying | done | ended: /dhit end), streak, streak-week,
 # hard-total. Memory {-hit::s::<uuid>::*} (the sighting), {-hit::npc::<id>} (holder uuid), {-hit::role::<id>}.
 # Staff: /dhit. Players: /hits (/hit; the phone's Hits app). Log: plugins\Skript\logs\hits.log.
 
@@ -682,6 +682,8 @@ function hitSecond(p: player):
 	set {_t} to hitTierOf({_p})
 	if hitStateOf({_p}) is "done":
 		set {-ph::hit::%{_p}%} to "&a◎ Target down &7· a new name Thursday"
+	else if hitStateOf({_p}) is "ended":
+		delete {-ph::hit::%{_p}%}
 	else if hitNow({_p}) is false:
 		set {_nx} to hitNextWindow({_t})
 		if hitWindowsLeft({_t}) <= 0:
@@ -1229,6 +1231,11 @@ function hitMenu(p: player):
 	if {_s} is not set:
 		set {_s} to 0
 	set slot 31 of {_gui} to nether star named "&6Streak: %{_s}% week(s)" with lore "&7Each week in a row: +5%% pay (up to +20%%)." and "&7Titles at 3, 6 and 10 weeks."
+	# Bounties are posted here too (bounty.sk: in person with the Broker).
+	if {_near} is "":
+		set slot 29 of {_gui} to skeleton skull named "&cBounties" with lore "&7Post one here with the Broker:" and "&f/bounty <player> <amount>"
+	else:
+		set slot 29 of {_gui} to skeleton skull named "&cPost a bounty" with lore "&7Type &f/bounty <player> <amount>" and "&7while you're here."
 	hitButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-hit::gui::%{_p}%} to {_gui}
 	if {-hit::gen::%{_p}%} is not set:
@@ -1483,8 +1490,12 @@ command /dhit [<text>]:
 			setData({_who}, "hit::state", "hunting")
 			send "HIT %{_who}% has a %{_a::3}% contract" to sender
 		else if {_sub} is "end":
+			# The contract ends for this week with no pay (a hunt would otherwise start again the next second).
+			if hitHunting({_who}) is true:
+				setData({_who}, "hit::state", "ended")
+				hitLog("end %{_who}% %uuid of {_who}% by=%sender%")
 			hitEnd({_who}, "staff")
-			send "HIT %{_who}% hunt ended" to sender
+			send "HIT %{_who}% contract ended" to sender
 		else if {_sub} is "reset":
 			hitEnd({_who}, "staff")
 			delete {data::%{_who}%::hit::*}
