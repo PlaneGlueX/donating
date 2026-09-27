@@ -359,6 +359,11 @@ on mtv vehicle enter:
 		else:
 			hudBar(player, "&cOnly the owner drives this car.", 2)
 		stop
+	# MTVehicles saves its owners only every 10 minutes: after a crash a traded car could still be the old
+	# owner's there. This event comes before its own check, so the owner is set again first (trade.sk review).
+	set {_car} to mtv vehicle with license plate {_plate}
+	if {_car} is set:
+		set vehicle owner of {_car} to player
 	wait 2 ticks
 	player is online
 	carSeatCheck(player, {_plate})
