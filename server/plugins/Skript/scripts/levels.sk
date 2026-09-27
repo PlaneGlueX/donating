@@ -114,7 +114,7 @@ function levelUnlocks(n: number) :: texts:
 # what it unlocks, to that player only.
 function levelAddXp(p: player, xp: number, why: text) :: number:
 	set {_old} to levelOf({_p})
-	set {_add} to max(0, floor({_xp}))
+	set {_add} to max(0, floor(levelBoosted({_p}, {_xp}, {_why})))
 	set {_total} to levelXp({_p}) + {_add}
 	setData({_p}, "level-xp", {_total})
 	set {_new} to max({_old}, levelFor({_total}))
@@ -125,6 +125,12 @@ function levelAddXp(p: player, xp: number, why: text) :: number:
 	if {_new} > {_old}:
 		levelUp({_p}, {_old}, {_new})
 	return {_new}
+
+# XP after an XP booster (boosters.sk): sales and contracts only, never staff grants.
+function levelBoosted(p: player, xp: number, why: text) :: number:
+	if {_why} is "staff":
+		return {_xp}
+	return floor({_xp} * boosterForKind({_p}, "xp"))
 
 function levelUp(p: player, old: number, new: number):
 	set {_name} to levelColored({_new})
@@ -143,9 +149,14 @@ function levelSale(p: player, pay: number, hauls: number) :: number:
 	set {_xp} to floor({_pay} / cfg("level::xp-per-dollars")) + cfg("level::xp-per-haul") * {_hauls}
 	if {_xp} <= 0:
 		return 0
+	set {_shown} to levelBoosted({_p}, {_xp}, "sell")
 	levelAddXp({_p}, {_xp}, "sell")
-	msg({_p}, "&b+%levelNum({_xp})% XP &7(%levelProgressText({_p})%&7)")
-	return {_xp}
+	if {_shown} > {_xp}:
+		set {_boost} to boosterText(boosterForKind({_p}, "xp"))
+		msg({_p}, "&b+%levelNum({_shown})% XP &6⚡ %{_boost}% &7(%levelProgressText({_p})%&7)")
+	else:
+		msg({_p}, "&b+%levelNum({_xp})% XP &7(%levelProgressText({_p})%&7)")
+	return {_shown}
 
 # "Level 2 Burglar · 1,240 / 3,000 XP to level 3", or "Level 6 Kingpin · max level".
 function levelProgressText(p: player) :: text:
