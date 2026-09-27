@@ -35,6 +35,12 @@
 !/server/plugins/WorldGuard/
 /server/plugins/WorldGuard/*
 !/server/plugins/WorldGuard/config.yml
+# MTVehicles: the hand-edited settings and models (vehicleData.yml is runtime car data: never).
+!/server/plugins/MTVehicles/
+/server/plugins/MTVehicles/*
+!/server/plugins/MTVehicles/config.yml
+!/server/plugins/MTVehicles/vehicles.yml
+!/server/plugins/MTVehicles/supersecretsettings.yml
 
 # ---------- tools / bots / downloads ----------
 /tools/node/

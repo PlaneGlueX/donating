@@ -716,3 +716,124 @@ command /zzcopforget:
 	trigger:
 		delete {-cop::*}
 		send "COPFORGET done"
+
+# ---------- garage.sk (MTVehicles) ----------
+# A new car of an MTV model uuid for a player (no item, nothing spawned): "CARNEW <plate>"
+command /zzcarnew <offline player> <text>:
+	executable by: console
+	trigger:
+		set {_car} to a new mtv vehicle with uuid arg-2 and owner arg-1
+		if {_car} is not set:
+			send "CARNEW failed"
+			stop
+		set {_plate} to vehicle license plate of {_car}
+		send "CARNEW %{_plate}%"
+
+# Spawns a car by plate at x y z in the main world.
+command /zzcarspawn <text> <number> <number> <number>:
+	executable by: console
+	trigger:
+		spawn mtv vehicle with license plate arg-1 at location(arg-2, arg-3, arg-4, world "world")
+		send "CARSPAWN %arg-1%"
+
+# What MTVehicles knows about a plate, and the loaded stands with it.
+command /zzcarinfo <text>:
+	executable by: console
+	trigger:
+		set {_car} to mtv vehicle with license plate arg-1
+		if {_car} is not set:
+			send "CARINFO %arg-1% none"
+			stop
+		set {_ok} to "no"
+		if vehicle {_car} exists:
+			set {_ok} to "yes"
+		set {_o} to vehicle owner of {_car}
+		set {_n} to 0
+		loop all entities:
+			if loop-entity is an armor stand:
+				if "%name of loop-entity%" contains arg-1:
+					add 1 to {_n}
+		send "CARINFO %arg-1% exists=%{_ok}% owner=%{_o}% stands=%{_n}% type=%vehicle type of {_car}%"
+
+# Despawns and deletes a car by plate (MTVehicles data too), and forgets it in garage.sk.
+command /zzcardelete <text>:
+	executable by: console
+	trigger:
+		set {_car} to mtv vehicle with license plate arg-1
+		if {_car} is set:
+			delete mtv vehicle {_car}
+		carForget(arg-1)
+		send "CARDELETE %arg-1%"
+
+# Where a player sits: "SEAT <player> driver:<plate>" / "passenger:<plate>" / "" (garage.sk carSeatOf).
+command /zzcarseat <player>:
+	executable by: console
+	trigger:
+		send "SEAT %arg-1% %carSeatOf(arg-1)% riding=%{-car::riding::%uuid of arg-1%}% slot8=%itemId(slot 8 of arg-1's inventory)%"
+
+# Makes a player sit in the driver's seat of a plate (MTVehicles' mount effect: no enter event).
+command /zzcarmount <player> <text>:
+	executable by: console
+	trigger:
+		set {_car} to mtv vehicle with license plate arg-2
+		make arg-1 mount mtv vehicle {_car}
+		wait 2 ticks
+		carSeatCheck(arg-1, arg-2)
+		send "MOUNT %arg-1% %carSeatOf(arg-1)%"
+
+# Why each spot around a player is (not) clear for a car (garage.sk carSpawnSpot).
+command /zzcarspot <player>:
+	executable by: console
+	trigger:
+		set {_base} to location of arg-1
+		set {_yaw} to yaw of arg-1
+		# Coordinates in locals first: "x-coordinate of {_base} + {_dx}" parses as the x of (location + number).
+		set {_bx} to x-coordinate of {_base}
+		set {_by} to y-coordinate of {_base}
+		set {_bz} to z-coordinate of {_base}
+		loop 0, 90, -90 and 180:
+			set {_a} to {_yaw} + loop-value
+			set {_dx} to 0 - sin({_a}) * 3.5
+			set {_dz} to cos({_a}) * 3.5
+			set {_l} to location(floor({_bx} + {_dx}) + 0.5, floor({_by}), floor({_bz} + {_dz}) + 0.5, world of {_base})
+			set {_under} to block at ({_l} ~ vector(0, -1, 0))
+			delete {_bad::*}
+			loop -1, 0 and 1:
+				loop -1, 0 and 1:
+					loop 0 and 1:
+						set {_b} to block at ({_l} ~ vector(loop-value-2, loop-value-4, loop-value-3))
+						if {_b} is not passable:
+							add "%type of {_b}%@%loop-value-2%,%loop-value-4%,%loop-value-3%" to {_bad::*}
+			set {_bads} to join {_bad::*} with " "
+			send "SPOT %loop-value-1% at %{_l}% under=%type of {_under}% bad=%{_bads}%"
+
+# Moves a car (all its loaded stands) to x y z in the main world (MTVehicles' teleport effect).
+command /zzcartp <text> <number> <number> <number>:
+	executable by: console
+	trigger:
+		set {_car} to mtv vehicle with license plate arg-1
+		teleport mtv vehicle {_car} to location(arg-2, arg-3, arg-4, world "world")
+		send "CARTP %arg-1%"
+
+# Grants a crate reward line as if a crate rolled it: /zzcrategrant <player> <crate> <line>
+command /zzcrategrant <player> <text> <text>:
+	executable by: console
+	trigger:
+		set {_got} to crateGrant(arg-1, arg-3, arg-2)
+		send "CRATEGRANT %arg-1% %{_got}%"
+
+# Whether a heist's alarm would still chase a player where they are (heists.sk heistInRange).
+command /zzinrange <player> <text>:
+	executable by: console
+	trigger:
+		send "INRANGE %arg-1% %arg-2% %heistInRange(arg-1, arg-2)% seat=%carSeatOf(arg-1)%"
+
+# Makes a heist's alarm hunt a player (heistHunt), or releases them: /zzhunt <player> <heist> [release]
+command /zzhunt <player> <text> [<text>]:
+	executable by: console
+	trigger:
+		if arg-3 is "release":
+			heistRelease(arg-1, "staff")
+		else:
+			heistHunt(arg-1, arg-2)
+		send "HUNT %arg-1% by=%heistHuntedBy(arg-1)%"

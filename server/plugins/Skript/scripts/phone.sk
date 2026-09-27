@@ -10,7 +10,7 @@
 # Apps menu (3 rows, slot numbers 0-26):
 #   11 stats           13 passive mode       15 garage
 #   21 bounties        23 how to play        26 close
-# Garage is a placeholder: when garage.sk exists, replace its "coming soon" line in phoneButton()
+# Garage opens garage.sk's garageMenu (your cars).
 # with a call to its menu. Bounties shows bounty.sk's list in chat.
 #
 # Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
@@ -69,7 +69,7 @@ function openPhone(p: player):
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	set slot 11 of {_gui} to phoneStats({_p})
 	set slot 13 of {_gui} to phonePassive({_p})
-	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars. Coming soon.", "phone:garage")
+	set slot 15 of {_gui} to tagItem(minecart named "&eGarage" with lore "&7Your cars: call one to you," and "&7send it back, lock, repaint.", "phone:garage")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online," and "&7and how to place one.", "phone:bounties")
@@ -126,7 +126,7 @@ function phoneButton(p: player, slot: number):
 		togglePassive({_p})
 	else if {_slot} is 15:
 		close {_p}'s inventory
-		msg({_p}, "The garage is coming soon.")
+		garageMenu({_p})
 	else if {_slot} is 19:
 		close {_p}'s inventory
 		crateMenu({_p})

@@ -185,7 +185,7 @@ module.exports = async ({ check }) => {
       const r = await cmd(`zzcrateroll ${crate} 1`)
       return r
     }
-    check('every crate\'s weights add up to 1000 (weight 30 = 3%); Legendary 970 while its car waits for cars', /total=1000/.test(await sum('common')) && /total=1000/.test(await sum('uncommon')) && /total=1000/.test(await sum('rare')) && /total=1000/.test(await sum('epic')) && /total=970/.test(await sum('legendary')) && /total=400/.test(await sum('hacked')), [await sum('legendary'), await sum('hacked')].join(' '))
+    check('every crate\'s weights add up to 1000 (weight 30 = 3%), the crate cars included', /total=1000/.test(await sum('common')) && /total=1000/.test(await sum('uncommon')) && /total=1000/.test(await sum('rare')) && /total=1000/.test(await sum('epic')) && /total=1000/.test(await sum('legendary')) && /total=1000/.test(await sum('hacked')), [await sum('legendary'), await sum('hacked')].join(' '))
     await cmd('zzcfgbool cos::sand::retired true')
     const roll2 = await cmd('zzcrateroll common 2000')
     check('a retired cosmetic is never rolled (and the odds leave it out)', /total=994 lines=12/.test(roll2) && !/sand/.test(roll2), roll2)
@@ -227,7 +227,8 @@ module.exports = async ({ check }) => {
     bots[A].clickWindow(hs, 0, 0).catch(() => {})
     const hw = await hackedPage
     await sleep(300)
-    check('a cosmetic set shows its bag skin or kill effect, not the title (the Hacked spin moves)', hw && hw.slots[0] && hw.slots[0].name === 'leather' && /bag_matrix/.test(itemText(hw.slots[0])) && hw.slots[1] && hw.slots[1].name === 'blaze_powder', `${hw && hw.slots[0] && hw.slots[0].name} ${hw && hw.slots[1] && hw.slots[1].name}`)
+    const hs5 = hw ? hw.slots.slice(0, 5) : []
+    check('a cosmetic set shows its bag skin or kill effect, not the title (the Hacked spin moves); the crate cars show as cars', hs5.some(i => i && i.name === 'leather' && /bag_matrix/.test(itemText(i))) && hs5.some(i => i && i.name === 'blaze_powder') && hs5.filter(i => i && i.name === 'diamond_hoe').length === 3, hs5.map(i => i && i.name).join(' '))
     await closeAll(A)
     check('...and nothing was opened (no key used)', (await keys(A, 'common')) === 5 && (await bal(A)) === before, `keys=${await keys(A, 'common')}`)
 

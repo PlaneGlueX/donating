@@ -117,9 +117,12 @@ module.exports = async ({ check }) => {
 
     // ---------- Placeholder buttons ----------
     let t = Date.now()
-    let closing = closed()
+    const garageOpen = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) }) })
     await click(15, 0, 0)
-    check('garage button closes the menu and says coming soon', (await closing) && /garage is coming soon/.test(text(t)), text(t))
+    const gw = await garageOpen
+    check('the Garage app opens your garage (garage.sk)', gw && /Your garage/.test(JSON.stringify(gw.title)), JSON.stringify(gw && gw.title))
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+    let closing
     w = await openMenu()
     t = Date.now()
     closing = closed()

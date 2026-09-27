@@ -91,7 +91,7 @@ The cloud session couldn't run a server, so everything below is "untested (cloud
     - Result: PASS (bot, 2026-09-24, local). 10/10 after a test fix: Mineflayer only sends the 1.21.2+ `player_input` packet for sneaking, so the movement-key check now sends W as a raw `player_input` packet, the way the real client does. That also proves `on press of any input key` works.
 33. **AFK while driving and in water (real client):** `/afk`, then hold W in a car (after MTVehicles): AFK ends. Stand in a water stream without touching anything for 5 minutes: you still go AFK.
     - Result (water): PASS (cu, 2026-09-24). While AFK, flowing water pushed the player (z −656.0 → −655.6) and AFK stayed on. The owner also went AFK on their own after 5 idle minutes during the session.
-    - Result (driving): TODO (MTVehicles not installed yet)
+    - Result (driving): PASS (cu, 2026-09-26): /afk while sitting in a car ("You're now AFK"), then W: "Welcome back! You're no longer AFK."
 34. **EssentialsX /afk is off:** `/afk` shows afk.sk's message ("You're now AFK"), not EssentialsX's.
     - Result: PASS (cu, 2026-09-24). Typed `/afk` twice in the real client: "Welcome back! You're no longer AFK." then "You're now AFK. You won't earn anything until you're back." Nothing from EssentialsX.
 
@@ -297,9 +297,16 @@ The owner's review answers (2026-09-26, the review page's 39 answers) and the co
 109. **The in-client playtest (owner present, "Try again while I'm here"):** retry the computer-use playtest with the owner at the PC.
     - Result (2026-09-26): the first try was blocked (Windows' input panel, TextInputHost, held the foreground; computer use can't be granted it). Second try, with the owner's OK: `Stop-Process -Name TextInputHost` freed it (Windows starts it again on demand), then everything in item 108 was checked in the client.
 
+Phase 2, cars (garage.sk, car-cleanup.sk; MTVehicles 2.5.9):
+
+110. **Cars in the real client** (cu, 2026-09-26): the car pack loads (the Red Sedan's model, glass windows; the block atlas stays 4096x4096; the only client warnings are harmless particle slots, now fixed); /garage shows the car as a car icon with its color, plate and state; left-click calls it next to you ("No room for a car here" in a dip between blocks); getting in puts the car key in slot 9 ("Car key · Sedan"); it drives with W (26.3 through ViaVersion); the key's right-click unlocks ("Unlocked. Others can ride with you.") and locks; Shift gets you out and the phone is back; a combat-tagged driver is thrown out at a safe zone's border (WorldGuard's gate works for drivers).
+    - Result: PASS. Owner: how the cars feel (speed, turning, the horn on jump), and the model list and prices (PROPOSALs: Sedan $40K L2 ... SUV $1M L6).
+111. **Garage rules** (`bots\run.js garage`, 26 checks): the Car Dealer lists the cars for sale as car icons (not the crate cars); a car above your level is refused; buying needs a second click, then $40,000 and an MTVehicles plate; one of each model; /garage lists your cars and calls one (3 stands); someone else can't drive it; the owner gets in with the key in slot 9; no passenger while locked; the key unlocks; a passenger rides along while unlocked; locking again keeps them out; getting out gives the phone back; hitting a car doesn't break it; /vehicle is staff only; no getting in from inside a heist; a car that ends up in a heist is towed and the driver thrown out; 150 blocks from a heist the cops lose you on foot but not in a car; an unused car goes back to the garage by itself (its owner is told); the owner logging out sends it back; repainting costs $2,500 and makes a new plate; a crate car lands in the garage and a repeat pays $5,000; crate cars roll (Legendary 1000); /levels lists the cars; /dgarage is staff only.
+    - Result: PASS (bot, 2026-09-26).
+
 ## Needs a human (owner)
 
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.
     - Result: HUMAN / TODO
 24. **Car entry with MTVehicles** (after installing it): right-clicking a car still lets you get in (the lock cancels right-clicks on entities after other plugins run).
-    - Result: TODO (MTVehicles not installed yet)
+    - Result: PASS (cu, 2026-09-26): right-clicking the car's middle gets you in, with an empty hand, the phone or a gun (no shot fired). Only the car's small invisible stands are clickable: aiming at a wheel or the roof misses (with the phone in hand that opens the map). Owner: is that easy enough, or should clicking anywhere on the car work (a bigger hitbox would need extra entities)?

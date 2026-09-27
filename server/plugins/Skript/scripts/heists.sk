@@ -651,6 +651,7 @@ function heistRelease(p: player, reason: text):
 	set {_h} to heistHuntedBy({_p})
 	{_h} is not ""
 	delete {-heisthunt::%{_p}%}
+	delete {-heisthunt::car::%{_p}%}
 	delete {-heist::%{_h}%::hunted::%{_p}%}
 	if {_reason} is "range":
 		heistNotify({_p}, "lost-cops", "&aYou lost the cops.")
@@ -666,9 +667,21 @@ function heistInRange(p: player, h: text) :: boolean:
 		return false
 	if world of {_p} is not world of {_c}:
 		return false
-	if distance between (location of {_p}) and {_c} <= cfg("alarm::chase-radius"):
+	if distance between (location of {_p}) and {_c} <= heistChaseRadius({_p}, {_h}):
 		return true
 	return false
+
+# How far the cops chase a hunted player. Owner, 2026-09-26: a car is the getaway, but the cops chase
+# alarm::car-chase-factor times further, for the rest of that chase once they've been in a car (review:
+# stepping out at 150 blocks must not lose the cops at once).
+function heistChaseRadius(p: player, h: text) :: number:
+	set {_r} to cfg("alarm::chase-radius")
+	if heistHuntedBy({_p}) is {_h}:
+		if carSeatOf({_p}) is not "":
+			set {-heisthunt::car::%{_p}%} to {_h}
+	if {-heisthunt::car::%{_p}%} is {_h}:
+		return {_r} * cfg("alarm::car-chase-factor")
+	return {_r}
 
 function heistAlarmTick(h: text):
 	{-heist::%{_h}%::alarm} is set
