@@ -334,7 +334,7 @@ function crateGrant(p: player, line: text, t: text) :: text:
 			if cosGive({_p}, {_id}, "crate:%{_t}%") is true:
 				set {_type} to {-cfg::cos::%{_id}%::type}
 				set {_tn} to cosTypeName({_type})
-				add "%cosColored({_id})% &7%{_tn}%" to {_new::*}
+				add "%cosColored({_id})%%cosSerialText({_p}, {_id})% &7%{_tn}%" to {_new::*}
 		if size of {_new::*} > 0:
 			return join {_new::*} with " &7+ "
 		set {_rar} to crateLineRarity({_line}, {_t})
@@ -448,7 +448,18 @@ function crateFinish(p: player):
 		set {_big} to true
 	if {_big} is true:
 		if {-cfg::crate::announce::*} contains {_r}:
-			broadcastMsg("&f%name of {_p}% &7unboxed %crateLineText({_line})% &7from a %crateColored({_t})%&7!")
+			# A new copy says its serial ("H4CK3R #1/1"); a repeat (paid out instead) doesn't.
+			set {_what} to crateLineText({_line})
+			if {_got} does not contain "instead":
+				delete {_parts::*}
+				if {_a::2} is "car":
+					add "&6%carName({_a::3})%%carSerialText({_p}, {_a::3})% &7car" to {_parts::*}
+				else:
+					loop crateCosIds({_line}):
+						set {_tn} to cosTypeName({-cfg::cos::%loop-value%::type})
+						add "%cosColored(loop-value)%%cosSerialText({_p}, loop-value)% &7%{_tn}%" to {_parts::*}
+				set {_what} to join {_parts::*} with " &7+ "
+			broadcastMsg("&f%name of {_p}% &7unboxed %{_what}% &7from a %crateColored({_t})%&7!")
 
 # The strip: steps of random rewards sliding left, slowing down, ending with the reward in the middle
 # (slot 13). The reward is given when it stops, or at once if the menu is closed first.

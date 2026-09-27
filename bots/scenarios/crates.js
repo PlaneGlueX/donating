@@ -405,7 +405,11 @@ module.exports = async ({ check }) => {
     t = Date.now()
     await openCrate(A, 'Legendary')
     await sleep(500)
-    check('a legendary cosmetic is announced to everyone', /CrateA unboxed The Boss title from a Legendary Crate/.test(text(B, t)), text(B, t))
+    check('a legendary cosmetic is announced to everyone', /CrateA unboxed The Boss #\d+\/\d+ title from a Legendary Crate/.test(text(B, t)), text(B, t))
+    // Owner, 2026-09-27: rare items are numbered (#N/M: the Nth copy of M so far), also in the announcement.
+    const own = Number(((await cmd(`zzdata ${A} cosserial::theboss`)).match(/= (\d+)/) || [])[1])
+    const ann = text(B, t).match(/The Boss #(\d+)\/(\d+) title/)
+    check('...numbered: the newest copy, #N of N, in the announcement and the player\'s own line', own > 0 && ann && Number(ann[1]) === own && Number(ann[2]) === own && new RegExp(`The Boss #${own}/${own}`).test(text(A, t)), `serial=${own} ${text(A, t).slice(0, 200)}`)
 
     // ---------- A Hacked stand: the animated hologram ----------
     await cmd(`lp user ${A} permission set donating.store true`)

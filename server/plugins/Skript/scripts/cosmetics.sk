@@ -58,13 +58,77 @@ function cosOwned(p: offline player, id: text) :: boolean:
 				return true
 	return false
 
-# Gives a cosmetic: true if it's new, false if the player already had it.
+# Gives a cosmetic: true if it's new, false if the player already had it. A tradeable one gets the next serial.
 function cosGive(p: offline player, id: text, why: text) :: boolean:
 	if {data::%{_p}%::cos::%{_id}%} is true:
 		return false
 	set {data::%{_p}%::cos::%{_id}%} to true
-	cosLog("give %{_p}% %uuid of {_p}% %{_id}% why=%{_why}%")
+	set {_sn} to ""
+	if cosSerialized({_id}) is true:
+		set {data::%{_p}%::cosserial::%{_id}%} to serialMint("cos:%{_id}%")
+		set {_sn} to " serial=%{data::%{_p}%::cosserial::%{_id}%}%"
+	cosLog("give %{_p}% %uuid of {_p}% %{_id}% why=%{_why}%%{_sn}%")
 	return true
+
+# ---------- Serials ----------
+# Owner, 2026-09-27: rare items are numbered so their value can be judged in trades: "#3/57" = the 3rd copy ever
+# unlocked, of 57 so far (the count grows as more people unlock it from crates; a retired one's stops). Every
+# tradeable copy has one: crate cosmetics here, crate cars in garage.sk ({carserial::<plate>}). A rank's or an
+# earned (bound) cosmetic has none (never traded). Saved: {serial::<key>} = copies made ("cos:<id>", "car:<id>");
+# data cosserial::<id> = the number of a player's copy; a trade moves it with the item.
+
+function serialMint(key: text) :: number:
+	if {serial::%{_key}%} is not set:
+		set {serial::%{_key}%} to 0
+	add 1 to {serial::%{_key}%}
+	return {serial::%{_key}%}
+
+function serialTotal(key: text) :: number:
+	if {serial::%{_key}%} is set:
+		return {serial::%{_key}%}
+	return 0
+
+# "#3/57" (the copy's number of the copies made so far).
+function serialText(key: text, n: number) :: text:
+	return "#%{_n}%/%serialTotal({_key})%"
+
+# Tradeable, so numbered: every cosmetic but an earned (bound) one.
+function cosSerialized(id: text) :: boolean:
+	if cosExists({_id}) is false:
+		return false
+	if {-cfg::cos::%{_id}%::bound} is true:
+		return false
+	return true
+
+# The number of the player's own copy (0 = none: not owned, or only through a rank). A copy from before serials
+# existed is numbered the first time it's asked for.
+function cosSerial(p: offline player, id: text) :: number:
+	if {data::%{_p}%::cos::%{_id}%} is not true:
+		return 0
+	if cosSerialized({_id}) is false:
+		return 0
+	if {data::%{_p}%::cosserial::%{_id}%} is not set:
+		set {data::%{_p}%::cosserial::%{_id}%} to serialMint("cos:%{_id}%")
+		cosLog("serial %{_p}% %uuid of {_p}% %{_id}% serial=%{data::%{_p}%::cosserial::%{_id}%}% (numbered late)")
+	return {data::%{_p}%::cosserial::%{_id}%}
+
+# " &7#3/57" after a name, or "" when the player's copy has no serial.
+function cosSerialText(p: offline player, id: text) :: text:
+	set {_n} to cosSerial({_p}, {_id})
+	if {_n} < 1:
+		return ""
+	set {_k} to "cos:%{_id}%"
+	return " &7%serialText({_k}, {_n})%"
+
+# The lore line for a numbered copy: "Serial #3 of 57" (+ "no more are made" once retired).
+function cosSerialLore(p: offline player, id: text) :: text:
+	set {_n} to cosSerial({_p}, {_id})
+	if {_n} < 1:
+		return ""
+	set {_t} to serialTotal("cos:%{_id}%")
+	if {-cfg::cos::%{_id}%::retired} is true:
+		return "&7Serial &f#%{_n}% &7of %{_t}% &7(retired: no more are made)"
+	return "&7Serial &f#%{_n}% &7of %{_t}% so far"
 
 # Every cosmetic of a type the player owns, in core.sk's order.
 function cosOwnedOf(p: offline player, type: text) :: texts:
@@ -354,11 +418,20 @@ function cosPage(p: player, type: text):
 			set name of {_i} to colored cosColored({_id})
 		else:
 			set name of {_i} to colored "&d%bagSkinName({_id})% &7(rank)"
+		set {_sl} to ""
+		if cosExists({_id}) is true:
+			set {_sl} to cosSerialLore({_p}, {_id})
 		if {_id} is {_worn}:
-			set lore of {_i} to "&aWearing it."
+			if {_sl} is "":
+				set lore of {_i} to colored "&aWearing it."
+			else:
+				set lore of {_i} to colored {_sl} and colored "&aWearing it."
 			set {_i} to glint({_i})
 		else:
-			set lore of {_i} to "&eClick to wear it."
+			if {_sl} is "":
+				set lore of {_i} to colored "&eClick to wear it."
+			else:
+				set lore of {_i} to colored {_sl} and colored "&eClick to wear it."
 		cosButton({_p}, {_gui}, {_slot}, {_i}, "wear:%{_type}%:%{_id}%")
 		add 1 to {_slot}
 	if {_slot} is 0:
