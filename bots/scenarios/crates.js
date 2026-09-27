@@ -219,6 +219,15 @@ module.exports = async ({ check }) => {
     const pw = await seeing
     await sleep(300)
     check('clicking a crate in /crates shows what\'s inside with each chance, and says to open it at a stand', /what's inside/.test(title(pw)) && /Chance/.test(itemText(pw && pw.slots[0])) && /100/.test(itemText(pw && pw.slots[0])) && /crate stand/.test(itemText(pw && pw.slots[49])) && !/Open one/.test(itemText(pw && pw.slots[49])), `${title(pw)} ${itemText(pw && pw.slots[49]).slice(0, 300)}`)
+    // A set shows its most visible part (found in the client: both Hacked sets were name tags, so the
+    // spin looked frozen): H4CK3R + Matrix is the Matrix bag, Zero Day + Glitch the kill effect.
+    w = await menu(A)
+    const hs = w ? w.slots.findIndex((i, n) => n >= 9 && n < 18 && i && i.name === 'sculk_shrieker') : -1
+    const hackedPage = windowOpen(bots[A])
+    bots[A].clickWindow(hs, 0, 0).catch(() => {})
+    const hw = await hackedPage
+    await sleep(300)
+    check('a cosmetic set shows its bag skin or kill effect, not the title (the Hacked spin moves)', hw && hw.slots[0] && hw.slots[0].name === 'leather' && /bag_matrix/.test(itemText(hw.slots[0])) && hw.slots[1] && hw.slots[1].name === 'blaze_powder', `${hw && hw.slots[0] && hw.slots[0].name} ${hw && hw.slots[1] && hw.slots[1].name}`)
     await closeAll(A)
     check('...and nothing was opened (no key used)', (await keys(A, 'common')) === 5 && (await bal(A)) === before, `keys=${await keys(A, 'common')}`)
 

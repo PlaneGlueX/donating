@@ -215,11 +215,21 @@ function crateLineIcon(line: text) :: item:
 		set {_i} to 1 of {-cfg::tool::%{_a::3}%::item}
 		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:tool_%{_a::3}%"
 	else if {_k} is "cos":
+		# A set shows its most visible part (a bag skin, else a kill effect, else the title), so a spin
+		# over sets doesn't look frozen (found in the client, 2026-09-26: both Hacked sets were name tags).
 		set {_ids::*} to crateCosIds({_line})
-		set {_type} to {-cfg::cos::%{_ids::1}%::type}
+		set {_show} to {_ids::1}
+		loop {_ids::*}:
+			if {-cfg::cos::%loop-value%::type} is "killfx":
+				if {-cfg::cos::%{_show}%::type} is "title":
+					set {_show} to loop-value
+		loop {_ids::*}:
+			if {-cfg::cos::%loop-value%::type} is "bagskin":
+				set {_show} to loop-value
+		set {_type} to {-cfg::cos::%{_show}%::type}
 		if {_type} is "bagskin":
 			set {_i} to leather
-			set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_ids::1}%"
+			set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_show}%"
 		else if {_type} is "killfx":
 			set {_i} to blaze powder
 		else:
