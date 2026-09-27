@@ -878,14 +878,33 @@ command /dcrate [<text>]:
 				dcrateReply(sender, "CRATE warning: that block isn't in a safe zone, so nobody can open this crate there. Put crate stands inside a safe zone (a region whose id starts with %{_sp}%).")
 			stop
 		if {_sub} is "remove":
-			if sender is not a player:
-				dcrateReply(sender, "CRATE remove: in game only (look at the block)")
-				stop
-			set {_b} to targeted block of player
-			if {_b} is not set:
-				dcrateReply(sender, "CRATE remove: look at the crate's block")
-				stop
-			set {_key} to crateBlockKey({_b})
+			# In game: the block you look at. Anywhere (also the console): remove <x> <y> <z> [world].
+			if {_a::4} is set:
+				set {_x} to {_a::2} parsed as integer
+				set {_y} to {_a::3} parsed as integer
+				set {_z} to {_a::4} parsed as integer
+				if {_z} is not set:
+					dcrateReply(sender, "CRATE remove: coordinates must be whole numbers")
+					stop
+				if {_y} is not set:
+					dcrateReply(sender, "CRATE remove: coordinates must be whole numbers")
+					stop
+				if {_x} is not set:
+					dcrateReply(sender, "CRATE remove: coordinates must be whole numbers")
+					stop
+				set {_w} to "world"
+				if {_a::5} is set:
+					set {_w} to {_a::5}
+				set {_key} to "%{_w}%:%{_x}%:%{_y}%:%{_z}%"
+			else:
+				if sender is not a player:
+					dcrateReply(sender, "CRATE remove: look at the block in game, or give its coordinates: /dcrate remove <x> <y> <z> [world]")
+					stop
+				set {_b} to targeted block of player
+				if {_b} is not set:
+					dcrateReply(sender, "CRATE remove: look at the crate's block")
+					stop
+				set {_key} to crateBlockKey({_b})
 			if {crateblock::%{_key}%} is not set:
 				dcrateReply(sender, "CRATE remove: that block isn't a crate")
 				stop
@@ -900,7 +919,7 @@ command /dcrate [<text>]:
 				dcrateReply(sender, "CRATE %loop-value% at %loop-index% (hologram %{crateholo::%loop-index%}%)")
 			dcrateReply(sender, "CRATE end")
 			stop
-		dcrateReply(sender, "CRATE usage: /dcrate give|take <player> <crate> [count] | info <player> | place <crate> | remove | list")
+		dcrateReply(sender, "CRATE usage: /dcrate give|take <player> <crate> [count] | info <player> | place <crate> | remove [<x> <y> <z> [world]] | list")
 
 # give (sign 1) or take back (sign -1) keys. A store delivery can't be retried by hand easily, so
 # every request and refusal is logged.

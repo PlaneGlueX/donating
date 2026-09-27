@@ -533,7 +533,9 @@ function loadSettings():
 	# Owner, 2026-09-27: seasons, three leaderboards with different metrics, prizes for the top; earned titles
 	# can't be traded; farming loops closed (Heist Refresh runs count as normal); rank perks count.
 	set {-cfg::season::days} to 28
-	set {-cfg::season::auto} to true
+	# Owner, 2026-09-27: seasons are released by hand (/dseason start), since each one gets new things. true = the
+	# next season starts by itself when one ends.
+	set {-cfg::season::auto} to false
 	set {-cfg::season::boards::*} to "earners", "heisters" and "wheelmen"
 	set {-cfg::season::board::earners::name} to "Top Earners"
 	set {-cfg::season::board::earners::short} to "Earner"

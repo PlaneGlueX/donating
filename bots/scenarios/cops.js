@@ -195,6 +195,29 @@ module.exports = async ({ check }) => {
     check('a robber shot dead by a cop: a cop death, losing cop-p of the balance (10% of $10,000 at difficulty 4 = $1,000)', died && /= cop$/m.test(cause) && /= 1000(\.0)?$/m.test(loss), `${died} ${cause} ${loss} bal before ${before}`)
     const ended = await until(async () => (await alive()) === 0 && /alarm=none/.test(await heist()), 6000)
     check('the only hunted robber died: the alarm ends and the cops go', ended, `${await cops()} ${await heist()}`)
+
+    // ---------- Killed by a cop outside, during the chase: counts for the heist (owner, 2026-09-27) ----------
+    await sleep(4000)
+    await cmd(`eco set ${A} 10000`)
+    await cmd(`dheist end ${ID}`)
+    await cmd(`dheist open ${ID}`)
+    await until(async () => (await field('state')) === 'open', 8000)
+    await place(A, 965.5, 965.5)
+    await until(async () => /state=active/.test(await heist()), 4000)
+    await cmd(`zzdata ${A} bag-tier 1`)
+    await cmd(`dheist alarm ${ID}`)
+    await place(A, 952.5, 965.5) // the exit spot: outside the building, well inside the chase radius
+    const inh = await cmd(`zzinheist ${A}`)
+    const outside = / none hunt=zcop/.test(inh)
+    let died2 = false
+    bots[A].once('death', () => { died2 = true })
+    await until(() => died2, 25000)
+    await sleep(800)
+    const cause2 = await cmd(`zzdata ${A} last-death-cause`)
+    const loss2 = await cmd(`zzdata ${A} last-death-loss`)
+    // Outside a heist a death used difficulty 1 (cop-p 5% = $500); in a chase it's the heist's 10% = $1,000.
+    check('shot dead by a cop outside the building during the chase: the heist\'s cop-p (10% = $1,000), not the easy tier\'s', outside && died2 && /= cop$/m.test(cause2) && /= 1000(\.0)?$/m.test(loss2), `${inh} ${died2} ${cause2} ${loss2}`)
+    await until(async () => (await alive()) === 0 && /alarm=none/.test(await heist()), 6000)
     await cmd('zzcfgset difficulty::4::cop-damage 4')
     await sleep(3000)
 

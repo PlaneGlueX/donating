@@ -26,7 +26,7 @@
 # Master Thieves and Wheelmen points added up): Season keys, and «S1 Veteran» at the last one.
 # The end (every minute and on load; each step can run again safely): the boards are frozen into finals and the
 # prizes set aside for season::review-hours (staff can /dseason void a cheater, which re-freezes), then paid:
-# at once to players online, at the next join to the rest. The next season starts at once (season::auto).
+# at once to players online, at the next join to the rest. The next season starts when staff run /dseason start (or at once with season::auto true).
 #
 # Saved: {season::num|start|end|state} (unix seconds; state live|ending|off), {season::ending},
 # {ss::<n>::<board>::<uuid>} (values > 0), {ss::<n>::t::<board>::<uuid>} (unix time of the last increase: ties),
