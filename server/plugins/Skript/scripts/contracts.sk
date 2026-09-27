@@ -19,9 +19,9 @@
 #
 # The car is a new MTVehicles car owned by the thief (MTVehicles only lets its owner drive), but it's not
 # one of garage.sk's: no {car::owner}, never in /garage. Nobody else gets in, not even as a passenger.
-# Finding it and the chop shop: the boss bar (hud.sk calls ctHud: an arrow, the distance, the time) and
-# a gold dot on the thief's locator bar (an invisible marker stand only the thief sees; it sits at most
-# contract::marker-lead blocks ahead, in the target's direction, so it's always in a loaded chunk).
+# Finding it and the chop shop: the GPS (gps.sk, ctGps: the car's spot, then every chop shop, the nearest
+# along the roads winning; the phone plugin draws the way, a trail, a ring and a locator-bar dot) and the
+# boss bar (hud.sk calls ctHud: the way's arrow and distance, the time left).
 #
 # A job ends (the car is scrapped, contract::cooldown before the next) when the car is delivered, the time
 # runs out, the thief logs out, the car is gone, the thief drops the job, or staff end it. A restart ends
@@ -29,7 +29,7 @@
 #
 # Data:
 #   {-ctjob::<uuid>} = tier; ::p ::model ::label ::plate ::spot (spot number) ::spotat ::carat ::until
-#     ::stage ("find" = locked, "open" = picked) ::fails ::mark (the marker stand)
+#     ::stage ("find" = locked, "open" = picked) ::fails
 #   {-ctplate::<plate>} = the thief's uuid; {contract::plates::<plate>} (saved) = the thief's uuid
 #   {-ctcd::<uuid>} = when the next job may start
 #   {-ctoffer::<uuid>::<tier>} = "model|color|spot"; {-ctofferat::<uuid>} = when they were rolled
@@ -242,22 +242,6 @@ function ctNearestChop(l: location) :: location:
 
 # ---------- Directions ----------
 
-# An arrow from a player's view to a spot: ↑ ahead, → to the right...
-function ctArrow(p: player, to: location) :: text:
-	set {_from} to location of {_p}
-	set {_dx} to x-coordinate of {_to}
-	set {_fx} to x-coordinate of {_from}
-	set {_dx} to {_dx} - {_fx}
-	set {_dz} to z-coordinate of {_to}
-	set {_fz} to z-coordinate of {_from}
-	set {_dz} to {_dz} - {_fz}
-	# Minecraft's yaw: 0 faces +z (south), 90 faces -x (west); the yaw facing the spot is atan2(-dx, dz).
-	set {_want} to atan2({_dz}, 0 - {_dx})
-	set {_rel} to mod({_want} - (yaw of {_p}) + 540, 360) - 180
-	set {_i} to mod(round({_rel} / 45) + 8, 8)
-	set {_arrows::*} to "↑", "↗", "→", "↘", "↓", "↙", "←" and "↖"
-	return {_arrows::%{_i} + 1%}
-
 # The compass direction from one spot to another: N, NE, E...
 function ctCompass(from: location, to: location) :: text:
 	set {_dx} to x-coordinate of {_to}
@@ -418,7 +402,7 @@ function ctTake(p: player, t: text):
 	msg({_p}, "&6%ctTierName({_t})%: &fsteal the %{_label}% %carName({_m})% &7(%ctWhere(location of {_p}, {_spot})%)&f. Pick its lock with a %ctPickName({_t})% and drive it to a chop shop within %{_clock}%.")
 	send title colored "&6&lCONTRACT" with subtitle colored "&fSteal the %{_label}% %carName({_m})%" to {_p} for 3 seconds
 	play sound "block.note_block.pling" with volume 0.8 and pitch 1.2 to {_p}
-	ctMarker({_u})
+	ctGps({_u})
 
 # ---------- Getting in: the lock ----------
 
@@ -607,7 +591,7 @@ function ctPicked(p: player):
 	send title colored "&a&lUNLOCKED" with subtitle colored "&7Get in and drive it to a chop shop" to {_p} for 2 seconds
 	play sound "block.iron_door.open" with volume 0.8 to {_p}
 	play sound "entity.player.levelup" with volume 0.5 and pitch 1.6 to {_p}
-	ctMarker({_u})
+	ctGps({_u})
 
 # Too many misses: the lockpick breaks, the misses start over, and the car's alarm sounds.
 function ctPickBreak(p: player):
@@ -716,7 +700,8 @@ function ctEnd(u: text, why: text):
 	set {_label} to {-ctjob::%{_u}%::label}
 	if {_p} is online:
 		ctQteClose({_p}, "end")
-	ctMarkerRemove({_u})
+	if {_p} is online:
+		gpsQuestClear({_p}, "contract")
 	# Load the car's chunk so the despawn reaches it (the stands of a deleted plate are swept later
 	# anyway: car-cleanup.sk).
 	set {_at} to {-ctjob::%{_u}%::carat}
@@ -789,7 +774,7 @@ function ctTick(u: text):
 			ctQteClose({_p}, "away")
 		else if distance between {_at} and (location of {_p}) > 6:
 			ctQteClose({_p}, "away")
-	ctMarker({_u})
+	ctGps({_u})
 
 # Cars from jobs that ended without us (a restart or crash): scrapped. Marker stands of no job: removed.
 every 10 seconds:
@@ -798,14 +783,6 @@ every 10 seconds:
 		if {-ctplate::%{_plate}%} is not set:
 			ctScrap({_plate})
 			ctLog("scrapped %{_plate}% (its job ended in a restart)")
-	loop {-ctjob::*}:
-		set {_m} to {-ctjob::%loop-index%::mark}
-		if {_m} is set:
-			set {_keep::%uuid of {_m}%} to true
-	loop all armor stands:
-		if loop-entity has scoreboard tag "donating_ctmark":
-			if {_keep::%uuid of loop-entity%} is not set:
-				ctKillMarker(loop-entity)
 
 # ---------- The GPS: boss bar and locator bar ----------
 
@@ -852,9 +829,23 @@ function ctHud(p: player) :: boolean:
 		if {_to} is set:
 			if world of {_to} is world of {_p}:
 				set {_d} to round(distance between (location of {_p}) and {_to})
-				set {_dir} to " &e%ctArrow({_p}, {_to})% %{_d}%m"
+				set {_dir} to " &e%gpsArrow({_p}, {_to})% %{_d}%m"
 		else:
 			set {_dir} to " &7(no chop shop yet)"
+		# The GPS's way (along the roads) when it's showing this job; with a pin active the job is on hold and
+		# the bar says where the GPS leads instead (review fix: the dot and trail went to the pin).
+		set {_active} to gpsActive({_p})
+		if {_active} is "quest":
+			set {_way} to gpsWay({_p})
+			if {_way} is not "":
+				set {_dir} to " %{_way}%"
+		else if {_active} is "pin":
+			set {_pl} to {-gps::pinlabel::%{_u}%}
+			set {_dir} to " &7(on hold: GPS to &d%{_pl}% %gpsWay({_p})%&7)"
+		if {-ctjob::%{_u}%::stage} is "open":
+			if carSeatOf({_p}) is "driver:%{_plate}%":
+				if ctNearestChop(location of {_p}) is not set:
+					set {_dir} to " &7(no chop shop yet)"
 		set {_color} to "yellow"
 		set {_cc} to "&e"
 		if {_left} <= 60:
@@ -864,78 +855,34 @@ function ctHud(p: player) :: boolean:
 		set {_shown} to true
 	return {_shown}
 
-# The thief's locator-bar dot: an invisible marker stand, hidden from everyone else, at the target or
-# contract::marker-lead blocks towards it.
-function ctMarker(u: text):
+# The job's target on the GPS (gps.sk; the phone plugin shows the way along the roads, the dot and the trail):
+# the car's spot, then every chop shop while driving it (the nearest along the roads wins), or back to the
+# car when out of it. Finding the car and delivering it are two objectives (a new one puts a pin on hold).
+function ctGps(u: text):
 	set {_p} to {-ctjob::%{_u}%::p}
-	set {_to} to ctTarget({_u})
-	set {_ok} to false
-	if {_to} is set:
-		if world of {_to} is world of {_p}:
-			set {_ok} to true
-	if {_ok} is false:
-		ctMarkerRemove({_u})
+	{_p} is online
+	set {_plate} to {-ctjob::%{_u}%::plate}
+	set {_car} to "%{-ctjob::%{_u}%::label}% %carName({-ctjob::%{_u}%::model})%"
+	if {-ctjob::%{_u}%::stage} is "find":
+		set {_l} to {-ctjob::%{_u}%::spotat}
+		gpsQuest({_p}, "%world of {_l}%", gpsSpot({_l}), {_car}, 5, "contract", "find:%{_plate}%")
 		stop
-	set {_pl} to location of {_p}
-	set {_d} to distance between {_pl} and {_to}
-	set {_lead} to cfg("contract::marker-lead")
-	set {_at} to {_to}
-	if {_d} > {_lead}:
-		set {_f} to {_lead} / {_d}
-		set {_px} to x-coordinate of {_pl}
-		set {_py} to y-coordinate of {_pl}
-		set {_pz} to z-coordinate of {_pl}
-		set {_tx} to x-coordinate of {_to}
-		set {_ty} to y-coordinate of {_to}
-		set {_tz} to z-coordinate of {_to}
-		set {_at} to location({_px} + ({_tx} - {_px}) * {_f}, {_py} + ({_ty} - {_py}) * {_f}, {_pz} + ({_tz} - {_pz}) * {_f}, world of {_pl})
-	set {_e} to {-ctjob::%{_u}%::mark}
-	set {_valid} to false
-	if {_e} is set:
-		if {_e} is valid:
-			set {_valid} to true
-	if {_valid} is true:
-		teleport {_e} to {_at}
+	if carSeatOf({_p}) is "driver:%{_plate}%":
+		set {_spots} to ""
+		loop {contract::chop::*}:
+			if world of loop-value is world of {_p}:
+				if {_spots} is "":
+					set {_spots} to gpsSpot(loop-value)
+				else:
+					set {_spots} to "%{_spots}%;%gpsSpot(loop-value)%"
+		if {_spots} is not "":
+			gpsQuest({_p}, "%world of {_p}%", {_spots}, "Chop shop", cfg("contract::chop-radius"), "contract", "deliver:%{_plate}%")
+			stop
+		# No chop shop in this world: no target (not the moving car: a new way every second; review fix).
+		gpsQuestClear({_p}, "contract")
 		stop
-	spawn an armor stand at {_at}:
-		ctMarkerSetup(event-entity, {_u})
-	set {_e} to last spawned entity
-	set {-ctjob::%{_u}%::mark} to {_e}
-	# The dot's color: no API, and SkBee can't write locator_bar_icon; /waypoint doesn't echo to ops' chat.
-	execute console command "waypoint modify %uuid of {_e}% color %cfg("contract::marker-color")%"
-	loop all players:
-		if loop-player is not {_p}:
-			hide {_e} from loop-player
-
-# Set up without /data (its output goes to every op's chat).
-function ctMarkerSetup(e: entity, u: text):
-	make {_e} not persistent
-	make {_e} invisible
-	add "donating_ctmark" to scoreboard tags of {_e}
-	set byte tag "Marker" of nbt of {_e} to 1
-	set byte tag "NoGravity" of nbt of {_e} to 1
-	set byte tag "Invulnerable" of nbt of {_e} to 1
-	set byte tag "Silent" of nbt of {_e} to 1
-	set waypoint transmit range attribute of {_e} to 60000000
-
-function ctMarkerRemove(u: text):
-	set {_e} to {-ctjob::%{_u}%::mark}
-	delete {-ctjob::%{_u}%::mark}
-	{_e} is set
-	{_e} is valid
-	ctKillMarker({_e})
-
-# Skript's kill is a generic_kill hit: an armor stand hit by that is removed outright (no drop).
-function ctKillMarker(e: entity):
-	kill {_e}
-
-# Players joining don't see other thieves' dots.
-on join:
-	loop {-ctjob::*}:
-		set {_e} to {-ctjob::%loop-index%::mark}
-		if {_e} is set:
-			if loop-index is not "%uuid of player%":
-				hide {_e} from player
+	set {_l} to {-ctjob::%{_u}%::carat}
+	gpsQuest({_p}, "%world of {_l}%", gpsSpot({_l}), {_car}, 4, "contract", "deliver:%{_plate}%")
 
 # ---------- The menu: /contracts (also the phone's Contracts app) ----------
 

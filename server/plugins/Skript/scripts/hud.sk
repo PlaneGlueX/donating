@@ -155,6 +155,9 @@ function hudBoss(p: player):
 	# A car-theft job (contracts.sk): where to go, and the time left.
 	if ctHud({_p}) is true:
 		stop
+	# The GPS (gps.sk): a pin, or the base while carrying loot.
+	if gpsHud({_p}) is true:
+		stop
 	hudBossOff({_p})
 
 every 5 ticks:

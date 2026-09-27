@@ -281,8 +281,10 @@ module.exports = async ({ check }) => {
     await sleep(1500)
     let cur = await cursorOf(VIEW)
     check('the cursor starts in the middle', cur[0] === 64 && cur[1] === 64 && screen[VIEW][64 * 128 + 64] === 34, `cursor ${cur}, pixel ${screen[VIEW][64 * 128 + 64]}`)
-    share = match(VIEW, expected(W / 2, H / 2, f), 128, [64, 64])
-    check('the big map shows the whole city, shrunk to fit', share > 0.98, `${(share * 100).toFixed(1)}% of pixels match (${W * unit}x${H * unit} blocks, ${f} city pixels per screen pixel)`)
+    // Above the bottom strip ("L-click: set a pin", the GPS: rows 119-127).
+    share = match(VIEW, expected(W / 2, H / 2, f), 119, [64, 64])
+    const stripDark = screen[VIEW].slice(119 * 128).filter(v => v === 119).length
+    check('the big map shows the whole city, shrunk to fit (above the GPS strip)', share > 0.98 && stripDark > 600, `${(share * 100).toFixed(1)}% of pixels match (${W * unit}x${H * unit} blocks, ${f} city pixels per screen pixel); strip dark pixels ${stripDark}`)
     let big = packets[VIEW].filter(p => p.icons).slice(-1)[0]
     const me = big && big.icons.find(i => i.type === SMALL_SELF)
     const want = bigAt(...spot[VIEW])

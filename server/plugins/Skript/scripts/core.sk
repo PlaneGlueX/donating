@@ -194,10 +194,11 @@ function loadSettings():
 	set {-cfg::contract::chop-radius} to 6
 	# Car spots and chop shops at least this far apart (/dcontract refuses closer ones).
 	set {-cfg::contract::min-distance} to 50
-	# The GPS dot on the locator bar sits at most this far ahead of the thief, in the target's direction
-	# (so it's always in a loaded chunk); the real spot once closer.
-	set {-cfg::contract::marker-lead} to 40
-	set {-cfg::contract::marker-color} to "gold"
+
+	# ---------- GPS (gps.sk; the phone plugin finds the way along the roads: CLAUDE.md "GPS") ----------
+	# A pin counts as reached within this many blocks (then it's cleared); the base while carrying loot too.
+	set {-cfg::gps::pin-radius} to 8
+	set {-cfg::gps::base-radius} to 10
 
 	# ---------- Multipliers (decided) ----------
 	set {-cfg::passive::payout-multiplier} to 0.75

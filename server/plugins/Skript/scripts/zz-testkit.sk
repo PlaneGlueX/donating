@@ -845,8 +845,8 @@ command /zzctdir <player> <number> <number>:
 	executable by: console
 	trigger:
 		set {_to} to location(arg-2, y-coordinate of arg-1, arg-3, world of arg-1)
-		log "CTDIR arrow=%ctArrow(arg-1, {_to})% to %arg-2% %arg-3%" to "zztest"
-		send "CTDIR arrow=%ctArrow(arg-1, {_to})% compass=%ctCompass(location of arg-1, {_to})% yaw=%yaw of arg-1% atan2_1_0=%atan2(1, 0)%"
+		log "CTDIR arrow=%gpsArrow(arg-1, {_to})% to %arg-2% %arg-3%" to "zztest"
+		send "CTDIR arrow=%gpsArrow(arg-1, {_to})% compass=%ctCompass(location of arg-1, {_to})% yaw=%yaw of arg-1% atan2_1_0=%atan2(1, 0)%"
 
 # Clears a player's job cooldown and offers (and ends a job without a cooldown).
 command /zzctreset <player>:
@@ -881,12 +881,7 @@ command /zzctstate <player>:
 	executable by: console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
-		set {_mark} to "none"
-		set {_m} to {-ctjob::%{_u}%::mark}
-		if {_m} is set:
-			if {_m} is valid:
-				set {_mark} to "%location of {_m}%"
-		send "CTSTATE %arg-1% job=%{-ctjob::%{_u}%}% stage=%{-ctjob::%{_u}%::stage}% plate=%{-ctjob::%{_u}%::plate}% fails=%{-ctjob::%{_u}%::fails}% left=%ctLeft({_u})% cd=%ctCooldownLeft(arg-1)% seat=%carSeatOf(arg-1)% qte=%{-ctqte::%arg-1%}% mark=%{_mark}% hud=%{-hud::bosslast::%arg-1%::title}%"
+		send "CTSTATE %arg-1% job=%{-ctjob::%{_u}%}% stage=%{-ctjob::%{_u}%::stage}% plate=%{-ctjob::%{_u}%::plate}% fails=%{-ctjob::%{_u}%::fails}% left=%ctLeft({_u})% cd=%ctCooldownLeft(arg-1)% seat=%carSeatOf(arg-1)% qte=%{-ctqte::%arg-1%}% gps=%gpsActive(arg-1)%:%{-gps::questlabel::%{_u}%}% hud=%{-hud::bosslast::%arg-1%::title}%"
 
 # Sets the seconds left in a player's job.
 command /zzcttime <player> <number>:

@@ -59,6 +59,7 @@ function showHelp(p: player):
 	send colored "&7• &eDying &7drops your bag for others to grab and costs a bit of your balance." to {_p}
 	send colored "&7• &eGun shops: &7buy a weapon once, equip it for free after that. Ammo is bought again." to {_p}
 	send colored "&7• &eContracts: &7steal a car with a lockpick and drive it to a chop shop for cash. &f/contracts" to {_p}
+	send colored "&7• &eGPS: &7left-click the phone's big map to drop a pin (or &f/gps&7); a trail on the road shows the way, and jobs set it for you." to {_p}
 	send colored "&7• &ePhone &7(hotbar 9): garage, contracts, stats, bounties, and passive mode (no PvP, lower payouts)." to {_p}
 
 # The optional text swallows things like "/help 2" instead of showing a usage error.

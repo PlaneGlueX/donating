@@ -151,6 +151,10 @@ module.exports = async ({ check }) => {
     await enter(A, 'MAIN', plate)
     const sa = await seat(A)
     check('the owner gets in: the driver\'s seat, and slot 9 is the car key', new RegExp(`driver:${plate}`).test(sa) && /slot8=carkey:/.test(sa), sa)
+    const keyDump = await cmd(`zzdump ${A}`)
+    const phoneMap = ((await cmd(`dphone status ${A}`)).match(/map=(\d+)/) || [])[1]
+    const keyMap = ((await cmd(`data get entity ${A} Inventory[{Slot:8b}].components."minecraft:map_id"`)).match(/data: (\d+)/) || [])[1]
+    check('...and the key is the phone\'s map underneath (holding it while driving shows the GPS view)', /8=filled map x1 \[carkey:/.test(keyDump) && phoneMap && keyMap === phoneMap, `${keyDump.slice(0, 200)} phone=${phoneMap} key=${keyMap}`)
     t = Date.now()
     await enter(B, 'SEAT2', plate)
     check('a passenger seat while it\'s locked: refused', !/passenger:/.test(await seat(B)), `${await seat(B)} ${text(B, t)}`)
