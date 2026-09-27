@@ -48,6 +48,9 @@ function cosHidden(id: text) :: boolean:
 function cosOwned(p: offline player, id: text) :: boolean:
 	if {data::%{_p}%::cos::%{_id}%} is true:
 		return true
+	# Earned titles (bound: seasons.sk) belong only to whoever earned them; never mark one retired or testing.
+	if {-cfg::cos::%{_id}%::bound} is true:
+		return false
 	if cosHidden({_id}) is true:
 		set {_r} to paidRank({_p})
 		if {_r} is not "":

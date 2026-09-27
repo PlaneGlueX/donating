@@ -207,6 +207,54 @@ function loadSettings():
 	set {-cfg::quest::contracts::hold-model} to "donating:lockpick_basic"
 	set {-cfg::quest::reach} to 6
 
+	# ---------- Seasons (seasons.sk): PROPOSAL numbers ----------
+	# Owner, 2026-09-27: seasons, three leaderboards with different metrics, prizes for the top; earned titles
+	# can't be traded; farming loops closed (Heist Refresh runs count as normal); rank perks count.
+	set {-cfg::season::days} to 28
+	set {-cfg::season::auto} to true
+	set {-cfg::season::boards::*} to "earners", "heisters" and "wheelmen"
+	set {-cfg::season::board::earners::name} to "Top Earners"
+	set {-cfg::season::board::earners::short} to "Earner"
+	set {-cfg::season::board::earners::icon} to gold ingot
+	set {-cfg::season::board::earners::what} to "Money from loot sold and car contracts."
+	set {-cfg::season::board::heisters::name} to "Master Thieves"
+	set {-cfg::season::board::heisters::short} to "Thief"
+	set {-cfg::season::board::heisters::icon} to iron door
+	set {-cfg::season::board::heisters::what} to "Heist skill: runs, safes, vaults, getaways."
+	set {-cfg::season::board::wheelmen::name} to "Wheelmen"
+	set {-cfg::season::board::wheelmen::short} to "Wheelman"
+	set {-cfg::season::board::wheelmen::icon} to minecart
+	set {-cfg::season::board::wheelmen::what} to "Car contracts delivered (Street, Pro, Master)."
+	# Master Thieves: a heist run pays up to points, reached once full ($) of its loot is sold (difficulty 1-4,
+	# about half the bag typical at that level): a bigger bag (a rank's too) reaches it in fewer trips.
+	set {-cfg::season::heist::1::points} to 25
+	set {-cfg::season::heist::1::full} to 1000
+	set {-cfg::season::heist::2::points} to 50
+	set {-cfg::season::heist::2::full} to 3000
+	set {-cfg::season::heist::3::points} to 90
+	set {-cfg::season::heist::3::full} to 7500
+	set {-cfg::season::heist::4::points} to 150
+	set {-cfg::season::heist::4::full} to 20000
+	set {-cfg::season::points::safe} to 10
+	set {-cfg::season::points::vault} to 25
+	set {-cfg::season::points::getaway} to 40
+	# Wheelmen: points per contract tier.
+	set {-cfg::season::contract::basic::points} to 20
+	set {-cfg::season::contract::pro::points} to 40
+	set {-cfg::season::contract::master::points} to 80
+	# Prizes per place on every board (#1, #2-3, #4-10): money and Season keys (and the board's title).
+	set {-cfg::season::prize::1::money} to 25000
+	set {-cfg::season::prize::1::keys} to 3
+	set {-cfg::season::prize::3::money} to 10000
+	set {-cfg::season::prize::3::keys} to 2
+	set {-cfg::season::prize::10::money} to 5000
+	set {-cfg::season::prize::10::keys} to 1
+	# Prizes need this many hours played this season (not AFK); they're paid this long after the end (a check).
+	set {-cfg::season::min-hours} to 5
+	set {-cfg::season::review-hours} to 48
+	# Free milestones on season points (Master Thieves + Wheelmen): "points|Season keys[|veteran]".
+	set {-cfg::season::milestones::*} to "500|1", "2000|1", "5000|2" and "10000|3|veteran"
+
 	# ---------- Trading (trade.sk): PROPOSAL numbers ----------
 	# Owner, 2026-09-26: cars and crate cosmetics, in person, no tax; the server never moves money.
 	# Players trade within trade::reach blocks of each other; a request lasts trade::request-time; both being
@@ -706,9 +754,12 @@ function loadSettings():
 	set {-cfg::rarity::epic::dupe} to 3000
 	set {-cfg::rarity::legendary::dupe} to 5000
 	set {-cfg::rarity::hacked::dupe} to 7500
+	# Season titles (seasons.sk: bound, never in crates) and the Season crate's name and color.
+	set {-cfg::rarity::season::name} to "Season"
+	set {-cfg::rarity::season::color} to "&b"
 	# Crates, in menu order (all of them always show in /crates; owner, 2026-09-26). sold = Tebex sells
 	# its keys.
-	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary" and "hacked"
+	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "hacked" and "season"
 	set {-cfg::crate::daily::sold} to false
 	set {-cfg::crate::common::sold} to true
 	set {-cfg::crate::uncommon::sold} to true
@@ -716,6 +767,11 @@ function loadSettings():
 	set {-cfg::crate::epic::sold} to true
 	set {-cfg::crate::legendary::sold} to true
 	set {-cfg::crate::hacked::sold} to false
+	# The Season crate: keys only from season milestones and prizes (seasons.sk), never sold; no cosmetics.
+	set {-cfg::crate::season::sold} to false
+	set {-cfg::crate::season::never-give} to true
+	set {-cfg::crate::season::icon} to beacon
+	set {-cfg::crate::season::rewards::*} to "300|money|500", "200|money|1000", "60|money|3000", "150|ammo|light|64", "100|ammo|rifle|60", "100|con|Stim|2", "60|tool|safe-kit|2" and "30|tool|drill|1"
 	set {-cfg::crate::daily::icon} to chest
 	set {-cfg::crate::common::icon} to chest
 	set {-cfg::crate::uncommon::icon} to chest
@@ -927,6 +983,15 @@ function loadSettings():
 	# lost everything is never stuck without a bag (PROPOSAL).
 	set {-cfg::bag::free-if-broke} to true
 
+	# Season titles made by seasons.sk ({seasoncos::<id>} = "type|name|rarity"): bound, so trades, crates and
+	# ranks never include them. Defined here again at every load (loadSettings starts from nothing).
+	loop {seasoncos::*}:
+		set {_sc::*} to loop-value split at "|"
+		set {-cfg::cos::%loop-index%::type} to {_sc::1}
+		set {-cfg::cos::%loop-index%::name} to {_sc::2}
+		set {-cfg::cos::%loop-index%::rarity} to {_sc::3}
+		set {-cfg::cos::%loop-index%::bound} to true
+		add loop-index to {-cfg::cosmetics::*}
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script

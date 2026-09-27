@@ -680,6 +680,8 @@ function heistRelease(p: player, reason: text):
 	delete {-heist::%{_h}%::hunted::%{_p}%}
 	if {_reason} is "range":
 		heistNotify({_p}, "lost-cops", "&aYou lost the cops.")
+		# A getaway (progress.sk; seasons.sk counts it only with that run's loot, once, after a wave).
+		progEvent({_p}, "getaway", 1, {_h})
 	heistLog("release %name of {_p}% %{_h}% reason=%{_reason}%")
 	heistOnHunt({_p}, {_h}, false)
 	# The alarm ends once nobody is hunted any more (everyone died, failed, quit or got away).
@@ -1408,7 +1410,12 @@ function dheistDelete(s: command sender, h: text):
 	set {_prefix} to cfg("heist::region-prefix")
 	set {_rid} to "%{_prefix}%%{_h}%"
 	set {_wn} to {heist::%{_h}%::world}
+	# The run counter stays: a heist made again with this id carries on from it, so its runs never share a
+	# number with the old ones (season scores and loot tags are per "<id>#<run>": review fix).
+	set {_run} to {heist::%{_h}%::run}
 	delete {heist::%{_h}%::*}
+	if {_run} is set:
+		set {heist::%{_h}%::run} to {_run}
 	delete {heists::%{_h}%}
 	delete {-heist::%{_h}%::*}
 	heistIndexRegions()
