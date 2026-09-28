@@ -26,7 +26,7 @@
 # Master Thieves and Wheelmen points added up): Season keys, and «S1 Veteran» at the last one.
 # The end (every minute and on load; each step can run again safely): the boards are frozen into finals and the
 # prizes set aside for season::review-hours (staff can /dseason void a cheater, which re-freezes), then paid:
-# at once to players online, at the next join to the rest. The next season starts at once (season::auto).
+# at once to players online, at the next join to the rest. The next season starts when staff run /dseason start (or at once with season::auto true).
 #
 # Saved: {season::num|start|end|state} (unix seconds; state live|ending|off), {season::ending},
 # {ss::<n>::<board>::<uuid>} (values > 0), {ss::<n>::t::<board>::<uuid>} (unix time of the last increase: ties),
@@ -190,6 +190,9 @@ function seasonEvent(p: player, ev: text, n: number, detail: text):
 		set {ss::%{_s}%::esc::%{_u}%::%{_h}%} to {_runN}
 		seasonAdd({_p}, "heisters", floor(cfg("season::points::getaway") * {_m}), "getaway %{_h}%#%{_runN}%")
 	else if {_ev} is "contract":
+		# The tutorial's first car job counts on no board (contracts.sk).
+		if {_detail} is "starter":
+			stop
 		# The pay is already the passive share (ctPay).
 		seasonAdd({_p}, "earners", floor({_n}), "contract %{_detail}%")
 		set {_c} to {-cfg::season::contract::%{_detail}%::points}
@@ -561,7 +564,10 @@ function seasonSeen(p: player):
 		else:
 			msg({_p}, "&6Season %{_last}% ended: &fyou placed %{_m}%&6. &f/lb")
 	else:
-		msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. A new season is on: &f/season")
+		if {season::state} is "live":
+			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. A new season is on: &f/season")
+		else:
+			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. The next one is announced when it starts.")
 
 every minute:
 	seasonTick()

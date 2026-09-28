@@ -36,6 +36,8 @@ function loadSettings():
 	# Commands a combat-tagged player can't use (combat-log.sk), without the slash.
 	set {-cfg::combat::blocked-commands::*} to "spawn", "home", "homes", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp", "hub" and "afk"
 	set {-cfg::pvp::spawn-shield} to 10 seconds
+	# After a command teleport or a heist eviction (pvp.sk; owner, 2026-09-27). EssentialsX's own stays 0.
+	set {-cfg::pvp::teleport-immunity} to 3 seconds
 	# WorldGuard regions whose id starts with this are safe zones (pvp.sk).
 	set {-cfg::pvp::safe-prefix} to "safe"
 	set {-cfg::passive::switch-cooldown} to 10 minutes
@@ -59,11 +61,17 @@ function loadSettings():
 	set {-cfg::cop::chase} to 120
 	# Stronger heists, stronger cops with better guns (owner, 2026-09-26). Per difficulty 1-4: health,
 	# damage per shot, seconds between shots, accuracy, speed, gun (9 .50 GS, 1 Uzi, 5 AK-47).
+	set {-cfg::difficulty::0::cop-health} to 16
 	set {-cfg::difficulty::1::cop-health} to 16
+	set {-cfg::difficulty::0::cop-damage} to 2
 	set {-cfg::difficulty::1::cop-damage} to 2
+	set {-cfg::difficulty::0::cop-attack-rate} to 2
 	set {-cfg::difficulty::1::cop-attack-rate} to 2
+	set {-cfg::difficulty::0::cop-accuracy} to 2.5
 	set {-cfg::difficulty::1::cop-accuracy} to 2.5
+	set {-cfg::difficulty::0::cop-speed} to 1.1
 	set {-cfg::difficulty::1::cop-speed} to 1.1
+	set {-cfg::difficulty::0::cop-model} to 9
 	set {-cfg::difficulty::1::cop-model} to 9
 	set {-cfg::difficulty::2::cop-health} to 20
 	set {-cfg::difficulty::2::cop-damage} to 2.5
@@ -103,27 +111,28 @@ function loadSettings():
 	set {-cfg::cars::*} to "sedan", "sportsedan", "jeep", "sports", "hotrod", "suv", "vandal", "specter" and "overclock"
 	set {-cfg::car::sedan::name} to "Sedan"
 	set {-cfg::car::sedan::price} to 40000
-	set {-cfg::car::sedan::level} to 2
+	# Levels on the 2026-09-27 scale (level 150 at about 60 h of play).
+	set {-cfg::car::sedan::level} to 20
 	set {-cfg::carcolors::sedan::*} to "Red=GKAH5U=1017", "Gray=BV3W2A=1019", "Black=FFW36Q=1111", "Navy=7JWQYB=1003" and "Beige=58UUXF=1110"
 	set {-cfg::car::sportsedan::name} to "Sport Sedan"
 	set {-cfg::car::sportsedan::price} to 90000
-	set {-cfg::car::sportsedan::level} to 3
+	set {-cfg::car::sportsedan::level} to 35
 	set {-cfg::carcolors::sportsedan::*} to "Obsidian=KG59SJ=1116", "Emerald=RBG6HW=1115" and "Quartz=7BEQ5K=1023"
 	set {-cfg::car::jeep::name} to "Jeep"
 	set {-cfg::car::jeep::price} to 150000
-	set {-cfg::car::jeep::level} to 3
+	set {-cfg::car::jeep::level} to 50
 	set {-cfg::carcolors::jeep::*} to "Blue=G2KQ4V=1073" and "Gold=5Z95XA=1074"
 	set {-cfg::car::sports::name} to "Sports Car"
 	set {-cfg::car::sports::price} to 250000
-	set {-cfg::car::sports::level} to 4
+	set {-cfg::car::sports::level} to 75
 	set {-cfg::carcolors::sports::*} to "White=5CD8N4=1060", "Black=W32FND=1070", "Orange=8CUSCG=1068", "Navy=SMV4M6=1002" and "Flame Red=LHBM2X=1063"
 	set {-cfg::car::hotrod::name} to "Hotrod"
 	set {-cfg::car::hotrod::price} to 450000
-	set {-cfg::car::hotrod::level} to 5
+	set {-cfg::car::hotrod::level} to 100
 	set {-cfg::carcolors::hotrod::*} to "Red=CJF7WX=1006", "Black=6GBKXT=1161" and "Blue=2FWFAS=1159"
 	set {-cfg::car::suv::name} to "SUV"
 	set {-cfg::car::suv::price} to 1000000
-	set {-cfg::car::suv::level} to 6
+	set {-cfg::car::suv::level} to 150
 	set {-cfg::carcolors::suv::*} to "Black=FC98KS=1141", "White=88WPRU=1139" and "Criminal=5R7QP3=1220"
 	# The crate cars (crates.sk car lines use these ids): looks only, they drive like their family.
 	set {-cfg::car::vandal::name} to "Vandal"
@@ -174,33 +183,44 @@ function loadSettings():
 	# kept (and no NPC cars at spawn areas). Three tiers; each offers a car of its list at a staff spot.
 	set {-cfg::contract::tiers::*} to "basic", "pro" and "master"
 	set {-cfg::contract::basic::name} to "Street job"
-	set {-cfg::contract::basic::level} to 1
-	set {-cfg::contract::basic::pay} to 3000
+	set {-cfg::contract::basic::level} to 5
+	# Owner, 2026-09-27: contract pay halved.
+	set {-cfg::contract::basic::pay} to 1500
 	set {-cfg::contract::basic::xp} to 30
 	set {-cfg::contract::basic::qte-hits} to 3
 	set {-cfg::contract::basic::qte-step} to 4
 	set {-cfg::contractcars::basic::*} to "sedan" and "sportsedan"
+	# The tutorial's first job (owner, 2026-09-27): once, at level 0, in place of the Street job until it's delivered.
+	# Mara's Basic Lockpick picks it and never breaks on it; no bounty, not counted as a contract or on a board.
+	set {-cfg::contract::starter::name} to "First job"
+	set {-cfg::contract::starter::level} to 0
+	set {-cfg::contract::starter::pay} to 1500
+	set {-cfg::contract::starter::xp} to 40
+	set {-cfg::contract::starter::qte-hits} to 2
+	set {-cfg::contract::starter::qte-step} to 5
+	set {-cfg::contractcars::starter::*} to "sedan"
 	set {-cfg::contract::pro::name} to "Pro job"
-	set {-cfg::contract::pro::level} to 3
-	set {-cfg::contract::pro::pay} to 9000
-	set {-cfg::contract::pro::xp} to 60
+	set {-cfg::contract::pro::level} to 30
+	set {-cfg::contract::pro::pay} to 4500
+	set {-cfg::contract::pro::xp} to 90
 	set {-cfg::contract::pro::qte-hits} to 3
 	set {-cfg::contract::pro::qte-step} to 3
 	set {-cfg::contractcars::pro::*} to "jeep" and "sports"
 	set {-cfg::contract::master::name} to "Master job"
-	set {-cfg::contract::master::level} to 5
-	set {-cfg::contract::master::pay} to 25000
-	set {-cfg::contract::master::xp} to 120
+	set {-cfg::contract::master::level} to 60
+	set {-cfg::contract::master::pay} to 12500
+	set {-cfg::contract::master::xp} to 250
 	set {-cfg::contract::master::qte-hits} to 4
 	set {-cfg::contract::master::qte-step} to 3
 	set {-cfg::contractcars::master::*} to "hotrod" and "suv"
 	# Lockpicks (quest items in hotbar 6-8, kept on death): one per tier, lockpick::max-fails misses break one.
 	set {-cfg::lockpick::basic::name} to "Basic Lockpick"
-	set {-cfg::lockpick::basic::price} to 500
+	# Halved with the contracts (a pick is used up per job).
+	set {-cfg::lockpick::basic::price} to 250
 	set {-cfg::lockpick::pro::name} to "Pro Lockpick"
-	set {-cfg::lockpick::pro::price} to 1500
+	set {-cfg::lockpick::pro::price} to 750
 	set {-cfg::lockpick::master::name} to "Master Lockpick"
-	set {-cfg::lockpick::master::price} to 4000
+	set {-cfg::lockpick::master::price} to 2000
 	set {-cfg::lockpick::max} to 3
 	# A contract lasts this long; after one (done, failed or dropped) the next waits this long.
 	set {-cfg::contract::time} to 10 minutes
@@ -264,7 +284,7 @@ function loadSettings():
 	set {-cfg::chain::vic::color} to "&6"
 	set {-cfg::chain::vic::bar} to "&6&lVIC"
 	set {-cfg::chain::vic::barcolor} to "yellow"
-	set {-cfg::chain::vic::start} to "state|level|3"
+	set {-cfg::chain::vic::start} to "state|level|30"
 	set {-cfg::chain::vic::needs} to "fence"
 	set {-cfg::chain::vic::missions::*} to "v1_meet", "v2_appraisal", "v3_wheels", "v4_collector", "v5_auction" and "v6_end"
 	loop "v1_meet", "v2_appraisal", "v3_wheels", "v4_collector", "v5_auction" and "v6_end":
@@ -274,34 +294,34 @@ function loadSettings():
 	set {-cfg::story::v1_meet::gps} to "fence"
 	set {-cfg::story::v1_meet::brief} to "Mara says you've got quick hands. I buy what nobody else can sell. Come to the Pawn Shop."
 	set {-cfg::story::v1_meet::talk::*} to "So you're Mara's kid.", "Jewels, cars, art. Things with a history." and "Show me you can bring me something worth my time."
-	set {-cfg::story::v2_appraisal::label} to "Sell $4,000 from difficulty 2+ heists"
-	set {-cfg::story::v2_appraisal::obj} to "ev|sell|4000|d2+"
+	set {-cfg::story::v2_appraisal::label} to "Sell $20,000 from difficulty 2+ heists"
+	set {-cfg::story::v2_appraisal::obj} to "ev|sell|20000|d2+"
 	set {-cfg::story::v2_appraisal::gps} to "heist:d2+"
 	set {-cfg::story::v2_appraisal::needs} to "d2+"
-	set {-cfg::story::v2_appraisal::brief} to "Sell $4,000 of loot from medium heists or harder. Then we talk."
+	set {-cfg::story::v2_appraisal::brief} to "Sell $20,000 of loot from medium heists or harder. Then we talk."
 	set {-cfg::story::v2_appraisal::done} to "Hm. Not bad. Not bad at all."
-	set {-cfg::story::v2_appraisal::rewards::*} to "money|2000" and "xp|50"
+	set {-cfg::story::v2_appraisal::rewards::*} to "money|2000" and "xp|250"
 	set {-cfg::story::v3_wheels::label} to "Deliver a Pro car job"
 	set {-cfg::story::v3_wheels::obj} to "ev|contract|1|pro+"
 	set {-cfg::story::v3_wheels::gps} to "contracts"
 	set {-cfg::story::v3_wheels::needs} to "contracts"
 	set {-cfg::story::v3_wheels::brief} to "I've got buyers for fast cars. Deliver a Pro job for the Boss: he owes me."
 	set {-cfg::story::v3_wheels::done} to "The buyer cried a little. Beautiful."
-	set {-cfg::story::v3_wheels::rewards::*} to "money|3000" and "xp|75"
+	set {-cfg::story::v3_wheels::rewards::*} to "money|3000" and "xp|400"
 	set {-cfg::story::v4_collector::label} to "Crack a safe in a difficulty 3+ heist"
 	set {-cfg::story::v4_collector::obj} to "ev|crack|1|d3+"
 	set {-cfg::story::v4_collector::gps} to "heist:safe,d3+"
 	set {-cfg::story::v4_collector::needs} to "safe,d3+"
 	set {-cfg::story::v4_collector::brief} to "A collector wants what's in a hard heist's safe. Crack one: difficulty 3 or harder."
 	set {-cfg::story::v4_collector::done} to "The collector says you have a gift. I say you have a Safe Kit."
-	set {-cfg::story::v4_collector::rewards::*} to "money|4000" and "xp|100"
+	set {-cfg::story::v4_collector::rewards::*} to "money|4000" and "xp|500"
 	set {-cfg::story::v5_auction::label} to "Drill a vault and lose the cops, in one run"
 	set {-cfg::story::v5_auction::obj} to "combo|adv|drill,getaway"
 	set {-cfg::story::v5_auction::gps} to "heist:adv,drill"
 	set {-cfg::story::v5_auction::needs} to "adv,drill"
 	set {-cfg::story::v5_auction::brief} to "Auction's Friday. I need a centerpiece: in one run of an alarmed heist, drill the vault and lose the cops with the loot."
 	set {-cfg::story::v5_auction::done} to "Sold in four minutes. Kid... you're my favorite supplier."
-	set {-cfg::story::v5_auction::rewards::*} to "money|6000" and "xp|150"
+	set {-cfg::story::v5_auction::rewards::*} to "money|6000" and "xp|750"
 	set {-cfg::story::v6_end::label} to "Report to Vic"
 	set {-cfg::story::v6_end::obj} to "talk|fence"
 	set {-cfg::story::v6_end::gps} to "fence"
@@ -311,21 +331,21 @@ function loadSettings():
 	# Vic's weekly Wanted List (fence.sk): 3 orders a week for everyone, picked up in person at the Pawn Shop.
 	# A heist order pays heist::rate on up to L1 = min(cap::<d>, pool-share x the pool) of your own loot from it; a
 	# difficulty order diff::rate on up to cap::<d> of your own loot from heists that hard; a car order a flat pay once.
-	set {-cfg::fence::level} to 3
+	set {-cfg::fence::level} to 30
 	set {-cfg::fence::heist::rate} to 0.3
 	set {-cfg::fence::heist::min-difficulty} to 2
 	set {-cfg::fence::heist::pool-share} to 0.5
-	set {-cfg::fence::heist::cap::2} to 6000
-	set {-cfg::fence::heist::cap::3} to 15000
-	set {-cfg::fence::heist::cap::4} to 40000
+	set {-cfg::fence::heist::cap::2} to 12000
+	set {-cfg::fence::heist::cap::3} to 30000
+	set {-cfg::fence::heist::cap::4} to 80000
 	set {-cfg::fence::diff::rate} to 0.15
 	set {-cfg::fence::diff::cycle::*} to 3, 2 and 4
-	set {-cfg::fence::diff::cap::2} to 9000
-	set {-cfg::fence::diff::cap::3} to 22500
-	set {-cfg::fence::diff::cap::4} to 60000
+	set {-cfg::fence::diff::cap::2} to 18000
+	set {-cfg::fence::diff::cap::3} to 45000
+	set {-cfg::fence::diff::cap::4} to 120000
 	set {-cfg::fence::car::tiers::*} to "basic" and "pro"
-	set {-cfg::fence::car::basic::pay} to 1500
-	set {-cfg::fence::car::pro::pay} to 4500
+	set {-cfg::fence::car::basic::pay} to 750
+	set {-cfg::fence::car::pro::pay} to 2250
 	# progress.sk: the week turns Thursday 00:00 UTC (seconds added to unix time move it), and run notes are kept
 	# 14 days at most.
 	set {-cfg::week::offset} to 0
@@ -338,25 +358,43 @@ function loadSettings():
 	set {-cfg::story::chapter::3::name} to "Heavy Metal"
 	set {-cfg::story::chapter::4::name} to "Heat"
 	set {-cfg::story::chapter::5::name} to "The Big Score"
-	set {-cfg::story::missions::*} to "c1_meet", "c1_gun", "c1_rob", "c1_sell", "c1_crate", "c1_level", "c1_end", "c2_safe", "c2_yard", "c2_street", "c2_duffel", "c2_bank", "c2_level", "c2_end", "c3_vest", "c3_drill", "c3_spread", "c3_car", "c3_level", "c3_end", "c4_getaway", "c4_pro", "c4_big", "c4_level", "c4_end", "c5_finale", "c5_level", "c5_master" and "c5_end"
+	# Owner, 2026-09-27: the bag is earned. Chapter 1 now starts with Mara's lockpick and a first car job (the money for
+	# the bag), then the bag, a store or heist, the sale, a knife (guns need level 5), a crate and level 5. The gun moved
+	# to chapter 2 (c1_gun keeps its id).
+	set {-cfg::story::missions::*} to "c1_meet", "c1_wheels", "c1_bag", "c1_rob", "c1_sell", "c1_knife", "c1_crate", "c1_level", "c1_end", "c1_gun", "c2_safe", "c2_yard", "c2_street", "c2_duffel", "c2_bank", "c2_level", "c2_end", "c3_vest", "c3_drill", "c3_spread", "c3_level", "c3_car", "c3_end", "c4_getaway", "c4_pro", "c4_big", "c4_level", "c4_end", "c5_finale", "c5_level", "c5_master" and "c5_end"
 	set {-cfg::story::c1_meet::chapter} to 1
 	set {-cfg::story::c1_meet::label} to "Meet Mara at the Safehouse"
 	set {-cfg::story::c1_meet::obj} to "talk|story"
 	set {-cfg::story::c1_meet::gps} to "story"
 	set {-cfg::story::c1_meet::brief} to "New in town? I've got work for someone with nerve. Come see me at the Safehouse."
-	set {-cfg::story::c1_meet::talk::*} to "So you're the new face.", "This city runs on heists: banks, jewelers, vaults. All waiting." and "First, get yourself armed. The Gun Shop's on your GPS."
-	set {-cfg::story::c1_gun::chapter} to 1
+	set {-cfg::story::c1_meet::talk::*} to "So you're the new face.", "No bag, no gun, no ride. Let's fix that." and "Here's a lockpick. The Scrap Yard Boss pays cash for cars: go see him."
+	set {-cfg::story::c1_meet::rewards::*} to "lockpick|basic|1"
+	set {-cfg::story::c1_wheels::chapter} to 1
+	set {-cfg::story::c1_wheels::label} to "Steal a car for the Scrap Yard"
+	set {-cfg::story::c1_wheels::obj} to "ev|contract|1"
+	set {-cfg::story::c1_wheels::gps} to "contracts"
+	set {-cfg::story::c1_wheels::needs} to "contracts"
+	set {-cfg::story::c1_wheels::from} to "Boss"
+	set {-cfg::story::c1_wheels::brief} to "Mara sent you? Take my first job: pick the car's lock with her lockpick and drive it to a chop shop."
+	set {-cfg::story::c1_wheels::done} to "Easy money, huh? Now go get yourself a bag."
+	set {-cfg::story::c1_bag::chapter} to 1
+	set {-cfg::story::c1_bag::label} to "Buy a Gym Bag"
+	set {-cfg::story::c1_bag::obj} to "state|bagbest|1"
+	set {-cfg::story::c1_bag::gps} to "poi:shop:Bag"
+	set {-cfg::story::c1_bag::brief} to "Your hands hold $1,000 of loot at most. A Gym Bag holds $2,000: get one at the Bag Shop."
+	set {-cfg::story::c1_bag::done} to "Now you can carry a real haul."
+	set {-cfg::story::c1_gun::chapter} to 2
 	set {-cfg::story::c1_gun::label} to "Buy a gun"
 	set {-cfg::story::c1_gun::obj} to "state|gun"
 	set {-cfg::story::c1_gun::gps} to "poi:shop:Gun"
-	set {-cfg::story::c1_gun::brief} to "Pick up a piece at the Gun Shop. The .50 GS is cheap and does the job."
+	set {-cfg::story::c1_gun::brief} to "Level 5: the Gun Shop will sell you a .50 GS now. Time to trade up from the knife."
 	set {-cfg::story::c1_gun::done} to "Nice. Now let's put it to use."
 	set {-cfg::story::c1_rob::chapter} to 1
-	set {-cfg::story::c1_rob::label} to "Rob a heist"
+	set {-cfg::story::c1_rob::label} to "Rob a store or a heist"
 	set {-cfg::story::c1_rob::obj} to "ev|rob|1"
-	set {-cfg::story::c1_rob::gps} to "heist"
+	set {-cfg::story::c1_rob::gps} to "heist:store"
 	set {-cfg::story::c1_rob::needs} to "heist"
-	set {-cfg::story::c1_rob::brief} to "There's an open heist on your GPS. Grab what you can and watch for traps."
+	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Grab what fits in your bag and watch for traps."
 	set {-cfg::story::c1_rob::done} to "That's the spirit. Now get out of there."
 	set {-cfg::story::c1_sell::chapter} to 1
 	set {-cfg::story::c1_sell::label} to "Sell your loot at the base"
@@ -364,6 +402,13 @@ function loadSettings():
 	set {-cfg::story::c1_sell::brief} to "Loot's worth nothing in a bag. Take it to the base: your GPS knows the way."
 	set {-cfg::story::c1_sell::done} to "Cash in hand. Feels good, huh? Here's a crate key for your trouble."
 	set {-cfg::story::c1_sell::rewards::*} to "key|daily|1"
+	set {-cfg::story::c1_knife::chapter} to 1
+	set {-cfg::story::c1_knife::label} to "Buy a Combat Knife"
+	# Any weapon counts (someone who already has a gun skips it).
+	set {-cfg::story::c1_knife::obj} to "state|weapon"
+	set {-cfg::story::c1_knife::gps} to "poi:shop:Gun"
+	set {-cfg::story::c1_knife::brief} to "Guns need a name on the street: level 5. Until then, a knife from the Gun Shop."
+	set {-cfg::story::c1_knife::done} to "Keep it sharp."
 	set {-cfg::story::c1_crate::chapter} to 1
 	set {-cfg::story::c1_crate::label} to "Open a crate at a crate stand"
 	set {-cfg::story::c1_crate::obj} to "ev|crate|1"
@@ -372,17 +417,17 @@ function loadSettings():
 	set {-cfg::story::c1_crate::brief} to "Use that key at a crate stand. And grab /daily every day: free keys."
 	set {-cfg::story::c1_crate::done} to "Lucky you."
 	set {-cfg::story::c1_level::chapter} to 1
-	set {-cfg::story::c1_level::label} to "Reach level 1"
-	set {-cfg::story::c1_level::obj} to "state|level|1"
+	set {-cfg::story::c1_level::label} to "Reach level 5"
+	set {-cfg::story::c1_level::obj} to "state|level|5"
 	set {-cfg::story::c1_level::gps} to "heist"
-	set {-cfg::story::c1_level::brief} to "Keep robbing and selling. Level 1 opens the Safe Kit."
+	set {-cfg::story::c1_level::brief} to "Keep robbing and selling. Level 5 opens your first gun, the Safe Kit, Street jobs, the Duffel Bag and the medium heists."
 	set {-cfg::story::c1_end::chapter} to 1
 	set {-cfg::story::c1_end::label} to "Report to Mara"
 	set {-cfg::story::c1_end::obj} to "talk|story"
 	set {-cfg::story::c1_end::gps} to "story"
-	set {-cfg::story::c1_end::brief} to "Level 1 already? Come by the Safehouse. I've got something for you."
+	set {-cfg::story::c1_end::brief} to "Level 5 already? Come by the Safehouse. I've got something for you."
 	set {-cfg::story::c1_end::talk::*} to "You've got talent. Most rookies don't make it this far." and "Safes hold the good stuff. Here's a Safe Kit: guess the code, green means right."
-	set {-cfg::story::c1_end::rewards::*} to "money|1000", "xp|25" and "tool|safe-kit|1"
+	set {-cfg::story::c1_end::rewards::*} to "money|1000", "xp|150" and "tool|safe-kit|1"
 	set {-cfg::story::c2_safe::chapter} to 2
 	set {-cfg::story::c2_safe::label} to "Crack a safe"
 	set {-cfg::story::c2_safe::obj} to "ev|crack|1"
@@ -399,12 +444,14 @@ function loadSettings():
 	set {-cfg::story::c2_yard::done} to "Mara sent you? First pick's on me."
 	set {-cfg::story::c2_yard::from} to "Boss"
 	set {-cfg::story::c2_yard::rewards::*} to "lockpick|basic|1"
+	# The Boss is met in chapter 1 now (c1_wheels).
+	set {-cfg::story::c2_yard::retired} to true
 	set {-cfg::story::c2_street::chapter} to 2
 	set {-cfg::story::c2_street::label} to "Deliver a Street job"
 	set {-cfg::story::c2_street::obj} to "ev|contract|1"
 	set {-cfg::story::c2_street::needs} to "contracts"
 	set {-cfg::story::c2_street::from} to "Boss"
-	set {-cfg::story::c2_street::brief} to "Take a Street job, pick the lock, and bring the car to a chop shop."
+	set {-cfg::story::c2_street::brief} to "Buy a Basic Lockpick from the Boss, take a Street job, and bring the car to a chop shop."
 	set {-cfg::story::c2_street::done} to "Clean work. Come back any time."
 	set {-cfg::story::c2_duffel::chapter} to 2
 	set {-cfg::story::c2_duffel::label} to "Get a Duffel Bag"
@@ -413,24 +460,24 @@ function loadSettings():
 	set {-cfg::story::c2_duffel::brief} to "That Gym Bag won't cut it. Get a Duffel Bag at the Bag Shop."
 	set {-cfg::story::c2_duffel::done} to "Now you can carry a real haul."
 	set {-cfg::story::c2_bank::chapter} to 2
-	set {-cfg::story::c2_bank::label} to "Sell $10,000 of loot"
-	set {-cfg::story::c2_bank::obj} to "ev|sell|10000"
+	set {-cfg::story::c2_bank::label} to "Sell $20,000 of loot"
+	set {-cfg::story::c2_bank::obj} to "ev|sell|20000"
 	set {-cfg::story::c2_bank::gps} to "heist"
 	set {-cfg::story::c2_bank::needs} to "heist"
-	set {-cfg::story::c2_bank::brief} to "Fill that new bag. Bank $10,000 from heists."
-	set {-cfg::story::c2_bank::done} to "Ten grand. You're making a name."
+	set {-cfg::story::c2_bank::brief} to "Fill that new bag. Bank $20,000 from heists."
+	set {-cfg::story::c2_bank::done} to "Twenty grand. You're making a name."
 	set {-cfg::story::c2_level::chapter} to 2
-	set {-cfg::story::c2_level::label} to "Reach level 2"
-	set {-cfg::story::c2_level::obj} to "state|level|2"
+	set {-cfg::story::c2_level::label} to "Reach level 15"
+	set {-cfg::story::c2_level::obj} to "state|level|15"
 	set {-cfg::story::c2_level::gps} to "heist"
-	set {-cfg::story::c2_level::brief} to "Level 2 opens the Drill and harder heists. Keep at it."
+	set {-cfg::story::c2_level::brief} to "Level 15 opens the Drill, the Uzi and the hard heists. Keep at it."
 	set {-cfg::story::c2_end::chapter} to 2
 	set {-cfg::story::c2_end::label} to "Report to Mara"
 	set {-cfg::story::c2_end::obj} to "talk|story"
 	set {-cfg::story::c2_end::gps} to "story"
 	set {-cfg::story::c2_end::brief} to "Come see me. It's time you learned about vaults."
 	set {-cfg::story::c2_end::talk::*} to "You're moving up. People are starting to talk." and "Vault doors need a Drill. Here's one: when it jams, fix it fast."
-	set {-cfg::story::c2_end::rewards::*} to "money|3000", "xp|75" and "tool|drill|1"
+	set {-cfg::story::c2_end::rewards::*} to "money|3000", "xp|600" and "tool|drill|1"
 	set {-cfg::story::c3_vest::chapter} to 3
 	set {-cfg::story::c3_vest::label} to "Wear a vest"
 	set {-cfg::story::c3_vest::obj} to "state|vest"
@@ -458,17 +505,17 @@ function loadSettings():
 	set {-cfg::story::c3_car::brief} to "Every crew needs wheels. The Car Dealer has what you need."
 	set {-cfg::story::c3_car::done} to "Nice ride. Now you can outrun them."
 	set {-cfg::story::c3_level::chapter} to 3
-	set {-cfg::story::c3_level::label} to "Reach level 3"
-	set {-cfg::story::c3_level::obj} to "state|level|3"
+	set {-cfg::story::c3_level::label} to "Reach level 30"
+	set {-cfg::story::c3_level::obj} to "state|level|30"
 	set {-cfg::story::c3_level::gps} to "heist"
-	set {-cfg::story::c3_level::brief} to "Level 3 opens the big heists. The ones with alarms."
+	set {-cfg::story::c3_level::brief} to "Level 30 opens the big heists. The ones with alarms."
 	set {-cfg::story::c3_end::chapter} to 3
 	set {-cfg::story::c3_end::label} to "Report to Mara"
 	set {-cfg::story::c3_end::obj} to "talk|story"
 	set {-cfg::story::c3_end::gps} to "story"
 	set {-cfg::story::c3_end::brief} to "Get over here. The big leagues are calling."
 	set {-cfg::story::c3_end::talk::*} to "A car, a drill, a record. Look at you." and "The big jobs have alarms. The cops come in waves. These Stims will keep you standing."
-	set {-cfg::story::c3_end::rewards::*} to "money|7500", "xp|200" and "con|Stim|3"
+	set {-cfg::story::c3_end::rewards::*} to "money|7500", "xp|1500" and "con|Stim|3"
 	set {-cfg::story::c4_getaway::chapter} to 4
 	set {-cfg::story::c4_getaway::label} to "Get away from the cops with loot"
 	set {-cfg::story::c4_getaway::obj} to "ev|getaway|1"
@@ -484,24 +531,24 @@ function loadSettings():
 	set {-cfg::story::c4_pro::brief} to "Pro jobs pay better. Faster cars, harder locks. You up for it?"
 	set {-cfg::story::c4_pro::done} to "Now that's a car. Nice work."
 	set {-cfg::story::c4_big::chapter} to 4
-	set {-cfg::story::c4_big::label} to "Sell $10,000 from difficulty-4 heists"
-	set {-cfg::story::c4_big::obj} to "ev|sell|10000|d4"
+	set {-cfg::story::c4_big::label} to "Sell $40,000 from difficulty-4 heists"
+	set {-cfg::story::c4_big::obj} to "ev|sell|40000|d4"
 	set {-cfg::story::c4_big::gps} to "heist:d4"
 	set {-cfg::story::c4_big::needs} to "d4"
-	set {-cfg::story::c4_big::brief} to "The big banks. Bring back $10,000 from the hardest heists."
+	set {-cfg::story::c4_big::brief} to "The big banks. Bring back $40,000 from the hardest heists."
 	set {-cfg::story::c4_big::done} to "That's serious money."
 	set {-cfg::story::c4_level::chapter} to 4
-	set {-cfg::story::c4_level::label} to "Reach level 4"
-	set {-cfg::story::c4_level::obj} to "state|level|4"
+	set {-cfg::story::c4_level::label} to "Reach level 50"
+	set {-cfg::story::c4_level::obj} to "state|level|50"
 	set {-cfg::story::c4_level::gps} to "heist"
-	set {-cfg::story::c4_level::brief} to "Keep climbing. Level 4 and we talk about the big score."
+	set {-cfg::story::c4_level::brief} to "Keep climbing. Level 50 and we talk about the big score."
 	set {-cfg::story::c4_end::chapter} to 4
 	set {-cfg::story::c4_end::label} to "Report to Mara"
 	set {-cfg::story::c4_end::obj} to "talk|story"
 	set {-cfg::story::c4_end::gps} to "story"
 	set {-cfg::story::c4_end::brief} to "It's time. Come to the Safehouse."
 	set {-cfg::story::c4_end::talk::*} to "One more job. The biggest this city has seen." and "A safe, a vault, and out past the cops. All in one run."
-	set {-cfg::story::c4_end::rewards::*} to "money|15000", "xp|500" and "key|season|1"
+	set {-cfg::story::c4_end::rewards::*} to "money|15000", "xp|3000" and "key|season|1"
 	set {-cfg::story::c5_finale::chapter} to 5
 	set {-cfg::story::c5_finale::label} to "The Big Score"
 	set {-cfg::story::c5_finale::obj} to "combo|d4"
@@ -510,10 +557,10 @@ function loadSettings():
 	set {-cfg::story::c5_finale::brief} to "This is it. One run of a difficulty-4 heist: crack the safe, drill the vault, and get away from the cops with the loot."
 	set {-cfg::story::c5_finale::done} to "You actually did it. Unbelievable."
 	set {-cfg::story::c5_level::chapter} to 5
-	set {-cfg::story::c5_level::label} to "Reach level 5"
-	set {-cfg::story::c5_level::obj} to "state|level|5"
+	set {-cfg::story::c5_level::label} to "Reach level 60"
+	set {-cfg::story::c5_level::obj} to "state|level|60"
 	set {-cfg::story::c5_level::gps} to "heist"
-	set {-cfg::story::c5_level::brief} to "Level 5. Then the Boss has one last job for you."
+	set {-cfg::story::c5_level::brief} to "Level 60. Then the Boss has one last job for you."
 	set {-cfg::story::c5_master::chapter} to 5
 	set {-cfg::story::c5_master::label} to "Deliver a Master job"
 	set {-cfg::story::c5_master::obj} to "ev|contract|1|master"
@@ -527,13 +574,15 @@ function loadSettings():
 	set {-cfg::story::c5_end::gps} to "story"
 	set {-cfg::story::c5_end::brief} to "Come by. We need to talk about your future."
 	set {-cfg::story::c5_end::talk::*} to "Everyone in this city knows your name now." and "You're Made. The city is yours. I'll call when I need you."
-	set {-cfg::story::c5_end::rewards::*} to "money|25000", "cos|story_made" and "key|season|2"
+	set {-cfg::story::c5_end::rewards::*} to "money|25000", "xp|4000", "cos|story_made" and "key|season|2"
 
 	# ---------- Seasons (seasons.sk): PROPOSAL numbers ----------
 	# Owner, 2026-09-27: seasons, three leaderboards with different metrics, prizes for the top; earned titles
 	# can't be traded; farming loops closed (Heist Refresh runs count as normal); rank perks count.
 	set {-cfg::season::days} to 28
-	set {-cfg::season::auto} to true
+	# Owner, 2026-09-27: seasons are released by hand (/dseason start), since each one gets new things. true = the
+	# next season starts by itself when one ends.
+	set {-cfg::season::auto} to false
 	set {-cfg::season::boards::*} to "earners", "heisters" and "wheelmen"
 	set {-cfg::season::board::earners::name} to "Top Earners"
 	set {-cfg::season::board::earners::short} to "Earner"
@@ -549,7 +598,9 @@ function loadSettings():
 	set {-cfg::season::board::wheelmen::what} to "Car contracts delivered (Street, Pro, Master)."
 	# Master Thieves: a heist run pays up to points, reached once full ($) of its loot is sold (difficulty 1-4,
 	# about half the bag typical at that level): a bigger bag (a rank's too) reaches it in fewer trips.
+	set {-cfg::season::heist::0::points} to 0
 	set {-cfg::season::heist::1::points} to 25
+	set {-cfg::season::heist::0::full} to 1000
 	set {-cfg::season::heist::1::full} to 1000
 	set {-cfg::season::heist::2::points} to 50
 	set {-cfg::season::heist::2::full} to 3000
@@ -610,6 +661,7 @@ function loadSettings():
 	# Quest givers (quests.sk) get a dot of their own, not listed in /dpoi's types.
 	set {-cfg::poi::quest::color} to "blue"
 	set {-cfg::poi::range} to 60000000
+	set {-cfg::difficulty::0::waypoint} to "gray"
 	set {-cfg::difficulty::1::waypoint} to "green"
 	set {-cfg::difficulty::2::waypoint} to "yellow"
 	set {-cfg::difficulty::3::waypoint} to "gold"
@@ -628,38 +680,50 @@ function loadSettings():
 	set {-cfg::difficulty::3::p} to 0.035
 	set {-cfg::difficulty::3::cop-p} to 0.08
 	set {-cfg::difficulty::4::name} to "Advanced"
+	# Difficulty 0 = a store (owner, 2026-09-27: "easy money for people starting off"): no escape clock, it closes
+	# when it's cleaned out (store::empty-grace later anyone inside is moved out with their loot) or after
+	# store::idle-close with nobody inside; only robbers up to its max-level get in; never announced.
+	set {-cfg::difficulty::0::name} to "Store"
+	set {-cfg::difficulty::0::p} to 0.01
+	set {-cfg::difficulty::0::cop-p} to 0.05
 	set {-cfg::difficulty::4::p} to 0.05
 	set {-cfg::difficulty::4::cop-p} to 0.10
 
 	# ---------- Money: ALL PROPOSALS, waiting for the owner ----------
 	# Start money (owner, 2026-09-26: more, and the first-join tutorial makes you buy a bag with it:
 	# tutorial.sk). $5,000 = the Gym Bag ($2,400) + a .50 GS ($1,500) + ammo.
-	set {-cfg::money::start} to 5000
+	# Owner, 2026-09-27: the bag is earned. $1,000 + the starter car job's $1,500 = $2,500 >= the Gym Bag's $2,400.
+	set {-cfg::money::start} to 1000
 	# Bag tiers: capacity = the most loot value ($) the bag holds. Owner, 2026-09-26: unlocking a tier
 	# costs 120% of what it holds (price = 1.2 × capacity), a new one after losing it 20% (replace below).
 	set {-cfg::bag::1::name} to "Gym Bag"
 	set {-cfg::bag::1::capacity} to 2000
 	set {-cfg::bag::1::price} to 2400
+	# The robber level a tier's first unlock needs (shop.sk; a new one after losing it needs none).
+	set {-cfg::bag::1::level} to 0
 	set {-cfg::bag::2::name} to "Duffel Bag"
 	set {-cfg::bag::2::capacity} to 6000
 	set {-cfg::bag::2::price} to 7200
+	set {-cfg::bag::2::level} to 5
 	set {-cfg::bag::3::name} to "Hockey Bag"
 	set {-cfg::bag::3::capacity} to 15000
 	set {-cfg::bag::3::price} to 18000
+	set {-cfg::bag::3::level} to 10
 	set {-cfg::bag::4::name} to "Armored Duffel"
 	set {-cfg::bag::4::capacity} to 40000
 	set {-cfg::bag::4::price} to 48000
+	set {-cfg::bag::4::level} to 25
 	set {-cfg::bag::5::name} to "Vault Bag"
 	set {-cfg::bag::5::capacity} to 100000
 	set {-cfg::bag::5::price} to 120000
-	# The first-join tutorial (tutorial.sk): a player without a bag can't leave the WorldGuard region
-	# whose id starts with this (the spawn safe zone: create it as safe_spawn) until they buy one.
-	set {-cfg::tutorial::region} to "safe_spawn"
+	set {-cfg::bag::5::level} to 60
 	# Default loot pool per difficulty (each heist can override its own).
-	set {-cfg::difficulty::1::loot-pool} to 3000
-	set {-cfg::difficulty::2::loot-pool} to 12000
-	set {-cfg::difficulty::3::loot-pool} to 40000
-	set {-cfg::difficulty::4::loot-pool} to 120000
+	# Owner, 2026-09-27: doubled.
+	set {-cfg::difficulty::0::loot-pool} to 3000
+	set {-cfg::difficulty::1::loot-pool} to 6000
+	set {-cfg::difficulty::2::loot-pool} to 24000
+	set {-cfg::difficulty::3::loot-pool} to 80000
+	set {-cfg::difficulty::4::loot-pool} to 240000
 
 	# ---------- Heists (heists.sk) ----------
 	# WorldGuard regions "heist_<id>" are heists (staff define them with /dheist).
@@ -684,36 +748,60 @@ function loadSettings():
 	# Escape countdown E and cooldown K per difficulty (owner picked "medium", 2026-09-25). Each heist
 	# can override them (/dheist set <id> escape|cooldown <seconds>). The most one heist can put into
 	# the game per hour: F = P × 60 / (E + K), with P = its loot per run and E, K in minutes.
+	set {-cfg::difficulty::0::escape} to 0 seconds
 	set {-cfg::difficulty::1::escape} to 4 minutes
 	set {-cfg::difficulty::2::escape} to 6 minutes
 	set {-cfg::difficulty::3::escape} to 8 minutes
 	set {-cfg::difficulty::4::escape} to 10 minutes
+	set {-cfg::difficulty::0::cooldown} to 5 minutes
 	set {-cfg::difficulty::1::cooldown} to 6 minutes
 	set {-cfg::difficulty::2::cooldown} to 10 minutes
 	set {-cfg::difficulty::3::cooldown} to 15 minutes
 	set {-cfg::difficulty::4::cooldown} to 30 minutes
 	# PROPOSAL: robber level needed (levels.sk; 0 = anyone). Each heist can override it (/dheist set <id>
 	# level <n>).
+	set {-cfg::difficulty::0::level} to 0
 	set {-cfg::difficulty::1::level} to 0
-	set {-cfg::difficulty::2::level} to 1
-	set {-cfg::difficulty::3::level} to 2
-	set {-cfg::difficulty::4::level} to 3
+	# The highest robber level that may enter (0 = no limit): stores are for new robbers.
+	set {-cfg::difficulty::0::max-level} to 9
+	set {-cfg::difficulty::1::max-level} to 0
+	set {-cfg::difficulty::2::max-level} to 0
+	set {-cfg::difficulty::3::max-level} to 0
+	set {-cfg::difficulty::4::max-level} to 0
+	# "The Bank is open!" to everyone (heist::announce); stores reopen every few minutes, so they stay quiet.
+	set {-cfg::difficulty::0::announce} to false
+	set {-cfg::difficulty::1::announce} to true
+	set {-cfg::difficulty::2::announce} to true
+	set {-cfg::difficulty::3::announce} to true
+	set {-cfg::difficulty::4::announce} to true
+	# A cleaned-out store moves the robbers still inside out (with their loot) this long after; one nobody is in
+	# closes after store::idle-close. PROPOSAL store::no-pvp: nobody hurts or is hurt by a player in a store.
+	set {-cfg::store::empty-grace} to 15 seconds
+	set {-cfg::store::idle-close} to 10 minutes
+	set {-cfg::store::no-pvp} to true
+	set {-cfg::difficulty::2::level} to 5
+	set {-cfg::difficulty::3::level} to 15
+	set {-cfg::difficulty::4::level} to 30
 	# Advanced heists have an alarm (decided: only advanced heists).
+	set {-cfg::difficulty::0::advanced} to false
 	set {-cfg::difficulty::1::advanced} to false
 	set {-cfg::difficulty::2::advanced} to false
 	set {-cfg::difficulty::3::advanced} to false
 	set {-cfg::difficulty::4::advanced} to true
 	# PvP heists: no crew rule inside, no passive players (per heist: /dheist set <id> pvp true).
+	set {-cfg::difficulty::0::pvp-only} to false
 	set {-cfg::difficulty::1::pvp-only} to false
 	set {-cfg::difficulty::2::pvp-only} to false
 	set {-cfg::difficulty::3::pvp-only} to false
 	set {-cfg::difficulty::4::pvp-only} to false
+	set {-cfg::difficulty::0::color} to "&7"
 	set {-cfg::difficulty::1::color} to "&a"
 	set {-cfg::difficulty::2::color} to "&e"
 	set {-cfg::difficulty::3::color} to "&6"
 	set {-cfg::difficulty::4::color} to "&4"
 	# Trap damage m per difficulty (PROPOSAL): a hit does D = max(1, round(d × 2 × m)) / 2 hearts, d = the
 	# trap's damage below (or its own damage=). Per heist: /dheist set <id> trap-damage <m>.
+	set {-cfg::difficulty::0::trap-damage} to 0.75
 	set {-cfg::difficulty::1::trap-damage} to 1.0
 	set {-cfg::difficulty::2::trap-damage} to 1.25
 	set {-cfg::difficulty::3::trap-damage} to 1.5
@@ -892,34 +980,41 @@ function loadSettings():
 	set {-cfg::shop::weapons::*} to "Combat_Knife", "50_GS", "Uzi", "R9_0" and "AK_47"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
-	set {-cfg::wpn::Combat_Knife::price} to 150
+	# Owner, 2026-09-27: weapons cost more and guns need a level (melee first).
+	set {-cfg::wpn::Combat_Knife::price} to 500
 	# model = the weapon's WeaponMechanics skin (Skin: Default in its file), the custom_model_data the
 	# pack's feather.json turns into its 3D model; the shop's icons use it so they look like the gun.
 	set {-cfg::wpn::Combat_Knife::model} to -10
+	# The robber level a weapon's first unlock needs (shop.sk; equipping one you own needs none).
+	set {-cfg::wpn::Combat_Knife::level} to 0
 	set {-cfg::wpn::50_GS::name} to ".50 GS"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
-	set {-cfg::wpn::50_GS::price} to 1500
+	set {-cfg::wpn::50_GS::price} to 7500
 	set {-cfg::wpn::50_GS::ammo} to "light"
 	set {-cfg::wpn::50_GS::mag} to 7
 	set {-cfg::wpn::50_GS::model} to 9
+	set {-cfg::wpn::50_GS::level} to 5
 	set {-cfg::wpn::Uzi::name} to "Uzi"
 	set {-cfg::wpn::Uzi::kind} to "SMG"
-	set {-cfg::wpn::Uzi::price} to 15000
+	set {-cfg::wpn::Uzi::price} to 45000
 	set {-cfg::wpn::Uzi::ammo} to "light"
 	set {-cfg::wpn::Uzi::mag} to 32
 	set {-cfg::wpn::Uzi::model} to 1
+	set {-cfg::wpn::Uzi::level} to 15
 	set {-cfg::wpn::R9_0::name} to "R9-0"
 	set {-cfg::wpn::R9_0::kind} to "Shotgun"
-	set {-cfg::wpn::R9_0::price} to 37500
+	set {-cfg::wpn::R9_0::price} to 110000
 	set {-cfg::wpn::R9_0::ammo} to "shells"
 	set {-cfg::wpn::R9_0::mag} to 14
 	set {-cfg::wpn::R9_0::model} to 14
+	set {-cfg::wpn::R9_0::level} to 30
 	set {-cfg::wpn::AK_47::name} to "AK-47"
 	set {-cfg::wpn::AK_47::kind} to "Rifle"
-	set {-cfg::wpn::AK_47::price} to 75000
+	set {-cfg::wpn::AK_47::price} to 225000
 	set {-cfg::wpn::AK_47::ammo} to "rifle"
 	set {-cfg::wpn::AK_47::mag} to 30
 	set {-cfg::wpn::AK_47::model} to 5
+	set {-cfg::wpn::AK_47::level} to 50
 
 	# Ammo types. "wm" = the ammo's name in plugins\WeaponMechanics\ammos\Donating_Ammos.yml.
 	set {-cfg::shop::ammo::*} to "light", "shells" and "rifle"
@@ -945,7 +1040,8 @@ function loadSettings():
 	# Consumables: WeaponMechanics items with Shoot.Consume_Item_On_Shoot (no leftover item).
 	set {-cfg::shop::consumables::*} to "Stim"
 	set {-cfg::con::Stim::name} to "Stim"
-	set {-cfg::con::Stim::price} to 200
+	# Owner, 2026-09-27: doubled.
+	set {-cfg::con::Stim::price} to 400
 	set {-cfg::con::Stim::max} to 3
 	set {-cfg::con::Stim::model} to -1
 
@@ -965,38 +1061,23 @@ function loadSettings():
 	set {-cfg::tool::safe-kit::item} to flint
 	set {-cfg::tool::safe-kit::about} to "Cracks a safe's code (used up when it opens)."
 	# PROPOSAL: the robber level a tool needs to be bought (levels.sk).
-	set {-cfg::tool::safe-kit::level} to 1
-	set {-cfg::tool::drill::level} to 2
+	set {-cfg::tool::safe-kit::level} to 5
+	set {-cfg::tool::drill::level} to 15
 
 	# ---------- Robber levels (levels.sk) ----------
-	# PROPOSAL: level n needs level::<n>::xp total XP; its name is the level's title. XP comes from
-	# selling loot at the base: X = floor(P / level::xp-per-dollars) + level::xp-per-haul × H, P = what
-	# the sale paid (passive: 75%), H = the heist runs in it (each run once per player). E.g. a full
-	# Duffel Bag ($6,000) from one heist = 60 + 10 = 70 XP.
-	set {-cfg::level::max} to 6
+	# Owner, 2026-09-27: many levels, about level 150 after a month of 2 hours a day (about 60 h). Level n needs
+	# T(n) = k × n × (n + 5) XP in total (k = level::curve), so each level needs 13 more XP than the one before
+	# (Δ(n) = k × (2n + 6)). XP comes from selling loot at the base: X = floor(P / level::xp-per-dollars) +
+	# level::xp-per-haul × H (P = what the sale paid, passive 75%; H = the heist runs in it, each once), plus car
+	# jobs, hits, missions and contact jobs. PROPOSAL: k = 6.5 (the model's level 150 at about 59 h); retune after the
+	# beta with k' = X60 / 23,250 (X60 = the median XP of players with 60 h played). Lowering k is safe (players catch
+	# up); raising it strands them (a level never drops). level::max is only a technical bound.
+	set {-cfg::level::curve} to 6.5
+	set {-cfg::level::max} to 500
 	set {-cfg::level::xp-per-dollars} to 100
 	set {-cfg::level::xp-per-haul} to 10
-	set {-cfg::level::0::name} to "Pickpocket"
-	set {-cfg::level::0::xp} to 0
-	set {-cfg::level::0::color} to "&7"
-	set {-cfg::level::1::name} to "Shoplifter"
-	set {-cfg::level::1::xp} to 250
-	set {-cfg::level::1::color} to "&f"
-	set {-cfg::level::2::name} to "Burglar"
-	set {-cfg::level::2::xp} to 1000
-	set {-cfg::level::2::color} to "&a"
-	set {-cfg::level::3::name} to "Safecracker"
-	set {-cfg::level::3::xp} to 3000
-	set {-cfg::level::3::color} to "&b"
-	set {-cfg::level::4::name} to "Heister"
-	set {-cfg::level::4::xp} to 8000
-	set {-cfg::level::4::color} to "&e"
-	set {-cfg::level::5::name} to "Mastermind"
-	set {-cfg::level::5::xp} to 20000
-	set {-cfg::level::5::color} to "&6"
-	set {-cfg::level::6::name} to "Kingpin"
-	set {-cfg::level::6::xp} to 50000
-	set {-cfg::level::6::color} to "&c"
+	# The title of a range of levels: "from|name|color", lowest first (each starts at a big unlock).
+	set {-cfg::level::brackets::*} to "0|Pickpocket|&7", "5|Shoplifter|&f", "15|Burglar|&a", "30|Safecracker|&b", "60|Heister|&e", "100|Mastermind|&6" and "150|Kingpin|&c"
 
 	# ---------- Paid ranks (ranks.sk) ----------
 	# A tag before the name in the tab list, chat and join messages, a spot higher in the tab list, a bag
@@ -1284,22 +1365,23 @@ function loadSettings():
 	set {-cfg::gear::helmet-1::slot} to "helmet"
 	set {-cfg::gear::helmet-1::item} to iron helmet
 	set {-cfg::gear::helmet-1::tier} to 1
-	set {-cfg::gear::helmet-1::price} to 750
+	# Owner, 2026-09-27: helmets and vests doubled.
+	set {-cfg::gear::helmet-1::price} to 1500
 	set {-cfg::gear::helmet-2::name} to "Tactical Helmet"
 	set {-cfg::gear::helmet-2::slot} to "helmet"
 	set {-cfg::gear::helmet-2::item} to diamond helmet
 	set {-cfg::gear::helmet-2::tier} to 2
-	set {-cfg::gear::helmet-2::price} to 2500
+	set {-cfg::gear::helmet-2::price} to 5000
 	set {-cfg::gear::vest-1::name} to "Light Vest"
 	set {-cfg::gear::vest-1::slot} to "vest"
 	set {-cfg::gear::vest-1::item} to chainmail chestplate
 	set {-cfg::gear::vest-1::tier} to 1
-	set {-cfg::gear::vest-1::price} to 1000
+	set {-cfg::gear::vest-1::price} to 2000
 	set {-cfg::gear::vest-2::name} to "Heavy Vest"
 	set {-cfg::gear::vest-2::slot} to "vest"
 	set {-cfg::gear::vest-2::item} to diamond chestplate
 	set {-cfg::gear::vest-2::tier} to 2
-	set {-cfg::gear::vest-2::price} to 5000
+	set {-cfg::gear::vest-2::price} to 10000
 
 	# Bags: price to replace a lost bag of a tier you've already unlocked (owner, 2026-09-26: 20% of what
 	# it holds).
@@ -1310,7 +1392,9 @@ function loadSettings():
 	set {-cfg::bag::5::replace} to 20000
 	# A player who can't pay for a new Gym Bag (tier 1, already unlocked) gets one free, so a robber who
 	# lost everything is never stuck without a bag (PROPOSAL).
-	set {-cfg::bag::free-if-broke} to true
+	# Owner, 2026-09-27: no free bag. With none, a robber carries up to this much loot in their hands (bag.sk; the
+	# cash shows in the offhand). No rank bonus: it isn't a bag.
+	set {-cfg::bag::hands::capacity} to 1000
 
 	# Season titles made by seasons.sk ({seasoncos::<id>} = "type|name|rarity"): bound, so trades, crates and
 	# ranks never include them. Defined here again at every load (loadSettings starts from nothing).
@@ -1350,20 +1434,22 @@ function loadSettings():
 	set {-cfg::jobs::boss::color} to "&6"
 	set {-cfg::jobs::boss::unlock} to "contracts:1"
 	set {-cfg::jobs::boss::templates::*} to "tier", "model" and "double"
-	set {-cfg::jobs::hours} to 20
+	# Owner, 2026-09-27: a new job every 6 hours.
+	set {-cfg::jobs::hours} to 6
 	set {-cfg::jobs::slots} to 3
 	set {-cfg::jobs::slots-family} to 4
 	set {-cfg::jobs::swap-hours} to 20
 	set {-cfg::jobs::grace} to 900
 	set {-cfg::jobs::gap} to 3
-	set {-cfg::jobs::run::1} to 1000
-	set {-cfg::jobs::run::2} to 3000
-	set {-cfg::jobs::run::3} to 7500
-	set {-cfg::jobs::run::4} to 20000
+	# Doubled with the heist pools.
+	set {-cfg::jobs::run::1} to 2000
+	set {-cfg::jobs::run::2} to 6000
+	set {-cfg::jobs::run::3} to 15000
+	set {-cfg::jobs::run::4} to 40000
 	set {-cfg::jobs::bag-share} to 0.6
 	set {-cfg::jobs::pool-share} to 0.25
-	set {-cfg::jobs::min-goal} to 500
-	set {-cfg::jobs::min-pay} to 500
+	set {-cfg::jobs::min-goal} to 1000
+	set {-cfg::jobs::min-pay} to 250
 	set {-cfg::jobs::bonus-share} to 0.5
 	set {-cfg::jobs::cold-share} to 0.25
 	set {-cfg::jobs::cold-hours} to 24
@@ -1375,49 +1461,49 @@ function loadSettings():
 	set {-cfg::jobs::tpl::haul::name} to "Special Delivery"
 	set {-cfg::jobs::tpl::haul::goal} to "Sell {$} of loot you robbed from the {heist}"
 	set {-cfg::jobs::tpl::haul::beta} to 0.2
-	set {-cfg::jobs::tpl::haul::xp} to 15
+	set {-cfg::jobs::tpl::haul::xp} to 100
 	set {-cfg::jobs::tpl::haul::rep} to 10
 	set {-cfg::jobs::tpl::haul::weight} to 40
 	set {-cfg::jobs::tpl::haul::bonuses::*} to "clock", "quiet" and "untouched"
 	set {-cfg::jobs::tpl::safe::name} to "Safecracker"
 	set {-cfg::jobs::tpl::safe::goal} to "Crack a safe in the {heist}"
 	set {-cfg::jobs::tpl::safe::beta} to 0.25
-	set {-cfg::jobs::tpl::safe::xp} to 25
+	set {-cfg::jobs::tpl::safe::xp} to 150
 	set {-cfg::jobs::tpl::safe::rep} to 15
 	set {-cfg::jobs::tpl::safe::weight} to 20
 	set {-cfg::jobs::tpl::safe::bonuses::*} to "guesses" and "untouched"
 	set {-cfg::jobs::tpl::vault::name} to "Vault Job"
 	set {-cfg::jobs::tpl::vault::goal} to "Drill the vault in the {heist}"
 	set {-cfg::jobs::tpl::vault::beta} to 0.35
-	set {-cfg::jobs::tpl::vault::xp} to 40
+	set {-cfg::jobs::tpl::vault::xp} to 200
 	set {-cfg::jobs::tpl::vault::rep} to 20
 	set {-cfg::jobs::tpl::vault::weight} to 20
 	set {-cfg::jobs::tpl::vault::bonuses::*} to "untouched"
 	set {-cfg::jobs::tpl::getaway::name} to "Lose the Heat"
 	set {-cfg::jobs::tpl::getaway::goal} to "Rob the {heist} and lose its cops with the loot"
 	set {-cfg::jobs::tpl::getaway::beta} to 0.35
-	set {-cfg::jobs::tpl::getaway::xp} to 40
+	set {-cfg::jobs::tpl::getaway::xp} to 200
 	set {-cfg::jobs::tpl::getaway::rep} to 20
 	set {-cfg::jobs::tpl::getaway::weight} to 20
 	set {-cfg::jobs::tpl::getaway::bonuses::*} to "car"
 	set {-cfg::jobs::tpl::tier::name} to "Delivery"
 	set {-cfg::jobs::tpl::tier::goal} to "Deliver a {tier} (or better)"
 	set {-cfg::jobs::tpl::tier::beta} to 0.15
-	set {-cfg::jobs::tpl::tier::xp} to 15
+	set {-cfg::jobs::tpl::tier::xp} to 30
 	set {-cfg::jobs::tpl::tier::rep} to 10
 	set {-cfg::jobs::tpl::tier::weight} to 40
 	set {-cfg::jobs::tpl::tier::bonuses::*} to "fast" and "clean"
 	set {-cfg::jobs::tpl::model::name} to "Special Order"
 	set {-cfg::jobs::tpl::model::goal} to "Deliver a {car} (any color, a {tier})"
 	set {-cfg::jobs::tpl::model::beta} to 0.2
-	set {-cfg::jobs::tpl::model::xp} to 25
+	set {-cfg::jobs::tpl::model::xp} to 45
 	set {-cfg::jobs::tpl::model::rep} to 15
 	set {-cfg::jobs::tpl::model::weight} to 35
 	set {-cfg::jobs::tpl::model::bonuses::*} to "fast" and "clean"
 	set {-cfg::jobs::tpl::double::name} to "Busy Day"
 	set {-cfg::jobs::tpl::double::goal} to "Deliver 2 {tier}s (or better)"
 	set {-cfg::jobs::tpl::double::beta} to 0.3
-	set {-cfg::jobs::tpl::double::xp} to 40
+	set {-cfg::jobs::tpl::double::xp} to 75
 	set {-cfg::jobs::tpl::double::rep} to 20
 	set {-cfg::jobs::tpl::double::weight} to 25
 	set {-cfg::jobs::tpl::double::bonuses::*} to "fast" and "clean"
@@ -1439,11 +1525,12 @@ function loadSettings():
 	# Rep: tiers per contact, a bound title at 2-4, a 4th slot at 4 (Family).
 	set {-cfg::jobs::reptier::1::rep} to 0
 	set {-cfg::jobs::reptier::1::name} to "Associate"
-	set {-cfg::jobs::reptier::2::rep} to 150
+	# About 3 jobs a day per contact now (was about 1.2): the rep tiers x2.5.
+	set {-cfg::jobs::reptier::2::rep} to 400
 	set {-cfg::jobs::reptier::2::name} to "Trusted"
-	set {-cfg::jobs::reptier::3::rep} to 500
+	set {-cfg::jobs::reptier::3::rep} to 1250
 	set {-cfg::jobs::reptier::3::name} to "Partner"
-	set {-cfg::jobs::reptier::4::rep} to 1200
+	set {-cfg::jobs::reptier::4::rep} to 3000
 	set {-cfg::jobs::reptier::4::name} to "Family"
 	set {-cfg::jobs::mara::title::2} to "rep_mara_2"
 	set {-cfg::jobs::mara::title::3} to "rep_mara_3"
@@ -1485,7 +1572,7 @@ function loadSettings():
 	set {-cfg::hit::easy::name} to "Easy contract"
 	set {-cfg::hit::easy::when} to "In town twice a day, an hour each time"
 	set {-cfg::hit::easy::windows} to 14
-	set {-cfg::hit::easy::level} to 2
+	set {-cfg::hit::easy::level} to 15
 	set {-cfg::hit::easy::pay} to 10000
 	set {-cfg::hit::easy::xp} to 100
 	set {-cfg::hit::easy::r0} to 120
@@ -1494,7 +1581,7 @@ function loadSettings():
 	set {-cfg::hit::medium::name} to "Medium contract"
 	set {-cfg::hit::medium::when} to "In town once a day, for an hour"
 	set {-cfg::hit::medium::windows} to 7
-	set {-cfg::hit::medium::level} to 3
+	set {-cfg::hit::medium::level} to 30
 	set {-cfg::hit::medium::pay} to 25000
 	set {-cfg::hit::medium::xp} to 250
 	set {-cfg::hit::medium::r0} to 160
@@ -1503,7 +1590,7 @@ function loadSettings():
 	set {-cfg::hit::hard::name} to "Hard contract"
 	set {-cfg::hit::hard::when} to "In town 5 times a week, an hour each time"
 	set {-cfg::hit::hard::windows} to 5
-	set {-cfg::hit::hard::level} to 4
+	set {-cfg::hit::hard::level} to 50
 	set {-cfg::hit::hard::pay} to 60000
 	set {-cfg::hit::hard::xp} to 600
 	set {-cfg::hit::hard::keys} to 1

@@ -363,7 +363,30 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
 135. **The bays in the real client** (cu): does the car model sit on the bay floor, the right size and facing along the bay? Tune core.sk `garage::bay-lift` (1.69) and `garage::bay-scale` (0.625), or add 180° to the bay's yaw. The labels over the bays, the repaint preview (the bay shows the new color for 10 s).
     - Result: PASS (cu, 2026-09-27): a Black Sedan in a bay next to a real red Sedan parked beside it looked the same size and height, with its wheels on the floor, facing the same way, so lift 1.69 and scale 0.625 stay. The labels "Sedan · Black" / "Right-click: take it out" float over it. Repaint → Navy (first click) turned the bay navy with "Look at your bay: that's the new color", and it was black again after 10 s. Screenshot: extras\screenshots\garage-bay.png (not in git). Owner: does the bay look good enough?
 136. **Owner questions (2026-09-27 overnight):** the hit pay and levels, streak bonus and titles, the 3% death cost, the six targets and skins, the Broker's name and place, the garage numbers (5 s take-out, 90 s pickup, 4-block return), where garage sites go, the Contact Jobs and Vic numbers. Listed in the session's end message.
+    - Result: ANSWERED (owner, 2026-09-27 afternoon): see 137-147 and CLAUDE.md (economy rework, stores, hands, serials, nametags, phone, immunity, skins).
+137. **The level curve** (`bots\run.js levels`): T(n) = 6.5 × n × (n + 5) (level 1 at 39 XP, 5 at 325, 150 at 151,125), titles by range, /levels only lists milestones, a level-up lists every unlock on the way, the footer, bag tiers and tools refused below their level.
+    - Result: PASS (bots, 2026-09-27, levels 16/16).
+138. **Stores and hands** (`bots\run.js store`): difficulty 0, no clock, not announced, up to level 9, no PvP into it, cleaned out -> moved out with the loot, idle close; no bag = $1,000 in the hands (cash in the offhand, HANDS FULL, sells, the phone's map takes it off and puts it back, a death costs min(B × p, $1,000)).
+    - Result: PASS (bots, 2026-09-27).
+139. **The new start** (`bots\run.js tutorial`, `contracts`, `story`): $1,000, the welcome, Mara's chapter 1 at once, no spawn lock, no free Gym Bag; the one-time starter car job (level 0, the lockpick never breaks, $1,500 + 40 XP, no bounty, not counted); the reordered chapter 1.
+    - Result: PASS (bots, 2026-09-27). **Owner:** walk it once with a fresh account when the city exists (does it take about an hour to level 5, does the first car job feel easy enough?).
+140. **Serials** (`bots\run.js crates`, `trade`): a new copy gets the next #N, shown as #N/M in the pull line, the announcement, the wardrobe, the trade window and the garage; a trade moves it.
+    - Result: PASS (bots, 2026-09-27).
+141. **Nametags only in the open** (`bots\run.js nametags`, 7 checks): hidden behind stone, shown through glass and over a low wall, TAB's team update in the client.
+    - Result: PASS (bots, 2026-09-27). **Owner:** check it feels right in the real client (hide behind a corner from a friend).
+142. **Phone out: no block use** (`bots\run.js phone`, `loot`): a lever isn't flipped and the map doesn't open, with a quiet hint; loot isn't grabbed; a plain click still opens the map.
+    - Result: PASS (bots, 2026-09-27).
+143. **Teleport immunity** (`bots\run.js tpimmune`, 6 checks): 3 s after a command teleport (both ways), none after a pushback at a safe zone's edge (the abuse found with EssentialsX's), 3 s after a heist eviction at the exit.
+    - Result: PASS (bots, 2026-09-27).
+144. **A cop death in a chase counts for the heist** (`bots\run.js cops`): shot dead outside the building while hunted: 10% at difficulty 4, not the easy tier's 5%.
+    - Result: PASS (bots, 2026-09-27).
+145. **Seasons by hand** (`bots\run.js seasons`): a season that ends leaves none running until /dseason start.
+    - Result: PASS (bots, 2026-09-27).
+146. **NPC skins in the real client** (cu or the owner): the shopkeepers, Mara, the Boss, Vic, the Broker, the hit targets and bodyguards wear their own skins (after `/dskins respawn`).
+    - Result: PARTLY (2026-09-27): all 17 signed textures match their drawings pixel for pixel (`toolssign-skins.js --check`), and a new Mara mannequin carries the profile (data check). Seeing them in the client: TODO (the owner or cu).
+147. **Owner questions (2026-09-27 afternoon):** the level curve's k, the store's no-PvP rule, the halved lockpicks, the rep x2.5, a second melee weapon, level rewards past 100, the MOTD. Listed in the session's end message.
     - Result: WAITING (owner)
+
 
 ## Needs a human (owner)
 

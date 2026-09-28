@@ -69,7 +69,7 @@ module.exports = async ({ check }) => {
       await cmd(`zzclear ${name}`)
       await cmd(`zzcombatend ${name}`)
       await cmd(`zzctreset ${name}`)
-      await cmd(`dlevel set ${name} 1`)
+      await cmd(`dlevel set ${name} 5`)
       await cmd(`eco set ${name} 100000`)
       for (const t of ['basic', 'pro', 'master']) await cmd(`zzpick ${name} ${t} 0`)
     }
@@ -160,7 +160,7 @@ module.exports = async ({ check }) => {
     // Buying a lockpick works here.
     bots[Q].clickWindow(20, 0, 0).catch(() => {})
     await sleep(900)
-    check('...and a Basic Lockpick can be bought there', (await bal(Q)) === bal0 - 500 && (await picks(Q, 'basic')) === 1, `${await bal(Q)} ${await picks(Q, 'basic')}`)
+    check('...and a Basic Lockpick can be bought there', (await bal(Q)) === bal0 - 250 && (await picks(Q, 'basic')) === 1, `${await bal(Q)} ${await picks(Q, 'basic')}`)
     await closeAll(Q)
     bots[Q].deactivateItem()
     await sleep(1200)

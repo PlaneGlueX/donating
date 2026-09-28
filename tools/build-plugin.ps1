@@ -15,6 +15,10 @@ $out = Join-Path $root 'server\plugins\DonatingPhone.jar'
 
 $libs = Get-ChildItem (Join-Path $root 'server\libraries') -Recurse -Filter *.jar | ForEach-Object FullName
 if (-not ($libs | Where-Object { $_ -match 'paper-api' })) { throw 'paper-api jar not found under server\libraries (start the server once first)' }
+# TAB's API (Nametags.java; TAB is a soft dependency at runtime).
+$tab = Get-ChildItem (Join-Path $root 'server\plugins') -Filter 'TAB-*.jar' | Select-Object -First 1
+if (-not $tab) { throw 'TAB-*.jar not found in server\plugins (Nametags.java compiles against its API)' }
+$libs = @($libs) + $tab.FullName
 $classpath = $libs -join ';'
 
 if (Test-Path $build) { Remove-Item -Recurse -Force $build }

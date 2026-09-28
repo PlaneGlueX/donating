@@ -7,12 +7,13 @@
 #   P = what the sale paid (passive players get 75%, so their XP too), H = the heist runs in the sale
 #   not credited to this player before (bag.sk keeps data "level-haul::<h>", the last run credited), so
 #   selling one run's loot in several trips pays the bonus once.
-# Level n needs cfg level::<n>::xp total XP; each level has a title (0 Pickpocket up to cfg level::max,
-# 6 Kingpin). All the numbers are PROPOSALs in core.sk. A level unlocks:
+# Level n needs T(n) = k × n × (n + 5) total XP (k = cfg level::curve; owner, 2026-09-27: about level 150 after a
+# month of 2 hours a day). A range of levels shares a title (cfg level::brackets: 0 Pickpocket ... 150 Kingpin). All
+# the numbers are PROPOSALs in core.sk. A level unlocks:
 #   - heists: heistLevel(h), the heist's /dheist set level, else its difficulty's default in core.sk
 #     (heists.sk's heistLevelOk asks levelOk);
-#   - heist tools: cfg tool::<t>::level (shop.sk doesn't sell them below it);
-#   - later: car models (garage.sk: levelOk).
+#   - heist tools, weapons and bag tiers: cfg tool::<t>::level, wpn::<W>::level, bag::<t>::level (shop.sk);
+#   - car models (garage.sk), car-job tiers (contracts.sk), hit contracts (hits.sk), Vic (fence.sk).
 # XP is never taken away and a level never drops by itself (only staff can lower one).
 # Level-ups are told to that player only (a title, a sound and what it unlocks in chat): no chat spam.
 # Saved: data "level-xp" (total XP), "level" (the level it gives), "level-haul::<h>". Memory:
@@ -44,38 +45,56 @@ function levelOk(p: offline player, need: number) :: boolean:
 		return true
 	return false
 
+# The bracket a level falls in: "from|name|color" (the highest whose start is at most n).
+function levelBracket(n: number) :: text:
+	set {_b} to "0|Level|&7"
+	loop {-cfg::level::brackets::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_from} to {_a::1} parsed as integer
+		if {_from} is set:
+			if {_from} <= {_n}:
+				set {_b} to loop-value
+	return {_b}
+
 # The level's title ("Burglar").
 function levelName(n: number) :: text:
-	set {_name} to cfg("level::%{_n}%::name")
-	if {_name} is set:
-		return {_name}
-	return "Level %{_n}%"
+	set {_a::*} to levelBracket({_n}) split at "|"
+	return {_a::2}
 
 # The title in its color: "&aBurglar".
 function levelColored(n: number) :: text:
-	set {_c} to cfg("level::%{_n}%::color")
-	if {_c} is not set:
-		set {_c} to "&7"
-	return "%{_c}%%levelName({_n})%"
+	set {_a::*} to levelBracket({_n}) split at "|"
+	return "%{_a::3}%%{_a::2}%"
 
-# XP level n needs in total. A level without a setting can't be reached (a typo in core.sk must not
-# level everyone up).
+# XP level n needs in total: T(n) = k × n × (n + 5). Without the curve setting no level can be reached (a typo in
+# core.sk must not level everyone up).
 function levelNeed(n: number) :: number:
 	if {_n} <= 0:
 		return 0
-	set {_x} to cfg("level::%{_n}%::xp")
-	if {_x} is set:
-		return {_x}
-	return 1000000000000
+	set {_k} to {-cfg::level::curve}
+	if {_k} is not set:
+		return 1000000000000
+	if {_k} <= 0:
+		return 1000000000000
+	return round({_k} * {_n} * ({_n} + 5))
 
-# The level a total of xp gives.
+# The level a total of xp gives: n = floor((−5 + √(25 + 4X / k)) / 2), then checked against T either way (rounding).
 function levelFor(xp: number) :: number:
-	set {_r} to 0
+	set {_k} to {-cfg::level::curve}
+	if {_k} is not set:
+		return 0
+	if {_k} <= 0:
+		return 0
 	set {_max} to cfg("level::max")
-	loop integers from 1 to {_max}:
-		if {_xp} >= levelNeed(loop-value):
-			set {_r} to loop-value
-	return {_r}
+	set {_n} to floor((sqrt(25 + 4 * max(0, {_xp}) / {_k}) - 5) / 2)
+	set {_n} to max(0, min({_n}, {_max}))
+	if {_n} < {_max}:
+		if levelNeed({_n} + 1) <= {_xp}:
+			add 1 to {_n}
+	if {_n} > 0:
+		if levelNeed({_n}) > {_xp}:
+			remove 1 from {_n}
+	return {_n}
 
 # A whole number with thousands commas ("12,500").
 function levelNum(n: number) :: text:
@@ -83,8 +102,23 @@ function levelNum(n: number) :: text:
 	replace all "$" with "" in {_t}
 	return {_t}
 
-# What level n unlocks: the heist tools and the (enabled) heists that need exactly that level.
+# What level n unlocks: tools, weapons, bags, heists, cars, car jobs, hits and Vic that need exactly that level.
 function levelUnlocks(n: number) :: texts:
+	loop {-cfg::shop::weapons::*}:
+		if {-cfg::wpn::%loop-value%::level} is {_n}:
+			if {_n} > 0:
+				set {_w} to {-cfg::wpn::%loop-value%::name}
+				add "the %{_w}%" to {_u::*}
+	loop integers from 2 to 5:
+		if {-cfg::bag::%loop-value%::level} is {_n}:
+			set {_bag} to {-cfg::bag::%loop-value%::name}
+			add "the %{_bag}%" to {_u::*}
+	loop "easy", "medium" and "hard":
+		if {-cfg::hit::%loop-value%::level} is {_n}:
+			set {_hn} to {-cfg::hit::%loop-value%::name}
+			add "%{_hn}%s (the Broker)" to {_u::*}
+	if {-cfg::fence::level} is {_n}:
+		add "Vic the Fence (the Pawn Shop)" to {_u::*}
 	loop {-cfg::shop::tools::*}:
 		set {_need} to cfg("tool::%loop-value%::level")
 		if {_need} is {_n}:
@@ -228,7 +262,7 @@ function levelShow(p: player):
 	set {_r} to levelOf({_p})
 	set {_x} to levelXp({_p})
 	set {_max} to cfg("level::max")
-	msg({_p}, "&6Your level: &f%{_r}% %levelColored({_r})% &7(of %{_max}%) &7· &f%levelNum({_x})% XP")
+	msg({_p}, "&6Your level: &f%{_r}% %levelColored({_r})% &7· &f%levelNum({_x})% XP")
 	if {_r} >= {_max}:
 		send colored "&7 That's the top level." to {_p}
 	else:
@@ -265,19 +299,65 @@ command /levels:
 	description: Every robber level and what it unlocks.
 	executable by: players
 	trigger:
-		msg(player, "&6Robber levels &7(you: level %levelOf(player)%)")
-		set {_max} to cfg("level::max")
-		loop integers from 0 to {_max}:
-			set {_u::*} to levelUnlocks(loop-value)
+		set {_me} to levelOf(player)
+		msg(player, "&6Robber levels &7(you: level %{_me}% %levelColored({_me})%&7). Only the levels that unlock something:")
+		loop levelMilestones():
+			set {_n} to loop-value
+			set {_u::*} to levelUnlocks({_n})
 			set {_what} to ""
 			if size of {_u::*} > 0:
 				set {_list} to join {_u::*} with ", "
-				set {_what} to " &7· &7%{_list}%"
+				set {_what} to " &7· %{_list}%"
+			set {_title} to ""
+			set {_a::*} to levelBracket({_n}) split at "|"
+			if {_a::1} is "%{_n}%":
+				set {_title} to " %levelColored({_n})%"
 			set {_you} to ""
-			if loop-value is levelOf(player):
-				set {_you} to " &e← you"
-			send colored "&7 %loop-value%. %levelColored(loop-value)% &7- &f%levelNum(levelNeed(loop-value))% XP%{_what}%%{_you}%" to player
+			if {_n} <= {_me}:
+				set {_you} to " &a✔"
+			send colored "&7 %{_n}%.%{_title}% &7- &f%levelNum(levelNeed({_n}))% XP%{_what}%%{_you}%" to player
 			delete {_u::*}
+
+# The levels worth listing: each title's start and every level that unlocks something (in order, once each).
+function levelMilestones() :: numbers:
+	loop {-cfg::level::brackets::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_n} to {_a::1} parsed as integer
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
+	loop {-cfg::shop::weapons::*}:
+		set {_n} to {-cfg::wpn::%loop-value%::level}
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
+	loop {-cfg::shop::tools::*}:
+		set {_n} to {-cfg::tool::%loop-value%::level}
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
+	loop integers from 2 to 5:
+		set {_n} to {-cfg::bag::%loop-value%::level}
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
+	loop {-cfg::cars::*}:
+		if {-cfg::car::%loop-value%::crate} is not true:
+			set {_n} to {-cfg::car::%loop-value%::level}
+			if {_n} is set:
+				set {_m::%{_n}%} to {_n}
+	loop {-cfg::contract::tiers::*}:
+		set {_n} to {-cfg::contract::%loop-value%::level}
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
+	loop "easy", "medium" and "hard":
+		set {_n} to {-cfg::hit::%loop-value%::level}
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
+	if {-cfg::fence::level} is set:
+		set {_n} to {-cfg::fence::level}
+		set {_m::%{_n}%} to {_n}
+	loop {heists::*}:
+		if heistState(loop-index) is not "disabled":
+			set {_n} to heistLevel(loop-index)
+			set {_m::%{_n}%} to {_n}
+	return sorted {_m::*}
 
 # ---------- Staff: /dlevel ----------
 

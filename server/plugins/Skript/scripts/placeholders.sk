@@ -13,7 +13,7 @@
 #   %donating_afk%           yes / no
 #   %donating_name_color%    "&a" for passive players (green, like their map arrow), else "&f"
 #   %donating_tab_suffix%    " &7AFK" while AFK, else "&r"
-#   %donating_bag%           "$2.7K/$6K" (your bag), "no bag"          %donating_bag_pct%   "45%"
+#   %donating_bag%           "$2.7K/$6K" (your bag), "$650/$1K (hands)" (no bag)          %donating_bag_pct%   "45%"
 #   %donating_heist_loot%    loot left in your heist ("$18.4K")        %donating_heist_spots% "3/5"
 #   %donating_heist_haul%    your loot from this run                   %donating_heist_risk%  bag + a death's loss
 # (loot.sk copies these into memory once a second.)

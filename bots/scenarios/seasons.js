@@ -186,6 +186,8 @@ module.exports = async ({ check }) => {
     await cmd(`zzseasonmins ${A} 400`)
     await cmd(`zzseasonmins ${B} 400`)
     await cmd(`zzseasonmins ${C} 10`)
+    // season::auto is off by default (the owner releases seasons by hand); on here to test the automatic start.
+    await cmd('zzcfgbool season::auto true')
     t = Date.now()
     const endedAt = Math.floor(Date.now() / 1000)
     const ended = await cmd('dseason end')
@@ -243,6 +245,15 @@ module.exports = async ({ check }) => {
     check('earned titles can\'t be traded (they aren\'t in the list)', /Add a cosmetic/.test(title(w)) && !/S1 Top/.test(list), `${title(w)} ${list.slice(0, 300)}`)
     await closeAll(A)
     await sleep(500)
+
+    // ---------- Seasons by hand (the default): nothing starts until staff start it ----------
+    await cmd('zzcfgreload')
+    const ended2 = await cmd('dseason end')
+    await sleep(1000)
+    const off = await cmd('dseason info')
+    const restarted = await cmd('dseason start 28')
+    const on3 = await cmd('dseason info')
+    check('by default a season that ends leaves no season running until staff run /dseason start', /state=off/.test(ended2 + off) && /num=2/.test(off) && /started/.test(restarted) && /num=3 state=live/.test(on3), `${ended2} | ${off} | ${restarted} | ${on3}`)
   } finally {
     await rcon.cmd('rg remove -w world safe_base_zs').catch(() => {})
     await rcon.cmd('fill 850 199 850 866 199 866 air').catch(() => {})

@@ -252,6 +252,9 @@ function tradeIcon(owner: player, e: text, mine: boolean) :: item:
 		add "&7Car · plate %carPlate({_owner}, {_id})%" to {_l::*}
 		if carIsCrate({_id}) is true:
 			add "&dCrate car" to {_l::*}
+			set {_sl} to carSerialLore({_owner}, {_id})
+			if {_sl} is not "":
+				add {_sl} to {_l::*}
 		else:
 			set {_need} to {-cfg::car::%{_id}%::level}
 			add "&7Level %{_need}% car" to {_l::*}
@@ -272,6 +275,9 @@ function tradeIcon(owner: player, e: text, mine: boolean) :: item:
 		else if {_type} is "killfx":
 			set {_tn} to "Kill effect"
 		add "&7%{_tn}% · %{-cfg::rarity::%{_r}%::color}%%{-cfg::rarity::%{_r}%::name}%" to {_l::*}
+		set {_sl} to cosSerialLore({_owner}, {_id})
+		if {_sl} is not "":
+			add {_sl} to {_l::*}
 	if {_mine} is true:
 		add "&eClick: take it back." to {_l::*}
 	set name of {_i} to colored {_name}
@@ -651,11 +657,17 @@ function tradeTake(g: player, e: text) :: text:
 	if {_a::1} is "car":
 		set {_plate} to carPlate({_g}, {_id})
 		set {_label} to carColorOf({_g}, {_id})
+		# A crate car's serial goes with it (garage.sk).
+		set {_sn} to carSerial({_g}, {_id})
 		delete {data::%{_g}%::car::%{_id}%}
 		delete {data::%{_g}%::carcolor::%{_id}%}
-		carLog("trade-out %{_g}% %uuid of {_g}% %{_id}% %{_plate}% %{_label}%")
-		return "%{_plate}%=%{_label}%"
+		delete {data::%{_g}%::carserial::%{_id}%}
+		carLog("trade-out %{_g}% %uuid of {_g}% %{_id}% %{_plate}% %{_label}% serial=%{_sn}%")
+		return "%{_plate}%=%{_label}%=%{_sn}%"
+	# The copy's serial goes with it (cosmetics.sk; numbered now if it never was).
+	set {_sn} to cosSerial({_g}, {_id})
 	delete {data::%{_g}%::cos::%{_id}%}
+	delete {data::%{_g}%::cosserial::%{_id}%}
 	# Not worn any more (titles and kill effects by id; the bag's look follows what's owned).
 	if getData({_g}, "title") is {_id}:
 		deleteData({_g}, "title")
@@ -665,7 +677,9 @@ function tradeTake(g: player, e: text) :: text:
 	if getData({_g}, "bag-skin") is {_id}:
 		deleteData({_g}, "bag-skin")
 	bagRefresh({_g})
-	cosLog("trade-out %{_g}% %uuid of {_g}% %{_id}%")
+	cosLog("trade-out %{_g}% %uuid of {_g}% %{_id}% serial=%{_sn}%")
+	if {_sn} > 0:
+		return "%{_sn}%"
 	return ""
 
 function tradeGive(r: player, e: text, what: text):
@@ -676,6 +690,10 @@ function tradeGive(r: player, e: text, what: text):
 		set {_plate} to {_w::1}
 		set {data::%{_r}%::car::%{_id}%} to {_plate}
 		set {data::%{_r}%::carcolor::%{_id}%} to {_w::2}
+		set {_sn} to {_w::3} parsed as integer
+		if {_sn} is set:
+			if {_sn} > 0:
+				set {data::%{_r}%::carserial::%{_id}%} to {_sn}
 		set {car::owner::%{_plate}%} to "%uuid of {_r}%"
 		set {car::lock::%{_plate}%} to true
 		delete {-car::members::%{_plate}%::*}
@@ -685,7 +703,10 @@ function tradeGive(r: player, e: text, what: text):
 		carLog("trade-in %{_r}% %uuid of {_r}% %{_id}% %{_plate}% %{_w::2}%")
 		stop
 	set {data::%{_r}%::cos::%{_id}%} to true
-	cosLog("trade-in %{_r}% %uuid of {_r}% %{_id}%")
+	set {_sn} to {_what} parsed as integer
+	if {_sn} is set:
+		set {data::%{_r}%::cosserial::%{_id}%} to {_sn}
+	cosLog("trade-in %{_r}% %uuid of {_r}% %{_id}% serial=%{_what}%")
 
 function tradeEntryName(e: text, what: text) :: text:
 	set {_a::*} to {_e} split at ":"

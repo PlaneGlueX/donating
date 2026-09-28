@@ -117,7 +117,7 @@ teleport-delay: 0
 
 # The delay, in seconds, during which a player can't be attacked by other players after being teleported by a command.
 # This also prevents the player from attacking others.
-teleport-invulnerability: 4
+teleport-invulnerability: 0
 
 # Whether to make all teleportations go to the center of the block, where the x and z coordinates' decimals become .5.
 teleport-to-center: true

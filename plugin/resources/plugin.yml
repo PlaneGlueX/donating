@@ -2,11 +2,13 @@ name: DonatingPhone
 main: dev.donating.phone.PhonePlugin
 version: 1.0
 api-version: '1.21.11'
+# TAB draws the nametags; Nametags.java hides them behind walls through its API (optional).
+softdepend: [TAB]
 description: Draws the Donating phone map. Game rules live in Skript.
 commands:
   dphone:
     description: Reload the phone config and re-read the city map (pixels + banner labels), or show one player's phone.
-    usage: /dphone [reload | status <player> | roads [info|scan|cancel|show] | gps <player> [set ...|clear]]
+    usage: /dphone [reload | status <player> | roads [info|scan|cancel|show] | gps <player> [set ...|clear] | nametag <viewer> <target>]
     permission: donating.phone.admin
 permissions:
   donating.phone.admin:

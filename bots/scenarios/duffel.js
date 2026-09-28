@@ -1,6 +1,6 @@
 // bag.sk part 2: the dropped duffel. A death drops the bag's loot as one duffel (an item entity with
 // everything in its item's custom data) where they died; walking over it takes as much as fits in your
-// own bag (owner, 2026-09-25) and the rest stays; no bag, passive players (someone else's duffel) and
+// own bag (owner, 2026-09-25; no bag: the hands, up to $1,000) and the rest stays; passive players (someone else's duffel) and
 // anyone but the owner of a passive player's duffel get nothing, and the owner only in the passive mode
 // they died in; it never lands in an inventory or a hopper, two duffels never merge, it runs out after
 // cfg duffel::despawn, and a heist's 0:00 treats the duffels inside like its robbers (that run's loot is
@@ -99,11 +99,19 @@ module.exports = async ({ check }) => {
     let t = Date.now()
     await tp(B, 800.5, 800.5)
     await sleep(1500)
-    check('no bag: nothing taken ("You need a bag")', /need a bag/.test(barSince(B, t)) && (await duffels()).list[0].lines === 'dtest#1=1500;other#2=700', `${barSince(B, t)} ${(await duffels()).raw}`)
+    // Owner, 2026-09-27: no bag = the hands carry up to $1,000.
+    check('no bag: the hands take $1,000 ("HANDS FULL"), the rest stays in the duffel', /\+\$1,000 from a loot duffel/.test(barSince(B, t)) && /HANDS FULL/.test(barSince(B, t)) && (await bag(B)).total === 1000 && (await duffels()).list[0].lines === 'dtest#1=500;other#2=700', `${barSince(B, t)} ${(await duffels()).raw}`)
+    // The duffel as it was, for the checks below.
+    await tp(B, 806.5, 806.5)
+    await cmd(`zzbagclear ${B}`)
+    await cmd('minecraft:kill @e[type=item,x=800,y=200,z=800,distance=..3]')
+    await sleep(500)
+    await dieWith(A, 800.5, 800.5, [['dtest#1', 1500], ['other#2', 700]])
     await cmd(`zzdata ${B} bag-tier 1`) // Gym Bag: $2,000
     await cmd(`zzbagapply ${B}`)
     await cmd(`zzpassive ${B} on`)
     t = Date.now()
+    await tp(B, 800.5, 800.5)
     await sleep(1500)
     check('passive players can\'t take someone else\'s loot', /Passive players can't take/.test(barSince(B, t)) && (await bag(B)).total === 0 && (await duffels()).list[0].lines === 'dtest#1=1500;other#2=700', barSince(B, t))
     setMark()
@@ -161,7 +169,11 @@ module.exports = async ({ check }) => {
 
     // ---------- Two duffels on one spot ----------
     await dieWith(A, 808.5, 800.5, [['x#1', 100]])
+    // A's hands would take the first one back on the spot (no bag = up to $1,000): in the other passive mode the owner
+    // can't, so the second death lands on it untouched.
+    await cmd(`zzpassive ${A} on`)
     await dieWith(A, 808.5, 800.5, [['y#1', 100]])
+    await cmd(`zzpassive ${A} off`)
     const d4 = await duffels()
     check('two duffels on the same spot stay two (they never merge)', d4.n === 2 && d4.list.every(d => at(d, 808, 800)) && new Set(d4.list.map(d => d.id)).size === 2, d4.raw)
     await clearItems()

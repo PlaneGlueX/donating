@@ -222,7 +222,7 @@ module.exports = async ({ check }) => {
     check('staff lists: ranks, cops, POI types, quest kinds, shopkeepers, contract spots (end only players with a job), tutorial, levels, laser heights',
       has(more.ranks, 'legend', 'vip', 'none') && has(more.cops, 'ztab') && has(more.cops2, 'add', 'spawn') && has(more.poi, 'base', 'landmark') &&
       has(more.quest, 'contracts', 'story') && has(more.keeper, 'gun', 'cars') && has(more.ct, 'add', 'remove') && !more.ctEnd.includes(B) &&
-      has(more.tut, 'reset', 'done') && has(more.lvl, '6') && has(more.laser, 'low', 'high'), JSON.stringify(more))
+      has(more.tut, 'reset', 'done') && has(more.lvl, '0', '5', '150') && has(more.laser, 'low', 'high'), JSON.stringify(more))
     const ds = await tab(A, '/dseason ')
     await perm(A, 'donating.season.admin', true)
     await sleep(2000)

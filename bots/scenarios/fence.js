@@ -1,5 +1,5 @@
 // Vic the Fence (owner, 2026-09-27: "Vic the Fence"): story.sk's second chain and fence.sk's weekly Wanted List.
-// His arc starts at level 3 (not before, not while no Vic stands on the map), runs next to Mara's, counts only what
+// His arc starts at level 30 (not before, not while no Vic stands on the map), runs next to Mara's, counts only what
 // each mission asks (difficulty 2+ sales, Pro jobs, a difficulty 3+ safe, a drill and a getaway in one run), ends with
 // a bound title, a Season key and the first list. The list (rolled for everyone each week: the least robbed heist,
 // never a difficulty 1 one) pays its premium only on loot you robbed yourself, after pickup, up to each order's cap,
@@ -85,7 +85,7 @@ module.exports = async ({ check }) => {
     await sleep(6000)
 
     // ---------- Starting ----------
-    await cmd(`dlevel set ${A} 3`)
+    await cmd(`dlevel set ${A} 30`)
     await cmd(`zzdata ${A} vic none`)
     await sleep(3000)
     const noGiver = await vicId(A)
@@ -93,11 +93,11 @@ module.exports = async ({ check }) => {
     vic = ((await cmd(`dquest addat fence ${VIC.join(' ')} 180 Pawn Shop`)).match(/giver (\d+) \(fence\) added/) || [])[1] || ''
     await onMission(A, 'v1_meet')
     await until(async () => /✉ Vic/.test(text(A, t)), 3000)
-    check('Vic\'s arc waits for a Vic on the map, then starts at level 3 with his text', noGiver === '' && (await vicId(A)) === 'v1_meet' && /✉ Vic: Mara says/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
-    await cmd(`dlevel set ${B} 2`)
+    check('Vic\'s arc waits for a Vic on the map, then starts at level 30 with his text', noGiver === '' && (await vicId(A)) === 'v1_meet' && /✉ Vic: Mara says/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
+    await cmd(`dlevel set ${B} 29`)
     await cmd(`zzdata ${B} vic none`)
     await sleep(3000)
-    check('...but not below level 3', (await vicId(B)) === '', await cmd(`dstory info ${B} vic`))
+    check('...but not below level 30', (await vicId(B)) === '', await cmd(`dstory info ${B} vic`))
     const g = await cmd(`dphone gps ${A}`)
     check('the GPS leads to Vic (the newest objective)', /active=quest/.test(g) && /label=Meet_Vic/.test(g), g)
 
@@ -112,12 +112,12 @@ module.exports = async ({ check }) => {
     // reading the mission id later can't tell: nothing advances within 3 s of the last mission anyway).
     const prog = async () => field(await cmd(`dstory info ${A} vic`), ' prog')
     const none = p => /^(0|<none>|)$/.test(p)
-    await cmd(`zzprog ${A} sell 4000 fv1#${await run('fv1')}`)
+    await cmd(`zzprog ${A} sell 20000 fv1#${await run('fv1')}`)
     const p2 = await prog()
     const still = await vicId(A)
-    await cmd(`zzprog ${A} sell 4000 fv2#${await run('fv2')}`)
+    await cmd(`zzprog ${A} sell 20000 fv2#${await run('fv2')}`)
     await onMission(A, 'v3_wheels')
-    check('"Sell $4,000 from difficulty 2+ heists" ignores a difficulty 1 heist\'s loot', still === 'v2_appraisal' && none(p2) && (await vicId(A)) === 'v3_wheels', `${still} prog=${p2} -> ${await vicId(A)}`)
+    check('"Sell $20,000 from difficulty 2+ heists" ignores a difficulty 1 heist\'s loot', still === 'v2_appraisal' && none(p2) && (await vicId(A)) === 'v3_wheels', `${still} prog=${p2} -> ${await vicId(A)}`)
     await cmd(`zzctdeliver ${A} basic sedan 100 0`)
     const p3 = await prog()
     const still3 = await vicId(A)

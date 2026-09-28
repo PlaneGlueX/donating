@@ -583,11 +583,12 @@ function hitSpawnFor(p: player, l: location):
 					if {_role} is "target":
 						set {_tid} to {_id}
 						set {-hit::s::%{_u}%::target} to {_id}
-						set {_tex} to {-cfg::hit::target::%hitTarget()%::skin-texture}
-						set {_sig} to {-cfg::hit::target::%hitTarget()%::skin-signature}
+						# skins.sk (the target's own pixel-art skin, signed by MineSkin).
+						set {_tex} to skinTexture(hitTarget())
+						set {_sig} to skinSignature(hitTarget())
 						# -t takes one word for the skin's name (the NPC names have a space): the target's id.
-						if {_tex} is set:
-							if {_sig} is set:
+						if {_tex} is not "":
+							if {_sig} is not "":
 								execute console command "npc skin -t %hitTarget()% %{_tex}% %{_sig}% --id %{_id}%"
 						hitSentinel({_id}, "health %cfg("hit::target-health")%")
 						hitSentinel({_id}, "speed %cfg("hit::target-speed")%")
@@ -595,6 +596,8 @@ function hitSpawnFor(p: player, l: location):
 						add {_id} to {-hit::s::%{_u}%::guards::*}
 						set {_model} to cfg("hit::guard-model")
 						execute console command "npc setequipment hand feather[custom_model_data={floats:[%{_model}%f]}] --id %{_id}%"
+						if skinTexture("guard") is not "":
+							execute console command "npc skin -t guard %skinTexture("guard")% %skinSignature("guard")% --id %{_id}%"
 						hitSentinel({_id}, "health %cfg("hit::guard-health")%")
 						hitSentinel({_id}, "damage %cfg("hit::guard-damage")%")
 						hitSentinel({_id}, "attackrate %cfg("hit::guard-rate")%")
@@ -1281,7 +1284,7 @@ function hitMenu(p: player):
 		set {_left} to fenceLeftText(fenceWeekLeft())
 		add "&7%{-cfg::hit::target::%{_tid}%::crime}%" to {_wl::*}
 		# The looks only once the target has its own skin (else every target has the default look).
-		if {-cfg::hit::target::%{_tid}%::skin-texture} is set:
+		if skinTexture({_tid}) is not "":
 			add "&7Looks: &f%{-cfg::hit::target::%{_tid}%::looks}%" to {_wl::*}
 		add "&7Leaves town in %{_left}%" to {_wl::*}
 		add "&7Only you see your target and the bodyguards." to {_wl::*}

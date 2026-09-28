@@ -29,6 +29,12 @@ on right click:
 	# repeats the click every 0.2 s: every click restarts the 0.3 s wait, so it toggles once.
 	set {_last} to {-phone::clicked::%player%}
 	set {-phone::clicked::%player%} to now
+	# Owner, 2026-09-27: no block use with the phone out. A button, door, lever and the like isn't used and
+	# the map stays as it is (a quiet hint says why); a plain block toggles the map.
+	if event-block is set:
+		if phoneUsable(event-block) is true:
+			phoneHint(player, "use that")
+			stop
 	if {_last} is set:
 		if difference between {_last} and now < 0.3 seconds:
 			stop
@@ -36,6 +42,24 @@ on right click:
 		closePhoneMap(player)
 	else:
 		openPhoneMap(player)
+
+# Blocks a player would use with a right-click (by the block's name: "oak button", "iron trapdoor", ...).
+function phoneUsable(b: block) :: boolean:
+	set {_t} to "%type of {_b}%"
+	loop "button", "lever", "door", "fence gate", "bell", "note block", "repeater", "comparator", "daylight detector", "chest", "barrel", "shulker box", "hopper", "dispenser", "dropper", "furnace", "smoker", "anvil", "table", "lectern", "loom", "grindstone", "stonecutter", "brewing stand", "beacon", "jukebox", " bed", "cake", "candle", "composter", "cauldron", "campfire", "flower pot", "respawn anchor", "sign", "crafter" and "vault":
+		if {_t} contains loop-value:
+			return true
+	return false
+
+# The quiet hint for something the phone in hand stops (a block, loot): the action bar, at most once a second.
+# It also swallows the click's second half (block, then air), so the map doesn't toggle right after.
+function phoneHint(p: player, what: text):
+	set {-phone::clicked::%{_p}%} to now
+	if {-phone::hintat::%{_p}%} is set:
+		if difference between {-phone::hintat::%{_p}%} and now < 1 second:
+			stop
+	set {-phone::hintat::%{_p}%} to now
+	hudBar({_p}, "&7Put your phone away to %{_what}%.", 1)
 
 # The tag first, so inventory.sk's watchdog doesn't put the bag straight back. Only the bag leaves
 # the offhand: anything else there (staff with the inventory bypass) stays, and the map stays small.
@@ -46,6 +70,8 @@ function openPhoneMap(p: player):
 		stop
 	add "donating_phone_open" to scoreboard tags of {_p}
 	if itemId(offhand tool of {_p}) starts with "bag:":
+		set offhand tool of {_p} to air
+	else if itemId(offhand tool of {_p}) is "hands":
 		set offhand tool of {_p} to air
 	play sound "item.book.page_turn" with volume 0.6 to {_p}
 	# Once per player: how to drop a GPS pin (gps.sk).
@@ -91,7 +117,7 @@ function openPhone(p: player):
 	set slot 2 of {_gui} to tagItem(nether star named "&6Season" with lore "&7Three leaderboards: Top Earners," and "&7Master Thieves, Wheelmen. The top 10" and "&7of each win titles, money and keys.", "phone:season")
 	set slot 6 of {_gui} to tagItem(writable book named "&dMissions" with lore "&7Mara's jobs: your next step" and "&7through the city, one at a time.", "phone:missions")
 	set slot 8 of {_gui} to tagItem(crossbow named "&cHits" with lore "&7This week's wanted target: take a" and "&7contract from the Broker, hunt them" and "&7while they're in town.", "phone:hits")
-	set slot 7 of {_gui} to tagItem(paper named "&eJobs" with lore "&7Daily jobs from Mara and the Boss." and "&7Picked up in person, they never expire.", "phone:jobs")
+	set slot 7 of {_gui} to tagItem(paper named "&eJobs" with lore "&7Side jobs from Mara and the Boss." and "&7Picked up in person, they never expire.", "phone:jobs")
 	set slot 19 of {_gui} to tagItem(chest named "&6Crates" with lore "&7Your keys, what's inside each crate," and "&7and your daily key. Crates open at" and "&7crate stands.", "phone:crates")
 	set slot 17 of {_gui} to tagItem(name tag named "&dCosmetics" with lore "&7Titles, bag skins, kill effects:" and "&7wear them or take them off.", "phone:cosmetics")
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online." and "&7Post one with the Broker.", "phone:bounties")
@@ -118,7 +144,7 @@ function phoneStats(p: player) :: item:
 			set {_capacity} to bagCapacity({_p})
 			set {_bag} to "&6%{_bagName}% &7(holds %formatMoney({_capacity})%)"
 	if {_bag} is not set:
-		set {_bag} to "&7none yet"
+		set {_bag} to "&7none &7(your hands carry %formatMoney(bagCapacity({_p}))%)"
 	add "&7Bag: %{_bag}%" to {_l::*}
 	if isPassive({_p}) is true:
 		add "&7Passive mode: &aon" to {_l::*}

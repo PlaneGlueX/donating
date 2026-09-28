@@ -1,6 +1,7 @@
-// tutorial.sk: a player who has never had a bag can't leave the spawn safe zone (a region whose id starts
-// with "safe_spawn") until they buy one; walking and teleporting out are both stopped; buying the bag
-// ends the tutorial with the next steps, and then they can leave. A player who already had a bag skips it.
+// tutorial.sk, reworked 2026-09-27 (owner: the bag costs money and is earned; "do your realistic tutorial job"): a
+// first join starts with money::start ($1,000) and nothing else, a welcome title and the first steps (Mara on the
+// GPS), and Mara's chapter 1 starts at once; there's no spawn lock any more; no Gym Bag is free (with $0 it's refused,
+// with enough money it's bought) and the first bag ends the tutorial ("done"). /tutorial shows the steps again.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -17,87 +18,58 @@ module.exports = async ({ check }) => {
   let bot
   try {
     const text = t => messagesSince(bot, t).map(m => m.text).join(' | ')
+    const bal = async () => Number(((await cmd(`zzbal ${P}`)).match(/: (-?\d+)/) || [])[1])
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} glass`)
     await cmd(`rg remove -w world ${REGION}`)
     await cmd(`zzregion ${REGION} 1100 195 1100 1110 210 1110`)
     await cmd(`rg flag -w world ${REGION} passthrough allow`)
-    // A first join with no bag: the join itself starts the tutorial (no staff reset).
-    await cmd(`zzdata ${P} tutorial none`)
-    await cmd(`zzdata ${P} bag-best none`)
-    await cmd(`zzdata ${P} bag-tier none`)
+    // A first join: no data at all (the start money, the welcome, Mara's chapter 1).
+    for (const k of ['tutorial', 'bag-best', 'bag-tier', 'first-join', 'story', 'story-prog']) await cmd(`zzdata ${P} ${k} none`)
+    await cmd(`eco set ${P} 0`)
     let t = Date.now()
     bot = await join(P)
     await sleep(2500) // EssentialsX's newbie teleport on a first join
-    check('joining without ever having had a bag starts the tutorial', /= bag$/m.test(await cmd(`zzdata ${P} tutorial`)), await cmd(`zzdata ${P} tutorial`))
     await cmd(`zzheisttp ${P} 1105.5 ${Y} 1105.5`)
-    await sleep(5500)
-    check('a player with no bag gets the bag intro', /First things first: a bag/.test(text(t)) && /Bag Shop/.test(text(t)), text(t).slice(0, 300))
+    check('a first join starts with $1,000 and nothing else', (await bal()) === 1000, `${await bal()}`)
+    await sleep(4000)
+    check('...a welcome title and the first steps: meet Mara (the GPS), the first car job, the hands, guns at level 5', messagesSince(bot, t).some(m => m.kind === 'title:title' && /WELCOME TO THE CITY/.test(m.text)) && /Meet Mara/.test(text(t)) && /first job/.test(text(t)) && /hands carry \$1,000/.test(text(t)) && /Guns need level 5/.test(text(t)) && /= welcomed$/m.test(await cmd(`zzdata ${P} tutorial`)), text(t).slice(0, 500))
+    const story = await cmd(`dstory info ${P}`)
+    check('Mara\'s chapter 1 starts at once (no waiting for a bag)', /c1_meet/.test(story), story)
 
-    // Until the bag: no other shop purchase and no bounty, so the start money can't run out elsewhere.
-    await cmd(`eco set ${P} 5000`)
-    t = Date.now()
-    bot.chat(`/bounty Explosde 1000`)
-    await sleep(800)
-    check('no bounty placing before the first bag', /Buy your bag first/.test(text(t)) && /BAL \w+: 5000/.test(await cmd(`zzbal ${P}`)), text(t))
-    const opened = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w => { clearTimeout(timer); resolve(w) }) })
-    await cmd(`dshop open ${P} gun`)
-    await opened
-    await sleep(400)
-    bot.clickWindow(47, 0, 0).catch(() => {}) // the Weapons tab (looking is fine)
-    await sleep(700)
-    bot.clickWindow(20, 0, 0).catch(() => {}) // the .50 GS
-    await sleep(900)
-    const shopState = await cmd(`zzshop ${P}`)
-    check('...and no gun: the shop says to buy the bag first, nothing charged', /Buy your bag first/.test(shopState) && /BAL \w+: 5000/.test(await cmd(`zzbal ${P}`)) && !/50_GS/.test(await cmd(`zzwm ${P}`)), shopState)
-    if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
-    await sleep(300)
-
-    // Walking out (+x) is stopped at the edge.
-    t = Date.now()
+    // No spawn lock: walking out works.
     await bot.look(-Math.PI / 2, 0, true) // facing +x
     bot.setControlState('forward', true)
     await sleep(3500)
     bot.setControlState('forward', false)
     await sleep(500)
-    const x = bot.entity.position.x
-    check('walking out of spawn without a bag is stopped', x < 1111.5, `x=${x.toFixed(2)}`)
-    // Teleporting out too.
-    await cmd(`minecraft:tp ${P} 1118.5 ${Y} 1105.5`)
-    await sleep(800)
-    const x2 = bot.entity.position.x
-    check('...and so is a teleport out', x2 < 1111.5, `x=${x2.toFixed(2)}`)
-    check('...with the BUY YOUR BAG title', /BUY YOUR BAG/.test(text(t)), text(t).slice(0, 300))
+    check('no spawn lock: walking out of spawn without a bag works', bot.entity.position.x > 1111.5, `x=${bot.entity.position.x.toFixed(2)}`)
 
-    // Buying the bag ends it: a real Bag Shop purchase with $0 (the first Gym Bag is free for a new
-    // player who can't pay for it, so nobody is stuck in spawn).
+    // No free Gym Bag: $0 is refused, enough money buys it.
+    const shop = async () => {
+      if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+      const w = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', win => { clearTimeout(timer); resolve(win) }) })
+      await cmd(`dshop open ${P} bag`)
+      await w
+      await sleep(400)
+    }
     await cmd(`eco set ${P} 0`)
-    t = Date.now()
-    const bagShop = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w => { clearTimeout(timer); resolve(w) }) })
-    await cmd(`dshop open ${P} bag`)
-    await bagShop
-    await sleep(400)
+    await shop()
     bot.clickWindow(11, 0, 0).catch(() => {}) // the Gym Bag (tier 1)
-    await sleep(1800)
+    await sleep(1200)
+    check('no free bag: with $0 the Gym Bag is refused ("costs $2,400")', !/= 1(\.0)?$/m.test(await cmd(`zzdata ${P} bag-best`)) && /costs \$2,400/.test(await cmd(`zzshop ${P}`)), `${await cmd(`zzdata ${P} bag-best`)} ${await cmd(`zzshop ${P}`)}`)
+    await cmd(`eco set ${P} 2500`)
+    await shop()
+    bot.clickWindow(11, 0, 0).catch(() => {})
+    await sleep(900)
+    if (/confirm=bag/.test(await cmd(`zzshop ${P}`))) { bot.clickWindow(11, 0, 0).catch(() => {}); await sleep(900) }
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
-    check('a new player with $0 gets the first Gym Bag free', /= 1(\.0)?$/m.test(await cmd(`zzdata ${P} bag-best`)), `${await cmd(`zzdata ${P} bag-best`)} ${await cmd(`zzshop ${P}`)}`)
-    await sleep(600)
-    check('buying a bag ends the tutorial with the next steps', /You've got a bag/.test(text(t)) && /heists/.test(text(t)) && /done/.test(await cmd(`zzdata ${P} tutorial`)), `${text(t).slice(0, 300)} / ${await cmd(`zzdata ${P} tutorial`)}`)
-    await cmd(`minecraft:tp ${P} 1118.5 ${Y} 1105.5`)
-    await sleep(800)
-    check('...and then you can leave spawn', bot.entity.position.x > 1115, `x=${bot.entity.position.x.toFixed(2)}`)
+    await sleep(1600)
+    check('with $2,500 (the start money + the first car job) the Gym Bag is bought, and the tutorial is done', /= 1(\.0)?$/m.test(await cmd(`zzdata ${P} bag-best`)) && (await bal()) === 100 && /= done$/m.test(await cmd(`zzdata ${P} tutorial`)), `${await cmd(`zzdata ${P} bag-best`)} ${await bal()} ${await cmd(`zzdata ${P} tutorial`)} ${await cmd(`zzshop ${P}`)}`)
     t = Date.now()
     bot.chat('/tutorial')
     await sleep(800)
-    check('/tutorial shows the steps again', /What's next/.test(text(t)), text(t))
-
-    // A player who already has a bag skips it.
-    await cmd(`zzdata ${P} tutorial none`)
-    await quit(bot)
-    await sleep(1000)
-    bot = await join(P)
-    await sleep(1500)
-    check('a player who already had a bag skips it (done at join)', /done/.test(await cmd(`zzdata ${P} tutorial`)), await cmd(`zzdata ${P} tutorial`))
+    check('/tutorial shows the first steps again', /Meet Mara/.test(text(t)), text(t))
   } finally {
     bot && bot.setControlState && bot.setControlState('forward', false)
     await rcon.cmd(`rg remove -w world ${REGION}`).catch(() => {})

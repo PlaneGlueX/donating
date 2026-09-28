@@ -118,10 +118,19 @@ function hudBoss(p: player):
 		set {_name} to heistName({_h})
 		set {_s} to heistState({_h})
 		if {_s} is "open":
-			hudBossSet({_p}, "&f%{_name}% &7· the clock starts at the first robbery", "white", 1)
+			if heistIsStore({_h}) is true:
+				hudBossSet({_p}, "&f%{_name}% &7· no clock", "white", 1)
+			else:
+				hudBossSet({_p}, "&f%{_name}% &7· the clock starts at the first robbery", "white", 1)
 			stop
 		if {_s} is not "active":
 			hudBossOff({_p})
+			stop
+		# A store has no clock: what's left to grab instead.
+		if heistIsStore({_h}) is true:
+			set {_rolled} to max(1, heistLootPool({_h}))
+			set {_lootLeft} to lootLeft({_h})
+			hudBossSet({_p}, "&f%{_name}% &7· no clock · &a%formatMoneyShort({_lootLeft})% &7left", "white", min(1, {_lootLeft} / {_rolled}))
 			stop
 		set {_left} to heistSecondsLeft({_h})
 		set {_total} to max(1, heistEscape({_h}) / 1 second)

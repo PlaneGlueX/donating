@@ -161,7 +161,7 @@ on tab complete of "/dheist" and "/skript:dheist":
 						add {_id} to {_new::*}
 		if {_new::*} is set:
 			set tab completions for position 2 to {_new::*}
-		set tab completions for position 3 to "1", "2", "3" and "4"
+		set tab completions for position 3 to "0", "1", "2", "3" and "4"
 	else:
 		# Only the heists this subcommand takes in their state (heists.sk refuses the others).
 		loop {heists::*}:
@@ -196,9 +196,12 @@ on tab complete of "/dheist" and "/skript:dheist":
 			if {_k} is "advanced" or "pvp":
 				set tab completions for position 4 to "true", "false" and "default"
 			else if {_k} is "level":
-				set tab completions for position 4 to "0", "1", "2", "3", "4", "5", "6" and "default"
+				loop levelMilestones():
+					add "%loop-value%" to {_lv::*}
+				add "default" to {_lv::*}
+				set tab completions for position 4 to {_lv::*}
 			else if {_k} is "difficulty":
-				set tab completions for position 4 to "1", "2", "3" and "4"
+				set tab completions for position 4 to "0", "1", "2", "3" and "4"
 			else if {_k} is not "name":
 				set tab completions for position 4 to "default"
 		else if {_s} is "lock":
@@ -366,7 +369,9 @@ on tab complete of "/dlevel" and "/skript:dlevel":
 	set tab completions for position 1 to "info", "set", "xp" and "reset"
 	set tab completions for position 2 to tabPlayerNames(player)
 	if tab arg-1 is "set":
-		set tab completions for position 3 to "0", "1", "2", "3", "4", "5" and "6"
+		loop levelMilestones():
+			add "%loop-value%" to {_lv::*}
+		set tab completions for position 3 to {_lv::*}
 
 on tab complete of "/dpoi" and "/skript:dpoi":
 	set tab completions for position 1 to "add", "remove", "list" and "dump"

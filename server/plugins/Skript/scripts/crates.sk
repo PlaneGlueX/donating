@@ -262,6 +262,18 @@ function crateGrant(p: player, line: text, t: text) :: text:
 		set {_type} to {_a::3}
 		set {_n} to {_a::4} parsed as number
 		set {_name} to {-cfg::ammo::%{_type}%::name}
+		# Rounds for a gun the player can't own yet (its level) pay cash instead (review fix).
+		set {_usable} to false
+		loop {-cfg::shop::weapons::*}:
+			if {-cfg::wpn::%loop-value%::ammo} is {_type}:
+				if getData({_p}, "wpn::%loop-value%") is true:
+					set {_usable} to true
+				else if levelOk({_p}, wpnLevel(loop-value)) is true:
+					set {_usable} to true
+		if {_usable} is false:
+			set {_cash} to crateOverflowCash({_n}, {-cfg::ammo::%{_type}%::price})
+			giveMoney({_p}, {_cash})
+			return "&a%formatMoney({_cash})% &7(%{_name}%: no gun for them at your level yet, cash instead)"
 		set {_got} to addAmmo({_p}, {_type}, min({_n}, ammoRoom({_p}, {_type})))
 		set {_cash} to crateOverflowCash({_n} - {_got}, {-cfg::ammo::%{_type}%::price})
 		giveMoney({_p}, {_cash})
@@ -334,7 +346,7 @@ function crateGrant(p: player, line: text, t: text) :: text:
 			if cosGive({_p}, {_id}, "crate:%{_t}%") is true:
 				set {_type} to {-cfg::cos::%{_id}%::type}
 				set {_tn} to cosTypeName({_type})
-				add "%cosColored({_id})% &7%{_tn}%" to {_new::*}
+				add "%cosColored({_id})%%cosSerialText({_p}, {_id})% &7%{_tn}%" to {_new::*}
 		if size of {_new::*} > 0:
 			return join {_new::*} with " &7+ "
 		set {_rar} to crateLineRarity({_line}, {_t})
@@ -448,7 +460,18 @@ function crateFinish(p: player):
 		set {_big} to true
 	if {_big} is true:
 		if {-cfg::crate::announce::*} contains {_r}:
-			broadcastMsg("&f%name of {_p}% &7unboxed %crateLineText({_line})% &7from a %crateColored({_t})%&7!")
+			# A new copy says its serial ("H4CK3R #1/1"); a repeat (paid out instead) doesn't.
+			set {_what} to crateLineText({_line})
+			if {_got} does not contain "instead":
+				delete {_parts::*}
+				if {_a::2} is "car":
+					add "&6%carName({_a::3})%%carSerialText({_p}, {_a::3})% &7car" to {_parts::*}
+				else:
+					loop crateCosIds({_line}):
+						set {_tn} to cosTypeName({-cfg::cos::%loop-value%::type})
+						add "%cosColored(loop-value)%%cosSerialText({_p}, loop-value)% &7%{_tn}%" to {_parts::*}
+				set {_what} to join {_parts::*} with " &7+ "
+			broadcastMsg("&f%name of {_p}% &7unboxed %{_what}% &7from a %crateColored({_t})%&7!")
 
 # The strip: steps of random rewards sliding left, slowing down, ending with the reward in the middle
 # (slot 13). The reward is given when it stops, or at once if the menu is closed first.
@@ -878,14 +901,33 @@ command /dcrate [<text>]:
 				dcrateReply(sender, "CRATE warning: that block isn't in a safe zone, so nobody can open this crate there. Put crate stands inside a safe zone (a region whose id starts with %{_sp}%).")
 			stop
 		if {_sub} is "remove":
-			if sender is not a player:
-				dcrateReply(sender, "CRATE remove: in game only (look at the block)")
-				stop
-			set {_b} to targeted block of player
-			if {_b} is not set:
-				dcrateReply(sender, "CRATE remove: look at the crate's block")
-				stop
-			set {_key} to crateBlockKey({_b})
+			# In game: the block you look at. Anywhere (also the console): remove <x> <y> <z> [world].
+			if {_a::4} is set:
+				set {_x} to {_a::2} parsed as integer
+				set {_y} to {_a::3} parsed as integer
+				set {_z} to {_a::4} parsed as integer
+				if {_z} is not set:
+					dcrateReply(sender, "CRATE remove: coordinates must be whole numbers")
+					stop
+				if {_y} is not set:
+					dcrateReply(sender, "CRATE remove: coordinates must be whole numbers")
+					stop
+				if {_x} is not set:
+					dcrateReply(sender, "CRATE remove: coordinates must be whole numbers")
+					stop
+				set {_w} to "world"
+				if {_a::5} is set:
+					set {_w} to {_a::5}
+				set {_key} to "%{_w}%:%{_x}%:%{_y}%:%{_z}%"
+			else:
+				if sender is not a player:
+					dcrateReply(sender, "CRATE remove: look at the block in game, or give its coordinates: /dcrate remove <x> <y> <z> [world]")
+					stop
+				set {_b} to targeted block of player
+				if {_b} is not set:
+					dcrateReply(sender, "CRATE remove: look at the crate's block")
+					stop
+				set {_key} to crateBlockKey({_b})
 			if {crateblock::%{_key}%} is not set:
 				dcrateReply(sender, "CRATE remove: that block isn't a crate")
 				stop
@@ -900,7 +942,7 @@ command /dcrate [<text>]:
 				dcrateReply(sender, "CRATE %loop-value% at %loop-index% (hologram %{crateholo::%loop-index%}%)")
 			dcrateReply(sender, "CRATE end")
 			stop
-		dcrateReply(sender, "CRATE usage: /dcrate give|take <player> <crate> [count] | info <player> | place <crate> | remove | list")
+		dcrateReply(sender, "CRATE usage: /dcrate give|take <player> <crate> [count] | info <player> | place <crate> | remove [<x> <y> <z> [world]] | list")
 
 # give (sign 1) or take back (sign -1) keys. A store delivery can't be retried by hand easily, so
 # every request and refusal is logged.

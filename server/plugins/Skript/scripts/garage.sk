@@ -75,6 +75,34 @@ function carColorLabels(id: text) :: texts:
 
 # The car as a menu icon: a diamond hoe with the model's damage, unbreakable (the pack draws the car).
 # Only ever in menus: players never hold diamond hoes.
+# A crate car's serial (cosmetics.sk: "#2/14" = the 2nd of the 14 made so far; owner, 2026-09-27). Saved per owner
+# and model (data carserial::<id>), so a repaint or a plate made again keeps it; a trade moves it. 0 = none (a dealer
+# car). A crate car from before serials is numbered the first time it's asked for.
+function carSerial(p: offline player, id: text) :: number:
+	if carIsCrate({_id}) is false:
+		return 0
+	if {data::%{_p}%::car::%{_id}%} is not set:
+		return 0
+	if {data::%{_p}%::carserial::%{_id}%} is not set:
+		set {data::%{_p}%::carserial::%{_id}%} to serialMint("car:%{_id}%")
+		carLog("serial %{_p}% %uuid of {_p}% %{_id}% serial=%{data::%{_p}%::carserial::%{_id}%}%")
+	return {data::%{_p}%::carserial::%{_id}%}
+
+# " &7#2/14" after a crate car's name, or "".
+function carSerialText(p: offline player, id: text) :: text:
+	set {_n} to carSerial({_p}, {_id})
+	if {_n} < 1:
+		return ""
+	set {_k} to "car:%{_id}%"
+	return " &7%serialText({_k}, {_n})%"
+
+function carSerialLore(p: offline player, id: text) :: text:
+	set {_n} to carSerial({_p}, {_id})
+	if {_n} < 1:
+		return ""
+	set {_t} to serialTotal("car:%{_id}%")
+	return "&7Serial &f#%{_n}% &7of %{_t}% so far"
+
 function carIcon(id: text, label: text) :: item:
 	# Unbreakable: the pack only draws the car on an undamaged-looking hoe. No hoe stats in the tooltip
 	# ("1 Attack Damage"): hiding them wasn't enough for a 26.3 client through ViaVersion (2026-09-26), so the
@@ -718,6 +746,9 @@ function garageMenu(p: player):
 			set {_label} to carColorOf({_p}, {_id})
 			delete {_l::*}
 			add "&7Color: &f%{_label}%  &7Plate: &f%{_plate}%" to {_l::*}
+			set {_sl} to carSerialLore({_p}, {_id})
+			if {_sl} is not "":
+				add {_sl} to {_l::*}
 			if {-car::driver::%{_plate}%} is set:
 				add "&eBeing driven." to {_l::*}
 			else if {car::out::%{_plate}%} is set:
@@ -744,7 +775,13 @@ function garageMenu(p: player):
 			carButton({_p}, {_gui}, {_slot}, {_i}, "car:%{_id}%")
 			add 1 to {_slot}
 	if {_slot} is 9:
-		set slot 13 of {_gui} to paper named "&7No cars yet" with lore "&7Buy one at the Car Dealer." and "&7The first cars need level 2 (&f/level&7)."
+		# The cheapest level a dealer car needs (crate cars need none).
+		set {_low} to 1000
+		loop {-cfg::cars::*}:
+			if {-cfg::car::%loop-value%::crate} is not true:
+				if {-cfg::car::%loop-value%::level} is set:
+					set {_low} to min({_low}, {-cfg::car::%loop-value%::level})
+		set slot 13 of {_gui} to paper named "&7No cars yet" with lore "&7Buy one at the Car Dealer." and "&7The first cars need level %{_low}% (&f/level&7)."
 	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
 	carOpen({_p}, {_gui})
 
@@ -756,7 +793,7 @@ function garageOptions(p: player, id: text):
 	carClearGui({_p})
 	carPane({_gui}, 3)
 	set {_label} to carColorOf({_p}, {_id})
-	set slot 4 of {_gui} to carIcon({_id}, {_label}) named "&6%carName({_id})%" with lore "&7%{_label}% · %{_plate}%"
+	set slot 4 of {_gui} to carIcon({_id}, {_label}) named "&6%carName({_id})%%carSerialText({_p}, {_id})%" with lore "&7%{_label}% · %{_plate}%"
 	if carLocked({_plate}) is true:
 		carButton({_p}, {_gui}, 11, iron door named "&cLocked" with lore "&7Only you get in." and "&eClick to unlock: others can ride along.", "lock:%{_id}%")
 	else:
@@ -983,10 +1020,11 @@ function garageGrantCar(p: player, id: text, why: text) :: text:
 	set {_plate} to carCreate({_p}, {_id}, carFirstColor({_id}))
 	if {_plate} is "":
 		return ""
-	carLog("grant %{_p}% %uuid of {_p}% %{_id}% %{_plate}% why=%{_why}%")
+	set {_sn} to carSerialText({_p}, {_id})
+	carLog("grant %{_p}% %uuid of {_p}% %{_id}% %{_plate}% why=%{_why}% serial=%{data::%{_p}%::carserial::%{_id}%}%")
 	if garagesExist() is true:
-		return "&6%carName({_id})% &7car (in your garage: take it out at any garage, &f/garage&7)"
-	return "&6%carName({_id})% &7car (in your garage: &f/garage&7)"
+		return "&6%carName({_id})%%{_sn}% &7car (in your garage: take it out at any garage, &f/garage&7)"
+	return "&6%carName({_id})%%{_sn}% &7car (in your garage: &f/garage&7)"
 
 # ---------- Commands ----------
 
@@ -1029,6 +1067,7 @@ command /dgarage <text> [<offline player>] [<text>] [<text>]:
 			carForget({_plate})
 			delete {data::%arg-2%::car::%arg-3%}
 			delete {data::%arg-2%::carcolor::%arg-3%}
+			delete {data::%arg-2%::carserial::%arg-3%}
 			carLog("staff-take %arg-2% %uuid of arg-2% %arg-3% %{_plate}% by=%sender%")
 			send "GARAGE took %arg-2%'s %arg-3% (%{_plate}%)" to sender
 		else if arg-1 is "info":

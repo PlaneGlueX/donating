@@ -88,7 +88,7 @@ module.exports = async ({ check }) => {
       await cmd(`gamemode survival ${name}`)
       await cmd(`zzclear ${name}`)
       await cmd(`zzcombatend ${name}`)
-      await cmd(`dlevel set ${name} 2`)
+      await cmd(`dlevel set ${name} 20`)
     }
     await reset()
     await cmd(`dgarage give ${A} sedan Red`)
@@ -123,6 +123,11 @@ module.exports = async ({ check }) => {
     check('ready shows on both sides; any change makes both not ready again', aReady && slot(A, 48) === 'red_concrete' && slot(A, 14) !== 'name_tag', `aReady=${aReady} A48=${slot(A, 48)} A14=${slot(A, 14)}`)
     await addFirst(B, 'cos')
     const plate = await plateOf(A, 'sedan')
+    const serial = async (name, id) => Number(((await cmd(`zzdata ${name} cosserial::${id}`)).match(/= (\d+)/) || [])[1] || 0)
+    const tigerA = await serial(A, 'tiger')
+    const ChatMessage = require('prismarine-chat')(bots[B].registry)
+    const loreOf = i => ((i && i.customLore) || []).map(l => { try { return ChatMessage.fromNotch(l).toString() } catch (e) { return '' } }).join(' / ')
+    const tigerLore = bots[B].currentWindow ? bots[B].currentWindow.slots.slice(0, 45).filter(Boolean).map(loreOf).join(' | ') : ''
     t = Date.now()
     await click(A, 48) // at once: refused
     const tooSoon = slot(A, 48) === 'red_concrete' && /offer just changed/.test(text(A, t))
@@ -142,6 +147,9 @@ module.exports = async ({ check }) => {
     check('both ready: a countdown, then the swap (windows close, "Trade done")', counting && closed && /Trade done/.test(text(A, t)) && /Trade done/.test(text(B, t)), `counting=${counting} closed=${closed} ${text(A, t)} | ${text(B, t)}`)
     check('the car keeps its plate and is the other player\'s now (garage and MTVehicles)', plate !== '' && !/sedan=/.test(ga) && gb.includes(`sedan=${plate}`) && /owner=TradeB/.test(car), `${plate} | ${ga} | ${gb} | ${car}`)
     check('the cosmetics changed hands, and the worn bag skin came off', /owned=ghost/.test(ca) && !/tiger/.test(ca.replace(/bagskin=\S*/, '')) && /bagskin=<none>/.test(ca) && /owned=tiger/.test(cb) && !/ghost/.test(cb), `${ca} | ${cb}`)
+    const tigerB = await serial(B, 'tiger')
+    const tigerGone = await serial(A, 'tiger')
+    check('a crate cosmetic\'s serial shows in the other player\'s trade window and moves with it (the same #N, none left with the giver)', tigerA > 0 && new RegExp(`Serial #${tigerA} of`).test(tigerLore) && tigerB === tigerA && tigerGone === 0, `A had #${tigerA}, B has #${tigerB}, A now ${tigerGone} | ${tigerLore.slice(0, 300)}`)
     check('the trade is logged (who gave what)', logged(/trade sid=\d+ TradeA .* gave=\[car:sedan,cos:tiger\] TradeB .* gave=\[cos:ghost\]/).length === 1, log().slice(logMark).slice(-400))
 
     // ---------- What can't be added; a same-model swap ----------
@@ -156,7 +164,9 @@ module.exports = async ({ check }) => {
     const sedanRow = byName('Navy Sedan')
     const suvRow = byName('SUV')
     const vandalRow = byName('Vandal')
-    check('the list says why not (the car\'s level), a crate car needs none, and a model they have says they must give theirs', /has a Sedan: they must/.test(sedanRow) && /give theirs in this trade/.test(sedanRow) && /Click: add it/.test(sedanRow) && /needs level 6/.test(suvRow) && /Click: add it/.test(vandalRow), `${sedanRow.slice(-300)} | ${suvRow.slice(-200)} | ${vandalRow.slice(-200)}`)
+    const vandalLore = list ? loreOf(list.slots.find(i => i && /Vandal/.test(itemText(i)))) : ''
+    check('a crate car shows its serial in the list (#N of M so far)', /Serial #\d+ of \d+/.test(vandalLore), vandalLore)
+    check('the list says why not (the car\'s level), a crate car needs none, and a model they have says they must give theirs', /has a Sedan: they must/.test(sedanRow) && /give theirs in this trade/.test(sedanRow) && /Click: add it/.test(sedanRow) && /needs level 150/.test(suvRow) && /Click: add it/.test(vandalRow), `${sedanRow.slice(-300)} | ${suvRow.slice(-200)} | ${vandalRow.slice(-200)}`)
     const suvSlot = list.slots.findIndex(i => i && /SUV/.test(itemText(i)))
     await click(A, suvSlot)
     const stillList = /Add a car/.test(title(bots[A].currentWindow))

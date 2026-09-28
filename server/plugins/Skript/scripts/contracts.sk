@@ -62,6 +62,36 @@ function ctIsTier(t: text) :: boolean:
 		return true
 	return false
 
+# The tutorial's first job (owner, 2026-09-27: "the realistic tutorial job"): Mara sends a new robber to the Scrap
+# Yard for one easy car job at level 0 (tier "starter", not in contract::tiers). It's offered in place of the Street
+# job until it's delivered (data ct-starter = "done") while the player is under the Street job's level; it takes the
+# Basic Lockpick Mara gives, misses never break it, and it pays no bounty and isn't counted as a delivered contract
+# (the Boss's board opens with the first real one) or on the season boards.
+function ctStarterOpen(p: player) :: boolean:
+	if getData({_p}, "ct-starter") is "done":
+		return false
+	if levelOk({_p}, cfg("contract::basic::level")) is true:
+		return false
+	return true
+
+# The tiers a player is offered: the starter job in place of the Street job while it's open.
+function ctTiersFor(p: player) :: texts:
+	loop {-cfg::contract::tiers::*}:
+		if loop-value is "basic":
+			if ctStarterOpen({_p}) is true:
+				add "starter" to {_o::*}
+			else:
+				add loop-value to {_o::*}
+		else:
+			add loop-value to {_o::*}
+	return {_o::*}
+
+# The lockpick a tier's job takes (the starter job the Basic one).
+function ctPickTier(t: text) :: text:
+	if {_t} is "starter":
+		return "basic"
+	return {_t}
+
 function ctFail(p: player, text: text):
 	msg({_p}, "&c%{_text}%")
 	play sound "entity.villager.no" with volume 0.6 to {_p}
@@ -70,7 +100,9 @@ function ctFail(p: player, text: text):
 function ctPay(p: player, t: text) :: number:
 	set {_m} to 1
 	if isPassive({_p}) is true:
-		set {_m} to cfg("passive::payout-multiplier")
+		# The tutorial's first job pays in full: it pays for the Gym Bag (review fix).
+		if {_t} is not "starter":
+			set {_m} to cfg("passive::payout-multiplier")
 	return floor(cfg("contract::%{_t}%::pay") * {_m})
 
 # ---------- Lockpicks (hotbar 6-8 = slots 5-7) ----------
@@ -306,7 +338,7 @@ function ctOffersFresh(p: player):
 		set {_all} to true
 	if {_all} is true:
 		set {-ctofferat::%{_u}%} to now
-	loop {-cfg::contract::tiers::*}:
+	loop ctTiersFor({_p}):
 		set {_o} to {-ctoffer::%{_u}%::%loop-value%}
 		set {_roll} to {_all}
 		if {_o} is not set:
@@ -334,6 +366,9 @@ function ctCooldownLeft(p: player) :: number:
 function ctTakeBlock(p: player, t: text) :: text:
 	if ctIsTier({_t}) is false:
 		return "No such job."
+	if {_t} is "starter":
+		if ctStarterOpen({_p}) is false:
+			return "You've done your first job already: Street jobs from now on."
 	if {_p} is not alive:
 		return "You can't take a job right now."
 	if heistOf({_p}) is not "":
@@ -416,7 +451,7 @@ function ctTake(p: player, t: text):
 	ctRollOffer({_p}, {_t})
 	ctLog("take %{_p}% %{_u}% %{_t}% %{_m}% %{_label}% %{_plate}% spot=%{_n}% at %{_spot}%")
 	set {_clock} to formatClock(cfg("contract::time") / 1 second)
-	msg({_p}, "&6%ctTierName({_t})%: &fsteal the %{_label}% %carName({_m})% &7(%ctWhere(location of {_p}, {_spot})%)&f. Pick its lock with a %ctPickName({_t})% and drive it to a chop shop within %{_clock}%.")
+	msg({_p}, "&6%ctTierName({_t})%: &fsteal the %{_label}% %carName({_m})% &7(%ctWhere(location of {_p}, {_spot})%)&f. Pick its lock with a %ctPickName(ctPickTier({_t}))% and drive it to a chop shop within %{_clock}%.")
 	send title colored "&6&lCONTRACT" with subtitle colored "&fSteal the %{_label}% %carName({_m})%" to {_p} for 3 seconds
 	play sound "block.note_block.pling" with volume 0.8 and pitch 1.2 to {_p}
 	ctGps({_u})
@@ -452,12 +487,13 @@ function ctPickStart(p: player):
 	set {_t} to {-ctjob::%{_u}%}
 	{_t} is set
 	{-ctqte::%{_p}%} is not set
-	if lockpickCount({_p}, {_t}) < 1:
-		hudBar({_p}, "&cYou need a %ctPickName({_t})%. &7Contract givers sell them: &f/contracts", 2)
+	set {_pt} to ctPickTier({_t})
+	if lockpickCount({_p}, {_pt}) < 1:
+		hudBar({_p}, "&cYou need a %ctPickName({_pt})%. &7Contract givers sell them: &f/contracts", 2)
 		play sound "block.iron_door.close" with volume 0.5 to {_p}
 		stop
-	if itemId({_p}'s tool) is not "lockpick:%{_t}%":
-		hudBar({_p}, "&eHold your %ctPickName({_t})% &7(hotbar 6-8) &eand right-click the car.", 2)
+	if itemId({_p}'s tool) is not "lockpick:%{_pt}%":
+		hudBar({_p}, "&eHold your %ctPickName({_pt})% &7(hotbar 6-8) &eand right-click the car.", 2)
 		stop
 	ctQteOpen({_p})
 
@@ -590,17 +626,30 @@ function ctQteHit(p: player):
 		set {-ctqte::%{_p}%::lock} to {_until}
 		play sound "block.note_block.bass" with volume 0.8 to {_p}
 		if {-ctjob::%{_u}%::fails} >= cfg("lockpick::max-fails"):
-			ctPickBreak({_p})
-			stop
+			# The first job teaches the game: its pick never breaks, the misses just start over.
+			if {-ctjob::%{_u}%} is "starter":
+				set {-ctjob::%{_u}%::fails} to 0
+				hudBar({_p}, "&eMissed. &7Click when the marker is on the green slot.", 2)
+			else:
+				ctPickBreak({_p})
+				stop
 	ctQteDraw({_p})
 
 # The lock is open: the lockpick is used up, the thief may get in.
 function ctPicked(p: player):
 	set {_u} to "%uuid of {_p}%"
 	set {_t} to {-ctjob::%{_u}%}
-	if lockpickUse({_p}, {_t}, "used") is false:
+	set {_ok} to true
+	if {_t} is "starter":
+		# Mara's lockpick is used up only at the delivery (ctDeliver): a first job that ends early (time, a logout, a
+		# restart) can be taken again with the same pick (review fix: nothing else gives a level-0 player one).
+		if lockpickCount({_p}, "basic") < 1:
+			set {_ok} to false
+	else if lockpickUse({_p}, ctPickTier({_t}), "used") is false:
+		set {_ok} to false
+	if {_ok} is false:
 		ctQteClose({_p}, "nopick")
-		hudBar({_p}, "&cYou need a %ctPickName({_t})%.", 2)
+		hudBar({_p}, "&cYou need a %ctPickName(ctPickTier({_t}))%.", 2)
 		stop
 	set {-ctjob::%{_u}%::stage} to "open"
 	set {-ctjob::%{_u}%::fails} to 0
@@ -615,6 +664,7 @@ function ctPicked(p: player):
 function ctPickBreak(p: player):
 	set {_u} to "%uuid of {_p}%"
 	set {_t} to {-ctjob::%{_u}%}
+	set {_t} to ctPickTier({_t})
 	lockpickUse({_p}, {_t}, "broke")
 	set {-ctjob::%{_u}%::fails} to 0
 	ctQteClose({_p}, "broke")
@@ -694,15 +744,21 @@ function ctDeliver(u: text, chop: text):
 	make {_p} dismount
 	ctEnd({_u}, "done")
 	giveMoney({_p}, {_pay})
-	set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "contract")
-	set {_done} to getData({_p}, "contracts-done")
-	if {_done} is not set:
-		set {_done} to 0
-	setData({_p}, "contracts-done", {_done} + 1)
-	set {_earned} to getData({_p}, "contracts-earned")
-	if {_earned} is not set:
-		set {_earned} to 0
-	setData({_p}, "contracts-earned", {_earned} + {_pay})
+	set {_bounty} to 0
+	if {_t} is "starter":
+		# The first job: no bounty, not a delivered contract (the Boss's board), done once; Mara's lockpick goes now.
+		setData({_p}, "ct-starter", "done")
+		lockpickUse({_p}, "basic", "used")
+	else:
+		set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "contract")
+		set {_done} to getData({_p}, "contracts-done")
+		if {_done} is not set:
+			set {_done} to 0
+		setData({_p}, "contracts-done", {_done} + 1)
+		set {_earned} to getData({_p}, "contracts-earned")
+		if {_earned} is not set:
+			set {_earned} to 0
+		setData({_p}, "contracts-earned", {_earned} + {_pay})
 	ctLog("deliver %{_p}% %{_u}% %{_t}% %{_m}% chop=%{_chop}% pay=%{_pay}% xp=%{_xp}% bounty=+%{_bounty}% passive=%isPassive({_p})%")
 	send title colored "&a&lCAR DELIVERED" with subtitle colored "&f%formatMoney({_pay})% &7· &b+%{_xpShown}% XP" to {_p} for 3 seconds
 	play sound "entity.player.levelup" with volume 0.8 to {_p}
@@ -949,7 +1005,7 @@ function ctMenu(p: player):
 			ctButton({_p}, {_gui}, 15, red dye named "&cDrop the job" with lore "&7Click twice. The next job waits" and "&7%formatClock(cfg("contract::cooldown") / 1 second)%.", "drop")
 	else:
 		set {_slot} to 11
-		loop {-cfg::contract::tiers::*}:
+		loop ctTiersFor({_p}):
 			if {_at} is not "":
 				ctButton({_p}, {_gui}, {_slot}, ctOfferIcon({_p}, loop-value, true), "take:%loop-value%")
 			else:
@@ -970,7 +1026,7 @@ function ctMenu(p: player):
 		add 2 to {_slot}
 	# His side jobs (jobs.sk), once his board is open.
 	if jobsUnlocked({_p}, "boss") is true:
-		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Daily jobs: /jobs" and "&eClick: open your jobs.", "jobs")
+		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Side jobs: /jobs" and "&eClick: open your jobs.", "jobs")
 	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-ctgui::%{_p}%} to {_gui}
 	if {-ctgen::%{_p}%} is not set:
@@ -993,7 +1049,10 @@ function ctOfferIcon(p: player, t: text, at: boolean) :: item:
 	set {_pay} to ctPay({_p}, {_t})
 	set {_xp} to cfg("contract::%{_t}%::xp")
 	add "&7Pays: &a%formatMoney({_pay})% &7· &b+%{_xp}% XP" to {_l::*}
-	add "&7Needs: &f%ctPickName({_t})% &7(you have %lockpickCount({_p}, {_t})%)" to {_l::*}
+	set {_pt} to ctPickTier({_t})
+	add "&7Needs: &f%ctPickName({_pt})% &7(you have %lockpickCount({_p}, {_pt})%)" to {_l::*}
+	if {_t} is "starter":
+		add "&aYour first job: Mara's lockpick never breaks on it." to {_l::*}
 	add "&7Time: &f%formatClock(cfg("contract::time") / 1 second)%" to {_l::*}
 	loop questOfferLines({_p}, {_t}, {_a::1}):
 		add loop-value to {_l::*}
@@ -1021,7 +1080,8 @@ function ctJobIcon(p: player) :: item:
 	set {_left} to ctLeft({_u})
 	if {-ctjob::%{_u}%::stage} is "find":
 		add "&7Find the car and pick its lock with" to {_l::*}
-		add "&7a &f%ctPickName({_t})% &7(you have %lockpickCount({_p}, {_t})%)." to {_l::*}
+		set {_pt} to ctPickTier({_t})
+		add "&7a &f%ctPickName({_pt})% &7(you have %lockpickCount({_p}, {_pt})%)." to {_l::*}
 		add "&7Where: &f%ctWhere(location of {_p}, {-ctjob::%{_u}%::spotat})%" to {_l::*}
 		add "&7Misses: &c%{-ctjob::%{_u}%::fails}%/%cfg("lockpick::max-fails")%" to {_l::*}
 	else:
