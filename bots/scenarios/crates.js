@@ -259,7 +259,9 @@ module.exports = async ({ check }) => {
       await sleep(5500)
     }
 
-    // Things that don't fit pay half their shop price (owner, 2026-09-26).
+    // Things that don't fit pay half their shop price (owner, 2026-09-26). Level 5: the .50 GS (light rounds) can be
+    // owned, so light rounds are given (a gun above the level pays cash: checked below).
+    await cmd(`dlevel set ${A} 5`)
     await cmd(`dcrate give ${A} common 1`)
     await cmd('zzcratelines common 1|ammo|light|5000')
     before = await bal(A)
@@ -275,6 +277,15 @@ module.exports = async ({ check }) => {
     before = await bal(A)
     r = await openCrate(A, 'Common')
     check('a tool above your level pays half its price instead (Drill: level 15)', (await bal(A)) - before === 1250 && /needs level 15/.test(r.said) && !/tool:drill/.test(await cmd(`zzdump ${A}`)), `+${(await bal(A)) - before} ${r.said}`)
+    // Rounds for a gun the player can't own yet (review fix, 2026-09-27): all of it as cash.
+    await cmd(`dlevel reset ${A}`)
+    await cmd(`dcrate give ${A} common 1`)
+    await cmd('zzcratelines common 1|ammo|rifle|90')
+    const rifle0 = Number(((await cmd(`zzwm ${A}`)).match(/ammo rifle=(\d+)/) || [])[1])
+    before = await bal(A)
+    r = await openCrate(A, 'Common')
+    const rifle1 = Number(((await cmd(`zzwm ${A}`)).match(/ammo rifle=(\d+)/) || [])[1])
+    check('rounds for a gun above your level (rifle: the AK-47 at 50) pay half their price in cash, no rounds', rifle1 === rifle0 && (await bal(A)) - before === 135 && /no gun for them at your level yet/.test(r.said), `rifle ${rifle0}->${rifle1} +${(await bal(A)) - before} ${r.said}`)
 
     // Blocked: in combat, outside a safe zone, no keys.
     await cmd(`dcrate give ${A} common 1`)

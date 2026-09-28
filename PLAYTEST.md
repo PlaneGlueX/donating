@@ -365,11 +365,11 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
 136. **Owner questions (2026-09-27 overnight):** the hit pay and levels, streak bonus and titles, the 3% death cost, the six targets and skins, the Broker's name and place, the garage numbers (5 s take-out, 90 s pickup, 4-block return), where garage sites go, the Contact Jobs and Vic numbers. Listed in the session's end message.
     - Result: ANSWERED (owner, 2026-09-27 afternoon): see 137-147 and CLAUDE.md (economy rework, stores, hands, serials, nametags, phone, immunity, skins).
 137. **The level curve** (`bots\run.js levels`): T(n) = 6.5 × n × (n + 5) (level 1 at 39 XP, 5 at 325, 150 at 151,125), titles by range, /levels only lists milestones, a level-up lists every unlock on the way, the footer, bag tiers and tools refused below their level.
-    - Result: see the bot run in the status section of CLAUDE.md.
+    - Result: PASS (bots, 2026-09-27, levels 16/16).
 138. **Stores and hands** (`bots\run.js store`): difficulty 0, no clock, not announced, up to level 9, no PvP into it, cleaned out -> moved out with the loot, idle close; no bag = $1,000 in the hands (cash in the offhand, HANDS FULL, sells, the phone's map takes it off and puts it back, a death costs min(B × p, $1,000)).
-    - Result: see the bot run.
+    - Result: PASS (bots, 2026-09-27).
 139. **The new start** (`bots\run.js tutorial`, `contracts`, `story`): $1,000, the welcome, Mara's chapter 1 at once, no spawn lock, no free Gym Bag; the one-time starter car job (level 0, the lockpick never breaks, $1,500 + 40 XP, no bounty, not counted); the reordered chapter 1.
-    - Result: see the bot run. **Owner:** walk it once with a fresh account when the city exists (does it take about an hour to level 5, does the first car job feel easy enough?).
+    - Result: PASS (bots, 2026-09-27). **Owner:** walk it once with a fresh account when the city exists (does it take about an hour to level 5, does the first car job feel easy enough?).
 140. **Serials** (`bots\run.js crates`, `trade`): a new copy gets the next #N, shown as #N/M in the pull line, the announcement, the wardrobe, the trade window and the garage; a trade moves it.
     - Result: PASS (bots, 2026-09-27).
 141. **Nametags only in the open** (`bots\run.js nametags`, 7 checks): hidden behind stone, shown through glass and over a low wall, TAB's team update in the client.
@@ -383,7 +383,7 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
 145. **Seasons by hand** (`bots\run.js seasons`): a season that ends leaves none running until /dseason start.
     - Result: PASS (bots, 2026-09-27).
 146. **NPC skins in the real client** (cu or the owner): the shopkeepers, Mara, the Boss, Vic, the Broker, the hit targets and bodyguards wear their own skins (after `/dskins respawn`).
-    - Result: TODO
+    - Result: PARTLY (2026-09-27): all 17 signed textures match their drawings pixel for pixel (`toolssign-skins.js --check`), and a new Mara mannequin carries the profile (data check). Seeing them in the client: TODO (the owner or cu).
 147. **Owner questions (2026-09-27 afternoon):** the level curve's k, the store's no-PvP rule, the halved lockpicks, the rep x2.5, a second melee weapon, level rewards past 100, the MOTD. Listed in the session's end message.
     - Result: WAITING (owner)
 
