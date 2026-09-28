@@ -383,7 +383,7 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
 145. **Seasons by hand** (`bots\run.js seasons`): a season that ends leaves none running until /dseason start.
     - Result: PASS (bots, 2026-09-27).
 146. **NPC skins in the real client** (cu or the owner): the shopkeepers, Mara, the Boss, Vic, the Broker, the hit targets and bodyguards wear their own skins (after `/dskins respawn`).
-    - Result: PARTLY (2026-09-27): all 17 signed textures match their drawings pixel for pixel (`toolssign-skins.js --check`), and a new Mara mannequin carries the profile (data check). Seeing them in the client: TODO (the owner or cu).
+    - Result: PARTLY (2026-09-27): all 17 signed textures match their drawings pixel for pixel (`tools\sign-skins.js --check`), and a new Mara mannequin carries the profile (data check). Seeing them in the client: TODO (the owner or cu).
 147. **Owner questions (2026-09-27 afternoon):** the level curve's k, the store's no-PvP rule, the halved lockpicks, the rep x2.5, a second melee weapon, level rewards past 100, the MOTD. Listed in the session's end message.
     - Result: WAITING (owner)
 
