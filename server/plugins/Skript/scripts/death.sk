@@ -8,8 +8,8 @@
 #       p = the heist difficulty's p, or its cop-p for cop deaths
 #       C = min(bag capacity, the heist's loot pool); no bag: C = 0, nothing is lost
 #     Outside heists: difficulty 1 and C = the bag capacity. Inside a heist: its difficulty and loot
-#     pool (heists.sk, through deathDifficulty / deathLootPool below). A cop death during a chase outside
-#     counts for the heist whose alarm hunts the player.
+#     pool (heists.sk, through deathDifficulty / deathLootPool below). Any death during a chase counts for
+#     the heist whose alarm hunts the player (the harder one if they die inside another) at its cop-p at least.
 #   Lost balance disappears (a money sink).
 # Cop deaths: killed by a cop (Citizens NPC, metadata "NPC"), or a combat log credited to the cops.
 # Hit deaths: killed by a hit target's bodyguard (hits.sk), p = hit::death-p.
@@ -20,15 +20,19 @@
 # so what this clears is gone and the rest stays. The respawn's applyLayout puts the phone back and
 # leaves the offhand empty (no bag).
 
-# The heist a death counts for: the one the player died in; for a cop death outside (a chase), the heist
-# whose alarm hunts them (owner, 2026-09-27). "" = none: difficulty 1 and no pool cap. This handler runs before
-# heists.sk's (priority monitor), so the player still counts as inside and the hunt is still set.
+# The heist a death counts for: the one the player died in; while an alarm hunts them, that heist (owner,
+# 2026-09-27: a cop death in a chase counts for it), whatever killed them and wherever, unless the heist they
+# died in is harder (review 2026-09-28: a fall, a friend's shot or dying inside a difficulty-1 heist dodged the
+# chase's price). "" = none: difficulty 1 and no pool cap. This handler runs before heists.sk's (priority
+# monitor), so the player still counts as inside and the hunt is still set.
 function deathHeist(p: player, cause: text) :: text:
 	set {_h} to heistForDeath({_p})
-	if {_h} is "":
-		if {_cause} is "cop":
-			if {-heisthunt::%{_p}%} is set:
-				set {_h} to {-heisthunt::%{_p}%}
+	if {-heisthunt::%{_p}%} is set:
+		set {_hh} to "%{-heisthunt::%{_p}%}%"
+		if {_h} is "":
+			return {_hh}
+		if heistDifficulty({_hh}) > heistDifficulty({_h}):
+			return {_hh}
 	return {_h}
 
 function deathDifficulty(p: player, cause: text) :: number:
@@ -53,6 +57,11 @@ function deathLoss(p: player, cause: text) :: number:
 		set {_share} to cfg("hit::death-p")
 	else:
 		set {_share} to cfg("difficulty::%{_d}%::p")
+	# Hunted: every death costs at least the cops' price (else a fall or a friend's shot was cheaper).
+	if {-heisthunt::%{_p}%} is set:
+		set {_cp} to cfg("difficulty::%{_d}%::cop-p")
+		if {_cp} > {_share}:
+			set {_share} to {_cp}
 	# The real capacity (a paid rank's bigger bag also risks more); no bag: the hands' (bag.sk, $1,000).
 	set {_cap} to bagCapacity({_p})
 	set {_pool} to deathLootPool({_p}, {_cause})

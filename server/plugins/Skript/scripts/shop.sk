@@ -41,20 +41,32 @@ using equippable components
 
 # ---------- Icons (they look like the real items: the pack's models) ----------
 
-# A feather with a WeaponMechanics skin number: the pack's feather.json draws that weapon's model.
-function modelIcon(m: number) :: item:
-	set {_i} to feather
+# A base item with a WeaponMechanics skin number: the pack draws that weapon's model (feather.json for WeaponMechanics'
+# guns, amethyst_shard.json for Donating's melee weapons and consumables).
+function modelIcon(m: number, base: item) :: item:
+	set {_i} to 1 of {_base}
 	set float list tag "minecraft:custom_model_data;floats" of nbt of {_i} to {_m}
 	return {_i}
 
 # A weapon or consumable (WeaponMechanics title) as its model; a plain feather if it has none.
 function wpnIcon(w: text) :: item:
 	set {_m} to {-cfg::wpn::%{_w}%::model}
+	set {_base} to {-cfg::wpn::%{_w}%::item}
 	if {_m} is not set:
 		set {_m} to {-cfg::con::%{_w}%::model}
+		set {_base} to {-cfg::con::%{_w}%::item}
+	if {_base} is not set:
+		set {_base} to feather
 	if {_m} is set:
-		return modelIcon({_m})
+		return modelIcon({_m}, {_base})
 	return feather
+
+# The robber level buying a consumable needs (0 when core.sk sets none).
+function conLevel(w: text) :: number:
+	set {_r} to {-cfg::con::%{_w}%::level}
+	if {_r} is set:
+		return {_r}
+	return 0
 
 # An ammo type's icon (the pack's ammo art), without the WeaponMechanics ammo tag.
 function ammoIcon(type: text) :: item:
@@ -697,7 +709,11 @@ function renderGun(p: player):
 			set {_name} to cfg("con::%{_w}%::name")
 			set {_money} to formatMoney(cfg("con::%{_w}%::price"))
 			set {_max} to cfg("con::%{_w}%::max")
-			button({_p}, {_cells::%{_k}%}, tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore "&e%{_money}% each, up to %{_max}%" and "&eClick: buy 1. Shift-click: fill up.", "shopicon:con"), "con:%{_w}%")
+			set {_need} to conLevel({_w})
+			if levelOk({_p}, {_need}) is false:
+				button({_p}, {_cells::%{_k}%}, tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore "&e%{_money}% each, up to %{_max}%" and "&cNeeds level %{_need}% (%levelName({_need})%). /level", "shopicon:con"), "con:%{_w}%")
+			else:
+				button({_p}, {_cells::%{_k}%}, tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore "&e%{_money}% each, up to %{_max}%" and "&eClick: buy 1. Shift-click: fill up.", "shopicon:con"), "con:%{_w}%")
 			add 1 to {_k}
 		set {_k} to 8
 		loop {-cfg::shop::tools::*}:
@@ -1034,6 +1050,9 @@ function restoreConNeed(p: player, n: number) :: number:
 		return 0
 	set {_count} to getData({_p}, "loadout::%{_n}%::count")
 	set {_w} to last element of ({_id} split at ":")
+	# Its level too (review 2026-09-28): a saved stack isn't rebought after its level went up.
+	if levelOk({_p}, conLevel({_w})) is false:
+		return 0
 	set {_max} to cfg("con::%{_w}%::max")
 	set {_count} to min({_count}, {_max})
 	set {_i} to slot ({_n} - 1) of {_p}'s inventory
@@ -1143,6 +1162,10 @@ function buyAmmo(p: player, type: text, amount: text):
 # Left-click: one more. Shift-click: up to the max.
 function buyConsumable(p: player, w: text, shift: boolean):
 	set {_name} to cfg("con::%{_w}%::name")
+	set {_need} to conLevel({_w})
+	if levelOk({_p}, {_need}) is false:
+		shopFail({_p}, "%{_name}%s need level %{_need}% (%levelName({_need})%). /level")
+		stop
 	set {_max} to cfg("con::%{_w}%::max")
 	set {_slot} to loadoutSlotOf({_p}, "con:%{_w}%")
 	set {_have} to 0

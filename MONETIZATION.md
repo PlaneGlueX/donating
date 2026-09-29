@@ -18,6 +18,7 @@ Rank prices were picked on 2026-09-26 with the owner's OK (one-time purchases, t
 | **XP booster** (added 2026-09-27) | For its time, every loot sale and car contract gives **1.5×** robber-level XP for everyone on the server; the buyer's own XP is **2×** | **Yes:** everyone reaches levels (which unlock heists, tools and cars) sooner while it runs; the buyer a bit sooner than others | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} xp 1.5 5 {purchaseQuantity}` |
 | **Heist Rush** (added 2026-09-27) | For its time, heists reopen **2× faster** for everyone: a run that ends gets half its cooldown, and heists already cooling down have their time left halved when it starts | **Yes:** more heist runs for the whole server; the buyer gets nothing extra (no head start, no bonus) | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} rush 2 5 {purchaseQuantity}` |
 | **Crate keys** (Common, Uncommon, Rare, Epic, Legendary) | One opening of that crate per key, at a crate stand on the map: a random reward from its list below (the odds are shown in game: /crates, click a crate) | **Yes:** crates can give in-game money, ammo, Stims and heist tools; the rest are looks only | $0.49 / $0.99 / $1.99 / $3.99 / $8.99 each (Common to Legendary), any quantity | `dcrate give {username} <crate> {purchaseQuantity}` |
+| **Car crate keys** (Supercar, Hypercar; added 2026-09-28) | One car per key, at a crate stand: a random model (high-end and extreme cars), paint, maybe a wrap (a skin) and maybe mods (engine, turbo, handling stages I-III; neon; a trail). The car arrives in the player's garage, numbered of its kind ("#3 of 57"), and can't be repainted or tuned afterwards | **Yes:** a car with engine/turbo/handling mods is faster or steers better than stock; extreme models (Viper, Riviera, Apex) are otherwise $1.25M-$3.5M and level 110-150 at the Car Dealer. **Limits:** a car can only be driven from its model's level (a level-5 player's Apex waits in the garage until level 150); the same mod stages can be bought with in-game money for every dealer car below extreme | Proposal: $4.99 (Supercar) / $12.99 (Hypercar) each, any quantity | `dcrate give {username} supercar {purchaseQuantity}` / `hypercar` |
 
 A player has one rank at a time. Buying a higher rank replaces the lower one, and buying a lower rank never takes away a higher one.
 
@@ -35,7 +36,7 @@ Everyone owns and drives cars the same way. Cars come out at garages: one at eve
 
 A crate gives exactly one reward per key, picked at random with the chances below (every crate's weights add up to 1,000, so they're exact). Crates open only at crate stands, special places on the map inside safe zones; the reward is given when the spin stops (closing the menu gives it at once, and a logout or crash mid-spin gives it at the next join). Ammo, Stims and tools that don't fit (full inventory, carry limit, a tool above the player's level) pay **half** their shop price in in-game money instead. A cosmetic the player already has pays its rarity's repeat value ($200 Daily or Common, $500 Uncommon, $1,500 Rare, $3,000 Epic, $5,000 Legendary, $7,500 Hacked). Titles, bag skins, kill effects and cars are looks only. Every cosmetic belongs to one crate only.
 
-Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more likely (60-75% of openings from Common to Legendary), cosmetics at most 1% (Daily), 3% (Common), 5% (Uncommon), 7% (Rare), 10% (Epic) and 15% (Legendary, its exclusive car included). Cars are in the game since 2026-09-26 (garage.sk): a crate car lands in the player's garage, and one they already have pays the repeat value. Crate cars are looks only: each drives exactly like the regular car of its family (Vandal like the Sports Car, Specter like the Sedan, Overclock like the Hotrod).
+Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more likely (60-75% of openings from Common to Legendary), cosmetics at most 1% (Daily), 3% (Common), 5% (Uncommon), 7% (Rare), 10% (Epic) and 15% (Legendary, its exclusive car included). Cars are in the game since 2026-09-26 (garage.sk): a crate car lands in the player's garage. Since 2026-09-28 a player can own several cars of a model (up to 60 cars), so a car is never a "repeat"; the repeat value is only paid when the garage is full. The Legendary and Hacked crate cars are looks only: each drives exactly like the regular car of its family (Vandal like the Sports Car, Specter like the Sedan, Overclock like the Hotrod).
 
 **Daily Crate**
 
@@ -169,6 +170,36 @@ Gameplay items (money, ammo, consumables, tools): 85% of openings.
 Gameplay items (money, ammo, consumables, tools): 0% of openings.
 
 The Hacked crate is never sold: its keys only come from special events. Every Hacked prize has the same chance (the owner's rule: about the same odds, all good prizes); its cosmetics come in sets.
+
+### The car crates (added 2026-09-28)
+
+Owner, 2026-09-28: "extreme tier car crates that give high and extreme priced cars with the chance to have any (non retired) car skin, any car mods, etc. so its endless combinations of cars". Each key gives exactly one car, rolled in steps: the model, its paint (sometimes a paint only crates give), the wrap's tier (then any wrap of that tier that isn't retired, equally likely), each of the three hardware parts' stage on its own, and the neon and trail by chance. The car arrives **locked as it rolled**: it can't be repainted or tuned afterwards (that keeps its value in trades), and it's numbered of its kind (the 3rd Apex with the H4CK3R wrap is "#3 of N"). A car above the player's level waits in the garage until they reach its level. A full garage (60 cars) refuses the opening before the key is used. The whole roll is shown in game (/crates, click the crate).
+
+What the mods do (the same stages are sold in game, for in-game money, at a garage's tuning shop for every dealer car below extreme; extreme cars can only get them from these crates): engine = top speed +5% / +10% / +15%; turbo = acceleration +15% / +30% / +45%; handling = steering +1 / +2 / +3 (of 8). Neon (a glow under the car) and trails (particles behind it) are looks only. Wraps are looks only.
+
+The grade shown on a car follows the owner's value order (base < a common wrap < a common wrap with mods = a rare wrap < a rare wrap with mods = an exotic wrap < an exotic wrap with mods): Stock, Custom, Rare, Exotic, Mythic. A car crate pull of grade Exotic or Mythic is announced to the server.
+
+**Supercar Crate** (proposal: $4.99 a key)
+
+| Step | Chances |
+|---|---|
+| Car | Sports Car 30%, Hotrod 25%, SUV 20%, Viper (extreme) 12%, Riviera (extreme) 8%, Apex (extreme) 5% |
+| Paint | a regular color; 15% a crate-only color (Viper and Apex have them) |
+| Wrap | none 40%, a Common wrap 35%, a Rare wrap 18%, an Exotic wrap 7% |
+| Each of engine, turbo, handling | stock 55%, stage I 25%, stage II 14%, stage III 6% |
+| Neon / trail | 20% / 12% |
+
+**Hypercar Crate** (proposal: $12.99 a key)
+
+| Step | Chances |
+|---|---|
+| Car | Viper 45%, Riviera 35%, Apex 20% (all extreme) |
+| Paint | a regular color; 30% a crate-only color (Viper and Apex) |
+| Wrap | none 20%, a Common wrap 35%, a Rare wrap 30%, an Exotic wrap 15% |
+| Each of engine, turbo, handling | stock 30%, stage I 32%, stage II 24%, stage III 14% |
+| Neon / trail | 35% / 25% |
+
+Wraps: Common (Matte Black, Primer, Two-Tone, Racing Stripes, Checkered), Rare (Woodland Camo, Arctic Camo, Carbon Fiber, Flames, Tiger), Exotic (H4CK3R, Galaxy, Gold Leaf, Neon Grid, Inferno). A retired wrap isn't rolled any more; cars that have it keep it.
 
 ## Limits that keep it fair
 
@@ -360,6 +391,30 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - Already have that prize? You get $5,000 instead
 > - See every reward and its exact chance in game: /crates, then click the crate
 > - Buy as many as you like
+>
+> Every purchase helps keep Donating online and growing.
+
+**Supercar Crate Key** (proposal $4.99)
+
+> A new car, maybe a one-of-a-kind.
+> - Opens one **Supercar Crate** at a crate stand in the city: one car, straight to your garage
+> - Sports Car, Hotrod, SUV, or (25%) an **extreme** car: the Viper, Riviera or Apex
+> - A 60% chance of a **wrap** (Common, Rare or Exotic like **H4CK3R** or **Galaxy**) and a chance of **mods** (engine, turbo, handling, neon, a trail)
+> - Every car is numbered of its kind (#3 of 57) and stays exactly as it rolled
+> - A car above your level waits in your garage until you reach it
+> - See every chance in game: /crates, then click the crate
+>
+> Every purchase helps keep Donating online and growing.
+
+**Hypercar Crate Key** (proposal $12.99)
+
+> Extreme cars only.
+> - Opens one **Hypercar Crate**: the **Viper**, **Riviera** or **Apex**, straight to your garage
+> - An 80% chance of a wrap (15% Exotic) and good odds of mods
+> - Exotic and Mythic pulls are announced to the whole server
+> - Every car is numbered of its kind and stays exactly as it rolled
+> - A car above your level waits in your garage until you reach it
+> - See every chance in game: /crates, then click the crate
 >
 > Every purchase helps keep Donating online and growing.
 

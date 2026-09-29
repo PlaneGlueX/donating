@@ -10,14 +10,16 @@
 # not ready). A one-sided trade is a gift. Ready is refused for a moment after any change (so a click aimed at
 # the old offer doesn't agree to a new one) and while the swap couldn't happen (with the reason). Everything is
 # checked again at the end, in one call with no wait: each thing is still its giver's, the receiver doesn't
-# have that car model or cosmetic already (a car model they give away in the same trade is fine: two players
-# can swap Sedans) and meets the car's level (crate cars need none).
+# have that cosmetic already and has room in the garage for the cars (car::garage-max, counting the ones they give).
+# Cars are traded one by one (2026-09-28: several of a model, each its own plate): its wrap, mods, serial number
+# and crate count go with it. A car above the receiver's level waits in their garage until they reach it
+# (garage.sk carDriveBlock).
 #
 # The trade ends without a swap when either closes the window, walks away (trade::reach + 3 blocks), gets
 # hurt or combat-tagged, dies, logs out or ends up in a heist.
 #
 # Memory only: {-trade::with::<u>} the partner (a player), {-trade::sid::<u>} the session number,
-# {-trade::offer::<u>::*} "car:<id>" / "cos:<id>", {-trade::ready::<u>}, {-trade::view::<u>} main | pick,
+# {-trade::offer::<u>::*} "car:<plate>" / "cos:<id>", {-trade::ready::<u>}, {-trade::view::<u>} main | pick,
 # {-trade::gui::<u>} / {-trade::pgui::<u>} the windows, {-trade::a::<sid>} / {-trade::b::<sid>} the two
 # players, {-trade::ver::<sid>} (every change adds 1), {-trade::count::<sid>} the countdown shown,
 # {-trade::req::<from u>::<to u>} when a request was sent.
@@ -200,22 +202,13 @@ function tradeAddBlock(p: player, e: text) :: text:
 	set {_a::*} to {_e} split at ":"
 	set {_id} to {_a::2}
 	if {_a::1} is "car":
-		if carExists({_id}) is false:
-			return "No such car."
-		set {_plate} to carPlate({_p}, {_id})
-		if {_plate} is "":
+		set {_plate} to {_id}
+		if carOwns({_p}, {_plate}) is false:
 			return "You don't have that car."
 		if {car::out::%{_plate}%} is set:
-			return "Send your %carName({_id})% back to the garage first (/garage)."
+			return "Send your %carTitle({_plate})% back to the garage first (/garage)."
 		if {-car::driver::%{_plate}%} is set:
-			return "Send your %carName({_id})% back to the garage first (/garage)."
-		# One of each car: if they have this model, they must give theirs in the same trade (a swap; the swap
-		# checks it, and Ready says so meanwhile).
-		if carIsCrate({_id}) is false:
-			set {_need} to {-cfg::car::%{_id}%::level}
-			if {_need} is set:
-				if levelOk({_o}, {_need}) is false:
-					return "%name of {_o}% needs level %{_need}% (%levelName({_need})%) for a %carName({_id})%."
+			return "Send your %carTitle({_plate})% back to the garage first (/garage)."
 		return ""
 	if {_a::1} is "cos":
 		if cosExists({_id}) is false:
@@ -246,18 +239,13 @@ function tradeIcon(owner: player, e: text, mine: boolean) :: item:
 	set {_a::*} to {_e} split at ":"
 	set {_id} to {_a::2}
 	if {_a::1} is "car":
-		set {_label} to carColorOf({_owner}, {_id})
-		set {_i} to carIcon({_id}, {_label})
-		set {_name} to "&f%{_label}% %carName({_id})%"
-		add "&7Car · plate %carPlate({_owner}, {_id})%" to {_l::*}
-		if carIsCrate({_id}) is true:
-			add "&dCrate car" to {_l::*}
-			set {_sl} to carSerialLore({_owner}, {_id})
-			if {_sl} is not "":
-				add {_sl} to {_l::*}
-		else:
-			set {_need} to {-cfg::car::%{_id}%::level}
-			add "&7Level %{_need}% car" to {_l::*}
+		set {_plate} to {_id}
+		set {_i} to carIconOf({_plate})
+		set {_name} to "&f%carTitle({_plate})%%carSerialText({_plate})%"
+		add carLoreOf({_plate}) to {_l::*}
+		set {_need} to carLevelOf(carModelOf({_plate}))
+		if {_need} > 0:
+			add "&7Drives from level %{_need}%" to {_l::*}
 	else:
 		set {_type} to {-cfg::cos::%{_id}%::type}
 		if {_type} is "title":
@@ -359,9 +347,8 @@ function tradePick(p: player, kind: text):
 	set {-trade::view::%{_u}%} to "pick"
 	set {_slot} to 0
 	if {_kind} is "car":
-		loop {-cfg::cars::*}:
-			if carOwned({_p}, loop-value) is true:
-				add "car:%loop-value%" to {_list::*}
+		loop carsOf({_p}):
+			add "car:%loop-value%" to {_list::*}
 	else:
 		loop {-cfg::cosmetics::*}:
 			if {data::%{_p}%::cos::%loop-value%} is true:
@@ -374,11 +361,6 @@ function tradePick(p: player, kind: text):
 			set {_why} to tradeAddBlock({_p}, loop-value)
 			set {_l::*} to lore of {_i}
 			if {_why} is "":
-				if loop-value starts with "car:":
-					set {_cid} to subtext of loop-value from characters 5 to (length of loop-value)
-					if carOwned({_o}, {_cid}) is true:
-						add "&6%name of {_o}% has a %carName({_cid})%: they must" to {_l::*}
-						add "&6give theirs in this trade (one of each)." to {_l::*}
 				add "&eClick: add it." to {_l::*}
 				set lore of {_i} to colored {_l::*}
 				set slot {_slot} of {_gui} to {_i}
@@ -554,23 +536,15 @@ function tradeGiveBlock(g: player, r: player, e: text) :: text:
 	set {_a::*} to {_e} split at ":"
 	set {_id} to {_a::2}
 	if {_a::1} is "car":
-		set {_plate} to carPlate({_g}, {_id})
-		if {_plate} is "":
-			return "%name of {_g}% doesn't have the %carName({_id})% any more"
+		set {_plate} to {_id}
+		if carOwns({_g}, {_plate}) is false:
+			return "%name of {_g}% doesn't have that car any more"
 		if carAlive({_plate}) is false:
-			return "%name of {_g}%'s %carName({_id})% isn't ready (tell staff)"
+			return "%name of {_g}%'s %carTitle({_plate})% isn't ready (tell staff)"
 		if {car::out::%{_plate}%} is set:
-			return "%name of {_g}%'s %carName({_id})% is out of the garage"
+			return "%name of {_g}%'s %carTitle({_plate})% is out of the garage"
 		if {-car::driver::%{_plate}%} is set:
-			return "%name of {_g}%'s %carName({_id})% is out of the garage"
-		if carOwned({_r}, {_id}) is true:
-			if {-trade::offer::%uuid of {_r}%::*} does not contain "car:%{_id}%":
-				return "%name of {_r}% has a %carName({_id})% already"
-		if carIsCrate({_id}) is false:
-			set {_need} to {-cfg::car::%{_id}%::level}
-			if {_need} is set:
-				if levelOk({_r}, {_need}) is false:
-					return "%name of {_r}% needs level %{_need}% for the %carName({_id})%"
+			return "%name of {_g}%'s %carTitle({_plate})% is out of the garage"
 		return ""
 	if {_a::1} is "cos":
 		if {-cfg::cos::%{_id}%::bound} is true:
@@ -594,7 +568,29 @@ function tradeCheck(sid: number) :: text:
 		loop {-trade::offer::%uuid of {_b}%::*}:
 			if {_why} is "":
 				set {_why} to tradeGiveBlock({_b}, {_a}, loop-value)
+	if {_why} is "":
+		set {_why} to tradeRoomBlock({_a}, {_b})
+	if {_why} is "":
+		set {_why} to tradeRoomBlock({_b}, {_a})
 	return {_why}
+
+# "" when r's garage has room for the cars g gives (after the ones r gives away), else why not.
+function tradeRoomBlock(r: player, g: player) :: text:
+	set {_in} to 0
+	loop {-trade::offer::%uuid of {_g}%::*}:
+		if loop-value starts with "car:":
+			add 1 to {_in}
+	set {_out} to 0
+	loop {-trade::offer::%uuid of {_r}%::*}:
+		if loop-value starts with "car:":
+			add 1 to {_out}
+	# Only a garage that gains cars can overflow (one already over the most after a settings change can still trade).
+	if {_in} <= {_out}:
+		return ""
+	set {_max} to cfg("car::garage-max")
+	if carCount({_r}) - {_out} + {_in} > {_max}:
+		return "%name of {_r}%'s garage would be over %{_max}% cars"
+	return ""
 
 function tradeDo(sid: number):
 	set {_a} to {-trade::a::%{_sid}%}
@@ -605,10 +601,18 @@ function tradeDo(sid: number):
 	# that fails leaves a plate MTVehicles doesn't know, and the checks below refuse it (carAlive).
 	loop {-trade::offer::%{_ua}%::*}:
 		if loop-value starts with "car:":
-			carEnsure({_a}, subtext of loop-value from characters 5 to (length of loop-value))
+			set {_old} to subtext of loop-value from characters 5 to (length of loop-value)
+			set {_new} to carEnsure({_a}, {_old})
+			if {_new} is not "":
+				if {_new} is not {_old}:
+					set {-trade::offer::%{_ua}%::%loop-index%} to "car:%{_new}%"
 	loop {-trade::offer::%{_ub}%::*}:
 		if loop-value starts with "car:":
-			carEnsure({_b}, subtext of loop-value from characters 5 to (length of loop-value))
+			set {_old} to subtext of loop-value from characters 5 to (length of loop-value)
+			set {_new} to carEnsure({_b}, {_old})
+			if {_new} is not "":
+				if {_new} is not {_old}:
+					set {-trade::offer::%{_ub}%::%loop-index%} to "car:%{_new}%"
 	# Still next to each other, out of combat and heists, and every entry still receivable.
 	set {_why} to tradeCheck({_sid})
 	if {_why} is not "":
@@ -650,20 +654,17 @@ function tradeDo(sid: number):
 	play sound "entity.player.levelup" with volume 0.6 to {_a}
 	play sound "entity.player.levelup" with volume 0.6 to {_b}
 
-# Takes an entry from its giver; returns what the receiver needs ("plate=label" for a car, "" for a cosmetic).
+# Takes an entry from its giver; returns what the receiver needs ("plate=model" for a car, the serial for a cosmetic).
 function tradeTake(g: player, e: text) :: text:
 	set {_a::*} to {_e} split at ":"
 	set {_id} to {_a::2}
 	if {_a::1} is "car":
-		set {_plate} to carPlate({_g}, {_id})
-		set {_label} to carColorOf({_g}, {_id})
-		# A crate car's serial goes with it (garage.sk).
-		set {_sn} to carSerial({_g}, {_id})
-		delete {data::%{_g}%::car::%{_id}%}
-		delete {data::%{_g}%::carcolor::%{_id}%}
-		delete {data::%{_g}%::carserial::%{_id}%}
-		carLog("trade-out %{_g}% %uuid of {_g}% %{_id}% %{_plate}% %{_label}% serial=%{_sn}%")
-		return "%{_plate}%=%{_label}%=%{_sn}%"
+		# Everything the car is (wrap, mods, serial number, crate count) stays with its plate (garage.sk).
+		set {_plate} to {_id}
+		set {_m} to carModelOf({_plate})
+		delete {data::%{_g}%::cars::%{_plate}%}
+		carLog("trade-out %{_g}% %uuid of {_g}% %{_m}% %{_plate}% %carTitle({_plate})% vin=%carVin({_plate})% grade=%carGrade({_plate})%")
+		return "%{_plate}%=%{_m}%"
 	# The copy's serial goes with it (cosmetics.sk; numbered now if it never was).
 	set {_sn} to cosSerial({_g}, {_id})
 	delete {data::%{_g}%::cos::%{_id}%}
@@ -688,19 +689,14 @@ function tradeGive(r: player, e: text, what: text):
 	if {_a::1} is "car":
 		set {_w::*} to {_what} split at "="
 		set {_plate} to {_w::1}
-		set {data::%{_r}%::car::%{_id}%} to {_plate}
-		set {data::%{_r}%::carcolor::%{_id}%} to {_w::2}
-		set {_sn} to {_w::3} parsed as integer
-		if {_sn} is set:
-			if {_sn} > 0:
-				set {data::%{_r}%::carserial::%{_id}%} to {_sn}
+		set {data::%{_r}%::cars::%{_plate}%} to {_w::2}
 		set {car::owner::%{_plate}%} to "%uuid of {_r}%"
 		set {car::lock::%{_plate}%} to true
 		delete {-car::members::%{_plate}%::*}
 		set {_car} to mtv vehicle with license plate {_plate}
 		if {_car} is set:
 			set vehicle owner of {_car} to {_r}
-		carLog("trade-in %{_r}% %uuid of {_r}% %{_id}% %{_plate}% %{_w::2}%")
+		carLog("trade-in %{_r}% %uuid of {_r}% %{_w::2}% %{_plate}% %carTitle({_plate})% vin=%carVin({_plate})%")
 		stop
 	set {data::%{_r}%::cos::%{_id}%} to true
 	set {_sn} to {_what} parsed as integer
@@ -713,7 +709,7 @@ function tradeEntryName(e: text, what: text) :: text:
 	set {_id} to {_a::2}
 	if {_a::1} is "car":
 		set {_w::*} to {_what} split at "="
-		return "&f%{_w::2}% %carName({_id})%"
+		return "&f%carTitle({_w::1})%%carSerialText({_w::1})%"
 	return cosColored({_id})
 
 # ---------- Ending it ----------

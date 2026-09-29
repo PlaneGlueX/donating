@@ -10,8 +10,10 @@
 //      it like WeaponMechanics': only as Donating's pack, credits kept in the zip
 //      (MTVehicles-credits.txt), never sold or published on its own. Fixes to its files: window
 //      textures that point at pre-1.13 paths (blocks/glass_*) and unused placeholder slots; its own
-//      atlas file is replaced by one that adds textures/custom/ to the block atlas.
-//   3. Our own pack\ on top (the phone, the bag, ammo, the XP bar, the tab-list logo).
+//      atlas file is replaced by one that adds textures/custom/ to the block atlas. The car wraps
+//      (tools\make-car-wraps.js: models in pack\, their damages in tools\car-wraps.generated.json) get
+//      entries of their own in the car dispatch.
+//   3. Our own pack\ on top (the phone, the bag, ammo, the XP bar, the tab-list logo, the car wraps).
 // Merging: sounds.json is joined event by event, atlases and fonts list by list (a clash stops the
 // build); any other file in two sources stops the build unless it's ours (pack\ wins, with a note).
 // Paths inside the zip use forward slashes (Windows PowerShell's Compress-Archive writes backslashes,
@@ -30,6 +32,7 @@ const mtvZip = path.join(repo, 'extras', 'packs', 'MTVehicles_Pack_v0.2.3_1.21.4
 const vehiclesYml = path.join(repo, 'server', 'plugins', 'MTVehicles', 'vehicles.yml')
 const mtvConfig = path.join(repo, 'server', 'plugins', 'MTVehicles', 'config.yml')
 const mtvCredits = path.join(repo, 'server', 'plugins', 'MTVehicles', 'credits.txt')
+const carWraps = path.join(__dirname, 'car-wraps.generated.json')
 const out = path.join(repo, 'extras', 'packs', 'Donating-pack.zip')
 const allCars = process.argv.includes('--cars') && process.argv[process.argv.indexOf('--cars') + 1] === 'all'
 
@@ -131,7 +134,22 @@ if (fs.existsSync(mtvZip)) {
   const hoe = parseJson(mtv.get('assets/minecraft/items/diamond_hoe.json'))
   const dispatch = hoe.model.on_false
   // Thresholds are damage / 1562; the client picks by damage / 1561 (verified: every car maps to itself).
-  const kept = dispatch.entries.filter(e => e.threshold === 0 || allCars || keep.has(Math.round(e.threshold * (MAX_DAMAGE + 1))))
+  const damageOf = e => Math.round(e.threshold * (MAX_DAMAGE + 1))
+  const kept = dispatch.entries.filter(e => e.threshold === 0 || allCars || keep.has(damageOf(e)))
+  // Car wraps and colors MTVehicles' dispatch doesn't have (tools\make-car-wraps.js writes the list): entries of
+  // their own, the same way, in threshold order with the others. Their models are ours (pack\, step 3) or MTVehicles'.
+  const extra = fs.existsSync(carWraps) ? JSON.parse(fs.readFileSync(carWraps, 'utf8')) : []
+  const inDispatch = new Set(dispatch.entries.map(damageOf))
+  let extraKept = 0
+  for (const w of extra) {
+    if (!Number.isInteger(w.damage) || w.damage < 1 || w.damage >= MAX_DAMAGE) throw new Error(`car-wraps.generated.json: bad damage ${w.damage}`)
+    if (inDispatch.has(w.damage)) throw new Error(`car-wraps.generated.json: damage ${w.damage} is in MTVehicles' dispatch already`)
+    inDispatch.add(w.damage)
+    if (!allCars && !keep.has(w.damage)) continue
+    kept.push({ threshold: w.damage / (MAX_DAMAGE + 1), model: { type: 'model', model: w.model } })
+    extraKept++
+  }
+  kept.sort((a, b) => a.threshold - b.threshold)
   put('assets/minecraft/items/diamond_hoe.json', toJson({ ...hoe, model: { ...hoe.model, on_false: { ...dispatch, entries: kept } } }), 'mtv')
   // Pre-1.13 texture paths -> today's vanilla textures (the pack's own blocks/ copies are in no atlas).
   const RENAME = {
@@ -147,9 +165,23 @@ if (fs.existsSync(mtvZip)) {
   const models = new Map()
   const textures = new Set()
   const problems = []
+  const oursUsed = new Set()
+  const ourFile = rel => path.join(root, ...rel.split('/'))
   const addModel = id => {
     id = id.replace(/^minecraft:/, '')
-    if (models.has(id) || id.startsWith('item/') || id.startsWith('block/')) return
+    if (models.has(id) || oursUsed.has(id) || id.startsWith('item/') || id.startsWith('block/')) return
+    // Ours (a car wrap): step 3 adds it; here only the MTVehicles textures and models it uses.
+    if (fs.existsSync(ourFile(`assets/minecraft/models/${id}.json`))) {
+      oursUsed.add(id)
+      const j = parseJson(fs.readFileSync(ourFile(`assets/minecraft/models/${id}.json`)))
+      for (const v of Object.values(j.textures || {})) {
+        if (typeof v !== 'string' || v.startsWith('#')) continue
+        const t = v.replace(/^minecraft:/, '')
+        if (!fs.existsSync(ourFile(`assets/minecraft/textures/${t}.png`)) && mtv.has(`assets/minecraft/textures/${t}.png`)) textures.add(t)
+      }
+      if (j.parent) addModel(j.parent)
+      return
+    }
     const file = `assets/minecraft/models/${id}.json`
     if (!mtv.has(file)) { problems.push(`missing model ${id}`); models.set(id, null); return }
     const j = parseJson(mtv.get(file))
@@ -199,7 +231,10 @@ if (fs.existsSync(mtvZip)) {
     '\nVEHICLE MODELS (from the models\' own comments): Spooky_538 and Groanz (Cubik Studio), sebxter (boats).\n' +
     'MTVehicles: https://github.com/MTVehicles/MinetopiaVehicles (MIT, Copyright (c) 2020 GamerJoep_), pack: https://mtvehicles.nl/#resource-pack\n' +
     'Merged into the Donating server pack for its players only; not sold or published on its own.\n'), 'mtv')
-  console.log(`merged ${kept.length - 1} cars from ${path.basename(mtvZip)}: ${models.size} models, ${textures.size} textures (${px} px), horn ${Object.keys(keepSnd).join(',') || 'none'}`)
+  console.log(`merged ${kept.length - 1 - extraKept} cars from ${path.basename(mtvZip)}: ${models.size} models, ${textures.size} textures (${px} px), horn ${Object.keys(keepSnd).join(',') || 'none'}`)
+  if (extra.length) console.log(`car wraps and extra colors: ${extraKept} dispatch entries (${oursUsed.size} of our models)`)
+  // The wrap models are generated, not tracked in git: without them every wrapped car would be a missing model.
+  if (problems.some(p => p.includes('custom/wraps/'))) throw new Error('car wrap models are missing: run tools\\node\\node.exe tools\\make-car-wraps.js first')
   if (problems.length) console.warn(`MTVehicles pack problems: ${problems.join(', ')}`)
 } else {
   console.warn(`WARNING: ${mtvZip} is missing (run tools\\fetch.ps1): cars will look like diamond hoes`)

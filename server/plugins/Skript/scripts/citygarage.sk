@@ -106,13 +106,12 @@ function garageFind(p: player):
 	msg({_p}, "&6Garage: &fthe GPS leads you to the &e%garagePoiName({_n})%&f.")
 
 # A car that's out: the GPS leads to it; in the garage: to the nearest garage.
-function garageFindCar(p: player, id: text):
-	set {_plate} to carPlate({_p}, {_id})
-	if {_plate} is not "":
+function garageFindCar(p: player, plate: text):
+	if carOwns({_p}, {_plate}) is true:
 		set {_at} to {car::out::%{_plate}%}
 		if {_at} is set:
-			gpsPin({_p}, {_at}, "Your %carName({_id})%")
-			msg({_p}, "&6Your %carName({_id})%: &fthe GPS leads you to it.")
+			gpsPin({_p}, {_at}, "Your %carName(carModelOf({_plate}))%")
+			msg({_p}, "&6Your %carTitle({_plate})%: &fthe GPS leads you to it.")
 			stop
 	garageFind({_p})
 
@@ -221,26 +220,23 @@ function garageReturnCheck(p: player, s: text):
 	make {_p} dismount
 	carStopDriving({_p}, {_plate})
 	carStore({_plate}, "returned")
-	send title colored "&a&lPARKED&r" with subtitle colored "&7Your %carName({_m})% is back in the garage." to {_p} for 2 seconds
+	send title colored "&a&lPARKED&r" with subtitle colored "&7Your %carTitle({_plate})% is back in the garage." to {_p} for 2 seconds
 	play sound "block.note_block.chime" with volume 0.6 to {_p}
 
 # ---------- Stage 2: the bays (each player sees their own cars) ----------
 # Staff bays (/dgaragesite bay add: standing where the car should stand, facing along it). Inside a site, a player's
-# n-th car in the garage (not out; in core.sk's cars order) shows in bay n as a personal item display (pv.sk: only
+# n-th car in the garage (not out; in the garage menu's order: best first) shows in bay n as a personal item display (pv.sk: only
 # they see it; the pack draws the car item). Past the last bay a car is only in the menu. One shared, unresponsive click
 # box per bay (right-click: that bay's car comes out in the exit lane); labels by DecentHolograms placeholders that
 # read memory per viewer (/dgaragesite holo). Without DonatingPhone (pvReady false) the models are missing; clicks and
-# labels still work. Memory: {-bay::key::<u>} (what's drawn), {-bay::car::<u>::<s>::<n>} (the car id in a bay),
+# labels still work. Memory: {-bay::key::<u>} (what's drawn), {-bay::car::<u>::<s>::<n>} (the car's plate in a bay),
 # {-ph::bay::<p>::<s>::<n>} / {-ph::bayhint::<p>::<s>::<n>}, {-bay::hit::<entity uuid>} = "<s>|<n>".
 
-# "id:label" of each car in the garage (not out), in the cars order.
+# "plate:look" of each car in the garage (not out), in the garage menu's order (the look changes with a repaint).
 function garageBayCars(p: player) :: texts:
-	loop {-cfg::cars::*}:
-		set {_id} to loop-value
-		if carOwned({_p}, {_id}) is true:
-			set {_plate} to carPlate({_p}, {_id})
-			if {car::out::%{_plate}%} is not set:
-				add "%{_id}%:%carColorOf({_p}, {_id})%" to {_out::*}
+	loop carsOf({_p}):
+		if {car::out::%loop-value%} is not set:
+			add "%loop-value%:%carColor(loop-value)%%carWrap(loop-value)%" to {_out::*}
 	return {_out::*}
 
 function garageBayClear(p: player):
@@ -289,13 +285,15 @@ function garageBaySync(p: player):
 		set {_c} to {_cars::%{_k}%}
 		if {_c} is set:
 			set {_a::*} to "%{_c}%" split at ":"
-			set {_id} to {_a::1}
-			set {-bay::car::%{_u}%::%{_s}%::%{_n}%} to {_id}
-			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&6%carName({_id})% &7· %{_a::2}%"
+			set {_plate} to {_a::1}
+			set {-bay::car::%{_u}%::%{_s}%::%{_n}%} to {_plate}
+			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&6%carTitle({_plate})% &7· %carGradeName(carGrade({_plate}))%"
 			set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&eRight-click: take it out"
+			if carDriveBlock({_p}, {_plate}) is not "":
+				set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&cNeeds level %carLevelOf(carModelOf({_plate}))% to drive"
 			set {_l} to garageSpotLoc(loop-value)
 			set {_l} to {_l} ~ vector(0, cfg("garage::bay-lift"), 0)
-			set {_e} to pvItem({_p}, "bay:%{_s}%:%{_n}%", {_l}, carIcon({_id}, {_a::2}), cfg("garage::bay-scale"))
+			set {_e} to pvItem({_p}, "bay:%{_s}%:%{_n}%", {_l}, carIconOf({_plate}), cfg("garage::bay-scale"))
 			if {_e} is set:
 				set item transform of {_e} to head
 		else:
@@ -310,15 +308,15 @@ on quit:
 	garageBayClear(player)
 
 # The repaint preview (carPaint's first click at a site): the car's bay shows the new color for garage::preview-time.
-function garageBayPreview(p: player, id: text, label: text):
+function garageBayPreview(p: player, plate: text, label: text):
 	set {_u} to "%uuid of {_p}%"
 	set {_s} to garageAt({_p})
 	{_s} is not ""
 	loop {-bay::car::%{_u}%::%{_s}%::*}:
-		if loop-value is {_id}:
+		if loop-value is {_plate}:
 			set {_e} to pvGet({_p}, "bay:%{_s}%:%loop-index%")
 			if {_e} is set:
-				set item of {_e} to carIcon({_id}, {_label})
+				set item of {_e} to carIcon(carModelOf({_plate}), {_label})
 				set {-bay::preview::%{_u}%} to now
 				hudBar({_p}, "&7Look at your bay: that's the new color. &eClick again to pay.", 1)
 
@@ -376,11 +374,11 @@ function garageBayClick(p: player, s: text, n: text):
 	if garageAt({_p}) is not {_s}:
 		hudBar({_p}, "&7Take cars out inside the garage.", 1)
 		stop
-	set {_id} to {-bay::car::%uuid of {_p}%::%{_s}%::%{_n}%}
-	if {_id} is not set:
+	set {_plate} to {-bay::car::%uuid of {_p}%::%{_s}%::%{_n}%}
+	if {_plate} is not set:
 		hudBar({_p}, "&7This bay is empty for you. All your cars: the attendant or &f/garage", 1)
 		stop
-	carCall({_p}, "%{_id}%")
+	carCall({_p}, "%{_plate}%")
 
 # ---------- Staff ----------
 

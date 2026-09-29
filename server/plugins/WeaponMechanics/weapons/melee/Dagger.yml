@@ -1,0 +1,53 @@
+Dagger:
+  Info:
+    Cancel:
+      Drop_Item: true
+      Swap_Hands: true
+    Weapon_Item:
+      # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
+      # draws it by its custom model data (tools\make-item-art.js, Melee weapons and consumables).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Dagger"
+      Lore:
+        - "<gray>Short, light and quick: twice the pace of a combat knife,"
+        - "<gray>a little less per cut, and nasty from behind."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 4 <gold>⟸ <gray>Damage (5.8 from behind)"
+        - "<gold>➣<gray> 2 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 3.5 <gold>⟸ <gray>Range in blocks"
+      Unbreakable: true
+      Hide_Flags: true
+      Attributes:
+        - "movement_speed 0.004"
+        - "attack_speed -2"
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_chain, pitch=1.1, listeners=Source{}}"
+  Skin:
+    Default:
+      Custom_Model_Data: 1
+  Damage:
+    # Donating (owner, 2026-09-28): a quick knife. 4 a hit (5 hits unarmored, 15 in the best gear), a hit
+    # every 10 ticks. From behind 4 + 1.5 = 5.5, the AK-47's base damage, and config.yml's Back +5% makes
+    # it 5.78: exactly an AK-47 shot in the back (4 hits unarmored, 10 in the best gear), so a backstab
+    # is never stronger than the strongest gun (with +2 it would be 6.3: 9 hits through the best gear).
+    Base_Damage: 4
+    Armor_Damage: 3
+    Mechanics:
+      - "Sound{sound=entity.player.attack.sweep, pitch=1.6, volume=0.6} @Target{}"
+    Head:
+      # Donating: no bonus on top of the global Head modifier (like the Combat Knife).
+      Bonus_Damage: 0
+    Backstab:
+      Bonus_Damage: 1.5
+      Mechanics:
+        - "Sound{sound=entity.player.attack.crit, pitch=0.8} @Target{}"
+  Melee:
+    Enable_Melee: true
+    Melee_Range: 3.5
+    Melee_Hit_Delay: 10
+    Melee_Miss:
+      Mechanics:
+        - "Sound{sound=entity.player.attack.nodamage, pitch=1.4, noise=0.1}"
+      Melee_Miss_Delay: 10

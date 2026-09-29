@@ -232,6 +232,22 @@ function killFx(id: text, l: location):
 	else if {_id} is "totem":
 		draw 60 totem of undying particles with offset vector(0.4, 0.8, 0.4) at {_c}
 		play sound "item.totem.use" with volume 0.6 at {_c}
+	else if {_id} is "lvl_crown":
+		# Level 150: a gold ring over the victim, like a crown.
+		set {_top} to {_c} ~ vector(0, 1.2, 0)
+		loop 16 times:
+			set {_a} to loop-number * 22.5
+			draw 1 wax on particle with offset vector(0, 0, 0) at {_top} ~ vector(cos({_a}) * 0.45, 0, sin({_a}) * 0.45)
+			draw 1 end rod particle with offset vector(0, 0.05, 0) at {_top} ~ vector(cos({_a}) * 0.45, 0.15, sin({_a}) * 0.45)
+		draw 20 totem of undying particles with offset vector(0.3, 0.6, 0.3) at {_c}
+		play sound "entity.player.levelup" with volume 0.8 at {_c}
+	else if {_id} is "lvl_moneyrain":
+		# Level 200: cash raining down.
+		draw 50 happy villager particles with offset vector(0.8, 0.2, 0.8) at {_c} ~ vector(0, 1.5, 0)
+		draw 40 wax on particles with offset vector(0.8, 1, 0.8) at {_c}
+		draw 20 end rod particles with offset vector(0.6, 0.3, 0.6) at {_c} ~ vector(0, 2, 0)
+		play sound "block.chain.break" with volume 0.8 at {_c}
+		play sound "entity.experience_orb.pickup" with volume 1 at {_c}
 	else if {_id} is "glitch":
 		draw 30 end rod particles with offset vector(0.3, 0.9, 0.3) at {_c}
 		draw 30 sculk soul particles with offset vector(0.4, 0.8, 0.4) at {_c}

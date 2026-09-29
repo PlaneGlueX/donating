@@ -187,7 +187,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)
     await sleep(1200)
     w = await menu(A)
-    check('level 5: the offer shows the car, where, the pay ($1,500: contracts halved) and "Click: take this job"', /Red Sedan/.test(itemText(w && w.slots[11])) && /\$1,500/.test(itemText(w && w.slots[11])) && /\+30 XP/.test(itemText(w && w.slots[11])) && /Click: take this job/.test(itemText(w && w.slots[11])) && /1\dm (E|NE|SE)/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 600))
+    check('level 5: the offer shows the car, where, the pay ($12,000), the tier\'s wait after a delivery (1h) and "Click: take this job"', /Red Sedan/.test(itemText(w && w.slots[11])) && /\$12,000/.test(itemText(w && w.slots[11])) && /\+120 XP/.test(itemText(w && w.slots[11])) && /After a delivery/.test(itemText(w && w.slots[11])) && /1h 00m/.test(itemText(w && w.slots[11])) && /Click: take this job/.test(itemText(w && w.slots[11])) && /1\dm (E|NE|SE)/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 600))
     // Lockpicks: Basic ($250, no confirm), Pro (level 30), Master ($2,000, confirm).
     await click(A, 20)
     await sleep(500)
@@ -336,14 +336,26 @@ module.exports = async ({ check }) => {
     await sleep(800)
     s = await state(A)
     const lvl = (await xpOf()) - xp0
-    check('driving into a chop shop: $1,500 and 30 XP, the job ends, the car is scrapped', (await bal(A)) - bal0 === 1500 && lvl === 30 && field(s, 'job') === '<none>' && !/exists=yes/.test(await car(plate)) && /CAR DELIVERED|chop shop took/.test(text(A, t)) && logged(/deliver ThiefA .* pay=1500 xp=30/).length === 1, `${(await bal(A)) - bal0} ${lvl} ${s} ${await car(plate)} ${text(A, t)}`)
-    check('...the robbery bounty adds 10% ($150), and the thief is out of the car', /BOUNTY ThiefA 150/.test(await cmd(`zzbounty ${A}`)) && !/driver/.test(await cmd(`zzcarseat ${A}`)), `${await cmd(`zzbounty ${A}`)} ${await cmd(`zzcarseat ${A}`)}`)
+    check('driving into a chop shop: $12,000 and 120 XP, the job ends, the car is scrapped', (await bal(A)) - bal0 === 12000 && lvl === 120 && field(s, 'job') === '<none>' && !/exists=yes/.test(await car(plate)) && /CAR DELIVERED|chop shop took/.test(text(A, t)) && logged(/deliver ThiefA .* pay=12000 xp=120/).length === 1, `${(await bal(A)) - bal0} ${lvl} ${s} ${await car(plate)} ${text(A, t)}`)
+    check('...the robbery bounty adds 10% ($1,200), and the thief is out of the car', /BOUNTY ThiefA 1200/.test(await cmd(`zzbounty ${A}`)) && !/driver/.test(await cmd(`zzcarseat ${A}`)), `${await cmd(`zzbounty ${A}`)} ${await cmd(`zzcarseat ${A}`)}`)
     await sleep(2500)
     check('the GPS dot is gone, and so is the boss bar', !/CONTRACT/.test(barText()) && !/Test passed/.test(await cmd('execute if entity @e[tag=donating_gps]')), `${barText()} ${await cmd('execute if entity @e[tag=donating_gps]')}`)
     t = Date.now()
     await cmd(`zzcttake ${A} basic`)
     await sleep(500)
-    check('the next job waits for the cooldown (3:00)', /next job is ready in 2:5\d|next job is ready in 3:00/.test(text(A, t)), text(A, t))
+    const ready = await cmd(`zzdata ${A} ctready::basic`)
+    check('after a delivery the next Street job waits 1 hour (owner: easy 1 h, medium 3 h, hard 6 h), saved as a real time', /next Street job is ready in (1h 00m|59m)/.test(text(A, t)) && Number((ready.match(/= ([\d.]+)/) || [])[1]) - Date.now() / 1000 > 3500, `${text(A, t)} ${ready}`)
+    // Another tier doesn't wait for it: a Pro job can be taken now (level 30).
+    await cmd(`dlevel set ${A} 30`)
+    await cmd(`zzheisttp ${A} 1410.5 ${Y} 1410.5`) // at the contract giver
+    await sleep(600)
+    await cmd(`zzctoffer ${A} pro sedan Red ${spotN}`)
+    t = Date.now()
+    await cmd(`zzcttake ${A} pro`)
+    await sleep(500)
+    check('...but the other tiers don\'t (a Pro job is taken at once)', field(await state(A), 'job') === 'pro', `${await state(A)} ${text(A, t)}`)
+    await cmd(`zzctreset ${A}`)
+    await cmd(`dlevel set ${A} 5`)
 
     // ---------- Time runs out; logging out; dropping it ----------
     await cmd(`zzheisttp ${A} 1410.5 ${Y} 1410.5`) // back at the contract giver
@@ -382,7 +394,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzpassive ${A} on`)
     await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)
     w = await menu(A)
-    check('a passive player\'s job pays 75% ($1,125)', /\$1,125/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 400))
+    check('a passive player\'s job pays 75% ($9,000)', /\$9,000/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 400))
     await closeAll(A)
     await cmd(`zzpassive ${A} off`)
     await cmd(`minecraft:kill ${A}`)

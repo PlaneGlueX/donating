@@ -263,9 +263,8 @@ function storyOwnsGun(p: player) :: boolean:
 	return false
 
 function storyOwnsCar(p: player) :: boolean:
-	loop {-cfg::cars::*}:
-		if carOwned({_p}, loop-value) is true:
-			return true
+	if carCount({_p}) > 0:
+		return true
 	return false
 
 # Whether a state objective holds now.

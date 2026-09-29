@@ -13,6 +13,12 @@
 # passive players). Combat-tagged and wanted players can't get into a safe zone (pvp.sk).
 # Death: the loot leaves the bag and lies on the ground as one duffel (traps.sk's trapDropSpot: a floor
 # trap's pit drops it on the last safe spot) that anyone may take, as much as fits in their own bag.
+# Hot loot (review 2026-09-28): a robber the cops hunt drops a hot duffel; whoever takes it (the robber too)
+# can't sell those lines for cfg duffel::hot-time (data "hot::<h>#<run>" = unix time), and a death passes
+# the heat on. Else a friend walked the loot into the base without ever losing the cops.
+# Level XP from a sale counts only loot the seller robbed themselves (progress.sk's own-loot ledger), like
+# jobs and seasons: a duffel pays money, never levels. Store loot stays in a duffel for robbers over the
+# store's max level.
 #
 # Saved: {data::<uuid>::loot::<h>#<run>} = $ (getData key "loot::<h>#<run>"), data "loot-sold" (total $
 # sold) and "robberies" (heist runs sold). Memory: {-bag::total::<p>} (cache), {-bag::shown::<p>} (the
@@ -114,6 +120,7 @@ function bagForfeit(p: player, h: text, run: number) :: number:
 	if {_v} is not set:
 		return 0
 	deleteData({_p}, {_key})
+	deleteData({_p}, "hot::%{_h}%#%{_run}%")
 	bagRecount({_p})
 	bagRefresh({_p})
 	bagLog("forfeit %name of {_p}% %uuid of {_p}% %{_h}%#%{_run}% value=%{_v}%")
@@ -167,11 +174,19 @@ on death of player:
 			set {_lines} to "%{_lines}%;%loop-index%=%loop-value%"
 	delete {-bag::total::%victim%}
 	delete {-bag::shown::%victim%}
+	# Hot: hunted now (heists.sk releases the hunt later, at priority monitor), or carrying loot that was hot.
+	set {_hot} to 0
+	if {-heisthunt::%victim%} is set:
+		set {_hot} to (unix timestamp of now) + (cfg("duffel::hot-time") / 1 second)
+	loop {data::%victim%::hot::*}:
+		if loop-value > {_hot}:
+			set {_hot} to loop-value
+	delete {data::%victim%::hot::*}
 	{_sum} > 0
 	set {_l} to trapDropSpot(victim)
 	delete {data::%victim%::loot::*}
-	set {_dropped} to duffelDrop(victim, {_l}, {_lines})
-	bagLog("death-lost %name of victim% %uuid of victim% total=%{_sum}% lines=%{_lines}% duffel=%{_dropped}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+	set {_dropped} to duffelDrop(victim, {_l}, {_lines}, {_hot})
+	bagLog("death-lost %name of victim% %uuid of victim% total=%{_sum}% lines=%{_lines}% hot=%{_hot}% duffel=%{_dropped}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
 
 # ---------- The dropped duffel (part 2, 2026-09-26) ----------
 # The loot a death takes out of the bag lies on the ground as one duffel: a normal item entity that the
@@ -185,7 +200,8 @@ on death of player:
 # Everything about a duffel is in its item's custom data, so it survives chunk unloads and restarts:
 #   donating_id "duffel:<n>" (never two alike, so duffels don't merge), donating_duffel = its lines
 #   "<heist>#<run>=<$>;..." (each keeps its tag: 0:00 of that run still costs it), donating_duffel_owner
-#   (uuid), donating_duffel_name, donating_duffel_passive ("true"/"false"), donating_duffel_until (unix
+#   (uuid), donating_duffel_name, donating_duffel_passive ("true"/"false"), donating_duffel_hot (unix: can't
+#   be sold before; 0 = not hot), donating_duffel_until (unix
 #   seconds). The pickup itself is SkBee's "on player attempt item pickup" (it also fires with a full
 #   inventory), always cancelled: the duffel never becomes an item in anyone's inventory.
 
@@ -208,7 +224,7 @@ function duffelValue(lines: text) :: number:
 			add {_v} to {_sum}
 	return {_sum}
 
-function duffelItem(lines: text, owner: text, oname: text, passive: text, until: number) :: item:
+function duffelItem(lines: text, owner: text, oname: text, passive: text, until: number, hot: number) :: item:
 	add 1 to {-duffel::next}
 	set {_i} to leather named "&6Loot Duffel"
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_loot"
@@ -217,18 +233,24 @@ function duffelItem(lines: text, owner: text, oname: text, passive: text, until:
 	set string tag "donating_duffel_name" of custom nbt of {_i} to {_oname}
 	set string tag "donating_duffel_passive" of custom nbt of {_i} to {_passive}
 	set double tag "donating_duffel_until" of custom nbt of {_i} to {_until}
+	set double tag "donating_duffel_hot" of custom nbt of {_i} to {_hot}
 	return tagItem({_i}, "duffel:%{-duffel::next}%")
 
 # The name over it: the value and the time left.
 function duffelShow(e: entity, v: number, left: number):
+	set {_hot} to double tag "donating_duffel_hot" of custom nbt of (item of {_e})
+	if {_hot} is set:
+		if {_hot} > unix timestamp of now:
+			set display name of {_e} to colored "&c&lHOT&r &6Loot duffel &f%formatMoney({_v})% &7· %formatClock({_left})%"
+			stop
 	set display name of {_e} to colored "&6Loot duffel &f%formatMoney({_v})% &7· %formatClock({_left})%"
 	show the custom name of {_e}
 
 # Drops a death's loot as a duffel at l; true when it's on the ground.
-function duffelDrop(p: player, l: location, lines: text) :: boolean:
+function duffelDrop(p: player, l: location, lines: text, hot: number) :: boolean:
 	set {_life} to cfg("duffel::despawn") / 1 second
 	set {_until} to (unix timestamp of now) + {_life}
-	set {_i} to duffelItem({_lines}, "%uuid of {_p}%", "%{_p}%", "%isPassive({_p})%", {_until})
+	set {_i} to duffelItem({_lines}, "%uuid of {_p}%", "%{_p}%", "%isPassive({_p})%", {_until}, {_hot})
 	set {_id} to itemId({_i})
 	if {_l} is not set:
 		set {_l} to location of {_p}
@@ -279,23 +301,49 @@ function duffelGrab(p: player, e: entity):
 	if {_room} <= 0:
 		duffelTell({_p}, "&c&l%bagFullWord({_p})%&r &7· it stays in the duffel")
 		stop
+	set {_hot} to double tag "donating_duffel_hot" of custom nbt of {_i}
+	if {_hot} is not set:
+		set {_hot} to 0
+	set {_now} to unix timestamp of now
+	set {_lvl} to levelOf({_p})
 	set {_took} to 0
+	set {_kept} to 0
 	set {_rest} to ""
 	loop {_lines} split at ";":
 		set {_kv::*} to loop-value split at "="
 		set {_v} to {_kv::2} parsed as number
 		if {_v} is set:
 			set {_got} to 0
-			if {_took} < {_room}:
-				set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
-				add {_got} to {_took}
+			# A store's loot is for new robbers: over its max level, it stays in the duffel.
+			set {_hp::*} to {_kv::1} split at "#"
+			set {_mx} to heistMaxLevel({_hp::1})
+			set {_over} to false
+			if {_mx} > 0:
+				if {_lvl} > {_mx}:
+					set {_over} to true
+					set {_keptmax} to {_mx}
+					add {_v} to {_kept}
+			if {_over} is false:
+				if {_took} < {_room}:
+					set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
+					add {_got} to {_took}
+					if {_got} > 0:
+						if {_hot} > {_now}:
+							set {_had} to getData({_p}, "hot::%{_kv::1}%")
+							if {_had} is not set:
+								setData({_p}, "hot::%{_kv::1}%", {_hot})
+							else if {_had} < {_hot}:
+								setData({_p}, "hot::%{_kv::1}%", {_hot})
 			if {_v} > {_got}:
 				set {_line} to "%{_kv::1}%=%{_v} - {_got}%"
 				if {_rest} is "":
 					set {_rest} to {_line}
 				else:
 					set {_rest} to "%{_rest}%;%{_line}%"
-	{_took} > 0
+	if {_took} <= 0:
+		if {_kept} > 0:
+			duffelTell({_p}, "&7Store loot is for new robbers (up to level %{_keptmax}%): it stays in the duffel.")
+		stop
 	set {_id} to itemId({_i})
 	if {_rest} is "":
 		kill {_e}
@@ -309,7 +357,9 @@ function duffelGrab(p: player, e: entity):
 		hudBar({_p}, "&a+%formatMoney({_took})% &7from a loot duffel &c(bag full: %formatMoney(duffelValue({_rest}))% left in it)", 1)
 	play sound "entity.item.pickup" with volume 1 to {_p}
 	play sound "block.note_block.chime" with volume 0.6 and pitch 1.4 to {_p}
-	bagLog("duffel-take %name of {_p}% %uuid of {_p}% %{_id}% owner=%{_owner}% took=%{_took}% rest=%{_rest}%")
+	if {_hot} > {_now}:
+		msg({_p}, "&c&lHOT LOOT&r &7· it came off a robber the cops were chasing: it can't be sold for &f%formatClock({_hot} - {_now})%&7.")
+	bagLog("duffel-take %name of {_p}% %uuid of {_p}% %{_id}% owner=%{_owner}% took=%{_took}% hot=%{_hot}% rest=%{_rest}%")
 
 on player attempt item pickup:
 	set {_e} to event-dropped item
@@ -393,7 +443,7 @@ function isBaseAt(l: location) :: boolean:
 			return true
 	return false
 
-# Sells the whole bag; returns the pay (0 when nothing sold). One call, no wait.
+# Sells the bag, all but hot loot; returns the pay (0 when nothing sold). One call, no wait.
 function bagSell(p: player) :: number:
 	if {_p} is not alive:
 		return 0
@@ -403,7 +453,27 @@ function bagSell(p: player) :: number:
 		return 0
 	if isBaseAt(location of {_p}) is false:
 		return 0
-	set {_t} to bagRecount({_p})
+	bagRecount({_p})
+	# What sells now: every line but hot ones (data "hot::<tag>" still in the future; spent ones are forgotten).
+	set {_now} to unix timestamp of now
+	set {_t} to 0
+	set {_heat} to 0
+	set {_heatleft} to 0
+	loop {data::%{_p}%::loot::*}:
+		set {_hot} to getData({_p}, "hot::%loop-index%")
+		set {_isHot} to false
+		if {_hot} is set:
+			if {_hot} > {_now}:
+				set {_isHot} to true
+		if {_isHot} is true:
+			add loop-value to {_heat}
+			if {_hot} - {_now} > {_heatleft}:
+				set {_heatleft} to {_hot} - {_now}
+		else:
+			set {_sell::%loop-index%} to loop-value
+			add loop-value to {_t}
+	if {_heat} > 0:
+		hudBar({_p}, "&c&lHOT LOOT&r &f%formatMoney({_heat})% &7can't be sold for &f%formatClock(ceil({_heatleft}))%", 1)
 	if {_t} <= 0:
 		return 0
 	set {_m} to 1
@@ -419,8 +489,9 @@ function bagSell(p: player) :: number:
 		set {_extra} to floor({_pay} * ({_boost} - 1))
 	set {_hauls} to 0
 	set {_credit} to 0
+	set {_own} to 0
 	set {_lines} to ""
-	loop {data::%{_p}%::loot::*}:
+	loop {_sell::*}:
 		add 1 to {_hauls}
 		set {_lines} to "%{_lines}% %loop-index%=%loop-value%"
 		# For the season's boards (progress.sk), after the level XP below.
@@ -428,24 +499,30 @@ function bagSell(p: player) :: number:
 		set {_parts::*} to loop-index split at "#"
 		set {_hid} to {_parts::1}
 		add loop-value to {_by::%{_hid}%}
+		# Level XP counts only loot this player robbed themselves (a picked-up duffel pays money, never levels).
+		set {_o} to progOwnLeft({_p}, loop-index, loop-value)
+		add {_o} to {_own}
 		# Level XP's per-heist bonus counts each heist run once per player (data "level-haul::<h>" = the
 		# last run credited), so selling one run's loot in several trips doesn't pay it again.
 		set {_run} to {_parts::2} parsed as number
 		if {_run} is set:
-			if {_prev::%{_hid}%} is not set:
-				set {_prev::%{_hid}%} to getData({_p}, "level-haul::%{_hid}%")
+			if {_o} > 0:
 				if {_prev::%{_hid}%} is not set:
-					set {_prev::%{_hid}%} to 0
-			if {_run} > {_prev::%{_hid}%}:
-				add 1 to {_credit}
-				if {_top::%{_hid}%} is not set:
-					set {_top::%{_hid}%} to {_run}
-				else if {_run} > {_top::%{_hid}%}:
-					set {_top::%{_hid}%} to {_run}
+					set {_prev::%{_hid}%} to getData({_p}, "level-haul::%{_hid}%")
+					if {_prev::%{_hid}%} is not set:
+						set {_prev::%{_hid}%} to 0
+				if {_run} > {_prev::%{_hid}%}:
+					add 1 to {_credit}
+					if {_top::%{_hid}%} is not set:
+						set {_top::%{_hid}%} to {_run}
+					else if {_run} > {_top::%{_hid}%}:
+						set {_top::%{_hid}%} to {_run}
 	loop {_top::*}:
 		setData({_p}, "level-haul::%loop-index%", loop-value)
-	delete {data::%{_p}%::loot::*}
-	set {-bag::total::%{_p}%} to 0
+	loop {_sell::*}:
+		deleteData({_p}, "loot::%loop-index%")
+		deleteData({_p}, "hot::%loop-index%")
+	bagRecount({_p})
 	giveMoney({_p}, {_pay} + {_extra})
 	set {_bounty} to addBounty({_p}, {_pay} * cfg("bounty::robbery-share"), "robbery")
 	set {_sold} to getData({_p}, "loot-sold")
@@ -457,7 +534,7 @@ function bagSell(p: player) :: number:
 		set {_r} to 0
 	setData({_p}, "robberies", {_r} + {_hauls})
 	bagRefresh({_p})
-	bagLog("sell %name of {_p}% %uuid of {_p}% total=%{_t}% pay=%{_pay}% extra=%{_extra}% booster=%{_boost}% passive=%{_passive}% bounty=%{_bounty}% lines=%{_lines}%")
+	bagLog("sell %name of {_p}% %uuid of {_p}% total=%{_t}% pay=%{_pay}% extra=%{_extra}% booster=%{_boost}% passive=%{_passive}% bounty=%{_bounty}% own=%{_own}% hot-kept=%{_heat}% lines=%{_lines}%")
 	set {_money} to formatMoney({_pay} + {_extra})
 	if {_passive} is true:
 		set {_sub} to "&7passive: 75%% of %formatMoney({_t})%"
@@ -470,12 +547,14 @@ function bagSell(p: player) :: number:
 	play sound "block.note_block.bell" with volume 0.8 and pitch 1.2 to {_p}
 	loop {_by::*}:
 		msg({_p}, "&aSold %formatMoney(loop-value)% of loot from the %heistName(loop-index)%.")
+	if {_heat} > 0:
+		msg({_p}, "&cKept %formatMoney({_heat})% of hot loot: it sells in %formatClock(ceil({_heatleft}))%.")
 	if {_passive} is true:
 		msg({_p}, "&7Passive mode: you got %formatMoney({_pay})% (75%%).")
 	if {_extra} > 0:
 		msg({_p}, "&6⚡ Money booster %boosterText({_boost})%: &e+%formatMoney({_extra})%")
-	# Robber level XP (levels.sk), last: a level-up's title replaces the sale's.
-	levelSale({_p}, {_pay}, {_credit})
+	# Robber level XP (levels.sk), last: a level-up's title replaces the sale's. Only own loot counts.
+	levelSale({_p}, floor({_own} * {_m}), {_credit})
 	# Each heist run's loot (before passive and boosters) for the season (progress.sk).
 	loop {_runs::*}:
 		progEvent({_p}, "sell", loop-value, loop-index)

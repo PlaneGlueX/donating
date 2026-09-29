@@ -1,0 +1,148 @@
+# help.sk: /help for players and /adminhelp for staff (owner, 2026-09-28: "dont forget to update /help and have an
+# /adminhelp or something for all the commands"). /help replaces EssentialsX's. Update these lines whenever a script
+# adds a command or changes a rule.
+#   /help               how to play
+#   /help commands      every player command
+#   /adminhelp [topic]  every staff command (donating.staff): heists, map, players, store, tests
+
+# ---------- /help ----------
+
+function showHelp(p: player):
+	send colored "%cfg("prefix")%&fHow to play" to {_p}
+	send colored "&7• &eHeists: &7rob buildings for loot; watch for traps (lasers, pressure plates, cameras, falling floors). New robbers start in the &fstores&7: no clock, just empty the register. &f/heists" to {_p}
+	send colored "&7• &eYour bag &7(offhand) holds the loot. No bag yet? Your hands carry up to $1,000. Buy bags at the Bag Shop. &f/bag" to {_p}
+	send colored "&7• &eGet out &7before a heist's timer hits 0, or you lose what you took there." to {_p}
+	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
+	send colored "&7• &eLevels: &7selling loot, car jobs, hits and missions earn XP; each level takes a bit more. Levels open heists, guns, bags, cars and members-only places, and give rewards past 100. &f/level&7, &f/levels" to {_p}
+	send colored "&7• &eShops: &7buy a weapon once, equip it for free after that; melee first, guns from level 5. Ammo, Stims, drinks and heist tools are bought again." to {_p}
+	send colored "&7• &eJobs: &7Mara's missions (&f/missions&7), car contracts at the Scrap Yard (&f/contracts&7: each tier waits a while after a delivery), contact jobs (&f/jobs&7), hits (&f/hits&7)." to {_p}
+	send colored "&7• &eCars: &7buy them at the Car Dealer, take them out at a garage (&f/garage&7). Tune them at a garage; car crates give rare wraps and mods, numbered like #3/57." to {_p}
+	send colored "&7• &eCrates: &7a free key every day with &f/daily&7; open them at crate stands, &f/crates &7shows what's inside. &f/cosmetics &7to wear what you won." to {_p}
+	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
+	send colored "&7• &eTrading: &7stand next to someone and &f/trade &7their name: cars and crate cosmetics." to {_p}
+	send colored "&7• &ePhone &7(hotbar 9): the map and GPS, garage, contracts, stats, bounties, passive mode (no PvP, lower pay)." to {_p}
+	send colored "&7• &eRanks &7(&f/ranks&7) support the server: a tag, a bag look and more bag room. Seasons: &f/season&7, &f/lb&7." to {_p}
+	send colored "&7Every command: &f/help commands" to {_p}
+
+function helpLine(p: player, cmd: text, what: text):
+	send colored "&e%{_cmd}% &7- %{_what}%" to {_p}
+
+function showCommands(p: player):
+	send colored "%cfg("prefix")%&fCommands" to {_p}
+	send colored "&6Robbing" to {_p}
+	helpLine({_p}, "/heists", "every heist and store, open or not")
+	helpLine({_p}, "/bag", "what's in your bag, per heist")
+	helpLine({_p}, "/level &7(/lvl), &e/levels", "your level; every level and what it opens")
+	helpLine({_p}, "/bounty [player] [$]", "the biggest bounties; put one on someone (at the Broker)")
+	helpLine({_p}, "/afk", "mark yourself away (AFK players earn nothing)")
+	send colored "&6Jobs" to {_p}
+	helpLine({_p}, "/missions &7(/story)", "Mara's missions and Vic's")
+	helpLine({_p}, "/contracts", "car-theft jobs and lockpicks")
+	helpLine({_p}, "/jobs", "contact jobs from Mara and the Boss")
+	helpLine({_p}, "/hits", "this week's hit contract")
+	send colored "&6Getting around" to {_p}
+	helpLine({_p}, "/gps [clear]", "places to go; your pin")
+	helpLine({_p}, "/garage &7(/cars)", "your cars: take out, lock, repaint, tune, send back")
+	send colored "&6Money and loot" to {_p}
+	helpLine({_p}, "/daily", "your free daily crate key")
+	helpLine({_p}, "/crates", "your keys and what each crate holds")
+	helpLine({_p}, "/booster", "the boosters running now")
+	helpLine({_p}, "/heistrefresh [heist]", "reopen a heist early (Elite, Legend)")
+	helpLine({_p}, "/store &7(/donate), &e/ranks", "support the server")
+	send colored "&6Looks" to {_p}
+	helpLine({_p}, "/cosmetics &7(/wardrobe)", "titles, bag skins, kill effects")
+	helpLine({_p}, "/titles, /bagskins, /killeffects", "one page of the wardrobe")
+	helpLine({_p}, "/title, /bagskin, /killeffect <name/none>", "wear one by name")
+	send colored "&6With others" to {_p}
+	helpLine({_p}, "/trade <player> &7(or &e/trade cancel&7)", "trade cars and crate cosmetics in person")
+	helpLine({_p}, "/season, /lb [board] &7(/leaderboard)", "the season's leaderboards and prizes")
+	helpLine({_p}, "/tutorial", "the first steps again")
+
+# The optional text swallows things like "/help 2" instead of showing a usage error.
+command /help [<text>]:
+	description: How to play Donating.
+	usage: /help [commands]
+	executable by: players
+	trigger:
+		if arg-1 is "commands" or "cmds" or "command":
+			showCommands(player)
+		else:
+			showHelp(player)
+
+# ---------- /adminhelp (staff) ----------
+
+function ahTitle(s: command sender, t: text):
+	send colored "%cfg("prefix")%&f%{_t}%" to {_s}
+
+function ahLine(s: command sender, cmd: text, what: text):
+	send colored "&e%{_cmd}% &7- %{_what}%" to {_s}
+
+function showAdminHelp(s: command sender, topic: text):
+	if {_topic} is "heists":
+		ahTitle({_s}, "Staff: heists (build a heist in this order: CLAUDE.md, Heists)")
+		ahLine({_s}, "/dheist create <id> <0-4>", "a heist over the WorldGuard region heist_<id> (0 = a store)")
+		ahLine({_s}, "/dheist set <id> name/escape/cooldown/pool/level/advanced/pvp/trap-damage <value>", "its settings")
+		ahLine({_s}, "/dheist exit/holo <id>", "the exit spot / the hologram where you stand")
+		ahLine({_s}, "/dheist snapshot <id>", "save the room (while disabled) for resets")
+		ahLine({_s}, "/dheist lock <id> add <x1 y1 z1 x2 y2 z2> [block] | test", "windows that lock on the alarm")
+		ahLine({_s}, "/dheist enable/disable/open/start/end/reset/alarm <id>", "run it by hand")
+		ahLine({_s}, "/dheist kick <player> | info/dump/delete <id> | list", "the rest")
+		ahLine({_s}, "/dtrap pos1/pos2 | add <heist> laser/plate/floor/camera ... | set/info/remove <id> | list/show/dry/dump/clear/reload", "traps")
+		ahLine({_s}, "/dloot pos1/pos2 | add <heist> pile/smash/safe/drill ... | set/info/remove/regate <id> | list/show/preview/roll/check/dump/clear/reload", "loot (style=register for a store's till)")
+		ahLine({_s}, "/dcops <heist> add [x y z] | list/clear/spawn/removeall/dump", "where the cops arrive")
+	else if {_topic} is "map":
+		ahTitle({_s}, "Staff: the map")
+		ahLine({_s}, "/dpoi add <base/shop/spawn/landmark/garage> [name] | remove <n> | list/dump", "locator-bar dots and /gps places")
+		ahLine({_s}, "/dshopkeeper add <gun/gear/bag/tools/cars/garage> | remove <id> | list", "shopkeepers")
+		ahLine({_s}, "/dquest add <story/contracts/fence/hits> [place] | addat ... | remove <n> | list/dump", "Mara, the Boss, Vic, the Broker")
+		ahLine({_s}, "/dcontract spot/chop add/addat/remove/list | dump", "car-job spots and chop shops")
+		ahLine({_s}, "/dgaragesite exit/return/bay add | remove ... | list/show/dump/holo", "City Garage lanes and bays")
+		ahLine({_s}, "/dhit node add/addat/link/remove/list | route on/off", "the hit targets' streets")
+		ahLine({_s}, "/dcrate place <crate> | remove [x y z] | list", "crate stands")
+		ahLine({_s}, "/dseason holo <board>", "a leaderboard hologram")
+		ahLine({_s}, "/dskins [respawn]", "the NPC skins (respawn the NPCs to wear them)")
+		ahLine({_s}, "/dphone [reload] | roads scan/info/show/cancel", "the phone map and the GPS roads")
+		send colored "&7Regions by name: &fsafe_&7<x> safe zone, &fsafe_base&7<x> sells loot, &fsafe_garage_&7<x> a garage, &fheist_&7<id> a heist, &fnolock&7<x> no car locks, &fnograpple&7<x> no Grappler, &flvl150_&7<x> level 150+ only (any number). Add &fpassthrough allow&7 to each." to {_s}
+	else if {_topic} is "players":
+		ahTitle({_s}, "Staff: players")
+		ahLine({_s}, "/dlevel info/set/xp/reset <player> [n]", "levels and XP (XP only adds)")
+		ahLine({_s}, "/dgarage info/store/give/build/take <player> [car/build/plate] [color]", "cars (give = a dealer car; build = a crate car)")
+		ahLine({_s}, "/dgarage roll <supercar/hypercar>", "a test roll of a car crate (nothing given)")
+		ahLine({_s}, "/dstory info/reset/skip/set <player> [chain/mission]", "missions")
+		ahLine({_s}, "/dtutorial <player> reset/done", "the first-join steps")
+		ahLine({_s}, "/djobs info/take/fill/stats | met/post/unlock/lock/clear/rep ...", "contact jobs")
+		ahLine({_s}, "/dfence list/info/take <player> | roll/reset", "Vic's Wanted List")
+		ahLine({_s}, "/dhit info/end <player> | week [list/reroll] | give/reset <player> | window <tier> open/close", "hit contracts")
+		ahLine({_s}, "/dcontract info/end <player>", "a player's car job")
+		ahLine({_s}, "/dpv info <player> | xray on/off | reset", "personal views")
+		ahLine({_s}, "/dphone status/gps/mark/nametag/carstat ...", "the phone plugin, for tests")
+		ahLine({_s}, "/staffchat &7(/sc)&e, /broadcast &7(/bc)", "staff chat, a server message")
+	else if {_topic} is "store":
+		ahTitle({_s}, "Owner and store (donating.store / donating.season.admin; Tebex runs these)")
+		ahLine({_s}, "/dranks setup | give <player> <rank/none> | take <player> <rank> | list", "paid ranks")
+		ahLine({_s}, "/dbooster add <player> [money/xp/rush] <x> <minutes> [count] | stop/clear/info [kind]", "boosters")
+		ahLine({_s}, "/dcrate give/take <player> <crate> [count] | info <player>", "crate keys (supercar, hypercar too)")
+		ahLine({_s}, "/dseason info/rank | start [days]/end/extend <days>/approve [n]/void <player> [n]/reset <player>", "seasons (released by hand)")
+		send colored "&7Console only: &fdshop open <player> <kind>&7 (Citizens NPC shops), &fgpspick&7 (the phone plugin)." to {_s}
+	else if {_topic} is "tests":
+		ahTitle({_s}, "Local tests")
+		send colored "&7The &fzz&7 commands (/zztestkit, /zzclear, /zzcfgset ...) are local test helpers in zz-testkit.sk: never upload it. bots\run.js <scenario> runs a test; tools\progress-sim.js times the levels and prices." to {_s}
+	else:
+		ahTitle({_s}, "Staff commands: /adminhelp <topic>")
+		ahLine({_s}, "/adminhelp heists", "heists, stores, traps, loot, cops")
+		ahLine({_s}, "/adminhelp map", "places on the map, NPCs, garages, crate stands, region names")
+		ahLine({_s}, "/adminhelp players", "levels, cars, missions, jobs, hits, staff chat")
+		ahLine({_s}, "/adminhelp store", "ranks, boosters, crate keys, seasons (owner)")
+		ahLine({_s}, "/adminhelp tests", "the local test helpers")
+		send colored "&7Each command also says its own usage when typed alone, and Tab completes its arguments." to {_s}
+
+command /adminhelp [<text>]:
+	description: Every staff command.
+	aliases: /ahelp
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_t} to ""
+		if arg-1 is set:
+			set {_t} to arg-1 in lower case
+		showAdminHelp(sender, {_t})

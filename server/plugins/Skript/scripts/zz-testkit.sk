@@ -767,6 +767,10 @@ command /zzcardelete <text>:
 		set {_car} to mtv vehicle with license plate arg-1
 		if {_car} is set:
 			delete mtv vehicle {_car}
+		# Off its owner's garage list too (else the list keeps a plate with no car).
+		set {_o} to carOwnerOf(arg-1)
+		if {_o} is not "":
+			delete {data::%{_o}%::cars::%arg-1%}
 		carForget(arg-1)
 		send "CARDELETE %arg-1%"
 
@@ -860,7 +864,9 @@ command /zzctreset <player>:
 		set {_u} to "%uuid of arg-1%"
 		if {-ctjob::%{_u}%} is set:
 			ctEnd({_u}, "staff")
-		delete {-ctcd::%{_u}%}
+		delete {ctcd::%{_u}%}
+		# The tiers' cooldowns after a delivery too (1 h / 3 h / 6 h).
+		delete {data::%arg-1%::ctready::*}
 		delete {-ctoffer::%{_u}%::*}
 		delete {-ctofferat::%{_u}%}
 		delete {-ctconfirm::%arg-1%}
@@ -1119,3 +1125,22 @@ command /zzhitwin <text>:
 			set {hit::win::%{_w}%::%{_a::1}%::%{_a::2}%} to {_a::3} parsed as number
 			delete {hit::used::%{_w}%::%{_a::1}%::%{_a::2}%}
 		send "HITWIN %arg-1% W=%{_w}%"
+
+# Forgets which level rewards a player got (levels.sk marks each one given; tests start over).
+command /zzlvlrewards <offline player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::lvlreward::*}
+		send "LVLREWARDS %arg-1% cleared"
+
+# A car-crate roll pool for tests (garage.sk carRoll): /zzcarpool <pool> <cars "w|car;..."> <wraps "w|tier;..."> <stages "w|stage;..."> <neon 0-1> <trail 0-1>
+command /zzcarpool <text> <text> <text> <text> <number> <number>:
+	executable by: console
+	trigger:
+		set {-cfg::carroll::%arg-1%::cars::*} to arg-2 split at ";"
+		set {-cfg::carroll::%arg-1%::wraps::*} to arg-3 split at ";"
+		set {-cfg::carroll::%arg-1%::stages::*} to arg-4 split at ";"
+		set {-cfg::carroll::%arg-1%::neon} to arg-5
+		set {-cfg::carroll::%arg-1%::trail} to arg-6
+		set {-cfg::carroll::%arg-1%::special-color} to 0
+		send "CARPOOL %arg-1% roll=%carRoll(arg-1)%"

@@ -4,6 +4,8 @@
 //   - ammo icons: light (pistol/SMG rounds), shells (shotgun), rifle
 //   - the XP bar as a brass ammo belt (the XP bar shows the held gun's ammo, hud.sk)
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
+//   - melee weapons and consumables (dagger, bat, throwing knife, energy drink, bandage) and the Grappler:
+//     icons and 3D models, and the thrown knife in flight
 // and the JSON that wires them up. Items are picked by their first custom_model_data string
 // ("donating:bag_2", "donating:ammo_light"); anything without one keeps the vanilla look, and without
 // the pack every item looks vanilla (leather, nuggets).
@@ -295,9 +297,10 @@ const AMMO = {
 // items can share one base item (the gold nugget is rifle ammo and the loot marker), so the cases are
 // collected here and every items/<base>.json is written once at the end.
 const itemCases = {}
+// model: a model id, or a whole item model (e.g. a select between an icon and a 3D model).
 const addCase = (base, when, model, fallback = `minecraft:item/${base}`) => {
   if (!itemCases[base]) itemCases[base] = { fallback, cases: [] }
-  itemCases[base].cases.push({ when, model: { type: 'minecraft:model', model } })
+  itemCases[base].cases.push({ when, model: typeof model === 'string' ? { type: 'minecraft:model', model } : model })
 }
 const sprite = (name, png) => {
   write(`donating/textures/item/${name}.png`, png)
@@ -600,6 +603,452 @@ for (const [type, a] of Object.entries(AMMO)) {
     write(`donating/equipment/${g.asset}.json`, { layers: { humanoid: [{ texture: `donating:${g.asset}` }] } })
   }
 }
+// ---------- Melee weapons, consumables and the Grappler (owner, 2026-09-28) ----------
+// The WeaponMechanics items (weapons\melee\Dagger.yml and Baseball_Bat.yml, weapons\consumables\
+// Throwing_Knife.yml, Energy_Drink.yml and Bandage.yml) are amethyst shards, not feathers (WeaponMechanics'
+// own pack owns feather.json): their Skin.Default.Custom_Model_Data 1-5 is the custom_model_data float
+// amethyst_shard.json dispatches on, a 16x16 icon in inventories and a 3D model everywhere else. The
+// Grappler (grapple.sk, a heist tool like the Drill) is a breeze rod picked by the string
+// donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its hook (donating:grapple_hook)
+// and a rope (donating:grapple_rope) are breeze rods too, for item displays. A thrown knife in flight is
+// the bullets' iron nugget with custom model data 7004 (see Bullets).
+// Models are boxes (1 unit = 1/16 block). The dagger, the bat and the knife are built upright and turned
+// 45° to lie where a sword sprite does, with vanilla's handheld display, so they sit in the hand like a
+// sword; the can and the bandage are held like any item (vanilla's generated display).
+{
+  const K = [28, 24, 20, 255]
+  const art = (rows, colors) => { const c = canvas(16, 16); c.draw(rows, { k: K, ...colors }); return c.png() }
+  const rgba = c => c.length === 4 ? c : [...c, 255]
+  const r = n => Math.round(n * 1000) / 1000
+  // A box model: each part is a box with one swatch on every face (or { all, up, ... } per face, or its
+  // own faces), dirs = the faces it has. Swatches are 4x4 texels of a 16x16 texture and faces sample
+  // their middle 2x2, so no neighbour color bleeds in.
+  const solid = (name, colors, parts, display, textures = {}) => {
+    const tex = canvas(16, 16)
+    colors.forEach((col, i) => tex.fill((i % 4) * 4, Math.floor(i / 4) * 4, (i % 4) * 4 + 3, Math.floor(i / 4) * 4 + 3, rgba(col)))
+    write(`donating/textures/item/${name}_3d.png`, tex.png())
+    const uv = i => [(i % 4) * 4 + 1, Math.floor(i / 4) * 4 + 1, (i % 4) * 4 + 3, Math.floor(i / 4) * 4 + 3]
+    const elements = parts.map(p => {
+      const faces = {}
+      for (const dir of p.dirs || ['north', 'south', 'east', 'west', 'up', 'down']) {
+        if (p.faces && p.faces[dir]) { faces[dir] = p.faces[dir]; continue }
+        const c = typeof p.c === 'number' ? p.c : (p.c[dir] !== undefined ? p.c[dir] : p.c.all)
+        faces[dir] = { uv: uv(c), texture: '#t' }
+      }
+      const e = { from: p.from.map(r), to: p.to.map(r), faces }
+      if (p.rot) e.rotation = p.rot
+      return e
+    })
+    write(`donating/models/item/${name}.json`, {
+      textures: { t: `donating:item/${name}_3d`, particle: `donating:item/${name}_3d`, ...textures },
+      elements,
+      display
+    })
+  }
+  // A box around the model's middle axis (x = z = 8): half widths w (x) and d (z), from y0 to y1.
+  const bar = (w, d, y0, y1, c, more = {}) => ({ from: [8 - w, y0, 8 - d], to: [8 + w, y1, 8 + d], c, ...more })
+  // Upright parts turned 45° about the middle: local +y becomes a sword sprite's diagonal (grip lower
+  // left, tip upper right), and local y = 0 is where a sword's grip is.
+  const diag = parts => parts.map(p => ({ ...p, rot: { angle: -45, axis: 'z', origin: [8, 8, 8] } }))
+  // Vanilla's item/handheld (a sword) and item/generated (an apple), with generated's ground and frame.
+  const HANDHELD = {
+    thirdperson_righthand: { rotation: [0, -90, 55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85] },
+    thirdperson_lefthand: { rotation: [0, 90, -55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85] },
+    firstperson_righthand: { rotation: [0, -90, 25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
+    firstperson_lefthand: { rotation: [0, 90, -25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { rotation: [0, 180, 0] }
+  }
+  const HELD = {
+    thirdperson_righthand: { translation: [0, 3, 1], scale: [0.55, 0.55, 0.55] },
+    firstperson_righthand: { rotation: [0, -90, 25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { rotation: [0, 180, 0] }
+  }
+  // The icon in inventories (donating:item/<name>_icon), the 3D model (donating:item/<name>) elsewhere.
+  const icon = (name, png) => {
+    write(`donating/textures/item/${name}_icon.png`, png)
+    write(`donating/models/item/${name}_icon.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/${name}_icon` } })
+  }
+  const iconOr3d = name => ({
+    type: 'minecraft:select',
+    property: 'minecraft:display_context',
+    cases: [{ when: ['gui'], model: { type: 'minecraft:model', model: `donating:item/${name}_icon` } }],
+    fallback: { type: 'minecraft:model', model: `donating:item/${name}` }
+  })
+  const STEEL = { W: [236, 240, 246, 255], S: [182, 188, 200, 255], D: [112, 118, 132, 255] }
+  const steel = [[236, 240, 246], [182, 188, 200], [112, 118, 132]] // swatches 0-2: light, mid, dark
+  const edge = { all: 1, east: 0, west: 2 } // a blade: light cutting edge, darker back
+
+  // Dagger: a short double-edged blade with a brass guard and a leather grip.
+  icon('dagger', art([
+    '................',
+    '................',
+    '................',
+    '............kkk.',
+    '...........kWWDk',
+    '..........kWSWDk',
+    '.........kWSWDk.',
+    '........kWSWDk..',
+    '...kk..kWSWDk...',
+    '...kYkkWSWDk....',
+    '....kYkSWDk.....',
+    '....kkYyDk......',
+    '...kGgkYyk......',
+    '..kGgkkkYk......',
+    '.kPGk...kk......',
+    '.kkk............'
+  ], { ...STEEL, Y: [226, 182, 76, 255], y: [160, 118, 40, 255], G: [96, 60, 34, 255], g: [140, 94, 56, 255], P: [150, 156, 168, 255] }))
+  solid('dagger', [...steel, [140, 146, 160], [214, 170, 70], [160, 118, 40], [96, 60, 34], [140, 94, 56], [150, 156, 168]], diag([
+    bar(0.8, 0.8, -3.2, -2, 8), // pommel
+    bar(0.6, 0.6, -2, 2.4, 6), // grip
+    bar(0.68, 0.68, -1.2, -0.7, 7), // grip wraps
+    bar(0.68, 0.68, 0.6, 1.1, 7),
+    bar(2.2, 0.9, 2.4, 3.2, { all: 4, up: 5, down: 5 }), // guard
+    bar(1.2, 0.25, 3.2, 9.5, edge), // blade, narrowing to the tip
+    bar(0.85, 0.25, 9.5, 11.4, edge),
+    bar(0.45, 0.2, 11.4, 12.6, edge),
+    bar(0.15, 0.3, 3.5, 9.2, 3) // the fuller down the middle
+  ]), HANDHELD)
+
+  // Baseball bat: ash wood, black grip tape, a red band.
+  icon('bat', art([
+    '...........kkk..',
+    '..........kLLWk.',
+    '.........kLLWWDk',
+    '........kLLWWDDk',
+    '.......kLLWWDDk.',
+    '......kLLWWDDk..',
+    '......kLWWDDk...',
+    '.....kLRRDDk....',
+    '....kLRRDk......',
+    '...kLWDk........',
+    '...kLDk.........',
+    '..kTtk..........',
+    '.kTtk...........',
+    'kTtk............',
+    'kkTk............',
+    '.kk.............'
+  ], { L: [236, 206, 150, 255], W: [210, 170, 110, 255], D: [160, 118, 70, 255], R: [170, 36, 40, 255], T: [44, 44, 50, 255], t: [80, 80, 90, 255] }))
+  const wood = { all: 1, east: 0, west: 2 }
+  solid('bat', [[232, 198, 140], [206, 166, 106], [166, 126, 76], [186, 146, 92], [40, 40, 46], [72, 72, 82], [170, 36, 40]], diag([
+    bar(1.1, 1.1, -3.6, -2.8, 4), // knob
+    bar(0.7, 0.7, -2.8, 2.2, 4), // grip tape
+    bar(0.75, 0.75, -2, -1.6, 5),
+    bar(0.75, 0.75, -0.4, 0, 5),
+    bar(0.75, 0.75, 1.2, 1.6, 5),
+    bar(0.7, 0.7, 2.2, 5, wood), // handle, widening to the barrel
+    bar(0.95, 0.95, 5, 8.5, wood),
+    bar(1.25, 1.25, 8.5, 11.5, wood),
+    bar(1.6, 1.6, 11.5, 16.8, wood),
+    bar(1.3, 1.3, 16.8, 17.3, 3), // end grain
+    bar(1.65, 1.65, 13.2, 14.2, 6) // band
+  ]), HANDHELD)
+
+  // Throwing knife: slim, no guard, a cord-wrapped handle and a ring at the end.
+  icon('throwing_knife', art([
+    '................',
+    '.............kk.',
+    '............kWDk',
+    '...........kWSDk',
+    '..........kWSDk.',
+    '.........kWSDk..',
+    '........kWSDk...',
+    '.......kWSDk....',
+    '......kkSDk.....',
+    '.....kBBkk......',
+    '....kBbBk.......',
+    '...kBbBk........',
+    '..kkSkk.........',
+    '.kSk.kSk........',
+    '..kSkSk.........',
+    '...kkk..........'
+  ], { ...STEEL, B: [40, 40, 46, 255], b: [170, 40, 44, 255] }))
+  const knifeColors = [...steel, [40, 40, 46], [170, 40, 44], [150, 156, 168]]
+  solid('throwing_knife', knifeColors, diag([
+    bar(1, 0.3, -3.4, -2.9, 5), // the ring
+    bar(1, 0.3, -1.9, -1.4, 5),
+    { from: [7, -2.9, 7.7], to: [7.5, -1.9, 8.3], c: 5 },
+    { from: [8.5, -2.9, 7.7], to: [9, -1.9, 8.3], c: 5 },
+    bar(0.55, 0.4, -1.4, 2.6, 3), // cord-wrapped handle
+    bar(0.6, 0.45, 0.2, 0.7, 4),
+    bar(0.8, 0.2, 2.6, 7.5, edge), // blade
+    bar(0.55, 0.2, 7.5, 9.2, edge),
+    bar(0.25, 0.15, 9.2, 10.2, edge)
+  ]), HANDHELD)
+
+  // Energy drink: a black can with a lime bolt. The label and lid are drawn on their own 32x32 texture
+  // (2 texels per unit): the side at uv 0,0-6,11 (12x22), the lid at 6,0-12,6 (12x12). The side is shaded
+  // by column so the square can reads round.
+  {
+    const c = canvas(32, 32)
+    const col = { S: [196, 202, 210, 255], s: [150, 156, 166, 255], B: [24, 28, 26, 255], L: [124, 252, 60, 255], W: [236, 240, 236, 255] }
+    c.draw([
+      'SSSSSSSSSSSS',
+      'ssssssssssss',
+      'BBBBBBBBBBBB',
+      'LLLLLLLLLLLL',
+      'BBBBBBBBBBBB',
+      'BBBBBBBLLBBB',
+      'BBBBBBLLBBBB',
+      'BBBBBLLLBBBB',
+      'BBBBLLLBBBBB',
+      'BBBLLLLLLLBB',
+      'BBBBBBLLLBBB',
+      'BBBBBLLLBBBB',
+      'BBBBLLLBBBBB',
+      'BBBBLLBBBBBB',
+      'BBBLLBBBBBBB',
+      'BBBLBBBBBBBB',
+      'BBBBBBBBBBBB',
+      'BWWWWWWWWWWB',
+      'BBBBBBBBBBBB',
+      'LLLLLLLLLLLL',
+      'ssssssssssss',
+      'SSSSSSSSSSSS'
+    ], col, 0, 0)
+    const round = [0.62, 0.8, 0.95, 1.15, 1.08, 1, 1, 0.96, 0.9, 0.84, 0.74, 0.6]
+    for (let y = 0; y < 22; y++) for (let x = 0; x < 12; x++) c.set(x, y, shade(c.get(x, y), round[x]))
+    c.draw([
+      'SSSSSSSSSSSS',
+      'SssssssssssS',
+      'SsddddddddsS',
+      'SsdmmmmmmdsS',
+      'SsdmmmmmmdsS',
+      'SsdmmKKmmdsS',
+      'SsdmmKKmmdsS',
+      'SsdmmmmmmdsS',
+      'SsdmmmmmmdsS',
+      'SsddddddddsS',
+      'SssssssssssS',
+      'SSSSSSSSSSSS'
+    ], { S: [214, 220, 228, 255], s: [176, 182, 192, 255], d: [140, 146, 156, 255], m: [192, 198, 208, 255], K: [40, 40, 44, 255] }, 12, 0)
+    write('donating/textures/item/energy_drink_label.png', c.png())
+  }
+  icon('energy_drink', art([
+    '................',
+    '.....kkkkkk.....',
+    '....kSWSSSDk....',
+    '....kkkkkkkk....',
+    '....kBBBBBBk....',
+    '....kBBBBLLk....',
+    '....kBBBLLBk....',
+    '....kBBLLBBk....',
+    '....kBLLLLBk....',
+    '....kBBLLBBk....',
+    '....kBLLBBBk....',
+    '....kBLBBBBk....',
+    '....kBBBBBBk....',
+    '....kkkkkkkk....',
+    '....kSWSSSDk....',
+    '.....kkkkkk.....'
+  ], { S: [178, 184, 194, 255], W: [236, 240, 246, 255], D: [120, 126, 138, 255], B: [26, 30, 28, 255], L: [124, 252, 60, 255] }))
+  {
+    const side = { uv: [0, 0, 6, 11], texture: '#l' }
+    solid('energy_drink', [[196, 202, 210], [150, 156, 166], [226, 230, 236]], [
+      { from: [5, 0.5, 5], to: [11, 11.5, 11], c: 1, faces: { north: side, south: side, east: side, west: side, up: { uv: [6, 0, 12, 6], texture: '#l' } } },
+      { from: [5.4, 0, 5.4], to: [10.6, 0.5, 10.6], c: { all: 1, down: 0 } }, // bottom rim
+      { from: [5, 11.5, 5], to: [11, 11.9, 5.4], c: 0 }, // the lid's raised rim
+      { from: [5, 11.5, 10.6], to: [11, 11.9, 11], c: 0 },
+      { from: [5, 11.5, 5.4], to: [5.4, 11.9, 10.6], c: 0 },
+      { from: [10.6, 11.5, 5.4], to: [11, 11.9, 10.6], c: 0 },
+      { from: [7, 11.5, 6.2], to: [9, 11.7, 8.6], c: 2 } // pull tab
+    ], HELD, { l: 'donating:item/energy_drink_label' })
+  }
+
+  // Bandage: a roll of white gauze with red edge stripes and a loose end held by a clip. The roll's axis
+  // runs front to back, so the spiral shows in the hand. Round from three boxes; the spiral is one 14x14
+  // picture (uv 0,0-7,7 of a 32x32 texture) that every box's end face maps into by position.
+  {
+    const c = canvas(32, 32)
+    for (let ty = 0; ty < 14; ty++) {
+      for (let tx = 0; tx < 14; tx++) {
+        const dx = tx + 0.5 - 7
+        const dy = ty + 0.5 - 7
+        const rr = Math.sqrt(dx * dx + dy * dy)
+        const turn = (Math.atan2(dy, dx) / (2 * Math.PI) + 1) % 1
+        const f = ((rr / 2.4 - turn) % 1 + 1) % 1
+        let col = [246, 246, 240, 255]
+        if (f < 0.34 && rr > 0.8) col = [178, 178, 168, 255]
+        if (rr > 6.3) col = [214, 214, 204, 255]
+        c.set(tx, ty, col)
+      }
+    }
+    write('donating/textures/item/bandage_end.png', c.png())
+  }
+  icon('bandage', art([
+    '................',
+    '................',
+    '................',
+    '.....kkkkkk.....',
+    '....kWWWWWWk....',
+    '...kWWggggWWk...',
+    '..kWWgWWWWgWWk..',
+    '..kWgWWggWWgWk..',
+    '..kWgWgWWgWgWk..',
+    '..kWgWWgWWWgWk..',
+    '..kWWgWWWWgWWkk.',
+    '...kWWggggWWkWk.',
+    '....kWWWWWWkWWk.',
+    '.....kkkkkkkWWk.',
+    '...........kRRk.',
+    '...........kkkk.'
+  ], { W: [244, 244, 240, 255], g: [196, 196, 190, 255], R: [214, 48, 52, 255] }))
+  {
+    // The roll: centre (8, 6.5), radius 3.5, z 5.5-10.5. Each box's end faces show its part of the spiral
+    // (south as seen from the front, north mirrored); the three are nested a little in z so their end
+    // faces never share a plane.
+    const X0 = 4.5
+    const Y1 = 10
+    const ends = (x0, y0, x1, y1) => ({
+      south: { uv: [r(x0 - X0), r(Y1 - y1), r(x1 - X0), r(Y1 - y0)], texture: '#e' },
+      north: { uv: [r(X0 + 7 - x1), r(Y1 - y1), r(X0 + 7 - x0), r(Y1 - y0)], texture: '#e' }
+    })
+    const roll = [[4.5, 4.75, 11.5, 8.25, 0], [6.25, 3, 9.75, 10, 0.02], [5.4, 3.9, 10.6, 9.1, 0.04]]
+    const parts = []
+    for (const [x0, y0, x1, y1, inset] of roll) {
+      parts.push({ from: [x0, y0, 5.5 + inset], to: [x1, y1, 10.5 - inset], c: 0, faces: ends(x0, y0, x1, y1) })
+      // Red stripes near both edges (sides only).
+      for (const [z0, z1] of [[6.1, 6.5], [9.5, 9.9]]) {
+        parts.push({ from: [x0 - 0.05, y0 - 0.05, z0], to: [x1 + 0.05, y1 + 0.05, z1], c: 2, dirs: ['east', 'west', 'up', 'down'] })
+      }
+    }
+    parts.push({ from: [11.4, 1.6, 5.8], to: [11.9, 6.5, 10.2], c: { all: 0, east: 1 } }) // the loose end
+    parts.push({ from: [11.25, 1.4, 7], to: [12.05, 2.2, 9], c: 3 }) // its clip
+    solid('bandage', [[244, 244, 238], [220, 220, 212], [206, 44, 48], [176, 182, 192]], parts, HELD, { e: 'donating:item/bandage_end' })
+  }
+
+  // The Grappler: a pistol-grip launcher, an orange launch tube with the hook in its muzzle and a rope drum
+  // under it. Built and held like WeaponMechanics' .50 GS (the muzzle toward -x, its display).
+  icon('tool_grappler', art([
+    '................',
+    '................',
+    '.kkkk...........',
+    'kHHHHk..........',
+    'kHkkk.....kkkkk.',
+    'kHk.kkkkkkkGGGGk',
+    'kHHkOOOOOOoGGGGk',
+    'kHHkOOOOOOoGggGk',
+    'kHk.kkkkkkkGGGGk',
+    'kHkkk.kRRRkkGGk.',
+    'kHHHHkkRRRk.kKKk',
+    '.kkkk..kkk.kkKKk',
+    '...........kKKk.',
+    '...........kKKk.',
+    '...........kkkk.',
+    '................'
+  ], { H: [200, 204, 212, 255], O: [236, 124, 36, 255], o: [180, 84, 20, 255], G: [70, 74, 84, 255], g: [110, 114, 124, 255], K: [36, 36, 40, 255], R: [206, 176, 118, 255] }))
+  solid('tool_grappler', [
+    [70, 74, 84], [104, 110, 122], [46, 49, 56], [36, 36, 40], // 0-3 frame, frame light, frame dark, grip
+    [58, 58, 64], [236, 124, 36], [180, 84, 20], [190, 196, 206], // 4-7 grip light, tube, tube dark, steel
+    [130, 136, 148], [206, 176, 118], [160, 132, 82] // 8-10 steel dark, rope, rope dark
+  ], [
+    { from: [5, 4.2, 7.1], to: [16, 7.8, 8.9], c: { all: 0, up: 1, down: 2 } }, // frame
+    { from: [9, 7.8, 7.6], to: [15, 8.4, 8.4], c: 1 }, // top rail and rear sight
+    { from: [14.2, 8.4, 7.7], to: [15, 9, 8.3], c: 2 },
+    { from: [-0.5, 4.6, 6.9], to: [9, 7.6, 9.1], c: { all: 5, down: 6 } }, // launch tube with dark bands
+    { from: [1.5, 4.55, 6.85], to: [2.2, 7.65, 9.15], c: 6 },
+    { from: [6, 4.55, 6.85], to: [6.7, 7.65, 9.15], c: 6 },
+    { from: [-1, 4.4, 6.7], to: [-0.5, 7.8, 9.3], c: 7 }, // muzzle ring
+    { from: [11.5, -1.5, 7.25], to: [15, 4.2, 8.75], c: { all: 3, up: 4 }, rot: { angle: 22.5, axis: 'z', origin: [13.25, 4.2, 8] } }, // grip, raked back
+    { from: [8.6, 2.2, 7.6], to: [11.8, 2.7, 8.4], c: 2 }, // trigger guard and trigger
+    { from: [8.6, 2.7, 7.6], to: [9.1, 4.2, 8.4], c: 2 },
+    { from: [10.1, 2.9, 7.75], to: [10.6, 4.2, 8.25], c: 7 },
+    { from: [2.2, 2.6, 6.8], to: [6.2, 4.6, 9.2], c: { all: 9, down: 10 } }, // rope drum
+    { from: [2, 2.4, 6.6], to: [2.2, 4.6, 9.4], c: 2 },
+    { from: [6.2, 2.4, 6.6], to: [6.4, 4.6, 9.4], c: 2 },
+    { from: [-3.5, 5.8, 7.7], to: [-0.5, 6.4, 8.3], c: 7 }, // the hook: shaft, four prongs bent back
+    { from: [-3.6, 6.4, 7.7], to: [-3, 8.3, 8.3], c: 7 },
+    { from: [-3, 7.8, 7.7], to: [-2, 8.3, 8.3], c: 8 },
+    { from: [-3.6, 3.9, 7.7], to: [-3, 5.8, 8.3], c: 7 },
+    { from: [-3, 3.9, 7.7], to: [-2, 4.4, 8.3], c: 8 },
+    { from: [-3.6, 5.8, 6.1], to: [-3, 6.4, 7.7], c: 7 },
+    { from: [-3, 5.8, 6.1], to: [-2, 6.4, 6.6], c: 8 },
+    { from: [-3.6, 5.8, 8.3], to: [-3, 6.4, 9.9], c: 7 },
+    { from: [-3, 5.8, 9.4], to: [-2, 6.4, 9.9], c: 8 }
+  ], {
+    thirdperson_righthand: { rotation: [0, -90, 0], translation: [0, 1.25, -1.25], scale: [0.7, 0.7, 0.7] },
+    thirdperson_lefthand: { rotation: [0, 90, 0], translation: [0, 1.25, -1.25], scale: [0.7, 0.7, 0.7] },
+    firstperson_righthand: { rotation: [0, -90, 0], translation: [-5.75, 5.75, -2.25], scale: [0.7, 0.7, 0.7] },
+    firstperson_lefthand: { rotation: [0, 90, 0], translation: [-5.75, 5.75, -2.25], scale: [0.7, 0.7, 0.7] },
+    ground: { rotation: [0, 0, -45], translation: [0, 4, 0], scale: [0.7, 0.7, 0.7] },
+    fixed: { rotation: [0, 0, -45], translation: [0.25, 1.75, -0.25], scale: [0.7, 0.7, 0.7] }
+  })
+
+  // The grapple hook, for an item display where the rope holds (no display transform: the model sits
+  // on the entity as built, 1 unit = 1/16 block): four prongs up and bent down, 0.2-0.25 blocks above the
+  // display's position, and the rope eye 0.3 below it.
+  {
+    const prongs = []
+    for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      // Built pointing +x, then mirrored to -x or moved onto the z axis.
+      const box = (a, b, c) => {
+        const map = p => sx !== 0 ? [8 + (p[0] - 8) * sx, p[1], p[2]] : [p[2], p[1], 8 + (p[0] - 8) * sz]
+        const pa = map(a)
+        const pb = map(b)
+        return { from: [0, 1, 2].map(i => Math.min(pa[i], pb[i])), to: [0, 1, 2].map(i => Math.max(pa[i], pb[i])), c }
+      }
+      prongs.push(box([8.7, 11.1, 7.7], [11.2, 11.7, 8.3], 0), box([10.6, 9.3, 7.7], [11.2, 11.1, 8.3], 0), box([10.7, 8.8, 7.8], [11.1, 9.3, 8.2], 2))
+    }
+    solid('grapple_hook', [[190, 196, 206], [120, 126, 138], [226, 230, 236]], [
+      { from: [7.2, 3, 7.7], to: [8.8, 3.4, 8.3], c: 1 }, // rope eye
+      { from: [7.2, 4.6, 7.7], to: [8.8, 5, 8.3], c: 1 },
+      { from: [7.2, 3.4, 7.7], to: [7.6, 4.6, 8.3], c: 1 },
+      { from: [8.4, 3.4, 7.7], to: [8.8, 4.6, 8.3], c: 1 },
+      { from: [7.6, 5, 7.6], to: [8.4, 11, 8.4], c: { all: 0, up: 2 } }, // shaft and crown
+      { from: [7.3, 11, 7.3], to: [8.7, 11.8, 8.7], c: 2 },
+      ...prongs
+    ], {
+      gui: { rotation: [30, 45, 0], scale: [1, 1, 1] },
+      ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+      fixed: { scale: [1, 1, 1] }
+    })
+  }
+
+  // A rope, for an item display: 1 block long from the display's position forward (an item display
+  // shows its model's -z side forward, like the bullets) and 0.05 thick, twisted in two tones. Stretch it
+  // with the display's scale (1, 1, length) and turn it with its yaw and pitch.
+  solid('grapple_rope', [[206, 176, 118], [160, 132, 82]], Array.from({ length: 8 }, (_, i) => (
+    { from: [7.6, 7.6, 6 - 2 * i], to: [8.4, 8.4, 8 - 2 * i], c: i % 2, dirs: ['east', 'west', 'up', 'down'] }
+  )), {})
+
+  addCase('breeze_rod', 'donating:tool_grappler', iconOr3d('tool_grappler'))
+  addCase('breeze_rod', 'donating:grapple_hook', 'donating:item/grapple_hook')
+  addCase('breeze_rod', 'donating:grapple_rope', 'donating:item/grapple_rope')
+
+  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard.
+  const SHARD = [['dagger', 1], ['bat', 2], ['throwing_knife', 3], ['energy_drink', 4], ['bandage', 5]]
+  write('minecraft/items/amethyst_shard.json', {
+    // A drink or a throw lowers the stack: no re-equip dip (like WeaponMechanics' feather.json).
+    hand_animation_on_swap: false,
+    model: {
+      type: 'minecraft:range_dispatch',
+      property: 'minecraft:custom_model_data',
+      index: 0,
+      entries: [
+        ...SHARD.map(([name, n]) => ({ threshold: n, model: iconOr3d(name) })),
+        { threshold: SHARD.length + 1, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
+      ],
+      fallback: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' }
+    }
+  })
+
+  // The thrown knife in flight (iron_nugget.json, custom model data 7004, see Bullets): point first
+  // along -z like the bullets, the blade upright, 10.5 units from the point (z = -3) to the ring (z =
+  // 7.5, just ahead of the true position at z = 8), and no south (backward) faces, so the thrower sees
+  // nothing of it on its first tick at their eye.
+  const back = ['north', 'east', 'west', 'up', 'down']
+  solid('thrown_knife', knifeColors, [
+    { from: [7.85, 7.8, -3], to: [8.15, 8.2, -2], c: 1, dirs: back },
+    { from: [7.8, 7.55, -2], to: [8.2, 8.45, 0], c: { all: 1, up: 0, down: 2 }, dirs: back },
+    { from: [7.8, 7.2, 0], to: [8.2, 8.8, 3.5], c: { all: 1, up: 0, down: 2 }, dirs: back },
+    { from: [7.6, 7.45, 3.5], to: [8.4, 8.55, 6.5], c: 3, dirs: back },
+    { from: [7.55, 7.4, 4.6], to: [8.45, 8.6, 5.1], c: 4, dirs: back },
+    { from: [7.7, 7.1, 7.1], to: [8.3, 8.9, 7.5], c: 5, dirs: back },
+    { from: [7.7, 8.5, 6.5], to: [8.3, 8.9, 7.1], c: 5, dirs: back },
+    { from: [7.7, 7.1, 6.5], to: [8.3, 7.5, 7.1], c: 5, dirs: back }
+  ], {})
+}
 for (const [base, def] of Object.entries(itemCases)) {
   write(`minecraft/items/${base}.json`, {
     model: {
@@ -666,8 +1115,10 @@ for (const [base, def] of Object.entries(itemCases)) {
     })
     entries.push({ threshold: t.cmd, model: { type: 'minecraft:model', model: `donating:item/tracer_${kind}` } })
   }
-  // Any other number (and none) is a plain iron nugget.
-  entries.push({ threshold: 7004, model: { type: 'minecraft:model', model: 'minecraft:item/iron_nugget' } })
+  // 7004: a thrown knife (the Throwing Knife's donating_throwing_knife, drawn in the section above). Any
+  // other number (and none) is a plain iron nugget.
+  entries.push({ threshold: 7004, model: { type: 'minecraft:model', model: 'donating:item/thrown_knife' } })
+  entries.push({ threshold: 7005, model: { type: 'minecraft:model', model: 'minecraft:item/iron_nugget' } })
   const bullets = {
     type: 'minecraft:range_dispatch',
     property: 'minecraft:custom_model_data',
@@ -803,4 +1254,4 @@ for (const [base, def] of Object.entries(itemCases)) {
     ]
   })
 }
-console.log('wrote bag, ammo, XP bar and tab-list art to pack\\assets')
+console.log('wrote bag, ammo, weapon, XP bar and tab-list art to pack\\assets')

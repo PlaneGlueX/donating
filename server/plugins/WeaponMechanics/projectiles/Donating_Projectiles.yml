@@ -94,3 +94,20 @@ donating_pellet:
       Whitelist: true
       List:
         - "$GLASS"
+
+# Throwing Knife (owner, 2026-09-28: "throwable knife"): thrown, not fired. The weapon throws it at
+# Projectile_Speed 36 (1.8 blocks a tick) and gravity pulls it down (Gravity / 200 = 0.049 blocks a
+# tick², like a thrown trident), so it flies in a real arc: about 0.8 blocks of drop over 10 blocks and
+# 3 over 20. The same fake item display as the bullets, holding an iron nugget with custom model data
+# 7004, which the pack draws as a small knife flying point first (tools\make-item-art.js, Bullets).
+donating_throwing_knife:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7004 # donating:thrown_knife
+    Gravity: 9.8
+    Drag:
+      Base: 0.99
+      In_Water: 0.8
+      When_Raining_Or_Snowing: 0.98

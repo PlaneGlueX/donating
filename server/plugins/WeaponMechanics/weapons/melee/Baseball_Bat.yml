@@ -1,0 +1,52 @@
+Baseball_Bat:
+  Info:
+    Cancel:
+      Drop_Item: true
+      Swap_Hands: true
+    Weapon_Item:
+      # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
+      # draws it by its custom model data (tools\make-item-art.js, Melee weapons and consumables).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Baseball Bat"
+      Lore:
+        - "<gray>Slow, heavy swings with a long reach"
+        - "<gray>that knock people back."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 5 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 0.7 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 4 <gold>⟸ <gray>Range in blocks"
+        - "<gold>➣<gray> High <gold>⟸ <gray>Knockback"
+      Unbreakable: true
+      Hide_Flags: true
+      Attributes:
+        - "movement_speed -0.004"
+        - "attack_speed -3.3"
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_leather, pitch=0.8, listeners=Source{}}"
+  Skin:
+    Default:
+      Custom_Model_Data: 2
+  Damage:
+    # Donating (owner, 2026-09-28): the knife's 5 a hit (4 hits unarmored, 12 in the best gear) but a hit
+    # every 28 ticks, and knockback. WeaponMechanics' own damage never knocks back (Use_Vanilla_Damaging
+    # is off), and 4.3.1 has no melee knockback setting. The knockback is Skript's (items.sk, review
+    # 2026-09-28): MechanicsCore's Push shoved robbers into traps and bystanders into heists, and Skript can
+    # check where the victim would land.
+    Base_Damage: 5
+    Armor_Damage: 4
+    Mechanics:
+      - "Sound{sound=entity.player.attack.knockback, pitch=0.7} @Target{}"
+    Head:
+      Bonus_Damage: 0
+    Backstab:
+      Bonus_Damage: 0
+  Melee:
+    Enable_Melee: true
+    Melee_Range: 4
+    Melee_Hit_Delay: 28
+    Melee_Miss:
+      Mechanics:
+        - "Sound{sound=entity.player.attack.sweep, pitch=0.6, noise=0.1}"
+      Melee_Miss_Delay: 28

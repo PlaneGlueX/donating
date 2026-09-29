@@ -42,6 +42,13 @@
           "threshold": 7004,
           "model": {
             "type": "minecraft:model",
+            "model": "donating:item/thrown_knife"
+          }
+        },
+        {
+          "threshold": 7005,
+          "model": {
+            "type": "minecraft:model",
             "model": "minecraft:item/iron_nugget"
           }
         }

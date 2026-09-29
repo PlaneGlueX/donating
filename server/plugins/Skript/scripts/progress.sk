@@ -88,6 +88,16 @@ function progRobbed(p: player, n: number, tag: text):
 	set {_parts::*} to {_tag} split at "#"
 	progHeat({_parts::1})
 
+# The same without using it up (bag.sk's level XP counts only loot the player robbed themselves).
+function progOwnLeft(p: player, tag: text, n: number) :: number:
+	set {_own} to getData({_p}, "run::%{_tag}%::own")
+	if {_own} is not set:
+		return 0
+	set {_sold} to getData({_p}, "run::%{_tag}%::sold")
+	if {_sold} is not set:
+		set {_sold} to 0
+	return max(0, min({_n}, {_own} - {_sold}))
+
 # What of a sale (n $ of a run's loot) the player robbed themselves and hasn't sold yet; uses it up.
 function progOwnTake(p: player, tag: text, n: number) :: number:
 	set {_own} to getData({_p}, "run::%{_tag}%::own")

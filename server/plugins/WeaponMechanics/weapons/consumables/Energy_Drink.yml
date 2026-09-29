@@ -1,0 +1,38 @@
+Energy_Drink:
+  Info:
+    Weapon_Item:
+      # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
+      # draws it by its custom model data (tools\make-item-art.js, Melee weapons and consumables).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Energy Drink"
+      Lore:
+        - "<gray>A can of pure sugar and bad decisions."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> Speed III <gold>⟸ <gray>for 15 seconds"
+      Unbreakable: true
+      Hide_Flags: true
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_chain, pitch=1.2}"
+    Cancel:
+      Block_Interactions: true
+      Item_Interactions: true
+      Drop_Item: true
+      Swap_Hands: true
+  Skin:
+    Default:
+      Custom_Model_Data: 4
+  Shoot:
+    Trigger:
+      Main_Hand: "RIGHT_CLICK"
+      Off_Hand: "RIGHT_CLICK"
+      Circumstance:
+        Swimming: "DENY"
+    # Donating (owner, 2026-09-28: "energy drink (15 seconds speed 3, test this one out to balance it)").
+    # A drink uses one of the stack and leaves nothing behind (no can).
+    Consume_Item_On_Shoot: true
+    Delay_Between_Shots: 20
+    Mechanics:
+      - "Sound{sound=entity.generic.drink, pitch=1.2, noise=0.1}"
+      - "Potion{potion=speed, time=300, level=3}"

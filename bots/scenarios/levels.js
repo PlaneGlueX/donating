@@ -1,5 +1,8 @@
-// levels.sk: robber levels. Level n needs T(n) = 6.5 × n × (n + 5) XP (owner, 2026-09-27: about level 150 after a
-// month of 2 h a day), titles by range (0 Pickpocket, 5 Shoplifter, 15 Burglar, ... 150 Kingpin). XP from selling loot
+// levels.sk: robber levels. Level 1 needs 49 XP and each level after needs a little more than the one before (8% easing
+// to 2% by level 60; owner, 2026-09-27: about level 150 after a month of 2 h a day; 2026-09-28: "each level should get a
+// little harder each time"), titles by range (0 Pickpocket, 5 Shoplifter, 20 Burglar, ... 150 Kingpin, 200 Godfather).
+// Rewards past the unlocks (level::rewards: bound titles, keys at 100, 125, 150 ...), given once, at the level-up or
+// the next join; members-only areas (a region lvl<N>_<name> lets in level N and up). XP from selling loot
 // at the base, X = floor(P / 100) + 10 × H (each heist run once); a level-up (title, what it unlocks, to that player
 // only); /level and /levels (only the levels that unlock something); the heist tools' and bag tiers' levels (the shop
 // refuses below them and says why); /dlevel for staff only (info, set, xp, reset;
@@ -55,10 +58,10 @@ module.exports = async ({ check }) => {
 
     // ---------- A new robber ----------
     let out = await said('/level')
-    check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level at T(1) = 6.5 × 1 × 6 = 39 XP', /Your level: 0 Pickpocket · 0 XP/.test(out) && /Next: level 1 Pickpocket at 39 XP/.test(out), out)
+    check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level at T(1) = 49 XP', /Your level: 0 Pickpocket · 0 XP/.test(out) && /Next: level 1 Pickpocket at 49 XP/.test(out), out)
     out = await said('/levels', 1500)
-    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts', /5\. Shoplifter - 325 XP · .*the \.50 GS.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. Burglar - 1,950 XP · .*the Uzi.*the Drill/.test(out) && /150\. Kingpin - 151,125 XP · .*the SUV \(car\)/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 1500))
-    check('the footer shows the level and the XP to the next one', /Pickpocket$/.test(await papi('donating_level')) && (await papi('donating_level_num')) === '0' && (await papi('donating_level_xp')) === '0/39 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
+    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts (and the rewards)', /5\. Shoplifter - 287 XP · .*the \.50 GS.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. - 1,281 XP · .*the Uzi.*the Drill/.test(out) && /20\. Burglar - 2,078 XP/.test(out) && /100\. Mastermind - 75,514 XP · .*the «Mastermind» title/.test(out) && /150\. Kingpin - 240,190 XP · .*the SUV \(car\).*the Apex \(car\).*the «Kingpin» title/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 2500))
+    check('the footer shows the level and the XP to the next one', /Pickpocket$/.test(await papi('donating_level')) && (await papi('donating_level_num')) === '0' && (await papi('donating_level_xp')) === '0/49 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
 
     // ---------- Selling earns XP ----------
     await cmd(`zztestkit ${R}`) // bag tier 2
@@ -69,7 +72,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${R} 840.5 ${Y} 840.5`)
     await sleep(1800)
     let i = await info()
-    check('selling $2,500 from 2 heists at the base gives 25 + 2 × 10 = 45 XP (level 1 at 39)', i.xp === 45 && i.rank === 1 && /\+45 XP/.test(text(t)) && logged(/xp LevelBot \S+ \+45 why=sell total=45 level=0->1/).length === 1, `${i.raw} ${text(t)}`)
+    check('selling $2,500 from 2 heists at the base gives 25 + 2 × 10 = 45 XP (still level 0: level 1 needs 49)', i.xp === 45 && i.rank === 0 && /\+45 XP/.test(text(t)) && logged(/xp LevelBot \S+ \+45 why=sell total=45 level=0->0/).length === 1, `${i.raw} ${text(t)}`)
     await cmd(`zzheisttp ${R} 830.5 ${Y} 830.5`)
     await sleep(500)
     await cmd(`zzbagadd ${R} rka#1 300`)
@@ -78,22 +81,27 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${R} 840.5 ${Y} 840.5`)
     await sleep(1800)
     i = await info()
-    check('the +10 per heist run is paid once per run: selling more of rka#1 and a new run rka#2 gives 4 + 10 = 14 XP', i.xp === 59 && /\+14 XP/.test(text(t)), `${i.raw} ${text(t)}`)
+    check('the +10 per heist run is paid once per run: selling more of rka#1 and a new run rka#2 gives 4 + 10 = 14 XP (59: level 1)', i.xp === 59 && i.rank === 1 && /\+14 XP/.test(text(t)), `${i.raw} ${text(t)}`)
     await cmd(`zzheisttp ${R} 830.5 ${Y} 830.5`)
 
     // ---------- Level up ----------
     t = Date.now()
-    await cmd(`dlevel xp ${R} 266`)
+    await cmd(`dlevel xp ${R} 228`)
     await sleep(600)
     i = await info()
-    check('reaching 325 XP: level 5 (Shoplifter)', i.rank === 5 && i.xp === 325, i.raw)
+    check('reaching 287 XP: level 5 (Shoplifter)', i.rank === 5 && i.xp === 287, i.raw)
     check('...with a LEVEL UP title and what it unlocks (guns, the Duffel Bag, the Safe Kit), to that player', messagesSince(bot, t).some(m => m.kind === 'title:title' && /LEVEL UP/.test(m.text)) && /Level up! You're level 5 now: Shoplifter/.test(text(t)) && /Unlocked: the \.50 GS/.test(text(t)) && /Unlocked: the Duffel Bag/.test(text(t)) && /Unlocked: the Safe Kit/.test(text(t)), text(t))
-    check('...and the footer follows (T(6) = 429)', /Shoplifter$/.test(await papi('donating_level')) && (await papi('donating_level_xp')) === '325/429 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
+    check('...and the footer follows (T(6) = 358)', /Shoplifter$/.test(await papi('donating_level')) && (await papi('donating_level_xp')) === '287/358 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
     t = Date.now()
     await cmd(`dlevel xp ${R} 3000`)
     await sleep(600)
     i = await info()
-    check('a jump over several levels lists every unlock on the way (3,325 XP: level 20 Burglar, T(20) = 3,250)', i.rank === 20 && /Burglar/.test(text(t)) && /Unlocked: the Drill/.test(text(t)) && /Unlocked: the Uzi/.test(text(t)) && /Unlocked: the Hockey Bag/.test(text(t)), `${i.raw} ${text(t).slice(0, 600)}`)
+    check('a jump over several levels lists every unlock on the way (3,287 XP: level 25 Burglar, T(25) = 3,147)', i.rank === 25 && /Burglar/.test(text(t)) && /Unlocked: the Drill/.test(text(t)) && /Unlocked: the Uzi/.test(text(t)) && /Unlocked: the Hockey Bag/.test(text(t)) && /Unlocked: the Armored Duffel/.test(text(t)), `${i.raw} ${text(t).slice(0, 600)}`)
+    // Each level needs more than the one before (the owner's "a little harder each time").
+    const needs = []
+    for (const n of [2, 10, 30, 60, 100, 150]) { await cmd(`dlevel set ${R} ${n - 1}`); const a = (await info()).xp; await cmd(`dlevel set ${R} ${n}`); needs.push((await info()).xp - a) }
+    check('each level needs more XP than the one before (levels 2, 10, 30, 60, 100, 150 alone)', needs.every((v, k) => k === 0 || v > needs[k - 1]) && needs[0] === 53, needs.join(', '))
+    await cmd(`dlevel set ${R} 25`)
 
     // ---------- Tools need their level ----------
     await cmd(`dlevel set ${R} 5`)
@@ -112,7 +120,7 @@ module.exports = async ({ check }) => {
     let dump = await cmd(`zzdump ${R}`)
     // The shop's answer is its status line (the menu's status item), not chat.
     const status = await cmd(`zzshop ${R}`)
-    check('below its level the Drill isn\'t sold, and the shop says why', drillSlot >= 0 && /needs level 15 \(Burglar\)/.test(status) && !/\[tool:drill\]/.test(dump), `slot ${drillSlot}; ${status}; ${dump}`)
+    check('below its level the Drill isn\'t sold, and the shop says why', drillSlot >= 0 && /needs level 15 \(Shoplifter\)/.test(status) && !/\[tool:drill\]/.test(dump), `slot ${drillSlot}; ${status}; ${dump}`)
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
     // A bag tier's first unlock needs its level too (the Hockey Bag: level 10; the bot carries a Duffel Bag).
     await cmd(`dlevel set ${R} 0`)
@@ -137,12 +145,53 @@ module.exports = async ({ check }) => {
     // ---------- Staff ----------
     out = await said('/dlevel info LevelBot')
     check('/dlevel is staff only', /Staff only/.test(out), out)
-    check('XP can only be added, never taken away', /only adds/.test(await cmd(`dlevel xp ${R} -5`)) && (await info()).xp === 1950, (await info()).raw)
+    check('XP can only be added, never taken away', /only adds/.test(await cmd(`dlevel xp ${R} -5`)) && (await info()).xp === 1281, (await info()).raw)
     setMark()
     await cmd(`dlevel set ${R} 0`)
     i = await info()
     check('staff can set a level either way; the XP moves to that level\'s start', i.rank === 0 && i.xp === 0 && logged(/set LevelBot \S+ level=0/).length === 1, i.raw)
-    await cmd(`dlevel set ${R} 60`)
+
+    // ---------- Rewards past the unlocks ----------
+    await cmd(`dlevel set ${R} 99`)
+    await cmd(`zzlvlrewards ${R}`)
+    await cmd(`zzdata ${R} keys::epic 0`)
+    await cmd(`zzdata ${R} keys::legendary 0`)
+    t = Date.now()
+    await cmd(`dlevel xp ${R} 2000`)
+    await sleep(800)
+    i = await info()
+    const epic1 = await cmd(`zzdata ${R} keys::epic`)
+    const cos1 = await cmd(`zzdata ${R} cos::lvl_mastermind`)
+    check('level 100 gives its rewards once, at the level-up: the «Mastermind» title (bound) and 2 Epic keys', i.rank === 100 && /Unlocked: the «Mastermind» title/.test(text(t)) && /Unlocked: 2 Epic Crate keys/.test(text(t)) && /\b2\b/.test(epic1) && /true/.test(cos1), `${i.raw} ${epic1} ${cos1} ${text(t).slice(0, 500)}`)
+    await cmd(`dlevel xp ${R} 10`)
+    await sleep(500)
+    const epic2 = await cmd(`zzdata ${R} keys::epic`)
+    check('...never twice (more XP at level 100 gives no more keys)', /\b2\b/.test(epic2), epic2)
+    // A staff set gives no level-up: those rewards come at the next join (below).
+    await cmd(`dlevel set ${R} 150`)
+    await sleep(300)
+    const leg0 = await cmd(`zzdata ${R} keys::legendary`)
+
+    // ---------- Members-only areas ----------
+    await cmd('rg remove -w world lvl150_rktest')
+    await cmd('zzregion lvl150_rktest 826 190 826 832 208 832')
+    await cmd('rg flag -w world lvl150_rktest passthrough allow')
+    await cmd(`dlevel set ${R} 149`)
+    await cmd(`zzheisttp ${R} 836.5 ${Y} 829.5`)
+    await sleep(400)
+    t = Date.now()
+    await cmd(`minecraft:tp ${R} 829.5 ${Y} 829.5`)
+    await sleep(900)
+    const px = Number(((await cmd(`data get entity ${R} Pos[0]`)).match(/data: (-?[\d.]+)/) || [])[1])
+    check('a members-only area (region lvl150_rktest) keeps a level-149 robber out, and says why', px > 832 && /Members only: level 150/.test(text(t)), `x ${px} ${text(t)}`)
+    await cmd(`dlevel set ${R} 150`)
+    await cmd(`minecraft:tp ${R} 829.5 ${Y} 829.5`)
+    await sleep(900)
+    const px2 = Number(((await cmd(`data get entity ${R} Pos[0]`)).match(/data: (-?[\d.]+)/) || [])[1])
+    check('...and lets level 150 in', px2 < 832, `x ${px2}`)
+    await cmd('rg remove -w world lvl150_rktest')
+    await cmd(`zzheisttp ${R} 830.5 ${Y} 830.5`)
+    await cmd(`dlevel set ${R} 150`)
 
     // ---------- It's saved ----------
     await quit(bot)
@@ -150,7 +199,11 @@ module.exports = async ({ check }) => {
     bot = await join(R)
     await sleep(1500)
     i = await info()
-    check('the level and XP survive a relog (level 60 = 25,350 XP, Heister)', i.rank === 60 && i.xp === 25350 && /Heister$/.test(await papi('donating_level')), `${i.raw} ${await papi('donating_level')}`)
+    check('the level and XP survive a relog (level 150 = 240,190 XP, Kingpin)', i.rank === 150 && i.xp === 240190 && /Kingpin$/.test(await papi('donating_level')), `${i.raw} ${await papi('donating_level')}`)
+    // Level 150 came from a staff set (no level-up): the 125 and 150 rewards came at this join.
+    const leg1 = await cmd(`zzdata ${R} keys::legendary`)
+    const king = await cmd(`zzdata ${R} cos::lvl_kingpin`)
+    check('rewards for levels reached without a level-up (a staff set to 150) come at the next join: 1 + 2 Legendary keys and the «Kingpin» title', /\b0\b/.test(leg0) && /\b3\b/.test(leg1) && /true/.test(king), `${leg0} -> ${leg1} ${king}`)
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     await rcon.cmd(`dlevel reset ${R}`).catch(() => {})

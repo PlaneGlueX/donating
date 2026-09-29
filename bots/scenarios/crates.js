@@ -222,7 +222,7 @@ module.exports = async ({ check }) => {
     // A set shows its most visible part (found in the client: both Hacked sets were name tags, so the
     // spin looked frozen): H4CK3R + Matrix is the Matrix bag, Zero Day + Glitch the kill effect.
     w = await menu(A)
-    const hs = w ? w.slots.findIndex((i, n) => n >= 9 && n < 18 && i && i.name === 'sculk_shrieker') : -1
+    const hs = w ? w.slots.findIndex((i, n) => n >= 9 && n < 27 && i && i.name === 'sculk_shrieker') : -1
     const hackedPage = windowOpen(bots[A])
     bots[A].clickWindow(hs, 0, 0).catch(() => {})
     const hw = await hackedPage

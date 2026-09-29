@@ -7,13 +7,17 @@
 #   P = what the sale paid (passive players get 75%, so their XP too), H = the heist runs in the sale
 #   not credited to this player before (bag.sk keeps data "level-haul::<h>", the last run credited), so
 #   selling one run's loot in several trips pays the bonus once.
-# Level n needs T(n) = k × n × (n + 5) total XP (k = cfg level::curve; owner, 2026-09-27: about level 150 after a
-# month of 2 hours a day). A range of levels shares a title (cfg level::brackets: 0 Pickpocket ... 150 Kingpin). All
-# the numbers are PROPOSALs in core.sk. A level unlocks:
+# Level 1 needs cfg level::first XP and each level after needs g more than the one before, g easing from level::growth-start
+# to level::growth-end by level::growth-until (owner, 2026-09-27: about level 150 after a month of 2 hours a day; 2026-09-28:
+# "each level should get a little harder each time"). T(n) = the XP level n needs in total, a table worked out once per
+# settings load (levelTable). A range of levels shares a title (cfg level::brackets: 0 Pickpocket ... 200 Godfather). All
+# the numbers are PROPOSALs in core.sk (tools\progress-sim.js times them). A level unlocks:
 #   - heists: heistLevel(h), the heist's /dheist set level, else its difficulty's default in core.sk
 #     (heists.sk's heistLevelOk asks levelOk);
 #   - heist tools, weapons and bag tiers: cfg tool::<t>::level, wpn::<W>::level, bag::<t>::level (shop.sk);
-#   - car models (garage.sk), car-job tiers (contracts.sk), hit contracts (hits.sk), Vic (fence.sk).
+#   - car models (garage.sk), car-job tiers (contracts.sk), hit contracts (hits.sk), Vic (fence.sk);
+#   - members-only areas: a WorldGuard region "lvl<N>_<name>" lets in level N and up (levelZoneBlock);
+#   and some levels give a reward once (cfg level::rewards: bound titles, kill effects, keys, money; levelRewards).
 # XP is never taken away and a level never drops by itself (only staff can lower one).
 # Level-ups are told to that player only (a title, a sound and what it unlocks in chat): no chat spam.
 # Saved: data "level-xp" (total XP), "level" (the level it gives), "level-haul::<h>". Memory:
@@ -66,35 +70,71 @@ function levelColored(n: number) :: text:
 	set {_a::*} to levelBracket({_n}) split at "|"
 	return "%{_a::3}%%{_a::2}%"
 
-# XP level n needs in total: T(n) = k × n × (n + 5). Without the curve setting no level can be reached (a typo in
-# core.sk must not level everyone up).
+# The XP table {-level::t::<n>} = T(n): need(1) = level::first, need(n) = need(n - 1) × (1 + g(n)), g easing in a straight
+# line from level::growth-start (level 2) to level::growth-end (level::growth-until) and staying there; T(n) = the sum,
+# rounded. Worked out again only when one of those settings changed (the key). False without them (a typo in core.sk
+# must not level everyone up: no level can be reached then). tools\progress-sim.js builds the same table.
+function levelTable() :: boolean:
+	set {_first} to {-cfg::level::first}
+	set {_g0} to {-cfg::level::growth-start}
+	set {_g1} to {-cfg::level::growth-end}
+	set {_until} to {-cfg::level::growth-until}
+	set {_max} to {-cfg::level::max}
+	if {_first} is not set:
+		return false
+	if {_g0} is not set:
+		return false
+	if {_g1} is not set:
+		return false
+	if {_until} is not set:
+		return false
+	if {_max} is not set:
+		return false
+	if {_first} <= 0:
+		return false
+	set {_key} to "%{_first}%|%{_g0}%|%{_g1}%|%{_until}%|%{_max}%"
+	if {-level::key} is {_key}:
+		return true
+	delete {-level::t::*}
+	set {-level::t::0} to 0
+	set {_need} to {_first}
+	set {_total} to 0
+	set {_span} to max(1, {_until} - 2)
+	loop {_max} times:
+		set {_n} to loop-number
+		if {_n} > 1:
+			set {_f} to min(1, ({_n} - 2) / {_span})
+			set {_need} to {_need} * (1 + {_g0} + ({_g1} - {_g0}) * {_f})
+		set {_total} to {_total} + {_need}
+		set {-level::t::%{_n}%} to round({_total})
+	set {-level::key} to {_key}
+	return true
+
+# XP level n needs in total (T(n) from the table); an unreachable number without the settings.
 function levelNeed(n: number) :: number:
 	if {_n} <= 0:
 		return 0
-	set {_k} to {-cfg::level::curve}
-	if {_k} is not set:
+	if levelTable() is false:
 		return 1000000000000
-	if {_k} <= 0:
+	set {_t} to {-level::t::%{_n}%}
+	if {_t} is not set:
 		return 1000000000000
-	return round({_k} * {_n} * ({_n} + 5))
+	return {_t}
 
-# The level a total of xp gives: n = floor((−5 + √(25 + 4X / k)) / 2), then checked against T either way (rounding).
+# The level a total of xp gives: the highest n with T(n) <= xp (a binary search over the table).
 function levelFor(xp: number) :: number:
-	set {_k} to {-cfg::level::curve}
-	if {_k} is not set:
+	if levelTable() is false:
 		return 0
-	if {_k} <= 0:
-		return 0
-	set {_max} to cfg("level::max")
-	set {_n} to floor((sqrt(25 + 4 * max(0, {_xp}) / {_k}) - 5) / 2)
-	set {_n} to max(0, min({_n}, {_max}))
-	if {_n} < {_max}:
-		if levelNeed({_n} + 1) <= {_xp}:
-			add 1 to {_n}
-	if {_n} > 0:
-		if levelNeed({_n}) > {_xp}:
-			remove 1 from {_n}
-	return {_n}
+	set {_lo} to 0
+	set {_hi} to {-cfg::level::max}
+	loop 20 times:
+		if {_lo} < {_hi}:
+			set {_mid} to ceil(({_lo} + {_hi}) / 2)
+			if {-level::t::%{_mid}%} <= {_xp}:
+				set {_lo} to {_mid}
+			else:
+				set {_hi} to {_mid} - 1
+	return {_lo}
 
 # A whole number with thousands commas ("12,500").
 function levelNum(n: number) :: text:
@@ -109,6 +149,11 @@ function levelUnlocks(n: number) :: texts:
 			if {_n} > 0:
 				set {_w} to {-cfg::wpn::%loop-value%::name}
 				add "the %{_w}%" to {_u::*}
+	loop {-cfg::shop::consumables::*}:
+		if {-cfg::con::%loop-value%::level} is {_n}:
+			if {_n} > 0:
+				set {_cn} to {-cfg::con::%loop-value%::name}
+				add "%{_cn}%s" to {_u::*}
 	loop integers from 2 to 5:
 		if {-cfg::bag::%loop-value%::level} is {_n}:
 			set {_bag} to {-cfg::bag::%loop-value%::name}
@@ -140,6 +185,13 @@ function levelUnlocks(n: number) :: texts:
 		if {-cfg::contract::%loop-value%::level} is {_n}:
 			set {_job} to {-cfg::contract::%loop-value%::name}
 			add "%{_job}% car contracts (/contracts)" to {_u::*}
+	# Rewards given at that level (levelRewards).
+	loop {-cfg::level::rewards::*}:
+		set {_ra::*} to loop-value split at "|"
+		if {_ra::1} is "%{_n}%":
+			set {_rt} to levelRewardText({_ra::*})
+			if {_rt} is not "":
+				add {_rt} to {_u::*}
 	return {_u::*}
 
 # ---------- Earning ----------
@@ -186,6 +238,7 @@ function levelUp(p: player, old: number, new: number):
 		loop {_u::*}:
 			msg({_p}, "&7 Unlocked: &f%loop-value-2%")
 	levelLog("up %name of {_p}% %uuid of {_p}% %{_old}%->%{_new}%")
+	levelRewards({_p})
 
 # bag.sk's bagSell: the XP for a sale that paid `pay` for `hauls` new heist runs. Returns the XP.
 function levelSale(p: player, pay: number, hauls: number) :: number:
@@ -241,6 +294,11 @@ on join:
 		deleteData(player, "rank")
 		delete {data::%player%::rank-haul::*}
 	levelRefresh(player)
+	# Rewards for levels reached before they existed (or before a restart finished giving them).
+	set {_got::*} to levelRewards(player)
+	if size of {_got::*} > 0:
+		set {_list} to join {_got::*} with ", "
+		msg(player, "&6Level rewards: &f%{_list}%")
 
 on load:
 	loop all players:
@@ -255,6 +313,151 @@ on quit:
 	delete {-ph::level::%player%}
 	delete {-ph::levelnum::%player%}
 	delete {-ph::levelxp::%player%}
+
+# ---------- Rewards past the unlocks, and members-only areas ----------
+# Owner, 2026-09-28: "think of some good rewards past 100 and 150, something new added to the map, or something that
+# unlocks". Each cfg level::rewards line "level|kind|what[|n]" is given once, at that level: title, killfx or bagskin (a
+# bound cosmetic: never traded or in crates), key|<crate>|<n>, money|<$>. A player already past a line gets it at the next
+# join (data lvlreward::<the line with - for |>). The rest past 100 is on the map: the extreme cars at the Car Dealer, a
+# heist set to level 100 (/dheist set <id> level 100 and pool), and members-only areas.
+
+function levelRewardKey(line: text) :: text:
+	set {_k} to {_line}
+	replace all "|" with "-" in {_k}
+	return {_k}
+
+# "the «Kingpin» title", "2 Legendary Crate keys", "$50,000", or "" for a line that doesn't work.
+function levelRewardText(a: texts) :: text:
+	set {_kind} to {_a::2}
+	set {_what} to {_a::3}
+	set {_n} to 1
+	if {_a::4} is set:
+		set {_n} to {_a::4} parsed as integer
+	if {_kind} is "key":
+		if {-cfg::rarity::%{_what}%::name} is not set:
+			return ""
+		if {_n} is 1:
+			return "a %crateName({_what})% key"
+		return "%{_n}% %crateName({_what})% keys"
+	if {_kind} is "money":
+		set {_m} to {_what} parsed as integer
+		if {_m} is not set:
+			return ""
+		return formatMoney({_m})
+	if cosExists({_what}) is false:
+		return ""
+	set {_name} to {-cfg::cos::%{_what}%::name}
+	if {_kind} is "title":
+		return "the «%{_name}%» title"
+	if {_kind} is "killfx":
+		return "the %{_name}% kill effect"
+	if {_kind} is "bagskin":
+		return "the %{_name}% bag skin"
+	return ""
+
+# Gives every reward the player's level has reached and they don't have yet; returns what was given (texts).
+function levelRewards(p: player) :: texts:
+	set {_lv} to levelOf({_p})
+	loop {-cfg::level::rewards::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_at} to {_a::1} parsed as integer
+		if {_at} is set:
+			if {_at} <= {_lv}:
+				set {_k} to levelRewardKey(loop-value)
+				if {data::%{_p}%::lvlreward::%{_k}%} is not set:
+					set {_t} to levelRewardText({_a::*})
+					if {_t} is not "":
+						# Marked first: a reward is never given twice.
+						set {data::%{_p}%::lvlreward::%{_k}%} to true
+						if {_a::2} is "key":
+							set {_kn} to 1
+							if {_a::4} is set:
+								set {_kn} to {_a::4} parsed as integer
+							crateAddKeys({_p}, {_a::3}, {_kn}, "level:%{_at}%")
+						else if {_a::2} is "money":
+							giveMoney({_p}, {_a::3} parsed as integer)
+						else:
+							cosGive({_p}, {_a::3}, "level:%{_at}%")
+						add {_t} to {_out::*}
+						levelLog("reward %name of {_p}% %uuid of {_p}% %loop-value%")
+	return {_out::*}
+
+# The level a region's id asks for: "lvl150_lounge" -> 150; 0 for any other region.
+function levelZoneNeed(id: text) :: number:
+	set {_id} to {_id} in lower case
+	if {_id} does not start with "lvl":
+		return 0
+	set {_parts::*} to {_id} split at "_"
+	set {_d} to subtext of {_parts::1} from characters 4 to (length of {_parts::1})
+	set {_n} to {_d} parsed as integer
+	if {_n} is not set:
+		return 0
+	return max(0, {_n})
+
+# "" when the player may enter that region, else why not. Staff always may.
+function levelZoneBlock(p: player, id: text) :: text:
+	set {_need} to levelZoneNeed({_id})
+	if {_need} <= 0:
+		return ""
+	if isStaff({_p}) is true:
+		return ""
+	if levelOk({_p}, {_need}) is true:
+		return ""
+	return "Members only: level %{_need}% %levelColored({_need})%&c and up."
+
+# "" when the player may stand at l (every members-only region there), else why not.
+function levelZoneBlockAt(p: player, l: location) :: text:
+	loop regions at {_l}:
+		set {_why} to levelZoneBlock({_p}, name of loop-value)
+		if {_why} is not "":
+			return {_why}
+	return ""
+
+# Walking or teleporting in (WorldGuard pushes them back or cancels the teleport).
+on region enter:
+	set {_why} to levelZoneBlock(player, name of the worldguard region)
+	{_why} is not ""
+	cancel event
+	hudBar(player, "&c%{_why}%", 2)
+
+# Driving in (MTVehicles checks a car's regions itself; cancelling puts the driver out). Passengers fire no region
+# events of their own, so the car stops when any of them may not come in (review 2026-09-28).
+on mtv vehicle region enter:
+	set {_why} to levelZoneBlock(player, event-text)
+	if {_why} is "":
+		set {_seat} to carSeatOf(player)
+		if {_seat} starts with "driver:":
+			set {_plate} to subtext of {_seat} from characters 8 to (length of {_seat})
+			loop all players:
+				if carSeatOf(loop-player) is "passenger:%{_plate}%":
+					if levelZoneBlock(loop-player, event-text) is not "":
+						set {_why} to "A passenger isn't allowed in there."
+	{_why} is not ""
+	cancel event
+	hudBar(player, "&c%{_why}%", 2)
+
+# The backstop, every second (review 2026-09-28): anyone standing where they may not (a passenger carried in, a
+# rejoin inside: WorldGuard fires no enter event for a login spot) goes back to the last spot they stood where they
+# could, else to spawn.
+every second:
+	loop all players:
+		set {_p} to loop-player
+		set {_why} to levelZoneBlockAt({_p}, location of {_p})
+		if {_why} is "":
+			if {_p} is alive:
+				set {-lvlzone::ok::%{_p}%} to location of {_p}
+		else if {_p} is alive:
+			if vehicle of {_p} is set:
+				make {_p} dismount
+			set {_back} to {-lvlzone::ok::%{_p}%}
+			if {_back} is not set:
+				set {_back} to spawn of world "world"
+			teleport {_p} to {_back}
+			hudBar({_p}, "&c%{_why}%", 2)
+			levelLog("zone-out %name of {_p}% %uuid of {_p}% %{_why}%")
+
+on quit:
+	delete {-lvlzone::ok::%player%}
 
 # ---------- /level and /levels ----------
 
@@ -286,7 +489,7 @@ function levelShow(p: player):
 			send colored "&7 It unlocks: &f%{_list}%" to {_p}
 	set {_per} to cfg("level::xp-per-dollars")
 	set {_haul} to cfg("level::xp-per-haul")
-	send colored "&7 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist. /levels" to {_p}
+	send colored "&7 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist; car jobs, hits and missions pay XP too. Each level needs a little more than the last. /levels" to {_p}
 
 command /level:
 	description: Your robber level.
@@ -333,6 +536,11 @@ function levelMilestones() :: numbers:
 		set {_n} to {-cfg::tool::%loop-value%::level}
 		if {_n} is set:
 			set {_m::%{_n}%} to {_n}
+	loop {-cfg::shop::consumables::*}:
+		set {_n} to {-cfg::con::%loop-value%::level}
+		if {_n} is set:
+			if {_n} > 0:
+				set {_m::%{_n}%} to {_n}
 	loop integers from 2 to 5:
 		set {_n} to {-cfg::bag::%loop-value%::level}
 		if {_n} is set:
@@ -353,6 +561,11 @@ function levelMilestones() :: numbers:
 	if {-cfg::fence::level} is set:
 		set {_n} to {-cfg::fence::level}
 		set {_m::%{_n}%} to {_n}
+	loop {-cfg::level::rewards::*}:
+		set {_ra::*} to loop-value split at "|"
+		set {_n} to {_ra::1} parsed as integer
+		if {_n} is set:
+			set {_m::%{_n}%} to {_n}
 	loop {heists::*}:
 		if heistState(loop-index) is not "disabled":
 			set {_n} to heistLevel(loop-index)

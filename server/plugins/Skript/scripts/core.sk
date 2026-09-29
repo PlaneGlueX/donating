@@ -43,6 +43,9 @@ function loadSettings():
 	set {-cfg::passive::switch-cooldown} to 10 minutes
 	set {-cfg::bounty::repeat-kill-window} to 15 minutes
 	set {-cfg::duffel::despawn} to 2 minutes
+	# Hot loot (review 2026-09-28, PROPOSAL): what a robber the cops hunt drops can't be sold for this long, by
+	# anyone who picks it up (the robber too), so a friend can't carry it home past the cops.
+	set {-cfg::duffel::hot-time} to 10 minutes
 	set {-cfg::alarm::warning} to 20 seconds
 	set {-cfg::alarm::wave-interval} to 10 seconds
 	set {-cfg::alarm::max-cops} to 6
@@ -108,7 +111,7 @@ function loadSettings():
 	# colors: "Label=MTV uuid=itemDamage" (server\plugins\MTVehicles\vehicles.yml; every uuid there is used here;
 	# the damage picks the model in the pack, for the menu icons).
 	# crate = only from crates (never sold at the dealer); a crate car needs no level.
-	set {-cfg::cars::*} to "sedan", "sportsedan", "jeep", "sports", "hotrod", "suv", "vandal", "specter" and "overclock"
+	set {-cfg::cars::*} to "sedan", "sportsedan", "jeep", "sports", "hotrod", "suv", "viper", "riviera", "apex", "vandal", "specter" and "overclock"
 	set {-cfg::car::sedan::name} to "Sedan"
 	set {-cfg::car::sedan::price} to 40000
 	# Levels on the 2026-09-27 scale (level 150 at about 60 h of play).
@@ -144,6 +147,119 @@ function loadSettings():
 	set {-cfg::car::overclock::name} to "Overclock"
 	set {-cfg::car::overclock::crate} to true
 	set {-cfg::carcolors::overclock::*} to "Gold=6WDK7U=1158"
+	# Each model's stats in MTVehicles' vehicles.yml (its family's): "top speed|acceleration|steering". Mods (below) start
+	# from these (garage.sk carApplyMods), so keep them the same as vehicles.yml.
+	set {-cfg::car::sedan::stats} to "0.65|0.009|8"
+	set {-cfg::car::sportsedan::stats} to "0.65|0.009|8"
+	set {-cfg::car::specter::stats} to "0.65|0.009|8"
+	set {-cfg::car::jeep::stats} to "0.65|0.009|8"
+	set {-cfg::car::sports::stats} to "0.67|0.012|8"
+	set {-cfg::car::vandal::stats} to "0.67|0.012|8"
+	set {-cfg::car::hotrod::stats} to "0.7|0.012|8"
+	set {-cfg::car::overclock::stats} to "0.7|0.012|8"
+	set {-cfg::car::suv::stats} to "0.6|0.009|8"
+
+	# ---------- The car expansion (owner, 2026-09-28): extreme cars, wraps, mods, serial numbers, car crates ----------
+	# Owner: "expanding the car trading with the high rarity cars, so add a extreme tier car category ($1M+), some
+	# customizations locked (any hardware upgrades, skin), custom serial number added for better rarity tracking, also
+	# adding different extreme tier car crates that give high and extreme priced cars with the chance to have any (non
+	# retired) car skin, any car mods, etc. so its endless combinations of cars (but the car value is like: base car < the
+	# car with a bad skin < car with bad skin and car mods / car with good skin < car with good skin and mods / car with
+	# super rare skin < car with super rare skin and mods)". ALL PROPOSALS below.
+	# A player may own several cars of a model now (each its own plate and serial number), up to garage-max in all.
+	set {-cfg::car::garage-max} to 60
+	# Extreme cars ($1M+, the rewards past level 100): bought at the Car Dealer, repaintable, but never tuned or wrapped
+	# (their mods and wraps only come from car crates). carcolorsx = colors only car crates give (special paint).
+	set {-cfg::car::viper::name} to "Viper"
+	set {-cfg::car::viper::kind} to "superbike"
+	set {-cfg::car::viper::price} to 1250000
+	set {-cfg::car::viper::level} to 110
+	set {-cfg::car::viper::extreme} to true
+	set {-cfg::car::viper::stats} to "0.78|0.016|8"
+	set {-cfg::carcolors::viper::*} to "Black=PQTCZK=1300", "White=36MCV5=1301", "Gray=WLDS5O=1013", "Orange=FV5PZP=1036", "Green=4HY4A5=1037", "Blue=K6TBK9=1038", "Red=JDC78X=1041" and "Pink=XTKK54=1042"
+	set {-cfg::carcolorsx::viper::*} to "Gold=7WTA39=1039", "Police=384A4N=1040", "Mint=7H3U63=1194", "Easter=RBSX6N=1195" and "Orange Blaze=A5K4NY=1197"
+	set {-cfg::car::riviera::name} to "Riviera"
+	set {-cfg::car::riviera::kind} to "convertible"
+	set {-cfg::car::riviera::price} to 2000000
+	set {-cfg::car::riviera::level} to 130
+	set {-cfg::car::riviera::extreme} to true
+	set {-cfg::car::riviera::stats} to "0.72|0.013|8"
+	set {-cfg::carcolors::riviera::*} to "Black Orange=7BPAD8=1198", "Red=85GAEH=1203", "Green=W33BEH=1204", "Light Blue=Q85BXQ=1207", "Purple=G7KJ8A=1208" and "Pink=K6DVYQ=1209"
+	set {-cfg::car::apex::name} to "Apex"
+	set {-cfg::car::apex::kind} to "race car"
+	set {-cfg::car::apex::price} to 3500000
+	set {-cfg::car::apex::level} to 150
+	set {-cfg::car::apex::extreme} to true
+	set {-cfg::car::apex::stats} to "0.85|0.018|8"
+	set {-cfg::carcolors::apex::*} to "Black=4JXXK8=1165", "Red=RD8XS9=1166", "Emerald=6XXC76=1167", "Pink=972EKA=1169", "Orange=QF6WZD=1171" and "Black Orange=63MHGZ=1172"
+	set {-cfg::carcolorsx::apex::*} to "Gold=KHNB73=1168", "Diamond=8D7JLU=1170", "Ender=LRGF4Y=1186", "Purple Fade=KS58X3=1193" and "Rainbow=L4SEDU=1210"
+	# Grade (garage.sk carGrade): the wrap's tier (0 = none, 1-3) + 1 with any mod, as "name|color" 0-4.
+	set {-cfg::car::grades::*} to "Stock|&7", "Custom|&f", "Rare|&9", "Exotic|&d" and "Mythic|&6"
+	# Wraps (skins; the art is tools\make-car-wraps.js, the variants carwraps.sk): "id|name|tier", tier 1 = common (the
+	# owner's "bad skin"), 2 = rare ("good"), 3 = exotic ("super rare"). A retired wrap (carwrap::<id>::retired true) is
+	# never rolled again; the cars that have it keep it.
+	set {-cfg::carwrap::tier::1} to "Common|&f"
+	set {-cfg::carwrap::tier::2} to "Rare|&9"
+	set {-cfg::carwrap::tier::3} to "Exotic|&d"
+	loop "matte|Matte Black|1", "primer|Primer|1", "twotone|Two-Tone|1", "stripes|Racing Stripes|1", "checker|Checkered|1", "camo|Woodland Camo|2", "arctic|Arctic Camo|2", "carbon|Carbon Fiber|2", "flames|Flames|2", "tiger|Tiger|2", "hacker|H4CK3R|3", "galaxy|Galaxy|3", "goldleaf|Gold Leaf|3", "neon|Neon Grid|3" and "inferno|Inferno|3":
+		set {_cw::*} to loop-value split at "|"
+		add {_cw::1} to {-cfg::carwraps::*}
+		set {-cfg::carwrap::%{_cw::1}%::name} to {_cw::2}
+		set {-cfg::carwrap::%{_cw::1}%::tier} to {_cw::3} parsed as integer
+	# Hardware mods: a part's stage n (1-3) raises the model's stat by that share (engine: top speed, turbo: acceleration)
+	# or that many points (handling: steering). The tuning shop at a garage sells them for dealer cars (not extreme ones)
+	# at the model's price x share (at least min) per stage; crate cars come with theirs and can't be changed.
+	set {-cfg::carmod::parts::*} to "engine", "turbo" and "handling"
+	set {-cfg::carmod::engine::name} to "Engine"
+	set {-cfg::carmod::engine::what} to "top speed"
+	set {-cfg::carmod::engine::1} to 0.05
+	set {-cfg::carmod::engine::2} to 0.1
+	set {-cfg::carmod::engine::3} to 0.15
+	set {-cfg::carmod::turbo::name} to "Turbo"
+	set {-cfg::carmod::turbo::what} to "acceleration"
+	set {-cfg::carmod::turbo::1} to 0.15
+	set {-cfg::carmod::turbo::2} to 0.3
+	set {-cfg::carmod::turbo::3} to 0.45
+	set {-cfg::carmod::handling::name} to "Handling"
+	set {-cfg::carmod::handling::what} to "steering"
+	set {-cfg::carmod::handling::1} to 1
+	set {-cfg::carmod::handling::2} to 2
+	set {-cfg::carmod::handling::3} to 3
+	set {-cfg::carmod::share::1} to 0.08
+	set {-cfg::carmod::share::2} to 0.2
+	set {-cfg::carmod::share::3} to 0.4
+	set {-cfg::carmod::min::1} to 5000
+	set {-cfg::carmod::min::2} to 12000
+	set {-cfg::carmod::min::3} to 25000
+	# Looks from car crates only: neon under the car and a trail behind it (particles while it's driven).
+	set {-cfg::carneons::*} to "cyan", "blue", "green", "purple", "orange" and "white"
+	set {-cfg::carneon::cyan::name} to "Cyan"
+	set {-cfg::carneon::blue::name} to "Blue"
+	set {-cfg::carneon::green::name} to "Green"
+	set {-cfg::carneon::purple::name} to "Purple"
+	set {-cfg::carneon::orange::name} to "Orange"
+	set {-cfg::carneon::white::name} to "White"
+	set {-cfg::cartrails::*} to "smoke", "flame", "blueflame" and "sparks"
+	set {-cfg::cartrail::smoke::name} to "Smoke"
+	set {-cfg::cartrail::flame::name} to "Flame"
+	set {-cfg::cartrail::blueflame::name} to "Blue Flame"
+	set {-cfg::cartrail::sparks::name} to "Sparks"
+	# Car crates (crates.sk: a "carroll|<pool>" line rolls a whole car): the model ("weight|car"), a paint color (a
+	# crate-only one at special-color), the wrap's tier ("weight|tier", 0 = none; then any wrap of that tier that isn't
+	# retired), each part's stage ("weight|stage") and the chance of a neon and of a trail. The car arrives locked as it
+	# rolled (never repainted or tuned: that's what keeps its value).
+	set {-cfg::carroll::supercar::cars::*} to "300|sports", "250|hotrod", "200|suv", "120|viper", "80|riviera" and "50|apex"
+	set {-cfg::carroll::supercar::wraps::*} to "400|0", "350|1", "180|2" and "70|3"
+	set {-cfg::carroll::supercar::stages::*} to "550|0", "250|1", "140|2" and "60|3"
+	set {-cfg::carroll::supercar::neon} to 0.2
+	set {-cfg::carroll::supercar::trail} to 0.12
+	set {-cfg::carroll::supercar::special-color} to 0.15
+	set {-cfg::carroll::hypercar::cars::*} to "450|viper", "350|riviera" and "200|apex"
+	set {-cfg::carroll::hypercar::wraps::*} to "200|0", "350|1", "300|2" and "150|3"
+	set {-cfg::carroll::hypercar::stages::*} to "300|0", "320|1", "240|2" and "140|3"
+	set {-cfg::carroll::hypercar::neon} to 0.35
+	set {-cfg::carroll::hypercar::trail} to 0.25
+	set {-cfg::carroll::hypercar::special-color} to 0.3
 	# Repainting an owned car (another color of its model) in the garage.
 	set {-cfg::car::paint-price} to 2500
 	# Calling your car to you from the garage: once per this long, and never while in combat.
@@ -184,9 +300,12 @@ function loadSettings():
 	set {-cfg::contract::tiers::*} to "basic", "pro" and "master"
 	set {-cfg::contract::basic::name} to "Street job"
 	set {-cfg::contract::basic::level} to 5
-	# Owner, 2026-09-27: contract pay halved.
-	set {-cfg::contract::basic::pay} to 1500
-	set {-cfg::contract::basic::xp} to 30
+	# Owner, 2026-09-28: each tier waits after a delivery (easy 1 h, medium 3 h, hard 6 h, real time: cooldown), "but a lot
+	# more pay". PROPOSAL pay: about 3x what 6 minutes of heists earn at the tier's levels (tools\progress-sim.js); XP = pay / 100
+	# (1 XP per $100, like loot).
+	set {-cfg::contract::basic::pay} to 12000
+	set {-cfg::contract::basic::xp} to 120
+	set {-cfg::contract::basic::cooldown} to 1 hour
 	set {-cfg::contract::basic::qte-hits} to 3
 	set {-cfg::contract::basic::qte-step} to 4
 	set {-cfg::contractcars::basic::*} to "sedan" and "sportsedan"
@@ -201,15 +320,17 @@ function loadSettings():
 	set {-cfg::contractcars::starter::*} to "sedan"
 	set {-cfg::contract::pro::name} to "Pro job"
 	set {-cfg::contract::pro::level} to 30
-	set {-cfg::contract::pro::pay} to 4500
-	set {-cfg::contract::pro::xp} to 90
+	set {-cfg::contract::pro::pay} to 40000
+	set {-cfg::contract::pro::xp} to 400
+	set {-cfg::contract::pro::cooldown} to 3 hours
 	set {-cfg::contract::pro::qte-hits} to 3
 	set {-cfg::contract::pro::qte-step} to 3
 	set {-cfg::contractcars::pro::*} to "jeep" and "sports"
 	set {-cfg::contract::master::name} to "Master job"
 	set {-cfg::contract::master::level} to 60
-	set {-cfg::contract::master::pay} to 12500
-	set {-cfg::contract::master::xp} to 250
+	set {-cfg::contract::master::pay} to 100000
+	set {-cfg::contract::master::xp} to 1000
+	set {-cfg::contract::master::cooldown} to 6 hours
 	set {-cfg::contract::master::qte-hits} to 4
 	set {-cfg::contract::master::qte-step} to 3
 	set {-cfg::contractcars::master::*} to "hotrod" and "suv"
@@ -222,7 +343,8 @@ function loadSettings():
 	set {-cfg::lockpick::master::name} to "Master Lockpick"
 	set {-cfg::lockpick::master::price} to 2000
 	set {-cfg::lockpick::max} to 3
-	# A contract lasts this long; after one (done, failed or dropped) the next waits this long.
+	# A contract lasts this long. After a failed or dropped one (or the tutorial's first job) the next of any tier waits
+	# contract::cooldown; after a delivery that tier waits its own cooldown (above), the others don't.
 	set {-cfg::contract::time} to 10 minutes
 	set {-cfg::contract::cooldown} to 3 minutes
 	# Offers are made again this often (per player).
@@ -284,7 +406,7 @@ function loadSettings():
 	set {-cfg::chain::vic::color} to "&6"
 	set {-cfg::chain::vic::bar} to "&6&lVIC"
 	set {-cfg::chain::vic::barcolor} to "yellow"
-	set {-cfg::chain::vic::start} to "state|level|30"
+	set {-cfg::chain::vic::start} to "state|level|45"
 	set {-cfg::chain::vic::needs} to "fence"
 	set {-cfg::chain::vic::missions::*} to "v1_meet", "v2_appraisal", "v3_wheels", "v4_collector", "v5_auction" and "v6_end"
 	loop "v1_meet", "v2_appraisal", "v3_wheels", "v4_collector", "v5_auction" and "v6_end":
@@ -331,7 +453,7 @@ function loadSettings():
 	# Vic's weekly Wanted List (fence.sk): 3 orders a week for everyone, picked up in person at the Pawn Shop.
 	# A heist order pays heist::rate on up to L1 = min(cap::<d>, pool-share x the pool) of your own loot from it; a
 	# difficulty order diff::rate on up to cap::<d> of your own loot from heists that hard; a car order a flat pay once.
-	set {-cfg::fence::level} to 30
+	set {-cfg::fence::level} to 45
 	set {-cfg::fence::heist::rate} to 0.3
 	set {-cfg::fence::heist::min-difficulty} to 2
 	set {-cfg::fence::heist::pool-share} to 0.5
@@ -344,8 +466,8 @@ function loadSettings():
 	set {-cfg::fence::diff::cap::3} to 45000
 	set {-cfg::fence::diff::cap::4} to 120000
 	set {-cfg::fence::car::tiers::*} to "basic" and "pro"
-	set {-cfg::fence::car::basic::pay} to 750
-	set {-cfg::fence::car::pro::pay} to 2250
+	set {-cfg::fence::car::basic::pay} to 6000
+	set {-cfg::fence::car::pro::pay} to 18000
 	# progress.sk: the week turns Thursday 00:00 UTC (seconds added to unix time move it), and run notes are kept
 	# 14 days at most.
 	set {-cfg::week::offset} to 0
@@ -467,10 +589,10 @@ function loadSettings():
 	set {-cfg::story::c2_bank::brief} to "Fill that new bag. Bank $20,000 from heists."
 	set {-cfg::story::c2_bank::done} to "Twenty grand. You're making a name."
 	set {-cfg::story::c2_level::chapter} to 2
-	set {-cfg::story::c2_level::label} to "Reach level 15"
-	set {-cfg::story::c2_level::obj} to "state|level|15"
+	set {-cfg::story::c2_level::label} to "Reach level 20"
+	set {-cfg::story::c2_level::obj} to "state|level|20"
 	set {-cfg::story::c2_level::gps} to "heist"
-	set {-cfg::story::c2_level::brief} to "Level 15 opens the Drill, the Uzi and the hard heists. Keep at it."
+	set {-cfg::story::c2_level::brief} to "Level 15 opens the Drill and the Uzi, level 20 the hard heists. Keep at it."
 	set {-cfg::story::c2_end::chapter} to 2
 	set {-cfg::story::c2_end::label} to "Report to Mara"
 	set {-cfg::story::c2_end::obj} to "talk|story"
@@ -505,10 +627,10 @@ function loadSettings():
 	set {-cfg::story::c3_car::brief} to "Every crew needs wheels. The Car Dealer has what you need."
 	set {-cfg::story::c3_car::done} to "Nice ride. Now you can outrun them."
 	set {-cfg::story::c3_level::chapter} to 3
-	set {-cfg::story::c3_level::label} to "Reach level 30"
-	set {-cfg::story::c3_level::obj} to "state|level|30"
+	set {-cfg::story::c3_level::label} to "Reach level 45"
+	set {-cfg::story::c3_level::obj} to "state|level|45"
 	set {-cfg::story::c3_level::gps} to "heist"
-	set {-cfg::story::c3_level::brief} to "Level 30 opens the big heists. The ones with alarms."
+	set {-cfg::story::c3_level::brief} to "Level 45 opens the big heists. The ones with alarms."
 	set {-cfg::story::c3_end::chapter} to 3
 	set {-cfg::story::c3_end::label} to "Report to Mara"
 	set {-cfg::story::c3_end::obj} to "talk|story"
@@ -753,7 +875,8 @@ function loadSettings():
 	set {-cfg::difficulty::2::escape} to 6 minutes
 	set {-cfg::difficulty::3::escape} to 8 minutes
 	set {-cfg::difficulty::4::escape} to 10 minutes
-	set {-cfg::difficulty::0::cooldown} to 5 minutes
+	# Owner, 2026-09-28: stores reopen after 10 minutes.
+	set {-cfg::difficulty::0::cooldown} to 10 minutes
 	set {-cfg::difficulty::1::cooldown} to 6 minutes
 	set {-cfg::difficulty::2::cooldown} to 10 minutes
 	set {-cfg::difficulty::3::cooldown} to 15 minutes
@@ -780,8 +903,9 @@ function loadSettings():
 	set {-cfg::store::idle-close} to 10 minutes
 	set {-cfg::store::no-pvp} to true
 	set {-cfg::difficulty::2::level} to 5
-	set {-cfg::difficulty::3::level} to 15
-	set {-cfg::difficulty::4::level} to 30
+	# Owner, 2026-09-28: heists 0 / 5 / 20 / 45 (difficulty 1-4).
+	set {-cfg::difficulty::3::level} to 20
+	set {-cfg::difficulty::4::level} to 45
 	# Advanced heists have an alarm (decided: only advanced heists).
 	set {-cfg::difficulty::0::advanced} to false
 	set {-cfg::difficulty::1::advanced} to false
@@ -886,7 +1010,7 @@ function loadSettings():
 	# Pile styles: what a piece looks like and is worth. A pile's value V = n × piece with n rolled at
 	# every opening between ceil(min / piece) and floor(max / piece) (/dloot add ... value=MIN-MAX).
 	# Rate r = piece / take ($ per second of holding); a bag of capacity C fills in C / r seconds.
-	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods" and "art"
+	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods", "art" and "register"
 	set {-cfg::loot::cash::name} to "Cash stack"
 	set {-cfg::loot::cash::piece} to 100
 	set {-cfg::loot::cash::take} to 0.8
@@ -927,6 +1051,17 @@ function loadSettings():
 	set {-cfg::loot::art::layers} to 1
 	set {-cfg::loot::art::thick} to 0.3
 	set {-cfg::loot::art::scale} to 0.5
+	# A store's till (owner, 2026-09-28: stores are small, "all you have to do is rob the cash register"): bills in a
+	# register on the counter, quick to grab. model = the pack's art to use (the cash stack's).
+	set {-cfg::loot::register::name} to "Register cash"
+	set {-cfg::loot::register::piece} to 100
+	set {-cfg::loot::register::take} to 0.6
+	set {-cfg::loot::register::item} to paper
+	set {-cfg::loot::register::model} to "donating:loot_cash"
+	set {-cfg::loot::register::per-cell} to 4
+	set {-cfg::loot::register::layers} to 3
+	set {-cfg::loot::register::thick} to 0.05
+	set {-cfg::loot::register::scale} to 0.35
 	set {-cfg::loot::pile::lift} to 0             # surface above the block top (auto -0.5 on a bottom slab)
 	# Gates: glass to smash, a safe to crack (keypad, needs a Safe Kit), a vault door to drill (needs a
 	# Drill). claim = the head start of whoever opened it (only they can take from the piles behind it;
@@ -957,6 +1092,10 @@ function loadSettings():
 	set {-cfg::bounty::min-placed} to 1000
 	# No bounty payout (or kill bounty) between players on the same IP address (alts).
 	set {-cfg::bounty::ip-check} to true
+	# PROPOSAL (review 2026-09-28): the part of a bounty nobody paid for (robbery and contract shares, kills) is paid
+	# to the killer out of the victim's own balance, so two friends killing each other only move their own money
+	# around. false = it's new money, as before (a pair could farm +10% on every sale).
+	set {-cfg::bounty::earned-from-victim} to true
 
 	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
 	# Purchases at or above this price need a second click within the window.
@@ -977,7 +1116,7 @@ function loadSettings():
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
 	# files (AK-47 5.5 a body shot: 4 shots unarmored, 11 in a Tactical Helmet + Heavy Vest).
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
-	set {-cfg::shop::weapons::*} to "Combat_Knife", "50_GS", "Uzi", "R9_0" and "AK_47"
+	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "Uzi", "R9_0" and "AK_47"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
 	# Owner, 2026-09-27: weapons cost more and guns need a level (melee first).
@@ -987,6 +1126,22 @@ function loadSettings():
 	set {-cfg::wpn::Combat_Knife::model} to -10
 	# The robber level a weapon's first unlock needs (shop.sk; equipping one you own needs none).
 	set {-cfg::wpn::Combat_Knife::level} to 0
+	# Owner, 2026-09-28: "more melee weapons/consumables (dagger, throwable knife, grappler, energy drink ...)". PROPOSAL
+	# prices and levels. item = the base item WeaponMechanics gives it (a feather when not set): the pack draws these on an
+	# amethyst shard by their model number (tools\make-item-art.js). Damage in their WeaponMechanics files: the bat 5 with
+	# a push, the dagger 4 twice as fast (5.78 from behind, like an AK-47 back shot).
+	set {-cfg::wpn::Baseball_Bat::name} to "Baseball Bat"
+	set {-cfg::wpn::Baseball_Bat::kind} to "Melee"
+	set {-cfg::wpn::Baseball_Bat::price} to 1000
+	set {-cfg::wpn::Baseball_Bat::model} to 2
+	set {-cfg::wpn::Baseball_Bat::item} to amethyst shard
+	set {-cfg::wpn::Baseball_Bat::level} to 0
+	set {-cfg::wpn::Dagger::name} to "Dagger"
+	set {-cfg::wpn::Dagger::kind} to "Melee"
+	set {-cfg::wpn::Dagger::price} to 2500
+	set {-cfg::wpn::Dagger::model} to 1
+	set {-cfg::wpn::Dagger::item} to amethyst shard
+	set {-cfg::wpn::Dagger::level} to 3
 	set {-cfg::wpn::50_GS::name} to ".50 GS"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
 	set {-cfg::wpn::50_GS::price} to 7500
@@ -1038,16 +1193,36 @@ function loadSettings():
 	set {-cfg::ammo::rifle::max} to 240
 
 	# Consumables: WeaponMechanics items with Shoot.Consume_Item_On_Shoot (no leftover item).
-	set {-cfg::shop::consumables::*} to "Stim"
+	set {-cfg::shop::consumables::*} to "Stim", "Bandage", "Throwing_Knife" and "Energy_Drink"
 	set {-cfg::con::Stim::name} to "Stim"
 	# Owner, 2026-09-27: doubled.
 	set {-cfg::con::Stim::price} to 400
 	set {-cfg::con::Stim::max} to 3
 	set {-cfg::con::Stim::model} to -1
+	# The new ones (owner, 2026-09-28; PROPOSAL prices, stacks and levels; level = the level to buy one).
+	set {-cfg::con::Bandage::name} to "Bandage"
+	set {-cfg::con::Bandage::price} to 150
+	set {-cfg::con::Bandage::max} to 5
+	set {-cfg::con::Bandage::model} to 5
+	set {-cfg::con::Bandage::item} to amethyst shard
+	set {-cfg::con::Bandage::level} to 0
+	set {-cfg::con::Throwing_Knife::name} to "Throwing Knife"
+	set {-cfg::con::Throwing_Knife::price} to 250
+	set {-cfg::con::Throwing_Knife::max} to 6
+	set {-cfg::con::Throwing_Knife::model} to 3
+	set {-cfg::con::Throwing_Knife::item} to amethyst shard
+	set {-cfg::con::Throwing_Knife::level} to 5
+	# Speed III for 15 s (the owner's ask; measured: a sprint at 9.1 blocks/s, 61 blocks ahead of the fastest cop in 15 s).
+	set {-cfg::con::Energy_Drink::name} to "Energy Drink"
+	set {-cfg::con::Energy_Drink::price} to 750
+	set {-cfg::con::Energy_Drink::max} to 2
+	set {-cfg::con::Energy_Drink::model} to 4
+	set {-cfg::con::Energy_Drink::item} to amethyst shard
+	set {-cfg::con::Energy_Drink::level} to 10
 
 	# Heist tools (loot.sk): carried in hotbar 1-5 (only the gun shop and the tools shop change those),
 	# used up by the task (a Safe Kit only when the safe opens), lost on death. Not in Save/Restore.
-	set {-cfg::shop::tools::*} to "drill" and "safe-kit"
+	set {-cfg::shop::tools::*} to "drill", "safe-kit" and "grappler"
 	set {-cfg::tool::drill::name} to "Drill"
 	set {-cfg::tool::drill::enabled} to true
 	set {-cfg::tool::drill::price} to 2500
@@ -1063,21 +1238,50 @@ function loadSettings():
 	# PROPOSAL: the robber level a tool needs to be bought (levels.sk).
 	set {-cfg::tool::safe-kit::level} to 5
 	set {-cfg::tool::drill::level} to 15
+	# The Grappler (grapple.sk; owner, 2026-09-28: "not sure on this one, might be too overpowered"): each one is a hook,
+	# used up by a pull. PROPOSAL: level 30, never into or near heists (see grapple.sk). enabled false takes it off sale.
+	set {-cfg::tool::grappler::name} to "Grappler"
+	set {-cfg::tool::grappler::enabled} to true
+	set {-cfg::tool::grappler::price} to 750
+	set {-cfg::tool::grappler::max} to 5
+	set {-cfg::tool::grappler::item} to breeze rod
+	set {-cfg::tool::grappler::about} to "Right-click: pulls you to where you aim. One hook a pull."
+	set {-cfg::tool::grappler::level} to 30
+	# The Baseball Bat's knockback (items.sk; it was MechanicsCore's Push): blocks a tick along the hit, and up.
+	set {-cfg::bat::knockback} to 0.75
+	set {-cfg::bat::lift} to 0.3
+	set {-cfg::grapple::range} to 24
+	set {-cfg::grapple::speed} to 1.3
+	set {-cfg::grapple::ticks} to 30
+	set {-cfg::grapple::cooldown} to 3 seconds
+	set {-cfg::grapple::fall-grace} to 4 seconds
+	set {-cfg::grapple::heist-gap} to 6
+	set {-cfg::grapple::block-prefix} to "nograpple"
 
 	# ---------- Robber levels (levels.sk) ----------
-	# Owner, 2026-09-27: many levels, about level 150 after a month of 2 hours a day (about 60 h). Level n needs
-	# T(n) = k × n × (n + 5) XP in total (k = level::curve), so each level needs 13 more XP than the one before
-	# (Δ(n) = k × (2n + 6)). XP comes from selling loot at the base: X = floor(P / level::xp-per-dollars) +
-	# level::xp-per-haul × H (P = what the sale paid, passive 75%; H = the heist runs in it, each once), plus car
-	# jobs, hits, missions and contact jobs. PROPOSAL: k = 6.5 (the model's level 150 at about 59 h); retune after the
-	# beta with k' = X60 / 23,250 (X60 = the median XP of players with 60 h played). Lowering k is safe (players catch
-	# up); raising it strands them (a level never drops). level::max is only a technical bound.
-	set {-cfg::level::curve} to 6.5
+	# Owner, 2026-09-27: many levels, about level 150 after a month of 2 hours a day (about 60 h). Owner, 2026-09-28: "each
+	# level should get a little harder each time, like a 12% increase each level": level 1 needs level::first XP and each
+	# level after needs g more than the one before, g easing from growth-start (8%) to growth-end (2%) by level
+	# growth-until and staying there: need(n) = need(n - 1) × (1 + g(n)). A flat 12% can't reach 150 (level 150 would need
+	# 1.12^149, about 22 million times level 1's XP), and 12% at the start made the first 30 levels take under 2 hours.
+	# T(n) = the sum of need(1..n), worked out once per settings load (levels.sk levelTable).
+	# XP comes from selling loot at the base: X = floor(P / level::xp-per-dollars) + level::xp-per-haul × H (P = what the
+	# sale paid, passive 75%; H = the heist runs in it, each once), plus car jobs, hits, missions and contact jobs.
+	# PROPOSAL: level::first from tools\progress-sim.js --solve 150@60 (the median 2 h/day player at level 150 after 60 h).
+	# Retune after the beta: lower level::first (players catch up at once); raising it strands players (a level never
+	# drops). level::max is only a technical bound.
+	set {-cfg::level::first} to 49
+	set {-cfg::level::growth-start} to 0.08
+	set {-cfg::level::growth-end} to 0.02
+	set {-cfg::level::growth-until} to 60
 	set {-cfg::level::max} to 500
 	set {-cfg::level::xp-per-dollars} to 100
 	set {-cfg::level::xp-per-haul} to 10
 	# The title of a range of levels: "from|name|color", lowest first (each starts at a big unlock).
-	set {-cfg::level::brackets::*} to "0|Pickpocket|&7", "5|Shoplifter|&f", "15|Burglar|&a", "30|Safecracker|&b", "60|Heister|&e", "100|Mastermind|&6" and "150|Kingpin|&c"
+	# Rewards past the unlocks (owner, 2026-09-28: "good rewards past 100 and 150"), given once at that level (levels.sk):
+	# "level|kind|what[|n]": title, killfx, bagskin (a bound cosmetic below), key|<crate>|<n>, money|<$>. PROPOSAL.
+	set {-cfg::level::rewards::*} to "100|title|lvl_mastermind", "100|key|epic|2", "125|title|lvl_highroller", "125|key|legendary|1", "150|title|lvl_kingpin", "150|killfx|lvl_crown", "150|key|legendary|2", "175|title|lvl_streetking", "175|key|legendary|2", "200|title|lvl_godfather", "200|killfx|lvl_moneyrain", "200|key|legendary|3", "250|title|lvl_untouchable", "250|key|legendary|3", "300|title|lvl_myth" and "300|key|legendary|5"
+	set {-cfg::level::brackets::*} to "0|Pickpocket|&7", "5|Shoplifter|&f", "20|Burglar|&a", "45|Safecracker|&b", "60|Heister|&e", "100|Mastermind|&6", "150|Kingpin|&c" and "200|Godfather|&4"
 
 	# ---------- Paid ranks (ranks.sk) ----------
 	# A tag before the name in the tab list, chat and join messages, a spot higher in the tab list, a bag
@@ -1139,7 +1343,7 @@ function loadSettings():
 	# only, never sold). Keys are virtual (a count per player, never an item: the inventory is fixed).
 	# /daily gives everyone a daily key (plus each rank's daily-keys above); common to legendary keys are
 	# sold on Tebex (dcrate give). Rarity colors are used for crates and for cosmetics.
-	set {-cfg::rarities::*} to "daily", "common", "uncommon", "rare", "epic", "legendary" and "hacked"
+	set {-cfg::rarities::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "supercar", "hypercar" and "hacked"
 	set {-cfg::rarity::daily::name} to "Daily"
 	set {-cfg::rarity::daily::color} to "&e"
 	set {-cfg::rarity::common::name} to "Common"
@@ -1152,6 +1356,11 @@ function loadSettings():
 	set {-cfg::rarity::epic::color} to "&5"
 	set {-cfg::rarity::legendary::name} to "Legendary"
 	set {-cfg::rarity::legendary::color} to "&6"
+	# The car crates (owner, 2026-09-28): high and extreme cars with a chance of any wrap and mods.
+	set {-cfg::rarity::supercar::name} to "Supercar"
+	set {-cfg::rarity::supercar::color} to "&c"
+	set {-cfg::rarity::hypercar::name} to "Hypercar"
+	set {-cfg::rarity::hypercar::color} to "&4"
 	set {-cfg::rarity::hacked::name} to "Hacked"
 	set {-cfg::rarity::hacked::color} to "&2"
 	# A cosmetic you already own pays this much instead (by the cosmetic's rarity; owner, 2026-09-26).
@@ -1162,6 +1371,9 @@ function loadSettings():
 	set {-cfg::rarity::epic::dupe} to 3000
 	set {-cfg::rarity::legendary::dupe} to 5000
 	set {-cfg::rarity::hacked::dupe} to 7500
+	# A car crate whose car can't be given (a full garage is refused before the spin, so only if something broke).
+	set {-cfg::rarity::supercar::dupe} to 25000
+	set {-cfg::rarity::hypercar::dupe} to 75000
 	# Season titles (seasons.sk: bound, never in crates) and the Season crate's name and color.
 	set {-cfg::rarity::season::name} to "Season"
 	set {-cfg::rarity::season::color} to "&b"
@@ -1169,7 +1381,7 @@ function loadSettings():
 	set {-cfg::rarity::story::color} to "&d"
 	# Crates, in menu order (all of them always show in /crates; owner, 2026-09-26). sold = Tebex sells
 	# its keys.
-	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "hacked" and "season"
+	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "supercar", "hypercar", "hacked" and "season"
 	set {-cfg::crate::daily::sold} to false
 	set {-cfg::crate::common::sold} to true
 	set {-cfg::crate::uncommon::sold} to true
@@ -1177,6 +1389,15 @@ function loadSettings():
 	set {-cfg::crate::epic::sold} to true
 	set {-cfg::crate::legendary::sold} to true
 	set {-cfg::crate::hacked::sold} to false
+	set {-cfg::crate::supercar::sold} to true
+	set {-cfg::crate::hypercar::sold} to true
+	# The car crates show a car (crates.sk crateIcon: the last car of their roll pool); these are the fallbacks.
+	set {-cfg::crate::supercar::icon} to minecart
+	set {-cfg::crate::hypercar::icon} to minecart
+	set {-cfg::crate::supercar::rewards::*} to "1000|carroll|supercar"
+	set {-cfg::crate::hypercar::rewards::*} to "1000|carroll|hypercar"
+	# Car crate pulls announced to everyone from this grade up (garage.sk carGrade: 3 = Exotic).
+	set {-cfg::crate::announce-grade} to 3
 	# The Season crate: keys only from season milestones and prizes (seasons.sk), never sold; no cosmetics.
 	set {-cfg::crate::season::sold} to false
 	set {-cfg::crate::season::never-give} to true
@@ -1545,6 +1766,16 @@ function loadSettings():
 		set {-cfg::cos::%{_rt::1}%::rarity} to "story"
 		set {-cfg::cos::%{_rt::1}%::bound} to true
 		add {_rt::1} to {-cfg::cosmetics::*}
+	# Level rewards' cosmetics (levels.sk: bound, only for reaching the level).
+	set {-cfg::rarity::level::name} to "Level"
+	set {-cfg::rarity::level::color} to "&6"
+	loop "lvl_mastermind|title|Mastermind", "lvl_highroller|title|High Roller", "lvl_kingpin|title|Kingpin", "lvl_streetking|title|Street King", "lvl_godfather|title|Godfather", "lvl_untouchable|title|Made of Teflon", "lvl_myth|title|Urban Myth", "lvl_crown|killfx|Crown" and "lvl_moneyrain|killfx|Money Rain":
+		set {_lt::*} to loop-value split at "|"
+		set {-cfg::cos::%{_lt::1}%::type} to {_lt::2}
+		set {-cfg::cos::%{_lt::1}%::name} to {_lt::3}
+		set {-cfg::cos::%{_lt::1}%::rarity} to "level"
+		set {-cfg::cos::%{_lt::1}%::bound} to true
+		add {_lt::1} to {-cfg::cosmetics::*}
 	# Texts.
 	set {-cfg::jobs::mara::line::unlock} to "I said I'd call. Three jobs at the Safehouse, whenever you're ready."
 	set {-cfg::jobs::boss::line::unlock} to "Got more work if you want it. Three jobs waiting at the Scrap Yard."

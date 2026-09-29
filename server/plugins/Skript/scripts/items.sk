@@ -1,0 +1,53 @@
+# items.sk: rules for the melee weapons and consumables of 2026-09-28 (owner: "more melee weapons/consumables") that
+# WeaponMechanics can't express. Built from the abuse review (2026-09-28).
+#
+# Energy Drink (WeaponMechanics consumable Energy_Drink: Speed III for 15 s):
+#   - never inside a heist: drinking there is refused, and entering one takes Speed off (heists.sk's heistOnEnter
+#     calls itemsOnEnter). Speed III crossed collapsing floors built to be uncrossable and camera cones;
+#   - while an alarm hunts you, Speed is a getaway like a car: the cops chase alarm::car-chase-factor times as far
+#     (heists.sk's heistChaseRadius, {-heisthunt::fast::<p>}).
+# Baseball Bat: its knockback lives here (it was MechanicsCore's Push in Baseball_Bat.yml). Only hits that land
+# (priority monitor), and never when the victim is in a heist or would be shoved into one (outsiders pushed robbers
+# into armor-ignoring traps, and bystanders into a heist whose alarm then hunted them).
+
+# ---------- Energy Drink ----------
+
+on right click with priority lowest:
+	wmTitle(player's tool) is "Energy_Drink"
+	heistOf(player) is not ""
+	cancel event
+	hudBar(player, "&cNo energy drinks inside a heist.", 2)
+
+function itemsOnEnter(p: player, h: text):
+	{_p} has speed
+	remove speed from {_p}
+	hudBar({_p}, "&7Your energy drink wore off at the door.", 1)
+
+# ---------- Baseball Bat ----------
+
+on damage of player with priority monitor:
+	attacker is a player
+	attacker is not victim
+	isNpc(attacker) is false
+	wmTitle(attacker's tool) is "Baseball_Bat"
+	heistOf(victim) is ""
+	set {_ax} to x-coordinate of attacker
+	set {_az} to z-coordinate of attacker
+	set {_vx} to x-coordinate of victim
+	set {_vz} to z-coordinate of victim
+	set {_dx} to {_vx} - {_ax}
+	set {_dz} to {_vz} - {_az}
+	set {_len} to sqrt({_dx} * {_dx} + {_dz} * {_dz})
+	{_len} > 0.01
+	set {_ux} to {_dx} / {_len}
+	set {_uz} to {_dz} / {_len}
+	# Where the shove would carry them (about 3.5 blocks): no heist on the way.
+	set {_ok} to true
+	loop 1, 2, 3 and 4:
+		set {_c} to (location of victim) ~ vector({_ux} * loop-value, 0.5, {_uz} * loop-value)
+		if heistAt({_c}) is not "":
+			set {_ok} to false
+	{_ok} is true
+	wait 1 tick
+	victim is alive
+	set velocity of victim to vector({_ux} * cfg("bat::knockback"), cfg("bat::lift"), {_uz} * cfg("bat::knockback"))
