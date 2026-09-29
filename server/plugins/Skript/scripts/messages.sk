@@ -250,7 +250,11 @@ function msgThread(p: player, key: text):
 	msgButton({_p}, {_gui}, 45, backItem("your messages"), "list")
 	set {_kind} to {-cfg::msgcontact::%{_key}%::kind}
 	if {_kind} is set:
-		msgButton({_p}, {_gui}, 49, compass named "&eFind %{_from}%" with lore "&7Pins them on your GPS.", "find:%{_kind}%")
+		# Only when the map has one (a contact placed after launch: no dead-end button).
+		if questNearest({_p}, {_kind}) is not "":
+			msgButton({_p}, {_gui}, 49, compass named "&eFind %{_from}%" with lore "&7Pins them on your GPS.", "find:%{_kind}%")
+		else:
+			set slot 49 of {_gui} to compass named "&7%{_from}% isn't in town yet" with lore "&7Tell staff."
 	msgButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
 	# Read now.
 	setData({_p}, "inbox-seen::%{_key}%", {_last})

@@ -1,0 +1,135 @@
+# districts.sk: district names (2026-09-29; CLAUDE.md's orientation ideas: "district names on the action bar when
+# entering areas (WorldGuard regions)"). A district is a WorldGuard region whose id starts with "district_" (staff draw
+# them over the city's parts: /rg define district_downtown). Its name is {districtname::<id>} (/ddistrict name), else
+# the id made readable ("district_old_town" -> "Old Town").
+#   - Walking, driving or teleporting into one shows "— Old Town —" on the action bar (hudBar priority 1: combat and
+#     heist messages win), once per district every district::repeat (30 s), like GTA's area names.
+#   - The main sidebar's "Area" line (%donating_district%): the district you're in, else "the outskirts" (every second,
+#     into memory: the placeholder only reads memory). Nested districts: the smallest one you're in.
+#   - Add "passthrough allow" to district regions (like every Donating region): they must never protect anything.
+# Staff (donating.staff): /ddistrict name <id> <name...> | list | here | dump.
+
+function districtId(region: text) :: text:
+	set {_r} to {_region} in lower case
+	{_r} starts with "district_"
+	return subtext of {_r} from characters 10 to (length of {_r})
+
+# A district's name: the one staff gave it, else its id made readable.
+function districtName(id: text) :: text:
+	set {_n} to {districtname::%{_id}%}
+	if {_n} is set:
+		return "%{_n}%"
+	set {_w::*} to {_id} split at "_"
+	loop {_w::*}:
+		set {_v} to loop-value
+		if length of {_v} > 0:
+			set {_first} to first character of {_v} in upper case
+			set {_rest} to ""
+			if length of {_v} > 1:
+				set {_rest} to subtext of {_v} from characters 2 to (length of {_v})
+			add "%{_first}%%{_rest}%" to {_out::*}
+	return join {_out::*} with " "
+
+# The district at a spot: the smallest district region there ("" if none).
+function districtAt(l: location) :: text:
+	set {_best} to ""
+	loop regions at {_l}:
+		set {_id} to districtId(name of loop-value)
+		if {_id} is set:
+			set {_a} to min point of loop-value
+			set {_b} to max point of loop-value
+			set {_ax} to x-coordinate of {_a}
+			set {_bx} to x-coordinate of {_b}
+			set {_az} to z-coordinate of {_a}
+			set {_bz} to z-coordinate of {_b}
+			set {_size} to ({_bx} - {_ax} + 1) * ({_bz} - {_az} + 1)
+			if {_best} is "":
+				set {_best} to {_id}
+				set {_bestsize} to {_size}
+			else if {_size} < {_bestsize}:
+				set {_best} to {_id}
+				set {_bestsize} to {_size}
+	return {_best}
+
+function districtShow(p: player, id: text):
+	set {_at} to {-district::shown::%{_p}%::%{_id}%}
+	if {_at} is set:
+		if difference between {_at} and now < cfg("district::repeat"):
+			stop
+	set {-district::shown::%{_p}%::%{_id}%} to now
+	hudBar({_p}, "&7— &f%districtName({_id})% &7—", 1)
+
+on region enter:
+	set {_id} to districtId(name of the worldguard region)
+	{_id} is set
+	wait 1 tick
+	player is online
+	# Nested districts: only when this one is where they are now (the smallest).
+	districtAt(location of player) is {_id}
+	districtShow(player, {_id})
+
+# The sidebar's "Area" line, in memory (TAB asks from its own thread).
+every second:
+	loop all players:
+		set {_id} to districtAt(location of loop-player)
+		if {_id} is "":
+			set {-ph::district::%loop-player%} to "&7the outskirts"
+		else:
+			set {-ph::district::%loop-player%} to "&f%districtName({_id})%"
+
+on quit:
+	delete {-ph::district::%player%}
+	delete {-district::shown::%player%::*}
+
+command /ddistrict [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_arg} to arg-1
+		if {_arg} is not set:
+			set {_arg} to "help"
+		set {_a::*} to {_arg} split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "name":
+			if size of {_a::*} < 3:
+				send "DISTRICT usage: /ddistrict name <id> <name...> (the region is district_<id>; 'default' clears the name)" to sender
+				stop
+			set {_id} to {_a::2} in lower case
+			set {_parts::*} to {_a::*}
+			delete {_parts::1}
+			delete {_parts::2}
+			set {_name} to join {_parts::*} with " "
+			if {_name} contains "|":
+				send "DISTRICT: no | in a name" to sender
+				stop
+			if {_name} is "default":
+				delete {districtname::%{_id}%}
+				send "DISTRICT %{_id}%: %districtName({_id})% (its id)" to sender
+				stop
+			set {districtname::%{_id}%} to {_name}
+			send "DISTRICT %{_id}% = %{_name}%" to sender
+		else if {_sub} is "list":
+			set {_w} to poiMainWorld()
+			set {_n} to 0
+			loop all regions in {_w}:
+				set {_id} to districtId(name of loop-value)
+				if {_id} is set:
+					add 1 to {_n}
+					send "DISTRICT %{_id}%: %districtName({_id})%" to sender
+			send "DISTRICT %{_n}% district(s)" to sender
+		else if {_sub} is "here":
+			if sender is not a player:
+				send "DISTRICT here: players only" to sender
+				stop
+			set {_id} to districtAt(location of player)
+			if {_id} is "":
+				send "DISTRICT none here (the outskirts)" to sender
+			else:
+				send "DISTRICT %{_id}%: %districtName({_id})%" to sender
+		else if {_sub} is "dump":
+			loop {districtname::*}:
+				set {_line} to "ddistrict name %loop-index% %loop-value%"
+				send {_line} to sender
+				log {_line} to "districts"
+		else:
+			send "DISTRICT /ddistrict name <id> <name...> | list | here | dump (a district is a region district_<id>)" to sender

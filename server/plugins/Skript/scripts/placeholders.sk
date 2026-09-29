@@ -29,6 +29,7 @@
 #   %donating_heist_robbers% robbers in your heist ("3")
 #   %donating_heists_open%   heists open or running right now ("2")
 #   %donating_daily%         "&aready" or "in 5h 12m" (/daily, crates.sk)
+#   %donating_district%      the district you're in ("&fOld Town"), or "&7the outskirts" (districts.sk)
 
 every second:
 	loop all players:
@@ -119,6 +120,11 @@ placeholderapi placeholder with the prefix "donating":
 		set the placeholder result to "&r"
 		if {-afk::is::%player%} is set:
 			set the placeholder result to " &7AFK"
+	else if {_i} is "district":
+		# The district you're in (districts.sk keeps it in memory).
+		set the placeholder result to "&7the outskirts"
+		if {-ph::district::%player%} is set:
+			set the placeholder result to {-ph::district::%player%}
 	else if {_i} is "season":
 		set the placeholder result to "&r"
 		if {-ph::season::%player%} is set:
