@@ -463,8 +463,13 @@ on tab complete of "/dgarage" and "/skript:dgarage":
 	if {_s} is "roll":
 		set tab completions for position 2 to "supercar" and "hypercar"
 	else if {_s} is "give":
-		# Several of a model are fine now: every car.
+		# Several of a model are fine now: every car, then that car's colors.
 		set tab completions for position 3 to {-cfg::cars::*}
+		set {_car} to tab arg-3
+		if {_car} is set:
+			set {_c::*} to carColorLabels({_car})
+			if {_c::*} is set:
+				set tab completions for position 4 to {_c::*}
 	else if {_s} is "take":
 		# The target's plates (online players only: no profile lookups here).
 		set {_t} to (tab arg-2) parsed as player
@@ -472,12 +477,6 @@ on tab complete of "/dgarage" and "/skript:dgarage":
 			set {_c3::*} to carsOf({_t})
 			if {_c3::*} is set:
 				set tab completions for position 3 to {_c3::*}
-		if {_s} is "give":
-			set {_car} to tab arg-3
-			if {_car} is set:
-				set {_c::*} to carColorLabels({_car})
-				if {_c::*} is set:
-					set tab completions for position 4 to {_c::*}
 
 on tab complete of "/dcontract" and "/skript:dcontract":
 	set tab completions for position 1 to "spot", "chop", "dump", "info" and "end"

@@ -8,12 +8,12 @@
 # The plugin reads the scoreboard tag "donating_phone_open" to know which view to draw.
 #
 # Apps menu (3 rows, slot numbers 0-26):
-#    4 GPS (gps.sk)
+#    2 season (seasons.sk)   4 GPS (gps.sk)   6 missions (story.sk)   7 jobs (jobs.sk)   8 hits (hits.sk)
 #    9 contracts   11 stats       13 passive mode   15 garage   17 cosmetics
 #   19 crates      21 bounties    23 how to play    25 bag      26 close
-# Garage opens garage.sk's garageMenu (your cars). The big map doesn't open while driving (a stolen car
-# keeps the phone in slot 9); left-click on it drops a GPS pin (the plugin runs gps.sk's /gpspick).
-# with a call to its menu. Bounties shows bounty.sk's list in chat.
+# Each app opens its script's menu (garage: garage.sk's garageMenu, your cars); every app's main page has "◀ Phone"
+# back here (the Back buttons section below). Bounties shows bounty.sk's list in chat. The big map doesn't open while
+# driving (a stolen car keeps the phone in slot 9); left-click on it drops a GPS pin (the plugin runs gps.sk's /gpspick).
 #
 # Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
 # runs at Skript's default priority, before inventory.sk's lock (CLAUDE.md: GUI menus).

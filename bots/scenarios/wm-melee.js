@@ -6,7 +6,7 @@
 // away (each health drop is one hit): the Dagger 4 (5.78 from behind: the AK-47's 5.5 + config.yml's
 // Back +5%), the Baseball Bat 5 with knockback, a Throwing Knife 5 (one used per throw, flying as an
 // item display with custom model data 7004), then the same through the best gear. The Energy Drink
-// gives Speed III for 15 s, the Bandage heals 6 over 4 s, and both are used up with nothing left behind.
+// gives Speed II for 3 s (owner, 2026-09-28, after Speed III for 15 s was tested), the Bandage heals 6 over 4 s, and both are used up with nothing left behind.
 // Balance numbers for the drink: sprint speed over 60 blocks with and without Speed III (and sprint
 // jumping), a Citizens NPC walking at the cops' 1.3 speed, and what those mean for a collapsing floor
 // and a chase (printed in the check details).
@@ -260,9 +260,9 @@ module.exports = async ({ check, args = [] }) => {
       await drink(3)
       const e = await effects()
       const sp = speedOf(e)
-      check('Energy Drink: Speed III for 15 s (300 ticks), one can used, nothing left behind', sp && sp.amp === 2 && sp.dur > 260 && sp.dur <= 300 && (await countIn(3)) === 1 && !(await ground()), `${e}; ${await wm()}`)
-      await sleep(15000)
-      check('...and it wears off after 15 s', !speedOf(await effects()), await effects())
+      check('Energy Drink: Speed II for 3 s (60 ticks), one can used, nothing left behind', sp && sp.amp === 1 && sp.dur > 30 && sp.dur <= 60 && (await countIn(3)) === 1 && !(await ground()), `${e}; ${await wm()}`)
+      await sleep(3500)
+      check('...and it wears off after 3 s', !speedOf(await effects()), await effects())
     }
 
     // ---------- The Bandage ----------
@@ -326,8 +326,8 @@ module.exports = async ({ check, args = [] }) => {
       speeds.jump = await run(true, false)
       speeds.jump3 = await run(true, true)
       const f = v => v ? v.toFixed(2) : '?'
-      check('sprint speed with Speed III is about 1.6× (vanilla: 5.61 -> 8.98 blocks/s)', speeds.sprint && speeds.sprint3 && Math.abs(speeds.sprint3 / speeds.sprint - 1.6) < 0.08,
-        `movement_speed ${attrs.join('/')}; sprint ${f(speeds.sprint)} b/s, sprint + Speed III ${f(speeds.sprint3)} b/s; sprint-jumping ${f(speeds.jump)} b/s, with Speed III ${f(speeds.jump3)} b/s`)
+      check('sprint speed with Speed II is about 1.4× (vanilla: 5.61 -> about 7.9 blocks/s)', speeds.sprint && speeds.sprint3 && Math.abs(speeds.sprint3 / speeds.sprint - 1.4) < 0.08,
+        `movement_speed ${attrs.join('/')}; sprint ${f(speeds.sprint)} b/s, sprint + Speed II ${f(speeds.sprint3)} b/s; sprint-jumping ${f(speeds.jump)} b/s, with Speed II ${f(speeds.jump3)} b/s`)
       // A collapsing floor (traps.sk) cracks at the first touch (checked every 2 ticks) and drops 10 ticks
       // later (also on the 2-tick pass): 10-13 ticks. Crossing a floor L long means moving L + 0.6 (the
       // player's box, 0.3 each side) in that time, so the longest floor a straight run gets over is
@@ -335,7 +335,7 @@ module.exports = async ({ check, args = [] }) => {
       const fl = v => `${(v * 0.5 - 0.6).toFixed(1)}-${(v * 0.65 - 0.6).toFixed(1)}`
       const t6 = v => (6.6 / v).toFixed(2)
       check('collapsing floor (6 long, drops 0.5-0.65 s after the first touch): the time to get across 6.6 blocks',
-        true, `sprint ${t6(speeds.sprint)} s (crossable floor ${fl(speeds.sprint)} blocks), Speed III sprint ${t6(speeds.sprint3)} s (${fl(speeds.sprint3)}), sprint-jump ${t6(speeds.jump)} s (${fl(speeds.jump)}), Speed III sprint-jump ${t6(speeds.jump3)} s (${fl(speeds.jump3)})`)
+        true, `sprint ${t6(speeds.sprint)} s (crossable floor ${fl(speeds.sprint)} blocks), Speed II sprint ${t6(speeds.sprint3)} s (${fl(speeds.sprint3)}), sprint-jump ${t6(speeds.jump)} s (${fl(speeds.jump)}), Speed II sprint-jump ${t6(speeds.jump3)} s (${fl(speeds.jump3)})`)
     }
 
     // ---------- A cop's pace: a Citizens NPC walking at speed 1.3 (cops.sk difficulty 4) ----------
@@ -364,9 +364,9 @@ module.exports = async ({ check, args = [] }) => {
         if (t1 !== null && t2 !== null) pace = 60 / ((t2 - t1) / 1000)
       }
       speeds.cop = pace
-      const gap = v => pace && v ? ((v - pace) * 15).toFixed(0) : '?'
+      const gap = v => pace && v ? ((v - pace) * 3).toFixed(0) : '?'
       check('a Citizens NPC at speed 1.3 (the hardest cops) walks about 1.3 × 4.32 = 5.6 blocks/s', pace && pace > 4.5 && pace < 6.8,
-        `NPC ${npc || 'not made'}: ${pace ? pace.toFixed(2) : '?'} b/s; 15 s of Speed III sprinting gains ${gap(speeds.sprint3)} blocks on it (plain sprinting ${gap(speeds.sprint)}; sprint-jumping ${gap(speeds.jump)}, with Speed III ${gap(speeds.jump3)})`)
+        `NPC ${npc || 'not made'}: ${pace ? pace.toFixed(2) : '?'} b/s; 3 s of Speed II sprinting gains ${gap(speeds.sprint3)} blocks on it (plain sprinting ${gap(speeds.sprint)}; sprint-jumping ${gap(speeds.jump)}, with Speed II ${gap(speeds.jump3)})`)
     }
   } finally {
     if (npc) await cmd(`zzconsole npc remove ${npc}`).catch(() => {})

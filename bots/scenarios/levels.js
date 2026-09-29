@@ -65,8 +65,8 @@ module.exports = async ({ check }) => {
 
     // ---------- Selling earns XP ----------
     await cmd(`zztestkit ${R}`) // bag tier 2
-    await cmd(`zzbagadd ${R} rka#1 2000`)
-    await cmd(`zzbagadd ${R} rkb#3 500`)
+    await cmd(`zzbagadd ${R} rka#1 2000 own`)
+    await cmd(`zzbagadd ${R} rkb#3 500 own`)
     setMark()
     let t = Date.now()
     await cmd(`zzheisttp ${R} 840.5 ${Y} 840.5`)
@@ -75,8 +75,8 @@ module.exports = async ({ check }) => {
     check('selling $2,500 from 2 heists at the base gives 25 + 2 × 10 = 45 XP (still level 0: level 1 needs 49)', i.xp === 45 && i.rank === 0 && /\+45 XP/.test(text(t)) && logged(/xp LevelBot \S+ \+45 why=sell total=45 level=0->0/).length === 1, `${i.raw} ${text(t)}`)
     await cmd(`zzheisttp ${R} 830.5 ${Y} 830.5`)
     await sleep(500)
-    await cmd(`zzbagadd ${R} rka#1 300`)
-    await cmd(`zzbagadd ${R} rka#2 100`)
+    await cmd(`zzbagadd ${R} rka#1 300 own`)
+    await cmd(`zzbagadd ${R} rka#2 100 own`)
     t = Date.now()
     await cmd(`zzheisttp ${R} 840.5 ${Y} 840.5`)
     await sleep(1800)

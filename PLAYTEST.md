@@ -397,15 +397,15 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
 152. **New melee weapons and consumables** (`bots\run.js wm-melee`, `abuse`): Dagger 4 (5.78 from behind), Baseball Bat 5 with knockback, Throwing Knife 5 a throw, Bandage about 3 hearts, Energy Drink Speed II for 3 s (owner, after the test); no drinking inside a heist; the Bat never shoves anyone into a heist.
     - Result: PASS (bots, 2026-09-28: wm-melee 21/21 before the drink change; abuse: Speed II 3 s, refused in a heist). In the client (cu): the Items tab shows the new art; an Energy Drink gave Speed. **Owner:** how the Bat's knockback and the 3-second drink feel.
 153. **The Grappler** (`bots\run.js grapple`): a pull to a wall, a 15 s cooldown winding back on the hotbar and the action bar, then "ready"; no fall damage right after; refused onto or near a heist (also high above its roof), onto barriers, in nograpple regions, inside a heist; allowed while combat-tagged (owner); off with tool::grappler::enabled; a hit ends a pull and stops you.
-    - Result: see the 2026-09-28 run (PLAYTEST summary below). In the client (cu, 2026-09-28, before the cooldown change): a pull into a tree, "arrived" in grapple.log.
+    - Result: PASS (bots, 2026-09-28, grapple 15/15). In the client (cu, 2026-09-28, before the cooldown change): a pull into a tree, "arrived" in grapple.log.
 154. **/help, /help commands, /adminhelp** (cu).
     - Result: PASS (cu, 2026-09-28): the how-to-play page, every command grouped, the staff topics (heists, map, players, store, tests).
 155. **The abuse review's fixes** (`bots\run.js abuse`, 19 checks): a death while hunted costs the chase's cop price; hot loot can't be sold for 5 min by whoever takes it; store loot stays for new robbers; level XP only from your own loot; a claimed bounty costs its victim 10% more; a run saves its reopen time at its start; Heist Rush cuts a cooldown once and never during its alarm; a members-only area drawn around someone moves them out; no Energy Drink in a heist.
-    - Result: PASS 17/19 on the first run, the 2 failures were leftovers of an earlier run in the test (fixed); the full-suite run below.
+    - Result: PASS (bots, 2026-09-28, 19/19; the first run's 2 failures were leftovers of an earlier run, fixed in the test).
 156. **Car crate keys for game money** (owner, 2026-09-28): the Supercar ($1,000,000) and Hypercar ($2,500,000) previews have a Buy a key button (a second click confirms, too little money is refused at once, not in combat); never in the store.
-    - Result: TODO (a bot check in crates.js; the owner: are the prices right?).
+    - Result: PASS (bots, 2026-09-28, crates 57/57: the button, refused with too little money, armed then bought, logged). **Owner:** are the prices right?
 157. **Back buttons in every menu** (`bots\run.js menus`): each menu page that isn't a main page has ◀ Back to its parent, each phone app's main page has ◀ Phone; minigames and the trade window have none.
-    - Result: see the workflow's report (below).
+    - Result: PASS (bots, 2026-09-28, menus 31/31, and the 13 scenarios of the changed scripts). A review of every menu found them all following the rule (one old stand issue fixed: back at a crate stand keeps the Open button).
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 

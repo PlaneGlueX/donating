@@ -859,7 +859,9 @@ on inventory click:
 
 function crateAction(p: player, act: text):
 	if {_act} starts with "crate:":
-		cratePreview({_p}, subtext of {_act} from characters 7 to (length of {_act}), false)
+		# At that crate's stand (back from its preview to /crates and in again) the Open button stays (menu review 2026-09-28).
+		set {_ct} to subtext of {_act} from characters 7 to (length of {_act})
+		cratePreview({_p}, {_ct}, crateAtStand({_p}, {_ct}))
 	else if {_act} starts with "open:":
 		crateOpen({_p}, subtext of {_act} from characters 6 to (length of {_act}))
 	else if {_act} starts with "buy:":
