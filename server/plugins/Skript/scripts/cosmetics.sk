@@ -1,5 +1,6 @@
-# cosmetics.sk: cosmetics from crates (crates.sk). Built 2026-09-26 (owner: crates with bag skins, titles
-# and kill effects; car cosmetics, car upgrades and gun skins come later).
+# cosmetics.sk: titles, bag skins and kill effects. Built 2026-09-26 (owner: crates with bag skins, titles
+# and kill effects; car cosmetics, car upgrades and gun skins come later). They come from crates (crates.sk),
+# and bound (untradeable) ones from levels, seasons, Mara's story, job rep and hits.
 #
 # A cosmetic is core.sk cos::<id>::type|name|rarity (optional ::retired, ::testing):
 #   title    a tag after your name in chat and the tab list ("Name «Ghost»"): /title
@@ -262,7 +263,7 @@ function cosPick(p: player, type: text, key: text, cmd: text, typed: text):
 	set {_owned::*} to cosOwnedOf({_p}, {_type})
 	if {_typed} is "":
 		if size of {_owned::*} is 0:
-			msg({_p}, "&7You have no %{_label}%s yet. They come from crates: &f/crates")
+			msg({_p}, "&7You have no %{_label}%s yet.")
 			stop
 		loop {_owned::*}:
 			add cosColored(loop-value) to {_names::*}
@@ -272,7 +273,7 @@ function cosPick(p: player, type: text, key: text, cmd: text, typed: text):
 		if {_now} is set:
 			if {_owned::*} contains {_now}:
 				set {_nowText} to cosColored({_now})
-		msg({_p}, "&6Your %{_label}%s: %{_list}% &7(now: %{_nowText}%&7). &f/%{_cmd}% <name> &7or &f/%{_cmd}% none")
+		msg({_p}, "&6Your %{_label}%s: %{_list}% &7(now: %{_nowText}%&7) &f/%{_cmd}% <name> &7or &fnone")
 		stop
 	if {_typed} is "none":
 		deleteData({_p}, {_key})
@@ -283,7 +284,7 @@ function cosPick(p: player, type: text, key: text, cmd: text, typed: text):
 		msg({_p}, "&cThere's no %{_label}% called %{_typed}%. &7/%{_cmd}% lists yours.")
 		stop
 	if cosOwned({_p}, {_id}) is false:
-		msg({_p}, "&cYou don't have %cosColored({_id})%&c yet. &7Crates: &f/crates")
+		msg({_p}, "&cYou don't have %cosColored({_id})%&c.")
 		stop
 	setData({_p}, {_key}, {_id})
 	if {_type} is "title":
@@ -291,7 +292,7 @@ function cosPick(p: player, type: text, key: text, cmd: text, typed: text):
 	msg({_p}, "&aYour %{_label}%: %cosColored({_id})%&a.")
 
 command /title [<text>]:
-	description: Pick the title after your name (from crates).
+	description: Pick the title after your name.
 	executable by: players
 	trigger:
 		set {_t} to ""
@@ -300,7 +301,7 @@ command /title [<text>]:
 		cosPick(player, "title", "title", "title", {_t})
 
 command /killeffect [<text>]:
-	description: Pick what happens where you knock someone out (from crates).
+	description: Pick your kill effect.
 	executable by: players
 	trigger:
 		set {_t} to ""
@@ -310,7 +311,8 @@ command /killeffect [<text>]:
 
 # ---------- The wardrobe (/cosmetics, the phone's Cosmetics app) ----------
 # Owner, 2026-09-26: people can take a title off if they don't want it. /cosmetics shows the three kinds;
-# each page lists what you own (click to wear it, the worn one glows) with a "Take it off" button.
+# each page lists what you own (click to wear it, the worn one glows) with a "Take it off" button. Owner,
+# 2026-09-29 ("get rid of obvious explanations"): the buttons show only state (worn, owned, serials).
 
 command /cosmetics:
 	description: Your cosmetics: wear them or take them off.
@@ -344,7 +346,7 @@ command /killeffects:
 
 # The chat list (kept for the phone-less and for tests).
 function cosList(p: player):
-	msg({_p}, "&6Your cosmetics &7(from crates: /crates)")
+	msg({_p}, "&6Your cosmetics")
 	loop "title", "bagskin" and "killfx":
 		set {_type} to loop-value
 		delete {_names::*}
@@ -379,6 +381,8 @@ function cosWardrobe(p: player, type: text) :: texts:
 function cosWornName(p: player, type: text) :: text:
 	set {_w} to cosWorn({_p}, {_type})
 	if {_w} is "":
+		if {_type} is "bagskin":
+			return "&7default"
 		return "&7none"
 	if {_type} is "bagskin":
 		if cosExists({_w}) is true:
@@ -403,13 +407,13 @@ function cosMenu(p: player):
 	set {-cos::gui::%{_p}%} to {_gui}
 	set {_n} to size of cosWardrobe({_p}, "title")
 	set {_wt} to cosWornName({_p}, "title")
-	cosButton({_p}, {_gui}, 11, name tag named "&6Titles" with lore "&7After your name in chat and the tab list." and "&7Wearing: %{_wt}%" and "&7You have %{_n}%." and "&eClick to pick or take it off.", "page:title")
+	cosButton({_p}, {_gui}, 11, name tag named "&6Titles" with lore "&7Wearing: %{_wt}%" and "&7Owned: &f%{_n}%", "page:title")
 	set {_n} to size of cosWardrobe({_p}, "bagskin")
 	set {_wb} to cosWornName({_p}, "bagskin")
-	cosButton({_p}, {_gui}, 13, leather named "&6Bag skins" with lore "&7How your bag looks." and "&7Wearing: %{_wb}%" and "&7You have %{_n}%." and "&eClick to pick one.", "page:bagskin")
+	cosButton({_p}, {_gui}, 13, leather named "&6Bag skins" with lore "&7Wearing: %{_wb}%" and "&7Owned: &f%{_n}%", "page:bagskin")
 	set {_n} to size of cosWardrobe({_p}, "killfx")
 	set {_wk} to cosWornName({_p}, "killfx")
-	cosButton({_p}, {_gui}, 15, blaze powder named "&6Kill effects" with lore "&7Where you knock someone out." and "&7Wearing: %{_wk}%" and "&7You have %{_n}%." and "&eClick to pick or take it off.", "page:killfx")
+	cosButton({_p}, {_gui}, 15, blaze powder named "&6Kill effects" with lore "&7Wearing: %{_wk}%" and "&7Owned: &f%{_n}%", "page:killfx")
 	# The Cosmetics app's main page: "◀ Phone" however it was opened (phone.sk's back buttons).
 	cosButton({_p}, {_gui}, 18, phoneBackItem(), "phone")
 	cosButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
@@ -439,30 +443,28 @@ function cosPage(p: player, type: text):
 		set {_sl} to ""
 		if cosExists({_id}) is true:
 			set {_sl} to cosSerialLore({_p}, {_id})
+		# The worn one glows and says so; the rest only show their serial (a click wears it).
 		if {_id} is {_worn}:
 			if {_sl} is "":
-				set lore of {_i} to colored "&aWearing it."
+				set lore of {_i} to colored "&aWearing it"
 			else:
-				set lore of {_i} to colored {_sl} and colored "&aWearing it."
+				set lore of {_i} to colored {_sl} and colored "&aWearing it"
 			set {_i} to glint({_i})
-		else:
-			if {_sl} is "":
-				set lore of {_i} to colored "&eClick to wear it."
-			else:
-				set lore of {_i} to colored {_sl} and colored "&eClick to wear it."
+		else if {_sl} is not "":
+			set lore of {_i} to colored {_sl}
 		cosButton({_p}, {_gui}, {_slot}, {_i}, "wear:%{_type}%:%{_id}%")
 		add 1 to {_slot}
 	if {_slot} is 0:
-		set slot 22 of {_gui} to paper named "&7No %{_label}%s yet" with lore "&7They come from crates: &f/crates"
+		set slot 22 of {_gui} to paper named "&7No %{_label}%s yet"
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
 	# Back to /cosmetics, also when /titles, /bagskins or /killeffects opened this page directly.
 	cosButton({_p}, {_gui}, 45, backItem("your cosmetics"), "menu")
 	if {_type} is "bagskin":
-		cosButton({_p}, {_gui}, 49, barrier named "&fDefault look" with lore "&7Your bag tier's own look.", "off:bagskin")
+		cosButton({_p}, {_gui}, 49, barrier named "&fDefault look", "off:bagskin")
 	else:
-		cosButton({_p}, {_gui}, 49, barrier named "&fTake it off" with lore "&7Wear no %{_label}%.", "off:%{_type}%")
+		cosButton({_p}, {_gui}, 49, barrier named "&fTake it off", "off:%{_type}%")
 	cosButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
 	open {_gui} to {_p}
 

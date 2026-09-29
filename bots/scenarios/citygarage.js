@@ -134,7 +134,7 @@ module.exports = async ({ check }) => {
     await click(A, 9)
     await sleep(800)
     const pin = await cmd(`dphone gps ${A}`)
-    check('away from a garage: "Find a garage" (the nearest, its distance), and a car\'s click leads the GPS there (no car comes)', /Find a garage/.test(status) && /Test Garage/.test(status) && /GPS leads you to a garage/.test(carLore) && /active=pin/.test(pin) && /label=Test_Garage/.test(pin) && (await stateOf(A)) === 'garage', `${status.slice(0, 200)} | ${pin} | ${await stateOf(A)}`)
+    check('away from a garage: "Find a garage" (the nearest, its distance), and a car\'s click leads the GPS there (no car comes)', /Find a garage/.test(status) && /Test Garage/.test(status) && /Left-click: find a garage/.test(carLore) && /active=pin/.test(pin) && /label=Test_Garage/.test(pin) && (await stateOf(A)) === 'garage', `${status.slice(0, 200)} | ${pin} | ${await stateOf(A)}`)
     close(A)
     bots[A].chat('/gps clear')
     await sleep(500)

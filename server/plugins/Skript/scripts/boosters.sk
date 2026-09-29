@@ -171,17 +171,17 @@ command /booster:
 				set {_parts::*} to {booster::%{_key}%active} split at "|"
 				set {_b} to {_parts::3} parsed as number
 				if {_k} is "money":
-					msg(player, "&6⚡ %boosterText({_b})% money for everyone &7for &e%formatClock({booster::%{_key}%left})% &7more, thanks to &f%{_parts::1}%&7.")
+					msg(player, "&6⚡ %boosterText({_b})% money for everyone &7· &e%formatClock({booster::%{_key}%left})% &7· thanks &f%{_parts::1}%")
 				else:
-					msg(player, "&6⚡ %boosterWhat({_k}, {_b})% for everyone &7for &e%formatClock({booster::%{_key}%left})% &7more, thanks to &f%{_parts::1}%&7.")
+					msg(player, "&6⚡ %boosterWhat({_k}, {_b})% for everyone &7· &e%formatClock({booster::%{_key}%left})% &7· thanks &f%{_parts::1}%")
 				set {_mine} to boosterForKind(player, {_k})
 				if {_mine} is not {_b}:
-					send colored "&7 Yours: &e%boosterText({_mine})% &7(you bought it)." to player
+					send colored "&7 Yours: &e%boosterText({_mine})% &7(buyer)" to player
 				set {_n} to size of {booster::%{_key}%queue::*}
 				if {_n} > 0:
-					send colored "&7 %{_n}% more queued after it." to player
+					send colored "&7 %{_n}% more queued" to player
 		if {_any} is false:
-			msg(player, "&7No booster right now. &fBoosters &7help everyone on the server: more money from sales, more level XP, or heists that reopen faster. &f/store")
+			msg(player, "&7No booster right now. &f/store")
 
 function dboosterReply(s: command sender, text: text):
 	send "%{_text}%" to {_s}

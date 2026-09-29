@@ -123,7 +123,7 @@ on death of player with priority monitor:
 	set {_added} to addBounty({_killer}, cfg("bounty::per-kill"), "kill")
 	{_added} > 0
 	set {_total} to formatMoney(getBounty({_killer}))
-	msg({_killer}, "&cYour bounty is now %{_total}%. &7If a player claims it, you pay %cfg("bounty::victim-fee") * 100%%% of it.")
+	msg({_killer}, "&cYour bounty is now %{_total}%. &7If a player claims it, you pay a %cfg("bounty::victim-fee") * 100%%% fee.")
 
 # The IP a player last played from (the same-IP check for a killer who is offline at the claim).
 on quit:
@@ -222,4 +222,3 @@ function showBounties(p: player):
 		send colored "&7 Nobody online has a bounty." to {_p}
 	set {_min} to formatMoney(cfg("bounty::min-placed"))
 	send colored "&7Place one: &f/bounty <player> <amount> &7(at least %{_min}%)" to {_p}
-	send colored "&7Whoever kills a player with a bounty gets all of it; the player pays %cfg("bounty::victim-fee") * 100%%% of the part they earned (robberies, jobs, kills) on top of their death." to {_p}

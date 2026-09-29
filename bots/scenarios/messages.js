@@ -1,5 +1,5 @@
 // messages.sk: the phone's Messages app. Every text a contact sends (story.sk's storyText) lands in chat and in the
-// player's inbox; the phone's apps show "Messages (N new)"; /messages lists one head per contact, the newest
+// player's inbox; the phone's Messages app shows "N new"; /messages lists one head per contact, the newest
 // conversation first, with its unread count; a conversation shows its texts (the unread ones "new") and reading it
 // clears them; ◀ Back to Messages, ◀ Phone to the phone; "Find <contact>" when the map has that contact's quest giver
 // (else "<contact> isn't in town yet"); only the
@@ -71,8 +71,10 @@ module.exports = async ({ check }) => {
 
     // ---------- The phone's app ----------
     const phone = await opens(async () => { await cmd(`zzheisttp ${A} ${FAR}`); bot.setQuickBarSlot(8); await sleep(500); bot._client.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: 0 }) })
-    check('the phone\'s apps show "✉ Messages (3 new)" in slot 0', phone && /Phone/.test(title(phone)) && /Messages \(3 new\)/.test(itemName(at(0))), `${title(phone)} ${itemName(at(0))}`)
-    const list0 = await click(0)
+    // The home screen's dock: Messages at 38 (phone.sk openPhone), the unread count as its lore and its stack size.
+    const isHome = () => itemName(at(39)) === 'GPS' && itemName(at(49)) === 'Close'
+    check('the phone\'s Messages app (slot 38) shows "3 new"', phone && isHome() && itemName(at(38)) === 'Messages' && /3 new/.test(itemLore(at(38))) && at(38).count === 3, `${title(phone)} "${itemName(at(38))}" (${itemLore(at(38))}) x${at(38) && at(38).count}`)
+    const list0 = await click(38)
     check('...which opens Messages', /Messages/.test(title(list0)), title(list0))
 
     // ---------- /messages ----------
@@ -84,7 +86,7 @@ module.exports = async ({ check }) => {
     const back = await click(45)
     check('◀ Back goes to Messages, and reading Mara cleared her new ones (Vic\'s stay)', /Messages/.test(title(back)) && /^Mara$/.test(itemName(at(11))) && /^Vic \(1 new\)/.test(itemName(at(10))), `${title(back)} "${itemName(at(10))}" "${itemName(at(11))}"`)
     const toPhone = await click(27)
-    check('◀ Phone opens the phone, now "Messages (1 new)"', /Phone/.test(title(toPhone)) && /Messages \(1 new\)/.test(itemName(at(0))), `${title(toPhone)} ${itemName(at(0))}`)
+    check('◀ Phone opens the phone, now "1 new" on Messages', toPhone && isHome() && /1 new/.test(itemLore(at(38))), `${title(toPhone)} "${itemName(at(38))}" (${itemLore(at(38))})`)
 
     // ---------- /messages <contact> ----------
     const vic = await chatOpen('/messages vic')

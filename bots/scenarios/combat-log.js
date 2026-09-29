@@ -100,7 +100,8 @@ module.exports = async ({ check }) => {
     })
     bots[B]._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 }) // F: the phone's apps
     const menu = await opened
-    if (menu) { try { await bots[B].clickWindow(13, 0, 0) } catch (err) { /* checked below */ } }
+    // The passive switch: slot 11 of the phone's home screen (phone.sk openPhone).
+    if (menu) { try { await bots[B].clickWindow(11, 0, 0) } catch (err) { /* checked below */ } }
     await sleep(1000)
     check('no switching passive mode in combat', Boolean(menu) && said(B, t, /can't switch passive mode while in combat/) && (await data(B, 'passive')) !== 'true', `${menu ? 'menu' : 'no menu'}; ${text(B, t)}`)
     if (bots[B].currentWindow) bots[B].closeWindow(bots[B].currentWindow)

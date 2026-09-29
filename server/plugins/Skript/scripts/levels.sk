@@ -493,7 +493,7 @@ function levelShow(p: player):
 			send colored "&7 It unlocks: &f%{_list}%" to {_p}
 	set {_per} to cfg("level::xp-per-dollars")
 	set {_haul} to cfg("level::xp-per-haul")
-	send colored "&7 Earn XP by selling loot at the base: 1 XP per %formatMoney({_per})%, +%{_haul}% per heist; car jobs, hits and missions pay XP too. Each level needs a little more than the last. /levels" to {_p}
+	send colored "&7 XP: 1 per %formatMoney({_per})% of loot sold, +%{_haul}% a heist; jobs, hits and missions too. &f/levels" to {_p}
 
 command /level:
 	description: Your robber level.
@@ -507,7 +507,7 @@ command /levels:
 	executable by: players
 	trigger:
 		set {_me} to levelOf(player)
-		msg(player, "&6Robber levels &7(you: level %{_me}% %levelColored({_me})%&7). Only the levels that unlock something:")
+		msg(player, "&6Robber levels &7(you: level %{_me}% %levelColored({_me})%&7)")
 		loop levelMilestones():
 			set {_n} to loop-value
 			set {_u::*} to levelUnlocks({_n})

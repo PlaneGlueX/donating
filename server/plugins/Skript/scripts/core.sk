@@ -723,15 +723,15 @@ function loadSettings():
 	set {-cfg::season::board::earners::name} to "Top Earners"
 	set {-cfg::season::board::earners::short} to "Earner"
 	set {-cfg::season::board::earners::icon} to gold ingot
-	set {-cfg::season::board::earners::what} to "Money from loot sold and car contracts."
+	set {-cfg::season::board::earners::what} to "Loot sold + car contracts"
 	set {-cfg::season::board::heisters::name} to "Master Thieves"
 	set {-cfg::season::board::heisters::short} to "Thief"
 	set {-cfg::season::board::heisters::icon} to iron door
-	set {-cfg::season::board::heisters::what} to "Heist skill: runs, safes, vaults, getaways."
+	set {-cfg::season::board::heisters::what} to "Runs, safes, vaults, getaways"
 	set {-cfg::season::board::wheelmen::name} to "Wheelmen"
 	set {-cfg::season::board::wheelmen::short} to "Wheelman"
 	set {-cfg::season::board::wheelmen::icon} to minecart
-	set {-cfg::season::board::wheelmen::what} to "Car contracts delivered (Street, Pro, Master)."
+	set {-cfg::season::board::wheelmen::what} to "Car contracts delivered"
 	# Master Thieves: a heist run pays up to points, reached once full ($) of its loot is sold (difficulty 1-4,
 	# about half the bag typical at that level): a bigger bag (a rank's too) reaches it in fewer trips.
 	set {-cfg::season::heist::0::points} to 0
@@ -1243,13 +1243,13 @@ function loadSettings():
 	set {-cfg::tool::drill::price} to 2500
 	set {-cfg::tool::drill::max} to 1
 	set {-cfg::tool::drill::item} to iron ingot
-	set {-cfg::tool::drill::about} to "Drills a vault door open (1 per door)."
+	set {-cfg::tool::drill::about} to "Opens a vault door"
 	set {-cfg::tool::safe-kit::name} to "Safe Kit"
 	set {-cfg::tool::safe-kit::enabled} to true
 	set {-cfg::tool::safe-kit::price} to 400
 	set {-cfg::tool::safe-kit::max} to 3
 	set {-cfg::tool::safe-kit::item} to flint
-	set {-cfg::tool::safe-kit::about} to "Cracks a safe's code (used up when it opens)."
+	set {-cfg::tool::safe-kit::about} to "Opens a safe"
 	# PROPOSAL: the robber level a tool needs to be bought (levels.sk).
 	set {-cfg::tool::safe-kit::level} to 5
 	set {-cfg::tool::drill::level} to 15
@@ -1260,7 +1260,7 @@ function loadSettings():
 	set {-cfg::tool::grappler::price} to 750
 	set {-cfg::tool::grappler::max} to 5
 	set {-cfg::tool::grappler::item} to breeze rod
-	set {-cfg::tool::grappler::about} to "Right-click: pulls you to where you aim. One hook a pull."
+	set {-cfg::tool::grappler::about} to "Right-click: pull yourself where you aim"
 	set {-cfg::tool::grappler::level} to 30
 	# The Baseball Bat's knockback (items.sk; it was MechanicsCore's Push): blocks a tick along the hit, and up.
 	set {-cfg::bat::knockback} to 0.75
@@ -1359,7 +1359,8 @@ function loadSettings():
 	# Owner, 2026-09-26: crates daily, common, uncommon, rare, epic, legendary, and hacked (special events
 	# only, never sold). Keys are virtual (a count per player, never an item: the inventory is fixed).
 	# /daily gives everyone a daily key (plus each rank's daily-keys above); common to legendary keys are
-	# sold on Tebex (dcrate give). Rarity colors are used for crates and for cosmetics.
+	# sold on Tebex (dcrate give) and, since 2026-09-29, for game money in the crate's preview (price below).
+	# Rarity colors are used for crates and for cosmetics.
 	set {-cfg::rarities::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "supercar", "hypercar" and "hacked"
 	set {-cfg::rarity::daily::name} to "Daily"
 	set {-cfg::rarity::daily::color} to "&e"
@@ -1396,8 +1397,10 @@ function loadSettings():
 	set {-cfg::rarity::season::color} to "&b"
 	set {-cfg::rarity::story::name} to "Story"
 	set {-cfg::rarity::story::color} to "&d"
-	# Crates, in menu order (all of them always show in /crates; owner, 2026-09-26). sold = Tebex sells
-	# its keys.
+	# Crates, in menu order (all of them always show in /crates; owner, 2026-09-26). Two independent ways to get keys:
+	# sold = its keys are in the Tebex store (the preview's Store button, slot 47; dcrate give delivers them), price = a key
+	# costs this much game money (the preview's Buy a key button, slot 51; crates.sk crateBuyKey). No price: not for game
+	# money. never-give = dcrate give refuses it (no store package may deliver it).
 	set {-cfg::crates::*} to "daily", "common", "uncommon", "rare", "epic", "legendary", "supercar", "hypercar", "hacked" and "season"
 	set {-cfg::crate::daily::sold} to false
 	set {-cfg::crate::common::sold} to true
@@ -1406,8 +1409,17 @@ function loadSettings():
 	set {-cfg::crate::epic::sold} to true
 	set {-cfg::crate::legendary::sold} to true
 	set {-cfg::crate::hacked::sold} to false
+	# Common to Legendary keys for game money too (owner, 2026-09-29: "allow the other common-legendary crates be able to be
+	# bought with game money as well as irl money"). PROPOSAL: about 4x what a key pays back on average (money, items at
+	# shop price, repeats' dupe value: $373 / $895 / $2,377 / $6,096 / $14,885), so keys are a money sink that pays out
+	# mostly in cosmetics and never a way to make money. Lowering later is safe; raising angers players.
+	set {-cfg::crate::common::price} to 1500
+	set {-cfg::crate::uncommon::price} to 4000
+	set {-cfg::crate::rare::price} to 10000
+	set {-cfg::crate::epic::price} to 25000
+	set {-cfg::crate::legendary::price} to 60000
 	# The car crates' keys are never sold for real money (owner, 2026-09-28: "car crate keys only purchasable with in game
-	# money ($1M+)"): price = what a key costs in game money (crates.sk, the crate's preview; PROPOSAL).
+	# money ($1M+)"): game money only (PROPOSAL prices).
 	set {-cfg::crate::supercar::sold} to false
 	set {-cfg::crate::hypercar::sold} to false
 	set {-cfg::crate::supercar::price} to 1000000

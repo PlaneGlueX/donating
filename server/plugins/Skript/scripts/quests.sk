@@ -3,9 +3,9 @@
 # heist quests (this will be the idea for future quests too)").
 #
 # A quest giver is an NPC standing at a place (a mannequin, like the shopkeepers: looks like a player, no AI):
-# its name, what it gives under it ("Car contracts · right-click"), and something in its hand. Right-click it
+# its name, what it gives under it ("Car contracts"), and something in its hand. Right-click it
 # for its quest's menu. Taking a job and buying its tools only work next to a giver of that kind (within
-# quest::reach blocks); the quest's menu from anywhere else (/contracts, the phone's app) shows the offers and
+# quest::reach blocks); the quest's menu from anywhere else (/contracts, the GPS's Quests page) shows the offers and
 # pins the nearest giver on the GPS. Every giver is a dot on the locator bar (nav.sk, poi::quest::color) and a
 # place in /gps.
 #
@@ -15,8 +15,9 @@
 # of every action that should only happen at a giver.
 #
 # Saved: {quest::giver::<n>} = "kind|world|x|y|z|yaw|place" (the counter {questcounter} lives outside the
-# list). The NPC has the tags donating_quest, quest_<kind> and questg_<n>; a missing one comes back within
-# 30 s while its chunk is loaded (extras go). Givers stand in the main world (the console summons them).
+# list). The NPC has the tags donating_quest, quest_<kind>, questg_<n> and questLook() (the look's version: raise it
+# when the summon changes, and every NPC is replaced by one with the new look); a missing one comes back within
+# 30 s while its chunk is loaded (extras and old looks go). Givers stand in the main world (the console summons them).
 # Staff: /dquest add <kind> [place], addat <kind> <x> <y> <z> <yaw> [place], remove <n>, list, dump (the addat
 # lines for Minehut), open <player> <n> (for a Citizens NPC's click command later).
 # Log: plugins\Skript\logs\quests.log.
@@ -100,15 +101,22 @@ function questNearestText(p: player, kind: text) :: text:
 	set {_d} to round(distance between (location of {_p}) and questLoc({_n}))
 	return "%questPlace({_n})% (%{_d}%m)"
 
-# Pins the nearest giver of a kind on the GPS (the pin clears on arrival, like any pin).
+# Pins the nearest giver of a kind on the GPS (the pin clears on arrival, like any pin; gpsPin says "Pin set").
 function questFind(p: player, kind: text):
 	set {_n} to questNearest({_p}, {_kind})
-	set {_what} to {-cfg::quest::%{_kind}%::name}
 	if {_n} is "":
-		msg({_p}, "&7There's no %{_what}% giver yet. Tell staff.")
+		# The kind's NPC at its default place ("Scrap Yard Boss", "Mara").
+		set {_who} to {-cfg::quest::%{_kind}%::npc}
+		if {_who} is not set:
+			set {_who} to "{place}"
+		set {_place} to {-cfg::quest::%{_kind}%::place}
+		if {_place} is not set:
+			set {_place} to "Quest"
+		replace all "{place}" with {_place} in {_who}
+		msg({_p}, "&7%{_who}% isn't in town yet.")
 		stop
 	gpsPin({_p}, questLoc({_n}), questPlace({_n}))
-	msg({_p}, "&6%{_what}%: &fthe GPS leads you to the &e%questPlace({_n})%&f. Talk to &e%questNpcName({_n})%&f there.")
+	msg({_p}, "&6Talk to &e%questNpcName({_n})% &6at the &e%questPlace({_n})%&6.")
 
 # Every giver as a /gps place ("world|x|y|z|name|quest", as gps.sk's gpsPlaces).
 function questPlaces() :: texts:
@@ -118,6 +126,10 @@ function questPlaces() :: texts:
 	return {_out::*}
 
 # ---------- The NPC ----------
+
+# The look's version tag (2: the description is only what it gives, 2026-09-29).
+function questLook() :: text:
+	return "questlook_2"
 
 function questSpawn(n: text):
 	set {_l} to questLoc({_n})
@@ -137,18 +149,23 @@ function questSpawn(n: text):
 			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1,components:{""minecraft:custom_model_data"":{strings:[""%{_model}%""]}}}}"
 		else:
 			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1}}"
-	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}% · right-click"",color:""gray""}%{_hold}%%skinProfile(questSkinId({_k}))%,Rotation:[%{_yaw}%f,0f]}"
+	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%"",""%questLook()%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}%"",color:""gray""}%{_hold}%%skinProfile(questSkinId({_k}))%,Rotation:[%{_yaw}%f,0f]}"
 
-# One NPC per giver while its chunk is loaded: a missing one comes back, extras go.
+# One NPC per giver while its chunk is loaded: a missing one comes back, extras and older looks go.
 function questCheck(n: text):
 	set {_l} to questLoc({_n})
 	{_l} is set
 	chunk at {_l} is loaded
+	set {_look} to questLook()
 	set {_c} to 0
 	loop entities in radius 3 around {_l}:
 		if loop-entity has scoreboard tag "questg_%{_n}%":
-			add 1 to {_c}
-			if {_c} > 1:
+			if loop-entity has scoreboard tag {_look}:
+				add 1 to {_c}
+				if {_c} > 1:
+					kill loop-entity
+			else:
+				# Summoned with an older look (its description changed): replaced below.
 				kill loop-entity
 	if {_c} is 0:
 		questSpawn({_n})

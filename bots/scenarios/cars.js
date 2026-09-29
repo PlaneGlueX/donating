@@ -83,14 +83,15 @@ module.exports = async ({ check }) => {
     const engineLore = itemText(w && w.slots[11])
     const before = await bal(A)
     let t = Date.now()
-    bots[A].clickWindow(11, 0, 0).catch(() => {})
-    await sleep(700)
-    const armed = /Click again/.test(text(A, t)) && (await bal(A)) === before
+    // The first click arms it: the page comes back with that button as a green "Confirm purchase?" block.
+    const armedW = await click(A, 11)
+    const armedIcon = armedW && armedW.slots[11]
+    const armed = Boolean(armedIcon) && armedIcon.name === 'lime_concrete' && /Confirm purchase/.test(itemText(armedIcon)) && /Engine I/.test(itemText(armedIcon)) && /5,000/.test(itemText(armedIcon)) && (await bal(A)) === before
     bots[A].clickWindow(11, 0, 0).catch(() => {})
     await sleep(900)
     cs = await cars(A)
     const tuned = cs.find(c => c.plate === red.plate)
-    check('the tuning shop: Engine I for a Sedan costs $5,000 (8% of $40,000, at least $5,000), a second click fits it, the grade becomes Custom', /Engine I/.test(engineLore) && /5,000/.test(engineLore) && armed && before - (await bal(A)) === 5000 && tuned && tuned.f.mods === '100' && tuned.f.grade === '1', `${engineLore.slice(0, 200)} armed=${armed} ${before}->${await bal(A)} ${tuned && tuned.raw}`)
+    check('the tuning shop: Engine I for a Sedan costs $5,000 (8% of $40,000, at least $5,000), the first click arms a "Confirm purchase?" block, a second click fits it, the grade becomes Custom', /Engine I/.test(engineLore) && /5,000/.test(engineLore) && armed && before - (await bal(A)) === 5000 && tuned && tuned.f.mods === '100' && tuned.f.grade === '1', `${engineLore.slice(0, 200)} armed=${armed} ${itemText(armedIcon).slice(0, 200)} ${before}->${await bal(A)} ${tuned && tuned.raw}`)
     await closeAll(A)
 
     // ---------- Crate builds and extreme cars can't be tuned; a wrap makes the grade ----------

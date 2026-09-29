@@ -1,9 +1,11 @@
 // quests.sk: quest givers you visit in person (owner, 2026-09-26: an NPC at a place like a scrap yard gives
 // the car jobs; the idea for future quests too). Staff place a giver (/dquest), it's a named NPC with what it
-// gives under its name, a blue dot on the locator bar and a place in /gps. Away from it, /contracts shows the
+// gives under its name, a blue dot on the locator bar and its quest on the GPS's Quests page (a left-click there
+// pins the nearest giver). Away from it, /contracts shows the
 // offers but a click pins the nearest giver on the GPS (no job, no lockpick); the pin clears on arrival. A
 // right-click on the NPC opens its menu, where jobs and lockpicks work; the held phone doesn't open its map
-// with that click. A missing NPC comes back; remove takes the NPC and its dot; dump prints the addat line.
+// with that click. A missing NPC comes back, and one with an older look is replaced; remove takes the NPC and its dot;
+// dump prints the addat line.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -91,7 +93,14 @@ module.exports = async ({ check }) => {
     const name = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] CustomName`)
     const desc = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] description`)
     const hand = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] equipment.mainhand`)
-    check('a giver is a named NPC ("Quest Yard Boss", "Car contracts · right-click") holding a lockpick', giverN !== '' && /Quest Yard Boss/.test(name) && /Car contracts . right-click/.test(desc) && /flint/.test(hand) && /lockpick_basic/.test(hand), `${r} | ${name} | ${desc} | ${hand}`)
+    check('a giver is a named NPC ("Quest Yard Boss", "Car contracts" under it) holding a lockpick', giverN !== '' && /Quest Yard Boss/.test(name) && /text: "Car contracts"/.test(desc) && /flint/.test(hand) && /lockpick_basic/.test(hand), `${r} | ${name} | ${desc} | ${hand}`)
+    // An NPC summoned with an older look (before the description changed) is replaced by one with the new look.
+    const uuid0 = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] UUID`)
+    await cmd(`tag @e[tag=questg_${giverN}] remove questlook_2`)
+    await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN},tag=questlook_2]`)), 33000)
+    const uuid1 = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] UUID`)
+    const count1 = await cmd(`execute if entity @e[tag=questg_${giverN}]`)
+    check('an NPC with an older look is replaced by one new NPC (within 30 s)', /\[I;/.test(uuid1) && uuid1 !== uuid0 && /Count: 1\b/.test(count1), `${uuid0} -> ${uuid1} | ${count1}`)
     await until(async () => Boolean(npc(Q)), 3000)
     check('players see it (a mannequin)', Boolean(npc(Q)), Object.values(bots[Q].entities).map(e => e.name).filter(n => n !== 'player').join(','))
     await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=poi_q_${giverN}]`)), 12000)
@@ -121,19 +130,35 @@ module.exports = async ({ check }) => {
     bots[Q].clickWindow(11, 0, 0).catch(() => {})
     await sleep(1200)
     g = await gps(Q)
-    check('clicking an offer there takes no job and pins it too ("Talk to Quest Yard Boss there")', field(await cmd(`zzctstate ${Q}`), 'job') === '<none>' && field(g, 'active') === 'pin' && field(g, 'label') === 'Quest_Yard' && /Talk to Quest Yard Boss/.test(text(Q, t)), `${g} ${text(Q, t)}`)
+    check('clicking an offer there takes no job and pins it too ("Talk to Quest Yard Boss at the Quest Yard")', field(await cmd(`zzctstate ${Q}`), 'job') === '<none>' && field(g, 'active') === 'pin' && field(g, 'label') === 'Quest_Yard' && /Talk to Quest Yard Boss/.test(text(Q, t)), `${g} ${text(Q, t)}`)
     t = Date.now()
     await cmd(`zzcttake ${Q} basic`)
     await sleep(500)
     check('taking a job away from a giver is refused', /Jobs are given by contract givers/.test(text(Q, t)) && field(await cmd(`zzctstate ${Q}`), 'job') === '<none>', text(Q, t))
     await closeAll(Q)
-    let o = windowOpen(bots[Q])
-    bots[Q].chat('/gps')
-    const gw = await o
-    await sleep(300)
-    const places = gw ? gw.slots.filter(Boolean).map(i => itemText(i)).filter(s => /Quest Yard/.test(s)) : []
-    check('/gps lists the giver as a place', places.length >= 1, `${title(gw)} ${places.join(' ').slice(0, 300)}`)
+    // The GPS's Quests page (gps.sk gpsCat): the car contracts entry says where the nearest giver is, and a
+    // left-click on it leads there (a pin at the giver).
+    const gpsQuests = async () => {
+      await closeAll(Q)
+      const ow = windowOpen(bots[Q])
+      bots[Q].chat('/gps quests')
+      const qw = await ow
+      await sleep(300)
+      let s = -1
+      if (qw) for (let i = 0; i < qw.inventoryStart; i++) if (qw.slots[i] && /Car contracts/.test(itemText(qw.slots[i]))) { s = i; break }
+      return { qw, s }
+    }
+    bots[Q].chat('/gps clear')
+    await sleep(500)
+    const { qw: gw, s: ctSlot } = await gpsQuests()
+    const ctEntry = ctSlot >= 0 ? itemText(gw.slots[ctSlot]) : ''
+    check('/gps quests lists the car contracts with the nearest giver ("Quest Yard Boss · 20m")', /GPS . Quests/.test(title(gw)) && /Quest Yard Boss . 2\dm/.test(ctEntry), `${title(gw)} [${ctSlot}] ${ctEntry.slice(0, 400)}`)
+    if (ctSlot >= 0) bots[Q].clickWindow(ctSlot, 0, 0).catch(() => {})
+    await sleep(1200)
+    g = await gps(Q)
+    check('...and a left-click on it pins that giver on the GPS', field(g, 'active') === 'pin' && field(g, 'label') === 'Quest_Yard' && !bots[Q].currentWindow, g)
     await closeAll(Q)
+    let o
 
     // ---------- Arriving and talking to it ----------
     t = Date.now()
@@ -156,7 +181,7 @@ module.exports = async ({ check }) => {
     await sleep(500)
     const phoneAfterNpc = await phoneOpen(Q)
     const offerAt = itemText(w && w.slots[11])
-    check('a right-click on the NPC opens "Car contracts · Quest Yard" with "Click: take this job"', /Car contracts . Quest Yard/.test(title(w)) && /Click: take this job/.test(offerAt), `${title(w)} ${offerAt.slice(0, 300)}`)
+    check('a right-click on the NPC opens "Car contracts · Quest Yard", its offer takeable there (no "Take it from a contract giver")', /Car contracts . Quest Yard/.test(title(w)) && /Red Sedan/.test(offerAt) && !/contract giver/.test(offerAt), `${title(w)} ${offerAt.slice(0, 300)}`)
     // Buying a lockpick works here.
     bots[Q].clickWindow(20, 0, 0).catch(() => {})
     await sleep(900)

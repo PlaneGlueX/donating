@@ -177,6 +177,17 @@ module.exports = async ({ check }) => {
     line = await wm()
     check('Stims: one stack, up to 3 (a buy over the confirm limit asks, then goes through); the 4th is refused with no charge', stimArmedBuy && /Stim:0x3/.test(line) && (await bal()) === before - 600 && /carry 3/.test(await shop()), `armed ${stimArmedBuy}; ${line}; ${before} -> ${await bal()}; ${await shop()}`)
     const stimSlot = Number((line.match(/(\d+)=Stim/) || [])[1])
+    // A weapon selected in the Loadout tab goes into any hotbar slot: onto the Stims it swaps places with them (it was
+    // equipped), and when it isn't equipped the Stims move to the first free slot (hotbar 1-5).
+    await tab('loadout')
+    await click(CELL[0]) // the .50 GS, in hotbar 1
+    await click(HOT(stimSlot))
+    const swapped = await wm()
+    await click(HOT(stimSlot)) // nothing selected: takes the .50 GS out
+    await click(CELL[0])
+    await click(HOT(0)) // onto the Stims (in hotbar 1 now)
+    line = await wm()
+    check('a selected weapon goes onto a consumable\'s slot: swapped when equipped, else the consumable moves to a free slot', stimSlot === 1 && /(^WM |\| )1=50_GS/.test(swapped) && /(^WM |\| )0=Stim:0x3/.test(swapped) && /(^WM |\| )0=50_GS:0x1/.test(line) && /(^WM |\| )1=Stim:0x3/.test(line) && /moved to hotbar 2/.test(await shop()), `slot ${stimSlot}; ${swapped} -> ${line}; ${await shop()}`)
     await click(HOT(stimSlot))
     const stimArmed = /Stim/.test(await wm()) && at(HOT(stimSlot)) === 'red_concrete'
     await click(HOT(stimSlot))
@@ -274,6 +285,9 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`eco set ${NAME} 10000`)
     const gw = await open('gear')
     check('the gear shop has its title', gw && JSON.stringify(gw.title).includes('Gear Shop'), gw && JSON.stringify(gw.title))
+    // WeaponMechanics' Per_Armor_Point is -6%: Light Helmet 2 points, Tactical Helmet 3, Light Vest 5, Heavy Vest 8.
+    const gearLore = s => JSON.stringify((bot.currentWindow && bot.currentWindow.slots[s] && bot.currentWindow.slots[s].components) || '')
+    check('each helmet and vest shows how much it cuts gun damage (-12%, -18%, -30%, -48%)', /Guns -12%/.test(gearLore(10)) && /Guns -18%/.test(gearLore(11)) && /Guns -30%/.test(gearLore(15)) && /Guns -48%/.test(gearLore(16)), [10, 11, 15, 16].map(s => gearLore(s).slice(0, 160)).join(' | '))
     await click(10)
     let d = await dump()
     check('a Light Helmet goes straight on ($750)', /39=iron helmet x1 \[gear:helmet-1\]/.test(d) && (await bal()) === 9250, `${d}; ${await bal()}`)

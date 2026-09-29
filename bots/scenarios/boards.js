@@ -90,7 +90,7 @@ module.exports = async ({ check }) => {
     check('...looking only: a click takes nothing', JSON.stringify(bot.inventory.slots) === before && w && w.slots[9], '')
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
     await sleep(300)
-    // The phone's Bag app (slot 25).
+    // The phone's Bag app (the dock's slot 42, named "Bag").
     bot.setQuickBarSlot(8)
     await sleep(400)
     opened = windowOpen()
@@ -98,9 +98,10 @@ module.exports = async ({ check }) => {
     bot._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
     const phone = await opened
     await sleep(300)
-    if (phone && /Phone/.test(JSON.stringify(phone.title))) {
+    const bagApp = phone && phone.slots[42] ? JSON.stringify(phone.slots[42]) : ''
+    if (phone && /"Bag"/.test(bagApp)) {
       const bagOpen = windowOpen()
-      bot.clickWindow(25, 0, 0).catch(() => {})
+      bot.clickWindow(42, 0, 0).catch(() => {})
       const bw = await bagOpen
       check('the phone\'s Bag app opens /bag', bw && /Your bag/.test(JSON.stringify(bw.title)), bw ? JSON.stringify(bw.title) : 'no window')
     } else {

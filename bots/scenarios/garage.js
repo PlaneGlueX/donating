@@ -118,15 +118,16 @@ module.exports = async ({ check }) => {
     w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
     w = await click(A, 10)
     t = Date.now()
-    await click(A, 10)
-    await sleep(500)
-    const armed = /Click again/.test(text(A, t)) && (await bal(A)) === 100000
+    // The first click arms it: the page comes back with that color as a green "Confirm purchase?" block.
+    const armedW = await click(A, 10)
+    const armedIcon = armedW && armedW.slots[10]
+    const armed = Boolean(armedIcon) && armedIcon.name === 'lime_concrete' && /Confirm purchase/.test(itemText(armedIcon)) && /Red Sedan/.test(itemText(armedIcon)) && /40,000/.test(itemText(armedIcon)) && (await bal(A)) === 100000
     bots[A].clickWindow(10, 0, 0).catch(() => {})
     await sleep(1200)
     let plate = await plateOf(A, 'sedan')
     plates.push(plate)
     const vin1 = Number(((await info(A)).match(/vin=(\d+)/) || [])[1])
-    check('buying needs a second click, then: charged $40,000, the car is yours (an MTVehicles plate) with a serial number', armed && (await bal(A)) === 60000 && plate !== '' && /exists=yes owner=GarageA/.test(await car(plate)) && vin1 > 0, `armed=${armed} bal=${await bal(A)} ${await info(A)} ${await car(plate)}`)
+    check('buying needs a second click (the first arms a "Confirm purchase?" block), then: charged $40,000, the car is yours (an MTVehicles plate) with a serial number', armed && (await bal(A)) === 60000 && plate !== '' && /exists=yes owner=GarageA/.test(await car(plate)) && vin1 > 0, `armed=${armed} ${itemText(armedIcon).slice(0, 200)} bal=${await bal(A)} ${await info(A)} ${await car(plate)}`)
     await closeAll(A)
     t = Date.now()
     w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()

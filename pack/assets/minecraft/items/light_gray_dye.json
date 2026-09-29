@@ -1,0 +1,293 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "donating:app_back",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/back"
+        }
+      },
+      {
+        "when": "donating:app_bag",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/bag"
+        }
+      },
+      {
+        "when": "donating:app_base",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/base"
+        }
+      },
+      {
+        "when": "donating:app_blank",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/blank"
+        }
+      },
+      {
+        "when": "donating:app_bounties",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/bounties"
+        }
+      },
+      {
+        "when": "donating:app_car",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/car"
+        }
+      },
+      {
+        "when": "donating:app_cosmetics",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/cosmetics"
+        }
+      },
+      {
+        "when": "donating:app_crate",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/crate"
+        }
+      },
+      {
+        "when": "donating:app_crates",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/crates"
+        }
+      },
+      {
+        "when": "donating:app_garage",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/garage"
+        }
+      },
+      {
+        "when": "donating:app_garagepl",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/garagepl"
+        }
+      },
+      {
+        "when": "donating:app_gps",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/gps"
+        }
+      },
+      {
+        "when": "donating:app_heist_0",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/heist_0"
+        }
+      },
+      {
+        "when": "donating:app_heist_1",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/heist_1"
+        }
+      },
+      {
+        "when": "donating:app_heist_2",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/heist_2"
+        }
+      },
+      {
+        "when": "donating:app_heist_3",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/heist_3"
+        }
+      },
+      {
+        "when": "donating:app_heist_4",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/heist_4"
+        }
+      },
+      {
+        "when": "donating:app_heists",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/heists"
+        }
+      },
+      {
+        "when": "donating:app_help",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/help"
+        }
+      },
+      {
+        "when": "donating:app_landmark",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/landmark"
+        }
+      },
+      {
+        "when": "donating:app_messages",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/messages"
+        }
+      },
+      {
+        "when": "donating:app_missions",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/missions"
+        }
+      },
+      {
+        "when": "donating:app_next",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/next"
+        }
+      },
+      {
+        "when": "donating:app_passive_off",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/passive_off"
+        }
+      },
+      {
+        "when": "donating:app_passive_on",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/passive_on"
+        }
+      },
+      {
+        "when": "donating:app_pin",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/pin"
+        }
+      },
+      {
+        "when": "donating:app_pin_clear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/pin_clear"
+        }
+      },
+      {
+        "when": "donating:app_places",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/places"
+        }
+      },
+      {
+        "when": "donating:app_prev",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/prev"
+        }
+      },
+      {
+        "when": "donating:app_quests",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/quests"
+        }
+      },
+      {
+        "when": "donating:app_season",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/season"
+        }
+      },
+      {
+        "when": "donating:app_shop_bag",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shop_bag"
+        }
+      },
+      {
+        "when": "donating:app_shop_cars",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shop_cars"
+        }
+      },
+      {
+        "when": "donating:app_shop_gear",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shop_gear"
+        }
+      },
+      {
+        "when": "donating:app_shop_gun",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shop_gun"
+        }
+      },
+      {
+        "when": "donating:app_shop_other",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shop_other"
+        }
+      },
+      {
+        "when": "donating:app_shop_tools",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shop_tools"
+        }
+      },
+      {
+        "when": "donating:app_shops",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/shops"
+        }
+      },
+      {
+        "when": "donating:app_spawn",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/spawn"
+        }
+      },
+      {
+        "when": "donating:app_stats",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/stats"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/light_gray_dye"
+    }
+  }
+}

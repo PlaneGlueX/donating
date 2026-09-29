@@ -1120,7 +1120,7 @@ function lootKeypadDraw(p: player):
 				set {_col} to subtext of {_gp::2} from characters {_j} to {_j}
 				set slot ({_row} * 9 + {_j} - 1) of {_gui} to lootDigitItem({_dg}, {_col})
 			set slot {_row} * 9 + 8 of {_gui} to paper named "&7Guess #%{_idx}%"
-	set slot 36 of {_gui} to book named "&fCrack the code" with lore "&7%{_d}% different digits, 1-9." and "&aGreen&7: right digit, right place." and "&eYellow&7: in the code, wrong place." and "&7Gray: not in the code." and "&7Your Safe Kit is used only when it opens."
+	set slot 36 of {_gui} to book named "&fCrack the code" with lore "&7%{_d}% different digits, 1-9" and "&aGreen&7: right place" and "&eYellow&7: wrong place" and "&7Gray: not in the code"
 	set {_entry} to {-lootkp::%{_p}%::entry}
 	loop integers from 1 to {_d}:
 		if loop-value <= length of {_entry}:
@@ -1382,7 +1382,7 @@ function lootDrillText(h: text, n: text):
 	set {_left} to formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})
 	set {_who} to {-lootdrill::%{_c}%::name}
 	if {-lootst::%{_c}%} is "jammed":
-		set text of {_t} to colored "&c&lJAMMED &7· right-click the door to fix it%nl%&7%{_pct}%%% · %{_who}%"
+		set text of {_t} to colored "&c&lJAMMED &7· right-click to fix%nl%&7%{_pct}%%% · %{_who}%"
 	else:
 		set text of {_t} to colored "&6DRILL &f%{_pct}%%% %lootMeter({_pct} / 100)% &f%{_left}%%nl%&7%{_who}%"
 
@@ -1487,7 +1487,7 @@ function lootQteDraw(p: player):
 			else:
 				set slot loop-value of {_gui} to yellow concrete named "&e▼"
 		else if loop-value is {_target}:
-			set slot loop-value of {_gui} to lime stained glass pane named "&aGreen: click when the marker is here"
+			set slot loop-value of {_gui} to lime stained glass pane named "&aHere"
 		else:
 			set slot loop-value of {_gui} to gray stained glass pane named "&8-"
 	set {_need} to {-cfg::loot::drill::qte-hits}
@@ -1498,7 +1498,7 @@ function lootQteDraw(p: player):
 			set slot {_first} + loop-number - 1 of {_gui} to green concrete named "&aHit %loop-number%/%{_need}%"
 		else:
 			set slot {_first} + loop-number - 1 of {_gui} to light gray concrete named "&7%loop-number%/%{_need}%"
-	set slot 22 of {_gui} to lever named "&fClick when the marker is on green" with lore "&7%{_need}% in a row fixes the drill." and "&7A miss starts over."
+	set slot 22 of {_gui} to lever named "&fClick when the marker is on green" with lore "&7%{_need}% in a row · a miss starts over"
 
 # Every tick: the markers move.
 every tick:
@@ -1868,7 +1868,7 @@ function lootOnEnter(p: player, h: text):
 	size of {loots::%{_h}%::*} > 0
 	{-loottip::%{_p}%} is not set
 	set {-loottip::%{_p}%} to true
-	msg({_p}, "&7Hold &fright-click &7on loot to grab it. It goes into your bag; the fastest robbers get the most.")
+	msg({_p}, "&7Hold &fright-click &7on loot to grab it: the fastest robbers get the most.")
 
 function lootForget(p: player, h: text):
 	delete {-lootw::%{_p}%}

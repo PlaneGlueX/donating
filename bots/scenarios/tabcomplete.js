@@ -120,7 +120,7 @@ module.exports = async ({ check }) => {
     const ti = await tab(A, '/title ')
     const ke = await tab(A, '/killeffect ')
     const bs = await tab(A, '/bagskin ')
-    check('/lb the three boards, /gps clear and off, /title and /killeffect none, /bagskin default', has(lb, 'earners', 'heisters', 'wheelmen') && has(gps, 'clear', 'off') && has(ti, 'none') && has(ke, 'none') && has(bs, 'default'), `${lb} | ${gps} | ${ti} | ${ke} | ${bs}`)
+    check('/lb the three boards, /gps its pages and clear/off, /title and /killeffect none, /bagskin default', has(lb, 'earners', 'heisters', 'wheelmen') && has(gps, 'quests', 'heists', 'shops', 'places', 'clear', 'off') && has(ti, 'none') && has(ke, 'none') && has(bs, 'default'), `${lb} | ${gps} | ${ti} | ${ke} | ${bs}`)
     const hr = await none(A, '/heistrefresh ')
     check('/heistrefresh suggests no heist without the rank', hr.length === 0, JSON.stringify(hr))
     // With Elite and a ready refresh: a heist cooling down, never a disabled one.

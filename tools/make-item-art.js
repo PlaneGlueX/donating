@@ -1250,7 +1250,9 @@ for (const [base, def] of Object.entries(itemCases)) {
       { type: 'bitmap', file: 'donating:font/coin.png', ascent: 7, height: 8, chars: ['\ue001'] },
       { type: 'bitmap', file: 'donating:font/skull.png', ascent: 7, height: 8, chars: ['\ue002'] },
       { type: 'bitmap', file: 'donating:font/person.png', ascent: 7, height: 8, chars: ['\ue003'] },
-      { type: 'bitmap', file: 'donating:font/ping.png', ascent: 7, height: 8, chars: ['\ue004'] }
+      { type: 'bitmap', file: 'donating:font/ping.png', ascent: 7, height: 8, chars: ['\ue004'] },
+      // The phone menus' backgrounds and spaces (tools\make-phone-ui.js writes donating:phone_ui).
+      { type: 'reference', id: 'donating:phone_ui' }
     ]
   })
 }

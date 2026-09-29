@@ -1,0 +1,57 @@
+# ui.sk: the phone-style menus' building blocks (2026-09-29, owner: "make a phone style apps menu (its very cluttered
+# right now)"). A chest menu's title can draw a picture: the pack's font (tools\make-phone-ui.js) maps U+E010 (the home
+# screen) and U+E011 (an app page) to 176x135 images, and the 26.3 client draws a container's title after its texture
+# and before its items (checked in the client), so a title that starts 8 pixels left draws a whole phone under the
+# icons. U+F801-F808 move the text -1, -2, -4 ... -128 pixels, U+F811-F818 +1 ... +128. The characters are built
+# from their code points here (an editor can silently drop private-use characters from a script file).
+# Without the pack the title is a few boxes and the menu still works.
+#   phoneTitle(kind, status): a 6-row phone menu's title: "home" or "app", and the status bar's text (x 45).
+#   appIcon(name, display): an app icon item (light gray dye with custom model data "donating:app_<name>").
+#   The geometry (phone.sk, gps.sk): the screen is columns 2-6 of a 6-row chest; the home button is slot 49.
+
+on load:
+	set {-ui::bg::home} to character from codepoint 57360
+	set {-ui::bg::app} to character from codepoint 57361
+	set {_k} to 1
+	loop 8 times:
+		set {-ui::neg::%{_k}%} to character from codepoint (63488 + loop-number)
+		set {-ui::pos::%{_k}%} to character from codepoint (63504 + loop-number)
+		set {_k} to {_k} * 2
+
+# Moves the text by n pixels (negative: left).
+function uiSpace(n: number) :: text:
+	set {_out} to ""
+	set {_m} to abs({_n})
+	set {_k} to 128
+	loop 8 times:
+		set {_c} to floor({_m} / {_k})
+		if {_c} > 0:
+			if {_n} < 0:
+				set {_ch} to {-ui::neg::%{_k}%}
+			else:
+				set {_ch} to {-ui::pos::%{_k}%}
+			loop {_c} times:
+				set {_out} to "%{_out}%%{_ch}%"
+			set {_m} to {_m} - {_c} * {_k}
+		set {_k} to {_k} / 2
+	return {_out}
+
+# A phone menu's title: the background ("home" or "app") from the menu's left edge, then the status bar's text at x 45
+# (the background is 176 wide, so after it the text sits at 177: 45 - 177 = -132).
+function phoneTitle(kind: text, status: text) :: text:
+	set {_bg} to {-ui::bg::%{_kind}%}
+	if {_bg} is not set:
+		return "&8%{_status}%"
+	return "&f%uiSpace(-8)%%{_bg}%%uiSpace(-132)%&f%{_status}%"
+
+# The world's time for the status bar's clock ("22:42").
+function phoneClock(p: player) :: text:
+	set {_w} to world of {_p}
+	return "%time in {_w}%"
+
+# An app icon: the pack draws "donating:app_<name>" (tools\phoneui); without the pack a light gray dye.
+function appIcon(name: text, display: text) :: item:
+	set {_i} to light gray dye
+	set name of {_i} to colored {_display}
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:app_%{_name}%"
+	return {_i}

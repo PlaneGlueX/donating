@@ -22,7 +22,7 @@
 # Vic's list), the contact's line, MISSION PASSED a second later (a level-up's title first), then the next text.
 # Shown: the sidebar (%donating_mission%: the tracked quest first), the GPS (the quest slot, one owner for every
 # chain and job: questGps; never over a car job or while carrying loot), the boss bar while the GPS shows it,
-# /missions (the phone's Missions app, slot 6).
+# /missions (the phone's Missions app, in its dock; also the GPS's Quests page).
 #
 # Saved per player: data <key> (the mission id, "paying:<id>" or "done"), <key>-prog, <key>-seen::<heist>
 # (distinct), <key>-combo::<heist>#<run>::<part>, where <key> is "story" for Mara and the chain's name otherwise;
@@ -906,16 +906,26 @@ function storyCard(p: player, id: text) :: item:
 	if {_ch} is set:
 		set {_chn} to {-cfg::story::chapter::%{_ch}%::name}
 		set {_first} to "&7Chapter %{_ch}%: %{_chn}% &7· &f%{_from}%"
-	set {_by} to {-gps::questby::%uuid of {_p}%}
-	if {_by} is not set:
-		set {_by} to ""
-	if storyGpsSpots({_p}, {_id}) is "":
-		return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%"""
-	if {-ctjob::%uuid of {_p}%} is set:
-		return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&7The GPS shows your car job first."
-	if bagTotal({_p}) > 0:
-		return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&7The GPS shows the base first (you're carrying loot)."
-	return writable book named "%{_col}%%{_label}%" with lore {_first} and "&7Progress: %{_prog}%" and "&7""%{_hint}%""" and "&eClick: the GPS shows the way."
+	add {_first} to {_l::*}
+	add "&7Progress: %{_prog}%" to {_l::*}
+	# The contact's words, in quotes, a few short lines (a long brief made one very wide tooltip).
+	add msgWrapIn("""%{_hint}%""", 38, "&7") to {_l::*}
+	# Clicking a card to route isn't obvious: said while the GPS can show it; else what the GPS shows first.
+	if storyGpsSpots({_p}, {_id}) is not "":
+		if {-ctjob::%uuid of {_p}%} is set:
+			add "&7GPS: your car job first" to {_l::*}
+		else if bagTotal({_p}) > 0:
+			add "&7GPS: the base first (loot)" to {_l::*}
+		else:
+			add "&eClick: track on GPS" to {_l::*}
+	return writable book named "%{_col}%%{_label}%" with lore {_l::*}
+
+# A Call button's one line: the giver isn't on the map ("Not at the Safehouse").
+function storyAwayText(k: text) :: text:
+	set {_place} to {-cfg::quest::%{_k}%::place}
+	if {_place} is set:
+		return "&7Not at the %{_place}%"
+	return "&7Not in town"
 
 function storyMenu(p: player):
 	closePhoneMap({_p})
@@ -926,17 +936,34 @@ function storyMenu(p: player):
 	loop 36 times:
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	if {_id} is "done":
-		set slot 13 of {_gui} to nether star named "&6The story is done" with lore "&7You finished Mara's jobs." and "&7The city is yours: heists, contracts," and "&7the season's leaderboards (/lb)."
+		set slot 13 of {_gui} to nether star named "&6The story is done"
 		if {-cfg::jobs::contacts::*} is set:
-			storyButton({_p}, {_gui}, 22, paper named "&dMara's jobs" with lore "&7Side jobs from Mara and the Boss." and "&eClick: open your jobs.", "jobs")
+			# Mara's and the Boss's side jobs (jobs.sk), with what's waiting and taken.
+			set {_i} to paper named "&dSide jobs"
+			set {_new} to 0
+			set {_taken} to 0
+			loop {-cfg::jobs::contacts::*}:
+				set {_jc} to loop-value
+				if jobsUnlocked({_p}, {_jc}) is true:
+					loop jobsSlots({_p}, {_jc}) times:
+						set {_s} to jobsState({_p}, {_jc}, loop-value-2)
+						if {_s} is "waiting":
+							add 1 to {_new}
+						else if {_s} is "taken":
+							add 1 to {_taken}
+			if {_new} + {_taken} > 0:
+				set {_i} to paper named "&dSide jobs" with lore "&f%{_new}% waiting &7· &f%{_taken}% taken"
+			storyButton({_p}, {_gui}, 22, {_i}, "jobs")
 	else if storyExists({_id}) is true:
 		storyButton({_p}, {_gui}, 13, storyCard({_p}, {_id}), "gps:story")
 		# No Mara on the map (yet): a talk mission can be done from here, so the chain never blocks.
 		if storyObj({_id}) is "talk|story":
 			if storyNeedsMet({_p}, "story") is false:
-				storyButton({_p}, {_gui}, 22, paper named "&dCall Mara" with lore "&7She's not at the Safehouse right now." and "&eClick: talk on the phone.", "call:story")
+				set {_away} to storyAwayText("story")
+				storyButton({_p}, {_gui}, 22, paper named "&dCall Mara" with lore {_away}, "call:story")
 	else:
-		set slot 13 of {_gui} to paper named "&7Your first mission comes soon" with lore "&7After the tutorial."
+		# Between missions (a join's first seconds, a reward being paid).
+		set slot 13 of {_gui} to paper named "&7No mission right now"
 	# The other chains (Vic's): a card while running, a call button when their giver isn't on the map.
 	set {_slot} to 15
 	loop {-cfg::story::chains::*}:
@@ -949,7 +976,8 @@ function storyMenu(p: player):
 				if storyObj({_cid}) is "talk|%{_k}%":
 					if storyNeedsMet({_p}, {_k}) is false:
 						set {_who} to {-cfg::chain::%{_c}%::from}
-						storyButton({_p}, {_gui}, {_slot} + 9, paper named "&6Call %{_who}%" with lore "&7Not in the shop right now." and "&eClick: talk on the phone.", "call:%{_c}%")
+						set {_away} to storyAwayText({_k})
+						storyButton({_p}, {_gui}, {_slot} + 9, paper named "&6Call %{_who}%" with lore {_away}, "call:%{_c}%")
 				add 1 to {_slot}
 	# Mara's chapters: done, now, later.
 	set {_slot} to 29
@@ -960,13 +988,13 @@ function storyMenu(p: player):
 		set {_c} to loop-value
 		set {_cn} to {-cfg::story::chapter::%{_c}%::name}
 		if {_id} is "done":
-			set {_i} to lime dye named "&aChapter %{_c}%: %{_cn}%" with lore "&7Done."
+			set {_i} to lime dye named "&aChapter %{_c}%: %{_cn}%" with lore "&7Done"
 		else if {_c} < {_nowch}:
-			set {_i} to lime dye named "&aChapter %{_c}%: %{_cn}%" with lore "&7Done."
+			set {_i} to lime dye named "&aChapter %{_c}%: %{_cn}%" with lore "&7Done"
 		else if {_c} is {_nowch}:
-			set {_i} to orange dye named "&6Chapter %{_c}%: %{_cn}%" with lore "&7Now."
+			set {_i} to orange dye named "&6Chapter %{_c}%: %{_cn}%" with lore "&7Now"
 		else:
-			set {_i} to gray dye named "&7Chapter %{_c}%: %{_cn}%" with lore "&7Later."
+			set {_i} to gray dye named "&7Chapter %{_c}%: %{_cn}%" with lore "&7Later"
 		set slot {_slot} of {_gui} to {_i}
 		add 1 to {_slot}
 	# The phone's apps (phone.sk's back buttons), however the menu was opened: the phone, /missions or Mara.

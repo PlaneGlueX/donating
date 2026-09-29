@@ -37,6 +37,8 @@ module.exports = async ({ check }) => {
     const closeAll = async name => { if (bots[name].currentWindow) { bots[name].closeWindow(bots[name].currentWindow); await sleep(400) } }
     const title = w => (w ? JSON.stringify(w.title) : '')
     const itemText = i => (i ? JSON.stringify(i) : '')
+    // An entry of an "Add a ..." list that can be added: listed, with none of trade.sk's tradeAddBlock reasons.
+    const addable = row => row !== '' && !/in the trade already|most for one trade|You don't have|garage first|No such cosmetic|Earned titles|That can't be traded|No trade open| already\./.test(row)
     const slot = (name, n) => { const w = bots[name].currentWindow; return w && w.slots[n] ? w.slots[n].name : '' }
     const click = async (name, n, waitWindow = false) => {
       const o = waitWindow ? windowOpen(bots[name]) : null
@@ -114,7 +116,7 @@ module.exports = async ({ check }) => {
 
     // ---------- Offers ----------
     const picker = await addFirst(A, 'car')
-    check('"Add a car" lists your cars; picking one shows it on both sides', /Add a car/.test(title(picker)) && picker.slots[0] && picker.slots[0].name === 'diamond_hoe' && /Click: add it/.test(itemText(picker.slots[0])) && slot(A, 9) === 'diamond_hoe' && slot(B, 14) === 'diamond_hoe', `${title(picker)} ${itemText(picker && picker.slots[0]).slice(0, 200)} A9=${slot(A, 9)} B14=${slot(B, 14)}`)
+    check('"Add a car" lists your cars; picking one shows it on both sides', /Add a car/.test(title(picker)) && picker.slots[0] && picker.slots[0].name === 'diamond_hoe' && addable(itemText(picker.slots[0])) && slot(A, 9) === 'diamond_hoe' && slot(B, 14) === 'diamond_hoe', `${title(picker)} ${itemText(picker && picker.slots[0]).slice(0, 200)} A9=${slot(A, 9)} B14=${slot(B, 14)}`)
     await addFirst(A, 'cos')
     await addFirst(B, 'cos')
     check('crate cosmetics too (a bag skin one way, a title the other)', slot(A, 10) === 'leather' && slot(B, 15) === 'leather' && slot(B, 9) === 'name_tag' && slot(A, 14) === 'name_tag', `A10=${slot(A, 10)} B15=${slot(B, 15)} B9=${slot(B, 9)} A14=${slot(A, 14)}`)
@@ -168,7 +170,7 @@ module.exports = async ({ check }) => {
     const vandalRow = byName('Vandal')
     const vandalLore = list ? loreOf(list.slots.find(i => i && /Vandal/.test(itemText(i)))) : ''
     check('a crate car shows its number of its kind in the list (#N of M)', /#\d+ of \d+ Vandals from crates/.test(vandalLore), vandalLore)
-    check('every car can be offered, one by one (a Sedan though they have one; the SUV says it drives from level 150)', /Click: add it/.test(sedanRow) && /Click: add it/.test(suvRow) && /Drives from level 150/.test(suvRow) && /Click: add it/.test(vandalRow), `${sedanRow.slice(-300)} | ${suvRow.slice(-300)} | ${vandalRow.slice(-200)}`)
+    check('every car can be offered, one by one (a Sedan though they have one; the SUV says it drives from level 150)', addable(sedanRow) && addable(suvRow) && /Drives from level 150/.test(suvRow) && addable(vandalRow), `${sedanRow.slice(-300)} | ${suvRow.slice(-300)} | ${vandalRow.slice(-200)}`)
     await click(A, 45, true) // back to the trade
     // A's Navy Sedan for nothing into a full garage: Ready says why; with room it's a swap of Sedans.
     await cmd('zzcfgset car::garage-max 1')

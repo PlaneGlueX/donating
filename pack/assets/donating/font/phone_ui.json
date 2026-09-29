@@ -1,0 +1,43 @@
+{
+  "providers": [
+    {
+      "type": "space",
+      "advances": {
+        "": -1,
+        "": 1,
+        "": -2,
+        "": 2,
+        "": -4,
+        "": 4,
+        "": -8,
+        "": 8,
+        "": -16,
+        "": 16,
+        "": -32,
+        "": 32,
+        "": -64,
+        "": 64,
+        "": -128,
+        "": 128
+      }
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/phone_home.png",
+      "ascent": 13,
+      "height": 135,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/phone_app.png",
+      "ascent": 13,
+      "height": 135,
+      "chars": [
+        ""
+      ]
+    }
+  ]
+}

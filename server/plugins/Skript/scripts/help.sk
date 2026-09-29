@@ -15,12 +15,12 @@ function showHelp(p: player):
 	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
 	send colored "&7• &eLevels: &7selling loot, car jobs, hits and missions earn XP; each level takes a bit more. Levels open heists, guns, bags, cars and members-only places, and give rewards past 100. &f/level&7, &f/levels" to {_p}
 	send colored "&7• &eShops: &7buy a weapon once, equip it for free after that; melee first, guns from level 5. Ammo, Stims, drinks and heist tools are bought again." to {_p}
-	send colored "&7• &eJobs: &7Mara's missions (&f/missions&7), car contracts at the Scrap Yard (&f/contracts&7: each tier waits a while after a delivery), contact jobs (&f/jobs&7), hits (&f/hits&7)." to {_p}
-	send colored "&7• &eCars: &7buy them at the Car Dealer, take them out at a garage (&f/garage&7). Tune them at a garage; car crates give rare wraps and mods, numbered like #3/57." to {_p}
-	send colored "&7• &eCrates: &7a free key every day with &f/daily&7; open them at crate stands, &f/crates &7shows what's inside. &f/cosmetics &7to wear what you won." to {_p}
+	send colored "&7• &eQuests: &7Mara's missions, car contracts, side jobs, Vic's Wanted List and hits, all in the GPS. &f/gps quests" to {_p}
+	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Car crates give rare wraps and mods." to {_p}
+	send colored "&7• &eCrates: &7a free key every day (&f/daily&7), more in &f/crates&7; open them at crate stands. &f/cosmetics &7to wear what you won." to {_p}
 	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
 	send colored "&7• &eTrading: &7stand next to someone and &f/trade &7their name: cars and crate cosmetics." to {_p}
-	send colored "&7• &ePhone &7(hotbar 9): the map and GPS, garage, contracts, stats, bounties, passive mode (no PvP, lower pay)." to {_p}
+	send colored "&7• &ePhone &7(hotbar 9): hold it for the map, right-click for the whole city, &fF &7for the apps: Messages, GPS, Missions, Garage, Bag, Crates, Cosmetics, Season, Bounties, Passive mode (no PvP, lower pay)." to {_p}
 	send colored "&7• &eRanks &7(&f/ranks&7) support the server: a tag, a bag look and more bag room. Seasons: &f/season&7, &f/lb&7." to {_p}
 	send colored "&7Every command: &f/help commands" to {_p}
 
@@ -33,20 +33,21 @@ function showCommands(p: player):
 	helpLine({_p}, "/heists", "every heist and store, open or not")
 	helpLine({_p}, "/bag", "what's in your bag, per heist")
 	helpLine({_p}, "/level &7(/lvl), &e/levels", "your level; every level and what it opens")
-	helpLine({_p}, "/bounty [player] [$]", "the biggest bounties; put one on someone (at the Broker); a claimed bounty costs its owner 10%% of what they earned of it")
+	helpLine({_p}, "/bounty [player] [$]", "the biggest bounties; put one on someone (at the Broker)")
 	helpLine({_p}, "/afk", "mark yourself away (AFK players earn nothing)")
-	send colored "&6Jobs" to {_p}
+	send colored "&6Quests &7(also in &f/gps quests&7)" to {_p}
 	helpLine({_p}, "/missions &7(/story)", "Mara's missions and Vic's")
 	helpLine({_p}, "/contracts", "car-theft jobs and lockpicks")
-	helpLine({_p}, "/jobs", "contact jobs from Mara and the Boss")
+	helpLine({_p}, "/jobs", "side jobs from Mara and the Boss")
 	helpLine({_p}, "/hits", "this week's hit contract")
 	helpLine({_p}, "/messages &7(/texts)", "your texts from Mara, the Boss, Vic and the Broker")
 	send colored "&6Getting around" to {_p}
-	helpLine({_p}, "/gps [clear]", "places to go; your pin")
+	helpLine({_p}, "/gps [quests/heists/shops/places]", "where to go; click a place to pin it")
+	helpLine({_p}, "/gps clear", "remove your pin")
 	helpLine({_p}, "/garage &7(/cars)", "your cars: take out, lock, repaint, tune, send back")
 	send colored "&6Money and loot" to {_p}
 	helpLine({_p}, "/daily", "your free daily crate key")
-	helpLine({_p}, "/crates", "your keys and what each crate holds")
+	helpLine({_p}, "/crates", "your keys, what each crate holds, buy keys")
 	helpLine({_p}, "/booster", "the boosters running now")
 	helpLine({_p}, "/heistrefresh [heist]", "reopen a heist early (Elite, Legend)")
 	helpLine({_p}, "/store &7(/donate), &e/ranks", "support the server")
@@ -124,7 +125,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahTitle({_s}, "Owner and store (donating.store / donating.season.admin; Tebex runs these)")
 		ahLine({_s}, "/dranks setup | give <player> <rank/none> | take <player> <rank> | list", "paid ranks")
 		ahLine({_s}, "/dbooster add <player> [money/xp/rush] <x> <minutes> [count] | stop/clear/info [kind]", "boosters")
-		ahLine({_s}, "/dcrate give/take <player> <crate> [count] | info <player>", "crate keys (supercar, hypercar too)")
+		ahLine({_s}, "/dcrate give/take <player> <crate> [count] | info <player>", "crate keys (give refuses Supercar, Hypercar and Season)")
 		ahLine({_s}, "/dseason info/rank | start [days]/end/extend <days>/approve [n]/void <player> [n]/reset <player>", "seasons (released by hand)")
 		send colored "&7Console only: &fdshop open <player> <kind>&7 (Citizens NPC shops), &fgpspick&7 (the phone plugin)." to {_s}
 	else if {_topic} is "tests":

@@ -71,6 +71,17 @@ function seasonBoardName(b: text) :: text:
 		return {_n}
 	return {_b}
 
+# What a board counts, as a fragment (core.sk's text without its closing period).
+function seasonBoardWhat(b: text) :: text:
+	set {_w} to {-cfg::season::board::%{_b}%::what}
+	if {_w} is not set:
+		return ""
+	if {_w} ends with ".":
+		set {_n} to length of {_w}
+		set {_n} to {_n} - 1
+		return subtext of {_w} from characters 1 to {_n}
+	return {_w}
+
 # "$12,340" on the earners board, "1,240" (points) on the others.
 function seasonValueText(b: text, v: number) :: text:
 	if {_b} is "earners":
@@ -567,7 +578,7 @@ function seasonSeen(p: player):
 		if {season::state} is "live":
 			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. A new season is on: &f/season")
 		else:
-			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb&7. The next one is announced when it starts.")
+			msg({_p}, "&6Season %{_last}% ended. &7See who won: &f/lb")
 
 every minute:
 	seasonTick()
@@ -591,7 +602,7 @@ command /season:
 	trigger:
 		set {_u} to "%uuid of player%"
 		if seasonLive() is false:
-			msg(player, "&7No season is running right now. &fThe next one is announced to everyone.")
+			msg(player, "&7No season is running right now.")
 			stop
 		set {_s} to seasonNum()
 		msg(player, "&6&lSeason %{_s}%&r &7· &f%seasonLeftText()% left")
@@ -604,9 +615,9 @@ command /season:
 				set {_rt} to "#%{_r}%"
 				if {_r} is not set:
 					set {_rt} to "ranking..."
-				send colored "&7 » &e%seasonBoardName(loop-value)%&7: &f%{_rt}% &7(%seasonValueText(loop-value, {_v})%) &8· &7%{-cfg::season::board::%loop-value%::what}%" to player
+				send colored "&7 » &e%seasonBoardName(loop-value)%&7: &f%{_rt}% &7(%seasonValueText(loop-value, {_v})%) · %seasonBoardWhat(loop-value)%" to player
 			else:
-				send colored "&7 » &e%seasonBoardName(loop-value)%&7: not ranked yet &8· &7%{-cfg::season::board::%loop-value%::what}%" to player
+				send colored "&7 » &e%seasonBoardName(loop-value)%&7: not ranked yet · %seasonBoardWhat(loop-value)%" to player
 		set {_pts} to seasonPoints({_u})
 		set {_next} to ""
 		set {_i} to 0
@@ -623,8 +634,8 @@ command /season:
 			set {_next} to "all done"
 		send colored "&7 Season points &f%levelNum({_pts})% &7(Master Thieves + Wheelmen). Next milestone: &f%{_next}%" to player
 		set {_mh} to cfg("season::min-hours")
-		send colored "&7 Prizes: the top 10 of each board win a title nobody can trade, money and Season keys (%{_mh}%+ hours played). &f/lb" to player
-		send colored "&7 Only loot from runs you robbed counts. Boosters' extra money never counts." to player
+		send colored "&7 Prizes: the top 10 of each board win money, Season keys and a title (%{_mh}%h+ played). &f/lb" to player
+		send colored "&7 Only loot you robbed yourself counts; boosters' extra never does." to player
 
 function lbButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
@@ -650,7 +661,7 @@ function lbMenu(p: player, b: text, last: boolean):
 	set {_slot} to 2
 	loop {-cfg::season::boards::*}:
 		set {_icon} to {-cfg::season::board::%loop-value%::icon}
-		set {_i} to {_icon} named "&6%seasonBoardName(loop-value)%" with lore "&7%{-cfg::season::board::%loop-value%::what}%"
+		set {_i} to {_icon} named "&6%seasonBoardName(loop-value)%" with lore "&7%seasonBoardWhat(loop-value)%"
 		if loop-value is {_b}:
 			set {_i} to glint({_i})
 		if {_last} is true:
@@ -688,10 +699,10 @@ function lbMenu(p: player, b: text, last: boolean):
 		if {_mine} is set:
 			set slot 40 of {_gui} to skull of {_p} named "&fYou: &e#%{_mine}%" with lore "&a%seasonValueText({_b}, {_mv})%" and "&7Season %{_s}% · %seasonLeftText()% left"
 		else:
-			set slot 40 of {_gui} to skull of {_p} named "&fYou: &7not ranked yet" with lore "&7%{-cfg::season::board::%{_b}%::what}%"
+			set slot 40 of {_gui} to skull of {_p} named "&fYou: &7not ranked yet" with lore "&7Season %{_s}% · %seasonLeftText()% left"
 		# Slot 45 is the menu's back button (below), so Last season sits at 47.
 		if seasonNum() > 1:
-			lbButton({_p}, {_gui}, 47, book named "&fLast season" with lore "&7The final top 10 of Season %seasonNum() - 1%.", "last:%{_b}%")
+			lbButton({_p}, {_gui}, 47, book named "&fLast season", "last:%{_b}%")
 	# Back buttons (phone.sk): this season's boards are the Season app's main page ("◀ Phone"); last season's finals
 	# are a page under them while a season runs ("◀ Back" to them, where "This season" was), and the main page when
 	# none runs (lbOpen opens the finals then).
@@ -703,7 +714,7 @@ function lbMenu(p: player, b: text, last: boolean):
 	else:
 		lbButton({_p}, {_gui}, 45, phoneBackItem(), "phone")
 	set {_mh} to cfg("season::min-hours")
-	set slot 49 of {_gui} to paper named "&6Prizes" with lore "&7Top 10 of each board: a title nobody" and "&7can trade, money and Season keys." and "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7Play %{_mh}%+ hours (not AFK) to qualify." and "&7Only loot from runs you robbed counts;" and "&7boosters' extra money never counts."
+	set slot 49 of {_gui} to paper named "&6Prizes" with lore "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7+ Season keys and a title" and "&7Needs %{_mh}%h played, not AFK"
 	lbButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
 	set {-lb::gui::%{_p}%} to {_gui}
 	if {-lb::gen::%{_p}%} is not set:

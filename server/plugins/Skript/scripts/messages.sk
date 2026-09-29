@@ -4,11 +4,12 @@
 #   - Saved per player: data inbox-n (the newest text's number), inbox::<n>::at (unix), ::from, ::text; only the newest
 #     cfg messages::keep (60) are kept. data inbox-seen::<contact> = the newest number read from that contact (a
 #     contact's key is its name in lower case without spaces: "mara", "boss").
-#   - Messages (the phone's app, slot 0, and /messages): one head per contact who texted (their NPC skin, skins.sk), the
-#     newest conversation first, "(2 new)", the last text and how long ago. Click: the conversation. ◀ Phone.
-#   - A conversation (/messages <contact>): its newest 45 texts, oldest first; the unread ones say "new". Opening it
-#     reads them. ◀ Back to Messages; "Find <contact>" pins them on the GPS (quests.sk questFind, core.sk
-#     msgcontact::<key>::kind) when the map has one.
+#   - Messages (the phone's app in its dock, and /messages): one head per contact who texted (their NPC skin, skins.sk),
+#     the newest conversation first, "(2 new)", how long ago and the last text. Click: the conversation. ◀ Phone.
+#   - A conversation (/messages <contact>): its newest 45 texts, oldest first, each named by how long ago ("· new" while
+#     unread; the menu's title is the contact). Opening it reads them. ◀ Back to Messages; "Find <contact>" pins them on
+#     the GPS (quests.sk questFind, core.sk msgcontact::<key>::kind) when the map has one.
+# Menu texts (owner, 2026-09-29: "most people can use context clues"): names and state, no lore explaining a click.
 # Looking only: every click is cancelled; buttons run a tick later, once per drawn screen (like the other menus).
 
 # ---------- The inbox ----------
@@ -137,6 +138,10 @@ function msgAgo(at: number) :: text:
 
 # A text as lore lines of about w characters.
 function msgWrap(t: text, w: number) :: texts:
+	return msgWrapIn({_t}, {_w}, "&f")
+
+# The same in another color (story.sk's mission cards: "&7").
+function msgWrapIn(t: text, w: number, col: text) :: texts:
 	set {_line} to ""
 	loop {_t} split at " ":
 		if {_line} is "":
@@ -144,12 +149,12 @@ function msgWrap(t: text, w: number) :: texts:
 		else:
 			set {_try} to "%{_line}% %loop-value%"
 			if length of {_try} > {_w}:
-				add "&f%{_line}%" to {_out::*}
+				add "%{_col}%%{_line}%" to {_out::*}
 				set {_line} to loop-value
 			else:
 				set {_line} to {_try}
 	if {_line} is not "":
-		add "&f%{_line}%" to {_out::*}
+		add "%{_col}%%{_line}%" to {_out::*}
 	return {_out::*}
 
 # A contact's icon: a head with their NPC skin (skins.sk), else a paper.
@@ -194,8 +199,6 @@ function msgMenu(p: player):
 			loop {_w::*}:
 				if size of {_l::*} < 5:
 					add loop-value-2 to {_l::*}
-			add "" to {_l::*}
-			add "&eClick: read the conversation" to {_l::*}
 			if {_new} > 0:
 				set {_i} to {_i} named "&d%{_from}% &a(%{_new}% new)" with lore {_l::*}
 				set {_i} to glint({_i})
@@ -206,7 +209,7 @@ function msgMenu(p: player):
 			if {_slot} is 17:
 				set {_slot} to 19
 	if {_slot} is 10:
-		set slot 13 of {_gui} to paper named "&7No messages yet" with lore "&7Texts from Mara, the Boss, Vic and the" and "&7Broker land here, to read again later."
+		set slot 13 of {_gui} to paper named "&7No messages yet"
 	msgButton({_p}, {_gui}, 27, phoneBackItem(), "phone")
 	msgButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	open {_gui} to {_p}
@@ -238,10 +241,10 @@ function msgThread(p: player, key: text):
 			add msgWrap(msgText({_p}, {_n}), 34) to {_l::*}
 			set {_ago} to msgAgo(msgAt({_p}, {_n}))
 			if {_n} > {_seen}:
-				set {_i} to paper named "&d%{_from}% &7· %{_ago}% &anew" with lore {_l::*}
+				set {_i} to paper named "&7%{_ago}% &a· new" with lore {_l::*}
 				set {_i} to glint({_i})
 			else:
-				set {_i} to paper named "&d%{_from}% &7· %{_ago}%" with lore {_l::*}
+				set {_i} to paper named "&7%{_ago}%" with lore {_l::*}
 			set slot {_slot} of {_gui} to {_i}
 			add 1 to {_slot}
 	set {_pane} to gray stained glass pane named "&r"
@@ -252,9 +255,9 @@ function msgThread(p: player, key: text):
 	if {_kind} is set:
 		# Only when the map has one (a contact placed after launch: no dead-end button).
 		if questNearest({_p}, {_kind}) is not "":
-			msgButton({_p}, {_gui}, 49, compass named "&eFind %{_from}%" with lore "&7Pins them on your GPS.", "find:%{_kind}%")
+			msgButton({_p}, {_gui}, 49, compass named "&eFind %{_from}%", "find:%{_kind}%")
 		else:
-			set slot 49 of {_gui} to compass named "&7%{_from}% isn't in town yet" with lore "&7Tell staff."
+			set slot 49 of {_gui} to compass named "&7%{_from}% isn't in town yet"
 	msgButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
 	# Read now.
 	setData({_p}, "inbox-seen::%{_key}%", {_last})
@@ -312,7 +315,7 @@ on join:
 	player is online
 	set {_n} to msgUnreadAll(player)
 	{_n} > 0
-	msg(player, "&d✉ %{_n}% unread message(s) &7· your phone's Messages, or &f/messages")
+	msg(player, "&d✉ %{_n}% unread message(s) &7· &f/messages")
 
 command /messages [<text>]:
 	description: Your texts from Mara, the Boss, Vic and the Broker.

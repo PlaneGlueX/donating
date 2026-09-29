@@ -49,8 +49,13 @@ module.exports = async ({ check }) => {
     const slotOf = (name, n) => { const w = bots[name].currentWindow; return w ? w.slots[n] : null }
     const describe = (name, n) => { const i = slotOf(name, n); return i ? `${i.name} "${itemName(i)}" (${itemLore(i)})` : 'empty' }
     // The standard buttons (phone.sk backItem / phoneBackItem): an arrow named "◀ Back" / "◀ Phone".
-    const isBack = (name, n, to) => { const i = slotOf(name, n); return Boolean(i && i.name === 'arrow' && itemName(i) === '◀ Back' && (!to || itemLore(i) === `To ${to}.`)) }
-    const isPhone = (name, n) => { const i = slotOf(name, n); return Boolean(i && i.name === 'arrow' && itemName(i) === '◀ Phone') }
+    const isBack = (name, n, to) => { const i = slotOf(name, n); return Boolean(i && i.name === 'arrow' && itemName(i) === '◀ Back') }
+    // "◀ Phone" by its name only: the GPS's is an app icon (a dye), not an arrow.
+    const isPhone = (name, n) => { const i = slotOf(name, n); return Boolean(i && itemName(i) === '◀ Phone') }
+    // The phone's home screen (phone.sk openPhone): its title is only the clock, so it's known by the dock's GPS and
+    // the home button (Close at 49). An app's slot is found by its name.
+    const isHome = w => Boolean(w && w.slots[39] && itemName(w.slots[39]) === 'GPS' && w.slots[49] && itemName(w.slots[49]) === 'Close')
+    const appSlot = (w, app) => { if (w) for (let s = 0; s < w.inventoryStart; s++) if (w.slots[s] && itemName(w.slots[s]) === app) return s; return -1 }
     // Every standard button in the open window (slots of the menu only).
     const arrows = name => {
       const w = bots[name].currentWindow
@@ -77,7 +82,7 @@ module.exports = async ({ check }) => {
     // A click that redraws the same window (no new window): waits for the redraw.
     const clickInPlace = async (name, n) => { bots[name].clickWindow(n, 0, 0).catch(() => {}); await sleep(700) }
 
-    // A phone app's main page: "◀ Phone" at slot n opens the phone, and the phone's app button (slot app) opens the
+    // A phone app's main page: "◀ Phone" at slot n opens the phone, and the phone's app (the icon named app) opens the
     // page again, with "◀ Phone" still at n. open: how the page is opened; re: its title.
     const phoneApp = async (label, open, n, app, re) => {
       const w = await open()
@@ -85,11 +90,11 @@ module.exports = async ({ check }) => {
       const d1 = describe(A, n)
       const had = w && re.test(t1) && isPhone(A, n)
       const pw = had ? await click(A, n) : null
-      const t2 = title(pw)
-      const back = pw ? await click(A, app) : null
+      const s = appSlot(pw, app)
+      const back = s >= 0 ? await click(A, s) : null
       const t3 = title(back)
       const again = back && re.test(t3) && isPhone(A, n)
-      check(`${label}: "◀ Phone" at slot ${n} opens the phone, and the phone's app (slot ${app}) opens it again`, had && t2 === 'Phone' && again, `title="${t1}" ${n}: ${d1} -> "${t2}" -> "${t3}" ${n}: ${describe(A, n)}`)
+      check(`${label}: "◀ Phone" at slot ${n} opens the phone, and the phone's ${app} app opens it again`, had && isHome(pw) && again, `title="${t1}" ${n}: ${d1} -> home=${isHome(pw)} ${app}@${s} -> "${t3}" ${n}: ${describe(A, n)}`)
       await closeAll(A)
     }
     // A page under another: "◀ Back" at slot n (lore "To <to>.") opens the page it came from (title re).
@@ -155,21 +160,39 @@ module.exports = async ({ check }) => {
     bots[A].setQuickBarSlot(8)
     await sleep(300)
     const pw = await opens(A, () => bots[A]._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 }))
-    check('F with the phone opens the phone\'s apps (no back button: it\'s where they lead)', title(pw) === 'Phone' && arrows(A).length === 0, `"${title(pw)}" arrows=${arrows(A)}`)
+    check('F with the phone opens the phone\'s home screen (no back button: it\'s where they lead)', isHome(pw) && arrows(A).length === 0, `"${title(pw)}" home=${isHome(pw)} arrows=${arrows(A)}`)
     await closeAll(A)
     bots[A].setQuickBarSlot(0)
 
     // ---------- Every phone app's main page: "◀ Phone" ----------
-    await phoneApp('/gps (GPS)', () => chatOpen(A, '/gps'), 36, 4, /^GPS$/)
-    await phoneApp('/lb (Season, a live season)', () => chatOpen(A, '/lb'), 45, 2, /^Season 1 · Top Earners$/)
-    await phoneApp('/missions (Missions)', () => chatOpen(A, '/missions'), 27, 6, /^Missions$/)
-    await phoneApp('/jobs (Jobs)', () => chatOpen(A, '/jobs'), 37, 7, /^Jobs$/)
-    await phoneApp('/hits (Hits)', () => chatOpen(A, '/hits'), 28, 8, /^Hit contracts$/)
-    await phoneApp('/contracts (Contracts)', () => chatOpen(A, '/contracts'), 28, 9, /^Car contracts$/)
-    await phoneApp('/garage (Garage)', () => chatOpen(A, '/garage'), 45, 15, /^Your garage \(1\/\d+\)$/)
-    await phoneApp('/cosmetics (Cosmetics)', () => chatOpen(A, '/cosmetics'), 18, 17, /^Your cosmetics$/)
-    await phoneApp('/crates (Crates)', () => chatOpen(A, '/crates'), 27, 19, /^Crates$/)
-    await phoneApp('/bag (Bag)', () => chatOpen(A, '/bag'), 18, 25, /^Your bag$/)
+    // The GPS is a phone page (its title ends with "GPS"; a category's with its name): "◀ Phone" at 2.
+    await phoneApp('/gps (GPS)', () => chatOpen(A, '/gps'), 2, 'GPS', /GPS$/)
+    await phoneApp('/lb (Season, a live season)', () => chatOpen(A, '/lb'), 45, 'Season', /^Season 1 · Top Earners$/)
+    await phoneApp('/missions (Missions)', () => chatOpen(A, '/missions'), 27, 'Missions', /^Missions$/)
+    // The quest menus (jobs, hits, car contracts) live on the GPS's Quests page (gps.sk gpsCat) since the phone's
+    // apps went: "◀ Back" at slot n opens that page (a phone title with "GPS · Quests"), and its entry there (found by
+    // its name, right-click) opens the menu again, with "◀ Back" still at n.
+    const questBack = async (label, open, n, re, entry) => {
+      const w = await open()
+      const t1 = title(w)
+      const d1 = describe(A, n)
+      const had = w && re.test(t1) && isBack(A, n)
+      const gw = had ? await click(A, n) : null
+      const t2 = title(gw)
+      let s = -1
+      if (gw) for (let i = 0; i < gw.inventoryStart; i++) if (gw.slots[i] && entry.test(itemName(gw.slots[i]))) { s = i; break }
+      const again = s >= 0 ? await click(A, s, 1) : null
+      const t3 = title(again)
+      check(`${label}: "◀ Back" at slot ${n} opens the GPS's Quests page, and its entry there (right-click) opens it again`, had && /GPS · Quests/.test(t2) && again && re.test(t3) && isBack(A, n), `title="${t1}" ${n}: ${d1} -> "${t2}" -> [${s}] "${t3}" ${n}: ${describe(A, n)}`)
+      await closeAll(A)
+    }
+    await questBack('/jobs (Jobs)', () => chatOpen(A, '/jobs'), 37, /^Jobs$/, /Side jobs/)
+    await questBack('/hits (Hit contracts)', () => chatOpen(A, '/hits'), 28, /^Hit contracts$/, /Hit contracts/)
+    await questBack('/contracts (Car contracts)', () => chatOpen(A, '/contracts'), 28, /^Car contracts$/, /Car contracts/)
+    await phoneApp('/garage (Garage)', () => chatOpen(A, '/garage'), 45, 'Garage', /^Your garage \(1\/\d+\)$/)
+    await phoneApp('/cosmetics (Cosmetics)', () => chatOpen(A, '/cosmetics'), 18, 'Cosmetics', /^Your cosmetics$/)
+    await phoneApp('/crates (Crates)', () => chatOpen(A, '/crates'), 27, 'Crates', /^Crates$/)
+    await phoneApp('/bag (Bag)', () => chatOpen(A, '/bag'), 18, 'Bag', /^Your bag$/)
 
     // ---------- Pages under them: "◀ Back" ----------
     // The Car Dealer (a shop's main page: no button) -> a model's colors.
@@ -215,14 +238,14 @@ module.exports = async ({ check }) => {
     // The swap step redraws the board (jobs on it, if any, turn into "Swap this one?"); "◀ Back" draws the plain board.
     const inSwap = w && /^Jobs$/.test(title(w)) && /Swap a job/.test(swapBtn)
     const bw = await backTo('the jobs board\'s swap step (near Mara)', inSwap ? w : null, 37, 'your jobs', /^Jobs$/)
-    check('...and back on the board: "◀ Phone" at 37, out of the swap step', bw && isPhone(A, 37) && !/Swap this one/.test(JSON.stringify(bw.slots.slice(0, 45).map(itemName))), `swap button: ${swapBtn} | 37: ${describe(A, 37)}`)
+    check('...and back on the board: "◀ Back" (to the GPS\'s Quests page) at 37, out of the swap step', bw && isBack(A, 37) && !/Swap this one/.test(JSON.stringify(bw.slots.slice(0, 45).map(itemName))), `swap button: ${swapBtn} | 37: ${describe(A, 37)}`)
     await closeAll(A)
 
     // ---------- Last season's finals ----------
     // No season running: /lb opens the finals, the Season app's main page then ("◀ Phone").
     await cmd('dseason end')
     await sleep(500)
-    await phoneApp('/lb with no season running (Season 1\'s finals)', () => chatOpen(A, '/lb'), 45, 2, /^Season 1 \(final\) · Top Earners$/)
+    await phoneApp('/lb with no season running (Season 1\'s finals)', () => chatOpen(A, '/lb'), 45, 'Season', /^Season 1 \(final\) · Top Earners$/)
     // A new season: the finals are a page under its boards ("Last season" at 47, "◀ Back" to this season's boards).
     await cmd('dseason start 28')
     await sleep(500)
