@@ -1,0 +1,69 @@
+# carcam.sk: the chase camera for drivers (owner, 2026-09-29: third person on getting into a car, first person on getting
+# out). DonatingPhone's CarCam.java draws it (an invisible camera behind the car that only the driver looks through);
+# this script owns the player's setting and the HUD. While the view is on the client hides the hotbar, hearts and food
+# (vanilla: they're only drawn when the camera is the player), so the driver's health goes on the action bar.
+# The plugin also selects hotbar 9 when the view starts (the car key: its GPS map sits in the corner instead of a gun
+# across the view) and puts the slot from before back on getting out, and gives the driver a body in the seat that
+# only they see (config carcam.select-key, carcam.body).
+#
+# The plugin reads the scoreboard tag "donating_carcam_off" (the player turned it off) and sets player metadata
+# "donating_carcam" = the plate while the view is on. Setting: data "carcam" = "off" (unset = on).
+
+function carcamOn(p: player) :: boolean:
+	if getData({_p}, "carcam") is "off":
+		return false
+	return true
+
+function carcamSet(p: player, on: boolean):
+	if {_on} is true:
+		deleteData({_p}, "carcam")
+		remove "donating_carcam_off" from scoreboard tags of {_p}
+	else:
+		setData({_p}, "carcam", "off")
+		add "donating_carcam_off" to scoreboard tags of {_p}
+
+# Scoreboard tags are saved with the player, but the data is the setting: put the tag in step at every join.
+on join:
+	carcamSet(player, carcamOn(player))
+
+command /carcam [<text>]:
+	description: The chase camera behind your car: on or off.
+	usage: /carcam [on|off]
+	executable by: players
+	trigger:
+		set {_want} to "toggle"
+		if arg-1 is set:
+			set {_want} to arg-1 in lower case
+		if {_want} is "toggle":
+			if carcamOn(player) is true:
+				set {_want} to "off"
+			else:
+				set {_want} to "on"
+		if {_want} is "on":
+			carcamSet(player, true)
+			msg(player, "&7Chase camera: &aon")
+		else if {_want} is "off":
+			carcamSet(player, false)
+			msg(player, "&7Chase camera: &coff")
+		else:
+			msg(player, "&f/carcam on &7or &f/carcam off")
+
+on tab complete of "/carcam" and "/skript:carcam":
+	set tab completions for position 1 to "on" and "off"
+
+# Health and the keys while the view is on (hud.sk's action bar, below every other message: combat, traps, loot and
+# prompts all win). "F5 x2" is the client's front view, which with the chase camera looks back from the car.
+function carcamHud(p: player):
+	set {_hp} to health of {_p}
+	set {_h} to (round({_hp} * 2)) / 2
+	set {_m} to max health of {_p}
+	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}% &7· Sneak: get out · F5 x2: look back", -1)
+	if getData({_p}, "carcam-tip") is not set:
+		setData({_p}, "carcam-tip", true)
+		msg({_p}, "&7Chase camera: the car key's map on screen is your GPS. &f/carcam off &7for first person.")
+
+every 1 second:
+	loop all players:
+		set {_plate} to metadata value "donating_carcam" of loop-player
+		if {_plate} is set:
+			carcamHud(loop-player)

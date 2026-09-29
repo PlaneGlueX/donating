@@ -176,7 +176,7 @@ module.exports = async ({ check }) => {
 
     // ---------- The menu ----------
     let w = await menu(A)
-    check('/contracts opens the menu: three offers (cars), three lockpicks', w && /Car contracts/.test(JSON.stringify(w.title)) && [11, 13, 15].every(s => w.slots[s] && ['diamond_hoe', 'gray_dye'].includes(w.slots[s].name)) && [20, 22, 24].every(s => w.slots[s] && w.slots[s].name === 'flint'), `${JSON.stringify(w && w.title)} ${w && [11, 13, 15, 20, 22, 24].map(s => w.slots[s] && w.slots[s].name)}`)
+    check('/contracts opens the menu: three offers (cars), three lockpicks', w && /Contracts/.test(JSON.stringify(w.title)) && [11, 13, 15].every(s => w.slots[s] && ['diamond_hoe', 'gray_dye'].includes(w.slots[s].name)) && [20, 22, 24].every(s => w.slots[s] && w.slots[s].name === 'flint'), `${JSON.stringify(w && w.title)} ${w && [11, 13, 15, 20, 22, 24].map(s => w.slots[s] && w.slots[s].name)}`)
     check('level 0: the Street job needs level 5', /Needs level 5/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 400))
     await closeAll(A)
     t = Date.now()
@@ -187,7 +187,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)
     await sleep(1200)
     w = await menu(A)
-    check('level 5: the offer shows the car, where, the pay ($12,000), the tier\'s wait after a delivery (1h) and "Click: take this job"', /Red Sedan/.test(itemText(w && w.slots[11])) && /\$12,000/.test(itemText(w && w.slots[11])) && /\+120 XP/.test(itemText(w && w.slots[11])) && /After a delivery/.test(itemText(w && w.slots[11])) && /1h 00m/.test(itemText(w && w.slots[11])) && /Click: take this job/.test(itemText(w && w.slots[11])) && /1\dm (E|NE|SE)/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 600))
+    check('level 5: the offer shows the car, where, the pay ($12,000) and the tier\'s wait after a delivery (1h), and nothing in the way (no level, no wait, not "Take it from a contract giver")', /Red Sedan/.test(itemText(w && w.slots[11])) && /\$12,000/.test(itemText(w && w.slots[11])) && /\+120 XP/.test(itemText(w && w.slots[11])) && /After a delivery/.test(itemText(w && w.slots[11])) && /1h 00m/.test(itemText(w && w.slots[11])) && !/Needs level|Ready in|contract giver/.test(itemText(w && w.slots[11])) && /1\dm (E|NE|SE)/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 600))
     // Lockpicks: Basic ($250, no confirm), Pro (level 30), Master ($2,000, confirm).
     await click(A, 20)
     await sleep(500)
@@ -419,7 +419,7 @@ module.exports = async ({ check }) => {
     await sleep(1500)
     await cmd(`zzctoffer ${B} starter sedan Gray ${spotN}`)
     w = await menu(B)
-    check('level 0: "First job" is offered in place of the Street job ($1,500, 40 XP, the Basic Lockpick that never breaks on it)', /First job/.test(itemText(w && w.slots[11])) && /\$1,500/.test(itemText(w && w.slots[11])) && /\+40 XP/.test(itemText(w && w.slots[11])) && /never breaks/.test(itemText(w && w.slots[11])) && /Click: take this job/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 700))
+    check('level 0: "First job" is offered in place of the Street job ($1,500, 40 XP, the Basic Lockpick that never breaks on it)', /First job/.test(itemText(w && w.slots[11])) && /\$1,500/.test(itemText(w && w.slots[11])) && /\+40 XP/.test(itemText(w && w.slots[11])) && /never breaks/.test(itemText(w && w.slots[11])) && !/Needs level|Ready in|contract giver/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 700))
     t = Date.now()
     bots[B].clickWindow(11, 0, 0).catch(() => {})
     await sleep(1500)

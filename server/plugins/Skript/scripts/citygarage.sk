@@ -92,18 +92,17 @@ function garageAccessBlock(p: player) :: text:
 		return ""
 	set {_n} to garageNearest({_p})
 	if {_n} is "":
-		return "Cars come out at garages. Valet: Elite and Legend."
+		return "Cars come out at garages."
 	set {_d} to round(distance between (location of {_p}) and poiLocation({poi::%{_n}%}))
-	return "Cars come out at garages: the %garagePoiName({_n})% is %{_d}%m away (/gps). Valet: Elite and Legend."
+	return "Cars come out at garages: the %garagePoiName({_n})% is %{_d}%m away."
 
-# Pins the nearest garage on the GPS.
+# Pins the nearest garage on the GPS (gpsPin says "Pin set · <garage> (<m>)").
 function garageFind(p: player):
 	set {_n} to garageNearest({_p})
 	if {_n} is "":
-		msg({_p}, "&7There's no garage on the map yet. Tell staff.")
+		msg({_p}, "&7No garage in town yet.")
 		stop
 	gpsPin({_p}, poiLocation({poi::%{_n}%}), garagePoiName({_n}))
-	msg({_p}, "&6Garage: &fthe GPS leads you to the &e%garagePoiName({_n})%&f.")
 
 # A car that's out: the GPS leads to it; in the garage: to the nearest garage.
 function garageFindCar(p: player, plate: text):
@@ -111,7 +110,6 @@ function garageFindCar(p: player, plate: text):
 		set {_at} to {car::out::%{_plate}%}
 		if {_at} is set:
 			gpsPin({_p}, {_at}, "Your %carName(carModelOf({_plate}))%")
-			msg({_p}, "&6Your %carTitle({_plate})%: &fthe GPS leads you to it.")
 			stop
 	garageFind({_p})
 
@@ -219,7 +217,7 @@ function garageClearLane(p: player, l: location):
 			set {_land} to location({_px2}, y-coordinate of loop-player, {_pz2}, world of loop-player)
 			if garageSiteOf({_land}) is garageSiteOf(location of loop-player):
 				set velocity of loop-player to vector(0.7 * {_dx} / {_len}, 0.3, 0.7 * {_dz} / {_len})
-				hudBar(loop-player, "&eA car is coming out of the garage: step aside.", 2)
+				hudBar(loop-player, "&eA car is coming out: step aside.", 2)
 
 # After a car came out in a lane (carCall): the pickup-idle clock, and a puff for the player.
 function garageTookOut(p: player, plate: text):
@@ -343,8 +341,8 @@ function garageBaySync(p: player):
 			if {_e} is set:
 				set item transform of {_e} to head
 		else:
+			# No second line (placeholders.sk answers "&r": an empty line).
 			set {-ph::bay::%{_p}%::%{_s}%::%{_n}%} to "&7Empty bay"
-			set {-ph::bayhint::%{_p}%::%{_s}%::%{_n}%} to "&7Buy a car at the Car Dealer"
 
 every second:
 	loop all players:
@@ -364,7 +362,7 @@ function garageBayPreview(p: player, plate: text, label: text):
 			if {_e} is set:
 				set item of {_e} to carIcon(carModelOf({_plate}), {_label})
 				set {-bay::preview::%{_u}%} to now
-				hudBar({_p}, "&7Look at your bay: that's the new color. &eClick again to pay.", 1)
+				hudBar({_p}, "&7Your bay shows the new color. &eClick again to pay.", 1)
 
 # One shared click box per bay while its chunk is loaded (every 10 s; spawned again if lost to an unload).
 every 10 seconds:
@@ -422,7 +420,7 @@ function garageBayClick(p: player, s: text, n: text):
 		stop
 	set {_plate} to {-bay::car::%uuid of {_p}%::%{_s}%::%{_n}%}
 	if {_plate} is not set:
-		hudBar({_p}, "&7This bay is empty for you. All your cars: the attendant or &f/garage", 1)
+		hudBar({_p}, "&7Empty bay · all your cars: &f/garage", 1)
 		stop
 	carCall({_p}, "%{_plate}%")
 

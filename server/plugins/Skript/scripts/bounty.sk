@@ -123,7 +123,7 @@ on death of player with priority monitor:
 	set {_added} to addBounty({_killer}, cfg("bounty::per-kill"), "kill")
 	{_added} > 0
 	set {_total} to formatMoney(getBounty({_killer}))
-	msg({_killer}, "&cYour bounty is now %{_total}%. &7If a player claims it, you pay %cfg("bounty::victim-fee") * 100%%% of it.")
+	msg({_killer}, "&cYour bounty is now %{_total}%. &7If a player claims it, you pay a %cfg("bounty::victim-fee") * 100%%% fee.")
 
 # The IP a player last played from (the same-IP check for a killer who is offline at the claim).
 on quit:
@@ -222,4 +222,104 @@ function showBounties(p: player):
 		send colored "&7 Nobody online has a bounty." to {_p}
 	set {_min} to formatMoney(cfg("bounty::min-placed"))
 	send colored "&7Place one: &f/bounty <player> <amount> &7(at least %{_min}%)" to {_p}
-	send colored "&7Whoever kills a player with a bounty gets all of it; the player pays %cfg("bounty::victim-fee") * 100%%% of the part they earned (robberies, jobs, kills) on top of their death." to {_p}
+
+# ---------- The Bounties page (the phone's Bounties app, the hits menu's Bounties button) ----------
+# A phone page (ui.sk): 2 back to the phone, 4 your own bounty, 6 "Post one" (a bounty is posted with /bounty at the
+# Broker: away from him a click leads the GPS there, bountyPostBlock's rule); the content is every online player with a
+# bounty, highest first, 20 a page (3/5 the page arrows: 6 is Post one). Look only. /bounty alone stays in chat.
+function bountyButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-bounty::act::%{_p}%::%{_slot}%} to {_act}
+
+function bountyPage(p: player):
+	bountyPageN({_p}, 1)
+
+function bountyPageN(p: player, page: number):
+	closePhoneMap({_p})
+	set {_gui} to phonePage("Bounties")
+	delete {-bounty::act::%{_p}%::*}
+	bountyButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
+	set slot 4 of {_gui} to skull of {_p} named "&fYours" with lore "&c%formatMoney(getBounty({_p}))%"
+	set {_min} to formatMoney(cfg("bounty::min-placed"))
+	set {_i} to appIcon("bounties", "&fPost one")
+	if isPassive({_p}) is true:
+		set lore of {_i} to "&7Not while passive"
+		set slot 6 of {_gui} to {_i}
+	else if bountyPostBlock({_p}) is "":
+		set lore of {_i} to "&7/bounty <player> <amount> · at least %{_min}%"
+		bountyButton({_p}, {_gui}, 6, {_i}, "how")
+	else:
+		set lore of {_i} to "&7At the Broker (%questNearestText({_p}, "hits")%)" and "&7Click: find him"
+		bountyButton({_p}, {_gui}, 6, {_i}, "find")
+	# Online players with a bounty, highest first.
+	loop all players:
+		set {_b} to getBounty(loop-player)
+		if {_b} > 0:
+			set {_list::%uuid of loop-player%} to {_b}
+	set {_n} to 0
+	loop sorted indices of {_list::*} in descending order:
+		add 1 to {_n}
+		set {_order::%{_n}%} to loop-value
+	set {_pages} to max(1, ceil({_n} / 20))
+	if {_page} > {_pages}:
+		set {_page} to {_pages}
+	if {_page} < 1:
+		set {_page} to 1
+	if {_page} > 1:
+		bountyButton({_p}, {_gui}, 3, phonePrevIcon({_page}), "page:%{_page} - 1%")
+	if {_page} < {_pages}:
+		bountyButton({_p}, {_gui}, 5, phoneNextIcon({_page}), "page:%{_page} + 1%")
+	set {_slots::*} to phoneSlots()
+	set {_first} to ({_page} - 1) * 20
+	loop 20 times:
+		set {_k} to {_first} + loop-number
+		set {_id} to {_order::%{_k}%}
+		if {_id} is set:
+			set {_who} to playerByUuid({_id})
+			if {_who} is set:
+				set {_i} to skull of {_who} named "&f%name of {_who}%" with lore "&c%formatMoney({_list::%{_id}%})%"
+				set slot {_slots::%loop-number%} of {_gui} to {_i}
+	if {_n} is 0:
+		set slot 22 of {_gui} to phoneEmptyIcon("Nobody online has one")
+	bountyButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
+	set {-bounty::gui::%{_p}%} to {_gui}
+	if {-bounty::gen::%{_p}%} is not set:
+		set {-bounty::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+on inventory click:
+	{-bounty::gui::%player%} is set
+	player's current inventory is {-bounty::gui::%player%}
+	cancel event
+	event-inventory is {-bounty::gui::%player%}
+	set {_act} to {-bounty::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_gen} to {-bounty::gen::%player%}
+	wait 1 tick
+	player is online
+	{-bounty::gui::%player%} is set
+	{-bounty::gen::%player%} is {_gen}
+	add 1 to {-bounty::gen::%player%}
+	if {_act} is "phone":
+		# Opening the phone closes this page; the close handler only forgets it.
+		openPhone(player)
+	else if {_act} is "how":
+		close player's inventory
+		set {_min} to formatMoney(cfg("bounty::min-placed"))
+		msg(player, "&7Place a bounty: &f/bounty <player> <amount> &7(at least %{_min}%).")
+	else if {_act} is "find":
+		close player's inventory
+		questFind(player, "hits")
+	else if {_act} starts with "page:":
+		bountyPageN(player, (subtext of {_act} from characters 6 to (length of {_act})) parsed as number)
+
+on inventory drag:
+	{-bounty::gui::%player%} is set
+	player's current inventory is {-bounty::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-bounty::gui::%player%} is set
+	event-inventory is {-bounty::gui::%player%}
+	delete {-bounty::gui::%player%}
+	delete {-bounty::act::%player%::*}

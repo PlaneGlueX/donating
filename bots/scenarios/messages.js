@@ -1,9 +1,8 @@
 // messages.sk: the phone's Messages app. Every text a contact sends (story.sk's storyText) lands in chat and in the
-// player's inbox; the phone's apps show "Messages (N new)"; /messages lists one head per contact, the newest
+// player's inbox; the phone's Messages app shows "N new"; /messages lists one head per contact, the newest
 // conversation first, with its unread count; a conversation shows its texts (the unread ones "new") and reading it
-// clears them; ◀ Back to Messages, ◀ Phone to the phone; "Find <contact>" when the map has that contact's quest giver
-// (else "<contact> isn't in town yet"); only the
-// newest 60 texts are kept; /messages <contact> opens one; a join says how many are unread; /messages tab-completes
+// clears them; ◀ Messages back to the list, ◀ Phone to the phone; "Find <contact>" when the map has that contact's quest
+// giver (else "<contact> isn't in town yet"); only the newest 60 texts are kept, 20 a page (Older / Newer); /messages <contact> opens one; a join says how many are unread; /messages tab-completes
 // the contacts.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
@@ -71,24 +70,29 @@ module.exports = async ({ check }) => {
 
     // ---------- The phone's app ----------
     const phone = await opens(async () => { await cmd(`zzheisttp ${A} ${FAR}`); bot.setQuickBarSlot(8); await sleep(500); bot._client.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: 0 }) })
-    check('the phone\'s apps show "✉ Messages (3 new)" in slot 0', phone && /Phone/.test(title(phone)) && /Messages \(3 new\)/.test(itemName(at(0))), `${title(phone)} ${itemName(at(0))}`)
-    const list0 = await click(0)
+    // The home screen's dock: Messages at 38 (phone.sk openPhone), the unread count as its lore and its stack size.
+    const isHome = () => itemName(at(39)) === 'GPS' && itemName(at(49)) === 'Close'
+    check('the phone\'s Messages app (slot 38) shows "3 new"', phone && isHome() && itemName(at(38)) === 'Messages' && /3 new/.test(itemLore(at(38))) && at(38).count === 3, `${title(phone)} "${itemName(at(38))}" (${itemLore(at(38))}) x${at(38) && at(38).count}`)
+    const list0 = await click(38)
     check('...which opens Messages', /Messages/.test(title(list0)), title(list0))
 
     // ---------- /messages ----------
+    // Phone pages (ui.sk): ◀ Phone / ◀ Messages at 2, the contacts from 11, a conversation's texts from 11 (20 a page),
+    // Find <contact> at 4, Older / Newer at 5 / 6.
     const list = await chatOpen('/messages')
-    check('/messages: one head per contact with their skin, the newest conversation first (Vic, then Mara), with the unread count', /Messages/.test(title(list)) && at(10) && at(10).name === 'player_head' && /^Vic \(1 new\)/.test(itemName(at(10))) && /^Mara \(2 new\)/.test(itemName(at(11))) && /Meet me at the Safehouse/.test(itemLore(at(11))), `${at(10) && at(10).name} "${itemName(at(10))}" | "${itemName(at(11))}" (${itemLore(at(11))})`)
-    check('...and ◀ Phone (slot 27)', at(27) && itemName(at(27)) === '◀ Phone', itemName(at(27)))
-    const thread = await click(11)
-    check('a conversation: its texts oldest first, the unread ones "new", and "Find Mara"', /Mara/.test(title(thread)) && /new/.test(itemName(at(0))) && /First job for you/.test(itemLore(at(0))) && /Meet me/.test(itemLore(at(1))) && !at(2) && /Find Mara/.test(itemName(at(49))), `${title(thread)} "${itemName(at(0))}" (${itemLore(at(0))}) "${itemName(at(1))}" ${itemName(at(49))}`)
-    const back = await click(45)
-    check('◀ Back goes to Messages, and reading Mara cleared her new ones (Vic\'s stay)', /Messages/.test(title(back)) && /^Mara$/.test(itemName(at(11))) && /^Vic \(1 new\)/.test(itemName(at(10))), `${title(back)} "${itemName(at(10))}" "${itemName(at(11))}"`)
-    const toPhone = await click(27)
-    check('◀ Phone opens the phone, now "Messages (1 new)"', /Phone/.test(title(toPhone)) && /Messages \(1 new\)/.test(itemName(at(0))), `${title(toPhone)} ${itemName(at(0))}`)
+    check('/messages: one head per contact with their skin, the newest conversation first (Vic, then Mara), with the unread count', /Messages$/.test(title(list)) && at(11) && at(11).name === 'player_head' && /^Vic \(1 new\)/.test(itemName(at(11))) && /^Mara \(2 new\)/.test(itemName(at(12))) && /Meet me at the Safehouse/.test(itemLore(at(12))), `${at(11) && at(11).name} "${itemName(at(11))}" | "${itemName(at(12))}" (${itemLore(at(12))})`)
+    check('...and ◀ Phone (slot 2)', at(2) && itemName(at(2)) === '◀ Phone', itemName(at(2)))
+    const thread = await click(12)
+    check('a conversation: its texts oldest first, the unread ones "new", and "Find Mara"', /Mara$/.test(title(thread)) && /new/.test(itemName(at(11))) && /First job for you/.test(itemLore(at(11))) && /Meet me/.test(itemLore(at(12))) && !at(13) && /Find Mara/.test(itemName(at(4))), `${title(thread)} "${itemName(at(11))}" (${itemLore(at(11))}) "${itemName(at(12))}" ${itemName(at(4))}`)
+    const back = await click(2)
+    check('◀ Messages goes back to Messages, and reading Mara cleared her new ones (Vic\'s stay)', /Messages$/.test(title(back)) && /^Mara$/.test(itemName(at(12))) && /^Vic \(1 new\)/.test(itemName(at(11))), `${title(back)} "${itemName(at(11))}" "${itemName(at(12))}"`)
+    const toPhone = await click(2)
+    check('◀ Phone opens the phone, now "1 new" on Messages', toPhone && isHome() && /1 new/.test(itemLore(at(38))), `${title(toPhone)} "${itemName(at(38))}" (${itemLore(at(38))})`)
 
     // ---------- /messages <contact> ----------
     const vic = await chatOpen('/messages vic')
-    check('/messages vic opens his conversation; no Vic on the map: "Vic isn\'t in town yet" instead of Find', /Vic/.test(title(vic)) && /Fresh list/.test(itemLore(at(0))) && /Vic isn't in town yet/.test(itemName(at(49))), `${title(vic)} ${itemLore(at(0))} ${itemName(at(49))}`)
+    check('/messages vic opens his conversation; no Vic on the map: "Vic isn\'t in town yet" instead of Find', /Vic$/.test(title(vic)) && /Fresh list/.test(itemLore(at(11))) && /Vic isn't in town yet/.test(itemName(at(4))), `${title(vic)} ${itemLore(at(11))} ${itemName(at(4))}`)
+
     await closeAll()
     t = Date.now()
     bot.chat('/messages nobody')
@@ -104,7 +108,20 @@ module.exports = async ({ check }) => {
     const newest = await cmd(`zzdata ${A} inbox-n`)
     check('only the newest 60 texts are kept (63 sent: texts 1-3 gone, 4-63 kept)', /= <none>/.test(gone) && /= <none>/.test(kept) && /= 63/.test(newest) && /Tip number 1\./.test(await cmd(`zzdata ${A} inbox::4::text`)), `${gone} | ${kept} | ${newest}`)
     const broker = await chatOpen('/messages broker')
-    check('a long conversation shows its newest 45 (Tip 16 to Tip 60)', /Tip number 16\./.test(itemLore(at(0))) && /Tip number 60\./.test(itemLore(at(44))), `${itemLore(at(0))} ... ${itemLore(at(44))}`)
+    // 20 a page, page 1 the newest 20 (oldest first within it): all 60 kept texts can be read with Older / Newer.
+    const pg = () => `${itemLore(at(11))} ... ${itemLore(at(42))} older=${itemName(at(5))} newer=${itemName(at(6))}`
+    const p1 = /Tip number 41\./.test(itemLore(at(11))) && /Tip number 60\./.test(itemLore(at(42))) && itemName(at(5)) === 'Older' && !at(6)
+    const d1 = pg()
+    await click(5)
+    const p2 = /Tip number 21\./.test(itemLore(at(11))) && /Tip number 40\./.test(itemLore(at(42))) && itemName(at(5)) === 'Older' && itemName(at(6)) === 'Newer'
+    const d2 = pg()
+    await click(5)
+    const p3 = /Tip number 1\./.test(itemLore(at(11))) && /Tip number 20\./.test(itemLore(at(42))) && !at(5) && itemName(at(6)) === 'Newer'
+    const d3 = pg()
+    await click(6)
+    const p4 = /Tip number 21\./.test(itemLore(at(11)))
+    check('a long conversation: 20 a page (Tip 41-60, Older: 21-40, Older: 1-20, Newer: 21-40 again)', broker && p1 && p2 && p3 && p4, `${d1} | ${d2} | ${d3} | newer: ${itemLore(at(11))}`)
+
     await closeAll()
 
     // ---------- A join says how many are unread ----------

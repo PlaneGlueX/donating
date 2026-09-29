@@ -43,9 +43,9 @@ function tradeBlock(p: player, o: player, loose: boolean) :: text:
 	if {_loose} is true:
 		add 3 to {_reach}
 	if world of {_p} is not world of {_o}:
-		return "Stand next to %name of {_o}% to trade (in person)."
+		return "Stand next to %name of {_o}% to trade."
 	if distance between {_p} and {_o} > {_reach}:
-		return "Stand next to %name of {_o}% to trade (in person)."
+		return "Stand next to %name of {_o}% to trade."
 	if heistOf({_p}) is not "":
 		return "Not inside a heist."
 	if heistOf({_o}) is not "":
@@ -64,7 +64,7 @@ command /trade [<text>]:
 	trigger:
 		set {_u} to "%uuid of player%"
 		if arg-1 is not set:
-			msg(player, "&6Trading: &7stand next to someone and type &f/trade &7and their name. They do the same back, then you both add cars and crate cosmetics and press Ready. &f/trade cancel &7ends it.")
+			msg(player, "&6Trade: &f/trade <player> &7next to them (they do the same back). &f/trade cancel &7ends it.")
 			stop
 		if arg-1 is "cancel":
 			if {-trade::sid::%{_u}%} is set:
@@ -267,7 +267,7 @@ function tradeIcon(owner: player, e: text, mine: boolean) :: item:
 		if {_sl} is not "":
 			add {_sl} to {_l::*}
 	if {_mine} is true:
-		add "&eClick: take it back." to {_l::*}
+		add "&eClick: take back" to {_l::*}
 	set name of {_i} to colored {_name}
 	set lore of {_i} to colored {_l::*}
 	return {_i}
@@ -305,7 +305,7 @@ function tradeDraw(p: player):
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	loop 4, 13, 22, 31, 40 and 49:
 		set slot loop-value of {_gui} to {_line}
-	set slot 1 of {_gui} to lime dye named "&aYou give" with lore "&7Click one of yours to take it back."
+	set slot 1 of {_gui} to lime dye named "&aYou give"
 	set slot 7 of {_gui} to orange dye named "&6%name of {_o}% gives"
 	set {_n} to 0
 	loop {-trade::offer::%{_u}%::*}:
@@ -315,25 +315,26 @@ function tradeDraw(p: player):
 	loop {-trade::offer::%{_ou}%::*}:
 		add 1 to {_n}
 		set slot tradeTheirSlot({_n}) of {_gui} to tradeIcon({_o}, loop-value, false)
-	tradeButton({_p}, {_gui}, 45, minecart named "&eAdd a car" with lore "&7From your garage (not out)." and "&7They must be able to own it." , "add:car")
-	tradeButton({_p}, {_gui}, 46, name tag named "&eAdd a cosmetic" with lore "&7Titles, bag skins, kill effects" and "&7from crates.", "add:cos")
+	tradeButton({_p}, {_gui}, 45, minecart named "&eAdd a car", "add:car")
+	tradeButton({_p}, {_gui}, 46, name tag named "&eAdd a cosmetic", "add:cos")
+	# The ready toggle: only the rule that isn't obvious (any change un-readies both).
 	if {-trade::ready::%{_u}%} is true:
-		tradeButton({_p}, {_gui}, 48, lime concrete named "&aYou're ready" with lore "&7Click to change your mind.", "ready")
+		tradeButton({_p}, {_gui}, 48, lime concrete named "&aYou're ready", "ready")
 	else:
-		tradeButton({_p}, {_gui}, 48, red concrete named "&cNot ready" with lore "&7Click when you're happy with both sides." and "&7Any change makes you both not ready.", "ready")
+		tradeButton({_p}, {_gui}, 48, red concrete named "&cNot ready" with lore "&7Any change un-readies you both", "ready")
 	if {-trade::ready::%{_ou}%} is true:
 		set slot 50 of {_gui} to lime concrete named "&a%name of {_o}% is ready"
 	else:
 		set slot 50 of {_gui} to red concrete named "&c%name of {_o}% isn't ready"
 	set {_c} to {-trade::count::%{_sid}%}
 	if {_c} is set:
-		set slot 49 of {_gui} to clock named "&eTrading in %{_c}%..." with lore "&7Anything changing stops it."
+		set slot 49 of {_gui} to clock named "&eTrading in %{_c}%..."
 	tradeButton({_p}, {_gui}, 53, barrier named "&cCancel the trade", "cancel")
 	if {-trade::view::%{_u}%} is "main":
 		if {_p}'s current inventory is not {_gui}:
 			open {_gui} to {_p}
 
-# The list of what p can add (cars or cosmetics), with why not for the rest.
+# The list of what p can add (cars or cosmetics): a click adds one; the rest say why not (in red).
 function tradePick(p: player, kind: text):
 	set {_u} to "%uuid of {_p}%"
 	set {_o} to {-trade::with::%{_u}%}
@@ -361,8 +362,6 @@ function tradePick(p: player, kind: text):
 			set {_why} to tradeAddBlock({_p}, loop-value)
 			set {_l::*} to lore of {_i}
 			if {_why} is "":
-				add "&eClick: add it." to {_l::*}
-				set lore of {_i} to colored {_l::*}
 				set slot {_slot} of {_gui} to {_i}
 				set {-trade::pact::%{_u}%::%{_slot}%} to "pick:%loop-value%"
 			else:
@@ -373,9 +372,9 @@ function tradePick(p: player, kind: text):
 			delete {_l::*}
 	if {_slot} is 0:
 		if {_kind} is "car":
-			set slot 22 of {_gui} to paper named "&7No cars to trade" with lore "&7Buy one at the Car Dealer, or win" and "&7a crate car."
+			set slot 22 of {_gui} to paper named "&7No cars to trade"
 		else:
-			set slot 22 of {_gui} to paper named "&7No crate cosmetics to trade" with lore "&7They come from crates: &f/crates"
+			set slot 22 of {_gui} to paper named "&7No cosmetics to trade"
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
@@ -726,7 +725,7 @@ every second:
 		else if {_b} is not online:
 			set {_end::%{_sid}%} to "%name of {_b}% left"
 		else if tradeBlock({_a}, {_b}, true) is not "":
-			set {_end::%{_sid}%} to "you're not next to each other any more, or one of you is in combat or a heist"
+			set {_end::%{_sid}%} to "too far apart, in combat or in a heist"
 	loop {_end::*}:
 		tradeEnd(loop-index parsed as number, loop-value)
 

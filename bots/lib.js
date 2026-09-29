@@ -11,9 +11,21 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 // Every chat/system/action-bar line and every title lands in bot.log for later checks.
 // `motd` keeps the formatting as § codes (e.g. "§6§lDONATING§r"), `json` the component tree
 // (see colorOf), for color checks.
-function join (username, { timeoutMs = 30000 } = {}) {
+//
+// `pack`: what the bot answers to a resource pack prompt (the server.properties pack at login, or one sent in play,
+// /zzpack). Default 'declined' (2026-09-29): before, lib.js declined but Mineflayer's own resource_pack plugin also
+// answered in the configuration phase (accepted, then loaded, with an all-zero UUID) after it, so the server counted
+// every bot as having the pack loaded (checked in the Mineflayer 4.39 and Paper 1.21.11 code); DonatingPhone's
+// MenuPanels gives such players the pack's panel glyphs in chest titles, so bots now really decline.
+//   'loaded': accepted, downloaded, successfully loaded (nothing is downloaded); the server's status is
+//   SUCCESSFULLY_LOADED. 'declined': declined only; the status is DECLINED. Both turn Mineflayer's plugin off.
+// bot.packPrompts counts the prompts answered.
+function join (username, { timeoutMs = 30000, pack = 'declined' } = {}) {
   return new Promise((resolve, reject) => {
-    const bot = mineflayer.createBot({ host: HOST, port: PORT, username, version: VERSION, auth: 'offline' })
+    const options = { host: HOST, port: PORT, username, version: VERSION, auth: 'offline' }
+    if (pack === 'loaded' || pack === 'declined') options.plugins = { resource_pack: false }
+    const bot = mineflayer.createBot(options)
+    bot.packPrompts = 0
     bot.log = []
     const record = (kind, text, motd = '', json = null) => {
       bot.log.push({ t: Date.now(), kind, text, motd, json })
@@ -40,7 +52,15 @@ function join (username, { timeoutMs = 30000 } = {}) {
     bot._client.on('set_title_subtitle', packet => title('subtitle', packet.text))
     // When server.properties sets a resource pack, the server waits for the client's answer before
     // letting it in, and Mineflayer never answers. Bots decline it (the pack isn't required).
-    bot._client.on('add_resource_pack', packet => bot._client.write('resource_pack_receive', { uuid: packet.uuid, result: 1 }))
+    // Results (both phases): 0 successfully loaded, 1 declined, 3 accepted, 4 downloaded.
+    bot._client.on('add_resource_pack', packet => {
+      bot.packPrompts++
+      if (pack === 'loaded') {
+        for (const result of [3, 4, 0]) bot._client.write('resource_pack_receive', { uuid: packet.uuid, result })
+      } else {
+        bot._client.write('resource_pack_receive', { uuid: packet.uuid, result: 1 })
+      }
+    })
     bot.on('kicked', reason => record('kicked', typeof reason === 'string' ? reason : JSON.stringify(reason)))
     bot.on('error', err => record('error', err.message))
 

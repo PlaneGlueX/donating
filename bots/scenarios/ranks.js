@@ -118,7 +118,7 @@ module.exports = async ({ check }) => {
     bots[Z].chat('/ranks')
     await sleep(900)
     const out = messagesSince(bots[Z], t).map(m => m.text).join(' | ')
-    check('/ranks lists them highest first, says what they give, and shows yours', /\[Legend\] Legend.*\[Elite\] Elite.*\[VIP\+\] VIP\+.*\[VIP\] VIP/.test(out) && /gives your bag its look and more room/.test(out) && /Neon bag, \+25% room, daily Common, Uncommon, Rare keys, Heist Refresh every 6h/.test(out) && /VIP · Camo bag, \+5% room \|/.test(out) && /Yours: \[Legend\] Legend/.test(out) && /\/level/.test(out), out)
+    check('/ranks lists them highest first, says what they give, and shows yours', /\[Legend\] Legend.*\[Elite\] Elite.*\[VIP\+\] VIP\+.*\[VIP\] VIP/.test(out) && /Neon bag, \+25% room, daily Common, Uncommon, Rare keys, Heist Refresh every 6h, Valet \|/.test(out) && /VIP · Camo bag, \+5% room \|/.test(out) && /Yours: \[Legend\] Legend/.test(out) && !/tab list and in chat/.test(out), out)
     t = Date.now()
     bots[M].chat('/dranks list')
     await sleep(900)

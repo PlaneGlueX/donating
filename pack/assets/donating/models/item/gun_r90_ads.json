@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_r90",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        -8.96,
+        2.32,
+        -8.88
+      ],
+      "scale": [
+        2,
+        3,
+        3
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "translation": [
+        -8.96,
+        2.32,
+        -8.88
+      ],
+      "scale": [
+        2,
+        3,
+        3
+      ]
+    }
+  }
+}

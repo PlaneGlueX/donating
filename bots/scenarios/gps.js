@@ -2,7 +2,9 @@
 // (by car only on the road; on foot across the plaza, around the water), another way at once from another
 // street, the way on the phone map, the boss bar, the dot on the locator bar and the dust trail (that player
 // only), arriving (also passing through the area at speed), the pause inside a heist, dropping and removing
-// a pin with a left-click on the big map, and /gps.
+// a pin with a left-click on the big map, and /gps: the GPS app (where you're headed, ◀ Phone, Home) and its pages
+// Quests (every quest line; a right-click opens its menu, whose ◀ Back comes back), Heists, Shops and Places (a click
+// pins a place, again removes it).
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -23,6 +25,9 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   const bots = {}
+  // A landmark POI and a gun shopkeeper the /gps checks place (removed again, also in finally).
+  let poiId = ''
+  let keeperId = ''
   try {
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const gps = async name => cmd(`dphone gps ${name}`)
@@ -211,20 +216,131 @@ module.exports = async ({ check }) => {
     await sleep(500)
     bots[A].setQuickBarSlot(0)
 
-    // ---------- /gps ----------
+    // ---------- /gps: the GPS app (a phone page) and its pages ----------
+    // Text of a chat component in NBT form (window titles, item names, lore): the "text" parts in order.
+    const nbtText = nbt => {
+      const out = []
+      const walk = v => {
+        if (!v || typeof v !== 'object') return
+        if (v.text && v.text.type === 'string') out.push(v.text.value)
+        for (const k of Object.keys(v)) if (k !== 'text') walk(v[k])
+      }
+      walk(nbt)
+      return out.join('')
+    }
+    const title = w => (w ? (typeof w.title === 'string' ? w.title : nbtText(w.title)) : '')
+    const comp = (i, type) => (i && i.components ? i.components.find(c => c.type === type) : null)
+    const itemName = i => { const c = comp(i, 'custom_name'); return c ? nbtText(c.data) : '' }
+    const itemLore = i => { const c = comp(i, 'lore'); return c ? c.data.map(nbtText).join(' / ') : '' }
+    const cur = () => bots[A].currentWindow
+    const nameAt = n => (cur() && cur().slots[n] ? itemName(cur().slots[n]) : '')
+    const loreAt = n => (cur() && cur().slots[n] ? itemLore(cur().slots[n]) : '')
+    // The menu slot whose item's name matches, or -1.
+    const find = re => { const w = cur(); if (w) for (let s = 0; s < w.inventoryStart; s++) if (w.slots[s] && re.test(itemName(w.slots[s]))) return s; return -1 }
+    const names = () => { const w = cur(); const out = []; if (w) for (let s = 0; s < w.inventoryStart; s++) if (w.slots[s]) out.push(`${s}:${itemName(w.slots[s])}`); return out.join(', ') }
+    const windowOpen = () => new Promise(resolve => { const tm = setTimeout(() => resolve(null), 4000); bots[A].once('windowOpen', w => { clearTimeout(tm); resolve(w) }) })
+    const closeAll = async () => { if (cur()) { bots[A].closeWindow(cur()); await sleep(400) } }
+    const opens = async fn => { const o = windowOpen(); await fn(); const w = await o; await sleep(400); return w }
+    const chatOpen = async line => { await closeAll(); return opens(() => bots[A].chat(line)) }
+    const clickOpen = async (n, button = 0) => opens(() => { bots[A].clickWindow(n, button, 0).catch(() => {}) })
+    const clickClose = async (n, button = 0) => { bots[A].clickWindow(n, button, 0).catch(() => {}); await sleep(1200) }
+
+    // A heist to list (open), a gun shopkeeper and a landmark POI, all a way off from where A stands.
+    await cmd(`zzregion heist_${HID} 86 ${Y - 1} -672 100 ${Y + 6} -662`)
+    for (const c of [`dheist create ${HID} 1`, `dheist set ${HID} level 0`, `dheist set ${HID} name GPS Bank`, `dheist exit ${HID} 95.5 ${Y} -650.5`, `dheist snapshot ${HID}`, `dheist enable ${HID}`]) await cmd(c)
+    const heistOpen = await until(async () => /state=open/.test(await cmd(`zzheist ${HID}`)), 10000)
+    await cmd(`lp user ${A} permission set donating.staff true`)
+    await sleep(1500)
+    await cmd(`zzheisttp ${A} 60.5 ${Y} -660.5`)
+    await sleep(600)
+    t = Date.now()
+    bots[A].chat('/dshopkeeper add gun')
+    await sleep(800)
+    keeperId = (text(A, t).match(/Shopkeeper (\d+) \(gun\) added/) || [])[1] || ''
+    await cmd(`zzheisttp ${A} 104.5 ${Y} -660.5`)
+    await sleep(600)
+    t = Date.now()
+    bots[A].chat('/dpoi add landmark GPS Test Spot')
+    await sleep(800)
+    poiId = (text(A, t).match(/POI (\d+) landmark at/) || [])[1] || ''
     await cmd(`zzheisttp ${A} ${START.join(' ')}`)
+    await sleep(800)
+
+    // The main page: ◀ Phone, where you're headed (a click removes the pin), the four categories, Home.
     await pin(A, 80.5, -641.5)
-    const o = new Promise(resolve => { const tm = setTimeout(() => resolve(null), 4000); bots[A].once('windowOpen', w => { clearTimeout(tm); resolve(w) }) })
-    bots[A].chat('/gps')
-    const w = await o
-    await sleep(300)
-    const itemText = i => (i ? JSON.stringify(i) : '')
-    check('/gps shows where you\'re headed (the pin, its distance) and how to drop one', w && /GPS/.test(JSON.stringify(w.title)) && w.slots[4] && w.slots[4].name === 'compass' && /Heading to/.test(itemText(w.slots[4])) && w.slots[40] && w.slots[40].name === 'book', `${JSON.stringify(w && w.title)} ${itemText(w && w.slots[4]).slice(0, 300)}`)
+    await until(async () => /state=route/.test(await gps(A)), 3000)
+    await sleep(500)
+    let w = await chatOpen('/gps')
+    const main = `${title(w)} | ${names()} | 4: ${loreAt(4)}`
+    check('/gps: "◀ Phone" at 2, where you\'re headed at 4 (the pin, its way, "Click: remove"), Quests, Heists, Shops and Places at 11-14, Home at 49', /GPS$/.test(title(w)) && nameAt(2) === '◀ Phone' && /^Heading to /.test(nameAt(4)) && /\d+m/.test(loreAt(4)) && /Click: remove/.test(loreAt(4)) && ['Quests', 'Heists', 'Shops', 'Places'].every((n, k) => nameAt(11 + k) === n) && nameAt(49) === 'Home', main)
+    check('...the Heists tile counts the open ones', heistOpen && /[1-9]\d* open/.test(loreAt(12)), `${heistOpen} ${loreAt(12)}`)
     bots[A].clickWindow(4, 0, 0).catch(() => {})
     await sleep(1200)
-    check('...and clicking it removes the pin', !/slots=\S*pin/.test(await gps(A)), await gps(A))
+    check('...and clicking where you\'re headed removes the pin', !/slots=\S*pin/.test(await gps(A)), await gps(A))
+
+    // Each tile opens its page; the page's "◀" at slot 2 goes back to the main page.
+    const tiles = []
+    for (const [slot, page] of [[11, 'Quests'], [12, 'Heists'], [13, 'Shops'], [14, 'Places']]) {
+      w = await chatOpen('/gps')
+      const pw = await clickOpen(slot)
+      const pt = title(pw)
+      const back = /^◀ /.test(nameAt(2)) ? await clickOpen(2) : null
+      tiles.push({ ok: new RegExp(`GPS . ${page}$`).test(pt) && Boolean(back) && /GPS$/.test(title(back)) && nameAt(11) === 'Quests', detail: `${page}: "${pt}" -> "${title(back)}"` })
+    }
+    check('each tile opens its page ("GPS · Quests" ...), and "◀" at 2 goes back to the GPS', tiles.every(x => x.ok), tiles.map(x => x.detail).join(' | '))
+    w = await chatOpen('/gps')
+    const home = await clickOpen(49)
+    check('...and Home (49) opens the phone\'s home screen', Boolean(home) && nameAt(39) === 'GPS' && nameAt(49) === 'Close', `${title(home)} | ${names()}`)
+
+    // Quests: one entry per quest line; a right-click on car contracts opens the Scrap Yard's menu, whose "◀ Back"
+    // comes back here.
+    w = await chatOpen('/gps quests')
+    const quests = [/^Missions/, /^Car contracts/, /^Side jobs/, /^Wanted List/, /^Hit contracts/, /^Bounties$/].map(find)
+    check('Quests lists Mara\'s missions, car contracts, side jobs, Vic\'s Wanted List, hit contracts and bounties', /GPS . Quests$/.test(title(w)) && quests.every(s => s >= 0), `${title(w)} | ${names()}`)
+    const ct = find(/^Car contracts/)
+    const ctw = ct >= 0 ? await clickOpen(ct, 1) : null
+    const ctBack = find(/^◀ Quests$/)
+    const backQ = ctBack >= 0 ? await clickOpen(ctBack) : null
+    check('...a right-click on car contracts opens its menu (a phone page, Contracts), and its "◀ Quests" (slot 2) comes back to Quests', /Contracts$/.test(title(ctw)) && ctBack === 2 && /GPS . Quests$/.test(title(backQ)), `"${title(ctw)}" back@${ctBack} -> "${title(backQ)}"`)
+
+    // Heists: the open test heist with its state and distance.
+    w = await chatOpen('/gps heists')
+    const hs = find(/^GPS Bank$/)
+    check('Heists lists an open heist with its state and distance', hs >= 0 && /OPEN/.test(loreAt(hs)) && /\b\d+m\b/.test(loreAt(hs)), `${hs}: ${loreAt(hs)} | ${names()}`)
+
+    // Shops: the nearest shopkeeper of each kind (the gun shopkeeper placed here, ~20 blocks off).
+    const gunTitle = ((await cmd('zzcfg shop::title::gun')).match(/= (.*)$/m) || [])[1] || 'Gun Shop'
+    w = await chatOpen('/gps shops')
+    const gun = find(new RegExp(`^${gunTitle.trim()}$`))
+    check('Shops lists the nearest gun shopkeeper with its distance', keeperId !== '' && gun >= 0 && /^\d+m$/.test(loreAt(gun)) && Number(loreAt(gun).replace('m', '')) < 40, `keeper=${keeperId} ${gun}: ${loreAt(gun)} | ${names()}`)
+
+    // Places: the landmark; a click pins it (and it glints there), a second click removes the pin.
+    w = await chatOpen('/gps places')
+    let pl = find(/^GPS Test Spot$/)
+    check('Places lists the POI with its distance', poiId !== '' && pl >= 0 && /^\d+m$/.test(loreAt(pl)), `poi=${poiId} ${pl}: ${loreAt(pl)} | ${names()}`)
+    if (pl >= 0) await clickClose(pl)
+    let g1 = await gps(A)
+    const closedOnPin = !cur()
+    w = await chatOpen('/gps places')
+    pl = find(/^GPS Test Spot$/)
+    const glints = pl >= 0 && Boolean(comp(cur().slots[pl], 'enchantment_glint_override'))
+    check('a click on a place pins it (the GPS leads there) and closes the menu; the place glints then', closedOnPin && /active=pin/.test(g1) && /label=GPS_Test_Spot/.test(g1) && glints, `closed=${closedOnPin} ${g1} glint=${glints}`)
+    if (pl >= 0) await clickClose(pl)
+    g1 = await gps(A)
+    check('...and a second click on it removes the pin', !/slots=\S*pin/.test(g1), g1)
+    await closeAll()
+
+    // The staff things go again.
+    if (poiId) { bots[A].chat(`/dpoi remove ${poiId}`); await sleep(500) }
+    if (keeperId) { bots[A].chat(`/dshopkeeper remove ${keeperId}`); await sleep(500) }
+    poiId = ''
+    keeperId = ''
+    await cmd(`lp user ${A} permission unset donating.staff`)
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
+    if (poiId) await rcon.cmd(`zzconsole dpoi remove ${poiId}`).catch(() => {})
+    if (keeperId) await rcon.cmd(`zzconsole dshopkeeper remove ${keeperId}`).catch(() => {})
+    await rcon.cmd(`lp user ${A} permission unset donating.staff`).catch(() => {})
     await rcon.cmd('minecraft:kill @e[tag=gpstest]').catch(() => {})
     await rcon.cmd(`dheist delete ${HID} confirm`).catch(() => {})
     await rcon.cmd(`rg remove -w world heist_${HID}`).catch(() => {})

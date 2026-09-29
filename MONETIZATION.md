@@ -17,7 +17,7 @@ Rank prices were picked on 2026-09-26 with the owner's OK (one-time purchases, t
 | **Money booster** | For its time, every loot sale pays **1.5×** for everyone on the server; the buyer's own sales pay **2×** | **Yes:** everyone earns more while it runs; the buyer earns a bit more than others | **$1 per 5 minutes** (any quantity) | `dbooster add {username} money 1.5 5 {purchaseQuantity}` |
 | **XP booster** (added 2026-09-27) | For its time, every loot sale and car contract gives **1.5×** robber-level XP for everyone on the server; the buyer's own XP is **2×** | **Yes:** everyone reaches levels (which unlock heists, tools and cars) sooner while it runs; the buyer a bit sooner than others | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} xp 1.5 5 {purchaseQuantity}` |
 | **Heist Rush** (added 2026-09-27) | For its time, heists reopen **2× faster** for everyone: a run that ends gets half its cooldown, and heists already cooling down have their time left halved when it starts | **Yes:** more heist runs for the whole server; the buyer gets nothing extra (no head start, no bonus) | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} rush 2 5 {purchaseQuantity}` |
-| **Crate keys** (Common, Uncommon, Rare, Epic, Legendary) | One opening of that crate per key, at a crate stand on the map: a random reward from its list below (the odds are shown in game: /crates, click a crate) | **Yes:** crates can give in-game money, ammo, Stims and heist tools; the rest are looks only | $0.49 / $0.99 / $1.99 / $3.99 / $8.99 each (Common to Legendary), any quantity | `dcrate give {username} <crate> {purchaseQuantity}` |
+| **Crate keys** (Common, Uncommon, Rare, Epic, Legendary) | One opening of that crate per key, at a crate stand on the map: a random reward from its list below (the odds are shown in game: /crates, click a crate) | **Yes:** crates can give in-game money, ammo, Stims and heist tools; the rest are looks only | $0.49 / $0.99 / $1.99 / $3.99 / $8.99 each (Common to Legendary), any quantity. The same keys are also bought in game with in-game money (2026-09-29, proposal: $1,500 / $4,000 / $10,000 / $25,000 / $60,000; see "Keys for in-game money") | `dcrate give {username} <crate> {purchaseQuantity}` |
 
 A player has one rank at a time. Buying a higher rank replaces the lower one, and buying a lower rank never takes away a higher one.
 
@@ -34,6 +34,8 @@ Everyone owns and drives cars the same way. Cars come out at garages: one at eve
 ### What's in each crate
 
 A crate gives exactly one reward per key, picked at random with the chances below (every crate's weights add up to 1,000, so they're exact). Crates open only at crate stands, special places on the map inside safe zones; the reward is given when the spin stops (closing the menu gives it at once, and a logout or crash mid-spin gives it at the next join). Ammo, Stims and tools that don't fit (full inventory, carry limit, a tool above the player's level) pay **half** their shop price in in-game money instead. A cosmetic the player already has pays its rarity's repeat value ($200 Daily or Common, $500 Uncommon, $1,500 Rare, $3,000 Epic, $5,000 Legendary, $7,500 Hacked). Titles, bag skins, kill effects and cars are looks only. Every cosmetic belongs to one crate only.
+
+**Keys for in-game money** (added 2026-09-29, owner: "allow the other common-legendary crates be able to be bought with game money as well as irl money"). Common to Legendary keys can also be bought in game with in-game money, one at a time, in the crate's page (/crates, click a crate, or at a crate stand). Proposal: **$1,500** Common, **$4,000** Uncommon, **$10,000** Rare, **$25,000** Epic, **$60,000** Legendary. Each is about 4× what a key pays back on average (its money, its items at their shop price and its repeat values: about $373 / $895 / $2,377 / $6,096 / $14,885), so buying keys with in-game money never makes money; it's a money sink that pays out mostly in cosmetics. A key is the same whichever way it was bought, so real money only saves the time it takes to earn the in-game price. A key of $1,000 or more asks for a second click to confirm; buying is refused in combat.
 
 Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more likely (60-75% of openings from Common to Legendary), cosmetics at most 1% (Daily), 3% (Common), 5% (Uncommon), 7% (Rare), 10% (Epic) and 15% (Legendary, its exclusive car included). Cars are in the game since 2026-09-26 (garage.sk): a crate car lands in the player's garage. Since 2026-09-28 a player can own several cars of a model (up to 60 cars), so a car is never a "repeat"; the repeat value is only paid when the garage is full. The Legendary and Hacked crate cars are looks only: each drives exactly like the regular car of its family (Vandal like the Sports Car, Specter like the Sedan, Overclock like the Hotrod).
 
@@ -237,7 +239,7 @@ Wraps: Common (Matte Black, Primer, Two-Tone, Racing Stripes, Checkered), Rare (
      - Example: `dranks take {username} vip`.
      - It removes that rank only if the player still has it, so refunding an old VIP never takes away a Legend they bought later.
    - Boosters: make a **Boosters** category with three packages (Money Booster, XP Booster, Heist Rush), each "5 minutes" with a quantity of up to 10,000: `{purchaseQuantity}` turns 6 × "5 minutes" into 30 minutes. Their commands are in the table (`money`, `xp` or `rush`). The older money command without a kind (`dbooster add {username} 1.5 5 {purchaseQuantity}`) still works.
-   - For each crate key, allow a quantity, and add `dcrate take {username} <crate> {purchaseQuantity}` as its **chargeback** and **refund** command (it takes back the keys not opened yet; opened ones are logged).
+   - For each crate key, allow a quantity, and add `dcrate take {username} <crate> {purchaseQuantity}` as its **chargeback** and **refund** command (it takes back the keys not opened yet; opened ones are logged). Keys are one count per crate whatever their source, so a refund takes unused keys whichever way they came (the store, in-game money, /daily, a rank, an event); `crates.log` shows where each key came from.
      - Crate ids: `common`, `uncommon`, `rare`, `epic`, `legendary`. Example: `dcrate give {username} rare {purchaseQuantity}`.
 5. **Show the store in game.** Put the store's address in `core.sk` as `store::url` (e.g. `donating.tebex.io`). `/store` and `/ranks` show it.
 6. **Create the rank groups.** On a new server (Minehut), run `/dranks setup` once in the console. It creates the LuckPerms groups with their tags and order.
@@ -342,6 +344,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - A 3% chance of a Common cosmetic: the titles **Lookout**, **Wheelman** or **Hustler**, the **Smoke Bomb** kill effect or the **Desert** bag skin
 > - Already have that cosmetic? You get $200 instead. Ammo or gear that doesn't fit pays half its shop price
 > - See every reward and its exact chance in game: /crates, then click the crate
+> - Also sold in game for **$1,500** of in-game money (/crates)
 > - Buy as many as you like
 >
 > Every purchase helps keep Donating online and growing.
@@ -354,6 +357,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - A 5% chance of an Uncommon cosmetic: the titles **Ghost**, **Smooth Operator** or **Night Owl**, the **Flames** or **Sparks** kill effect, or the **Urban** or **Cherry** bag skin
 > - Already have that cosmetic? You get $500 instead. Ammo or gear that doesn't fit pays half its shop price
 > - See every reward and its exact chance in game: /crates, then click the crate
+> - Also sold in game for **$4,000** of in-game money (/crates)
 > - Buy as many as you like
 >
 > Every purchase helps keep Donating online and growing.
@@ -366,6 +370,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - A 7% chance of a Rare cosmetic: the titles **Inside Man** or **Phantom**, the **Cash Burst** or **Souls** kill effect, or the **Cash Print** or **Crimson** bag skin
 > - Already have that cosmetic? You get $1,500 instead. Gear that doesn't fit pays half its shop price
 > - See every reward and its exact chance in game: /crates, then click the crate
+> - Also sold in game for **$10,000** of in-game money (/crates)
 > - Buy as many as you like
 >
 > Every purchase helps keep Donating online and growing.
@@ -378,6 +383,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - A 10% chance of an Epic cosmetic: the titles **Untouchable** or **Big Fish**, the **Fireworks** or **Storm Cloud** kill effect, or the **Tiger** or **Carbon** bag skin
 > - Already have that cosmetic? You get $3,000 instead
 > - See every reward and its exact chance in game: /crates, then click the crate
+> - Also sold in game for **$25,000** of in-game money (/crates)
 > - Buy as many as you like
 >
 > Every purchase helps keep Donating online and growing.
@@ -391,6 +397,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > - A Legendary cosmetic or car pull is announced to the whole server
 > - Already have that prize? You get $5,000 instead
 > - See every reward and its exact chance in game: /crates, then click the crate
+> - Also sold in game for **$60,000** of in-game money (/crates)
 > - Buy as many as you like
 >
 > Every purchase helps keep Donating online and growing.

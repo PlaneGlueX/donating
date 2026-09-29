@@ -129,8 +129,9 @@ on tab complete of "/messages", "/texts", "/inbox", "/skript:messages", "/skript
 	if {_c::*} is set:
 		set tab completions for position 1 to {_c::*}
 
+# /gps: its pages (gps.sk gpsCat) and removing the pin.
 on tab complete of "/gps" and "/skript:gps":
-	set tab completions for position 1 to "clear" and "off"
+	set tab completions for position 1 to "quests", "heists", "shops", "places", "clear" and "off"
 
 on tab complete of "/leaderboard", "/lb", "/skript:leaderboard" and "/skript:lb":
 	set tab completions for position 1 to {-cfg::season::boards::*}

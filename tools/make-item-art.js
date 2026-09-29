@@ -6,6 +6,8 @@
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
 //   - melee weapons and consumables (dagger, bat, throwing knife, energy drink, bandage) and the Grappler:
 //     icons and 3D models, and the thrown knife in flight
+//   - the sold WeaponMechanics guns (.50 GS, Uzi, AK-47, R9-0), the Combat Knife and the Stim, each in its
+//     own module in tools\guns\ (items/feather.json; preview with tools\render-item.js)
 // and the JSON that wires them up. Items are picked by their first custom_model_data string
 // ("donating:bag_2", "donating:ammo_light"); anything without one keeps the vanilla look, and without
 // the pack every item looks vanilla (leather, nuggets).
@@ -605,8 +607,9 @@ for (const [type, a] of Object.entries(AMMO)) {
 }
 // ---------- Melee weapons, consumables and the Grappler (owner, 2026-09-28) ----------
 // The WeaponMechanics items (weapons\melee\Dagger.yml and Baseball_Bat.yml, weapons\consumables\
-// Throwing_Knife.yml, Energy_Drink.yml and Bandage.yml) are amethyst shards, not feathers (WeaponMechanics'
-// own pack owns feather.json): their Skin.Default.Custom_Model_Data 1-5 is the custom_model_data float
+// Throwing_Knife.yml, Energy_Drink.yml and Bandage.yml) are amethyst shards, not feathers (feather.json's
+// numbers are WeaponMechanics' own guns: we only redraw the sold ones, see "The sold guns" at the end of
+// this section): their Skin.Default.Custom_Model_Data 1-5 is the custom_model_data float
 // amethyst_shard.json dispatches on, a 16x16 icon in inventories and a 3D model everywhere else. The
 // Grappler (grapple.sk, a heist tool like the Drill) is a breeze rod picked by the string
 // donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its hook (donating:grapple_hook)
@@ -670,11 +673,12 @@ for (const [type, a] of Object.entries(AMMO)) {
     write(`donating/textures/item/${name}_icon.png`, png)
     write(`donating/models/item/${name}_icon.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/${name}_icon` } })
   }
-  const iconOr3d = name => ({
+  // model: the 3D model to show outside inventories (default: the model of the same name).
+  const iconOr3d = (name, model = name) => ({
     type: 'minecraft:select',
     property: 'minecraft:display_context',
     cases: [{ when: ['gui'], model: { type: 'minecraft:model', model: `donating:item/${name}_icon` } }],
-    fallback: { type: 'minecraft:model', model: `donating:item/${name}` }
+    fallback: { type: 'minecraft:model', model: `donating:item/${model}` }
   })
   const STEEL = { W: [236, 240, 246, 255], S: [182, 188, 200, 255], D: [112, 118, 132, 255] }
   const steel = [[236, 240, 246], [182, 188, 200], [112, 118, 132]] // swatches 0-2: light, mid, dark
@@ -1048,6 +1052,133 @@ for (const [type, a] of Object.entries(AMMO)) {
     { from: [7.7, 8.5, 6.5], to: [8.3, 8.9, 7.1], c: 5, dirs: back },
     { from: [7.7, 7.1, 6.5], to: [8.3, 7.5, 7.1], c: 5, dirs: back }
   ], {})
+
+  // ---------- The sold guns, the Combat Knife and the Stim (feather.json) ----------
+  // WeaponMechanics picks a weapon's look with its skin number, written as the custom_model_data float of
+  // the feather (weapons\*\*.yml Skin: Default N, Scope ADD 1000 while aiming, Sprint ADD 2000 while
+  // sprinting; the Stim's Skin turns its lightning rod into a feather with -1). Each item is drawn by a
+  // module, tools\guns\<id>.js, exporting a function that gets the helpers below and returns its entries,
+  // { <number>: <item model> }. items/feather.json here holds only ours; build-pack.js merges it into
+  // WeaponMechanics' feather.json by threshold (ours win) and stops unless every number below is ours.
+  // Same numbers, so nothing on the server changes (shop icons, cops' and bodyguards' guns, crates).
+  const GUNS = { gs50: [9, 1009, 2009], uzi: [1, 1001, 2001], ak47: [5, 1005, 2005], r90: [14, 1014, 2014], knife: [-10], stim: [-1] }
+  // The shared palette (the melee weapons' and the Grappler's colors), [r, g, b].
+  const PAL = {
+    outline: K.slice(0, 3),
+    steel: [[236, 240, 246], [182, 188, 200], [112, 118, 132]], // light, mid, dark
+    brass: [[226, 182, 76], [160, 118, 40]],
+    wood: [[232, 198, 140], [206, 166, 106], [166, 126, 76]],
+    grip: [[36, 36, 40], [58, 58, 64], [44, 44, 50]], // black, its light face, tape
+    frame: [[70, 74, 84], [104, 110, 122], [46, 49, 56]], // the Grappler's gunmetal: mid, light, dark
+    orange: [[236, 124, 36], [180, 84, 20]],
+    red: [170, 36, 40],
+    lime: [124, 252, 60],
+    olive: [70, 78, 52],
+    navy: [44, 60, 96],
+    black: [42, 44, 48],
+    brassAmmo: [[224, 178, 72], [176, 138, 56]]
+  }
+  const round = v => Math.round(v * 1000) / 1000
+  const norm = a => { let d = ((a % 360) + 360) % 360; if (d > 180) d -= 360; return round(d) || 0 }
+  // One hand's transform mirrored for the other hand. The client applies a left hand's transform with
+  // (-tx, ty, tz) and (rx, -ry, -rz); a missing lefthand copies the righthand one as it is (in the same
+  // file), and the gun would point backward: every model here writes both hands. The stored lefthand is
+  // the mirror image of the righthand pose (muzzle mirrored across the screen, sights still up): for a gun
+  // pointing along the view (Default, Scope, a straight Sprint) that is exactly (rx, -ry, -rz) with the
+  // same translation; for a pose turned sideways (the Uzi, AK-47 and R9-0 sprints) (rx, -ry, -rz) would
+  // keep it pointing the same way (outward from the left hand), so the gun is also turned over, as
+  // WeaponMechanics' own lefthand sprints are (its Uzi's [0, 170, -15] is exactly this).
+  const RAD = Math.PI / 180
+  const m3 = (a, b) => a.map((row, i) => [0, 1, 2].map(j => row[0] * b[0][j] + row[1] * b[1][j] + row[2] * b[2][j]))
+  const rot = rr => {
+    const [a, b, c] = rr.map(v => v * RAD)
+    const X = [[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]]
+    const Y = [[Math.cos(b), 0, Math.sin(b)], [0, 1, 0], [-Math.sin(b), 0, Math.cos(b)]]
+    const Z = [[Math.cos(c), -Math.sin(c), 0], [Math.sin(c), Math.cos(c), 0], [0, 0, 1]]
+    return m3(m3(X, Y), Z) // JOML rotationXYZ
+  }
+  const sameRot = (p, q) => { const A = rot(p); const B = rot(q); return A.every((row, i) => row.every((v, j) => Math.abs(v - B[i][j]) < 1e-6)) }
+  // plain: always (rx, -ry, -rz) (an item with no front, like the Stim held upright).
+  const mirror = (t, plain = false) => {
+    const [x, y, z] = t.rotation || [0, 0, 0]
+    const rule = [norm(x), norm(-y), norm(-z)]
+    if (plain) return { ...t, rotation: rule }
+    // Wanted on screen: Mx · R · Mx · Ry(180) (Mx = the x mirror); stored = its XYZ angles with y, z negated.
+    const Mx = [[-1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    const L = m3(m3(m3(Mx, rot([x, y, z])), Mx), rot([0, 180, 0]))
+    const b = Math.asin(Math.max(-1, Math.min(1, L[0][2]))) / RAD
+    const a = Math.abs(Math.abs(L[0][2]) - 1) < 1e-9 ? Math.atan2(L[2][1], L[1][1]) / RAD : Math.atan2(-L[1][2], L[2][2]) / RAD
+    const c = Math.abs(Math.abs(L[0][2]) - 1) < 1e-9 ? 0 : Math.atan2(-L[0][1], L[0][0]) / RAD
+    const applied = [a, b, c]
+    const flipped = [a + 180, 180 - b, c + 180] // the same rotation, other angles
+    const pick = [applied, flipped].map(v => v.map(norm)).sort((p, q) => (Math.abs(p[0]) + Math.abs(p[2])) - (Math.abs(q[0]) + Math.abs(q[2])))[0]
+    const stored = [pick[0], norm(-pick[1]), norm(-pick[2])]
+    // What the client will apply for each candidate: (sx, -sy, -sz). Prefer the plain rule when it's the same.
+    return { ...t, rotation: sameRot([rule[0], -rule[1], -rule[2]], applied) ? rule : stored }
+  }
+  // both('firstperson', t) -> { firstperson_righthand: t, firstperson_lefthand: mirror(t) }
+  const both = (ctx, t, plain = false) => ({ [`${ctx}_righthand`]: t, [`${ctx}_lefthand`]: mirror(t, plain) })
+  // display({ firstperson, thirdperson, gui, ground, fixed, head }, plain): a whole display with both hands.
+  const display = (d, plain = false) => {
+    const out = {}
+    for (const [k, t] of Object.entries(d)) {
+      if (!t) continue
+      if (k === 'firstperson' || k === 'thirdperson') Object.assign(out, both(k, t, plain))
+      else out[k] = t
+    }
+    return out
+  }
+  // A state (Scope or Sprint): a child of the gun's model that only moves it in first person (both hands);
+  // third person, the ground and frames keep the parent's.
+  const state = (name, parent, firstperson, plain = false) => write(`donating/models/item/${name}.json`, {
+    parent: `donating:item/${parent}`,
+    display: both('firstperson', firstperson, plain)
+  })
+  // The aim (Scope) transform that puts the sight line on the crosshair (the first-person gun is drawn at a
+  // fixed 70° field of view, zooming doesn't scale it). The gun is built along x (muzzle toward -x) with its
+  // sight line at height sightY on z = 8; rearX = the rear sight's x; rearDepth = how far in front of the
+  // eye the rear sight sits (blocks). Screen centre: tx = -8.96, ty = 8.32 - Sy × (sightY - 8).
+  const aim = ({ sightY, rearX, rearDepth = 0.45, scale = [2, 3, 3] }) => ({
+    rotation: [0, -90, 0],
+    translation: [-8.96, round(8.32 - scale[1] * (sightY - 8)), round(16 * (0.72 - rearDepth - scale[0] * (rearX - 8) / 16))],
+    scale
+  })
+  const helpers = { solid, icon, iconOr3d, art, canvas, shade, write, rgba, r, bar, diag, K, STEEL, steel, edge, PAL, HELD, HANDHELD, both, mirror, display, state, aim }
+  const feather = []
+  for (const [id, numbers] of Object.entries(GUNS)) {
+    const got = require(path.join(__dirname, 'guns', `${id}.js`))({ ...helpers, id })
+    const keys = Object.keys(got).map(Number)
+    const missing = numbers.filter(n => !keys.includes(n))
+    const extra = keys.filter(n => !numbers.includes(n))
+    if (missing.length || extra.length) throw new Error(`tools\\guns\\${id}.js must return exactly ${numbers.join(', ')} (missing ${missing.join(', ') || '-'}, extra ${extra.join(', ') || '-'})`)
+    for (const n of numbers) feather.push({ threshold: n, model: typeof got[n] === 'string' ? { type: 'minecraft:model', model: got[n] } : got[n] })
+  }
+  // Every model the entries name must exist (and be ours), and so must its parents.
+  const modelFile = id => { const [ns, p] = id.split(':'); return path.join(PACK, ns, 'models', ...p.split('/')) + '.json' }
+  const checkModel = id => {
+    if (!id.startsWith('donating:')) throw new Error(`feather.json: ${id} isn't one of our models`)
+    if (!fs.existsSync(modelFile(id))) throw new Error(`feather.json: the model ${id} wasn't written`)
+    const j = JSON.parse(fs.readFileSync(modelFile(id), 'utf8'))
+    if (j.parent && j.parent.startsWith('donating:')) checkModel(j.parent)
+  }
+  const walkModels = m => {
+    if (!m || typeof m !== 'object') return
+    if (/(^|:)model$/.test(m.type)) checkModel(m.model)
+    for (const v of Object.values(m)) if (typeof v === 'object') Array.isArray(v) ? v.forEach(walkModels) : walkModels(v)
+  }
+  feather.forEach(e => walkModels(e.model))
+  feather.sort((a, b) => a.threshold - b.threshold)
+  write('minecraft/items/feather.json', {
+    // Every Scope or Sprint toggle rewrites the item: no re-equip dip (WeaponMechanics' file has it too).
+    hand_animation_on_swap: false,
+    model: {
+      type: 'minecraft:range_dispatch',
+      property: 'minecraft:custom_model_data',
+      index: 0,
+      entries: feather,
+      fallback: { type: 'minecraft:model', model: 'minecraft:item/feather' }
+    }
+  })
 }
 for (const [base, def] of Object.entries(itemCases)) {
   write(`minecraft/items/${base}.json`, {
@@ -1250,7 +1381,9 @@ for (const [base, def] of Object.entries(itemCases)) {
       { type: 'bitmap', file: 'donating:font/coin.png', ascent: 7, height: 8, chars: ['\ue001'] },
       { type: 'bitmap', file: 'donating:font/skull.png', ascent: 7, height: 8, chars: ['\ue002'] },
       { type: 'bitmap', file: 'donating:font/person.png', ascent: 7, height: 8, chars: ['\ue003'] },
-      { type: 'bitmap', file: 'donating:font/ping.png', ascent: 7, height: 8, chars: ['\ue004'] }
+      { type: 'bitmap', file: 'donating:font/ping.png', ascent: 7, height: 8, chars: ['\ue004'] },
+      // The phone menus' backgrounds and spaces (tools\make-phone-ui.js writes donating:phone_ui).
+      { type: 'reference', id: 'donating:phone_ui' }
     ]
   })
 }

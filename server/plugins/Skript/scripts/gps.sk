@@ -355,64 +355,327 @@ function gpsButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
 	set {-gps::act::%{_p}%::%{_slot}%} to {_act}
 
+# The GPS app (2026-09-29, owner: "a lot of the quests that require talking to an npc first can just be put in their own
+# category under GPS (categorize quests, heists, and shops)"): a phone app page (ui.sk). The main page shows where the GPS
+# is headed (click: remove the pin), what's on hold, and four categories; each category lists its places nearest first,
+# 20 a page. Quests: one entry per quest line (left-click: the GPS leads there, right-click: its menu), so the phone's
+# home no longer needs Contracts, Jobs and Hits. Slots: the toolbar row 0 (2 back, 4-6 the route, 5/6 page arrows on a
+# list), content rows 1-4 (columns 2-6), the home button 49 (the phone's home).
 function gpsMenu(p: player):
 	closePhoneMap({_p})
 	set {_u} to "%uuid of {_p}%"
-	set {_gui} to chest inventory with 5 rows named "&8GPS"
+	set {_gui} to chest inventory with 6 rows named phoneTitle("app", "GPS")
 	delete {-gps::act::%{_p}%::*}
-	set {_pane} to gray stained glass pane named "&r"
-	loop 45 times:
-		set slot (loop-number - 1) of {_gui} to {_pane}
+	set {-gps::view::%{_p}%} to "main"
+	gpsButton({_p}, {_gui}, 2, appIcon("back", "&f◀ Phone"), "phone")
 	set {_a} to gpsActive({_p})
 	set {_way} to gpsWay({_p})
-	if {_a} is "":
-		set slot 4 of {_gui} to compass named "&bGPS" with lore "&7No target. Drop a pin on the map," and "&7or pick a place below."
-	else if {_a} is "pin":
-		gpsButton({_p}, {_gui}, 4, compass named "&bHeading to: &f%{-gps::pinlabel::%{_u}%}%" with lore "&7%{_way}%" and "&eClick: remove the pin.", "clear")
+	if {_a} is "pin":
+		set {_i} to appIcon("pin", "&fHeading to &d%{-gps::pinlabel::%{_u}%}%")
+		set lore of {_i} to "&7%{_way}%" and "&7Click: remove"
+		gpsButton({_p}, {_gui}, 4, {_i}, "clear")
 	else if {_a} is "quest":
-		set slot 4 of {_gui} to compass named "&6Heading to: &f%{-gps::questlabel::%{_u}%}%" with lore "&7%{_way}%" and "&7Your job's target."
-	else:
-		set slot 4 of {_gui} to compass named "&aHeading to: &fthe base" with lore "&7%{_way}%" and "&7You carry loot: sell it there."
+		set {_i} to appIcon("pin", "&fHeading to &6%{-gps::questlabel::%{_u}%}%")
+		set lore of {_i} to "&7%{_way}%"
+		set slot 4 of {_gui} to {_i}
+	else if {_a} is "loot":
+		set {_i} to appIcon("base", "&fHeading to &athe base")
+		set lore of {_i} to "&7%{_way}%"
+		set slot 4 of {_gui} to {_i}
 	# The one on hold: click to switch back to it.
 	if {-gps::pin::%{_u}%} is set:
 		if {_a} is not "pin":
-			gpsButton({_p}, {_gui}, 2, red dye named "&dYour pin: &f%{-gps::pinlabel::%{_u}%}%" with lore "&7On hold." and "&eClick: head there." and "&eRight-click: remove it.", "active:pin")
+			set {_i} to appIcon("pin", "&7On hold: &d%{-gps::pinlabel::%{_u}%}%")
+			set lore of {_i} to "&7Right-click: remove"
+			gpsButton({_p}, {_gui}, 5, {_i}, "active:pin")
 	if {-gps::quest::%{_u}%} is set:
 		if {_a} is not "quest":
-			gpsButton({_p}, {_gui}, 6, orange dye named "&6Your job: &f%{-gps::questlabel::%{_u}%}%" with lore "&7On hold." and "&eClick: head there.", "active:quest")
-	set {_slot} to 18
-	loop gpsPlaces({_p}):
-		{_slot} <= 35
-		set {_a::*} to loop-value split at "|"
-		set {_icon} to paper
-		if {_a::6} is "base":
-			set {_icon} to chest
-		else if {_a::6} is "shop":
-			set {_icon} to emerald
-		else if {_a::6} is "spawn":
-			set {_icon} to white bed
-		else if {_a::6} is "heist":
-			set {_icon} to gold ingot
-		else if {_a::6} is "car":
-			set {_icon} to minecart
-		else if {_a::6} is "garage":
-			set {_icon} to minecart
-		else if {_a::6} is "quest":
-			set {_icon} to flint
-		set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))
-		set {_where} to ""
-		if world of {_l} is world of {_p}:
-			set {_where} to "%round(distance between (location of {_p}) and {_l})%m away"
-		gpsButton({_p}, {_gui}, {_slot}, {_icon} named "&f%{_a::5}%" with lore "&7%{_where}%" and "&eClick: pin it.", "place:%loop-value%")
-		add 1 to {_slot}
-	set slot 40 of {_gui} to book named "&fDrop a pin anywhere" with lore "&7Right-click the phone for the big map," and "&7aim with your head, left-click." and "&7Left-click the pin again to remove it." and "&7The GPS follows the roads and finds" and "&7a new way if you take another street."
-	# The GPS is a phone app's main page: "◀ Phone" (phone.sk's Back buttons), however it was opened.
-	gpsButton({_p}, {_gui}, 36, phoneBackItem(), "phone")
-	gpsButton({_p}, {_gui}, 44, barrier named "&cClose", "close")
+			gpsButton({_p}, {_gui}, 6, appIcon("quests", "&7On hold: &6%{-gps::questlabel::%{_u}%}%"), "active:quest")
+	set {_i} to appIcon("quests", "&fQuests")
+	set {_m} to {-ph::mission::%{_p}%}
+	if {_m} is set:
+		if "%{_m}%" is not "&r":
+			if "%{_m}%" is not "":
+				set lore of {_i} to colored "%{_m}%"
+	gpsButton({_p}, {_gui}, 11, {_i}, "cat:quests:1")
+	set {_open} to 0
+	loop {heists::*}:
+		if heistState(loop-index) is "open" or "active":
+			add 1 to {_open}
+	set {_i} to appIcon("heists", "&fHeists")
+	if {_open} > 0:
+		set lore of {_i} to "&a%{_open}% open"
+	gpsButton({_p}, {_gui}, 12, {_i}, "cat:heists:1")
+	gpsButton({_p}, {_gui}, 13, appIcon("shops", "&fShops"), "cat:shops:1")
+	gpsButton({_p}, {_gui}, 14, appIcon("places", "&fPlaces"), "cat:places:1")
+	# Your car, when one is out.
+	set {_plate} to {car::outof::%{_u}%}
+	if {_plate} is set:
+		set {_l} to {car::out::%{_plate}%}
+		if {_l} is set:
+			set {_cn} to carName(carModelOf("%{_plate}%"))
+			set {_i} to appIcon("car", "&fYour %{_cn}%")
+			set lore of {_i} to "&7%gpsDist({_p}, {_l})%"
+			gpsButton({_p}, {_gui}, 15, {_i}, "car")
+	gpsButton({_p}, {_gui}, 49, appIcon("blank", "&fHome"), "phone")
+	gpsOpen({_p}, {_gui})
+
+function gpsOpen(p: player, gui: inventory):
 	set {-gps::gui::%{_p}%} to {_gui}
 	if {-gps::gen::%{_p}%} is not set:
 		set {-gps::gen::%{_p}%} to 0
 	open {_gui} to {_p}
+
+# "320m" (or "far" in another world).
+function gpsDist(p: player, l: location) :: text:
+	if world of {_l} is world of {_p}:
+		return "%round(distance between (location of {_p}) and {_l})%m"
+	return "far"
+
+# A category's entries as "icon|name|lore;;lore|act|world|x|y|z" (the last four for sorting by distance; quests keep
+# their order).
+function gpsEntries(p: player, cat: text) :: texts:
+	set {_u} to "%uuid of {_p}%"
+	if {_cat} is "quests":
+		# Mara's missions.
+		set {_line} to storyLine({_p}, "story")
+		if storyIdOf({_p}, "story") is "done":
+			set {_line} to "&7Story done"
+		add "head:mara|&fMissions|%{_line}%;;%gpsGiverText({_p}, "story")%;;&eClick: GPS · Right-click: open|q:story" to {_out::*}
+		# Car contracts.
+		set {_st} to ""
+		if {-ctjob::%{_u}%} is set:
+			set {_st} to "&eYour job: %formatClock(ctLeft({_u}))% left"
+		add "head:boss|&fCar contracts|%{_st}%;;%gpsGiverText({_p}, "contracts")%;;&eClick: GPS · Right-click: open|q:contracts" to {_out::*}
+		# Side jobs (Mara's and the Boss's boards).
+		set {_w} to 0
+		set {_t} to 0
+		loop {-cfg::jobs::contacts::*}:
+			set {_c} to loop-value
+			if jobsUnlocked({_p}, {_c}) is true:
+				loop jobsSlots({_p}, {_c}) times:
+					set {_k} to loop-value-2
+					set {_s} to jobsState({_p}, {_c}, {_k})
+					if {_s} is "waiting":
+						add 1 to {_w}
+					else if {_s} is "taken":
+						add 1 to {_t}
+		set {_st} to "&7Nothing waiting"
+		if {_w} + {_t} > 0:
+			set {_st} to "&f%{_w}% waiting · %{_t}% taken"
+		add "quests|&fSide jobs|%{_st}%;;&eClick: GPS · Right-click: open|q:jobs" to {_out::*}
+		# Vic's Wanted List.
+		set {_st} to "&7New list in %fenceLeftText(fenceWeekLeft())%"
+		if levelOf({_p}) < cfg("fence::level"):
+			set {_st} to "&7Level %cfg("fence::level")%"
+		else if getData({_p}, "fence::took") is progWeek():
+			set {_st} to "&aThis week's list ✔ &7· new in %fenceLeftText(fenceWeekLeft())%"
+		add "head:vic|&fWanted List|%{_st}%;;%gpsGiverText({_p}, "fence")%;;&eClick: GPS · Right-click: open|q:vic" to {_out::*}
+		# Hit contracts.
+		set {_tier} to hitTierOf({_p})
+		if {_tier} is "":
+			set {_st} to "&f%hitTargetName()%"
+		else:
+			set {_st} to "&f%hitTargetName()% &7· %hitWindowText({_tier})%"
+		add "head:broker|&fHit contracts|%{_st}%;;%gpsGiverText({_p}, "hits")%;;&eClick: GPS · Right-click: open|q:hits" to {_out::*}
+		# Bounties (posted with the Broker).
+		set {_st} to ""
+		set {_b} to getData({_p}, "bounty")
+		if {_b} is set:
+			if {_b} > 0:
+				set {_st} to "&7Yours: &c%formatMoney({_b})%"
+		add "bounties|&fBounties|%{_st}%;;%gpsGiverText({_p}, "hits")%;;&eRight-click: the list|q:bounties" to {_out::*}
+		return {_out::*}
+	if {_cat} is "heists":
+		loop {heists::*}:
+			set {_h} to loop-index
+			if heistState({_h}) is not "disabled":
+				set {_l} to {heist::%{_h}%::exit}
+				if {_l} is not set:
+					set {_l} to {heist::%{_h}%::holo}
+				if {_l} is set:
+					set {_lore} to "%{-heist::%{_h}%::status}%"
+					if heistLevelOk({_p}, {_h}) is false:
+						if heistIsStore({_h}) is true:
+							set {_lore} to "%{_lore}%;;&cUp to level %heistMaxLevel({_h})%"
+						else:
+							set {_lore} to "%{_lore}%;;&cLevel %heistLevel({_h})%"
+					set {_lore} to "%{_lore}%;;&7%gpsDist({_p}, {_l})%"
+					add "heist_%heistDifficulty({_h})%|&f%heistName({_h})%|%{_lore}%|pin|%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%" to {_out::*}
+		return {_out::*}
+	if {_cat} is "shops":
+		# The nearest shopkeeper of each kind, then shop POIs with no shopkeeper next to them.
+		loop "gun", "gear", "bag", "tools" and "cars":
+			set {_k} to loop-value
+			delete {_best}
+			loop {shop::keepers::*}:
+				if loop-value-2 is {_k}:
+					set {_kl} to {shop::keeper::%loop-index%::loc}
+					if {_kl} is set:
+						if world of {_kl} is world of {_p}:
+							if {_best} is not set:
+								set {_best} to {_kl}
+							else if distance between {_kl} and location of {_p} < distance between {_best} and location of {_p}:
+								set {_best} to {_kl}
+			if {_best} is set:
+				set {_title} to cfg("shop::title::%{_k}%")
+				add "shop_%{_k}%|&f%{_title}%|&7%gpsDist({_p}, {_best})%|pin|%world of {_best}%|%x-coordinate of {_best}%|%y-coordinate of {_best}%|%z-coordinate of {_best}%" to {_out::*}
+		loop {poi::*}:
+			set {_a::*} to loop-value split at "|"
+			if {_a::1} is "shop":
+				set {_l} to poiLocation(loop-value)
+				if {_l} is set:
+					set {_near} to false
+					loop {shop::keepers::*}:
+						set {_kl} to {shop::keeper::%loop-index-2%::loc}
+						if {_kl} is set:
+							if world of {_kl} is world of {_l}:
+								if distance between {_kl} and {_l} < 16:
+									set {_near} to true
+					if {_near} is false:
+						set {_n} to gpsPoiName(loop-value, loop-index)
+						add "%gpsShopIcon({_n})%|&f%{_n}%|&7%gpsDist({_p}, {_l})%|pin|%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%" to {_out::*}
+		return {_out::*}
+	# Places: base, garages, spawn, landmarks, crate stands (the nearest of each crate).
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is not "shop":
+			set {_l} to poiLocation(loop-value)
+			if {_l} is set:
+				set {_icon} to {_a::1}
+				if {_icon} is "garage":
+					set {_icon} to "garagepl"
+				add "%{_icon}%|&f%gpsPoiName(loop-value, loop-index)%|&7%gpsDist({_p}, {_l})%|pin|%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%" to {_out::*}
+	loop {-cfg::crates::*}:
+		set {_c} to loop-value
+		delete {_best}
+		loop {crateblock::*}:
+			if loop-value-2 is {_c}:
+				set {_sl} to setupStandLoc(loop-index-2)
+				if {_sl} is set:
+					if world of {_sl} is world of {_p}:
+						if {_best} is not set:
+							set {_best} to {_sl}
+						else if distance between {_sl} and location of {_p} < distance between {_best} and location of {_p}:
+							set {_best} to {_sl}
+		if {_best} is set:
+			add "crate|&f%crateName({_c})% crate|&7%gpsDist({_p}, {_best})%|pin|%world of {_best}%|%x-coordinate of {_best}%|%y-coordinate of {_best}%|%z-coordinate of {_best}%" to {_out::*}
+	return {_out::*}
+
+# A POI's name ("Gun Shop"), or its type and number.
+function gpsPoiName(v: text, n: text) :: text:
+	set {_a::*} to {_v} split at "|"
+	set {_nm} to "%{_a::6}%"
+	if {_a::6} is not set:
+		set {_nm} to ""
+	if {_nm} starts with " ":
+		set {_nm} to subtext of {_nm} from characters 2 to (length of {_nm})
+	if {_nm} is "":
+		return "%{_a::1}% %{_n}%"
+	return {_nm}
+
+# A shop POI's icon by a word in its name.
+function gpsShopIcon(n: text) :: text:
+	loop "gun", "gear", "bag", "tool" and "car":
+		if {_n} contains loop-value:
+			if loop-value is "tool":
+				return "shop_tools"
+			if loop-value is "car":
+				return "shop_cars"
+			return "shop_%loop-value%"
+	return "shop_other"
+
+# Where a quest's giver is ("Scrap Yard · 140m"), or that there's none yet.
+function gpsGiverText(p: player, kind: text) :: text:
+	set {_n} to questNearest({_p}, {_kind})
+	if {_n} is "":
+		return "&7Not in town yet"
+	# The NPC's name, and its place unless the name says it ("Scrap Yard Boss · 140m", "Mara · Safehouse · 90m").
+	set {_nm} to questNpcName({_n})
+	set {_pl} to questPlace({_n})
+	if {_nm} contains {_pl}:
+		return "&7%{_nm}% · %gpsDist({_p}, questLoc({_n}))%"
+	return "&7%{_nm}% · %{_pl}% · %gpsDist({_p}, questLoc({_n}))%"
+
+function gpsCat(p: player, cat: text, page: number):
+	closePhoneMap({_p})
+	set {_title} to "Quests"
+	if {_cat} is "heists":
+		set {_title} to "Heists"
+	else if {_cat} is "shops":
+		set {_title} to "Shops"
+	else if {_cat} is "places":
+		set {_title} to "Places"
+	set {_gui} to chest inventory with 6 rows named phoneTitle("app", "GPS · %{_title}%")
+	delete {-gps::act::%{_p}%::*}
+	set {-gps::view::%{_p}%} to "%{_cat}%:%{_page}%"
+	gpsButton({_p}, {_gui}, 2, appIcon("back", "&f◀ GPS"), "main")
+	# Nearest first (quests keep their order).
+	set {_e::*} to gpsEntries({_p}, {_cat})
+	set {_n} to 0
+	if {_cat} is "quests":
+		loop {_e::*}:
+			add 1 to {_n}
+			set {_s::%{_n}%} to loop-value
+	else:
+		loop {_e::*}:
+			set {_a::*} to loop-value split at "|"
+			set {_d} to 1000000000
+			if {_a::5} is "%world of {_p}%":
+				set {_d} to distance between (location of {_p}) and location(({_a::6} parsed as number), ({_a::7} parsed as number), ({_a::8} parsed as number), world of {_p})
+			set {_dist::%loop-index%} to {_d}
+		loop sorted indices of {_dist::*} in ascending order:
+			add 1 to {_n}
+			set {_s::%{_n}%} to {_e::%loop-value%}
+	set {_pages} to max(1, ceil({_n} / 20))
+	if {_page} > {_pages}:
+		set {_page} to {_pages}
+	if {_page} > 1:
+		gpsButton({_p}, {_gui}, 5, appIcon("prev", "&fPage %{_page} - 1%"), "cat:%{_cat}%:%{_page} - 1%")
+	if {_page} < {_pages}:
+		gpsButton({_p}, {_gui}, 6, appIcon("next", "&fPage %{_page} + 1%"), "cat:%{_cat}%:%{_page} + 1%")
+	set {_slots::*} to 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33, 38, 39, 40, 41 and 42
+	set {_first} to ({_page} - 1) * 20
+	loop 20 times:
+		set {_k} to {_first} + loop-number
+		if {_s::%{_k}%} is set:
+			set {_a::*} to {_s::%{_k}%} split at "|"
+			if {_a::1} starts with "head:":
+				set {_i} to msgIcon(subtext of {_a::1} from characters 6 to (length of {_a::1}))
+				set name of {_i} to colored {_a::2}
+			else:
+				set {_i} to appIcon({_a::1}, {_a::2})
+			delete {_lore::*}
+			loop {_a::3} split at ";;":
+				if loop-value-2 is not "":
+					add colored loop-value-2 to {_lore::*}
+			if {_lore::*} is set:
+				set lore of {_i} to {_lore::*}
+			set {_act} to {_a::4}
+			if {_act} is "pin":
+				set {_act} to "place:%{_a::5}%|%{_a::6}%|%{_a::7}%|%{_a::8}%|%uncolored {_a::2}%"
+				# The place the pin is on now glints.
+				if gpsPinnedAt({_p}, {_a::5}, ({_a::6} parsed as number), ({_a::8} parsed as number)) is true:
+					set {_i} to glint({_i})
+			gpsButton({_p}, {_gui}, {_slots::%loop-number%}, {_i}, {_act})
+	if {_n} is 0:
+		set slot 22 of {_gui} to phoneEmptyIcon("Nothing here yet")
+	gpsButton({_p}, {_gui}, 49, appIcon("blank", "&fHome"), "phone")
+	gpsOpen({_p}, {_gui})
+
+# Is the player's pin at that spot (within 2 blocks)?
+function gpsPinnedAt(p: player, w: text, x: number, z: number) :: boolean:
+	set {_pin} to {-gps::pin::%uuid of {_p}%}
+	if {_pin} is not set:
+		return false
+	if "%world of {_pin}%" is not {_w}:
+		return false
+	set {_px} to x-coordinate of {_pin}
+	set {_pz} to z-coordinate of {_pin}
+	if abs({_px} - {_x}) <= 2:
+		if abs({_pz} - {_z}) <= 2:
+			return true
+	return false
 
 on inventory click:
 	{-gps::gui::%player%} is set
@@ -455,6 +718,11 @@ function gpsAction(p: player, act: text, right: boolean):
 	else if {_act} is "phone":
 		# Opening the phone closes this menu; the close handler only forgets the menu, nothing is lost.
 		openPhone({_p})
+	else if {_act} is "main":
+		gpsMenu({_p})
+	else if {_act} starts with "cat:":
+		set {_a::*} to {_act} split at ":"
+		gpsCat({_p}, {_a::2}, ({_a::3} parsed as number))
 	else if {_act} is "clear":
 		close {_p}'s inventory
 		gpsUnpin({_p}, "removed")
@@ -469,11 +737,86 @@ function gpsAction(p: player, act: text, right: boolean):
 		close {_p}'s inventory
 		set {-gps::active::%{_u}%} to "quest"
 		gpsPush({_p})
+	else if {_act} is "car":
+		close {_p}'s inventory
+		set {_plate} to {car::outof::%{_u}%}
+		if {_plate} is set:
+			garageFindCar({_p}, "%{_plate}%")
+	else if {_act} starts with "q:":
+		gpsQuestAction({_p}, subtext of {_act} from characters 3 to (length of {_act}), {_right})
 	else if {_act} starts with "place:":
 		close {_p}'s inventory
 		set {_a::*} to (subtext of {_act} from characters 7 to (length of {_act})) split at "|"
 		set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), world({_a::1}))
-		gpsPin({_p}, {_l}, {_a::5})
+		# The place already pinned: a second click removes it.
+		if gpsPinnedAt({_p}, {_a::1}, ({_a::2} parsed as number), ({_a::4} parsed as number)) is true:
+			gpsUnpin({_p}, "removed")
+		else:
+			gpsPin({_p}, {_l}, {_a::5})
+
+# A quest entry: right-click opens its menu (their back button leads here); left-click puts it on the GPS: the running
+# objective when there is one, else the nearest giver.
+function gpsQuestAction(p: player, q: text, right: boolean):
+	set {_u} to "%uuid of {_p}%"
+	if {_right} is true:
+		if {_q} is "story":
+			storyMenu({_p})
+		else if {_q} is "contracts":
+			ctMenu({_p})
+		else if {_q} is "jobs" or "vic":
+			jobsMenu({_p})
+		else if {_q} is "hits":
+			hitMenu({_p})
+		else if {_q} is "bounties":
+			bountyPage({_p})
+		stop
+	close {_p}'s inventory
+	if {_q} is "story":
+		if storyGpsSpots({_p}, storyIdOf({_p}, "story")) is not "":
+			storyTrack({_p}, "story")
+		else:
+			questFind({_p}, "story")
+	else if {_q} is "contracts":
+		if {-ctjob::%{_u}%} is set:
+			set {-gps::active::%{_u}%} to "quest"
+			gpsPush({_p})
+			hudBar({_p}, "&6The GPS shows your car job.", 1)
+		else:
+			questFind({_p}, "contracts")
+	else if {_q} is "jobs":
+		set {_done} to false
+		loop {-cfg::jobs::contacts::*}:
+			set {_c} to loop-value
+			if {_done} is false:
+				loop jobsSlots({_p}, {_c}) times:
+					if {_done} is false:
+						set {_k} to loop-value-2
+						if jobsState({_p}, {_c}, {_k}) is "taken":
+							jobsTrack({_p}, {_c}, {_k})
+							set {_done} to true
+		if {_done} is false:
+			loop {-cfg::jobs::contacts::*}:
+				set {_c} to loop-value
+				if {_done} is false:
+					if jobsUnlocked({_p}, {_c}) is true:
+						questFind({_p}, jobsGiver({_c}))
+						set {_done} to true
+		if {_done} is false:
+			hudBar({_p}, "&7No side jobs yet.", 1)
+	else if {_q} is "vic":
+		if storyLive(storyIdOf({_p}, "vic")) is true:
+			storyTrack({_p}, "vic")
+		else:
+			questFind({_p}, "fence")
+	else if {_q} is "hits":
+		if {-gps::questby::%{_u}%} is "hit":
+			set {-gps::active::%{_u}%} to "quest"
+			gpsPush({_p})
+			hudBar({_p}, "&cThe GPS shows the search area.", 1)
+		else:
+			questFind({_p}, "hits")
+	else if {_q} is "bounties":
+		questFind({_p}, "hits")
 
 command /gps [<text>]:
 	description: The GPS: pin a place, or see where you're headed.
@@ -481,5 +824,8 @@ command /gps [<text>]:
 	trigger:
 		if arg-1 is "clear" or "off":
 			gpsUnpin(player, "removed")
+			stop
+		if arg-1 is "quests" or "heists" or "shops" or "places":
+			gpsCat(player, arg-1, 1)
 			stop
 		gpsMenu(player)

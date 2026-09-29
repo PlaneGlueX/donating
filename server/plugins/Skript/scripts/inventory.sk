@@ -69,7 +69,7 @@ function bagItem(tier: number, loot: number = 0, skin: text = "", capacity: numb
 		set {_pct} to min(99, floor(100 * {_loot} / {_capacity}))
 		if {_loot} >= {_capacity}:
 			set {_pct} to 100
-	set {_i} to leather named "&6%{_name}% &7(%{_pct}%%%)" with lore "&7Loot: &f%formatMoney({_loot})% &7/ %formatMoney({_capacity})%" and "&7Sells automatically at the base"
+	set {_i} to leather named "&6%{_name}% &7(%{_pct}%%%)" with lore "&7Loot: &f%formatMoney({_loot})% &7/ %formatMoney({_capacity})%"
 	if {_pct} >= 100:
 		set {_i} to glint({_i})
 	# The pack draws it as this tier's duffel (an icon in inventories, a 3D bag in the offhand), or as the
@@ -88,7 +88,7 @@ function handsItem(loot: number, capacity: number) :: item:
 		set {_pct} to min(99, floor(100 * {_loot} / {_capacity}))
 		if {_loot} >= {_capacity}:
 			set {_pct} to 100
-	set {_i} to paper named "&aCash in hand &7(%{_pct}%%%)" with lore "&7Loot: &f%formatMoney({_loot})% &7/ %formatMoney({_capacity})%" and "&7Sells automatically at the base" and "&7A bag holds more (bag shop)"
+	set {_i} to paper named "&aCash in hand &7(%{_pct}%%%)" with lore "&7Loot: &f%formatMoney({_loot})% &7/ %formatMoney({_capacity})%"
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:loot_cash"
 	return tagItem({_i}, "hands")
 

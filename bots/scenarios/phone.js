@@ -1,7 +1,8 @@
-// phone.sk + pvp.sk: F (swap-hand key) with the phone opens the apps menu; right-click toggles the big
-// map instead (phone-map.js checks the map itself). Nothing in the menu can be taken (not even with
-// the inventory bypass), the stats show the player's numbers, the passive button follows pvp.sk's
-// rules (switch cooldown, no going passive with a bounty), and right-clicking an entity or a block
+// phone.sk + pvp.sk: F (swap-hand key) with the phone opens the home screen (6 rows drawn as a phone, ui.sk; the
+// apps are one dye, told apart by their names); right-click toggles the big map instead (phone-map.js checks the
+// map itself). Nothing in the menu can be taken (not even with the inventory bypass), your head shows the player's
+// numbers, the passive switch follows pvp.sk's rules (switch cooldown, no going passive with a bounty), and
+// right-clicking an entity or a block
 // with the phone behaves (entities keep working; a usable block isn't used and doesn't toggle the map, a quiet
 // hint says to put the phone away).
 // Runs on its own glass platform in the sky and removes everything it placed.
@@ -10,7 +11,11 @@ const { join, sleep, messagesSince, quit } = require('../lib')
 const rconLib = require('../rcon')
 
 const NAME = 'PhoneBot'
-const PHONE_SLOT = 62 // hotbar 9 in a 3-row chest window (0-26 menu, 27-53 upper inventory, 54-62 hotbar)
+const PHONE_SLOT = 89 // hotbar 9 in a 6-row chest window (0-53 menu, 54-80 upper inventory, 81-89 hotbar)
+// The home screen's apps (phone.sk openPhone).
+const APPS = { 2: 'Crates', 3: 'Cosmetics', 4: 'Season', 5: 'Bounties', 11: 'Passive: off', 12: 'How to play', 38: 'Messages', 39: 'GPS', 40: 'Missions', 41: 'Garage', 42: 'Bag', 49: 'Close' }
+const STATS = 6 // your head
+const PASSIVE = 11
 const Y = 200
 const PLATFORM = `520 ${Y - 1} 520 528 ${Y - 1} 528`
 const CHUNKS = '520 520 528 528'
@@ -28,6 +33,34 @@ module.exports = async ({ check }) => {
     const data = async key => ((await rcon.cmd(`zzdata ${NAME} ${key}`)).match(/= (.*)$/m) || [])[1]
     const text = t => messagesSince(bot, t).map(m => m.text).join(' | ')
     const loreText = item => ((item && item.customLore) || []).map(l => ChatMessage.fromNotch(l).toString()).join(' / ')
+    // Item names from the NBT components (the apps are all the same dye).
+    const nbtText = nbt => {
+      const out = []
+      const walk = v => {
+        if (!v || typeof v !== 'object') return
+        if (v.text && v.text.type === 'string') out.push(v.text.value)
+        for (const k of Object.keys(v)) if (k !== 'text') walk(v[k])
+      }
+      walk(nbt)
+      return out.join('')
+    }
+    const itemName = i => { const c = i && i.components ? i.components.find(x => x.type === 'custom_name') : null; return c ? nbtText(c.data) : '' }
+    const nameAt = (win, n) => (win && win.slots[n] ? itemName(win.slots[n]) : '')
+    // The home screen: GPS in the dock and the home button (Close) at 49 (its title is only the clock).
+    const isHome = win => Boolean(win && nameAt(win, 39) === 'GPS' && nameAt(win, 49) === 'Close')
+    // A window's title as text (phone pages start with private-use glyphs: match their ends).
+    const winTitle = win => (win ? (typeof win.title === 'string' ? win.title : nbtText(win.title)) : '')
+    // Clicks a slot of the open menu and resolves with the window it opens (or null).
+    const clickOpens = async (slot, mouse = 0) => {
+      const opened = new Promise(resolve => {
+        const timer = setTimeout(() => resolve(null), 3000)
+        bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) })
+      })
+      bot.clickWindow(slot, mouse, 0).catch(() => {})
+      const w2 = await opened
+      await sleep(400)
+      return w2
+    }
 
     // F key (swap hands): the player-action packet a real client sends.
     const pressF = () => bot._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
@@ -75,33 +108,35 @@ module.exports = async ({ check }) => {
     check('...it opens the big map instead', / open=true/.test(await phone()), await phone())
     if (w) bot.closeWindow(w)
     w = await openMenu()
-    check('F with the phone opens the apps menu', w && JSON.stringify(w.title).includes('Phone'), w ? 'Phone menu' : 'no window')
+    check('F with the phone opens the home screen', isHome(w), w ? `${nameAt(w, 39)} ${nameAt(w, 49)}` : 'no window')
     check('...and closes the big map', / open=false/.test(await phone()), await phone())
     if (!w) return
-    const at = s => (w.slots[s] ? w.slots[s].name : 'empty')
-    const layout = [11, 13, 15, 21, 23, 26].map(s => `${s}=${at(s)}`).join(' ')
-    check('menu buttons are in place', layout === '11=player_head 13=gray_dye 15=minecart 21=skeleton_skull 23=book 26=barrier', layout)
-    const stats = loreText(w.slots[11])
-    check('stats show the real numbers', /Balance: \$[\d,]+/.test(stats) && /Bounty: \$0/.test(stats) && /Passive mode: off/.test(stats) && /Bag: none \(your hands carry \$1,000\)/.test(stats), stats)
+    const layout = Object.keys(APPS).map(s => `${s}=${nameAt(w, Number(s))}`).join(' ')
+    const want = Object.entries(APPS).map(([s, n]) => `${s}=${n}`).join(' ')
+    check('the apps are in place (Crates, Cosmetics, Season, Bounties, you; Passive, How to play; the dock: Messages, GPS, Missions, Garage, Bag; Close)', layout === want && w.slots[STATS] && w.slots[STATS].name === 'player_head' && nameAt(w, STATS) === NAME, `${layout} | ${STATS}=${w.slots[STATS] && w.slots[STATS].name} "${nameAt(w, STATS)}"`)
+    const gone = w.slots.slice(0, 54).map(itemName).filter(n => /Contracts|Jobs|Hits/.test(n))
+    check('...and no Contracts, Jobs or Hits apps (they\'re on the GPS\'s Quests page)', gone.length === 0, gone.join(', '))
+    const stats = loreText(w.slots[STATS])
+    check('your head shows the real numbers', /Balance: \$[\d,]+/.test(stats) && /Bounty: \$0/.test(stats) && /Bag: none \(hands: \$1,000\)/.test(stats) && /Level: /.test(stats), stats)
 
     // ---------- Nothing can be taken ----------
     const before = await dump()
-    const menuBefore = JSON.stringify(w.slots.slice(0, 27).map(i => i && i.name))
+    const menuBefore = JSON.stringify(w.slots.slice(0, 54).map(i => i && i.name))
     const unchanged = async label => {
       const after = await dump()
-      const menuNow = JSON.stringify((bot.currentWindow ? bot.currentWindow.slots : []).slice(0, 27).map(i => i && i.name))
+      const menuNow = JSON.stringify((bot.currentWindow ? bot.currentWindow.slots : []).slice(0, 54).map(i => i && i.name))
       check(label, after === before && menuNow === menuBefore, after === before ? `menu ${menuNow}` : after)
     }
-    await click(11, 0, 0)
-    await unchanged('clicking the stats head takes nothing')
-    await click(1, 0, 0) // slot 0 is Messages (messages.sk)
-    await unchanged('clicking a glass pane takes nothing')
-    await click(11, 0, 1)
-    await unchanged('shift-clicking the stats head takes nothing')
+    await click(STATS, 0, 0)
+    await unchanged('clicking your head takes nothing')
+    await click(0, 0, 0)
+    await unchanged('clicking an empty slot takes nothing')
+    await click(STATS, 0, 1)
+    await unchanged('shift-clicking your head takes nothing')
     await click(PHONE_SLOT, 0, 1)
     await unchanged('shift-clicking the phone into the menu moves nothing')
-    await click(11, 1, 2) // on the stats head: a button would run and close the menu
-    await unchanged('number key on the stats head moves nothing')
+    await click(STATS, 1, 2) // on your head: a button would run and close the menu
+    await unchanged('number key on your head moves nothing')
     await rcon.cmd(`lp user ${NAME} permission set donating.inventory.bypass true`)
     let perm = ''
     for (let i = 0; i < 10 && !/: true/.test(perm); i++) {
@@ -109,43 +144,59 @@ module.exports = async ({ check }) => {
       perm = await rcon.cmd(`zzperm ${NAME} donating.inventory.bypass`)
     }
     check('bypass is active for the next checks', /: true/.test(perm), perm.trim())
-    await click(11, 0, 0)
+    await click(STATS, 0, 0)
     await unchanged('with the inventory bypass, clicking still takes nothing')
-    await click(11, 0, 1)
+    await click(STATS, 0, 1)
     await unchanged('with the inventory bypass, shift-clicking still takes nothing')
+    await click(PHONE_SLOT, 0, 1)
+    await unchanged('with the inventory bypass, shift-clicking the phone into the menu still moves nothing')
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`)
     await sleep(1500)
 
-    // ---------- Placeholder buttons ----------
+    // ---------- Apps ----------
     let t = Date.now()
     const garageOpen = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) }) })
-    await click(15, 0, 0)
+    await click(41, 0, 0)
     const gw = await garageOpen
-    check('the Garage app opens your garage (garage.sk)', gw && /Your garage/.test(JSON.stringify(gw.title)), JSON.stringify(gw && gw.title))
+    check('the Garage app opens your garage (garage.sk)', gw && /Garage/.test(JSON.stringify(gw.title)), JSON.stringify(gw && gw.title))
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+    w = await openMenu()
+    const gpsOpen = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) }) })
+    await click(39, 0, 0)
+    const gpw = await gpsOpen
+    check('the GPS app opens the GPS (gps.sk: Quests, Heists, Shops, Places)', gpw && ['Quests', 'Heists', 'Shops', 'Places'].every((n, k) => nameAt(gpw, 11 + k) === n), gpw ? [11, 12, 13, 14].map(n => nameAt(gpw, n)).join(',') : 'no window')
     if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
     let closing
+    // The Bounties app: a phone page (bounty.sk bountyPage): "◀ Phone" at 2, your bounty at 4, "Post one" at 6, and
+    // every online player with a bounty as a head with "$X" (this bot, with a bounty for the check).
+    await rcon.cmd(`zzdata ${NAME} bounty 700`)
     w = await openMenu()
-    t = Date.now()
-    closing = closed()
-    await click(21, 0, 0)
-    check('bounties button closes the menu and lists bounties', (await closing) && /Bounties \(players online\)/.test(text(t)) && /Place one: \/bounty/.test(text(t)), text(t))
+    const bw = await clickOpens(5)
+    const bountyHeads = []
+    for (const s of [11, 12, 13, 14, 15, 20, 21, 22, 23, 24]) if (bw && bw.slots[s] && bw.slots[s].name === 'player_head') bountyHeads.push(`${nameAt(bw, s)} ${loreText(bw.slots[s])}`)
+    check('the Bounties app opens the Bounties page ("◀ Phone" at 2, yours at 4, "Post one" at 6)', /Bounties$/.test(winTitle(bw)) && nameAt(bw, 2) === '◀ Phone' && /\$700/.test(loreText(bw && bw.slots[4])) && nameAt(bw, 6) === 'Post one', `"${winTitle(bw)}" 2=${nameAt(bw, 2)} 4=${loreText(bw && bw.slots[4])} 6=${nameAt(bw, 6)}`)
+    check('...listing online players with a bounty as heads with "$X"', bountyHeads.some(h => h.startsWith(`${NAME} `) && /\$700/.test(h)), bountyHeads.join(' | '))
+    w = await clickOpens(2)
+    check('...and "◀ Phone" there opens the phone', isHome(w), w ? `${nameAt(w, 39)} ${nameAt(w, 49)}` : 'no window')
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+    await rcon.cmd(`zzdata ${NAME} bounty none`)
 
-    // ---------- Passive button ----------
+    // ---------- Passive switch ----------
     w = await openMenu()
     t = Date.now()
     closing = closed()
     // Two clicks in a row (spam): only the first may run.
-    bot.clickWindow(13, 0, 0).catch(() => {})
-    bot.clickWindow(13, 0, 0).catch(() => {})
-    check('passive button closes the menu', await closing)
+    bot.clickWindow(PASSIVE, 0, 0).catch(() => {})
+    bot.clickWindow(PASSIVE, 0, 0).catch(() => {})
+    check('passive switch closes the menu', await closing)
     await sleep(800)
-    check('passive button turns passive on and says so', (await data('passive')) === 'true' && /Passive mode on/.test(text(t)), `${await data('passive')} | ${text(t)}`)
-    check('a double click runs the button once', !/switch passive mode again/.test(text(t)), text(t))
+    check('passive switch turns passive on and says so', (await data('passive')) === 'true' && /Passive mode on/.test(text(t)), `${await data('passive')} | ${text(t)}`)
+    check('a double click runs the switch once', !/switch passive mode again/.test(text(t)), text(t))
 
     w = await openMenu()
-    check('menu shows passive as on', w && w.slots[13] && w.slots[13].name === 'lime_dye', w && w.slots[13] ? w.slots[13].name : 'no window')
+    check('the home screen shows passive as on', nameAt(w, PASSIVE) === 'Passive: on', w ? nameAt(w, PASSIVE) : 'no window')
     t = Date.now()
-    await click(13, 0, 0)
+    await click(PASSIVE, 0, 0)
     await sleep(500)
     check('switching again right away is refused (cooldown)', (await data('passive')) === 'true' && /switch passive mode again in 10 minutes/.test(text(t)), `${await data('passive')} | ${text(t)}`)
 
@@ -153,24 +204,39 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`zzdata ${NAME} passive-switched none`)
     await rcon.cmd(`zzdata ${NAME} bounty 500`)
     w = await openMenu()
-    const statsBounty = loreText(w && w.slots[11])
-    check('stats show the new bounty and passive state', /Bounty: \$500/.test(statsBounty) && /Passive mode: off/.test(statsBounty), statsBounty)
+    const statsBounty = loreText(w && w.slots[STATS])
+    const bountyApp = loreText(w && w.slots[5])
+    check('your head shows the new bounty, the Bounties app yours, the switch "Passive: off"', /Bounty: \$500/.test(statsBounty) && /Yours: \$500/.test(bountyApp) && nameAt(w, PASSIVE) === 'Passive: off', `${statsBounty} | ${bountyApp} | ${nameAt(w, PASSIVE)}`)
     t = Date.now()
-    await click(13, 0, 0)
+    await click(PASSIVE, 0, 0)
     await sleep(500)
     check('no going passive with a bounty', (await data('passive')) !== 'true' && /can't go passive while you have a bounty/.test(text(t)), `${await data('passive')} | ${text(t)}`)
     await rcon.cmd(`zzdata ${NAME} bounty none`)
 
     // ---------- Help and close ----------
+    // How to play: a phone page (help.sk helpPage): "◀ Phone" at 2, "Commands" at 6 (closes it and prints /help
+    // commands), topic tiles; a tile with a page of its own opens it (Quests: the GPS's Quests page).
     w = await openMenu()
+    let hw = await clickOpens(12)
+    check('How to play opens the How to play page ("◀ Phone" at 2, "Commands" at 6, the topic tiles)', /How to play$/.test(winTitle(hw)) && nameAt(hw, 2) === '◀ Phone' && nameAt(hw, 6) === 'Commands' && nameAt(hw, 11) === 'Heists' && nameAt(hw, 21) === 'Quests', `"${winTitle(hw)}" 2=${nameAt(hw, 2)} 6=${nameAt(hw, 6)} 11=${nameAt(hw, 11)} 21=${nameAt(hw, 21)}`)
     t = Date.now()
     closing = closed()
-    await click(23, 0, 0)
-    check('help button closes the menu and shows the help page', (await closing) && /How to play/.test(text(t)), text(t))
+    await click(6, 0, 0)
+    check('...its Commands button closes it and prints every command', (await closing) && /Commands/.test(text(t)) && /\/heists/.test(text(t)), text(t).slice(0, 300))
+    w = await openMenu()
+    hw = await clickOpens(12)
+    const qw = await clickOpens(21)
+    check('...a tile opens its page (Quests: the GPS\'s Quests page)', /How to play$/.test(winTitle(hw)) && /GPS · Quests$/.test(winTitle(qw)), `"${winTitle(hw)}" -> "${winTitle(qw)}"`)
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+    w = await openMenu()
+    hw = await clickOpens(12)
+    w = await clickOpens(2)
+    check('...and "◀ Phone" there opens the phone', /How to play$/.test(winTitle(hw)) && isHome(w), `"${winTitle(hw)}" -> ${w ? `${nameAt(w, 39)} ${nameAt(w, 49)}` : 'no window'}`)
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
     w = await openMenu()
     closing = closed()
-    await click(26, 0, 0)
-    check('close button closes the menu', await closing)
+    await click(49, 0, 0)
+    check('the home button closes the menu', await closing)
 
     // ---------- Right-clicking entities and blocks with the phone ----------
     await rcon.cmd(`summon armor_stand 522.5 ${Y} 524.5 {Tags:["zztest"]}`)
@@ -184,7 +250,7 @@ module.exports = async ({ check }) => {
       }
       await bot.lookAt(e.position.offset(0, 1, 0), true)
       w = await openMenu(() => bot.activateEntity(e), 1500)
-      check(`right-clicking a ${kind} with the phone opens no menu or map`, (!w || !JSON.stringify(w.title).includes('Phone')) && / open=false/.test(await phone()), w ? JSON.stringify(w.title).slice(0, 80) : await phone())
+      check(`right-clicking a ${kind} with the phone opens no menu or map`, !isHome(w) && / open=false/.test(await phone()), w ? JSON.stringify(w.title).slice(0, 80) : await phone())
       if (w) bot.closeWindow(w)
     }
     await rcon.cmd('minecraft:kill @e[tag=zztest]')

@@ -7,7 +7,8 @@ The exact steps to move the local test server to Minehut (free plan). Local-only
 - Decide the open numbers (PROPOSALs in `server/plugins/Skript/scripts/core.sk`): money, bag sizes, prices, levels, crate contents, cop strength. They can change later, but players notice.
 - Build the city (or at least spawn, the base, one gun shop and one heist) in the local world first: the world is uploaded as a folder.
 - Build the phone plugin: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-plugin.ps1` (makes `server\plugins\DonatingPhone.jar`; it compiles against `server\plugins\TAB-*.jar` for the nametags, so TAB must be there).
-- Build the resource pack: `tools\node\node.exe tools\make-item-art.js`, `tools\node\node.exe tools\make-phone-art.js`, `tools\node\node.exe tools\make-car-wraps.js` (the car wraps: it also writes the wrap variants into `vehicles.yml` and `carwraps.sk`), then `tools\node\node.exe tools\build-pack.js` (makes `extras\packs\Donating-pack.zip`).
+- The pack and DonatingPhone.jar go live together (2026-09-29): the pack's generic_54.png has a see-through chest part, and DonatingPhone's MenuPanels puts every chest menu's vanilla panel back through its title; either one alone leaves chest menus see-through or doubled. Upload the jar and set the pack in the same restart.
+- Build the resource pack: `tools\node\node.exe tools\make-item-art.js`, `tools\node\node.exe tools\make-phone-art.js`, `tools\node\node.exe tools\make-phone-ui.js` (the phone-style menus: backgrounds and app icons), `tools\node\node.exe tools\make-car-wraps.js` (the car wraps: it also writes the wrap variants into `vehicles.yml` and `carwraps.sk`), then `tools\node\node.exe tools\build-pack.js` (makes `extras\packs\Donating-pack.zip`).
 
 ## 2. Minehut dashboard
 
@@ -137,6 +138,6 @@ Places, standing where they go:
 - Open `/crates`, a crate stand, `/cosmetics`, `/heists`, the phone (F with the phone), the gun shop (the Items tab: Bandage, Throwing Knife, Energy Drink, the Grappler), `/help`, `/help commands`, `/adminhelp`.
 - The car mods: drive a tuned car (`/dphone carstat <plate>` shows its top speed, acceleration and steering while it's driven; DonatingPhone reaches MTVehicles for it).
 - A Tebex test purchase (Tebex's test mode or a $0 package): the rank or keys arrive.
-- Send Minehut the latest MONETIZATION.md (or the "Donating Paid Perks" page): it now lists Valet (Elite and Legend take their car out anywhere). The car crates' keys are game money only (owner, 2026-09-28): don't make Tebex packages for them.
+- Send Minehut the latest MONETIZATION.md (or the "Donating Paid Perks" page): it now lists Valet (Elite and Legend take their car out anywhere). The car crates' keys are game money only (owner, 2026-09-28): don't make Tebex packages for them. Since 2026-09-29 Common to Legendary keys can also be bought in game with in-game money (the crate section and the key descriptions say so): send the new MONETIZATION.md again.
 - The sidebar (TAB config.yml) shows the mission, jobs (`%donating_jobs%`) and hit (`%donating_hit%`) lines: upload TAB's config.yml again.
 - `/hits` at the Broker, `/jobs`, a garage: `/garage` inside a site, a bay's car, driving into a return lane (PARKED).

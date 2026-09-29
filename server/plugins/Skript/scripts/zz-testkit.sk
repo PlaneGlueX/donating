@@ -1205,3 +1205,10 @@ command /zzinboxclear <player>:
 		delete {data::%arg-1%::inbox-seen::*}
 		deleteData(arg-1, "inbox-n")
 		send "INBOX %arg-1% cleared"
+
+# Closes a player's open menu (computer-use playtests: synthetic keys can miss the game window).
+command /zzclose <player>:
+	executable by: console
+	trigger:
+		close arg-1's inventory
+		send "CLOSED %arg-1%"

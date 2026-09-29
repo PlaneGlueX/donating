@@ -72,7 +72,7 @@ command /ranks:
 	description: The server's ranks.
 	executable by: players
 	trigger:
-		msg(player, "&6Ranks &7(they support the server)")
+		msg(player, "&6Ranks")
 		# Highest first, like the tab list (core.sk lists them that way).
 		loop {-cfg::paidranks::*}:
 			set {_id} to loop-value
@@ -92,9 +92,8 @@ command /ranks:
 			if {_hrs} is set:
 				set {_extra} to "%{_extra}%, Heist Refresh every %{_hrs}%h"
 			if {-cfg::paidrank::%{_id}%::remote::*} contains "garage":
-				set {_extra} to "%{_extra}%, Valet (take your car out anywhere)"
+				set {_extra} to "%{_extra}%, Valet"
 			send colored "&7 » %{_tag}%&r &f%{_name}% &7· %{_skinName}% bag, +%{_bonus}%%% room%{_extra}%" to player
-		send colored "&7 A rank puts its tag before your name in the tab list and in chat, moves you up the tab list, and gives your bag its look and more room (bought with in-game money as usual). /bagskin /daily /heistrefresh" to player
 		set {_mine} to paidRank(player)
 		set {_store} to storeText()
 		if {_mine} is "":
@@ -102,7 +101,6 @@ command /ranks:
 		else:
 			set {_name} to cfg("paidrank::%{_mine}%::name")
 			send colored "&7 Yours: %paidRankTag({_mine})%&r &f%{_name}%&7. Thank you!" to player
-		send colored "&7 Your robber level (from selling loot) is something else: /level" to player
 
 # ---------- The store (Tebex) ----------
 
@@ -120,7 +118,7 @@ command /store:
 	aliases: /donate
 	executable by: players
 	trigger:
-		msg(player, "&6%storeText()% &7Ranks (a tag, a bag look and more bag room), money boosters (more pay for everyone) and crate keys. /ranks /booster /crates")
+		msg(player, "&6%storeText()% &7/ranks /booster /crates")
 
 # ---------- Staff: /dranks ----------
 
@@ -282,7 +280,7 @@ command /bagskin [<text>]:
 			set {_list} to "none"
 		if arg-1 is not set:
 			if size of {_owned::*} is 0:
-				msg(player, "&7Bag skins come with a rank or from crates: &f/ranks /crates")
+				msg(player, "&7No bag skins yet. &f/ranks /crates")
 				stop
 			set {_now} to bagSkinOf(player)
 			set {_nowName} to "default"
@@ -304,7 +302,7 @@ command /bagskin [<text>]:
 			else if {_n} is {_typed}:
 				set {_pick} to loop-value
 		if {_pick} is "":
-			msg(player, "&cYou don't have that skin. &7Yours: &f%{_list}%&7. Skins come with a rank or from crates: &f/ranks /crates")
+			msg(player, "&cYou don't have that skin. &7Yours: &f%{_list}%")
 			stop
 		setData(player, "bag-skin", {_pick})
 		bagRefresh(player)
@@ -347,7 +345,7 @@ command /heistrefresh [<text>]:
 	trigger:
 		set {_left} to refreshLeft(player)
 		if {_left} < 0:
-			msg(player, "&7Heist Refresh comes with &6[Elite]&7 and &d[Legend]&7: it reopens a heist that's cooling down, for everyone. &f/ranks")
+			msg(player, "&7Heist Refresh comes with &6[Elite]&7 and &d[Legend]&7. &f/ranks")
 			stop
 		if arg-1 is not set:
 			set {_any} to false
@@ -382,7 +380,7 @@ command /heistrefresh [<text>]:
 		set {_name} to heistName({_h})
 		set {_why} to heistRefreshBlock({_h})
 		if {_why} is "not-cooling":
-			msg(player, "&cThe %{_name}% isn't cooling down. &7Only a closed heist can be refreshed.")
+			msg(player, "&cThe %{_name}% isn't cooling down.")
 			stop
 		if {_why} is "alarm":
 			msg(player, "&cThe %{_name}%'s alarm is still going. &7Refresh it once the cops give up.")

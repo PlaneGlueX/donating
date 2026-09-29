@@ -118,15 +118,16 @@ module.exports = async ({ check }) => {
     w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
     w = await click(A, 10)
     t = Date.now()
-    await click(A, 10)
-    await sleep(500)
-    const armed = /Click again/.test(text(A, t)) && (await bal(A)) === 100000
+    // The first click arms it: the page comes back with that color as a green "Confirm purchase?" block.
+    const armedW = await click(A, 10)
+    const armedIcon = armedW && armedW.slots[10]
+    const armed = Boolean(armedIcon) && armedIcon.name === 'lime_concrete' && /Confirm purchase/.test(itemText(armedIcon)) && /Red Sedan/.test(itemText(armedIcon)) && /40,000/.test(itemText(armedIcon)) && (await bal(A)) === 100000
     bots[A].clickWindow(10, 0, 0).catch(() => {})
     await sleep(1200)
     let plate = await plateOf(A, 'sedan')
     plates.push(plate)
     const vin1 = Number(((await info(A)).match(/vin=(\d+)/) || [])[1])
-    check('buying needs a second click, then: charged $40,000, the car is yours (an MTVehicles plate) with a serial number', armed && (await bal(A)) === 60000 && plate !== '' && /exists=yes owner=GarageA/.test(await car(plate)) && vin1 > 0, `armed=${armed} bal=${await bal(A)} ${await info(A)} ${await car(plate)}`)
+    check('buying needs a second click (the first arms a "Confirm purchase?" block), then: charged $40,000, the car is yours (an MTVehicles plate) with a serial number', armed && (await bal(A)) === 60000 && plate !== '' && /exists=yes owner=GarageA/.test(await car(plate)) && vin1 > 0, `armed=${armed} ${itemText(armedIcon).slice(0, 200)} bal=${await bal(A)} ${await info(A)} ${await car(plate)}`)
     await closeAll(A)
     t = Date.now()
     w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
@@ -150,8 +151,9 @@ module.exports = async ({ check }) => {
     bots[A].chat('/garage')
     w = await opened
     await sleep(300)
-    check('/garage lists your cars', w && /Your garage/.test(JSON.stringify(w.title)) && /Sedan/.test(itemText(w.slots[9])) && /In the garage/.test(itemText(w.slots[9])), itemText(w && w.slots[9]).slice(0, 300))
-    bots[A].clickWindow(9, 0, 0).catch(() => {})
+    // A phone page (ui.sk): the status bar says "Garage", the cars start on the screen's first slot (11).
+    check('/garage lists your cars', w && /Garage/.test(JSON.stringify(w.title)) && /Sedan/.test(itemText(w.slots[11])) && /In the garage/.test(itemText(w.slots[11])), `${JSON.stringify(w && w.title).slice(-80)} ${itemText(w && w.slots[11]).slice(0, 300)}`)
+    bots[A].clickWindow(11, 0, 0).catch(() => {})
     await sleep(1500)
     check('left-click calls it next to you (a spawned MTVehicles car: 3 stands)', /Sedan is here/.test(text(A, t)) && (await stands(plate)) === 3 && /=sedan\(Red,.*,out,/.test(await info(A)), `${text(A, t)} ${await car(plate)} ${await info(A)}`)
 
@@ -265,7 +267,7 @@ module.exports = async ({ check }) => {
     bots[A].chat('/garage')
     await og
     await sleep(300)
-    bots[A].clickWindow(9, 0, 0).catch(() => {})
+    bots[A].clickWindow(11, 0, 0).catch(() => {}) // the first car (the phone screen's first slot)
     await sleep(1500)
     const inZone = (await stands(plate)) === 3
     await cmd(`zztag ${A}`)
@@ -299,7 +301,7 @@ module.exports = async ({ check }) => {
     bots[A].chat('/garage')
     await o2
     await sleep(300)
-    bots[A].clickWindow(9, 0, 0).catch(() => {})
+    bots[A].clickWindow(11, 0, 0).catch(() => {}) // the first car (the phone screen's first slot)
     await sleep(1500)
     const wasOut = (await stands(plate)) === 3
     // A parked car waits while its owner is within car::idle-near (citygarage.sk's rule): walk away first.
@@ -315,7 +317,7 @@ module.exports = async ({ check }) => {
     bots[A].chat('/garage')
     await o2
     await sleep(300)
-    bots[A].clickWindow(9, 0, 0).catch(() => {})
+    bots[A].clickWindow(11, 0, 0).catch(() => {}) // the first car (the phone screen's first slot)
     await sleep(1500)
     const out2 = (await stands(plate)) === 3
     await quit(bots[A])
@@ -331,12 +333,12 @@ module.exports = async ({ check }) => {
     bots[A].chat('/garage')
     await o2
     await sleep(300)
-    w = await click(A, 9, 1) // right-click: the options
+    w = await click(A, 11, 1) // right-click the first car (the phone screen's first slot): the options
     w = await click(A, 12) // repaint
     t = Date.now()
     const before = await bal(A)
-    await click(A, 11) // Gray: arms the confirm
-    bots[A].clickWindow(11, 0, 0).catch(() => {})
+    await click(A, 12) // Gray (Red, the current color, is on 11): arms the confirm
+    bots[A].clickWindow(12, 0, 0).catch(() => {})
     await sleep(1500)
     const newPlate = await plateOf(A, 'sedan')
     plates.push(newPlate)

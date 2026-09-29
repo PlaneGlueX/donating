@@ -69,3 +69,47 @@ nametags:
   range: 64
   every: 5
   hide-after: 2
+
+# Smoother cars (CarSmooth.java): a driven MTVehicles car's model and seats are sent to players every tick instead of
+# every 3rd (armor stands' vanilla update interval), and as far as its driver is (no driver floating in mid-air with no car
+# between 64 and 128 blocks). /dphone carsmooth <mode> switches it live for A/B drives and keeps the choice in
+# carsmooth.yml (which then wins over this line; delete carsmooth.yml to go back to it). /dphone carprobe <plate> <ticks>
+# logs a drive to carprobe.log.
+carsmooth:
+  # off | sync | track | all (the live switch /dphone carsmooth wins, kept in carsmooth.yml). Measured 2026-09-29: track is
+  # what helps (car stands every tick); sync never had anything to fix.
+  mode: track
+  # Blocks within which a driven car's stands are sent (armor stands: spigot.yml 64; the seat with its driver: 128).
+  range: 128
+  # Ticks between the car stands' position packets while tracked (vanilla armor stands: 3).
+  update-interval: 1
+
+# The chase camera (CarCam.java): drivers look through an invisible camera behind and above their car instead of first
+# person, from getting in to getting out (carcam.sk: /carcam on|off per player, health on the action bar while it's on,
+# since the client hides the hotbar and hearts under another camera). Tune live: /dphone cam tune <key> <value>.
+carcam:
+  enabled: true
+  # Blocks behind the car, the camera's height over the car, and the height it looks at (pitch = atan((height -
+  # look-height) / distance)). A wall between the car and the camera pulls it in (never inside a block).
+  distance: 5.5
+  height: 2.3
+  look-height: 1.2
+  # How fast the camera swings behind the car in a turn (share of the angle left, per tick; 1 = locked to the car).
+  yaw-smooth: 0.35
+  # Degrees added to the car's heading (180 would put the camera in front, looking back).
+  yaw-offset: 0
+  # Client-side smoothing of each camera move, in ticks (0 = snap; 1-5 worth trying in a playtest).
+  teleport-duration: 3
+  # true: only while the car key (hotbar 9) is held. false: the whole ride (select-key below picks the key anyway).
+  only-with-key: false
+  # The client still draws the held item at the camera (a gun covered a third of the view). true: when the view starts,
+  # hotbar 9 is selected (the car key, a map with the phone's GPS view, drawn small in the corner like a minimap), and
+  # getting out puts back the slot held before, unless the player picked another slot during the ride (theirs then).
+  select-key: true
+  # The client never draws the driver's own player under another camera, so the car looked empty. true: a mannequin with
+  # the driver's skin rides the driver's seat, sent to the driver only (the client sits it and turns it with the car);
+  # invulnerable and not collidable, so no bullet or arrow ever hits it instead of the driver. false: an empty car.
+  body: true
+  # Everyone, chase view or not: the driver's seat gets this camera_distance, so pressing F5 in a car sits farther back
+  # (the client uses the larger of the player's and the seat's; vanilla 4). 0 = leave it.
+  seat-camera-distance: 7

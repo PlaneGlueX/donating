@@ -40,7 +40,9 @@ module.exports = async ({ check }) => {
       return w
     }
     const garage = async name => { await closeAll(name); const o = windowOpen(bots[name]); bots[name].chat('/garage'); const w = await o; await sleep(300); return w }
-    const slotOfPlate = (w, plate) => (w ? w.slots.findIndex((i, n) => n >= 9 && n < 45 && i && itemText(i).includes(plate)) : -1)
+    // The garage is a phone page (ui.sk): cars on the screen's 20 slots (columns 2-6 of rows 1-4).
+    const SCREEN = [11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33, 38, 39, 40, 41, 42]
+    const slotOfPlate = (w, plate) => (w ? w.slots.findIndex((i, n) => SCREEN.includes(n) && i && itemText(i).includes(plate)) : -1)
     const keys = async (name, crate) => Number(((await cmd(`dcrate info ${name}`)).match(new RegExp(`${crate}=(\\d+)`)) || [])[1] || 0)
 
     // ---------- Setup ----------
@@ -79,18 +81,19 @@ module.exports = async ({ check }) => {
     const red = sedans.find(c => c.f && /Red/.test(c.raw)) || sedans[0]
     let s = slotOfPlate(w, red.plate)
     await click(A, s, 1) // options
-    w = await click(A, 14) // tune
+    w = await click(A, 13) // tune
     const engineLore = itemText(w && w.slots[11])
     const before = await bal(A)
     let t = Date.now()
-    bots[A].clickWindow(11, 0, 0).catch(() => {})
-    await sleep(700)
-    const armed = /Click again/.test(text(A, t)) && (await bal(A)) === before
+    // The first click arms it: the page comes back with that button as a green "Confirm purchase?" block.
+    const armedW = await click(A, 11)
+    const armedIcon = armedW && armedW.slots[11]
+    const armed = Boolean(armedIcon) && armedIcon.name === 'lime_concrete' && /Confirm purchase/.test(itemText(armedIcon)) && /Engine I/.test(itemText(armedIcon)) && /5,000/.test(itemText(armedIcon)) && (await bal(A)) === before
     bots[A].clickWindow(11, 0, 0).catch(() => {})
     await sleep(900)
     cs = await cars(A)
     const tuned = cs.find(c => c.plate === red.plate)
-    check('the tuning shop: Engine I for a Sedan costs $5,000 (8% of $40,000, at least $5,000), a second click fits it, the grade becomes Custom', /Engine I/.test(engineLore) && /5,000/.test(engineLore) && armed && before - (await bal(A)) === 5000 && tuned && tuned.f.mods === '100' && tuned.f.grade === '1', `${engineLore.slice(0, 200)} armed=${armed} ${before}->${await bal(A)} ${tuned && tuned.raw}`)
+    check('the tuning shop: Engine I for a Sedan costs $5,000 (8% of $40,000, at least $5,000), the first click arms a "Confirm purchase?" block, a second click fits it, the grade becomes Custom', /Engine I/.test(engineLore) && /5,000/.test(engineLore) && armed && before - (await bal(A)) === 5000 && tuned && tuned.f.mods === '100' && tuned.f.grade === '1', `${engineLore.slice(0, 200)} armed=${armed} ${itemText(armedIcon).slice(0, 200)} ${before}->${await bal(A)} ${tuned && tuned.raw}`)
     await closeAll(A)
 
     // ---------- Crate builds and extreme cars can't be tuned; a wrap makes the grade ----------
@@ -102,12 +105,12 @@ module.exports = async ({ check }) => {
     check('a crate build with an Exotic wrap and mods is Mythic (grade 4), locked, #1 of its kind (Sports Car + H4CK3R)', mythic && mythic.f.grade === '4' && mythic.f.built === 'true' && mythic.f.wrap === 'hacker' && Number(mythic.f.serial) >= 1, mythic && mythic.raw)
     w = await garage(A)
     await click(A, slotOfPlate(w, mythic.plate), 1)
-    const lockedTune = itemText(bots[A].currentWindow && bots[A].currentWindow.slots[14])
+    const lockedTune = itemText(bots[A].currentWindow && bots[A].currentWindow.slots[13])
     const lockedPaint = itemText(bots[A].currentWindow && bots[A].currentWindow.slots[12])
     await closeAll(A)
     w = await garage(A)
     await click(A, slotOfPlate(w, apex.plate), 1)
-    const extremeTune = itemText(bots[A].currentWindow && bots[A].currentWindow.slots[14])
+    const extremeTune = itemText(bots[A].currentWindow && bots[A].currentWindow.slots[13])
     await closeAll(A)
     check('a crate car can\'t be tuned or repainted; an extreme car can\'t be tuned', /stay as they came/.test(lockedTune) && /keep their paint/.test(lockedPaint) && /Extreme cars can't be tuned/.test(extremeTune), `${lockedTune.slice(-200)} | ${lockedPaint.slice(-200)} | ${extremeTune.slice(-200)}`)
 
@@ -165,8 +168,8 @@ module.exports = async ({ check }) => {
     await sleep(300)
     t = Date.now()
     const tB = Date.now()
-    const spin = windowOpen(bots[A])
-    bots[A].clickWindow(49, 0, 0).catch(() => {})
+    const spin = windowOpen(bots[A]) // the preview is a phone page (ui.sk): Open one is slot 4
+    bots[A].clickWindow(4, 0, 0).catch(() => {})
     await spin
     const end = Date.now() + 9000
     while (Date.now() < end && !/you got/.test(text(A, t))) await sleep(300)
@@ -185,7 +188,7 @@ module.exports = async ({ check }) => {
     await so2
     await sleep(300)
     t = Date.now()
-    bots[A].clickWindow(49, 0, 0).catch(() => {})
+    bots[A].clickWindow(4, 0, 0).catch(() => {})
     await sleep(1200)
     check('with a full garage the car crate refuses before the spin, and the key is safe', /garage is full/.test(text(A, t)) && (await keys(A, 'supercar')) === 1 && (await cars(A)).length === cs.length, `${text(A, t)} keys=${await keys(A, 'supercar')}`)
     await cmd('zzcfgreload')

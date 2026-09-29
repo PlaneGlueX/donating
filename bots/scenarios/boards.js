@@ -81,16 +81,18 @@ module.exports = async ({ check }) => {
     bot.chat('/bag')
     let w = await opened
     await sleep(300)
-    const lines = w ? [9, 10, 11].map(s => itemText(w.slots[s])) : []
-    check('/bag lists each heist run in the bag with its value', w && /Your bag/.test(JSON.stringify(w.title)) && lines.some(l => /Board Bank/.test(l) && /1,200/.test(l)) && lines.some(l => /oldheist/.test(l) && /800/.test(l)), lines.join(' || ').slice(0, 500))
+    // A phone page (ui.sk): the status bar says Bag, ◀ Phone at 2, the runs on the screen from slot 11.
+    const isBagPage = win => Boolean(win && /Bag\\?"/.test(JSON.stringify(win.title)) && /◀ Phone/.test(itemText(win.slots[2])))
+    const lines = w ? [11, 12, 13].map(s => itemText(w.slots[s])) : []
+    check('/bag lists each heist run in the bag with its value', isBagPage(w) && lines.some(l => /Board Bank/.test(l) && /1,200/.test(l)) && lines.some(l => /oldheist/.test(l) && /800/.test(l)), lines.join(' || ').slice(0, 500))
     check('...and marks the run you\'re robbing (lost at 0:00)', lines.some(l => /Board Bank/.test(l) && /get out before 0:00/.test(l)) && !lines.some(l => /oldheist/.test(l) && /0:00/.test(l)), lines.join(' || ').slice(0, 500))
     const before = JSON.stringify(bot.inventory.slots)
-    bot.clickWindow(9, 0, 0).catch(() => {})
+    bot.clickWindow(11, 0, 0).catch(() => {})
     await sleep(500)
-    check('...looking only: a click takes nothing', JSON.stringify(bot.inventory.slots) === before && w && w.slots[9], '')
+    check('...looking only: a click takes nothing', JSON.stringify(bot.inventory.slots) === before && w && w.slots[11], '')
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
     await sleep(300)
-    // The phone's Bag app (slot 25).
+    // The phone's Bag app (the dock's slot 42, named "Bag").
     bot.setQuickBarSlot(8)
     await sleep(400)
     opened = windowOpen()
@@ -98,11 +100,12 @@ module.exports = async ({ check }) => {
     bot._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
     const phone = await opened
     await sleep(300)
-    if (phone && /Phone/.test(JSON.stringify(phone.title))) {
+    const bagApp = phone && phone.slots[42] ? JSON.stringify(phone.slots[42]) : ''
+    if (phone && /"Bag"/.test(bagApp)) {
       const bagOpen = windowOpen()
-      bot.clickWindow(25, 0, 0).catch(() => {})
+      bot.clickWindow(42, 0, 0).catch(() => {})
       const bw = await bagOpen
-      check('the phone\'s Bag app opens /bag', bw && /Your bag/.test(JSON.stringify(bw.title)), bw ? JSON.stringify(bw.title) : 'no window')
+      check('the phone\'s Bag app opens /bag', isBagPage(bw), bw ? JSON.stringify(bw.title) : 'no window')
     } else {
       check('the phone\'s Bag app opens /bag', false, `phone menu didn't open: ${phone ? JSON.stringify(phone.title) : 'none'}`)
     }

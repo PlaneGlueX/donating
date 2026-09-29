@@ -59,6 +59,10 @@
       "chars": [
         ""
       ]
+    },
+    {
+      "type": "reference",
+      "id": "donating:phone_ui"
     }
   ]
 }

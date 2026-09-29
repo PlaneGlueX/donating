@@ -288,7 +288,7 @@ function duffelGrab(p: player, e: entity):
 	set {_was} to string tag "donating_duffel_passive" of custom nbt of {_i}
 	if {_owner} is "%uuid of {_p}%":
 		if {_was} is not "%isPassive({_p})%":
-			duffelTell({_p}, "&cYou switched passive mode since you died: this loot stays on the ground.")
+			duffelTell({_p}, "&cYou switched passive mode since you died: it stays.")
 			stop
 	else:
 		if isPassive({_p}) is true:
@@ -358,7 +358,7 @@ function duffelGrab(p: player, e: entity):
 	play sound "entity.item.pickup" with volume 1 to {_p}
 	play sound "block.note_block.chime" with volume 0.6 and pitch 1.4 to {_p}
 	if {_hot} > {_now}:
-		msg({_p}, "&c&lHOT LOOT&r &7· it came off a robber the cops were chasing: it can't be sold for &f%formatClock({_hot} - {_now})%&7.")
+		msg({_p}, "&c&lHOT LOOT&r &7· the cops were chasing its robber: it sells in &f%formatClock({_hot} - {_now})%&7.")
 	bagLog("duffel-take %name of {_p}% %uuid of {_p}% %{_id}% owner=%{_owner}% took=%{_took}% hot=%{_hot}% rest=%{_rest}%")
 
 on player attempt item pickup:
@@ -590,57 +590,81 @@ on quit:
 
 # ---------- /bag: what's in it ----------
 # One line per heist run in the bag, with its value; the run you're robbing right now is marked (0:00 or
-# logging out inside loses it). Also the phone's Bag app. Looking only: every click is cancelled.
+# logging out inside loses it). Also the phone's Bag app. Looking only: every click is cancelled. Owner,
+# 2026-09-29 ("get rid of obvious explanations"): values and warnings only; a run number shows only when one
+# heist has two runs in the bag.
 
 function bagMenu(p: player):
-	set {_gui} to chest inventory with 3 rows named "&8Your bag"
-	set {_pane} to gray stained glass pane named "&r"
-	loop 27 times:
-		set slot (loop-number - 1) of {_gui} to {_pane}
+	bagMenuPage({_p}, 1)
+
+# A phone page (ui.sk, 2026-09-29): ◀ Phone at 2, the bag (or the hands) at 4, "Sells at the base" at 6, the runs on the
+# screen, 20 a page (page arrows at 3 and 5, beside the bag: 6 is taken).
+function bagMenuPage(p: player, page: number):
+	set {_gui} to phonePage("Bag")
+	delete {-bag::act::%{_p}%::*}
+	set slot 2 of {_gui} to phoneBackIcon("Phone")
+	set {-bag::act::%{_p}%::2} to "phone"
 	set {_t} to bagTier({_p})
 	if {_t} > 0:
 		set {_i} to bagItem({_t}, bagTotal({_p}), bagSkinOf({_p}), bagCapacity({_p}))
-		set lore of {_i} to "&7Loot: &f%formatMoney(bagTotal({_p}))% &7/ %formatMoney(bagCapacity({_p}))%" and "&7Sells by itself at the base." and "&7Lost (dropped as a duffel) if you die."
 	else:
 		set {_i} to handsItem(bagTotal({_p}), bagCapacity({_p}))
-		set lore of {_i} to "&7No bag: your hands carry up to &f%formatMoney(bagCapacity({_p}))%&7." and "&7Loot: &f%formatMoney(bagTotal({_p}))%" and "&7A bag holds more: buy one at a bag shop."
+	set lore of {_i} to "&7Loot: &f%formatMoney(bagTotal({_p}))% &7/ %formatMoney(bagCapacity({_p}))%" and "&7Drops as a duffel if you die"
 	set slot 4 of {_gui} to {_i}
+	set slot 6 of {_gui} to compass named "&fSells at the base" with lore "&7Not in combat or wanted"
 	set {_in} to heistOf({_p})
-	set {_slot} to 9
-	set {_more} to 0
+	# How many runs of each heist the bag holds: "(run #N)" only tells two of one heist apart.
+	set {_n} to 0
 	loop {data::%{_p}%::loot::*}:
-		set {_tag} to loop-index
-		set {_parts::*} to {_tag} split at "#"
-		set {_h} to {_parts::1}
-		set {_run} to {_parts::2}
-		set {_name} to {_h}
-		if heistExists({_h}) is true:
-			set {_name} to heistName({_h})
-		if {_slot} <= 17:
+		set {_parts::*} to loop-index split at "#"
+		set {_hk} to {_parts::1}
+		add 1 to {_runs::%{_hk}%}
+		add 1 to {_n}
+		set {_tags::%{_n}%} to loop-index
+		set {_vals::%{_n}%} to loop-value
+	set {_pages} to max(1, ceil({_n} / 20))
+	if {_page} > {_pages}:
+		set {_page} to {_pages}
+	if {_page} < 1:
+		set {_page} to 1
+	if {_page} > 1:
+		set slot 3 of {_gui} to phonePrevIcon({_page})
+		set {-bag::act::%{_p}%::3} to "page:%{_page} - 1%"
+	if {_page} < {_pages}:
+		set slot 5 of {_gui} to phoneNextIcon({_page})
+		set {-bag::act::%{_p}%::5} to "page:%{_page} + 1%"
+	set {_slots::*} to phoneSlots()
+	set {_first} to ({_page} - 1) * 20
+	loop 20 times:
+		set {_k} to {_first} + loop-number
+		if {_tags::%{_k}%} is set:
+			set {_tag} to {_tags::%{_k}%}
+			set {_parts::*} to {_tag} split at "#"
+			set {_h} to {_parts::1}
+			set {_run} to {_parts::2}
+			set {_name} to {_h}
+			if heistExists({_h}) is true:
+				set {_name} to heistName({_h})
 			set {_li} to paper
 			set string list tag "minecraft:custom_model_data;strings" of nbt of {_li} to "donating:loot_cash"
-			set name of {_li} to "&6%{_name}% &7(run #%{_run}%)"
+			if {_runs::%{_h}%} > 1:
+				set name of {_li} to "&6%{_name}% &7(run #%{_run}%)"
+			else:
+				set name of {_li} to "&6%{_name}%"
 			set {_now} to false
 			if {_in} is {_h}:
 				if "%heistRun({_h})%" is {_run}:
 					set {_now} to true
+			set {_v} to {_vals::%{_k}%}
 			if {_now} is true:
-				set lore of {_li} to "&7Value: &a%formatMoney(loop-value)%" and "&cThis run: get out before 0:00," and "&cor you lose it."
+				set lore of {_li} to "&a%formatMoney({_v})%" and "&cThis run: get out before 0:00 or lose it"
 			else:
-				set lore of {_li} to "&7Value: &a%formatMoney(loop-value)%"
-			set slot {_slot} of {_gui} to {_li}
-			add 1 to {_slot}
-		else:
-			add 1 to {_more}
-	if {_more} > 0:
-		set slot 17 of {_gui} to paper named "&7+%{_more} + 1% more runs" with lore "&7Sell at the base to empty the bag."
-	if {_slot} is 9:
-		set slot 13 of {_gui} to paper named "&7Empty" with lore "&7Rob a heist: /heists"
-	set slot 22 of {_gui} to compass named "&fSell: walk into the base" with lore "&7Not while in combat or wanted."
-	# The Bag app's main page: "◀ Phone" (phone.sk's Back buttons), however it was opened. Its only button.
-	delete {-bag::act::%{_p}%::*}
-	set slot 18 of {_gui} to phoneBackItem()
-	set {-bag::act::%{_p}%::18} to "phone"
+				set lore of {_li} to "&a%formatMoney({_v})%"
+			set slot {_slots::%loop-number%} of {_gui} to {_li}
+	if {_n} is 0:
+		set slot 22 of {_gui} to phoneEmptyIcon("Empty")
+	set slot 49 of {_gui} to phoneHomeIcon()
+	set {-bag::act::%{_p}%::49} to "phone"
 	set {-bag::gui::%{_p}%} to {_gui}
 	if {-bag::gen::%{_p}%} is not set:
 		set {-bag::gen::%{_p}%} to 0
@@ -676,6 +700,9 @@ on inventory click:
 	if {_act} is "phone":
 		# Opening the phone closes this menu; the close handler only forgets the menu.
 		openPhone(player)
+	else if {_act} starts with "page:":
+		set {_pg} to subtext of {_act} from characters 6 to (length of {_act})
+		bagMenuPage(player, {_pg} parsed as number)
 
 on inventory drag:
 	{-bag::gui::%player%} is set
