@@ -105,6 +105,8 @@ function grappleFire(p: player):
 	if toolUse({_p}, "grappler") is false:
 		stop
 	set {-grapple::at::%{_p}%} to now
+	# Kept through a relog (review 2026-09-28: relogging reset the 15 s).
+	setData({_p}, "grapple-at", floor(unix timestamp of now))
 	# The hotbar's cooldown sweep over the Grappler (it winds back).
 	set item cooldown of cfg("tool::grappler::item") for {_p} to cfg("grapple::cooldown")
 	grappleLog("pull %{_p}% %uuid of {_p}% from %location of {_p}% to %{_anchor}% hooks-left=%toolCount({_p}, "grappler")%")
@@ -207,11 +209,16 @@ on damage of player:
 	difference between {_at} and now < cfg("grapple::fall-grace")
 	cancel event
 
-# While the Grappler is held: how far it has wound back, then "ready" (prompts' priority: combat and loot win).
+# While the Grappler is held: how far it has wound back, then "ready" (prompts' priority: combat and loot win). Only where
+# it can be used (review 2026-09-28: "ready" showed inside heists over the loot prompts, in cars and where it's off).
 every 5 ticks:
 	loop all players:
 		itemId(tool of loop-player) is "tool:grappler"
 		{-grapple::on::%loop-player%} is not set
+		heistOf(loop-player) is ""
+		vehicle of loop-player is not set
+		cfg("tool::grappler::enabled") is true
+		grappleBanned(location of loop-player) is false
 		set {_left} to 0
 		set {_at} to {-grapple::at::%loop-player%}
 		if {_at} is set:
@@ -234,3 +241,13 @@ on quit:
 	delete {-grapple::on::%player%}
 	delete {-grapple::at::%player%}
 	delete {-grapple::nofall::%player%}
+
+# A relog keeps the cooldown: the last pull back from data "grapple-at", with the hotbar's sweep for the time left.
+on join:
+	set {_at} to getData(player, "grapple-at")
+	{_at} is set
+	set {_left} to {_at} + (cfg("grapple::cooldown") / 1 second) - floor(unix timestamp of now)
+	{_left} > 0
+	set {-grapple::at::%player%} to now
+	remove (1 second * ((cfg("grapple::cooldown") / 1 second) - {_left})) from {-grapple::at::%player%}
+	set item cooldown of cfg("tool::grappler::item") for player to 1 second * {_left}

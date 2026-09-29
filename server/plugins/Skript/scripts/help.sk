@@ -33,7 +33,7 @@ function showCommands(p: player):
 	helpLine({_p}, "/heists", "every heist and store, open or not")
 	helpLine({_p}, "/bag", "what's in your bag, per heist")
 	helpLine({_p}, "/level &7(/lvl), &e/levels", "your level; every level and what it opens")
-	helpLine({_p}, "/bounty [player] [$]", "the biggest bounties; put one on someone (at the Broker)")
+	helpLine({_p}, "/bounty [player] [$]", "the biggest bounties; put one on someone (at the Broker); a claimed bounty costs its owner 10%% of what they earned of it")
 	helpLine({_p}, "/afk", "mark yourself away (AFK players earn nothing)")
 	send colored "&6Jobs" to {_p}
 	helpLine({_p}, "/missions &7(/story)", "Mara's missions and Vic's")

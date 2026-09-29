@@ -610,6 +610,7 @@ function crateSpin(p: player, t: text, line: text):
 function crateClearGui(p: player):
 	delete {-crate::gui::%{_p}%}
 	delete {-crate::view::%{_p}%}
+	delete {-crate::previewt::%{_p}%}
 	delete {-crate::act::%{_p}%::*}
 	delete {-crate::hackslot::%{_p}%}
 	delete {-crate::hackitem::%{_p}%}
@@ -759,6 +760,8 @@ function cratePreview(p: player, t: text, stand: boolean):
 	crateClearGui({_p})
 	set {-crate::gui::%{_p}%} to {_gui}
 	set {-crate::view::%{_p}%} to "preview"
+	# Which crate it shows (crateBuyKey's timed redraw only redraws that one).
+	set {-crate::previewt::%{_p}%} to {_t}
 	set {_total} to crateTotal({_t})
 	set {_slot} to 0
 	# A car crate shows what its car can be (garage.sk carRoll's odds).
@@ -902,15 +905,26 @@ function crateBuyKey(p: player, t: text):
 		stop
 	if isCombatTagged({_p}) is true:
 		msg({_p}, "&cYou can't buy keys while in combat.")
+		hudBar({_p}, "&cYou can't buy keys while in combat.", 3)
 		play sound "entity.villager.no" with volume 0.6 to {_p}
 		stop
 	if balance of {_p} < {_pr}:
 		msg({_p}, "&cA %crateName({_t})% key costs %formatMoney({_pr})%.")
+		hudBar({_p}, "&cA %crateName({_t})% key costs %formatMoney({_pr})%: you have %formatMoney(balance of {_p})%.", 3)
 		play sound "entity.villager.no" with volume 0.6 to {_p}
 		stop
 	if crateBuyArmed({_p}, {_t}) is false:
 		set {-crate::buyarm::%{_p}%} to {_t}
 		set {-crate::buyat::%{_p}%} to now
+		cratePreview({_p}, {_t}, crateAtStand({_p}, {_t}))
+		# After the 5 s the button turns back (if that preview is still open).
+		set {_gen} to {-crate::gen::%{_p}%}
+		wait 5.1 seconds
+		{_p} is online
+		{-crate::gen::%{_p}%} is {_gen}
+		{-crate::view::%{_p}%} is "preview"
+		{-crate::previewt::%{_p}%} is {_t}
+		crateBuyArmed({_p}, {_t}) is false
 		cratePreview({_p}, {_t}, crateAtStand({_p}, {_t}))
 		stop
 	delete {-crate::buyarm::%{_p}%}
@@ -1212,7 +1226,10 @@ function dcrateKeys(s: command sender, a: texts, sign: number):
 		# Season keys only come from seasons (never sold, so no store command may give them).
 		if {-cfg::crate::%{_t}%::never-give} is true:
 			crateLog("refused %{_line}% by=%{_s}% (%{_t}% keys are never given by command)")
-			dcrateReply({_s}, "CRATE give: %{_t}% keys only come from seasons")
+			if {-cfg::crate::%{_t}%::price} is set:
+				dcrateReply({_s}, "CRATE give: %{_t}% keys are only bought with game money (the crate's preview)")
+			else:
+				dcrateReply({_s}, "CRATE give: %{_t}% keys only come from seasons")
 			stop
 		crateAddKeys({_p}, {_t}, {_n}, "dcrate by=%{_s}%")
 		dcrateReply({_s}, "CRATE %{_a::2}% +%{_n}% %{_t}% (now %crateKeys({_p}, {_t})%)")

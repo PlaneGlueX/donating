@@ -1105,7 +1105,8 @@ function loadSettings():
 	# No bounty payout (or kill bounty) between players on the same IP address (alts).
 	set {-cfg::bounty::ip-check} to true
 	# Owner, 2026-09-28: a claimed bounty stays new money for the killer, and the victim of that player kill pays this
-	# share of their bounty on top of the death's cost (it disappears: a money sink).
+	# share of the bounty they earned (robberies, contracts, kills; not what others placed) on top of the death's cost
+	# (it disappears: a money sink).
 	set {-cfg::bounty::victim-fee} to 0.10
 
 	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
@@ -1409,6 +1410,9 @@ function loadSettings():
 	set {-cfg::crate::hypercar::sold} to false
 	set {-cfg::crate::supercar::price} to 1000000
 	set {-cfg::crate::hypercar::price} to 2500000
+	# ...and never given by a command (dcrate give: a store package must not deliver them).
+	set {-cfg::crate::supercar::never-give} to true
+	set {-cfg::crate::hypercar::never-give} to true
 	# The car crates show a car (crates.sk crateIcon: the last car of their roll pool); these are the fallbacks.
 	set {-cfg::crate::supercar::icon} to minecart
 	set {-cfg::crate::hypercar::icon} to minecart

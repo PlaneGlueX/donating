@@ -457,7 +457,7 @@ on region enter:
 	if {_why} is not "":
 		# A walk: WorldGuard pushes the player back. A teleport: it's cancelled.
 		cancel event
-		send action bar "&c%{_why}%" to player
+		hudBar(player, "&c%{_why}%", 3)
 		stop
 	wait 1 tick
 	player is online
@@ -471,7 +471,7 @@ on region exit:
 	# No /spawn, /home, /tpa, staff /tp or plugin teleports out: robbers walk out past the traps.
 	if the worldguard move type is teleport:
 		cancel event
-		send action bar "&cYou can't teleport out of a heist. Walk out." to player
+		hudBar(player, "&cYou can't teleport out of a heist. Walk out.", 3)
 		stop
 	wait 1 tick
 	player is online
@@ -540,7 +540,7 @@ function heistReconcile(p: player):
 		else:
 			# Inside a heist they may not be in (it closed, a teleport slipped through): moved out, no loss.
 			heistTeleport({_p}, heistExit({_at}))
-			send action bar "&c%{_why}%" to {_p}
+			hudBar({_p}, "&c%{_why}%", 3)
 
 function heistJoin(p: player, h: text):
 	set {-heistin::%{_p}%} to {_h}
@@ -736,7 +736,7 @@ on damage of player:
 	attacker is not victim
 	heistSameCrew(attacker, victim) is true
 	cancel event
-	send action bar "&eThey're in your heist crew: you can't hurt them in here." to attacker
+	hudBar(attacker, "&eThey're in your heist crew: you can't hurt them in here.", 3)
 
 # ---------- Alarm (advanced heists) ----------
 
