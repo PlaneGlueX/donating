@@ -94,7 +94,7 @@ module.exports = async ({ check }) => {
     }
     await click(11, 0, 0)
     await unchanged('clicking the stats head takes nothing')
-    await click(0, 0, 0)
+    await click(1, 0, 0) // slot 0 is Messages (messages.sk)
     await unchanged('clicking a glass pane takes nothing')
     await click(11, 0, 1)
     await unchanged('shift-clicking the stats head takes nothing')

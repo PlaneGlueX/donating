@@ -137,10 +137,12 @@ function storyFrom(id: text) :: text:
 	return "Mara"
 
 # A text from the mission's contact, like a phone message.
+# Every text is also kept in the phone's Messages app (messages.sk).
 function storyText(p: player, from: text, line: text):
 	{_line} is not ""
 	send colored "&d✉ %{_from}%: &f%{_line}%" to {_p}
 	play sound "block.note_block.bit" with volume 0.7 and pitch 1.6 to {_p}
+	msgSave({_p}, {_from}, {_line})
 
 # ---------- What the map has (needs) ----------
 

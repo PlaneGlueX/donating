@@ -522,6 +522,9 @@ module.exports = async ({ check }) => {
     check('an open heist can\'t be refreshed (the refresh isn\'t used)', /isn't cooling down/.test(text(A, t)) && !(await cmd(`zzdata ${A} refresh-at`)).match(/= \d/), text(A, t))
 
     // ---------- Car crate keys for game money (owner, 2026-09-28: "only purchasable with in game money ($1M+)") ----------
+    const storeGive = await cmd(`zzconsole dcrate give ${A} supercar 1`)
+    await sleep(300)
+    check('the store command never gives car crate keys (game money only)', (await keys(A, 'supercar')) === 0 && /refused .*supercar keys are never given by command/.test(log('crates')), `${storeGive} keys=${await keys(A, 'supercar')}`)
     await cmd(`zzcombatend ${A}`)
     await cmd(`eco set ${A} 900000`)
     const k0 = await keys(A, 'supercar')

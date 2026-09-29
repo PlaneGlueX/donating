@@ -8,13 +8,16 @@
 #     quest giver, within quest::reach); a map with no Broker keeps posting anywhere. /bounty alone lists them anywhere.
 #   - A bounty stays until a player kills you (combat logs count, credited by combat-log.sk), then the
 #     killer is paid all of it and it's gone. Cop and trap deaths leave it. The victim of that kill also pays
-#     cfg("bounty::victim-fee") (10%) of their bounty on top of the death's cost (owner, 2026-09-28; it disappears).
+#     cfg("bounty::victim-fee") (10%) of the part of their bounty they earned (robberies, contracts, kills) on top of the
+#     death's cost (owner, 2026-09-28; it disappears). Not of the part other players placed (review 2026-09-28: a placer
+#     could put a bounty on someone, claim it back and cost them 10% every time, for free).
 #   - Passive players can't gain, claim or place bounties, and nobody can place one on them.
 #   - No payout (and no kill bounty) between players on the same IP (alts), while
 #     cfg("bounty::ip-check") is true; a killer who is offline at the claim is compared by the IP they last
 #     played from (data "last-ip", review 2026-09-28: a combat log credited to an offline main skipped the check).
 #
-# Data: "bounty" = the whole bounty ($), "bounty-kills" = the part that came from kills (for the cap),
+# Data: "bounty" = the whole bounty ($), "bounty-placed" = the part other players placed, "bounty-kills" = the part that
+# came from kills (for the cap),
 # "bounty-last::<victim uuid>" = when this player last got kill bounty for that victim,
 # "bounty-payout" = money waiting for a killer who was offline at the claim (paid on join).
 # The death cause comes from death.sk (data "last-death-cause"); this runs after it (priority monitor).
@@ -42,11 +45,17 @@ function addBounty(p: offline player, amount: number, source: text) :: number:
 	if {_add} <= 0:
 		return 0
 	setData({_p}, "bounty", getBounty({_p}) + {_add})
+	if {_source} is "placed":
+		set {_pl} to getData({_p}, "bounty-placed")
+		if {_pl} is not set:
+			set {_pl} to 0
+		setData({_p}, "bounty-placed", {_pl} + {_add})
 	return {_add}
 
 function clearBounty(p: offline player):
 	deleteData({_p}, "bounty")
 	deleteData({_p}, "bounty-kills")
+	deleteData({_p}, "bounty-placed")
 
 # The online player with this uuid text, if any.
 function playerByUuid(u: text) :: player:
@@ -84,10 +93,14 @@ on death of player with priority monitor:
 	# 1. The victim's bounty goes to the killer, and the victim pays the fee on it (owner, 2026-09-28).
 	set {_bounty} to getBounty(victim)
 	if {_bounty} > 0:
+		set {_placed} to getData(victim, "bounty-placed")
+		if {_placed} is not set:
+			set {_placed} to 0
+		set {_earned} to max(0, {_bounty} - {_placed})
 		clearBounty(victim)
-		set {_fee} to takeMoney(victim, floor({_bounty} * cfg("bounty::victim-fee")))
+		set {_fee} to takeMoney(victim, floor({_earned} * cfg("bounty::victim-fee")))
 		if {_fee} > 0:
-			msg(victim, "&cYour bounty was claimed: it cost you &f%formatMoney({_fee})% &cmore (%cfg("bounty::victim-fee") * 100%%% of it).")
+			msg(victim, "&cYour %formatMoney({_bounty})% bounty was claimed: you paid a %cfg("bounty::victim-fee") * 100%%% fee on what you earned of it (&f%formatMoney({_fee})%&c) on top of your death.")
 			bountyLog("fee %name of victim% %uuid of victim% bounty=%{_bounty}% fee=%{_fee}% killer=%{_ku}%")
 		set {_money} to formatMoney({_bounty})
 		if {_killer} is set:
@@ -110,7 +123,7 @@ on death of player with priority monitor:
 	set {_added} to addBounty({_killer}, cfg("bounty::per-kill"), "kill")
 	{_added} > 0
 	set {_total} to formatMoney(getBounty({_killer}))
-	msg({_killer}, "&cYour bounty is now %{_total}%.")
+	msg({_killer}, "&cYour bounty is now %{_total}%. &7If a player claims it, you pay %cfg("bounty::victim-fee") * 100%%% of it.")
 
 # The IP a player last played from (the same-IP check for a killer who is offline at the claim).
 on quit:
@@ -209,3 +222,4 @@ function showBounties(p: player):
 		send colored "&7 Nobody online has a bounty." to {_p}
 	set {_min} to formatMoney(cfg("bounty::min-placed"))
 	send colored "&7Place one: &f/bounty <player> <amount> &7(at least %{_min}%)" to {_p}
+	send colored "&7Whoever kills a player with a bounty gets all of it; the player pays %cfg("bounty::victim-fee") * 100%%% of the part they earned (robberies, jobs, kills) on top of their death." to {_p}

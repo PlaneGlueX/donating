@@ -54,6 +54,7 @@ module.exports = async ({ check }) => {
       await cmd(`zzpassive ${name} off`)
       await cmd(`zzcombatend ${name}`)
       await cmd(`dtrap dry ${name} off`)
+      await cmd(`zzhp ${name} 20`) // full health: a bot can come back hurt from an earlier run
     }
     await place(A, 2600.5, 2610.5)
     await place(B, 2600.5, 2612.5)

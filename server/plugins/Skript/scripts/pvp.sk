@@ -20,10 +20,10 @@ on damage of player:
 	isNpc(victim) is false
 	if isPassive(victim) is true:
 		cancel event
-		send action bar "&aThat player is in passive mode." to attacker
+		hudBar(attacker, "&aThat player is in passive mode.", 3)
 	else if isPassive(attacker) is true:
 		cancel event
-		send action bar "&aYou're in passive mode: you can't hurt players." to attacker
+		hudBar(attacker, "&aYou're in passive mode: you can't hurt players.", 3)
 
 # ---------- Safe zones ----------
 # Every WorldGuard region whose id starts with cfg("pvp::safe-prefix") ("safe") is a safe zone, e.g.
@@ -48,16 +48,16 @@ on damage of player:
 	attacker is not victim
 	if isSafeZone(location of victim) is true:
 		cancel event
-		send action bar "&aNo fighting in safe zones." to attacker
+		hudBar(attacker, "&aNo fighting in safe zones.", 3)
 	else if isSafeZone(location of attacker) is true:
 		cancel event
-		send action bar "&aNo fighting in safe zones." to attacker
+		hudBar(attacker, "&aNo fighting in safe zones.", 3)
 
 on region enter:
 	isCombatTagged(player) is true
 	name of the worldguard region starts with cfg("pvp::safe-prefix")
 	cancel event
-	send action bar "&cYou can't enter a safe zone while in combat." to player
+	hudBar(player, "&cYou can't enter a safe zone while in combat.", 3)
 
 # ---------- Spawn shield ----------
 # For cfg("pvp::spawn-shield") after joining or respawning, other players can't hurt you. Attacking a
@@ -86,7 +86,7 @@ on damage of player:
 	delete {-pvp::shield::%attacker%}
 	hasSpawnShield(victim) is true
 	cancel event
-	send action bar "&eThat player just spawned: they're protected for a few seconds." to attacker
+	hudBar(attacker, "&eThat player just spawned: they're protected for a few seconds.", 3)
 
 # ---------- Stores ----------
 # Stores (heists.sk, difficulty 0) are for new robbers: with store::no-pvp (PROPOSAL) nobody hurts or is hurt by a
@@ -107,7 +107,7 @@ on damage of player:
 			set {_store} to true
 	{_store} is true
 	cancel event
-	send action bar "&aNo fighting in stores: they're for new robbers." to attacker
+	hudBar(attacker, "&aNo fighting in stores: they're for new robbers.", 3)
 
 # ---------- Teleport immunity ----------
 # Owner, 2026-09-27: for cfg("pvp::teleport-immunity") (3 s) after a real teleport nobody hurts you and you hurt
@@ -139,10 +139,10 @@ on damage of player:
 	attacker is not victim
 	if hasTpImmunity(victim) is true:
 		cancel event
-		send action bar "&eThat player just teleported: they're protected for a moment." to attacker
+		hudBar(attacker, "&eThat player just teleported: they're protected for a moment.", 3)
 	else if hasTpImmunity(attacker) is true:
 		cancel event
-		send action bar "&eYou just teleported: you can't fight for a moment." to attacker
+		hudBar(attacker, "&eYou just teleported: you can't fight for a moment.", 3)
 
 # ---------- Switching passive mode ----------
 

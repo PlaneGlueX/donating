@@ -154,7 +154,7 @@ module.exports = async ({ check }) => {
     await cmd(`lp user ${A} permission unset donating.store`)
     await cmd(`zzcarpool ztest 1000|apex 1000|3 1000|3 1 1`)
     await cmd(`zzcratelines supercar 1000|carroll|ztest`)
-    await cmd(`dcrate give ${A} supercar 2`)
+    await cmd(`zzdata ${A} keys::supercar 2`) // car crate keys are never given by command (game money only)
     const count0 = (await cars(A)).length
     await cmd(`zzheisttp ${A} 4010.5 ${Y} 4017.5`)
     await sleep(1000)

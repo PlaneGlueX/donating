@@ -981,7 +981,7 @@ function carTow(p: player, plate: text):
 	# The dismount's leave event may have towed it already (carTowLeft).
 	if {car::out::%{_plate}%} is set:
 		carStore({_plate}, "heist")
-		hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 2)
+		hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 3)
 
 # A car its driver just left: towed if it stands inside a heist. heists.sk moves a rider out of a heist (no riding in,
 # 2026-09-28) before the every-second backstop sees them in it, so the car they leave standing inside is towed here.
@@ -991,7 +991,7 @@ function carTowLeft(p: player, plate: text):
 	{_l} is set
 	heistAt({_l}) is not ""
 	carStore({_plate}, "heist")
-	hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 2)
+	hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 3)
 
 on quit:
 	set {_plate} to {-car::riding::%uuid of player%}
@@ -1040,11 +1040,19 @@ function carClimbOut(m: entity):
 				set {_sy} to {_up}
 			else:
 				set {_more} to false
-	# Ahead (1.3 blocks): a wall at the car's height, and a spot to stand on no higher than one block above the water's
-	# surface (land a block above the water, the owner's "1 block tall"), with room for the car (2 passable, no water).
-	set {_ax} to {_x} + {_dx} * 1.3
-	set {_az} to {_z} + {_dz} * 1.3
-	block at location({_ax}, {_by}, {_az}, {_w}) is not passable
+	# Ahead: the first solid column at the car's height within 1.3 blocks (review 2026-09-28: looking 1.3 blocks ahead
+	# past a thin wall let the car climb through it), not a barrier, with a spot to stand on no higher than one block above
+	# the water's surface (land a block above the water, the owner's "1 block tall") and room for the car there.
+	set {_found} to false
+	loop 6 times:
+		if {_found} is false:
+			set {_step} to loop-value * 0.25
+			set {_ax} to {_x} + {_dx} * {_step}
+			set {_az} to {_z} + {_dz} * {_step}
+			if block at location({_ax}, {_by}, {_az}, {_w}) is not passable:
+				set {_found} to true
+	{_found} is true
+	type of block at location({_ax}, {_by}, {_az}, {_w}) is not barrier
 	set {_ty} to -1000
 	set {_top} to {_sy} + 2
 	loop integers from ({_by} + 1) to {_top}:
@@ -1056,8 +1064,10 @@ function carClimbOut(m: entity):
 						if block at ({_c} ~ vector(0, -1, 0)) is not passable:
 							set {_ty} to loop-value
 	{_ty} > -1000
-	# Onto it, half a block forward (MTVehicles moves the seats and the skin after it next tick).
-	set {_dest} to location({_x} + {_dx} * 0.6, {_ty}, {_z} + {_dz} * 0.6, {_w}, {_yaw}, 0)
+	# Onto that column (MTVehicles moves the seats and the skin after it next tick).
+	set {_dest} to location({_ax}, {_ty}, {_az}, {_w}, {_yaw}, 0)
+	block at {_dest} is passable
+	block at ({_dest} ~ vector(0, 1, 0)) is passable
 	teleport {_m} to {_dest}
 	carLog("climb %name of {_m}% from %floor({_x})%,%{_by}%,%floor({_z})% up to %{_ty}% (water top %{_sy}%)")
 
