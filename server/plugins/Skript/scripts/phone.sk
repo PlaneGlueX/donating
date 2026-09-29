@@ -8,7 +8,7 @@
 # The plugin reads the scoreboard tag "donating_phone_open" to know which view to draw.
 #
 # Apps menu (3 rows, slot numbers 0-26):
-#    2 season (seasons.sk)   4 GPS (gps.sk)   6 missions (story.sk)   7 jobs (jobs.sk)   8 hits (hits.sk)
+#    0 messages (messages.sk)   2 season (seasons.sk)   4 GPS (gps.sk)   6 missions (story.sk)   7 jobs (jobs.sk)   8 hits (hits.sk)
 #    9 contracts   11 stats       13 passive mode   15 garage   17 cosmetics
 #   19 crates      21 bounties    23 how to play    25 bag      26 close
 # Each app opens its script's menu (garage: garage.sk's garageMenu, your cars); every app's main page has "◀ Phone"
@@ -135,6 +135,12 @@ function openPhone(p: player):
 	set slot 21 of {_gui} to tagItem(skeleton skull named "&cBounties" with lore "&7The biggest bounties online." and "&7Post one with the Broker.", "phone:bounties")
 	set slot 25 of {_gui} to tagItem(leather named "&6Bag" with lore "&7What's in your heist bag.", "phone:bag")
 	set slot 23 of {_gui} to tagItem(book named "&aHow to play" with lore "&7Heists, your bag, passive mode.", "phone:help")
+	# Messages (messages.sk): the texts from the contacts, with how many are new.
+	set {_unread} to msgUnreadAll({_p})
+	if {_unread} > 0:
+		set slot 0 of {_gui} to glint(tagItem(paper named "&d✉ Messages &a(%{_unread}% new)" with lore "&7Texts from Mara, the Boss, Vic" and "&7and the Broker, to read again.", "phone:messages"))
+	else:
+		set slot 0 of {_gui} to tagItem(paper named "&d✉ Messages" with lore "&7Texts from Mara, the Boss, Vic" and "&7and the Broker, to read again.", "phone:messages")
 	set slot 26 of {_gui} to tagItem(barrier named "&cClose", "phone:close")
 	set {-phone::gui::%{_p}%} to {_gui}
 	open {_gui} to {_p}
@@ -220,6 +226,9 @@ function phoneButton(p: player, slot: number):
 	else if {_slot} is 17:
 		close {_p}'s inventory
 		cosMenu({_p})
+	else if {_slot} is 0:
+		close {_p}'s inventory
+		msgMenu({_p})
 	else if {_slot} is 26:
 		close {_p}'s inventory
 

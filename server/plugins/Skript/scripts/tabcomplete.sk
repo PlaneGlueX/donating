@@ -123,6 +123,12 @@ on tab complete of "/heistrefresh" and "/skript:heistrefresh":
 	if {_h::*} is set:
 		set tab completions for position 1 to {_h::*}
 
+# /messages <contact>: the contacts who texted you (messages.sk).
+on tab complete of "/messages", "/texts", "/inbox", "/skript:messages", "/skript:texts" and "/skript:inbox":
+	set {_c::*} to msgContacts(player)
+	if {_c::*} is set:
+		set tab completions for position 1 to {_c::*}
+
 on tab complete of "/gps" and "/skript:gps":
 	set tab completions for position 1 to "clear" and "off"
 

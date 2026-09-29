@@ -1,0 +1,325 @@
+# messages.sk: the phone's Messages app (2026-09-28; CLAUDE.md's ideas: "a phone Messages app"). Every text a contact
+# sends (story.sk's storyText: Mara's missions, the Boss's and Mara's side jobs, Vic, the Broker) is kept in the player's
+# inbox, so a text that scrolled away in chat can be read again.
+#   - Saved per player: data inbox-n (the newest text's number), inbox::<n>::at (unix), ::from, ::text; only the newest
+#     cfg messages::keep (60) are kept. data inbox-seen::<contact> = the newest number read from that contact (a
+#     contact's key is its name in lower case without spaces: "mara", "boss").
+#   - Messages (the phone's app, slot 0, and /messages): one head per contact who texted (their NPC skin, skins.sk), the
+#     newest conversation first, "(2 new)", the last text and how long ago. Click: the conversation. ◀ Phone.
+#   - A conversation (/messages <contact>): its newest 45 texts, oldest first; the unread ones say "new". Opening it
+#     reads them. ◀ Back to Messages; "Find <contact>" pins them on the GPS (quests.sk questFind, core.sk
+#     msgcontact::<key>::kind) when the map has one.
+# Looking only: every click is cancelled; buttons run a tick later, once per drawn screen (like the other menus).
+
+# ---------- The inbox ----------
+
+function msgKeep() :: number:
+	set {_k} to {-cfg::messages::keep}
+	if {_k} is not set:
+		return 60
+	return {_k}
+
+# A contact's key: its name in lower case, without spaces.
+function msgKey(from: text) :: text:
+	set {_k} to {_from} in lower case
+	replace all " " with "" in {_k}
+	return {_k}
+
+function msgNewest(p: player) :: number:
+	set {_n} to getData({_p}, "inbox-n")
+	if {_n} is not set:
+		return 0
+	return {_n}
+
+# The oldest number still kept.
+function msgOldest(p: player) :: number:
+	return max(1, msgNewest({_p}) - msgKeep() + 1)
+
+# story.sk's storyText: one text from a contact, saved.
+function msgSave(p: player, from: text, line: text):
+	set {_n} to msgNewest({_p}) + 1
+	setData({_p}, "inbox-n", {_n})
+	setData({_p}, "inbox::%{_n}%::at", floor(unix timestamp of now))
+	setData({_p}, "inbox::%{_n}%::from", {_from})
+	setData({_p}, "inbox::%{_n}%::text", {_line})
+	set {_old} to {_n} - msgKeep()
+	if {_old} >= 1:
+		deleteData({_p}, "inbox::%{_old}%::at")
+		deleteData({_p}, "inbox::%{_old}%::from")
+		deleteData({_p}, "inbox::%{_old}%::text")
+
+# One text's parts (keys built in a local first: a quoted text with its own %...% can't sit inside %...%).
+function msgAt(p: player, n: number) :: number:
+	set {_k} to "inbox::%{_n}%::at"
+	set {_v} to getData({_p}, {_k})
+	if {_v} is not set:
+		return 0
+	return {_v}
+
+function msgFrom(p: player, n: number) :: text:
+	set {_k} to "inbox::%{_n}%::from"
+	set {_v} to getData({_p}, {_k})
+	if {_v} is not set:
+		return ""
+	return "%{_v}%"
+
+function msgText(p: player, n: number) :: text:
+	set {_k} to "inbox::%{_n}%::text"
+	set {_v} to getData({_p}, {_k})
+	if {_v} is not set:
+		return ""
+	return "%{_v}%"
+
+function msgSeen(p: player, key: text) :: number:
+	set {_s} to getData({_p}, "inbox-seen::%{_key}%")
+	if {_s} is not set:
+		return 0
+	return {_s}
+
+# Unread texts from one contact.
+function msgUnread(p: player, key: text) :: number:
+	set {_seen} to msgSeen({_p}, {_key})
+	set {_c} to 0
+	loop integers from msgOldest({_p}) to msgNewest({_p}):
+		if loop-value > {_seen}:
+			set {_f} to getData({_p}, "inbox::%loop-value%::from")
+			if {_f} is set:
+				if msgKey("%{_f}%") is {_key}:
+					add 1 to {_c}
+	return {_c}
+
+function msgUnreadAll(p: player) :: number:
+	set {_c} to 0
+	loop msgContacts({_p}):
+		add msgUnread({_p}, msgKey(loop-value)) to {_c}
+	return {_c}
+
+# The contacts who texted (their names as they sign), the newest conversation first.
+function msgContacts(p: player) :: texts:
+	set {_first} to msgOldest({_p})
+	set {_last} to msgNewest({_p})
+	{_last} >= 1
+	loop integers from {_first} to {_last}:
+		set {_f} to getData({_p}, "inbox::%loop-value%::from")
+		if {_f} is set:
+			set {_k} to msgKey("%{_f}%")
+			set {_name::%{_k}%} to "%{_f}%"
+			set {_at::%{_k}%} to loop-value
+	loop {_at::*}:
+		set {_v} to loop-value
+		set {_pad} to "%100000000 - {_v}%"
+		add "%{_pad}%|%loop-index%" to {_keys::*}
+	loop sorted {_keys::*}:
+		set {_a::*} to loop-value split at "|"
+		add {_name::%{_a::2}%} to {_out::*}
+	return {_out::*}
+
+# The newest text's number from one contact (0 = none).
+function msgLastOf(p: player, key: text) :: number:
+	set {_i} to 0
+	loop integers from msgOldest({_p}) to msgNewest({_p}):
+		set {_f} to getData({_p}, "inbox::%loop-value%::from")
+		if {_f} is set:
+			if msgKey("%{_f}%") is {_key}:
+				set {_i} to loop-value
+	return {_i}
+
+# "just now", "12m ago", "3h ago", "2d ago".
+function msgAgo(at: number) :: text:
+	set {_s} to floor(unix timestamp of now) - {_at}
+	if {_s} < 60:
+		return "just now"
+	if {_s} < 3600:
+		return "%floor({_s} / 60)%m ago"
+	if {_s} < 86400:
+		return "%floor({_s} / 3600)%h ago"
+	return "%floor({_s} / 86400)%d ago"
+
+# A text as lore lines of about w characters.
+function msgWrap(t: text, w: number) :: texts:
+	set {_line} to ""
+	loop {_t} split at " ":
+		if {_line} is "":
+			set {_line} to loop-value
+		else:
+			set {_try} to "%{_line}% %loop-value%"
+			if length of {_try} > {_w}:
+				add "&f%{_line}%" to {_out::*}
+				set {_line} to loop-value
+			else:
+				set {_line} to {_try}
+	if {_line} is not "":
+		add "&f%{_line}%" to {_out::*}
+	return {_out::*}
+
+# A contact's icon: a head with their NPC skin (skins.sk), else a paper.
+function msgIcon(key: text) :: item:
+	set {_id} to {-cfg::msgcontact::%{_key}%::skin}
+	if {_id} is set:
+		set {_t} to skinTexture({_id})
+		set {_s} to skinSignature({_id})
+		if {_t} is not "":
+			if {_s} is not "":
+				return player head with nbt from "{""minecraft:profile"":{properties:[{name:""textures"",value:""%{_t}%"",signature:""%{_s}%""}]}}"
+	return paper
+
+# ---------- Menus ----------
+
+function msgClear(p: player):
+	delete {-msg::gui::%{_p}%}
+	delete {-msg::act::%{_p}%::*}
+
+function msgButton(p: player, gui: inventory, slot: number, i: item, act: text):
+	set slot {_slot} of {_gui} to {_i}
+	set {-msg::act::%{_p}%::%{_slot}%} to {_act}
+
+function msgMenu(p: player):
+	set {_gui} to chest inventory with 4 rows named "&8Messages"
+	set {_pane} to gray stained glass pane named "&r"
+	loop 36 times:
+		set slot (loop-number - 1) of {_gui} to {_pane}
+	msgClear({_p})
+	set {-msg::gui::%{_p}%} to {_gui}
+	set {_slot} to 10
+	loop msgContacts({_p}):
+		if {_slot} <= 25:
+			set {_from} to loop-value
+			set {_k} to msgKey({_from})
+			set {_new} to msgUnread({_p}, {_k})
+			set {_i} to msgIcon({_k})
+			set {_n} to msgLastOf({_p}, {_k})
+			delete {_l::*}
+			add "&7%msgAgo(msgAt({_p}, {_n}))%" to {_l::*}
+			set {_w::*} to msgWrap(msgText({_p}, {_n}), 34)
+			loop {_w::*}:
+				if size of {_l::*} < 5:
+					add loop-value-2 to {_l::*}
+			add "" to {_l::*}
+			add "&eClick: read the conversation" to {_l::*}
+			if {_new} > 0:
+				set {_i} to {_i} named "&d%{_from}% &a(%{_new}% new)" with lore {_l::*}
+				set {_i} to glint({_i})
+			else:
+				set {_i} to {_i} named "&d%{_from}%" with lore {_l::*}
+			msgButton({_p}, {_gui}, {_slot}, {_i}, "thread:%{_k}%")
+			add 1 to {_slot}
+			if {_slot} is 17:
+				set {_slot} to 19
+	if {_slot} is 10:
+		set slot 13 of {_gui} to paper named "&7No messages yet" with lore "&7Texts from Mara, the Boss, Vic and the" and "&7Broker land here, to read again later."
+	msgButton({_p}, {_gui}, 27, phoneBackItem(), "phone")
+	msgButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
+	open {_gui} to {_p}
+
+function msgThread(p: player, key: text):
+	set {_last} to msgLastOf({_p}, {_key})
+	if {_last} is 0:
+		msgMenu({_p})
+		stop
+	set {_from} to msgFrom({_p}, {_last})
+	set {_seen} to msgSeen({_p}, {_key})
+	# Its texts, newest last; only the newest 45 fit.
+	loop integers from msgOldest({_p}) to msgNewest({_p}):
+		set {_f} to getData({_p}, "inbox::%loop-value%::from")
+		if {_f} is set:
+			if msgKey("%{_f}%") is {_key}:
+				add loop-value to {_ids::*}
+	set {_skip} to max(0, size of {_ids::*} - 45)
+	set {_gui} to chest inventory with 6 rows named "&8%{_from}%"
+	msgClear({_p})
+	set {-msg::gui::%{_p}%} to {_gui}
+	set {_slot} to 0
+	loop {_ids::*}:
+		if {_skip} > 0:
+			remove 1 from {_skip}
+		else:
+			set {_n} to loop-value
+			delete {_l::*}
+			add msgWrap(msgText({_p}, {_n}), 34) to {_l::*}
+			set {_ago} to msgAgo(msgAt({_p}, {_n}))
+			if {_n} > {_seen}:
+				set {_i} to paper named "&d%{_from}% &7· %{_ago}% &anew" with lore {_l::*}
+				set {_i} to glint({_i})
+			else:
+				set {_i} to paper named "&d%{_from}% &7· %{_ago}%" with lore {_l::*}
+			set slot {_slot} of {_gui} to {_i}
+			add 1 to {_slot}
+	set {_pane} to gray stained glass pane named "&r"
+	loop integers from 45 to 53:
+		set slot loop-value of {_gui} to {_pane}
+	msgButton({_p}, {_gui}, 45, backItem("your messages"), "list")
+	set {_kind} to {-cfg::msgcontact::%{_key}%::kind}
+	if {_kind} is set:
+		msgButton({_p}, {_gui}, 49, compass named "&eFind %{_from}%" with lore "&7Pins them on your GPS.", "find:%{_kind}%")
+	msgButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
+	# Read now.
+	setData({_p}, "inbox-seen::%{_key}%", {_last})
+	open {_gui} to {_p}
+
+function msgAction(p: player, act: text):
+	if {_act} starts with "thread:":
+		msgThread({_p}, subtext of {_act} from characters 8 to (length of {_act}))
+	else if {_act} is "list":
+		msgMenu({_p})
+	else if {_act} is "phone":
+		msgClear({_p})
+		openPhone({_p})
+	else if {_act} starts with "find:":
+		close {_p}'s inventory
+		questFind({_p}, subtext of {_act} from characters 6 to (length of {_act}))
+	else if {_act} is "close":
+		close {_p}'s inventory
+
+on inventory click:
+	{-msg::gui::%player%} is set
+	player's current inventory is {-msg::gui::%player%}
+	cancel event
+	event-inventory is {-msg::gui::%player%}
+	set {_act} to {-msg::act::%player%::%index of event-slot%}
+	{_act} is set
+	# One action per drawn screen (a second click from the same tick finds it used), a tick later.
+	if {-msg::gen::%player%} is not set:
+		set {-msg::gen::%player%} to 0
+	set {_gen} to {-msg::gen::%player%}
+	wait 1 tick
+	player is online
+	{-msg::gui::%player%} is set
+	{-msg::gen::%player%} is {_gen}
+	add 1 to {-msg::gen::%player%}
+	msgAction(player, {_act})
+
+on inventory drag:
+	{-msg::gui::%player%} is set
+	player's current inventory is {-msg::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-msg::gui::%player%} is set
+	event-inventory is {-msg::gui::%player%}
+	msgClear(player)
+
+on quit:
+	msgClear(player)
+	delete {-msg::gen::%player%}
+
+# A reminder at a join when texts wait.
+on join:
+	wait 6 seconds
+	player is online
+	set {_n} to msgUnreadAll(player)
+	{_n} > 0
+	msg(player, "&d✉ %{_n}% unread message(s) &7· your phone's Messages, or &f/messages")
+
+command /messages [<text>]:
+	description: Your texts from Mara, the Boss, Vic and the Broker.
+	aliases: /texts, /inbox
+	executable by: players
+	trigger:
+		if arg-1 is not set:
+			msgMenu(player)
+			stop
+		set {_k} to msgKey(arg-1)
+		if msgLastOf(player, {_k}) is 0:
+			msg(player, "&7No texts from %arg-1%. &f/messages")
+			stop
+		msgThread(player, {_k})

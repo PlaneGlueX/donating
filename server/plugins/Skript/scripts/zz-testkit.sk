@@ -1182,3 +1182,19 @@ command /zzcarclimb <text>:
 				carClimbOut(loop-entity)
 				set {_l} to location of loop-entity
 		send "CLIMB %arg-1% at=%{_l}%"
+
+# A text from a contact, as story.sk's storyText sends it (and messages.sk keeps it): /zztext <player> <from> <text>
+command /zztext <player> <text> <text>:
+	executable by: console
+	trigger:
+		storyText(arg-1, arg-2, arg-3)
+		send "TEXT %arg-1% n=%msgNewest(arg-1)% unread=%msgUnreadAll(arg-1)%"
+
+# Forgets a player's texts: /zzinboxclear <player>
+command /zzinboxclear <player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::inbox::*}
+		delete {data::%arg-1%::inbox-seen::*}
+		deleteData(arg-1, "inbox-n")
+		send "INBOX %arg-1% cleared"

@@ -40,6 +40,7 @@ function showCommands(p: player):
 	helpLine({_p}, "/contracts", "car-theft jobs and lockpicks")
 	helpLine({_p}, "/jobs", "contact jobs from Mara and the Boss")
 	helpLine({_p}, "/hits", "this week's hit contract")
+	helpLine({_p}, "/messages &7(/texts)", "your texts from Mara, the Boss, Vic and the Broker")
 	send colored "&6Getting around" to {_p}
 	helpLine({_p}, "/gps [clear]", "places to go; your pin")
 	helpLine({_p}, "/garage &7(/cars)", "your cars: take out, lock, repaint, tune, send back")

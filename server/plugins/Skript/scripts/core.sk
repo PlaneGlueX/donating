@@ -378,6 +378,18 @@ function loadSettings():
 	set {-cfg::quest::fence::hold} to "gold_ingot"
 	set {-cfg::quest::hits::name} to "Hit contracts"
 	set {-cfg::quest::hits::npc} to "The Broker"
+	# The phone's Messages app (messages.sk, 2026-09-28): texts kept per player, and each contact who texts (story.sk's
+	# storyText signs them: the key is the name in lower case without spaces) with its NPC skin (skins.sk) and the quest
+	# giver kind that finds them on the map ("Find <contact>").
+	set {-cfg::messages::keep} to 60
+	set {-cfg::msgcontact::mara::skin} to "mara"
+	set {-cfg::msgcontact::mara::kind} to "story"
+	set {-cfg::msgcontact::boss::skin} to "boss"
+	set {-cfg::msgcontact::boss::kind} to "contracts"
+	set {-cfg::msgcontact::vic::skin} to "vic"
+	set {-cfg::msgcontact::vic::kind} to "fence"
+	set {-cfg::msgcontact::broker::skin} to "broker"
+	set {-cfg::msgcontact::broker::kind} to "hits"
 	set {-cfg::quest::hits::place} to "Pool Hall"
 	set {-cfg::quest::hits::hold} to "book"
 	set {-cfg::quest::reach} to 6

@@ -554,6 +554,10 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 ### Menus: back buttons (2026-09-28)
 - Owner: "make sure all menus have a back button to their main page". phone.sk's backItem(to) ("◀ Back", lore "To <page>.") on every page that isn't a main page, back to the page it came from; phoneBackItem() ("◀ Phone") on every phone app's main page (garage, contracts, GPS, crates, season/leaderboard, missions, jobs, hits, bag, cosmetics), however it was opened, calling openPhone(p). Minigames (lock picking, a safe's keypad, fixing a drill, a crate's spin) and the trade window have none: closing them is the way out. Shops: the gun shop's Weapons, Ammo and Items tabs go back to Loadout; the Car Dealer's colors back to its models; trade's add lists back to the trade window (without cancelling it). Each script wires the click through its own action system; the bottom row's first slot when it's free. botsun.js menus (31 checks) opens every menu and clicks back. A new menu follows the same rule.
 
+### Messages (messages.sk, 2026-09-28)
+- The phone's Messages app (CLAUDE.md's ideas: "a phone Messages app"): every text a contact sends goes through story.sk's storyText (Mara's missions, Mara's and the Boss's side jobs, Vic, the Broker), which also keeps it in the player's inbox (msgSave): data `inbox-n`, `inbox::<n>::at|from|text`, the newest `messages::keep` (60) kept; `inbox-seen::<contact>` = the newest read (a contact's key: its name in lower case without spaces).
+- The phone's apps slot 0 ("✉ Messages (2 new)", glinting), /messages (aliases /texts, /inbox; tab-completes the contacts), the join reminder ("✉ N unread message(s)"). Messages: one head per contact with their NPC skin (skins.sk, core.sk `msgcontact::<key>::skin`), the newest conversation first, unread count, the last text; ◀ Phone. A conversation (/messages <contact>): its newest 45 texts, oldest first, unread ones "new"; opening it reads them; ◀ Back; "Find <contact>" (quests.sk questFind, `msgcontact::<key>::kind`). bots\run.js messages (14 checks); the real client (2026-09-28).
+
 ### Help (help.sk, 2026-09-28)
 - Owner: "dont forget to update /help and have an /adminhelp or something for all the commands". /help (how to play), /help commands (every player command, grouped), /adminhelp (alias /ahelp, `donating.staff`: heists, map, players, store and tests topics). join-quit.sk's /help moved here. A new command gets a line there.
 
@@ -824,7 +828,7 @@ Phase 2 (cars):
 29. hits.sk (built 2026-09-27): weekly hit contracts from the Broker, a per-hunter NPC copy. See "Hit contracts (hits.sk)".
 30. pv.sk (built 2026-09-27): personal views (entities one player sees). See "Personal views".
 31. citygarage.sk (built 2026-09-27): cars out and back at garages in person; Valet for Elite and Legend; the bays show each player's own cars. See "The City Garage".
-32. 2026-09-28: carwraps.sk (generated), items.sk (item rules), grapple.sk (the Grappler), help.sk (/help, /adminhelp). See "The car expansion", "New melee weapons and consumables", "The Grappler", "Help".
+32. 2026-09-28: carwraps.sk (generated), items.sk (item rules), grapple.sk (the Grappler), help.sk (/help, /adminhelp), messages.sk (the phone's Messages app). See "The car expansion", "New melee weapons and consumables", "The Grappler", "Help".
 
 Phase 3 (advanced heists):
 23. cops.sk (built 2026-09-26): Citizens + Sentinel cops for the alarm's waves, targets = the hunted players, cleanup; see "Cops (cops.sk)" in Verified notes.
