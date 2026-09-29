@@ -390,7 +390,7 @@ on tab complete of "/dpoi" and "/skript:dpoi":
 			set tab completions for position 2 to {_l::*}
 
 on tab complete of "/dsetup" and "/skript:dsetup":
-	set tab completions for position 1 to "heists", "places", "shops", "quests", "jobs", "crates", "cars", "phone" and "server"
+	set tab completions for position 1 to "heists", "story", "places", "flags", "shops", "quests", "jobs", "crates", "cars", "server" and "phone"
 
 on tab complete of "/ddistrict" and "/skript:ddistrict":
 	set tab completions for position 1 to "name", "list", "here" and "dump"

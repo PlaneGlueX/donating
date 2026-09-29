@@ -251,6 +251,7 @@ final class Gps {
     }
 
     Roads roads() { return roads; }
+    String roadsNote() { return roadsNote; }
 
     void shutdown() {
         worker.shutdownNow();
@@ -878,6 +879,7 @@ final class Gps {
                 roadsNote = "ok";
                 cache.clear();
                 for (Nav n : navs.values()) for (Target t : n.slots.values()) t.field = null;
+                plugin.publishState();
                 who.sendMessage("ROADS done in " + (System.currentTimeMillis() - started) / 1000 + " s: " + into.roads + " road, " + into.blocked + " blocked, "
                         + (into.w * into.h - into.roads - into.blocked) + " open cells (" + into.cellBlocks + "x" + into.cellBlocks + " blocks each); " + note);
                 for (Player p : Bukkit.getOnlinePlayers()) plugin.redraw(p);

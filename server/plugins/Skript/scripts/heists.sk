@@ -68,6 +68,18 @@ function heistState(h: text) :: text:
 		return {_s}
 	return ""
 
+# Was the room saved on this server? The reset reads the saved sections; structure files alone (they come with an
+# uploaded world) aren't enough (review fix, 2026-09-29: /dsetup and /dheist enable accepted a room never snapshotted).
+function heistHasSnapshot(h: text) :: boolean:
+	set {_n} to {heist::%{_h}%::sections}
+	if {_n} is not set:
+		return false
+	loop integers from 1 to {_n}:
+		set {_key} to "donating:heist/%{_h}%/%loop-value%"
+		if structure template {_key} does not exist:
+			return false
+	return true
+
 function heistName(h: text) :: text:
 	set {_n} to {heist::%{_h}%::name}
 	if {_n} is set:
@@ -1117,7 +1129,7 @@ command /dheist [<text>]:
 			if {heist::%{_h}%::exit} is not set:
 				dheistReply(sender, "HEIST %{_h}% enable: set the exit spot first (/dheist exit %{_h}%)")
 				stop
-			if structure template "donating:heist/%{_h}%/1" does not exist:
+			if heistHasSnapshot({_h}) is false:
 				dheistReply(sender, "HEIST %{_h}% enable: save the room first (/dheist snapshot %{_h}%)")
 				stop
 			delete {heist::%{_h}%::disabled}
