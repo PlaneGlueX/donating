@@ -482,9 +482,10 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 	set {_name} to heistName({_h})
 	if {_tp} is true:
 		return "You can't teleport into a heist. Walk in."
-	# Nobody rides in: a passenger seat reaches past a door, bars or a thin wall while the car stays outside, and
-	# passengers fire no region events (review 2026-09-28). heistReconcile moves them out to the exit.
-	if carSeatOf({_p}) is not "":
+	# No passenger rides in: a passenger seat reaches past a door, bars or a thin wall while the car stays outside, and
+	# passengers fire no region events (review 2026-09-28). heistReconcile moves them out to the exit. (A driver is the
+	# car scripts' job: garage.sk tows a garage car, contracts.sk moves a stolen car back out.)
+	if carSeatOf({_p}) starts with "passenger:":
 		return "Walk into the %{_name}%: no riding in."
 	# Nobody fights in a store (store::no-pvp): not a place to hide from a fight either (review fix).
 	if heistIsStore({_h}) is true:

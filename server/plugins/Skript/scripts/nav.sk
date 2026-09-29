@@ -219,6 +219,65 @@ function poiReconcile():
 
 every 10 seconds:
 	poiReconcile()
+	poiMapReconcile()
+
+# ---------- The places on the phone's map (2026-09-28; CLAUDE.md's ideas: "POI icons on the phone map") ----------
+# Every POI also shows on the phone's map as a colored banner (DonatingPhone's /dphone place: base light blue, shop orange,
+# spawn white, landmark magenta, garage cyan, quest givers blue, heists by difficulty: a store light gray, then lime,
+# yellow, red, black), its name while the big map's cursor is on it (a left-click there pins it: gps.sk snaps to POIs).
+# Heists only while open or running, like their locator dot. Sent when a place changes ({-mapplace::<id>} = what was
+# sent) and all again every minute (the plugin keeps them in memory: a restart of it forgets them).
+function poiMapWant(id: text, type: text, l: location, name: text):
+	set {_x} to x-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {-mapwant::%{_id}%} to "%{_type}% %world of {_l}% %round({_x})% %round({_z})% %{_name}%"
+
+function poiMapReconcile():
+	delete {-mapwant::*}
+	loop {poi::*}:
+		set {_p::*} to loop-value split at "|"
+		set {_name} to {_p::6}
+		if {_name} is not set:
+			set {_name} to "%{_p::1}%"
+		if "%{_name}%" is "":
+			set {_name} to "%{_p::1}%"
+		poiMapWant("p%loop-index%", {_p::1}, poiLocation(loop-value), "%{_name}%")
+	loop {heists::*}:
+		set {_h} to loop-index
+		set {_s} to heistState({_h})
+		set {_on} to false
+		if {_s} is "open":
+			set {_on} to true
+		else if {_s} is "active":
+			set {_on} to true
+		if {_on} is true:
+			set {_l} to {heist::%{_h}%::holo}
+			if {_l} is not set:
+				set {_l} to heistCenter({_h})
+			if {_l} is set:
+				poiMapWant("h%{_h}%", "heist%heistDifficulty({_h})%", {_l}, heistName({_h}))
+	loop {quest::giver::*}:
+		set {_l} to questLoc(loop-index)
+		if {_l} is set:
+			poiMapWant("q%loop-index%", "quest", {_l}, "%questNpcName(loop-index)% (%questPlace(loop-index)%)")
+	# Places that are gone first (before the minute's reset below forgets what was sent: review of this change).
+	loop {-mapplace::sent::*}:
+		if {-mapwant::%loop-index%} is not set:
+			add loop-index to {_gone::*}
+	loop {_gone::*}:
+		delete {-mapplace::sent::%loop-value%}
+		execute console command "dphone place remove %loop-value%"
+	# Everything again every minute: the plugin forgets its places first (in the same tick: nothing flickers), so nothing
+	# the plugin still has can be left behind, and a restarted plugin gets them all.
+	add 1 to {-mapplace::pass}
+	if {-mapplace::pass} >= 6:
+		set {-mapplace::pass} to 0
+		delete {-mapplace::sent::*}
+		execute console command "dphone place clear"
+	loop {-mapwant::*}:
+		if {-mapplace::sent::%loop-index%} is not loop-value:
+			set {-mapplace::sent::%loop-index%} to loop-value
+			execute console command "dphone place set %loop-index% %loop-value%"
 
 on load:
 	wait 3 seconds

@@ -2,6 +2,7 @@ package dev.donating.phone;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -99,6 +100,32 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     /** A banner label on the city map, in image pixels. */
     private record Poi(double ix, double iz, byte dir, MapCursor.Type type, Component caption) {}
 
+    /**
+     * A place on the phone's map, sent by Skript (nav.sk: staff POIs, open heists, quest givers): a colored banner
+     * icon, its name while the big map's cursor is on it. /dphone place set|remove|clear|list.
+     */
+    private record Place(String world, double x, double z, MapCursor.Type type, String label, NamedTextColor color) {}
+    private final Map<String, Place> places = new LinkedHashMap<>();
+    private boolean placesOn, placesHeld;
+
+    /** A place type's icon and name color; null for an unknown type. */
+    private static Map.Entry<MapCursor.Type, NamedTextColor> placeStyle(String type) {
+        return switch (type.toLowerCase()) {
+            case "base" -> Map.entry(MapCursor.Type.BANNER_LIGHT_BLUE, NamedTextColor.AQUA);
+            case "shop" -> Map.entry(MapCursor.Type.BANNER_ORANGE, NamedTextColor.GOLD);
+            case "spawn" -> Map.entry(MapCursor.Type.BANNER_WHITE, NamedTextColor.WHITE);
+            case "landmark" -> Map.entry(MapCursor.Type.BANNER_MAGENTA, NamedTextColor.LIGHT_PURPLE);
+            case "garage" -> Map.entry(MapCursor.Type.BANNER_CYAN, NamedTextColor.DARK_AQUA);
+            case "quest" -> Map.entry(MapCursor.Type.BANNER_BLUE, NamedTextColor.BLUE);
+            case "heist0" -> Map.entry(MapCursor.Type.BANNER_LIGHT_GRAY, NamedTextColor.GRAY);
+            case "heist1" -> Map.entry(MapCursor.Type.BANNER_LIME, NamedTextColor.GREEN);
+            case "heist2" -> Map.entry(MapCursor.Type.BANNER_YELLOW, NamedTextColor.YELLOW);
+            case "heist3" -> Map.entry(MapCursor.Type.BANNER_RED, NamedTextColor.RED);
+            case "heist4" -> Map.entry(MapCursor.Type.BANNER_BLACK, NamedTextColor.DARK_RED);
+            default -> null;
+        };
+    }
+
     private static final class State {
         double cx = Double.NaN, cz;      // held-view center in image pixels
         long drawn = Long.MIN_VALUE;     // which view the canvas shows now
@@ -154,6 +181,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         cursorSpeed = Math.max(0.5, c.getDouble("cursor-speed", 3.0));
         hoverRadius = Math.max(1, c.getInt("hover-radius", 6));
         smallArrows = c.getBoolean("small-arrows", true);
+        placesOn = c.getBoolean("places.enabled", true);
+        placesHeld = c.getBoolean("places.held", true);
         passiveTag = c.getString("passive-tag", "donating_passive");
         openTag = c.getString("open-tag", "donating_phone_open");
         hint = c.getString("hint", "R-click: map  F: apps");
@@ -480,11 +509,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "gps", "mark", "pv", "nametag", "carstat"));
+            options.addAll(List.of("reload", "status", "roads", "gps", "mark", "pv", "nametag", "carstat", "place"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
+                case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
                 default -> { }
             }
         } else if (args.length == 3) {
@@ -555,6 +585,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("PV " + args[1] + " default=" + en.isVisibleByDefault() + " tracked=" + String.join(",", tracked) + " see=" + String.join(",", see));
             return true;
         }
+        if (args.length >= 2 && args[0].equalsIgnoreCase("place")) return placeCommand(sender, args);
         if (args.length == 2 && args[0].equalsIgnoreCase("status")) {
             Player p = Bukkit.getPlayerExact(args[1]);
             MapView v = p == null ? null : assigned.get(p.getUniqueId());
@@ -562,7 +593,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             State s = states.get(p.getUniqueId());
             sender.sendMessage("PHONE " + p.getName() + " map=" + v.getId() + " holding=" + holds(p, v)
                     + " open=" + p.getScoreboardTags().contains(openTag) + " cityRead=" + (img != null)
-                    + " pois=" + pois.size() + " cursor=" + (s == null ? "none" : s.curX + "," + s.curY) + " route=" + routePin + "," + routeQuest + "," + routeLoot);
+                    + " pois=" + pois.size() + " places=" + places.size() + " cursor=" + (s == null ? "none" : s.curX + "," + s.curY) + " route=" + routePin + "," + routeQuest + "," + routeLoot);
             return true;
         }
         if (args.length > 1 || (args.length == 1 && !args[0].equalsIgnoreCase("reload"))) {
@@ -574,11 +605,36 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
             sender.sendMessage("/dphone nametag <viewer> <target>: whether TAB hides the target's name from the viewer (behind walls)");
             sender.sendMessage("/dphone carstat <plate> [<max speed> <acceleration> <steering>]: a driven car's stats in MTVehicles (garage.sk's mods)");
+            sender.sendMessage("/dphone place set <id> <base|shop|spawn|landmark|garage|quest|heist0-4> <world> <x> <z> <name...> | remove <id> | clear | list: icons on the phone's map (nav.sk)");
             return true;
         }
         load();
         if (nametags != null) nametags.start(); // the nametags settings
         sender.sendMessage("DonatingPhone reloaded: " + pool.size() + " phone maps, city " + cityDesc + ".");
+        return true;
+    }
+
+    /** /dphone place: Skript's places on the map. set, remove and clear answer nothing (nav.sk sends them every 10 s). */
+    private boolean placeCommand(CommandSender sender, String[] args) {
+        String sub = args[1].toLowerCase();
+        if (sub.equals("set") && args.length >= 8) {
+            Map.Entry<MapCursor.Type, NamedTextColor> st = placeStyle(args[3]);
+            double x, z;
+            try { x = Double.parseDouble(args[5]); z = Double.parseDouble(args[6]); } catch (NumberFormatException ex) { st = null; x = z = 0; }
+            if (st == null) { sender.sendMessage("PLACE bad type or position: " + String.join(" ", args)); return true; }
+            String name = String.join(" ", java.util.Arrays.copyOfRange(args, 7, args.length));
+            places.put(args[2], new Place(args[4], x, z, st.getKey(), name, st.getValue()));
+            return true;
+        }
+        if (sub.equals("remove") && args.length == 3) { places.remove(args[2]); return true; }
+        if (sub.equals("clear")) { places.clear(); return true; } // silent: nav.sk clears every minute before sending them all again
+        if (sub.equals("list")) {
+            List<String> out = new ArrayList<>();
+            for (Map.Entry<String, Place> e : places.entrySet()) out.add(e.getKey() + "=" + e.getValue().type().getKey().getKey() + "@" + Math.round(e.getValue().x()) + "," + Math.round(e.getValue().z()) + " " + e.getValue().label());
+            sender.sendMessage("PLACES " + places.size() + ": " + String.join(" | ", out));
+            return true;
+        }
+        sender.sendMessage("/dphone place set <id> <type> <world> <x> <z> <name...> | remove <id> | clear | list");
         return true;
     }
 
@@ -650,6 +706,21 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
             MapCursorCollection cursors = new MapCursorCollection();
             for (Poi poi : pois) put(cursors, poi.ix, poi.iz, cx, cz, f, poi.dir, poi.type, poi.caption);
+            // Places (nav.sk): colored banners; the name only on the big map, while the cursor is on it.
+            if (placesOn && (open || placesHeld)) {
+                Place hp = null;
+                double hb = hoverRadius + 0.5;
+                if (open && s.curX >= 0) for (Place pl : places.values()) {
+                    if (!pl.world().equals(world.getName())) continue;
+                    double d = Math.hypot(((pl.x() - x0) / bpp - cx) / f + 64 - s.curX, ((pl.z() - z0) / bpp - cz) / f + 64 - s.curY);
+                    if (d < hb) { hb = d; hp = pl; }
+                }
+                for (Place pl : places.values()) {
+                    if (!pl.world().equals(world.getName())) continue;
+                    Component cap = pl == hp ? Component.text(pl.label(), pl.color()) : null;
+                    put(cursors, (pl.x() - x0) / bpp, (pl.z() - z0) / bpp, cx, cz, f, (byte) 0, pl.type(), cap);
+                }
+            }
             // Passive players: a green arrow. Name only on the big map, while the cursor is on it.
             Player hovered = null;
             double best = hoverRadius + 0.5;

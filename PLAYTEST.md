@@ -408,6 +408,8 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (bots, 2026-09-28, menus 31/31, and the 13 scenarios of the changed scripts). A review of every menu found them all following the rule (one old stand issue fixed: back at a crate stand keeps the Open button).
 159. **The phone's Messages app** (`bots\run.js messages`, 14 checks; cu): texts from Mara, the Boss, Vic and the Broker are kept (the newest 60); the phone's app "Messages (N new)"; /messages lists the contacts with their skins, the newest first, unread counts; a conversation shows its texts and reads them; ◀ Back, ◀ Phone, Find <contact>; /messages <contact>; a join reminder; tab completion.
     - Result: PASS (bots, 2026-09-28, 14/14; cu 2026-09-28: the heads wear the contacts' skins, "Broker (1 new)" with the wrapped text, Mara's conversation with "new" and Find Mara).
+160. **Places on the phone's map** (`bots\run.js places`, 6 checks; also phone-map, poi, gps): every POI shows on the phone as a colored banner (a shop orange, a heist by difficulty, quest givers blue), sent within 10 s, gone when removed or when a heist closes; the held phone shows no names; the big map shows a place's name while the cursor is on it.
+    - Result: PASS (bots, 2026-09-29). **Owner/cu:** how the banners look on the real city map (too many? the colors?), and the hover names on the big map.
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 

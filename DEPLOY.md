@@ -123,7 +123,7 @@ Places, standing where they go:
 - NPC skins: skins.sk carries the signed skins; once the shopkeepers and quest givers stand, run `/dskins respawn` so they come back wearing them (`/dskins` lists which exist).
 - Points of interest (the locator bar's dots): locally `/dpoi dump` prints a `/minecraft:tp` and a `/dpoi add` line per POI; on Minehut run each pair (the add uses where you stand). Heist dots come by themselves once the heists exist.
 - The spawn: EssentialsX `/setspawn`.
-- The phone's city map: set `city-maps` in `plugins/DonatingPhone/config.yml`, then `/dphone`.
+- The phone's city map: set `city-maps` in `plugins/DonatingPhone/config.yml`, then `/dphone`. Every POI (/dpoi), open heist and quest giver then shows on the phones as a colored banner by itself (nav.sk; `places.enabled` / `places.held` in that config turn it off or off on the held phone).
 
 ## 6. Check it
 

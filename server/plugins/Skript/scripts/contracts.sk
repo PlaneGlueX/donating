@@ -752,7 +752,7 @@ function ctDriveCheck(u: text):
 		if {_car} is set:
 			if {_back} is set:
 				teleport mtv vehicle {_car} to {_back}
-		hudBar({_p}, "&cNo cars in heists: &7the car is back outside.", 2)
+		hudBar({_p}, "&cNo cars in heists: &7the car is back outside.", 3)
 		stop
 	set {-ctjob::%{_u}%::carat} to {_l}
 	set {_c} to ctChopNear({_l})

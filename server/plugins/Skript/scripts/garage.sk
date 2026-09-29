@@ -981,7 +981,7 @@ function carTow(p: player, plate: text):
 	# The dismount's leave event may have towed it already (carTowLeft).
 	if {car::out::%{_plate}%} is set:
 		carStore({_plate}, "heist")
-		hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 2)
+		hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 3)
 
 # A car its driver just left: towed if it stands inside a heist. heists.sk moves a rider out of a heist (no riding in,
 # 2026-09-28) before the every-second backstop sees them in it, so the car they leave standing inside is towed here.
@@ -991,7 +991,7 @@ function carTowLeft(p: player, plate: text):
 	{_l} is set
 	heistAt({_l}) is not ""
 	carStore({_plate}, "heist")
-	hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 2)
+	hudBar({_p}, "&cNo cars in heists: &7yours was towed to the garage.", 3)
 
 on quit:
 	set {_plate} to {-car::riding::%uuid of player%}
