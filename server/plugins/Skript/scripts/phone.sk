@@ -98,6 +98,18 @@ on swap hand items:
 	closePhoneMap(player)
 	openPhone(player)
 
+# ---------- Back buttons (owner, 2026-09-28: "make sure all menus have a back button to their main page") ----------
+# Every menu page that isn't a main page has "◀ Back" to the page it came from; every app's main page (the ones the phone
+# opens: garage, contracts, GPS, crates, season, missions, jobs, hits, bag, cosmetics) has "◀ Phone" to the phone's apps,
+# however it was opened (a command, an NPC). Minigames (lock picking, a safe's keypad, fixing a drill, a crate's spin)
+# and the trade window have none: closing them is the way out. Each script handles the click in its own menu code and
+# calls openPhone(p) for "◀ Phone". Put them in the bottom row's first slot when it's free.
+function backItem(to: text) :: item:
+	return arrow named "&f◀ Back" with lore "&7To %{_to}%."
+
+function phoneBackItem() :: item:
+	return arrow named "&f◀ Phone" with lore "&7Back to your phone's apps."
+
 function openPhone(p: player):
 	set {_gui} to chest inventory with 3 rows named "&8Phone"
 	set {_pane} to gray stained glass pane named "&r"

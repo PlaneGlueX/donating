@@ -9,7 +9,7 @@ Energy_Drink:
         - "<gray>A can of pure sugar and bad decisions."
         - ""
         - "<gray>Weapon Statistics"
-        - "<gold>➣<gray> Speed III <gold>⟸ <gray>for 15 seconds"
+        - "<gold>➣<gray> Speed II <gold>⟸ <gray>for 3 seconds"
       Unbreakable: true
       Hide_Flags: true
       Deny_Use_In_Crafting: true
@@ -29,10 +29,11 @@ Energy_Drink:
       Off_Hand: "RIGHT_CLICK"
       Circumstance:
         Swimming: "DENY"
-    # Donating (owner, 2026-09-28: "energy drink (15 seconds speed 3, test this one out to balance it)").
+    # Donating (owner, 2026-09-28: "energy drink (15 seconds speed 3, test this one out to balance it)"; after
+    # the test, owner 2026-09-28: "speed 2, also shorten the energy drink to 3 seconds": a short burst).
     # A drink uses one of the stack and leaves nothing behind (no can).
     Consume_Item_On_Shoot: true
     Delay_Between_Shots: 20
     Mechanics:
       - "Sound{sound=entity.generic.drink, pitch=1.2, noise=0.1}"
-      - "Potion{potion=speed, time=300, level=3}"
+      - "Potion{potion=speed, time=60, level=2}"

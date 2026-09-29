@@ -7,19 +7,20 @@
 #     cfg("bounty::min-placed"). The money is taken from the placer. It's posted in person with the Broker (hits.sk's
 #     quest giver, within quest::reach); a map with no Broker keeps posting anywhere. /bounty alone lists them anywhere.
 #   - A bounty stays until a player kills you (combat logs count, credited by combat-log.sk), then the
-#     killer is paid all of it and it's gone. Cop and trap deaths leave it. The placed part was paid by its
-#     placers; the earned part (robberies, contracts, kills) comes out of the victim's balance while
-#     cfg("bounty::earned-from-victim") is true (review 2026-09-28: it was new money, so any pair farmed it).
+#     killer is paid all of it and it's gone. Cop and trap deaths leave it. The victim of that kill also pays
+#     cfg("bounty::victim-fee") (10%) of their bounty on top of the death's cost (owner, 2026-09-28; it disappears).
 #   - Passive players can't gain, claim or place bounties, and nobody can place one on them.
 #   - No payout (and no kill bounty) between players on the same IP (alts), while
 #     cfg("bounty::ip-check") is true; a killer who is offline at the claim is compared by the IP they last
 #     played from (data "last-ip", review 2026-09-28: a combat log credited to an offline main skipped the check).
 #
-# Data: "bounty" = the whole bounty ($), "bounty-placed" = the part other players paid for, "bounty-kills" = the
-# part that came from kills (for the cap),
+# Data: "bounty" = the whole bounty ($), "bounty-kills" = the part that came from kills (for the cap),
 # "bounty-last::<victim uuid>" = when this player last got kill bounty for that victim,
 # "bounty-payout" = money waiting for a killer who was offline at the claim (paid on join).
 # The death cause comes from death.sk (data "last-death-cause"); this runs after it (priority monitor).
+
+function bountyLog(text: text):
+	log {_text} to "bounty"
 
 function getBounty(p: offline player) :: number:
 	set {_b} to getData({_p}, "bounty")
@@ -41,17 +42,11 @@ function addBounty(p: offline player, amount: number, source: text) :: number:
 	if {_add} <= 0:
 		return 0
 	setData({_p}, "bounty", getBounty({_p}) + {_add})
-	if {_source} is "placed":
-		set {_pl} to getData({_p}, "bounty-placed")
-		if {_pl} is not set:
-			set {_pl} to 0
-		setData({_p}, "bounty-placed", {_pl} + {_add})
 	return {_add}
 
 function clearBounty(p: offline player):
 	deleteData({_p}, "bounty")
 	deleteData({_p}, "bounty-kills")
-	deleteData({_p}, "bounty-placed")
 
 # The online player with this uuid text, if any.
 function playerByUuid(u: text) :: player:
@@ -86,20 +81,14 @@ on death of player with priority monitor:
 		if {data::%{_ku}%::last-ip} is ip of victim:
 			stop
 	set {_vname} to name of victim
-	# 1. The victim's bounty goes to the killer: the placed part in full, the earned part out of the victim's balance.
+	# 1. The victim's bounty goes to the killer, and the victim pays the fee on it (owner, 2026-09-28).
 	set {_bounty} to getBounty(victim)
 	if {_bounty} > 0:
-		set {_placed} to getData(victim, "bounty-placed")
-		if {_placed} is not set:
-			set {_placed} to 0
-		set {_placed} to min({_placed}, {_bounty})
 		clearBounty(victim)
-		if cfg("bounty::earned-from-victim") is true:
-			set {_earned} to {_bounty} - {_placed}
-			set {_took} to takeMoney(victim, {_earned})
-			set {_bounty} to {_placed} + {_took}
-			if {_took} > 0:
-				msg(victim, "&cYour bounty was claimed: &f%formatMoney({_took})% &cof it came out of your pocket.")
+		set {_fee} to takeMoney(victim, floor({_bounty} * cfg("bounty::victim-fee")))
+		if {_fee} > 0:
+			msg(victim, "&cYour bounty was claimed: it cost you &f%formatMoney({_fee})% &cmore (%cfg("bounty::victim-fee") * 100%%% of it).")
+			bountyLog("fee %name of victim% %uuid of victim% bounty=%{_bounty}% fee=%{_fee}% killer=%{_ku}%")
 		set {_money} to formatMoney({_bounty})
 		if {_killer} is set:
 			giveMoney({_killer}, {_bounty})

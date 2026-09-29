@@ -43,9 +43,9 @@ function loadSettings():
 	set {-cfg::passive::switch-cooldown} to 10 minutes
 	set {-cfg::bounty::repeat-kill-window} to 15 minutes
 	set {-cfg::duffel::despawn} to 2 minutes
-	# Hot loot (review 2026-09-28, PROPOSAL): what a robber the cops hunt drops can't be sold for this long, by
+	# Hot loot (review 2026-09-28; owner: 5 minutes): what a robber the cops hunt drops can't be sold for this long, by
 	# anyone who picks it up (the robber too), so a friend can't carry it home past the cops.
-	set {-cfg::duffel::hot-time} to 10 minutes
+	set {-cfg::duffel::hot-time} to 5 minutes
 	set {-cfg::alarm::warning} to 20 seconds
 	set {-cfg::alarm::wave-interval} to 10 seconds
 	set {-cfg::alarm::max-cops} to 6
@@ -1092,10 +1092,9 @@ function loadSettings():
 	set {-cfg::bounty::min-placed} to 1000
 	# No bounty payout (or kill bounty) between players on the same IP address (alts).
 	set {-cfg::bounty::ip-check} to true
-	# PROPOSAL (review 2026-09-28): the part of a bounty nobody paid for (robbery and contract shares, kills) is paid
-	# to the killer out of the victim's own balance, so two friends killing each other only move their own money
-	# around. false = it's new money, as before (a pair could farm +10% on every sale).
-	set {-cfg::bounty::earned-from-victim} to true
+	# Owner, 2026-09-28: a claimed bounty stays new money for the killer, and the victim of that player kill pays this
+	# share of their bounty on top of the death's cost (it disappears: a money sink).
+	set {-cfg::bounty::victim-fee} to 0.10
 
 	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
 	# Purchases at or above this price need a second click within the window.
@@ -1214,8 +1213,9 @@ function loadSettings():
 	set {-cfg::con::Throwing_Knife::level} to 5
 	# Speed III for 15 s (the owner's ask; measured: a sprint at 9.1 blocks/s, 61 blocks ahead of the fastest cop in 15 s).
 	set {-cfg::con::Energy_Drink::name} to "Energy Drink"
-	set {-cfg::con::Energy_Drink::price} to 750
-	set {-cfg::con::Energy_Drink::max} to 2
+	# Speed II for 3 s (owner, 2026-09-28): a short burst, so cheaper (PROPOSAL, was $750 for Speed III 15 s).
+	set {-cfg::con::Energy_Drink::price} to 250
+	set {-cfg::con::Energy_Drink::max} to 3
 	set {-cfg::con::Energy_Drink::model} to 4
 	set {-cfg::con::Energy_Drink::item} to amethyst shard
 	set {-cfg::con::Energy_Drink::level} to 10
@@ -1253,7 +1253,9 @@ function loadSettings():
 	set {-cfg::grapple::range} to 24
 	set {-cfg::grapple::speed} to 1.3
 	set {-cfg::grapple::ticks} to 30
-	set {-cfg::grapple::cooldown} to 3 seconds
+	# Owner, 2026-09-28: a longer wait between hooks (PROPOSAL 15 s, was 3 s), shown winding back on the hotbar and
+	# the action bar.
+	set {-cfg::grapple::cooldown} to 15 seconds
 	set {-cfg::grapple::fall-grace} to 4 seconds
 	set {-cfg::grapple::heist-gap} to 6
 	set {-cfg::grapple::block-prefix} to "nograpple"
@@ -1389,8 +1391,12 @@ function loadSettings():
 	set {-cfg::crate::epic::sold} to true
 	set {-cfg::crate::legendary::sold} to true
 	set {-cfg::crate::hacked::sold} to false
-	set {-cfg::crate::supercar::sold} to true
-	set {-cfg::crate::hypercar::sold} to true
+	# The car crates' keys are never sold for real money (owner, 2026-09-28: "car crate keys only purchasable with in game
+	# money ($1M+)"): price = what a key costs in game money (crates.sk, the crate's preview; PROPOSAL).
+	set {-cfg::crate::supercar::sold} to false
+	set {-cfg::crate::hypercar::sold} to false
+	set {-cfg::crate::supercar::price} to 1000000
+	set {-cfg::crate::hypercar::price} to 2500000
 	# The car crates show a car (crates.sk crateIcon: the last car of their roll pool); these are the fallbacks.
 	set {-cfg::crate::supercar::icon} to minecart
 	set {-cfg::crate::hypercar::icon} to minecart

@@ -458,7 +458,9 @@ function crateOpen(p: player, t: text):
 		play sound "entity.villager.no" with volume 0.6 to {_p}
 		stop
 	if crateKeys({_p}, {_t}) < 1:
-		if {-cfg::crate::%{_t}%::sold} is true:
+		if {-cfg::crate::%{_t}%::price} is set:
+			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Buy one for &f%formatMoney({-cfg::crate::%{_t}%::price})% &7in its preview.")
+		else if {-cfg::crate::%{_t}%::sold} is true:
 			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Get some: &f/store")
 		else if {_t} is "daily":
 			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Claim one every day: &f/daily")
@@ -634,7 +636,9 @@ function dailyText(p: player) :: text:
 
 # Where keys come from, as lore lines.
 function crateKeySource(t: text) :: texts:
-	if {-cfg::crate::%{_t}%::sold} is true:
+	if {-cfg::crate::%{_t}%::price} is set:
+		add "&7Buy a key: &f%formatMoney({-cfg::crate::%{_t}%::price})% &7(game money)" to {_l::*}
+	else if {-cfg::crate::%{_t}%::sold} is true:
 		add "&7Buy keys: &f/store" to {_l::*}
 	else if {_t} is "daily":
 		add "&7A free key every day: &f/daily" to {_l::*}
@@ -677,7 +681,7 @@ function crateMenu(p: player):
 			set {_slot} to 19
 	set {_d} to clock named "&eDaily reward: &f%dailyText({_p})%" with lore "&7A Daily key every day, plus your" and "&7rank's keys (VIP+, Elite, Legend)." and "&eClick to claim."
 	crateButton({_p}, {_gui}, 31, {_d}, "daily")
-	crateButton({_p}, {_gui}, 27, emerald named "&aBuy keys" with lore "&7Keys for Common to Legendary and" and "&7the car crates are in the store." and "&eClick for the link.", "store")
+	crateButton({_p}, {_gui}, 27, emerald named "&aBuy keys" with lore "&7Keys for Common to Legendary" and "&7are in the store. Car crate keys" and "&7cost game money: click the crate." and "&eClick for the store link.", "store")
 	crateButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	open {_gui} to {_p}
 
@@ -813,7 +817,13 @@ function cratePreview(p: player, t: text, stand: boolean):
 	else:
 		add "&7Open it at a crate stand." to {_l::*}
 		crateButton({_p}, {_gui}, 49, tripwire hook named "&7Your keys: &f%{_n}%" with lore {_l::*}, "none")
-	if {-cfg::crate::%{_t}%::sold} is true:
+	if {-cfg::crate::%{_t}%::price} is set:
+		set {_pr} to {-cfg::crate::%{_t}%::price}
+		if crateBuyArmed({_p}, {_t}) is true:
+			crateButton({_p}, {_gui}, 51, lime concrete named "&aConfirm purchase?" with lore "&7A %crateName({_t})% key for &f%formatMoney({_pr})%&7." and "&eClick again to buy.", "buy:%{_t}%")
+		else:
+			crateButton({_p}, {_gui}, 51, gold ingot named "&6Buy a key &7· &f%formatMoney({_pr})%" with lore "&7Game money only: car crate keys" and "&7are never sold in the store." and "&eClick, then click again to confirm.", "buy:%{_t}%")
+	else if {-cfg::crate::%{_t}%::sold} is true:
 		crateButton({_p}, {_gui}, 51, emerald named "&aBuy keys" with lore "&eClick for the store link.", "store")
 	crateButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
 	open {_gui} to {_p}
@@ -848,6 +858,8 @@ function crateAction(p: player, act: text):
 		cratePreview({_p}, subtext of {_act} from characters 7 to (length of {_act}), false)
 	else if {_act} starts with "open:":
 		crateOpen({_p}, subtext of {_act} from characters 6 to (length of {_act}))
+	else if {_act} starts with "buy:":
+		crateBuyKey({_p}, subtext of {_act} from characters 5 to (length of {_act}))
 	else if {_act} is "menu":
 		crateMenu({_p})
 	else if {_act} is "daily":
@@ -858,6 +870,66 @@ function crateAction(p: player, act: text):
 		msg({_p}, "&6%storeText()% &7Crate keys for Common to Legendary crates. Open them at a crate stand.")
 	else if {_act} is "close":
 		close {_p}'s inventory
+
+# ---------- Car crate keys for game money (owner, 2026-09-28) ----------
+# The first click arms the button for 5 s ("Confirm purchase?"), the second buys; too little money is refused at once.
+
+function crateBuyArmed(p: player, t: text) :: boolean:
+	set {_a} to {-crate::buyarm::%{_p}%}
+	if {_a} is not set:
+		return false
+	if "%{_a}%" is not {_t}:
+		return false
+	set {_at} to {-crate::buyat::%{_p}%}
+	if {_at} is not set:
+		return false
+	if difference between {_at} and now <= 5 seconds:
+		return true
+	return false
+
+function crateBuyKey(p: player, t: text):
+	set {_pr} to {-cfg::crate::%{_t}%::price}
+	if {_pr} is not set:
+		stop
+	if isCombatTagged({_p}) is true:
+		msg({_p}, "&cYou can't buy keys while in combat.")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	if balance of {_p} < {_pr}:
+		msg({_p}, "&cA %crateName({_t})% key costs %formatMoney({_pr})%.")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	if crateBuyArmed({_p}, {_t}) is false:
+		set {-crate::buyarm::%{_p}%} to {_t}
+		set {-crate::buyat::%{_p}%} to now
+		cratePreview({_p}, {_t}, crateAtStand({_p}, {_t}))
+		stop
+	delete {-crate::buyarm::%{_p}%}
+	delete {-crate::buyat::%{_p}%}
+	if chargeMoney({_p}, {_pr}) is not true:
+		msg({_p}, "&cA %crateName({_t})% key costs %formatMoney({_pr})%.")
+		stop
+	crateAddKeys({_p}, {_t}, 1, "bought for %{_pr}%")
+	crateLog("buy %name of {_p}% %uuid of {_p}% %{_t}% price=%{_pr}% keys=%crateKeys({_p}, {_t})%")
+	msg({_p}, "&aBought a %crateColored({_t})% &akey for %formatMoney({_pr})%. &7Open it at a crate stand.")
+	play sound "entity.player.levelup" with volume 0.6 to {_p}
+	cratePreview({_p}, {_t}, crateAtStand({_p}, {_t}))
+
+# Whether the player's open preview came from that crate's stand (so a redraw keeps its Open button).
+function crateAtStand(p: player, t: text) :: boolean:
+	set {_key} to {-crate::standkey::%{_p}%}
+	if {_key} is not set:
+		return false
+	if {crateblock::%{_key}%} is not {_t}:
+		return false
+	set {_stand} to {-crate::stand::%{_p}%}
+	if {_stand} is not set:
+		return false
+	if world of {_stand} is not world of {_p}:
+		return false
+	if distance between {_stand} and location of {_p} > cfg("crate::stand-reach"):
+		return false
+	return true
 
 on inventory drag:
 	{-crate::gui::%player%} is set
@@ -877,6 +949,8 @@ on inventory close:
 
 on quit:
 	crateClearGui(player)
+	delete {-crate::buyarm::%player%}
+	delete {-crate::buyat::%player%}
 	delete {-crate::spinning::%player%}
 	delete {-crate::stand::%player%}
 	delete {-crate::standkey::%player%}

@@ -784,7 +784,6 @@ function heistRelease(p: player, reason: text):
 	set {_car} to {-heisthunt::car::%{_p}%}
 	delete {-heisthunt::%{_p}%}
 	delete {-heisthunt::car::%{_p}%}
-	delete {-heisthunt::fast::%{_p}%}
 	delete {-heist::%{_h}%::hunted::%{_p}%}
 	if {_reason} is "range":
 		heistNotify({_p}, "lost-cops", "&aYou lost the cops.")
@@ -816,12 +815,7 @@ function heistChaseRadius(p: player, h: text) :: number:
 	if heistHuntedBy({_p}) is {_h}:
 		if carSeatOf({_p}) is not "":
 			set {-heisthunt::car::%{_p}%} to {_h}
-		# Speed (the Energy Drink) is a getaway like a car (review 2026-09-28; not a car for the Wheelman bonus).
-		if {_p} has speed:
-			set {-heisthunt::fast::%{_p}%} to {_h}
 	if {-heisthunt::car::%{_p}%} is {_h}:
-		return {_r} * cfg("alarm::car-chase-factor")
-	if {-heisthunt::fast::%{_p}%} is {_h}:
 		return {_r} * cfg("alarm::car-chase-factor")
 	return {_r}
 
