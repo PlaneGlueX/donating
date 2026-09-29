@@ -1,0 +1,39 @@
+Bandage:
+  Info:
+    Weapon_Item:
+      # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
+      # draws it by its custom model data (tools\make-item-art.js, Melee weapons and consumables).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Bandage"
+      Lore:
+        - "<gray>Patches you up, slowly."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣ <red>♥♥♥ <gold>⟸ <gray>Heal over 4 seconds"
+      Unbreakable: true
+      Hide_Flags: true
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_leather, pitch=1.2}"
+    Cancel:
+      Block_Interactions: true
+      Item_Interactions: true
+      Drop_Item: true
+      Swap_Hands: true
+  Skin:
+    Default:
+      Custom_Model_Data: 5
+  Shoot:
+    Trigger:
+      Main_Hand: "RIGHT_CLICK"
+      Off_Hand: "RIGHT_CLICK"
+      Circumstance:
+        Swimming: "DENY"
+    # Donating (owner, 2026-09-28): a slow, cheap heal next to the Stim's instant 16. Regeneration III
+    # heals 1 health every 12 ticks, so 80 ticks heal 6-7 (bots\run.js wm-melee measured 7: about 3 hearts) in 4
+    # seconds; a bandage every 3 s.
+    Consume_Item_On_Shoot: true
+    Delay_Between_Shots: 60
+    Mechanics:
+      - "Sound{sound=item.armor.equip_leather, pitch=1.4, noise=0.1}"
+      - "Potion{potion=regeneration, time=80, level=3}"

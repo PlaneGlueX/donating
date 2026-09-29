@@ -292,6 +292,9 @@ module.exports = async ({ check }) => {
     const hardDays = new Set((wl.match(/HIT {3}hard #\d+ at=(\d+)/g) || []).map(x => Math.floor((Number(x.match(/at=(\d+)/)[1]) - W * 604800) / 86400)))
     check('the week\'s windows: Easy 14 (2 a day), Medium 7, Hard 5 on 5 different days', /easy windows=14/.test(wl) && /medium windows=7/.test(wl) && /hard windows=5/.test(wl) && hardDays.size === 5, `${[...hardDays]} | ${wl.split('\n').slice(0, 4).join(' / ')}`)
     // Only B is online, with no medium contract: due windows wait; once B holds one the latest opens, the older is used.
+    // Anyone else online too (the owner playing on the test server) makes the server active (2+ online): then the
+    // latest due window opens at once instead of waiting, and the older one is still used up.
+    const others = Number(((await cmd('list')).match(/There are (\d+)/) || [])[1]) - 1
     await cmd('zzhitwin medium clear')
     const nowU = Math.floor(Date.now() / 1000)
     await cmd(`zzhitwin medium 1 ${nowU - 7200}`)
@@ -301,7 +304,8 @@ module.exports = async ({ check }) => {
     await cmd(`dhit give ${B} medium`)
     await until(async () => /open-medium=\d+\|2\|/.test(await week()), 4000)
     const opened = await cmd('dhit week list')
-    check('a window due while nobody could play waits; then only the latest opens (the older one is used up)', /open-medium=<none>/.test(waiting) && /open-medium=\d+\|2\|/.test(opened) && /medium #1 at=\d+ in=-?\d+s used/.test(opened) && /medium #2 at=\d+ in=-?\d+s used/.test(opened), `${waiting.split('\n')[0]} | ${opened.split('\n').filter(x => /medium/.test(x)).join(' / ')}`)
+    const waited = others > 0 ? /open-medium=\d+\|2\|/.test(waiting) : /open-medium=<none>/.test(waiting)
+    check(`a window due while nobody could play waits; then only the latest opens (the older one is used up)${others > 0 ? ` [${others} other player(s) online: active, so it opened at once]` : ''}`, waited && /open-medium=\d+\|2\|/.test(opened) && /medium #1 at=\d+ in=-?\d+s used/.test(opened) && /medium #2 at=\d+ in=-?\d+s used/.test(opened), `${waiting.split('\n')[0]} | ${opened.split('\n').filter(x => /medium/.test(x)).join(' / ')}`)
     await sleep(3200)
     const moving = await left('medium')
     check('...and it runs while its holder is online', moving < 3600, `${moving}`)

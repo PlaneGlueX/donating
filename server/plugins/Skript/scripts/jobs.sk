@@ -1235,6 +1235,12 @@ function jobsMenu(p: player):
 	# Vic the Fence's row: his arc, then his weekly Wanted List (fence.sk).
 	fenceRow({_p}, {_gui})
 	jobsButton({_p}, {_gui}, 36, writable book named "&dMissions" with lore "&7Mara's missions (and Vic's).", "missions")
+	# phone.sk's back buttons (slot 37: the bottom row's first slot is Missions). Picking a job to swap is its own
+	# step, so there it's "◀ Back" to the board (it ends swap mode); else "◀ Phone", however the menu was opened.
+	if {-jobs::swapmode::%{_p}%} is set:
+		jobsButton({_p}, {_gui}, 37, backItem("your jobs"), "back")
+	else:
+		jobsButton({_p}, {_gui}, 37, phoneBackItem(), "phone")
 	jobsButton({_p}, {_gui}, 44, barrier named "&cClose", "close")
 	set {-jobs::gui::%{_p}%} to {_gui}
 	if {-jobs::gen::%{_p}%} is not set:
@@ -1276,6 +1282,11 @@ on inventory click:
 	set {_a::*} to {_act} split at ":"
 	if {_a::1} is "close":
 		close player's inventory
+	else if {_a::1} is "phone":
+		openPhone(player)
+	else if {_a::1} is "back":
+		delete {-jobs::swapmode::%player%}
+		jobsMenu(player)
 	else if {_a::1} is "missions":
 		storyMenu(player)
 	else if {_a::1} is "find":

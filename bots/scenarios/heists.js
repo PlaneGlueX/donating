@@ -122,7 +122,7 @@ module.exports = async ({ check }) => {
     await heistSet('escape', 60)
     await heistSet('cooldown', 6)
     let info = await cmd(`dheist info ${ID}`)
-    check('set: name, escape, cooldown; the rest from difficulty 3 (pool $80,000, level 15)', /name=Test Vault difficulty=3 escape=1:00 cooldown=0:06 pool=\$80,000 level=15 advanced=false pvp=false/.test(info), info)
+    check('set: name, escape, cooldown; the rest from difficulty 3 (pool $80,000, level 20)', /name=Test Vault difficulty=3 escape=1:00 cooldown=0:06 pool=\$80,000 level=20 advanced=false pvp=false/.test(info), info)
     check('enable needs an exit spot', /set the exit spot first/.test(await cmd(`dheist enable ${ID}`)))
     await cmd(`zzregion ${SAFE} 721 199 736 723 206 739`)
     await cmd(`rg flag -w world ${SAFE} passthrough allow`)
@@ -193,7 +193,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzdata ${A} level 1`)
     await heistSet('level', 'default')
     t = await walkIn(A)
-    check('the difficulty\'s default level applies (difficulty 3: level 15, Burglar)', (await pos(A))[0] < EDGE && /level 15 \(Burglar\)/.test(bars(A, t)), bars(A, t))
+    check('the difficulty\'s default level applies (difficulty 3: level 20, Burglar)', (await pos(A))[0] < EDGE && /level 20 \(Burglar\)/.test(bars(A, t)), bars(A, t))
     await heistSet('level', 0)
 
     // ---------- Round 1: escape 60 s ----------

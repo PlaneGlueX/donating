@@ -29,7 +29,7 @@ module.exports = async ({ check }) => {
     const sell = async name => {
       await cmd(`zzheisttp ${name} 852.5 ${Y} 852.5`)
       await sleep(400)
-      await cmd(`zzbagadd ${name} bst#${run++} 1000`)
+      await cmd(`zzbagadd ${name} bst#${run++} 1000 own`)
       const before = await bal(name)
       await cmd(`zzheisttp ${name} 862.5 ${Y} 862.5`)
       await sleep(1800)

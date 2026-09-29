@@ -353,6 +353,7 @@ command /heistrefresh [<text>]:
 			set {_any} to false
 			loop {heists::*}:
 				if heistRefreshBlock(loop-index) is "":
+					heistLevelOk(player, loop-index) is true
 					set {_any} to true
 					send colored "&7 » &f%heistName(loop-index)% &7(%loop-index%) reopens in %formatClock(heistSecondsLeft(loop-index))%" to player
 			if {_any} is false:
@@ -392,6 +393,10 @@ command /heistrefresh [<text>]:
 		set {_need} to heistLevel({_h})
 		if levelOk(player, {_need}) is false:
 			msg(player, "&cThe %{_name}% needs level %{_need}% (%levelName({_need})%). &7/level")
+			stop
+		# A store is for new robbers: only one they could rob themselves (review 2026-09-28).
+		if heistLevelOk(player, {_h}) is false:
+			msg(player, "&cThe %{_name}% is for new robbers (up to level %heistMaxLevel({_h})%).")
 			stop
 		if heistRefresh({_h}) is not "":
 			msg(player, "&cThe %{_name}% can't be refreshed right now.")

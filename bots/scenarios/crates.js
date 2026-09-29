@@ -222,7 +222,7 @@ module.exports = async ({ check }) => {
     // A set shows its most visible part (found in the client: both Hacked sets were name tags, so the
     // spin looked frozen): H4CK3R + Matrix is the Matrix bag, Zero Day + Glitch the kill effect.
     w = await menu(A)
-    const hs = w ? w.slots.findIndex((i, n) => n >= 9 && n < 18 && i && i.name === 'sculk_shrieker') : -1
+    const hs = w ? w.slots.findIndex((i, n) => n >= 9 && n < 27 && i && i.name === 'sculk_shrieker') : -1
     const hackedPage = windowOpen(bots[A])
     bots[A].clickWindow(hs, 0, 0).catch(() => {})
     const hw = await hackedPage
@@ -520,6 +520,36 @@ module.exports = async ({ check }) => {
     bots[A].chat(`/heistrefresh ${HID}`)
     await sleep(800)
     check('an open heist can\'t be refreshed (the refresh isn\'t used)', /isn't cooling down/.test(text(A, t)) && !(await cmd(`zzdata ${A} refresh-at`)).match(/= \d/), text(A, t))
+
+    // ---------- Car crate keys for game money (owner, 2026-09-28: "only purchasable with in game money ($1M+)") ----------
+    await cmd(`zzcombatend ${A}`)
+    await cmd(`eco set ${A} 900000`)
+    const k0 = await keys(A, 'supercar')
+    const cw = await menu(A)
+    const sc = slotOf(cw, 'Supercar')
+    let po = windowOpen(bots[A])
+    bots[A].clickWindow(sc, 0, 0).catch(() => {})
+    let pv = await po
+    await sleep(300)
+    check('a car crate\'s preview sells a key for game money ($1,000,000); its keys aren\'t in the store', /Buy a key/.test(itemText(pv && pv.slots[51])) && /1,000,000/.test(itemText(pv && pv.slots[51])) && /never sold in the store/.test(itemText(pv && pv.slots[51])), `${sc} ${itemText(pv && pv.slots[51]).slice(0, 300)}`)
+    t = Date.now()
+    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    await sleep(900)
+    check('too little money ($900,000): refused on the first click, no confirm, no key', /costs \$1,000,000/.test(text(A, t)) && (await keys(A, 'supercar')) === k0 && (await bal(A)) === 900000, `${text(A, t)} keys=${await keys(A, 'supercar')}`)
+    await cmd(`eco set ${A} 1500000`)
+    po = windowOpen(bots[A])
+    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    pv = await po
+    await sleep(300)
+    const armed = itemText(pv && pv.slots[51])
+    const before2 = await keys(A, 'supercar')
+    po = windowOpen(bots[A])
+    t = Date.now()
+    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    await po
+    await sleep(500)
+    check('the first click arms it ("Confirm purchase?"), the second buys one key for $1,000,000 (logged)', /Confirm purchase/.test(armed) && before2 === k0 && (await keys(A, 'supercar')) === k0 + 1 && (await bal(A)) === 500000 && /buy CrateA \S+ supercar price=1000000/.test(log('crates')), `${armed.slice(0, 200)} keys=${await keys(A, 'supercar')} bal=${await bal(A)} ${text(A, t)}`)
+    await closeAll(A)
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     await rcon.cmd(`dheist delete ${HID} confirm`).catch(() => {})

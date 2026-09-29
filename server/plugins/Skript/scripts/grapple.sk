@@ -1,0 +1,236 @@
+# grapple.sk: the Grappler. Built 2026-09-28 (owner: "more melee weapons/consumables (dagger, throwable knife, grappler
+# (not sure on this one, might be too overpowered) ...)").
+#
+# A heist tool like the Drill (shop.sk's tools: carried in hotbar 1-5, lost on death): each Grappler is one hook, used up
+# by a pull. Right-click: the first solid block within grapple::range blocks where you aim is the anchor, and you're
+# pulled to it over up to grapple::ticks ticks (a rope of particles shows the line).
+# Guards (PROPOSAL, bots\run.js grapple checks them):
+#   - never inside a heist, never onto or near one: the anchor (and the block it's on) can't be within grapple::heist-gap
+#     blocks of a heist region, and a pull stops before its next step would enter one (no skipping doors, traps,
+#     lockdown windows or the escape clock by coming in over the roof); stores are heists too;
+#   - regions whose id starts with grapple::block-prefix ("nograpple") are off limits (the anchor and where you stand):
+#     map builders put them over roofs and spots players shouldn't reach;
+#   - not from a car, not while dead; in a fight or while wanted it works (owner, 2026-09-28), but only once per
+#     grapple::cooldown (15 s), which winds back visibly: the hotbar's cooldown sweep on the Grappler, and while it's
+#     held an action-bar meter, then "ready"; a hit that lands ends a pull and its momentum (it can't be used to
+#     dodge a fight mid-hit); no fall damage for grapple::fall-grace after a pull ends;
+#   - review 2026-09-28: the heist check looks down the whole column under the anchor too (an antenna over a heist's
+#     roof was allowed) and at half-gap points (a store narrower than the gap slipped between them); every pull end
+#     stops the player (an arrival keeps at most 0.3 blocks/tick: momentum carried players on into upper windows);
+#     no hooks on barrier blocks (invisible walls); tool::grappler::enabled false stops hooks already bought too;
+#   - into a safe zone while combat-tagged: WorldGuard pushes back as when walking (pvp.sk), and the pull ends there.
+# Memory: {-grapple::on::<p>} while pulled, {-grapple::at::<p>} the last pull, {-grapple::nofall::<p>} when one ended.
+# Log: plugins\Skript\logs\grapple.log.
+
+function grappleLog(text: text):
+	log {_text} to "grapple"
+
+# Whether a spot is in a no-grapple region.
+function grappleBanned(l: location) :: boolean:
+	set {_prefix} to cfg("grapple::block-prefix")
+	loop regions at {_l}:
+		if name of loop-value starts with {_prefix}:
+			return true
+	return false
+
+# Whether a spot is inside a heist or within gap blocks of one: 25 points around it (every half gap), at its own
+# height and down the column under it (a heist's roof is below an anchor on an antenna or a taller neighbour).
+function grappleNearHeist(l: location, gap: number) :: boolean:
+	if heistAt({_l}) is not "":
+		return true
+	set {_half} to {_gap} / 2
+	loop 0, 3, 6, 10, 15, 20, 30 and 40:
+		set {_dy} to 0 - loop-value-1
+		loop -2, -1, 0, 1 and 2:
+			set {_dx} to loop-value-2 * {_half}
+			loop -2, -1, 0, 1 and 2:
+				set {_dz} to loop-value-3 * {_half}
+				set {_c} to {_l} ~ vector({_dx}, {_dy}, {_dz})
+				if heistAt({_c}) is not "":
+					return true
+	return false
+
+# "" when the player may fire the Grappler now, else why not.
+function grappleBlock(p: player) :: text:
+	if {_p} is not alive:
+		return "Not right now."
+	if cfg("tool::grappler::enabled") is not true:
+		return "The Grappler is out of service."
+	if heistOf({_p}) is not "":
+		return "No grappling inside a heist."
+	if vehicle of {_p} is set:
+		return "Not from a car."
+	if {-grapple::on::%{_p}%} is set:
+		return "One pull at a time."
+	if grappleBanned(location of {_p}) is true:
+		return "No grappling here."
+	set {_at} to {-grapple::at::%{_p}%}
+	if {_at} is set:
+		if difference between {_at} and now < cfg("grapple::cooldown"):
+			return "The Grappler is winding back."
+	return ""
+
+on right click:
+	itemId(player's tool) is "tool:grappler"
+	cancel event
+	grappleFire(player)
+
+function grappleFire(p: player):
+	set {_why} to grappleBlock({_p})
+	if {_why} is not "":
+		hudBar({_p}, "&c%{_why}%", 2)
+		stop
+	set {_range} to cfg("grapple::range")
+	set {_r} to ray trace from {_p} with max distance {_range} while ignoring passable blocks
+	set {_b} to ray trace hit block of {_r}
+	if {_b} is not set:
+		hudBar({_p}, "&7Nothing to hook onto (%{_range}% blocks).", 1)
+		play sound "block.chain.hit" with volume 0.5 to {_p}
+		stop
+	set {_anchor} to ray trace hit location of {_r}
+	# Invisible walls aren't anchors.
+	if type of {_b} is barrier:
+		hudBar({_p}, "&7Nothing to hook onto there.", 1)
+		stop
+	set {_gap} to cfg("grapple::heist-gap")
+	if grappleNearHeist({_anchor}, {_gap}) is true:
+		hudBar({_p}, "&cYou can't grapple onto a heist building.", 2)
+		stop
+	if grappleNearHeist(location of {_b}, {_gap}) is true:
+		hudBar({_p}, "&cYou can't grapple onto a heist building.", 2)
+		stop
+	if grappleBanned({_anchor}) is true:
+		hudBar({_p}, "&cYou can't grapple there.", 2)
+		stop
+	if toolUse({_p}, "grappler") is false:
+		stop
+	set {-grapple::at::%{_p}%} to now
+	# The hotbar's cooldown sweep over the Grappler (it winds back).
+	set item cooldown of cfg("tool::grappler::item") for {_p} to cfg("grapple::cooldown")
+	grappleLog("pull %{_p}% %uuid of {_p}% from %location of {_p}% to %{_anchor}% hooks-left=%toolCount({_p}, "grappler")%")
+	grapplePull({_p}, {_anchor})
+
+# The pull: every tick a velocity toward the anchor, until close, stuck, hurt, or the next step would enter a heist.
+function grapplePull(p: player, anchor: location):
+	set {-grapple::on::%{_p}%} to now
+	play sound "entity.fishing_bobber.throw" with volume 1 at location of {_p}
+	play sound "block.chain.place" with volume 0.8 at {_anchor}
+	set {_speed} to cfg("grapple::speed")
+	set {_last} to 1000
+	set {_stuck} to 0
+	set {_go} to true
+	set {_why} to "arrived"
+	loop cfg("grapple::ticks") times:
+		if {_go} is true:
+			if {_p} is not online:
+				set {_go} to false
+				set {_why} to "quit"
+			else if {_p} is not alive:
+				set {_go} to false
+				set {_why} to "dead"
+			else if {-grapple::on::%{_p}%} is not set:
+				set {_go} to false
+				set {_why} to "hurt"
+			else if world of {_p} is not world of {_anchor}:
+				set {_go} to false
+				set {_why} to "world"
+		if {_go} is true:
+			set {_here} to location of {_p}
+			set {_d} to distance between {_here} and {_anchor}
+			if {_d} < 1.8:
+				set {_go} to false
+			else:
+				if {_d} > {_last} - 0.05:
+					add 1 to {_stuck}
+				else:
+					set {_stuck} to 0
+				set {_last} to {_d}
+				if {_stuck} >= 4:
+					set {_go} to false
+					set {_why} to "stuck"
+		if {_go} is true:
+			set {_v} to vector from {_here} to {_anchor}
+			set vector length of {_v} to min({_speed}, {_d} / 2)
+			# Never into a heist: its next step and a bit beyond it.
+			set {_next} to {_here} ~ {_v}
+			set {_far} to {_next} ~ {_v}
+			if heistAt({_next}) is not "":
+				set {_go} to false
+				set {_why} to "heist"
+			else if heistAt({_far}) is not "":
+				set {_go} to false
+				set {_why} to "heist"
+			else if grappleBanned({_next}) is true:
+				set {_go} to false
+				set {_why} to "banned"
+		if {_go} is true:
+			set velocity of {_p} to {_v}
+			grappleRope({_here} ~ vector(0, 1.2, 0), {_anchor})
+			wait 1 tick
+	if {_p} is online:
+		# Every end stops the pull's momentum; an arrival keeps a little so it doesn't feel like a wall.
+		if {_why} is "arrived":
+			set {_vv} to velocity of {_p}
+			if vector length of {_vv} > 0.3:
+				set vector length of {_vv} to 0.3
+				set velocity of {_p} to {_vv}
+		else:
+			set velocity of {_p} to vector(0, 0, 0)
+		if {_why} is "heist":
+			hudBar({_p}, "&cThe Grappler lets go: no grappling into a heist.", 2)
+		set {-grapple::nofall::%{_p}%} to now
+	delete {-grapple::on::%{_p}%}
+	grappleLog("end %{_p}% why=%{_why}% at %location of {_p}%")
+
+# The rope: a particle every 1.5 blocks from the player to the anchor.
+function grappleRope(from: location, to: location):
+	set {_d} to distance between {_from} and {_to}
+	{_d} > 1
+	set {_step} to vector from {_from} to {_to}
+	set vector length of {_step} to 1.5
+	set {_pt} to {_from}
+	loop min(24, floor({_d} / 1.5)) times:
+		set {_pt} to {_pt} ~ {_step}
+		draw 1 crit particle with offset vector(0, 0, 0) at {_pt}
+
+# A hit that lands ends a pull (monitor: a hit that pvp.sk, the crew rule or the spawn shield cancel doesn't).
+on damage of player with priority monitor:
+	{-grapple::on::%victim%} is set
+	damage cause is not fall
+	delete {-grapple::on::%victim%}
+
+# No fall damage right after a pull.
+on damage of player:
+	damage cause is fall
+	set {_at} to {-grapple::nofall::%victim%}
+	{_at} is set
+	difference between {_at} and now < cfg("grapple::fall-grace")
+	cancel event
+
+# While the Grappler is held: how far it has wound back, then "ready" (prompts' priority: combat and loot win).
+every 5 ticks:
+	loop all players:
+		itemId(tool of loop-player) is "tool:grappler"
+		{-grapple::on::%loop-player%} is not set
+		set {_left} to 0
+		set {_at} to {-grapple::at::%loop-player%}
+		if {_at} is set:
+			set {_cd} to cfg("grapple::cooldown") / 1 second
+			set {_gone} to difference between {_at} and now
+			set {_left} to {_cd} - ({_gone} / 1 second)
+		if {_left} > 0:
+			set {_n} to 10 - ceil(10 * {_left} / {_cd})
+			set {_bar} to ""
+			loop 10 times:
+				if loop-value-2 <= {_n}:
+					set {_bar} to "%{_bar}%&e▰"
+				else:
+					set {_bar} to "%{_bar}%&8▱"
+			hudBar(loop-player, "&7Grappler winding back %{_bar}% &f%ceil({_left})%s", 0)
+		else:
+			hudBar(loop-player, "&aGrappler ready &7· right-click to hook (%toolCount(loop-player, "grappler")% left)", 0)
+
+on quit:
+	delete {-grapple::on::%player%}
+	delete {-grapple::at::%player%}
+	delete {-grapple::nofall::%player%}

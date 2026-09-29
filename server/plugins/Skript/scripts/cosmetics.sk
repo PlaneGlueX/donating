@@ -232,6 +232,22 @@ function killFx(id: text, l: location):
 	else if {_id} is "totem":
 		draw 60 totem of undying particles with offset vector(0.4, 0.8, 0.4) at {_c}
 		play sound "item.totem.use" with volume 0.6 at {_c}
+	else if {_id} is "lvl_crown":
+		# Level 150: a gold ring over the victim, like a crown.
+		set {_top} to {_c} ~ vector(0, 1.2, 0)
+		loop 16 times:
+			set {_a} to loop-number * 22.5
+			draw 1 wax on particle with offset vector(0, 0, 0) at {_top} ~ vector(cos({_a}) * 0.45, 0, sin({_a}) * 0.45)
+			draw 1 end rod particle with offset vector(0, 0.05, 0) at {_top} ~ vector(cos({_a}) * 0.45, 0.15, sin({_a}) * 0.45)
+		draw 20 totem of undying particles with offset vector(0.3, 0.6, 0.3) at {_c}
+		play sound "entity.player.levelup" with volume 0.8 at {_c}
+	else if {_id} is "lvl_moneyrain":
+		# Level 200: cash raining down.
+		draw 50 happy villager particles with offset vector(0.8, 0.2, 0.8) at {_c} ~ vector(0, 1.5, 0)
+		draw 40 wax on particles with offset vector(0.8, 1, 0.8) at {_c}
+		draw 20 end rod particles with offset vector(0.6, 0.3, 0.6) at {_c} ~ vector(0, 2, 0)
+		play sound "block.chain.break" with volume 0.8 at {_c}
+		play sound "entity.experience_orb.pickup" with volume 1 at {_c}
 	else if {_id} is "glitch":
 		draw 30 end rod particles with offset vector(0.3, 0.9, 0.3) at {_c}
 		draw 30 sculk soul particles with offset vector(0.4, 0.8, 0.4) at {_c}
@@ -394,6 +410,8 @@ function cosMenu(p: player):
 	set {_n} to size of cosWardrobe({_p}, "killfx")
 	set {_wk} to cosWornName({_p}, "killfx")
 	cosButton({_p}, {_gui}, 15, blaze powder named "&6Kill effects" with lore "&7Where you knock someone out." and "&7Wearing: %{_wk}%" and "&7You have %{_n}%." and "&eClick to pick or take it off.", "page:killfx")
+	# The Cosmetics app's main page: "◀ Phone" however it was opened (phone.sk's back buttons).
+	cosButton({_p}, {_gui}, 18, phoneBackItem(), "phone")
 	cosButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
 	open {_gui} to {_p}
 
@@ -439,7 +457,8 @@ function cosPage(p: player, type: text):
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
-	cosButton({_p}, {_gui}, 45, arrow named "&fBack", "menu")
+	# Back to /cosmetics, also when /titles, /bagskins or /killeffects opened this page directly.
+	cosButton({_p}, {_gui}, 45, backItem("your cosmetics"), "menu")
 	if {_type} is "bagskin":
 		cosButton({_p}, {_gui}, 49, barrier named "&fDefault look" with lore "&7Your bag tier's own look.", "off:bagskin")
 	else:
@@ -500,6 +519,9 @@ on inventory click:
 		cosWear(player, subtext of {_act} from characters 5 to (length of {_act}), "")
 	else if {_act} is "menu":
 		cosMenu(player)
+	else if {_act} is "phone":
+		# Opening the phone closes this menu; the close handler only clears it.
+		openPhone(player)
 	else if {_act} is "close":
 		close player's inventory
 

@@ -233,7 +233,11 @@ function lootCompileOne(h: text, n: text):
 		set {_style} to lootSetting({_h}, {_n}, "style")
 		set {-lootc::%{_c}%::style} to {_style}
 		set {_i} to 1 of {-cfg::loot::%{_style}%::item}
-		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:loot_%{_style}%"
+		# The pack's art: the style's own, or another style's (a store's register uses the cash stack's).
+		set {_model} to {-cfg::loot::%{_style}%::model}
+		if {_model} is not set:
+			set {_model} to "donating:loot_%{_style}%"
+		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to {_model}
 		set {-lootc::%{_c}%::stack} to {_i}
 		set {-lootc::%{_c}%::piece} to lootSetting({_h}, {_n}, "piece")
 		set {-lootc::%{_c}%::take} to lootSetting({_h}, {_n}, "take")

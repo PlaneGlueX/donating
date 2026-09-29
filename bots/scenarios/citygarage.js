@@ -41,8 +41,9 @@ module.exports = async ({ check }) => {
     const openGarage = async name => { const o = windowOpen(bots[name]); bots[name].chat('/garage'); const w = await o; await sleep(300); return w }
     const close = name => { if (bots[name].currentWindow) bots[name].closeWindow(bots[name].currentWindow) }
     const click = async (name, s, button = 0) => { if (bots[name].currentWindow) await bots[name].clickWindow(s, button, 0).catch(() => {}); await sleep(700) }
-    const plateOf = async name => ((await cmd(`dgarage info ${name}`)).match(/sedan=([A-Z0-9-]+)\(/) || [])[1] || ''
-    const stateOf = async name => ((await cmd(`dgarage info ${name}`)).match(/sedan=[A-Z0-9-]+\([^,]*,(\w+)/) || [])[1] || ''
+    const plateOf = async name => ((await cmd(`dgarage info ${name}`)).match(/([A-Z0-9-]+)=sedan\(/) || [])[1] || ''
+    const stateOf = async name => ((await cmd(`dgarage info ${name}`)).match(/=sedan\([^)]*built=\w+,(\w+),/) || [])[1] || ''
+    const takeAll = async name => { for (const m of [...(await cmd(`dgarage info ${name}`)).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await cmd(`dgarage take ${name} ${m[1]}`) }
     const standPos = async plate => {
       const m = (await cmd(`data get entity @e[type=armor_stand,name="MTVEHICLES_MAIN_${plate}",limit=1] Pos`)).match(/\[(-?[\d.]+)d, (-?[\d.]+)d, (-?[\d.]+)d\]/)
       return m ? new Vec3(+m[1], +m[2], +m[3]) : null
@@ -63,9 +64,10 @@ module.exports = async ({ check }) => {
       await cmd(`zzclear ${name}`)
       await cmd(`zzcombatend ${name}`)
       await cmd(`zzpassive ${name} off`)
-      await cmd(`dlevel set ${name} 2`)
+      // The Sedan drives from level 20 (a car above your level stays in the garage).
+      await cmd(`dlevel set ${name} 20`)
       await cmd(`eco set ${name} 100000`)
-      await cmd(`dgarage take ${name} sedan`)
+      await takeAll(name)
       await cmd(`dgarage give ${name} sedan`)
       await cmd(`dranks give ${name} none`)
     }
@@ -130,6 +132,7 @@ module.exports = async ({ check }) => {
     const status = itemText(w && w.slots[4])
     const carLore = itemText(w && w.slots[9])
     await click(A, 9)
+    await sleep(800)
     const pin = await cmd(`dphone gps ${A}`)
     check('away from a garage: "Find a garage" (the nearest, its distance), and a car\'s click leads the GPS there (no car comes)', /Find a garage/.test(status) && /Test Garage/.test(status) && /GPS leads you to a garage/.test(carLore) && /active=pin/.test(pin) && /label=Test_Garage/.test(pin) && (await stateOf(A)) === 'garage', `${status.slice(0, 200)} | ${pin} | ${await stateOf(A)}`)
     close(A)
@@ -157,9 +160,9 @@ module.exports = async ({ check }) => {
     // No locking inside a garage (a car spawn area): unlocking works, locking again doesn't.
     w = await openGarage(A)
     await click(A, 9, 1)
-    await click(A, 11)
+    await click(A, 10) // the lock button (garage.sk options: 10 lock, 12 repaint, 14 tune)
     t = Date.now()
-    await click(A, 11)
+    await click(A, 10)
     close(A)
     check('no locking cars inside a garage', /can't lock cars here/.test(text(A, t)), text(A, t).slice(0, 200))
     // Nobody gets in: it goes back and frees the lane.
@@ -260,15 +263,15 @@ module.exports = async ({ check }) => {
     await tp(A, AWAY)
     w = await openGarage(A)
     await click(A, 9, 1)
-    await click(A, 13)
+    await click(A, 12)
     t = Date.now()
     await click(A, 11)
     close(A)
     const pin2 = await cmd(`dphone gps ${A}`)
-    check('repaints only at a garage (the GPS leads there)', /Repaint at a garage/.test(text(A, t)) && /label=Test_Garage/.test(pin2), `${text(A, t).slice(0, 200)} | ${pin2}`)
+    check('repaints only at a garage (the GPS leads there)', /Repaints and tuning happen at a garage/.test(text(A, t)) && /label=Test_Garage/.test(pin2), `${text(A, t).slice(0, 200)} | ${pin2}`)
   } finally {
     for (const name of [A, B]) {
-      await rcon.cmd(`dgarage take ${name} sedan`).catch(() => {})
+      for (const m of [...String(await rcon.cmd(`dgarage info ${name}`).catch(() => '')).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await rcon.cmd(`dgarage take ${name} ${m[1]}`).catch(() => {})
       await rcon.cmd(`dranks give ${name} none`).catch(() => {})
       await rcon.cmd(`lp user ${name} permission unset donating.staff`).catch(() => {})
       await rcon.cmd(`dphone gps ${name} clear`).catch(() => {})

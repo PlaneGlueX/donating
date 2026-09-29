@@ -510,13 +510,17 @@ command /zzbag <player>:
 		send "BAG %arg-1% tier=%bagTier(arg-1)% total=%bagRecount(arg-1)% room=%bagRoom(arg-1)% pct=%bagPct(arg-1)% lines=%{_lines}% sold=%{_sold}% robberies=%{_rob}%"
 
 # Puts loot straight into a bag line: /zzbagadd <player> <heist#run> <$> (0 deletes the line).
-command /zzbagadd <player> <text> <number>:
+# Sets a bag line. With "own" the dollars also count as robbed by that player (progress.sk's own-loot ledger: level XP
+# from a sale, jobs, Vic), as if they robbed it; without, it's like loot from a picked-up duffel.
+command /zzbagadd <player> <text> <number> [<text>]:
 	executable by: console
 	trigger:
 		if arg-3 <= 0:
 			deleteData(arg-1, "loot::%arg-2%")
 		else:
 			setData(arg-1, "loot::%arg-2%", arg-3)
+			if arg-4 is "own":
+				progRobbed(arg-1, arg-3, arg-2)
 		bagRecount(arg-1)
 		bagRefresh(arg-1)
 		send "BAGADD %arg-1% %arg-2% %arg-3%"
@@ -738,7 +742,14 @@ command /zzcarnew <offline player> <text>:
 command /zzcarspawn <text> <number> <number> <number>:
 	executable by: console
 	trigger:
-		spawn mtv vehicle with license plate arg-1 at location(arg-2, arg-3, arg-4, world "world")
+		set {_l} to location(arg-2, arg-3, arg-4, world "world")
+		spawn mtv vehicle with license plate arg-1 at {_l}
+		# A garage car in its garage counts as out where it stands (else car-cleanup.sk's sweep takes it for a stray copy); one
+		# already out stays where it is (garage.js spawns a stray copy of it on purpose).
+		if carOwnerOf(arg-1) is not "":
+			{car::out::%arg-1%} is not set
+			set {car::out::%arg-1%} to {_l}
+			set {-car::used::%arg-1%} to now
 		send "CARSPAWN %arg-1%"
 
 # What MTVehicles knows about a plate, and the loaded stands with it.
@@ -767,6 +778,10 @@ command /zzcardelete <text>:
 		set {_car} to mtv vehicle with license plate arg-1
 		if {_car} is set:
 			delete mtv vehicle {_car}
+		# Off its owner's garage list too (else the list keeps a plate with no car).
+		set {_o} to carOwnerOf(arg-1)
+		if {_o} is not "":
+			delete {data::%{_o}%::cars::%arg-1%}
 		carForget(arg-1)
 		send "CARDELETE %arg-1%"
 
@@ -860,7 +875,9 @@ command /zzctreset <player>:
 		set {_u} to "%uuid of arg-1%"
 		if {-ctjob::%{_u}%} is set:
 			ctEnd({_u}, "staff")
-		delete {-ctcd::%{_u}%}
+		delete {ctcd::%{_u}%}
+		# The tiers' cooldowns after a delivery too (1 h / 3 h / 6 h).
+		delete {data::%arg-1%::ctready::*}
 		delete {-ctoffer::%{_u}%::*}
 		delete {-ctofferat::%{_u}%}
 		delete {-ctconfirm::%arg-1%}
@@ -1119,3 +1136,49 @@ command /zzhitwin <text>:
 			set {hit::win::%{_w}%::%{_a::1}%::%{_a::2}%} to {_a::3} parsed as number
 			delete {hit::used::%{_w}%::%{_a::1}%::%{_a::2}%}
 		send "HITWIN %arg-1% W=%{_w}%"
+
+# Forgets which level rewards a player got (levels.sk marks each one given; tests start over).
+command /zzlvlrewards <offline player>:
+	executable by: console
+	trigger:
+		delete {data::%arg-1%::lvlreward::*}
+		send "LVLREWARDS %arg-1% cleared"
+
+# A car-crate roll pool for tests (garage.sk carRoll): /zzcarpool <pool> <cars "w|car;..."> <wraps "w|tier;..."> <stages "w|stage;..."> <neon 0-1> <trail 0-1>
+command /zzcarpool <text> <text> <text> <text> <number> <number>:
+	executable by: console
+	trigger:
+		set {-cfg::carroll::%arg-1%::cars::*} to arg-2 split at ";"
+		set {-cfg::carroll::%arg-1%::wraps::*} to arg-3 split at ";"
+		set {-cfg::carroll::%arg-1%::stages::*} to arg-4 split at ";"
+		set {-cfg::carroll::%arg-1%::neon} to arg-5
+		set {-cfg::carroll::%arg-1%::trail} to arg-6
+		set {-cfg::carroll::%arg-1%::special-color} to 0
+		send "CARPOOL %arg-1% roll=%carRoll(arg-1)%"
+
+# A heist's clock and its saved reopen time, in seconds from now (-1 = none): /zzheistreopen <id>
+command /zzheistreopen <text>:
+	executable by: console
+	trigger:
+		set {_u} to -1
+		if {-heist::%arg-1%::until} is set:
+			set {_u} to round((difference between now and {-heist::%arg-1%::until}) / 1 second)
+			if {-heist::%arg-1%::until} < now:
+				set {_u} to 0 - {_u}
+		set {_r} to -1
+		if {heist::%arg-1%::reopen} is set:
+			set {_r} to round((difference between now and {heist::%arg-1%::reopen}) / 1 second)
+			if {heist::%arg-1%::reopen} < now:
+				set {_r} to 0 - {_r}
+		send "REOPEN %arg-1% state=%heistState(arg-1)% until=%{_u}% reopen=%{_r}% rushed=%{-heist::%arg-1%::rushed}%"
+
+# garage.sk's climb out of the water on a car, as if its driver held forward: /zzcarclimb <plate>
+command /zzcarclimb <text>:
+	executable by: console
+	trigger:
+		set {_main} to "MTVEHICLES_MAIN_%arg-1%"
+		loop all armor stands:
+			if name of loop-entity is {_main}:
+				carClimbOut(loop-entity)
+				set {_l} to location of loop-entity
+		send "CLIMB %arg-1% at=%{_l}%"

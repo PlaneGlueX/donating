@@ -449,7 +449,7 @@ on tab complete of "/dshopkeeper" and "/skript:dshopkeeper":
 			set tab completions for position 2 to {_l::*}
 
 on tab complete of "/dgarage" and "/skript:dgarage":
-	set tab completions for position 1 to "give", "take", "info" and "store"
+	set tab completions for position 1 to "give", "build", "take", "info", "store" and "roll"
 	set {_s} to tab arg-1
 	if {_s} is "store":
 		loop all players:
@@ -460,25 +460,23 @@ on tab complete of "/dgarage" and "/skript:dgarage":
 			set tab completions for position 2 to {_o::*}
 	else:
 		set tab completions for position 2 to tabPlayerNames(player)
-	if {_s} is "give" or "take":
+	if {_s} is "roll":
+		set tab completions for position 2 to "supercar" and "hypercar"
+	else if {_s} is "give":
+		# Several of a model are fine now: every car, then that car's colors.
+		set tab completions for position 3 to {-cfg::cars::*}
+		set {_car} to tab arg-3
+		if {_car} is set:
+			set {_c::*} to carColorLabels({_car})
+			if {_c::*} is set:
+				set tab completions for position 4 to {_c::*}
+	else if {_s} is "take":
+		# The target's plates (online players only: no profile lookups here).
 		set {_t} to (tab arg-2) parsed as player
 		if {_t} is set:
-			loop {-cfg::cars::*}:
-				if {_s} is "give":
-					if carOwned({_t}, loop-value) is false:
-						add loop-value to {_c3::*}
-				else if carOwned({_t}, loop-value) is true:
-					add loop-value to {_c3::*}
+			set {_c3::*} to carsOf({_t})
 			if {_c3::*} is set:
 				set tab completions for position 3 to {_c3::*}
-		else:
-			set tab completions for position 3 to {-cfg::cars::*}
-		if {_s} is "give":
-			set {_car} to tab arg-3
-			if {_car} is set:
-				set {_c::*} to carColorLabels({_car})
-				if {_c::*} is set:
-					set tab completions for position 4 to {_c::*}
 
 on tab complete of "/dcontract" and "/skript:dcontract":
 	set tab completions for position 1 to "spot", "chop", "dump", "info" and "end"
@@ -557,3 +555,10 @@ on tab complete of "/dgaragesite" and "/skript:dgaragesite":
 						add loop-index to {_ix::*}
 					if {_ix::*} is set:
 						set tab completions for position 4 to {_ix::*}
+
+# /help and /adminhelp (help.sk).
+on tab complete of "/help" and "/skript:help":
+	set tab completions for position 1 to "commands"
+
+on tab complete of "/adminhelp" and "/skript:adminhelp" and "/ahelp" and "/skript:ahelp":
+	set tab completions for position 1 to "heists", "map", "players", "store" and "tests"

@@ -1,0 +1,550 @@
+[
+ {
+  "damage": 1300,
+  "model": "minecraft:custom/vehicles/motor_black"
+ },
+ {
+  "damage": 1301,
+  "model": "minecraft:custom/vehicles/motor_white"
+ },
+ {
+  "damage": 1302,
+  "model": "minecraft:custom/wraps/sedan_matte"
+ },
+ {
+  "damage": 1303,
+  "model": "minecraft:custom/wraps/sedan_primer"
+ },
+ {
+  "damage": 1304,
+  "model": "minecraft:custom/wraps/sedan_twotone"
+ },
+ {
+  "damage": 1305,
+  "model": "minecraft:custom/wraps/sedan_stripes"
+ },
+ {
+  "damage": 1306,
+  "model": "minecraft:custom/wraps/sedan_checker"
+ },
+ {
+  "damage": 1307,
+  "model": "minecraft:custom/wraps/sedan_camo"
+ },
+ {
+  "damage": 1308,
+  "model": "minecraft:custom/wraps/sedan_arctic"
+ },
+ {
+  "damage": 1309,
+  "model": "minecraft:custom/wraps/sedan_carbon"
+ },
+ {
+  "damage": 1310,
+  "model": "minecraft:custom/wraps/sedan_flames"
+ },
+ {
+  "damage": 1311,
+  "model": "minecraft:custom/wraps/sedan_tiger"
+ },
+ {
+  "damage": 1312,
+  "model": "minecraft:custom/wraps/sedan_hacker"
+ },
+ {
+  "damage": 1313,
+  "model": "minecraft:custom/wraps/sedan_galaxy"
+ },
+ {
+  "damage": 1314,
+  "model": "minecraft:custom/wraps/sedan_goldleaf"
+ },
+ {
+  "damage": 1315,
+  "model": "minecraft:custom/wraps/sedan_neon"
+ },
+ {
+  "damage": 1316,
+  "model": "minecraft:custom/wraps/sedan_inferno"
+ },
+ {
+  "damage": 1317,
+  "model": "minecraft:custom/wraps/sedan_sportief_matte"
+ },
+ {
+  "damage": 1318,
+  "model": "minecraft:custom/wraps/sedan_sportief_primer"
+ },
+ {
+  "damage": 1319,
+  "model": "minecraft:custom/wraps/sedan_sportief_twotone"
+ },
+ {
+  "damage": 1320,
+  "model": "minecraft:custom/wraps/sedan_sportief_stripes"
+ },
+ {
+  "damage": 1321,
+  "model": "minecraft:custom/wraps/sedan_sportief_checker"
+ },
+ {
+  "damage": 1322,
+  "model": "minecraft:custom/wraps/sedan_sportief_camo"
+ },
+ {
+  "damage": 1323,
+  "model": "minecraft:custom/wraps/sedan_sportief_arctic"
+ },
+ {
+  "damage": 1324,
+  "model": "minecraft:custom/wraps/sedan_sportief_carbon"
+ },
+ {
+  "damage": 1325,
+  "model": "minecraft:custom/wraps/sedan_sportief_flames"
+ },
+ {
+  "damage": 1326,
+  "model": "minecraft:custom/wraps/sedan_sportief_tiger"
+ },
+ {
+  "damage": 1327,
+  "model": "minecraft:custom/wraps/sedan_sportief_hacker"
+ },
+ {
+  "damage": 1328,
+  "model": "minecraft:custom/wraps/sedan_sportief_galaxy"
+ },
+ {
+  "damage": 1329,
+  "model": "minecraft:custom/wraps/sedan_sportief_goldleaf"
+ },
+ {
+  "damage": 1330,
+  "model": "minecraft:custom/wraps/sedan_sportief_neon"
+ },
+ {
+  "damage": 1331,
+  "model": "minecraft:custom/wraps/sedan_sportief_inferno"
+ },
+ {
+  "damage": 1332,
+  "model": "minecraft:custom/wraps/jeep_matte"
+ },
+ {
+  "damage": 1333,
+  "model": "minecraft:custom/wraps/jeep_primer"
+ },
+ {
+  "damage": 1334,
+  "model": "minecraft:custom/wraps/jeep_twotone"
+ },
+ {
+  "damage": 1335,
+  "model": "minecraft:custom/wraps/jeep_stripes"
+ },
+ {
+  "damage": 1336,
+  "model": "minecraft:custom/wraps/jeep_checker"
+ },
+ {
+  "damage": 1337,
+  "model": "minecraft:custom/wraps/jeep_camo"
+ },
+ {
+  "damage": 1338,
+  "model": "minecraft:custom/wraps/jeep_arctic"
+ },
+ {
+  "damage": 1339,
+  "model": "minecraft:custom/wraps/jeep_carbon"
+ },
+ {
+  "damage": 1340,
+  "model": "minecraft:custom/wraps/jeep_flames"
+ },
+ {
+  "damage": 1341,
+  "model": "minecraft:custom/wraps/jeep_tiger"
+ },
+ {
+  "damage": 1342,
+  "model": "minecraft:custom/wraps/jeep_hacker"
+ },
+ {
+  "damage": 1343,
+  "model": "minecraft:custom/wraps/jeep_galaxy"
+ },
+ {
+  "damage": 1344,
+  "model": "minecraft:custom/wraps/jeep_goldleaf"
+ },
+ {
+  "damage": 1345,
+  "model": "minecraft:custom/wraps/jeep_neon"
+ },
+ {
+  "damage": 1346,
+  "model": "minecraft:custom/wraps/jeep_inferno"
+ },
+ {
+  "damage": 1347,
+  "model": "minecraft:custom/wraps/sportief_matte"
+ },
+ {
+  "damage": 1348,
+  "model": "minecraft:custom/wraps/sportief_primer"
+ },
+ {
+  "damage": 1349,
+  "model": "minecraft:custom/wraps/sportief_twotone"
+ },
+ {
+  "damage": 1350,
+  "model": "minecraft:custom/wraps/sportief_stripes"
+ },
+ {
+  "damage": 1351,
+  "model": "minecraft:custom/wraps/sportief_checker"
+ },
+ {
+  "damage": 1352,
+  "model": "minecraft:custom/wraps/sportief_camo"
+ },
+ {
+  "damage": 1353,
+  "model": "minecraft:custom/wraps/sportief_arctic"
+ },
+ {
+  "damage": 1354,
+  "model": "minecraft:custom/wraps/sportief_carbon"
+ },
+ {
+  "damage": 1355,
+  "model": "minecraft:custom/wraps/sportief_flames"
+ },
+ {
+  "damage": 1356,
+  "model": "minecraft:custom/wraps/sportief_tiger"
+ },
+ {
+  "damage": 1357,
+  "model": "minecraft:custom/wraps/sportief_hacker"
+ },
+ {
+  "damage": 1358,
+  "model": "minecraft:custom/wraps/sportief_galaxy"
+ },
+ {
+  "damage": 1359,
+  "model": "minecraft:custom/wraps/sportief_goldleaf"
+ },
+ {
+  "damage": 1360,
+  "model": "minecraft:custom/wraps/sportief_neon"
+ },
+ {
+  "damage": 1361,
+  "model": "minecraft:custom/wraps/sportief_inferno"
+ },
+ {
+  "damage": 1362,
+  "model": "minecraft:custom/wraps/hotrod_matte"
+ },
+ {
+  "damage": 1363,
+  "model": "minecraft:custom/wraps/hotrod_primer"
+ },
+ {
+  "damage": 1364,
+  "model": "minecraft:custom/wraps/hotrod_twotone"
+ },
+ {
+  "damage": 1365,
+  "model": "minecraft:custom/wraps/hotrod_stripes"
+ },
+ {
+  "damage": 1366,
+  "model": "minecraft:custom/wraps/hotrod_checker"
+ },
+ {
+  "damage": 1367,
+  "model": "minecraft:custom/wraps/hotrod_camo"
+ },
+ {
+  "damage": 1368,
+  "model": "minecraft:custom/wraps/hotrod_arctic"
+ },
+ {
+  "damage": 1369,
+  "model": "minecraft:custom/wraps/hotrod_carbon"
+ },
+ {
+  "damage": 1370,
+  "model": "minecraft:custom/wraps/hotrod_flames"
+ },
+ {
+  "damage": 1371,
+  "model": "minecraft:custom/wraps/hotrod_tiger"
+ },
+ {
+  "damage": 1372,
+  "model": "minecraft:custom/wraps/hotrod_hacker"
+ },
+ {
+  "damage": 1373,
+  "model": "minecraft:custom/wraps/hotrod_galaxy"
+ },
+ {
+  "damage": 1374,
+  "model": "minecraft:custom/wraps/hotrod_goldleaf"
+ },
+ {
+  "damage": 1375,
+  "model": "minecraft:custom/wraps/hotrod_neon"
+ },
+ {
+  "damage": 1376,
+  "model": "minecraft:custom/wraps/hotrod_inferno"
+ },
+ {
+  "damage": 1377,
+  "model": "minecraft:custom/wraps/suv_matte"
+ },
+ {
+  "damage": 1378,
+  "model": "minecraft:custom/wraps/suv_primer"
+ },
+ {
+  "damage": 1379,
+  "model": "minecraft:custom/wraps/suv_twotone"
+ },
+ {
+  "damage": 1380,
+  "model": "minecraft:custom/wraps/suv_stripes"
+ },
+ {
+  "damage": 1381,
+  "model": "minecraft:custom/wraps/suv_checker"
+ },
+ {
+  "damage": 1382,
+  "model": "minecraft:custom/wraps/suv_camo"
+ },
+ {
+  "damage": 1383,
+  "model": "minecraft:custom/wraps/suv_arctic"
+ },
+ {
+  "damage": 1384,
+  "model": "minecraft:custom/wraps/suv_carbon"
+ },
+ {
+  "damage": 1385,
+  "model": "minecraft:custom/wraps/suv_flames"
+ },
+ {
+  "damage": 1386,
+  "model": "minecraft:custom/wraps/suv_tiger"
+ },
+ {
+  "damage": 1387,
+  "model": "minecraft:custom/wraps/suv_hacker"
+ },
+ {
+  "damage": 1388,
+  "model": "minecraft:custom/wraps/suv_galaxy"
+ },
+ {
+  "damage": 1389,
+  "model": "minecraft:custom/wraps/suv_goldleaf"
+ },
+ {
+  "damage": 1390,
+  "model": "minecraft:custom/wraps/suv_neon"
+ },
+ {
+  "damage": 1391,
+  "model": "minecraft:custom/wraps/suv_inferno"
+ },
+ {
+  "damage": 1392,
+  "model": "minecraft:custom/wraps/suv_cabrio_matte"
+ },
+ {
+  "damage": 1393,
+  "model": "minecraft:custom/wraps/suv_cabrio_primer"
+ },
+ {
+  "damage": 1394,
+  "model": "minecraft:custom/wraps/suv_cabrio_twotone"
+ },
+ {
+  "damage": 1395,
+  "model": "minecraft:custom/wraps/suv_cabrio_stripes"
+ },
+ {
+  "damage": 1396,
+  "model": "minecraft:custom/wraps/suv_cabrio_checker"
+ },
+ {
+  "damage": 1397,
+  "model": "minecraft:custom/wraps/suv_cabrio_camo"
+ },
+ {
+  "damage": 1398,
+  "model": "minecraft:custom/wraps/suv_cabrio_arctic"
+ },
+ {
+  "damage": 1399,
+  "model": "minecraft:custom/wraps/suv_cabrio_carbon"
+ },
+ {
+  "damage": 1400,
+  "model": "minecraft:custom/wraps/suv_cabrio_flames"
+ },
+ {
+  "damage": 1401,
+  "model": "minecraft:custom/wraps/suv_cabrio_tiger"
+ },
+ {
+  "damage": 1402,
+  "model": "minecraft:custom/wraps/suv_cabrio_hacker"
+ },
+ {
+  "damage": 1403,
+  "model": "minecraft:custom/wraps/suv_cabrio_galaxy"
+ },
+ {
+  "damage": 1404,
+  "model": "minecraft:custom/wraps/suv_cabrio_goldleaf"
+ },
+ {
+  "damage": 1405,
+  "model": "minecraft:custom/wraps/suv_cabrio_neon"
+ },
+ {
+  "damage": 1406,
+  "model": "minecraft:custom/wraps/suv_cabrio_inferno"
+ },
+ {
+  "damage": 1407,
+  "model": "minecraft:custom/wraps/racecar_matte"
+ },
+ {
+  "damage": 1408,
+  "model": "minecraft:custom/wraps/racecar_primer"
+ },
+ {
+  "damage": 1409,
+  "model": "minecraft:custom/wraps/racecar_twotone"
+ },
+ {
+  "damage": 1410,
+  "model": "minecraft:custom/wraps/racecar_stripes"
+ },
+ {
+  "damage": 1411,
+  "model": "minecraft:custom/wraps/racecar_checker"
+ },
+ {
+  "damage": 1412,
+  "model": "minecraft:custom/wraps/racecar_camo"
+ },
+ {
+  "damage": 1413,
+  "model": "minecraft:custom/wraps/racecar_arctic"
+ },
+ {
+  "damage": 1414,
+  "model": "minecraft:custom/wraps/racecar_carbon"
+ },
+ {
+  "damage": 1415,
+  "model": "minecraft:custom/wraps/racecar_flames"
+ },
+ {
+  "damage": 1416,
+  "model": "minecraft:custom/wraps/racecar_tiger"
+ },
+ {
+  "damage": 1417,
+  "model": "minecraft:custom/wraps/racecar_hacker"
+ },
+ {
+  "damage": 1418,
+  "model": "minecraft:custom/wraps/racecar_galaxy"
+ },
+ {
+  "damage": 1419,
+  "model": "minecraft:custom/wraps/racecar_goldleaf"
+ },
+ {
+  "damage": 1420,
+  "model": "minecraft:custom/wraps/racecar_neon"
+ },
+ {
+  "damage": 1421,
+  "model": "minecraft:custom/wraps/racecar_inferno"
+ },
+ {
+  "damage": 1422,
+  "model": "minecraft:custom/wraps/motor_matte"
+ },
+ {
+  "damage": 1423,
+  "model": "minecraft:custom/wraps/motor_primer"
+ },
+ {
+  "damage": 1424,
+  "model": "minecraft:custom/wraps/motor_twotone"
+ },
+ {
+  "damage": 1425,
+  "model": "minecraft:custom/wraps/motor_stripes"
+ },
+ {
+  "damage": 1426,
+  "model": "minecraft:custom/wraps/motor_checker"
+ },
+ {
+  "damage": 1427,
+  "model": "minecraft:custom/wraps/motor_camo"
+ },
+ {
+  "damage": 1428,
+  "model": "minecraft:custom/wraps/motor_arctic"
+ },
+ {
+  "damage": 1429,
+  "model": "minecraft:custom/wraps/motor_carbon"
+ },
+ {
+  "damage": 1430,
+  "model": "minecraft:custom/wraps/motor_flames"
+ },
+ {
+  "damage": 1431,
+  "model": "minecraft:custom/wraps/motor_tiger"
+ },
+ {
+  "damage": 1432,
+  "model": "minecraft:custom/wraps/motor_hacker"
+ },
+ {
+  "damage": 1433,
+  "model": "minecraft:custom/wraps/motor_galaxy"
+ },
+ {
+  "damage": 1434,
+  "model": "minecraft:custom/wraps/motor_goldleaf"
+ },
+ {
+  "damage": 1435,
+  "model": "minecraft:custom/wraps/motor_neon"
+ },
+ {
+  "damage": 1436,
+  "model": "minecraft:custom/wraps/motor_inferno"
+ }
+]

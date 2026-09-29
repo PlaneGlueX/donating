@@ -132,15 +132,23 @@ function heistCooldownNow(h: text) :: timespan:
 		return 1 second * {_secs}
 	return {_c}
 
-# A Heist Rush just started: every cooldown already running gets b times shorter from now on.
+# A Heist Rush just started: every cooldown already running gets b times shorter from now on. Only once per
+# cooldown (review 2026-09-28: queued rushes cut the same cooldown again at every start, {-heist::<h>::rushed}),
+# and never while that heist's alarm still hunts someone (opening ends the chase: a paid way to lose the cops).
 function heistRushStart(b: number):
 	{_b} > 1
 	loop {heists::*}:
 		set {_h} to loop-index
+		set {_ok} to false
 		if heistState({_h}) is "cooldown":
+			if {-heist::%{_h}%::rushed} is not set:
+				if heistAlarmStage({_h}) is "none":
+					set {_ok} to true
+		if {_ok} is true:
 			set {_u} to {-heist::%{_h}%::until}
 			if {_u} is set:
 				if {_u} > now:
+					set {-heist::%{_h}%::rushed} to true
 					set {_left} to difference between now and {_u}
 					set {_secs} to ceil(({_left} / 1 second) / {_b})
 					set {-heist::%{_h}%::until} to now
@@ -330,6 +338,9 @@ function heistOpen(h: text):
 	heistEndAlarm({_h})
 	set {-heist::%{_h}%::state} to "open"
 	delete {-heist::%{_h}%::until}
+	delete {-heist::%{_h}%::rushed}
+	# Open again: a reopen time saved by the last run (or a refresh before it ran out) is over.
+	delete {heist::%{_h}%::reopen}
 	delete {-heist::%{_h}%::warned::*}
 	delete {-heist::%{_h}%::storeclose}
 	delete {-heist::%{_h}%::lastin}
@@ -351,6 +362,9 @@ function heistStartRun(h: text):
 		set {-heist::%{_h}%::state} to "active"
 		delete {-heist::%{_h}%::until}
 		set {-heist::%{_h}%::lastin} to now
+		# Saved: a restart or Minehut sleep mid-run can't skip the cooldown (review 2026-09-28).
+		set {heist::%{_h}%::reopen} to now
+		add heistCooldownNow({_h}) to {heist::%{_h}%::reopen}
 		heistLog("start %{_h}% run=%heistRun({_h})% store")
 		loop heistRobbers({_h}):
 			heistNotify(loop-value, "start", "&eRobbing the %heistName({_h})%: &fno clock. &7It closes once it's cleaned out.")
@@ -360,6 +374,10 @@ function heistStartRun(h: text):
 	set {-heist::%{_h}%::state} to "active"
 	set {-heist::%{_h}%::until} to now
 	add {_e} to {-heist::%{_h}%::until}
+	# Saved: if the server stops mid-run (a restart, a crash, Minehut sleeping once everyone logs off), the
+	# heist still waits the run's clock plus its cooldown (review 2026-09-28: it reopened at once).
+	set {heist::%{_h}%::reopen} to {-heist::%{_h}%::until}
+	add heistCooldownNow({_h}) to {heist::%{_h}%::reopen}
 	# Warnings longer than the whole run would all fire at once: mark them as sent.
 	set {_secs} to {_e} / 1 second
 	loop {-cfg::heist::warn-at::*}:
@@ -381,6 +399,8 @@ function heistShortenClock(h: text, secs: number) :: boolean:
 		return false
 	set {-heist::%{_h}%::until} to now
 	add 1 second * {_secs} to {-heist::%{_h}%::until}
+	set {heist::%{_h}%::reopen} to {-heist::%{_h}%::until}
+	add heistCooldownNow({_h}) to {heist::%{_h}%::reopen}
 	# Warnings at or above the new time are done; the ones below still come.
 	loop {-cfg::heist::warn-at::*}:
 		loop-value >= {_secs}
@@ -395,6 +415,11 @@ function heistEndRun(h: text, reason: text):
 	set {-heist::%{_h}%::state} to "cooldown"
 	set {-heist::%{_h}%::until} to now
 	add heistCooldownNow({_h}) to {-heist::%{_h}%::until}
+	# A cooldown that started under a Heist Rush is already short: the next queued rush doesn't cut it again.
+	if boosterMultiplierOf("rush") > 1:
+		set {-heist::%{_h}%::rushed} to true
+	else:
+		delete {-heist::%{_h}%::rushed}
 	# Saved, so a restart or Minehut sleep can't skip the cooldown.
 	set {heist::%{_h}%::reopen} to {-heist::%{_h}%::until}
 	set {-heist::%{_h}%::reset-next} to 1
@@ -457,6 +482,10 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 	set {_name} to heistName({_h})
 	if {_tp} is true:
 		return "You can't teleport into a heist. Walk in."
+	# Nobody rides in: a passenger seat reaches past a door, bars or a thin wall while the car stays outside, and
+	# passengers fire no region events (review 2026-09-28). heistReconcile moves them out to the exit.
+	if carSeatOf({_p}) is not "":
+		return "Walk into the %{_name}%: no riding in."
 	# Nobody fights in a store (store::no-pvp): not a place to hide from a fight either (review fix).
 	if heistIsStore({_h}) is true:
 		if {-cfg::store::no-pvp} is true:
@@ -601,6 +630,9 @@ function heistEvict(p: player, h: text, reason: text):
 # to an unloaded chunk finishes later, after the flag is gone (Skript 2.16.2).
 function heistTeleport(p: player, l: location):
 	set {-heistpass::%{_p}%} to true
+	# A rider can't be teleported: out of the seat first.
+	if vehicle of {_p} is set:
+		make {_p} dismount
 	force teleport {_p} to {_l}
 	delete {-heistpass::%{_p}%}
 
@@ -1557,6 +1589,7 @@ function heistOnReset(h: text):
 function heistOnEnter(p: player, h: text):
 	trapOnEnter({_p}, {_h})
 	lootOnEnter({_p}, {_h})
+	itemsOnEnter({_p}, {_h})
 
 function heistOnLeave(p: player, h: text, reason: text):
 	trapForget({_p}, {_h})

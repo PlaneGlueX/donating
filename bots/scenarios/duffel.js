@@ -121,7 +121,7 @@ module.exports = async ({ check }) => {
     const bB = await bag(B)
     const d2 = await duffels()
     check('takes as much as fits ($2,000 of $2,200), each line keeps its tag, the rest stays in the duffel', bB.total === 2000 && bB.lines.includes('dtest#1=1500') && bB.lines.includes('other#2=500') && d2.n === 1 && d2.list[0].lines === 'other#2=200' && /Loot duffel \$200 /.test(d2.list[0].name), `${bB.raw} ${d2.raw}`)
-    check('...with a message and a log line', /\+\$2,000 from a loot duffel/.test(barSince(B, t)) && logged(/duffel-take DuffelB .*took=2000 rest=other#2=200/).length === 1, `${barSince(B, t)} ${since()}`)
+    check('...with a message and a log line', /\+\$2,000 from a loot duffel/.test(barSince(B, t)) && logged(/duffel-take DuffelB .*took=2000 hot=\S+ rest=other#2=200/).length === 1, `${barSince(B, t)} ${since()}`)
     t = Date.now()
     await sleep(1500)
     check('a full bag takes nothing more (BAG FULL)', /BAG FULL/.test(barSince(B, t)) && (await bag(B)).total === 2000 && (await duffels()).list[0].lines === 'other#2=200', barSince(B, t))

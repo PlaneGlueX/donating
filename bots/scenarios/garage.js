@@ -1,4 +1,5 @@
-// garage.sk and car-cleanup.sk (MTVehicles 2.5.9): the Car Dealer (level, price, confirm, one per model),
+// garage.sk and car-cleanup.sk (MTVehicles 2.5.9): the Car Dealer (level, price, confirm; several of a model since
+// 2026-09-28, each its own plate and serial number),
 // the garage (call a car next to you, one out at a time), getting in (only the owner drives; locked =
 // nobody else, unlocked = passengers), the car key in slot 9 while driving (lock / unlock) and the phone
 // back after, no cars in heists, stands that can't be broken, /vehicle for staff only, repainting (a new
@@ -25,7 +26,10 @@ module.exports = async ({ check }) => {
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const bal = async name => Number(((await cmd(`zzbal ${name}`)).match(/: (-?\d+)/) || [])[1])
     const info = async name => cmd(`dgarage info ${name}`)
-    const plateOf = async (name, id) => ((await info(name)).match(new RegExp(`${id}=([A-Z0-9-]+)\\(`)) || [])[1] || ''
+    // "PLATE=model(color,...)" per car (garage.sk /dgarage info): the first car of a model.
+    const plateOf = async (name, id) => ((await info(name)).match(new RegExp(`([A-Z0-9-]+)=${id}\\(`)) || [])[1] || ''
+    const platesOf = async name => [...(await info(name)).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)].map(m => m[1])
+    const takeAll = async name => { for (const p of await platesOf(name)) await cmd(`dgarage take ${name} ${p}`) }
     const car = async plate => cmd(`zzcarinfo ${plate}`)
     const stands = async plate => Number(((await car(plate)).match(/stands=(\d+)/) || [])[1] || 0)
     const seat = async name => cmd(`zzcarseat ${name}`)
@@ -94,7 +98,7 @@ module.exports = async ({ check }) => {
       await cmd(`dlevel reset ${name}`)
       await cmd(`eco set ${name} 100000`)
       // Leftover cars from an earlier run.
-      for (const id of ['sedan', 'jeep', 'vandal']) await cmd(`dgarage take ${name} ${id}`)
+      await takeAll(name)
     }
     await cmd(`zzheisttp ${A} 1210.5 ${Y} 1210.5`)
     await cmd(`zzheisttp ${B} 1210.5 ${Y} 1214.5`)
@@ -121,14 +125,21 @@ module.exports = async ({ check }) => {
     await sleep(1200)
     let plate = await plateOf(A, 'sedan')
     plates.push(plate)
-    check('buying needs a second click, then: charged $40,000, the car is yours (an MTVehicles plate)', armed && (await bal(A)) === 60000 && plate !== '' && /exists=yes owner=GarageA/.test(await car(plate)), `armed=${armed} bal=${await bal(A)} ${await info(A)} ${await car(plate)}`)
+    const vin1 = Number(((await info(A)).match(/vin=(\d+)/) || [])[1])
+    check('buying needs a second click, then: charged $40,000, the car is yours (an MTVehicles plate) with a serial number', armed && (await bal(A)) === 60000 && plate !== '' && /exists=yes owner=GarageA/.test(await car(plate)) && vin1 > 0, `armed=${armed} bal=${await bal(A)} ${await info(A)} ${await car(plate)}`)
     await closeAll(A)
     t = Date.now()
     w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
     await click(A, 10)
     await click(A, 11)
-    await sleep(500)
-    check('one of each model: a second Sedan is refused', /own a Sedan already/.test(text(A, t)) && (await bal(A)) === 60000, text(A, t))
+    bots[A].clickWindow(11, 0, 0).catch(() => {})
+    await sleep(1200)
+    const two = await platesOf(A)
+    const vins = [...(await info(A)).matchAll(/vin=(\d+)/g)].map(m => Number(m[1]))
+    check('several of a model now: a second Sedan (Gray) is its own car, plate and the next serial number', two.length === 2 && (await bal(A)) === 20000 && vins.length === 2 && vins[0] !== vins[1] && /=sedan\(Gray,/.test(await info(A)), `${await info(A)} bal=${await bal(A)} ${text(A, t)}`)
+    // One Sedan from here on (the rest of the test calls "the" car).
+    for (const p of two) if (p !== plate) { await cmd(`dgarage take ${A} ${p}`); await cmd(`zzcardelete ${p}`) }
+    await cmd(`eco set ${A} 60000`)
     await closeAll(A)
 
     // ---------- The garage: calling it ----------
@@ -142,7 +153,7 @@ module.exports = async ({ check }) => {
     check('/garage lists your cars', w && /Your garage/.test(JSON.stringify(w.title)) && /Sedan/.test(itemText(w.slots[9])) && /In the garage/.test(itemText(w.slots[9])), itemText(w && w.slots[9]).slice(0, 300))
     bots[A].clickWindow(9, 0, 0).catch(() => {})
     await sleep(1500)
-    check('left-click calls it next to you (a spawned MTVehicles car: 3 stands)', /Sedan is here/.test(text(A, t)) && (await stands(plate)) === 3 && /\(Red,out,/.test(await info(A)), `${text(A, t)} ${await car(plate)} ${await info(A)}`)
+    check('left-click calls it next to you (a spawned MTVehicles car: 3 stands)', /Sedan is here/.test(text(A, t)) && (await stands(plate)) === 3 && /=sedan\(Red,.*,out,/.test(await info(A)), `${text(A, t)} ${await car(plate)} ${await info(A)}`)
 
     // ---------- Getting in ----------
     t = Date.now()
@@ -235,7 +246,7 @@ module.exports = async ({ check }) => {
     check('...and getting out doesn\'t lose them: the doubled radius lasts for that chase', /INRANGE \S+ \S+ true/.test(stepped) && !/driver:/.test(stepped), stepped)
     await cmd(`zzhunt ${A} ${HID} release`)
     await cmd(`zzcardelete ${plate}`)
-    await cmd(`dgarage take ${A} sedan`)
+    await cmd(`dgarage take ${A} ${plate}`)
     await cmd(`forceload remove 1355 1220 1368 1232`)
     await cmd(`dgarage give ${A} sedan Red`)
     plate = await plateOf(A, 'sedan')
@@ -315,12 +326,13 @@ module.exports = async ({ check }) => {
     await sleep(2500)
 
     // ---------- Repainting ----------
+    const vinOfPlate = Number(((await info(A)).match(/vin=(\d+)/) || [])[1])
     o2 = windowOpen(bots[A])
     bots[A].chat('/garage')
     await o2
     await sleep(300)
     w = await click(A, 9, 1) // right-click: the options
-    w = await click(A, 13) // repaint
+    w = await click(A, 12) // repaint
     t = Date.now()
     const before = await bal(A)
     await click(A, 11) // Gray: arms the confirm
@@ -328,16 +340,24 @@ module.exports = async ({ check }) => {
     await sleep(1500)
     const newPlate = await plateOf(A, 'sedan')
     plates.push(newPlate)
-    check('repainting: $2,500, a new plate in the new color, the old car deleted', newPlate !== '' && newPlate !== plate && /\(Gray,/.test(await info(A)) && before - (await bal(A)) === 2500 && /none/.test(await car(plate)), `${text(A, t)} ${await info(A)} ${before}->${await bal(A)} old=${await car(plate)}`)
+    const vinAfter = Number(((await info(A)).match(/vin=(\d+)/) || [])[1])
+    check('repainting: $2,500, a new plate in the new color, the old car deleted, the same serial number', newPlate !== '' && newPlate !== plate && /\(Gray,/.test(await info(A)) && before - (await bal(A)) === 2500 && /none/.test(await car(plate)) && vinAfter === vinOfPlate, `${text(A, t)} ${await info(A)} ${before}->${await bal(A)} old=${await car(plate)}`)
     await closeAll(A)
 
     // ---------- Crate cars ----------
     const g1 = await cmd(`zzcrategrant ${A} legendary 1|car|vandal|Vandal`)
     const vplate = await plateOf(A, 'vandal')
     plates.push(vplate)
-    const b1 = await bal(A)
     const g2 = await cmd(`zzcrategrant ${A} legendary 1|car|vandal|Vandal`)
-    check('a crate car lands in your garage; a second one pays the Legendary repeat value ($5,000)', /Vandal/.test(g1) && /garage/.test(g1) && vplate !== '' && /you have it/.test(g2) && (await bal(A)) - b1 === 5000, `${g1} / ${g2} ${await info(A)}`)
+    const vandals = [...(await info(A)).matchAll(/([A-Z0-9-]+)=vandal\([^)]*serial=(\d+)/g)]
+    for (const m of vandals) plates.push(m[1])
+    check('a crate car lands in your garage, locked as it came and numbered of its kind; a second one is another Vandal with the next number', /Vandal/.test(g1) && /garage/.test(g1) && vplate !== '' && vandals.length === 2 && Number(vandals[1][2]) === Number(vandals[0][2]) + 1 && /built=true/.test(await info(A)), `${g1} / ${g2} ${await info(A)}`)
+    // A full garage pays the repeat value instead.
+    await cmd(`zzcfgset car::garage-max 3`)
+    const b1 = await bal(A)
+    const g3 = await cmd(`zzcrategrant ${A} legendary 1|car|vandal|Vandal`)
+    check('...with a full garage (the most cars one may own) the crate pays the Legendary repeat value ($5,000) instead', /no room in your garage/.test(g3) && (await bal(A)) - b1 === 5000 && (await platesOf(A)).length === 3, `${g3} ${await info(A)}`)
+    await cmd('zzcfgreload')
     check('crate cars roll now (Legendary 1000 with its car)', /total=1000/.test(await cmd('zzcrateroll legendary 1')), await cmd('zzcrateroll legendary 1'))
 
     // ---------- Levels list the cars; staff only ----------
@@ -353,7 +373,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd('zzcfgreload').catch(() => {})
     for (const p of plates) if (p) await rcon.cmd(`zzcardelete ${p}`).catch(() => {})
     for (const name of [A, B]) {
-      for (const id of ['sedan', 'jeep', 'vandal']) await rcon.cmd(`dgarage take ${name} ${id}`).catch(() => {})
+      for (const m of [...((await rcon.cmd(`dgarage info ${name}`).catch(() => '')) || '').matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await rcon.cmd(`dgarage take ${name} ${m[1]}`).catch(() => {})
       await rcon.cmd(`dlevel reset ${name}`).catch(() => {})
       await rcon.cmd(`zzclear ${name}`).catch(() => {})
       await rcon.cmd(`zzheisttp ${name} ${FAR}`).catch(() => {})

@@ -55,6 +55,82 @@ voertuigen:
         itemDamage: 1070
         uuid: W32FND
         price: 5000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap Sportief Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1347
+        uuid: 12GI27
+        price: 5000.0
+      - name: "Wrap Sportief Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1348
+        uuid: WYNW7J
+        price: 5000.0
+      - name: "Wrap Sportief Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1349
+        uuid: S3PLPN
+        price: 5000.0
+      - name: "Wrap Sportief Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1350
+        uuid: J4I0IZ
+        price: 5000.0
+      - name: "Wrap Sportief Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1351
+        uuid: RNFEOZ
+        price: 5000.0
+      - name: "Wrap Sportief Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1352
+        uuid: 3D4DJB
+        price: 5000.0
+      - name: "Wrap Sportief Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1353
+        uuid: MRZ9SQ
+        price: 5000.0
+      - name: "Wrap Sportief Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1354
+        uuid: YHTAJL
+        price: 5000.0
+      - name: "Wrap Sportief Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1355
+        uuid: KN6P85
+        price: 5000.0
+      - name: "Wrap Sportief Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1356
+        uuid: H57TB8
+        price: 5000.0
+      - name: "Wrap Sportief H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1357
+        uuid: V1CEVC
+        price: 5000.0
+      - name: "Wrap Sportief Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1358
+        uuid: VH0M1H
+        price: 5000.0
+      - name: "Wrap Sportief Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1359
+        uuid: DXRPJC
+        price: 5000.0
+      - name: "Wrap Sportief Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1360
+        uuid: XFYN45
+        price: 5000.0
+      - name: "Wrap Sportief Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1361
+        uuid: 4MG4Z0
+        price: 5000.0
   - name: "Sedan"
     vehicleType: CAR
     skinItem: DIAMOND_HOE
@@ -122,6 +198,157 @@ voertuigen:
         itemDamage: 1116
         uuid: KG59SJ
         price: 5500.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap Sedan Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1302
+        uuid: UIKREO
+        price: 5500.0
+      - name: "Wrap Sedan Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1303
+        uuid: VJ8HJ7
+        price: 5500.0
+      - name: "Wrap Sedan Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1304
+        uuid: QGXQMX
+        price: 5500.0
+      - name: "Wrap Sedan Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1305
+        uuid: BJWZUT
+        price: 5500.0
+      - name: "Wrap Sedan Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1306
+        uuid: IF4LPR
+        price: 5500.0
+      - name: "Wrap Sedan Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1307
+        uuid: MVNUCK
+        price: 5500.0
+      - name: "Wrap Sedan Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1308
+        uuid: 0F2AET
+        price: 5500.0
+      - name: "Wrap Sedan Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1309
+        uuid: PKHG02
+        price: 5500.0
+      - name: "Wrap Sedan Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1310
+        uuid: CD7HPE
+        price: 5500.0
+      - name: "Wrap Sedan Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1311
+        uuid: 5H2G3Y
+        price: 5500.0
+      - name: "Wrap Sedan H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1312
+        uuid: CBE3BB
+        price: 5500.0
+      - name: "Wrap Sedan Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1313
+        uuid: BZPX77
+        price: 5500.0
+      - name: "Wrap Sedan Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1314
+        uuid: XAMQNY
+        price: 5500.0
+      - name: "Wrap Sedan Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1315
+        uuid: OI5AVG
+        price: 5500.0
+      - name: "Wrap Sedan Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1316
+        uuid: KL1Y3Z
+        price: 5500.0
+      - name: "Wrap Sport Sedan Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1317
+        uuid: AJMR6C
+        price: 5500.0
+      - name: "Wrap Sport Sedan Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1318
+        uuid: 33F8ZS
+        price: 5500.0
+      - name: "Wrap Sport Sedan Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1319
+        uuid: 1E7ZA2
+        price: 5500.0
+      - name: "Wrap Sport Sedan Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1320
+        uuid: YVDM46
+        price: 5500.0
+      - name: "Wrap Sport Sedan Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1321
+        uuid: XVOMAX
+        price: 5500.0
+      - name: "Wrap Sport Sedan Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1322
+        uuid: T7AN18
+        price: 5500.0
+      - name: "Wrap Sport Sedan Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1323
+        uuid: WH4EA7
+        price: 5500.0
+      - name: "Wrap Sport Sedan Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1324
+        uuid: XF6FJ9
+        price: 5500.0
+      - name: "Wrap Sport Sedan Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1325
+        uuid: CEKOQV
+        price: 5500.0
+      - name: "Wrap Sport Sedan Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1326
+        uuid: 3ULFG3
+        price: 5500.0
+      - name: "Wrap Sport Sedan H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1327
+        uuid: 71W2HW
+        price: 5500.0
+      - name: "Wrap Sport Sedan Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1328
+        uuid: DH2JBA
+        price: 5500.0
+      - name: "Wrap Sport Sedan Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1329
+        uuid: ASGWPV
+        price: 5500.0
+      - name: "Wrap Sport Sedan Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1330
+        uuid: YRE9BG
+        price: 5500.0
+      - name: "Wrap Sport Sedan Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1331
+        uuid: 5CVEM2
+        price: 5500.0
   - name: "Jeep"
     vehicleType: CAR
     skinItem: DIAMOND_HOE
@@ -153,6 +380,82 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1074
         uuid: 5Z95XA
+        price: 6000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap Jeep Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1332
+        uuid: A5CKDS
+        price: 6000.0
+      - name: "Wrap Jeep Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1333
+        uuid: G0QND2
+        price: 6000.0
+      - name: "Wrap Jeep Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1334
+        uuid: 9PN9OL
+        price: 6000.0
+      - name: "Wrap Jeep Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1335
+        uuid: UWPBNW
+        price: 6000.0
+      - name: "Wrap Jeep Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1336
+        uuid: M187WP
+        price: 6000.0
+      - name: "Wrap Jeep Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1337
+        uuid: U31UGA
+        price: 6000.0
+      - name: "Wrap Jeep Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1338
+        uuid: PC1WYP
+        price: 6000.0
+      - name: "Wrap Jeep Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1339
+        uuid: 88UK70
+        price: 6000.0
+      - name: "Wrap Jeep Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1340
+        uuid: 3UTOA8
+        price: 6000.0
+      - name: "Wrap Jeep Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1341
+        uuid: P2BADZ
+        price: 6000.0
+      - name: "Wrap Jeep H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1342
+        uuid: WRYRS6
+        price: 6000.0
+      - name: "Wrap Jeep Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1343
+        uuid: 8RLH0L
+        price: 6000.0
+      - name: "Wrap Jeep Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1344
+        uuid: 5MQZ6A
+        price: 6000.0
+      - name: "Wrap Jeep Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1345
+        uuid: WYVVKX
+        price: 6000.0
+      - name: "Wrap Jeep Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1346
+        uuid: 6KCH1E
         price: 6000.0
   - name: "Hotrod"
     vehicleType: CAR
@@ -192,6 +495,82 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1161
         uuid: 6GBKXT
+        price: 5000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap Hotrod Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1362
+        uuid: MD03XI
+        price: 5000.0
+      - name: "Wrap Hotrod Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1363
+        uuid: 7XIIEU
+        price: 5000.0
+      - name: "Wrap Hotrod Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1364
+        uuid: 1YYQG1
+        price: 5000.0
+      - name: "Wrap Hotrod Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1365
+        uuid: UQTZU6
+        price: 5000.0
+      - name: "Wrap Hotrod Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1366
+        uuid: 9F98W8
+        price: 5000.0
+      - name: "Wrap Hotrod Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1367
+        uuid: 5DA84S
+        price: 5000.0
+      - name: "Wrap Hotrod Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1368
+        uuid: T20E49
+        price: 5000.0
+      - name: "Wrap Hotrod Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1369
+        uuid: 0JX1GF
+        price: 5000.0
+      - name: "Wrap Hotrod Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1370
+        uuid: J18EF4
+        price: 5000.0
+      - name: "Wrap Hotrod Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1371
+        uuid: JBBHZS
+        price: 5000.0
+      - name: "Wrap Hotrod H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1372
+        uuid: JDF2PT
+        price: 5000.0
+      - name: "Wrap Hotrod Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1373
+        uuid: 0OC32T
+        price: 5000.0
+      - name: "Wrap Hotrod Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1374
+        uuid: A6YDLA
+        price: 5000.0
+      - name: "Wrap Hotrod Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1375
+        uuid: 3WLF72
+        price: 5000.0
+      - name: "Wrap Hotrod Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1376
+        uuid: 2RINYZ
         price: 5000.0
   - name: "SUV"
     vehicleType: CAR
@@ -236,3 +615,526 @@ voertuigen:
         itemDamage: 1220
         uuid: 5R7QP3
         price: 9000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap SUV Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1377
+        uuid: T0SOC2
+        price: 9000.0
+      - name: "Wrap SUV Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1378
+        uuid: YDOY3H
+        price: 9000.0
+      - name: "Wrap SUV Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1379
+        uuid: 9N51ZE
+        price: 9000.0
+      - name: "Wrap SUV Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1380
+        uuid: IZ6VIT
+        price: 9000.0
+      - name: "Wrap SUV Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1381
+        uuid: DW5W0E
+        price: 9000.0
+      - name: "Wrap SUV Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1382
+        uuid: ALKID2
+        price: 9000.0
+      - name: "Wrap SUV Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1383
+        uuid: RZDPE6
+        price: 9000.0
+      - name: "Wrap SUV Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1384
+        uuid: KPZRBD
+        price: 9000.0
+      - name: "Wrap SUV Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1385
+        uuid: 0X7T2V
+        price: 9000.0
+      - name: "Wrap SUV Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1386
+        uuid: 7DC1XH
+        price: 9000.0
+      - name: "Wrap SUV H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1387
+        uuid: PP4RX3
+        price: 9000.0
+      - name: "Wrap SUV Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1388
+        uuid: WIIBBP
+        price: 9000.0
+      - name: "Wrap SUV Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1389
+        uuid: F6KNGO
+        price: 9000.0
+      - name: "Wrap SUV Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1390
+        uuid: KNUJPA
+        price: 9000.0
+      - name: "Wrap SUV Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1391
+        uuid: 10F5GP
+        price: 9000.0
+  - name: "SUV Cabrio"
+    # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the riviera): change it there.
+    vehicleType: CAR
+    skinItem: DIAMOND_HOE
+    itemDamage: 1198
+    benzineEnabled: false
+    kofferbakEnabled: false
+    hornEnabled: true
+    maxHealth: 300.0
+    acceleratieSpeed: 0.013
+    maxSpeed: 0.72
+    brakingSpeed: 0.03
+    aftrekkenSpeed: 0.005
+    rotateSpeed: 8
+    maxSpeedBackwards: 0.35
+    seats:
+      - x: 0.0
+        y: -1.15
+        z: 0.4
+      - x: 0.0
+        y: -1.15
+        z: -0.4
+      - x: -0.8
+        y: -1.15
+        z: 0.4
+      - x: -0.8
+        y: -1.15
+        z: -0.4
+    cars:
+      - name: "SUV Cabrio Orangeblack"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1198
+        uuid: 7BPAD8
+        price: 9000.0
+      - name: "SUV Redblack"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1203
+        uuid: 85GAEH
+        price: 9000.0
+      - name: "SUV Greenwhite"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1204
+        uuid: W33BEH
+        price: 9000.0
+      - name: "SUV Lightbluewhite"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1207
+        uuid: Q85BXQ
+        price: 9000.0
+      - name: "SUV Purplewhite"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1208
+        uuid: G7KJ8A
+        price: 9000.0
+      - name: "SUV Pinkwhite"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1209
+        uuid: K6DVYQ
+        price: 9000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap SUV Cabrio Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1392
+        uuid: 8WAJID
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1393
+        uuid: XUSVKQ
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1394
+        uuid: 4BM08E
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1395
+        uuid: VKE3G1
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1396
+        uuid: W9O4P2
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1397
+        uuid: QAKFV3
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1398
+        uuid: RCLIYK
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1399
+        uuid: 0L6WGY
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1400
+        uuid: 4XGJAX
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1401
+        uuid: ET41BV
+        price: 9000.0
+      - name: "Wrap SUV Cabrio H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1402
+        uuid: V70KLL
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1403
+        uuid: TKB420
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1404
+        uuid: H4GOQ1
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1405
+        uuid: QQJTPF
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1406
+        uuid: 8C4HQJ
+        price: 9000.0
+  - name: "Racecar"
+    # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the apex): change it there.
+    vehicleType: CAR
+    skinItem: DIAMOND_HOE
+    itemDamage: 1165
+    benzineEnabled: false
+    kofferbakEnabled: false
+    hornEnabled: true
+    maxHealth: 300.0
+    acceleratieSpeed: 0.018
+    maxSpeed: 0.85
+    brakingSpeed: 0.03
+    aftrekkenSpeed: 0.005
+    rotateSpeed: 8
+    maxSpeedBackwards: 0.35
+    seats:
+      - x: -0.1
+        y: -1.85
+        z: 0.0
+    cars:
+      - name: "Racecar Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1165
+        uuid: 4JXXK8
+        price: 7000.0
+      - name: "Racecar Red"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1166
+        uuid: RD8XS9
+        price: 7000.0
+      - name: "Racecar Emerald"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1167
+        uuid: 6XXC76
+        price: 7000.0
+      - name: "Racecar Gold"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1168
+        uuid: KHNB73
+        price: 7000.0
+      - name: "Racecar Pink"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1169
+        uuid: 972EKA
+        price: 7000.0
+      - name: "Racecar Diamond"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1170
+        uuid: 8D7JLU
+        price: 7000.0
+      - name: "Racecar Orange"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1171
+        uuid: QF6WZD
+        price: 7000.0
+      - name: "Racecar Orangeblack"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1172
+        uuid: 63MHGZ
+        price: 7000.0
+      - name: "Racecar Ender"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1186
+        uuid: LRGF4Y
+        price: 7000.0
+      - name: "Racecar Purplefade"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1193
+        uuid: KS58X3
+        price: 7000.0
+      - name: "Racecar Rainbow"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1210
+        uuid: L4SEDU
+        price: 7000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap Racecar Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1407
+        uuid: 6Z3W2N
+        price: 7000.0
+      - name: "Wrap Racecar Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1408
+        uuid: XNC4QH
+        price: 7000.0
+      - name: "Wrap Racecar Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1409
+        uuid: F18QCM
+        price: 7000.0
+      - name: "Wrap Racecar Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1410
+        uuid: JLTAMA
+        price: 7000.0
+      - name: "Wrap Racecar Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1411
+        uuid: Y5OH8Y
+        price: 7000.0
+      - name: "Wrap Racecar Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1412
+        uuid: 2UF6DV
+        price: 7000.0
+      - name: "Wrap Racecar Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1413
+        uuid: VTDOZM
+        price: 7000.0
+      - name: "Wrap Racecar Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1414
+        uuid: GYVBZ0
+        price: 7000.0
+      - name: "Wrap Racecar Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1415
+        uuid: PCKW93
+        price: 7000.0
+      - name: "Wrap Racecar Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1416
+        uuid: O4VDTC
+        price: 7000.0
+      - name: "Wrap Racecar H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1417
+        uuid: ELT9LM
+        price: 7000.0
+      - name: "Wrap Racecar Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1418
+        uuid: MADPA4
+        price: 7000.0
+      - name: "Wrap Racecar Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1419
+        uuid: PETLA4
+        price: 7000.0
+      - name: "Wrap Racecar Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1420
+        uuid: KCBG1E
+        price: 7000.0
+      - name: "Wrap Racecar Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1421
+        uuid: 4J64ZR
+        price: 7000.0
+  - name: "Motor"
+    # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the viper): change it there.
+    vehicleType: CAR
+    skinItem: DIAMOND_HOE
+    itemDamage: 1036
+    benzineEnabled: false
+    kofferbakEnabled: false
+    hornEnabled: true
+    maxHealth: 200.0
+    acceleratieSpeed: 0.016
+    maxSpeed: 0.78
+    brakingSpeed: 0.03
+    aftrekkenSpeed: 0.005
+    rotateSpeed: 8
+    maxSpeedBackwards: 0.35
+    seats:
+      - x: -0.2
+        y: -1.0
+        z: 0.0
+    cars:
+      - name: "Motor Orange"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1036
+        uuid: FV5PZP
+        price: 3000.0
+      - name: "Motor Green"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1037
+        uuid: 4HY4A5
+        price: 3000.0
+      - name: "Motor Blue"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1038
+        uuid: K6TBK9
+        price: 3000.0
+      - name: "Motor Gold"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1039
+        uuid: 7WTA39
+        price: 3000.0
+      - name: "Motor Police"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1040
+        uuid: 384A4N
+        price: 3000.0
+      - name: "Motor Red"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1041
+        uuid: JDC78X
+        price: 3000.0
+      - name: "Motor Pink"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1042
+        uuid: XTKK54
+        price: 3000.0
+      - name: "Motor Vierjaar"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1194
+        uuid: 7H3U63
+        price: 3000.0
+      - name: "Motor Easter"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1195
+        uuid: RBSX6N
+        price: 3000.0
+      - name: "Motor Koningsdag"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1197
+        uuid: A5K4NY
+        price: 3000.0
+      - name: "Motor Gray"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1013
+        uuid: WLDS5O
+        price: 3000.0
+      - name: "Motor Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1300
+        uuid: PQTCZK
+        price: 3000.0
+      - name: "Motor White"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1301
+        uuid: 36MCV5
+        price: 3000.0
+      # Wraps (tools/make-car-wraps.js): a variant's itemDamage and uuid never change once cars of it exist.
+      - name: "Wrap Motor Matte Black"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1422
+        uuid: BLGGFP
+        price: 3000.0
+      - name: "Wrap Motor Primer"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1423
+        uuid: M33S5Z
+        price: 3000.0
+      - name: "Wrap Motor Two-Tone"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1424
+        uuid: SJ7792
+        price: 3000.0
+      - name: "Wrap Motor Racing Stripes"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1425
+        uuid: NVKQZE
+        price: 3000.0
+      - name: "Wrap Motor Checkered"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1426
+        uuid: 1T7VVI
+        price: 3000.0
+      - name: "Wrap Motor Woodland Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1427
+        uuid: B3CM11
+        price: 3000.0
+      - name: "Wrap Motor Arctic Camo"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1428
+        uuid: M8AO4H
+        price: 3000.0
+      - name: "Wrap Motor Carbon Fiber"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1429
+        uuid: LSE8QE
+        price: 3000.0
+      - name: "Wrap Motor Flames"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1430
+        uuid: L8MCXT
+        price: 3000.0
+      - name: "Wrap Motor Tiger"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1431
+        uuid: DZPX3O
+        price: 3000.0
+      - name: "Wrap Motor H4CK3R"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1432
+        uuid: 4RCFHM
+        price: 3000.0
+      - name: "Wrap Motor Galaxy"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1433
+        uuid: KTT5NP
+        price: 3000.0
+      - name: "Wrap Motor Gold Leaf"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1434
+        uuid: G1LYDH
+        price: 3000.0
+      - name: "Wrap Motor Neon Grid"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1435
+        uuid: EE7GEM
+        price: 3000.0
+      - name: "Wrap Motor Inferno"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1436
+        uuid: G8TU64
+        price: 3000.0

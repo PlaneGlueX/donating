@@ -1,0 +1,103 @@
+{
+  "_comment": [
+    "Car wraps (tools/make-car-wraps.js reads this; run it, then tools/build-pack.js).",
+    "geometries: one voxel model per car shape. model = the MTVehicles model with the elements; atlas = the plain color whose trim",
+    "(tires, glass, lights, interior; pick one with plain rims) the wrapped car keeps; compare = plain colors of the same shape: a",
+    "pixel with each color's body color in most of them is paint; decals = colors in the atlas (white racing stripes) that the wrap",
+    "covers where they touch the paint (only listed colors: seats can look like stripes to the comparison). front = the model axis",
+    "the car's nose points to (display.head turns the model: +90 = +x, -90 = -x).",
+    "family = the MTVehicles family in vehicles.yml the wrap variants go into; label names the variants (\"Wrap Sedan Camo\"); price",
+    "is MTVehicles' own (unused by Donating).",
+    "cars: Donating's car ids (core.sk) -> their geometry. carwraps.sk gets {-carwrap::<car>::<wrap>} for each.",
+    "families: families this script adds to vehicles.yml (plain colors with MTVehicles' default uuids and itemDamages, and the",
+    "extra colors MTVehicles' pack draws but its default vehicles.yml doesn't list: those get a new damage and uuid).",
+    "wraps: id, name, tier (common = bad, rare = good, exotic = super rare), glow (full-bright paint), frames / frametime",
+    "(animated), and the pattern's parameters (colors are RGB).",
+    "Once cars with a wrap exist, never rename or remove that wrap or change a geometry's label or family: the variant",
+    "\"Wrap <label> <name>\" would get a new itemDamage and uuid (or leave vehicles.yml), and the cars of the old one lose their",
+    "model. Retire a wrap in core.sk instead (carwrap::<id>::retired); its pattern and colors can still change."
+  ],
+  "geometries": {
+    "sedan": { "model": "custom/vehicles/sedan_red", "atlas": "sedan_red", "compare": ["sedan_red", "sedan_navyblauw", "sedan_green", "sedan_black"], "decals": [[231, 238, 235]], "front": "+x", "family": "Sedan", "label": "Sedan", "price": 5500 },
+    "sedan_sportief": { "model": "custom/vehicles/sedan_sportief_gold", "atlas": "sedan_sportief_president", "compare": ["sedan_sportief_goldv2", "sedan_sportief_babyboy", "sedan_sportief_president", "sedan_sportief_emerald"], "front": "+x", "family": "Sedan", "label": "Sport Sedan", "price": 5500 },
+    "jeep": { "model": "custom/vehicles/jeep_gold", "atlas": "jeep_gold", "compare": ["jeep_gold", "jeep_blue"], "front": "-x", "family": "Jeep", "label": "Jeep", "price": 6000 },
+    "sportief": { "model": "custom/vehicles/sportief_navyblauw", "atlas": "sportief_black", "compare": ["sportief_navyblauw", "sportief_orange", "sportief_pink", "sportief_black"], "front": "+x", "family": "Sportief", "label": "Sportief", "price": 5000 },
+    "hotrod": { "model": "custom/vehicles/hotrod_red", "atlas": "hotrod_red", "compare": ["hotrod_red", "hotrod_black", "hotrod_blue", "hotrod_orange"], "front": "+x", "family": "Hotrod", "label": "Hotrod", "price": 5000 },
+    "suv": { "model": "custom/vehicles/suv_white", "atlas": "suv_white", "compare": ["suv_white", "suv_black", "suv_red", "suv_gold", "suv_navyblue"], "front": "+x", "family": "SUV", "label": "SUV", "price": 9000 },
+    "suv_cabrio": { "model": "custom/vehicles/suv_white", "atlas": "suv_cabrio_lightbluewhite", "compare": ["suv_cabrio_redblack", "suv_cabrio_greenwhite", "suv_cabrio_orangeblack", "suv_cabrio_lightbluewhite", "suv_cabrio_purplewhite"], "decals": [[231, 238, 235]], "front": "+x", "family": "SUV Cabrio", "label": "SUV Cabrio", "price": 9000 },
+    "racecar": { "model": "custom/vehicles/racecar_red", "atlas": "racecar_red", "compare": ["racecar_red", "racecar_orange", "racecar_pink", "racecar_emerald"], "front": "+x", "family": "Racecar", "label": "Racecar", "price": 7000 },
+    "motor": { "model": "custom/vehicles/motor_blue", "atlas": "motor_blue", "compare": ["motor_blue", "motor_red", "motor_green", "motor_black", "motor_white"], "front": "-x", "family": "Motor", "label": "Motor", "price": 3000 }
+  },
+  "cars": {
+    "sedan": "sedan", "sportsedan": "sedan_sportief", "specter": "sedan_sportief", "jeep": "jeep",
+    "sports": "sportief", "vandal": "sportief", "hotrod": "hotrod", "overclock": "hotrod", "suv": "suv",
+    "riviera": "suv_cabrio", "apex": "racecar", "viper": "motor"
+  },
+  "families": [
+    {
+      "name": "SUV Cabrio", "car": "riviera", "itemDamage": 1198, "maxHealth": 300.0, "acceleratieSpeed": 0.013, "maxSpeed": 0.72, "rotateSpeed": 8,
+      "seats": [[0.0, -1.15, 0.4], [0.0, -1.15, -0.4], [-0.8, -1.15, 0.4], [-0.8, -1.15, -0.4]],
+      "cars": [
+        { "name": "SUV Cabrio Orangeblack", "label": "Black Orange", "itemDamage": 1198, "uuid": "7BPAD8", "price": 9000.0 },
+        { "name": "SUV Redblack", "label": "Red", "itemDamage": 1203, "uuid": "85GAEH", "price": 9000.0 },
+        { "name": "SUV Greenwhite", "label": "Green", "itemDamage": 1204, "uuid": "W33BEH", "price": 9000.0 },
+        { "name": "SUV Lightbluewhite", "label": "Light Blue", "itemDamage": 1207, "uuid": "Q85BXQ", "price": 9000.0 },
+        { "name": "SUV Purplewhite", "label": "Purple", "itemDamage": 1208, "uuid": "G7KJ8A", "price": 9000.0 },
+        { "name": "SUV Pinkwhite", "label": "Pink", "itemDamage": 1209, "uuid": "K6DVYQ", "price": 9000.0 }
+      ]
+    },
+    {
+      "name": "Racecar", "car": "apex", "itemDamage": 1165, "maxHealth": 300.0, "acceleratieSpeed": 0.018, "maxSpeed": 0.85, "rotateSpeed": 8,
+      "seats": [[-0.1, -1.85, 0.0]],
+      "cars": [
+        { "name": "Racecar Black", "label": "Black", "itemDamage": 1165, "uuid": "4JXXK8", "price": 7000.0 },
+        { "name": "Racecar Red", "label": "Red", "itemDamage": 1166, "uuid": "RD8XS9", "price": 7000.0 },
+        { "name": "Racecar Emerald", "label": "Emerald", "itemDamage": 1167, "uuid": "6XXC76", "price": 7000.0 },
+        { "name": "Racecar Gold", "label": "Gold", "itemDamage": 1168, "uuid": "KHNB73", "price": 7000.0 },
+        { "name": "Racecar Pink", "label": "Pink", "itemDamage": 1169, "uuid": "972EKA", "price": 7000.0 },
+        { "name": "Racecar Diamond", "label": "Diamond", "itemDamage": 1170, "uuid": "8D7JLU", "price": 7000.0 },
+        { "name": "Racecar Orange", "label": "Orange", "itemDamage": 1171, "uuid": "QF6WZD", "price": 7000.0 },
+        { "name": "Racecar Orangeblack", "label": "Black Orange", "itemDamage": 1172, "uuid": "63MHGZ", "price": 7000.0 },
+        { "name": "Racecar Ender", "label": "Ender", "itemDamage": 1186, "uuid": "LRGF4Y", "price": 7000.0 },
+        { "name": "Racecar Purplefade", "label": "Purple Fade", "itemDamage": 1193, "uuid": "KS58X3", "price": 7000.0 },
+        { "name": "Racecar Rainbow", "label": "Rainbow", "itemDamage": 1210, "uuid": "L4SEDU", "price": 7000.0 }
+      ]
+    },
+    {
+      "name": "Motor", "car": "viper", "itemDamage": 1036, "maxHealth": 200.0, "acceleratieSpeed": 0.016, "maxSpeed": 0.78, "rotateSpeed": 8,
+      "seats": [[-0.2, -1.0, 0.0]],
+      "cars": [
+        { "name": "Motor Orange", "label": "Orange", "itemDamage": 1036, "uuid": "FV5PZP", "price": 3000.0 },
+        { "name": "Motor Green", "label": "Green", "itemDamage": 1037, "uuid": "4HY4A5", "price": 3000.0 },
+        { "name": "Motor Blue", "label": "Blue", "itemDamage": 1038, "uuid": "K6TBK9", "price": 3000.0 },
+        { "name": "Motor Gold", "label": "Gold", "itemDamage": 1039, "uuid": "7WTA39", "price": 3000.0 },
+        { "name": "Motor Police", "label": "Police", "itemDamage": 1040, "uuid": "384A4N", "price": 3000.0 },
+        { "name": "Motor Red", "label": "Red", "itemDamage": 1041, "uuid": "JDC78X", "price": 3000.0 },
+        { "name": "Motor Pink", "label": "Pink", "itemDamage": 1042, "uuid": "XTKK54", "price": 3000.0 },
+        { "name": "Motor Vierjaar", "label": "Mint", "itemDamage": 1194, "uuid": "7H3U63", "price": 3000.0 },
+        { "name": "Motor Easter", "label": "Easter", "itemDamage": 1195, "uuid": "RBSX6N", "price": 3000.0 },
+        { "name": "Motor Koningsdag", "label": "Orange Blaze", "itemDamage": 1197, "uuid": "A5K4NY", "price": 3000.0 },
+        { "name": "Motor Gray", "label": "Gray", "itemDamage": 1013, "price": 3000.0 },
+        { "name": "Motor Black", "label": "Black", "model": "custom/vehicles/motor_black", "price": 3000.0 },
+        { "name": "Motor White", "label": "White", "model": "custom/vehicles/motor_white", "price": 3000.0 }
+      ]
+    }
+  ],
+  "wraps": [
+    { "id": "matte", "name": "Matte Black", "tier": "common", "pattern": { "type": "matte", "base": [36, 37, 40], "grain": 5 } },
+    { "id": "primer", "name": "Primer", "tier": "common", "pattern": { "type": "primer", "base": [126, 128, 126], "rust": [[118, 66, 36], [150, 88, 46], [86, 48, 28]], "amount": 0.22 } },
+    { "id": "twotone", "name": "Two-Tone", "tier": "common", "pattern": { "type": "twotone", "upper": [236, 236, 230], "lower": [42, 46, 54], "split": 0.55, "line": [160, 160, 156] } },
+    { "id": "stripes", "name": "Racing Stripes", "tier": "common", "pattern": { "type": "stripes", "base": [30, 54, 122], "stripe": [240, 240, 236], "width": 0.13, "gap": 0.07 } },
+    { "id": "checker", "name": "Checkered", "tier": "common", "pattern": { "type": "checker", "a": [22, 22, 24], "b": [234, 234, 230], "size": 2.4 } },
+    { "id": "camo", "name": "Woodland Camo", "tier": "rare", "pattern": { "type": "camo", "colors": [[98, 108, 62], [60, 76, 42], [120, 98, 64], [34, 36, 28]], "scale": 3.2 } },
+    { "id": "arctic", "name": "Arctic Camo", "tier": "rare", "pattern": { "type": "camo", "colors": [[230, 236, 240], [180, 192, 202], [136, 182, 212], [96, 108, 122]], "scale": 3.0, "digital": 0.55 } },
+    { "id": "carbon", "name": "Carbon Fiber", "tier": "rare", "pattern": { "type": "carbon", "dark": [22, 23, 26], "mid": [50, 52, 58], "sheen": [96, 100, 108], "cell": 4 } },
+    { "id": "flames", "name": "Flames", "tier": "rare", "pattern": { "type": "flames", "base": [20, 20, 24], "colors": [[255, 240, 150], [255, 184, 48], [238, 96, 24], [170, 34, 18]], "reach": 0.6, "tongues": 3 } },
+    { "id": "tiger", "name": "Tiger", "tier": "rare", "pattern": { "type": "tiger", "base": [232, 124, 28], "light": [252, 178, 76], "stripe": [24, 18, 16], "count": 9 } },
+    { "id": "hacker", "name": "H4CK3R", "tier": "exotic", "glow": true, "frames": 16, "frametime": 2, "pattern": { "type": "code", "base": [4, 12, 7], "color": [40, 230, 90], "head": [200, 255, 215], "period": 32 } },
+    { "id": "galaxy", "name": "Galaxy", "tier": "exotic", "frames": 4, "frametime": 8, "pattern": { "type": "galaxy", "deep": [12, 8, 34], "colors": [[88, 34, 160], [36, 64, 178], [178, 56, 176], [30, 140, 200]], "star": [255, 252, 240] } },
+    { "id": "goldleaf", "name": "Gold Leaf", "tier": "exotic", "pattern": { "type": "goldleaf", "gold": [226, 180, 62], "light": [255, 232, 140], "dark": [150, 102, 28], "ornament": [112, 72, 18], "tile": 8 } },
+    { "id": "neon", "name": "Neon Grid", "tier": "exotic", "glow": true, "pattern": { "type": "neon", "base": [8, 6, 16], "haze": [48, 12, 70], "a": [40, 240, 255], "b": [255, 60, 210], "cell": 3.4 } },
+    { "id": "inferno", "name": "Inferno", "tier": "exotic", "glow": true, "frames": 8, "frametime": 5, "pattern": { "type": "inferno", "rock": [30, 12, 10], "crust": [66, 24, 14], "hot": [255, 110, 18], "core": [255, 232, 128], "cell": 2.3 } }
+  ]
+}

@@ -13,7 +13,10 @@ every 10 seconds:
 		if {-car::driver::%{_plate}%} is set:
 			set {-car::used::%{_plate}%} to now
 			set {_d} to {-car::driver::%{_plate}%}
-			if garageInLane(location of {_d}) is false:
+			set {_blocks} to garageInLane(location of {_d})
+			if {_blocks} is false:
+				set {_blocks} to garageOnBay(location of {_d})
+			if {_blocks} is false:
 				delete {-car::lanesince::%{_plate}%}
 			else if {-car::lanesince::%{_plate}%} is not set:
 				set {-car::lanesince::%{_plate}%} to now
@@ -36,8 +39,11 @@ every 10 seconds:
 				# After a restart: start counting now.
 				set {-car::used::%{_plate}%} to now
 			set {_at} to {car::out::%{_plate}%}
-			if garageInLane({_at}) is true:
-				# Left standing in a garage's exit lane it blocks the lane: back after pickup-idle, owner near or not.
+			set {_blocks} to garageInLane({_at})
+			if {_blocks} is false:
+				set {_blocks} to garageOnBay({_at})
+			if {_blocks} is true:
+				# Left standing in a garage's exit lane (or on a bay) it blocks it: back after pickup-idle, owner near or not.
 				if difference between {-car::used::%{_plate}%} and now >= cfg("garage::pickup-idle"):
 					carCleanupStore({_plate}, "lane")
 			else:
@@ -156,8 +162,9 @@ function carStandStray(e: entity, plate: text) :: boolean:
 		return true
 	return false
 
-# Removes a stand without drops (its helmet is the car item): the vanilla kill command removes an armor
-# stand outright.
+# Removes a stand without drops (its helmet is the car item, cleared first). Skript's kill ends with a plain
+# remove when the damage is cancelled (garage.sk protects car stands); checked 2026-09-28: gone, nothing dropped.
+# (The vanilla kill command echoed "[Server: Killed MTVEHICLES_...]" into every op's chat.)
 function carKillStand(e: entity):
 	set helmet of {_e} to air
-	execute console command "minecraft:kill %uuid of {_e}%"
+	kill {_e}

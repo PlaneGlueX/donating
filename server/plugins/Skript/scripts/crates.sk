@@ -133,6 +133,16 @@ function crateLineLive(line: text) :: boolean:
 			return false
 		if carExists({_a::3}) is false:
 			return false
+	# A car crate's roll (garage.sk carRoll): live while its pool has a car that exists.
+	if {_a::2} is "carroll":
+		if {-cfg::crate::cars} is not true:
+			return false
+		set {_any} to false
+		loop {-cfg::carroll::%{_a::3}%::cars::*}:
+			set {_c::*} to loop-value split at "|"
+			if carExists({_c::2}) is true:
+				set {_any} to true
+		return {_any}
 	return true
 
 function crateLines(t: text) :: texts:
@@ -203,6 +213,10 @@ function crateLineText(line: text) :: text:
 		return crateCosText({_line})
 	if {_k} is "car":
 		return "&6%{_a::4}% &7car"
+	if {_k} is "carroll":
+		return "&6A car &7(%{-cfg::rarity::%{_a::3}%::name}%: any wrap, any mods)"
+	if {_k} is "carbuild":
+		return carBuildText(crateBuildOf({_line}))
 	return "&f%{_line}%"
 
 # The line as a menu icon (the pack's art where there is some). Never tagged: it's only a picture.
@@ -241,10 +255,36 @@ function crateLineIcon(line: text) :: item:
 			set {_i} to name tag
 	else if {_k} is "car":
 		set {_i} to carIcon({_a::3}, carFirstColor({_a::3}))
+	else if {_k} is "carroll":
+		# The spin shows the pool's cars (each a quick roll: its model and look).
+		set {_i} to carBuildIcon(carRoll({_a::3}))
+	else if {_k} is "carbuild":
+		set {_i} to carBuildIcon(crateBuildOf({_line}))
 	else:
 		set {_i} to barrier
 	set name of {_i} to colored crateLineText({_line})
 	return {_i}
+
+# A crate's icon in menus: a car crate shows its best car (the last of its roll pool), any other its icon setting.
+function crateIcon(t: text) :: item:
+	loop {-cfg::crate::%{_t}%::rewards::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::2} is "carroll":
+			set {_best} to ""
+			loop {-cfg::carroll::%{_a::3}%::cars::*}:
+				set {_c::*} to loop-value-2 split at "|"
+				if carExists({_c::2}) is true:
+					set {_best} to {_c::2}
+			if {_best} is not "":
+				return carIcon({_best}, carFirstColor({_best}))
+	return 1 of {-cfg::crate::%{_t}%::icon}
+
+# A car crate's pending line "0|carbuild|<build with ; for |>" -> the build (garage.sk: model|color|wrap|e|t|h|neon|trail).
+function crateBuildOf(line: text) :: text:
+	set {_a::*} to {_line} split at "|"
+	set {_b} to "%{_a::3}%"
+	replace all ";" with "|" in {_b}
+	return {_b}
 
 # Pay for what didn't fit: cfg crate::overflow-rate (0.5) of the shop price, rounded down.
 function crateOverflowCash(n: number, price: number) :: number:
@@ -296,6 +336,9 @@ function crateGrant(p: player, line: text, t: text) :: text:
 			set {_slot} to freeLoadoutSlot({_p})
 		if {_slot} >= 0:
 			set {_fit} to max(0, min({_n}, {_max} - {_have}))
+		# One the player can't buy yet (its level) pays cash instead.
+		if levelOk({_p}, conLevel({_w})) is false:
+			set {_fit} to 0
 		if {_fit} > 0:
 			execute console command "wm give %name of {_p}% %{_w}% %{_have} + {_fit}% {slot:%{_slot}%}"
 			if wmTitle(slot {_slot} of {_p}'s inventory) is not {_w}:
@@ -356,13 +399,22 @@ function crateGrant(p: player, line: text, t: text) :: text:
 		giveMoney({_p}, {_dupe})
 		return "%crateCosText({_line})% &7(you have it: &a%formatMoney({_dupe})% &7instead)"
 	if {_k} is "car":
-		# garage.sk makes the car (in the player's garage); one they have already pays the dupe value.
+		# garage.sk makes the car (in the player's garage: several of a model are fine now); a full garage pays the dupe
+		# value instead.
 		set {_got} to garageGrantCar({_p}, {_a::3}, "crate:%{_t}%")
 		if {_got} is not "":
 			return {_got}
 		set {_dupe} to {-cfg::rarity::%{_t}%::dupe}
 		giveMoney({_p}, {_dupe})
-		return "&6%{_a::4}% &7car (you have it: &a%formatMoney({_dupe})% &7instead)"
+		return "&6%{_a::4}% &7car (no room in your garage: &a%formatMoney({_dupe})% &7instead)"
+	if {_k} is "carbuild":
+		# The car rolled when the crate opened (crateOpen): made now, locked as it rolled.
+		set {_got} to garageGrantBuild({_p}, crateBuildOf({_line}), "crate:%{_t}%")
+		if {_got} is not "":
+			return {_got}
+		set {_dupe} to {-cfg::rarity::%{_t}%::dupe}
+		giveMoney({_p}, {_dupe})
+		return "%carBuildText(crateBuildOf({_line}))% &7(couldn't be made: &a%formatMoney({_dupe})% &7instead, tell staff)"
 	send "[Donating] crates: unknown reward %{_line}% in %{_t}%" to console
 	return "&cnothing (unknown reward, tell staff)"
 
@@ -406,7 +458,9 @@ function crateOpen(p: player, t: text):
 		play sound "entity.villager.no" with volume 0.6 to {_p}
 		stop
 	if crateKeys({_p}, {_t}) < 1:
-		if {-cfg::crate::%{_t}%::sold} is true:
+		if {-cfg::crate::%{_t}%::price} is set:
+			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Buy one for &f%formatMoney({-cfg::crate::%{_t}%::price})% &7in its preview.")
+		else if {-cfg::crate::%{_t}%::sold} is true:
 			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Get some: &f/store")
 		else if {_t} is "daily":
 			msg({_p}, "&cYou have no %crateColored({_t})% &ckeys. &7Claim one every day: &f/daily")
@@ -418,6 +472,19 @@ function crateOpen(p: player, t: text):
 	if {_line} is "":
 		msg({_p}, "&cThat crate is empty right now. &7Your key is safe.")
 		stop
+	set {_la::*} to {_line} split at "|"
+	if {_la::2} is "carroll":
+		set {_room} to carRoomBlock({_p})
+		if {_room} is not "":
+			msg({_p}, "&c%{_room}% &7Your key is safe.")
+			play sound "entity.villager.no" with volume 0.6 to {_p}
+			stop
+		set {_build} to carRoll({_la::3})
+		if {_build} is "":
+			msg({_p}, "&cThat crate is empty right now. &7Your key is safe.")
+			stop
+		replace all "|" with ";" in {_build}
+		set {_line} to "0|carbuild|%{_build}%"
 	set {data::%{_p}%::keys::%{_t}%} to crateKeys({_p}, {_t}) - 1
 	set {_u} to uuid of {_p}
 	set {cratepending::%{_u}%::crate} to {_t}
@@ -451,8 +518,14 @@ function crateFinish(p: player):
 		play sound "ui.toast.challenge_complete" with volume 1 to {_p}
 	else:
 		play sound "entity.player.levelup" with volume 0.6 to {_p}
-	# Big pulls are the one crate message everyone sees (owner, 2026-09-26: only Legendary and Hacked).
+	# Big pulls are the one crate message everyone sees (owner, 2026-09-26: only Legendary and Hacked). A car crate's
+	# (2026-09-28): a car of grade crate::announce-grade or better, with its number of its kind.
 	set {_a::*} to {_line} split at "|"
+	if {_a::2} is "carbuild":
+		if carBuildGrade(crateBuildOf({_line})) >= cfg("crate::announce-grade"):
+			if {_got} does not contain "instead":
+				broadcastMsg("&f%name of {_p}% &7unboxed %{_got}% &7from a %crateColored({_t})%&7!")
+		stop
 	set {_big} to false
 	if {_a::2} is "cos":
 		set {_big} to true
@@ -465,7 +538,7 @@ function crateFinish(p: player):
 			if {_got} does not contain "instead":
 				delete {_parts::*}
 				if {_a::2} is "car":
-					add "&6%carName({_a::3})%%carSerialText({_p}, {_a::3})% &7car" to {_parts::*}
+					add {_got} to {_parts::*}
 				else:
 					loop crateCosIds({_line}):
 						set {_tn} to cosTypeName({-cfg::cos::%loop-value%::type})
@@ -563,7 +636,9 @@ function dailyText(p: player) :: text:
 
 # Where keys come from, as lore lines.
 function crateKeySource(t: text) :: texts:
-	if {-cfg::crate::%{_t}%::sold} is true:
+	if {-cfg::crate::%{_t}%::price} is set:
+		add "&7Buy a key: &f%formatMoney({-cfg::crate::%{_t}%::price})% &7(game money)" to {_l::*}
+	else if {-cfg::crate::%{_t}%::sold} is true:
 		add "&7Buy keys: &f/store" to {_l::*}
 	else if {_t} is "daily":
 		add "&7A free key every day: &f/daily" to {_l::*}
@@ -576,9 +651,9 @@ function crateKeySource(t: text) :: texts:
 # /crates (and the phone's Crates app): your keys, what's inside each crate, where to buy keys.
 # Nothing opens here (owner, 2026-09-26): crates open at crate stands.
 function crateMenu(p: player):
-	set {_gui} to chest inventory with 3 rows named "&8Crates"
+	set {_gui} to chest inventory with 4 rows named "&8Crates"
 	set {_pane} to gray stained glass pane named "&r"
-	loop 27 times:
+	loop 36 times:
 		set slot (loop-number - 1) of {_gui} to {_pane}
 	crateClearGui({_p})
 	set {-crate::gui::%{_p}%} to {_gui}
@@ -587,7 +662,7 @@ function crateMenu(p: player):
 	loop {-cfg::crates::*}:
 		set {_t} to loop-value
 		set {_n} to crateKeys({_p}, {_t})
-		set {_i} to 1 of {-cfg::crate::%{_t}%::icon}
+		set {_i} to crateIcon({_t})
 		delete {_l::*}
 		add "&7Your keys: &f%{_n}%" to {_l::*}
 		add crateKeySource({_t}) to {_l::*}
@@ -602,11 +677,80 @@ function crateMenu(p: player):
 		if {_t} is "hacked":
 			crateHackButton({_p}, {_slot}, {_i})
 		add 1 to {_slot}
+		if {_slot} is 17:
+			set {_slot} to 19
 	set {_d} to clock named "&eDaily reward: &f%dailyText({_p})%" with lore "&7A Daily key every day, plus your" and "&7rank's keys (VIP+, Elite, Legend)." and "&eClick to claim."
-	crateButton({_p}, {_gui}, 22, {_d}, "daily")
-	crateButton({_p}, {_gui}, 18, emerald named "&aBuy keys" with lore "&7Keys for Common to Legendary" and "&7crates are in the store." and "&eClick for the link.", "store")
-	crateButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	crateButton({_p}, {_gui}, 31, {_d}, "daily")
+	# The Crates app's main page: "◀ Phone" in the bottom row's first slot (phone.sk's back buttons), as the
+	# preview's "◀ Back"; Buy keys moved from there to 33, the spot of the preview's buy button (51).
+	crateButton({_p}, {_gui}, 27, phoneBackItem(), "phone")
+	crateButton({_p}, {_gui}, 33, emerald named "&aBuy keys" with lore "&7Keys for Common to Legendary" and "&7are in the store. Car crate keys" and "&7cost game money: click the crate." and "&eClick for the store link.", "store")
+	crateButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	open {_gui} to {_p}
+
+# A car crate's odds in the preview from slot n: each car, then the wraps' tiers, the mods and the special paint. Returns
+# the next free slot.
+function cratePreviewCars(gui: inventory, pool: text, n: number) :: number:
+	set {_slot} to {_n}
+	set {_sum} to 0
+	loop {-cfg::carroll::%{_pool}%::cars::*}:
+		set {_c::*} to loop-value split at "|"
+		if carExists({_c::2}) is true:
+			add ({_c::1} parsed as number) to {_sum}
+	loop {-cfg::carroll::%{_pool}%::cars::*}:
+		set {_c::*} to loop-value split at "|"
+		if carExists({_c::2}) is true:
+			if {_slot} < 45:
+				set {_pct} to round(1000 * ({_c::1} parsed as number) / {_sum}) / 10
+				set {_i} to carIcon({_c::2}, carFirstColor({_c::2}))
+				set {_ex} to ""
+				if carIsExtreme({_c::2}) is true:
+					set {_ex} to " &c&lEXTREME"
+				set name of {_i} to colored "&6%carName({_c::2})%%{_ex}%"
+				set lore of {_i} to colored "&7Chance: &f%{_pct}%%%" and "&7Drives from level %carLevelOf({_c::2})%."
+				set slot {_slot} of {_gui} to {_i}
+				add 1 to {_slot}
+	set {_wsum} to 0
+	loop {-cfg::carroll::%{_pool}%::wraps::*}:
+		set {_c::*} to loop-value split at "|"
+		add ({_c::1} parsed as number) to {_wsum}
+	loop {-cfg::carroll::%{_pool}%::wraps::*}:
+		set {_c::*} to loop-value split at "|"
+		set {_pct} to round(1000 * ({_c::1} parsed as number) / {_wsum}) / 10
+		if {_c::2} is "0":
+			add "&7No wrap (its paint): &f%{_pct}%%%" to {_wl::*}
+		else:
+			set {_ta::*} to "%{-cfg::carwrap::tier::%{_c::2}%}%" split at "|"
+			delete {_names::*}
+			loop {-cfg::carwraps::*}:
+				if carWrapTier(loop-value-2) is ({_c::2} parsed as integer):
+					if {-cfg::carwrap::%loop-value-2%::retired} is not true:
+						add carWrapName(loop-value-2) to {_names::*}
+			add "%{_ta::2}%%{_ta::1}% wrap: &f%{_pct}%%%" to {_wl::*}
+			add "&7  %join {_names::*} with ", "%" to {_wl::*}
+	if {_slot} < 45:
+		set slot {_slot} of {_gui} to paper named "&dWraps" with lore colored {_wl::*}
+		add 1 to {_slot}
+	set {_ssum} to 0
+	loop {-cfg::carroll::%{_pool}%::stages::*}:
+		set {_c::*} to loop-value split at "|"
+		add ({_c::1} parsed as number) to {_ssum}
+	add "&7Each part (engine, turbo, handling):" to {_ml::*}
+	loop {-cfg::carroll::%{_pool}%::stages::*}:
+		set {_c::*} to loop-value split at "|"
+		set {_pct} to round(1000 * ({_c::1} parsed as number) / {_ssum}) / 10
+		if {_c::2} is "0":
+			add "&7 stock: &f%{_pct}%%%" to {_ml::*}
+		else:
+			add "&7 stage %carRoman({_c::2} parsed as integer)%: &f%{_pct}%%%" to {_ml::*}
+	add "&7Neon: &f%round(100 * {-cfg::carroll::%{_pool}%::neon})%%%  &7Trail: &f%round(100 * {-cfg::carroll::%{_pool}%::trail})%%%" to {_ml::*}
+	add "&7Special paint: &f%round(100 * {-cfg::carroll::%{_pool}%::special-color})%%%" to {_ml::*}
+	add "&7The car comes locked as it rolled," to {_ml::*}
+	add "&7with its number of its kind (#3/57)." to {_ml::*}
+	if {_slot} < 45:
+		set slot {_slot} of {_gui} to piston named "&bMods" with lore colored {_ml::*}
+		add 1 to {_slot}
+	return {_slot}
 
 # What's inside a crate: every reward with its chance. At a crate stand (stand = true) it has the
 # Open button; from /crates it says where to open it.
@@ -617,8 +761,15 @@ function cratePreview(p: player, t: text, stand: boolean):
 	set {-crate::view::%{_p}%} to "preview"
 	set {_total} to crateTotal({_t})
 	set {_slot} to 0
+	# A car crate shows what its car can be (garage.sk carRoll's odds).
+	loop crateLines({_t}):
+		set {_ca::*} to loop-value split at "|"
+		if {_ca::2} is "carroll":
+			set {_slot} to cratePreviewCars({_gui}, {_ca::3}, {_slot})
 	loop crateLines({_t}):
 		{_slot} < 45
+		set {_ca::*} to loop-value split at "|"
+		{_ca::2} is not "carroll"
 		set {_i} to crateLineIcon(loop-value)
 		set {_pct} to round(1000 * crateWeight(loop-value) / {_total}) / 10
 		delete {_l::*}
@@ -657,7 +808,8 @@ function cratePreview(p: player, t: text, stand: boolean):
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
-	crateButton({_p}, {_gui}, 45, arrow named "&fAll crates", "menu")
+	# Back to /crates, also when a crate stand opened this page (it's where a stand's menu starts).
+	crateButton({_p}, {_gui}, 45, backItem("all crates"), "menu")
 	set {_n} to crateKeys({_p}, {_t})
 	delete {_l::*}
 	add crateKeySource({_t}) to {_l::*}
@@ -669,7 +821,13 @@ function cratePreview(p: player, t: text, stand: boolean):
 	else:
 		add "&7Open it at a crate stand." to {_l::*}
 		crateButton({_p}, {_gui}, 49, tripwire hook named "&7Your keys: &f%{_n}%" with lore {_l::*}, "none")
-	if {-cfg::crate::%{_t}%::sold} is true:
+	if {-cfg::crate::%{_t}%::price} is set:
+		set {_pr} to {-cfg::crate::%{_t}%::price}
+		if crateBuyArmed({_p}, {_t}) is true:
+			crateButton({_p}, {_gui}, 51, lime concrete named "&aConfirm purchase?" with lore "&7A %crateName({_t})% key for &f%formatMoney({_pr})%&7." and "&eClick again to buy.", "buy:%{_t}%")
+		else:
+			crateButton({_p}, {_gui}, 51, gold ingot named "&6Buy a key &7· &f%formatMoney({_pr})%" with lore "&7Game money only: car crate keys" and "&7are never sold in the store." and "&eClick, then click again to confirm.", "buy:%{_t}%")
+	else if {-cfg::crate::%{_t}%::sold} is true:
 		crateButton({_p}, {_gui}, 51, emerald named "&aBuy keys" with lore "&eClick for the store link.", "store")
 	crateButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
 	open {_gui} to {_p}
@@ -701,11 +859,18 @@ on inventory click:
 
 function crateAction(p: player, act: text):
 	if {_act} starts with "crate:":
-		cratePreview({_p}, subtext of {_act} from characters 7 to (length of {_act}), false)
+		# At that crate's stand (back from its preview to /crates and in again) the Open button stays (menu review 2026-09-28).
+		set {_ct} to subtext of {_act} from characters 7 to (length of {_act})
+		cratePreview({_p}, {_ct}, crateAtStand({_p}, {_ct}))
 	else if {_act} starts with "open:":
 		crateOpen({_p}, subtext of {_act} from characters 6 to (length of {_act}))
+	else if {_act} starts with "buy:":
+		crateBuyKey({_p}, subtext of {_act} from characters 5 to (length of {_act}))
 	else if {_act} is "menu":
 		crateMenu({_p})
+	else if {_act} is "phone":
+		# Opening the phone closes this menu: the close handler only clears it (a spin has no Phone button).
+		openPhone({_p})
 	else if {_act} is "daily":
 		close {_p}'s inventory
 		dailyClaim({_p})
@@ -714,6 +879,66 @@ function crateAction(p: player, act: text):
 		msg({_p}, "&6%storeText()% &7Crate keys for Common to Legendary crates. Open them at a crate stand.")
 	else if {_act} is "close":
 		close {_p}'s inventory
+
+# ---------- Car crate keys for game money (owner, 2026-09-28) ----------
+# The first click arms the button for 5 s ("Confirm purchase?"), the second buys; too little money is refused at once.
+
+function crateBuyArmed(p: player, t: text) :: boolean:
+	set {_a} to {-crate::buyarm::%{_p}%}
+	if {_a} is not set:
+		return false
+	if "%{_a}%" is not {_t}:
+		return false
+	set {_at} to {-crate::buyat::%{_p}%}
+	if {_at} is not set:
+		return false
+	if difference between {_at} and now <= 5 seconds:
+		return true
+	return false
+
+function crateBuyKey(p: player, t: text):
+	set {_pr} to {-cfg::crate::%{_t}%::price}
+	if {_pr} is not set:
+		stop
+	if isCombatTagged({_p}) is true:
+		msg({_p}, "&cYou can't buy keys while in combat.")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	if balance of {_p} < {_pr}:
+		msg({_p}, "&cA %crateName({_t})% key costs %formatMoney({_pr})%.")
+		play sound "entity.villager.no" with volume 0.6 to {_p}
+		stop
+	if crateBuyArmed({_p}, {_t}) is false:
+		set {-crate::buyarm::%{_p}%} to {_t}
+		set {-crate::buyat::%{_p}%} to now
+		cratePreview({_p}, {_t}, crateAtStand({_p}, {_t}))
+		stop
+	delete {-crate::buyarm::%{_p}%}
+	delete {-crate::buyat::%{_p}%}
+	if chargeMoney({_p}, {_pr}) is not true:
+		msg({_p}, "&cA %crateName({_t})% key costs %formatMoney({_pr})%.")
+		stop
+	crateAddKeys({_p}, {_t}, 1, "bought for %{_pr}%")
+	crateLog("buy %name of {_p}% %uuid of {_p}% %{_t}% price=%{_pr}% keys=%crateKeys({_p}, {_t})%")
+	msg({_p}, "&aBought a %crateColored({_t})% &akey for %formatMoney({_pr})%. &7Open it at a crate stand.")
+	play sound "entity.player.levelup" with volume 0.6 to {_p}
+	cratePreview({_p}, {_t}, crateAtStand({_p}, {_t}))
+
+# Whether the player's open preview came from that crate's stand (so a redraw keeps its Open button).
+function crateAtStand(p: player, t: text) :: boolean:
+	set {_key} to {-crate::standkey::%{_p}%}
+	if {_key} is not set:
+		return false
+	if {crateblock::%{_key}%} is not {_t}:
+		return false
+	set {_stand} to {-crate::stand::%{_p}%}
+	if {_stand} is not set:
+		return false
+	if world of {_stand} is not world of {_p}:
+		return false
+	if distance between {_stand} and location of {_p} > cfg("crate::stand-reach"):
+		return false
+	return true
 
 on inventory drag:
 	{-crate::gui::%player%} is set
@@ -733,6 +958,8 @@ on inventory close:
 
 on quit:
 	crateClearGui(player)
+	delete {-crate::buyarm::%player%}
+	delete {-crate::buyat::%player%}
 	delete {-crate::spinning::%player%}
 	delete {-crate::stand::%player%}
 	delete {-crate::standkey::%player%}

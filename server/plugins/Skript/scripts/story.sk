@@ -263,9 +263,8 @@ function storyOwnsGun(p: player) :: boolean:
 	return false
 
 function storyOwnsCar(p: player) :: boolean:
-	loop {-cfg::cars::*}:
-		if carOwned({_p}, loop-value) is true:
-			return true
+	if carCount({_p}) > 0:
+		return true
 	return false
 
 # Whether a state objective holds now.
@@ -968,6 +967,8 @@ function storyMenu(p: player):
 			set {_i} to gray dye named "&7Chapter %{_c}%: %{_cn}%" with lore "&7Later."
 		set slot {_slot} of {_gui} to {_i}
 		add 1 to {_slot}
+	# The phone's apps (phone.sk's back buttons), however the menu was opened: the phone, /missions or Mara.
+	storyButton({_p}, {_gui}, 27, phoneBackItem(), "phone")
 	storyButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-story::gui::%{_p}%} to {_gui}
 	if {-story::gen::%{_p}%} is not set:
@@ -1002,6 +1003,10 @@ on inventory click:
 	player is online
 	{-story::gen::%player%} is {_gen}
 	add 1 to {-story::gen::%player%}
+	# Straight to the phone's apps (another menu replaces this one; no close in between).
+	if {_act} is "phone":
+		openPhone(player)
+		stop
 	close player's inventory
 	if {_act} starts with "gps:":
 		set {_c} to subtext of {_act} from characters 5 to (length of {_act})

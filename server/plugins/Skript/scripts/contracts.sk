@@ -28,15 +28,20 @@
 # along the roads winning; the phone plugin draws the way, a trail, a ring and a locator-bar dot) and the
 # boss bar (hud.sk calls ctHud: the way's arrow and distance, the time left).
 #
-# A job ends (the car is scrapped, contract::cooldown before the next) when the car is delivered, the time
-# runs out, the thief logs out, the car is gone, the thief drops the job, or staff end it. A restart ends
-# every job: jobs live in memory, and the saved plate list {contract::plates::*} scraps leftover cars.
+# A job ends (the car is scrapped) when the car is delivered, the time runs out, the thief logs out, the car is
+# gone, the thief drops the job, or staff end it. A restart ends every job: jobs live in memory, and the saved plate
+# list {contract::plates::*} scraps leftover cars. After a delivery that tier waits its own cooldown
+# (contract::<tier>::cooldown; owner, 2026-09-28: Street 1 h, Pro 3 h, Master 6 h, real time, also while offline or
+# across restarts: data ctready::<tier> in unix seconds), the other tiers don't; after any other end (or the tutorial's
+# first job) every tier waits the short contract::cooldown (so dropping a job to roll new offers isn't free).
 #
 # Data:
 #   {-ctjob::<uuid>} = tier; ::p ::model ::label ::plate ::spot (spot number) ::spotat ::carat ::until
 #     ::stage ("find" = locked, "open" = picked) ::fails
 #   {-ctplate::<plate>} = the thief's uuid; {contract::plates::<plate>} (saved) = the thief's uuid
-#   {-ctcd::<uuid>} = when the next job may start
+#   {ctcd::<uuid>} = when the next job of any tier may start (the short cooldown; saved: a restart or Minehut
+#   sleeping doesn't clear it); data ctready::<tier> = unix seconds
+#     when that tier may start again after a delivery
 #   {-ctoffer::<uuid>::<tier>} = "model|color|spot"; {-ctofferat::<uuid>} = when they were rolled
 #   {contract::spot::<n>} car spots, {contract::chop::<n>} chop shops (saved; /dcontract)
 #   data contracts-done, contracts-earned
@@ -355,12 +360,37 @@ function ctOffersFresh(p: player):
 # ---------- Taking a job ----------
 
 function ctCooldownLeft(p: player) :: number:
-	set {_cd} to {-ctcd::%uuid of {_p}%}
+	set {_cd} to {ctcd::%uuid of {_p}%}
 	if {_cd} is set:
 		if {_cd} > now:
 			set {_left} to difference between now and {_cd}
 			return ceil({_left} / 1 second)
 	return 0
+
+# Seconds until a tier may be taken again after its last delivery (0 = now; the short cooldown is ctCooldownLeft).
+function ctTierLeft(p: player, t: text) :: number:
+	set {_at} to getData({_p}, "ctready::%{_t}%")
+	if {_at} is not set:
+		return 0
+	return max(0, {_at} - progUnix())
+
+# The longer of the two waits for a tier.
+function ctWaitFor(p: player, t: text) :: number:
+	return max(ctCooldownLeft({_p}), ctTierLeft({_p}, {_t}))
+
+# "45s", "12m", "2h 05m" (waits that can last hours).
+function ctWaitText(secs: number) :: text:
+	set {_s} to ceil(max(0, {_secs}))
+	if {_s} < 60:
+		return "%{_s}%s"
+	set {_m} to ceil({_s} / 60)
+	if {_m} < 60:
+		return "%{_m}%m"
+	set {_h} to floor({_m} / 60)
+	set {_r} to mod({_m}, 60)
+	if {_r} < 10:
+		return "%{_h}%h 0%{_r}%m"
+	return "%{_h}%h %{_r}%m"
 
 # "" when the player may take a job of this tier now, else why not.
 function ctTakeBlock(p: player, t: text) :: text:
@@ -378,6 +408,9 @@ function ctTakeBlock(p: player, t: text) :: text:
 	set {_left} to ctCooldownLeft({_p})
 	if {_left} > 0:
 		return "Your next job is ready in %formatClock({_left})%."
+	set {_tl} to ctTierLeft({_p}, {_t})
+	if {_tl} > 0:
+		return "Your next %ctTierName({_t})% is ready in %ctWaitText({_tl})%."
 	set {_need} to cfg("contract::%{_t}%::level")
 	if levelOk({_p}, {_need}) is false:
 		return "%ctTierName({_t})%s need level %{_need}% (%levelName({_need})%). /level"
@@ -792,9 +825,20 @@ function ctEnd(u: text, why: text):
 	if {_at} is set:
 		set {_chunk} to chunk at {_at}
 	ctScrap({_plate})
-	set {_cd} to now
-	add cfg("contract::cooldown") to {_cd}
-	set {-ctcd::%{_u}%} to {_cd}
+	set {_tcd} to {-cfg::contract::%{_t}%::cooldown}
+	if {_why} is "done":
+		if {_tcd} is set:
+			if {_p} is online:
+				setData({_p}, "ctready::%{_t}%", progUnix() + {_tcd} / 1 second)
+	if {_why} is not "done":
+		set {_cd} to now
+		add cfg("contract::cooldown") to {_cd}
+		set {ctcd::%{_u}%} to {_cd}
+	else if {_tcd} is not set:
+		# The tutorial's first job (no tier cooldown): the short one.
+		set {_cd} to now
+		add cfg("contract::cooldown") to {_cd}
+		set {ctcd::%{_u}%} to {_cd}
 	delete {-ctplate::%{_plate}%}
 	delete {-ctjob::%{_u}%::*}
 	delete {-ctjob::%{_u}%}
@@ -824,12 +868,11 @@ function ctScrap(plate: text):
 	# garage.sk's leave handler notes every car's last use.
 	delete {-car::used::%{_plate}%}
 
-# A logout ends the job (the cooldown stays, so relogging doesn't skip it). Offers and menus are forgotten.
+# A logout ends the job (the cooldown stays, so relogging doesn't skip it). Menus are forgotten; the offers stay
+# (review 2026-09-28: relogging re-rolled them until a job came up next to a chop shop).
 on quit:
 	set {_u} to "%uuid of player%"
 	ctQteForget(player)
-	delete {-ctoffer::%{_u}%::*}
-	delete {-ctofferat::%{_u}%}
 	delete {-ctgui::%player%}
 	delete {-ctact::%player%::*}
 	delete {-ctconfirm::%player%}
@@ -1027,6 +1070,9 @@ function ctMenu(p: player):
 	# His side jobs (jobs.sk), once his board is open.
 	if jobsUnlocked({_p}, "boss") is true:
 		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Side jobs: /jobs" and "&eClick: open your jobs.", "jobs")
+	# The phone's apps (phone.sk's back buttons), however the menu was opened: the phone, /contracts or a giver.
+	# Slot 28: the bottom row's first slot is the Boss's side jobs.
+	ctButton({_p}, {_gui}, 28, phoneBackItem(), "phone")
 	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-ctgui::%{_p}%} to {_gui}
 	if {-ctgen::%{_p}%} is not set:
@@ -1057,11 +1103,14 @@ function ctOfferIcon(p: player, t: text, at: boolean) :: item:
 	loop questOfferLines({_p}, {_t}, {_a::1}):
 		add loop-value to {_l::*}
 	set {_need} to cfg("contract::%{_t}%::level")
-	set {_left} to ctCooldownLeft({_p})
+	set {_left} to ctWaitFor({_p}, {_t})
+	set {_tcd} to {-cfg::contract::%{_t}%::cooldown}
+	if {_tcd} is set:
+		add "&7After a delivery: &f%ctWaitText({_tcd} / 1 second)% &7before the next %ctTierName({_t})%." to {_l::*}
 	if levelOk({_p}, {_need}) is false:
 		add "&cNeeds level %{_need}% (%levelName({_need})%). /level" to {_l::*}
 	else if {_left} > 0:
-		add "&7Next job in &f%formatClock({_left})%&7." to {_l::*}
+		add "&7Ready in &f%ctWaitText({_left})%&7." to {_l::*}
 	else if {_at} is true:
 		add "&eClick: take this job." to {_l::*}
 	else:
@@ -1160,6 +1209,8 @@ function ctAction(p: player, act: text):
 	set {_k} to {_a::1}
 	if {_k} is "close":
 		close {_p}'s inventory
+	else if {_k} is "phone":
+		openPhone({_p})
 	else if {_k} is "jobs":
 		jobsMenu({_p})
 	else if {_k} is "find":
@@ -1289,7 +1340,7 @@ command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
 			set {_u} to "%uuid of {_who}%"
 			set {_t} to {-ctjob::%{_u}%}
 			if {_t} is not set:
-				send "CONTRACT %{_who}% no job cooldown=%{-ctcd::%{_u}%}%" to sender
+				send "CONTRACT %{_who}% no job cooldown=%{ctcd::%{_u}%}%" to sender
 				stop
 			send "CONTRACT %{_who}% tier=%{_t}% stage=%{-ctjob::%{_u}%::stage}% plate=%{-ctjob::%{_u}%::plate}% model=%{-ctjob::%{_u}%::model}% spot=%{-ctjob::%{_u}%::spot}% fails=%{-ctjob::%{_u}%::fails}% until=%{-ctjob::%{_u}%::until}%" to sender
 		else if {_k} is "end":

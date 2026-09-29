@@ -1,5 +1,5 @@
 // Vic the Fence (owner, 2026-09-27: "Vic the Fence"): story.sk's second chain and fence.sk's weekly Wanted List.
-// His arc starts at level 30 (not before, not while no Vic stands on the map), runs next to Mara's, counts only what
+// His arc starts at level 45 (not before, not while no Vic stands on the map), runs next to Mara's, counts only what
 // each mission asks (difficulty 2+ sales, Pro jobs, a difficulty 3+ safe, a drill and a getaway in one run), ends with
 // a bound title, a Season key and the first list. The list (rolled for everyone each week: the least robbed heist,
 // never a difficulty 1 one) pays its premium only on loot you robbed yourself, after pickup, up to each order's cap,
@@ -85,7 +85,7 @@ module.exports = async ({ check }) => {
     await sleep(6000)
 
     // ---------- Starting ----------
-    await cmd(`dlevel set ${A} 30`)
+    await cmd(`dlevel set ${A} 45`)
     await cmd(`zzdata ${A} vic none`)
     await sleep(3000)
     const noGiver = await vicId(A)
@@ -93,11 +93,11 @@ module.exports = async ({ check }) => {
     vic = ((await cmd(`dquest addat fence ${VIC.join(' ')} 180 Pawn Shop`)).match(/giver (\d+) \(fence\) added/) || [])[1] || ''
     await onMission(A, 'v1_meet')
     await until(async () => /✉ Vic/.test(text(A, t)), 3000)
-    check('Vic\'s arc waits for a Vic on the map, then starts at level 30 with his text', noGiver === '' && (await vicId(A)) === 'v1_meet' && /✉ Vic: Mara says/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
-    await cmd(`dlevel set ${B} 29`)
+    check('Vic\'s arc waits for a Vic on the map, then starts at level 45 with his text', noGiver === '' && (await vicId(A)) === 'v1_meet' && /✉ Vic: Mara says/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
+    await cmd(`dlevel set ${B} 44`)
     await cmd(`zzdata ${B} vic none`)
     await sleep(3000)
-    check('...but not below level 30', (await vicId(B)) === '', await cmd(`dstory info ${B} vic`))
+    check('...but not below level 45', (await vicId(B)) === '', await cmd(`dstory info ${B} vic`))
     const g = await cmd(`dphone gps ${A}`)
     check('the GPS leads to Vic (the newest objective)', /active=quest/.test(g) && /label=Meet_Vic/.test(g), g)
 
