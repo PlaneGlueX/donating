@@ -130,6 +130,7 @@ Places, standing where they go:
 
 ## 6. Check it
 
+- `/dsetup` (staff, setup.sk): the launch checklist. Every line with ✘ is something players will miss (a heist not enabled, no base zone to sell loot, no chop shop, a crate with no stand...), each with the command that fixes it; "!" lines are worth a look. It must not warn about the test helpers (zz-*.sk): if it does, delete them from `plugins/Skript/scripts/` and `/sk reload scripts`.
 - The console after start: `[Skript] All scripts loaded without errors.`, Citizens loaded its libraries (it downloads a few from Maven Central on the first start), Tebex "Connected".
 - Join with a fresh account (or `/dtutorial <you> reset`): $1,000, the welcome title and Mara's first mission on the GPS; her lockpick and the first car job at the Scrap Yard; no free Gym Bag.
 - Nametags: another player behind a wall has no name over their head; in the open it shows.

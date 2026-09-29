@@ -418,6 +418,8 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (bots, 2026-09-29). **Owner/cu:** how it feels in a fight (the camera stays tilted down after it closes).
 164. **Wall maps** (`bots\run.js walls`, 10 checks): `/dphone wall create <name> <cols> <rows>` hangs invisible glow frames with the whole city (pixel for pixel on 2x2 against the local city maps, shrunk on 1x1), places named, a green "You are here"; refusals; kept through a reload; removed; the maps used again by the next wall. Also the review of the city scan and districts (11 confirmed, all fixed): districts 11 checks (the name on join and when stepping back out of an inner district, the full region id, a warning for a missing region), cityscan 14 (a 40,000-chunk budget needing confirm, the lined-up automatic scale, cancel keeping city.bin).
     - Result: PASS (bots, 2026-09-29). **Owner/cu:** how a wall looks in the real client (the banner names on framed maps, the dark edge, the glow frames), and where the base's wall goes.
+165. **/dsetup, the launch checklist** (`bots\run.js setup`, 7 checks): a new heist listed with every missing step and its command, steps leaving the list once done, POIs counted, one section at a time, every section with the test-helper warning and a summary, DonatingPhone's city and roads lines back to the sender, staff only.
+    - Result: PASS (bots, 2026-09-29). **Owner:** run `/dsetup` on Minehut after the upload (DEPLOY.md step 6) and tell me if a line is wrong for the map.
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 
