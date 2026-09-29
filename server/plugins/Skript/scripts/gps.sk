@@ -406,6 +406,8 @@ function gpsMenu(p: player):
 		gpsButton({_p}, {_gui}, {_slot}, {_icon} named "&f%{_a::5}%" with lore "&7%{_where}%" and "&eClick: pin it.", "place:%loop-value%")
 		add 1 to {_slot}
 	set slot 40 of {_gui} to book named "&fDrop a pin anywhere" with lore "&7Right-click the phone for the big map," and "&7aim with your head, left-click." and "&7Left-click the pin again to remove it." and "&7The GPS follows the roads and finds" and "&7a new way if you take another street."
+	# The GPS is a phone app's main page: "◀ Phone" (phone.sk's Back buttons), however it was opened.
+	gpsButton({_p}, {_gui}, 36, phoneBackItem(), "phone")
 	gpsButton({_p}, {_gui}, 44, barrier named "&cClose", "close")
 	set {-gps::gui::%{_p}%} to {_gui}
 	if {-gps::gen::%{_p}%} is not set:
@@ -450,6 +452,9 @@ function gpsAction(p: player, act: text, right: boolean):
 	set {_u} to "%uuid of {_p}%"
 	if {_act} is "close":
 		close {_p}'s inventory
+	else if {_act} is "phone":
+		# Opening the phone closes this menu; the close handler only forgets the menu, nothing is lost.
+		openPhone({_p})
 	else if {_act} is "clear":
 		close {_p}'s inventory
 		gpsUnpin({_p}, "removed")

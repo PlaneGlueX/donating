@@ -689,10 +689,19 @@ function lbMenu(p: player, b: text, last: boolean):
 			set slot 40 of {_gui} to skull of {_p} named "&fYou: &e#%{_mine}%" with lore "&a%seasonValueText({_b}, {_mv})%" and "&7Season %{_s}% · %seasonLeftText()% left"
 		else:
 			set slot 40 of {_gui} to skull of {_p} named "&fYou: &7not ranked yet" with lore "&7%{-cfg::season::board::%{_b}%::what}%"
+		# Slot 45 is the menu's back button (below), so Last season sits at 47.
 		if seasonNum() > 1:
-			lbButton({_p}, {_gui}, 45, book named "&fLast season" with lore "&7The final top 10 of Season %seasonNum() - 1%.", "last:%{_b}%")
-	else if {season::state} is "live":
-		lbButton({_p}, {_gui}, 45, arrow named "&fThis season", "board:%{_b}%")
+			lbButton({_p}, {_gui}, 47, book named "&fLast season" with lore "&7The final top 10 of Season %seasonNum() - 1%.", "last:%{_b}%")
+	# Back buttons (phone.sk): this season's boards are the Season app's main page ("◀ Phone"); last season's finals
+	# are a page under them while a season runs ("◀ Back" to them, where "This season" was), and the main page when
+	# none runs (lbOpen opens the finals then).
+	if {_last} is true:
+		if {season::state} is "live":
+			lbButton({_p}, {_gui}, 45, backItem("this season's boards"), "board:%{_b}%")
+		else:
+			lbButton({_p}, {_gui}, 45, phoneBackItem(), "phone")
+	else:
+		lbButton({_p}, {_gui}, 45, phoneBackItem(), "phone")
 	set {_mh} to cfg("season::min-hours")
 	set slot 49 of {_gui} to paper named "&6Prizes" with lore "&7Top 10 of each board: a title nobody" and "&7can trade, money and Season keys." and "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7Play %{_mh}%+ hours (not AFK) to qualify." and "&7Only loot from runs you robbed counts;" and "&7boosters' extra money never counts."
 	lbButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
@@ -716,6 +725,9 @@ on inventory click:
 	set {_a::*} to {_act} split at ":"
 	if {_a::1} is "close":
 		close player's inventory
+	else if {_a::1} is "phone":
+		# Opening the phone closes this menu; the close handler only forgets the menu.
+		openPhone(player)
 	else if {_a::1} is "board":
 		lbMenu(player, {_a::2}, false)
 	else if {_a::1} is "last":

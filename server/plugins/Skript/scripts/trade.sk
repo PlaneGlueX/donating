@@ -379,7 +379,9 @@ function tradePick(p: player, kind: text):
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
-	set slot 45 of {_gui} to arrow named "&fBack to the trade"
+	# The standard Back button (phone.sk). Going back switches windows without ending the trade (the close
+	# handler below lets a switch between the trade and this list through).
+	set slot 45 of {_gui} to backItem("the trade")
 	set {-trade::pact::%{_u}%::45} to "back"
 	open {_gui} to {_p}
 

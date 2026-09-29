@@ -147,6 +147,18 @@ function garageInLane(l: location) :: boolean:
 				return true
 	return false
 
+# Whether a spot is on one of the sites' bays (car-cleanup.sk: a car left standing there goes back after pickup-idle,
+# like one in an exit lane; review 2026-09-28: a car parked on a bay shut that bay's clicks for everyone).
+function garageOnBay(l: location) :: boolean:
+	if world of {_l} is not poiMainWorld():
+		return false
+	loop {garagesites::*}:
+		set {_s} to loop-index
+		loop {garagesite::%{_s}%::bay::*}:
+			if distance between garageSpotLoc(loop-value-2) and {_l} <= 3:
+				return true
+	return false
+
 # A real car stands on or next to a bay (its click box would swallow the clicks meant for the car).
 function garageBayCarThere(l: location) :: boolean:
 	loop all armor stands in radius 2.5 around {_l}:
@@ -154,8 +166,9 @@ function garageBayCarThere(l: location) :: boolean:
 			return true
 	return false
 
-# A free exit lane at the player's site (its record "s|n" in {-garage::spotn::<p>}), none when all are busy. The
-# player themselves standing in it doesn't block it (the car comes out around them).
+# A free exit lane at the player's site (its record "s|n" in {-garage::spotn::<p>}), none when all are busy. People
+# standing in it don't block it (abuse review 2026-09-28: an AFK alt in each lane shut a garage for everyone): a free
+# lane without anyone in it is taken first, else one with people, who get nudged aside (garageClearLane).
 function garageSpot(p: player) :: location:
 	delete {-garage::spotn::%{_p}%}
 	set {_s} to garageAt({_p})
@@ -173,7 +186,32 @@ function garageSpot(p: player) :: location:
 				if {_people} is 0:
 					set {-garage::spotn::%{_p}%} to "%{_s}%|%{_n}%"
 					return {_l}
+				if {_crowded} is not set:
+					set {_crowded} to {_l}
+					set {_crowdn} to {_n}
+	if {_crowded} is set:
+		garageClearLane({_p}, {_crowded})
+		set {-garage::spotn::%{_p}%} to "%{_s}%|%{_crowdn}%"
+		return {_crowded}
 	return {_none}
+
+# Nudges everyone but the caller out of an exit lane a car is about to come out in.
+function garageClearLane(p: player, l: location):
+	set {_lx} to x-coordinate of {_l}
+	set {_lz} to z-coordinate of {_l}
+	loop all players in radius 2 around {_l}:
+		if loop-player is not {_p}:
+			set {_px} to x-coordinate of loop-player
+			set {_pz} to z-coordinate of loop-player
+			set {_dx} to {_px} - {_lx}
+			set {_dz} to {_pz} - {_lz}
+			set {_len} to sqrt({_dx} * {_dx} + {_dz} * {_dz})
+			if {_len} < 0.2:
+				set {_dx} to 1
+				set {_dz} to 0
+				set {_len} to 1
+			set velocity of loop-player to vector(0.7 * {_dx} / {_len}, 0.3, 0.7 * {_dz} / {_len})
+			hudBar(loop-player, "&eA car is coming out of the garage: step aside.", 2)
 
 # After a car came out in a lane (carCall): the pickup-idle clock, and a puff for the player.
 function garageTookOut(p: player, plate: text):

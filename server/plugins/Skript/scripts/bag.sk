@@ -585,6 +585,8 @@ on quit:
 	delete {-bag::total::%player%}
 	delete {-bag::shown::%player%}
 	delete {-duffel::told::%player%}
+	delete {-bag::gui::%player%}
+	delete {-bag::act::%player%::*}
 
 # ---------- /bag: what's in it ----------
 # One line per heist run in the bag, with its value; the run you're robbing right now is marked (0:00 or
@@ -635,7 +637,13 @@ function bagMenu(p: player):
 	if {_slot} is 9:
 		set slot 13 of {_gui} to paper named "&7Empty" with lore "&7Rob a heist: /heists"
 	set slot 22 of {_gui} to compass named "&fSell: walk into the base" with lore "&7Not while in combat or wanted."
+	# The Bag app's main page: "◀ Phone" (phone.sk's Back buttons), however it was opened. Its only button.
+	delete {-bag::act::%{_p}%::*}
+	set slot 18 of {_gui} to phoneBackItem()
+	set {-bag::act::%{_p}%::18} to "phone"
 	set {-bag::gui::%{_p}%} to {_gui}
+	if {-bag::gen::%{_p}%} is not set:
+		set {-bag::gen::%{_p}%} to 0
 	open {_gui} to {_p}
 
 command /bag:
@@ -644,10 +652,30 @@ command /bag:
 	trigger:
 		bagMenu(player)
 
+# Every click is cancelled; a button's action runs a tick later and once per drawn screen (the generation), like the
+# other menus.
 on inventory click:
 	{-bag::gui::%player%} is set
 	player's current inventory is {-bag::gui::%player%}
 	cancel event
+	event-inventory is {-bag::gui::%player%}
+	set {_act} to {-bag::act::%player%::%index of event-slot%}
+	{_act} is set
+	set {_ok} to false
+	if click type is left mouse button:
+		set {_ok} to true
+	else if click type is right mouse button:
+		set {_ok} to true
+	{_ok} is true
+	set {_gen} to {-bag::gen::%player%}
+	wait 1 tick
+	player is online
+	{-bag::gui::%player%} is set
+	{-bag::gen::%player%} is {_gen}
+	add 1 to {-bag::gen::%player%}
+	if {_act} is "phone":
+		# Opening the phone closes this menu; the close handler only forgets the menu.
+		openPhone(player)
 
 on inventory drag:
 	{-bag::gui::%player%} is set
@@ -658,3 +686,4 @@ on inventory close:
 	{-bag::gui::%player%} is set
 	event-inventory is {-bag::gui::%player%}
 	delete {-bag::gui::%player%}
+	delete {-bag::act::%player%::*}

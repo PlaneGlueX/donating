@@ -410,6 +410,8 @@ function cosMenu(p: player):
 	set {_n} to size of cosWardrobe({_p}, "killfx")
 	set {_wk} to cosWornName({_p}, "killfx")
 	cosButton({_p}, {_gui}, 15, blaze powder named "&6Kill effects" with lore "&7Where you knock someone out." and "&7Wearing: %{_wk}%" and "&7You have %{_n}%." and "&eClick to pick or take it off.", "page:killfx")
+	# The Cosmetics app's main page: "◀ Phone" however it was opened (phone.sk's back buttons).
+	cosButton({_p}, {_gui}, 18, phoneBackItem(), "phone")
 	cosButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
 	open {_gui} to {_p}
 
@@ -455,7 +457,8 @@ function cosPage(p: player, type: text):
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
-	cosButton({_p}, {_gui}, 45, arrow named "&fBack", "menu")
+	# Back to /cosmetics, also when /titles, /bagskins or /killeffects opened this page directly.
+	cosButton({_p}, {_gui}, 45, backItem("your cosmetics"), "menu")
 	if {_type} is "bagskin":
 		cosButton({_p}, {_gui}, 49, barrier named "&fDefault look" with lore "&7Your bag tier's own look.", "off:bagskin")
 	else:
@@ -516,6 +519,9 @@ on inventory click:
 		cosWear(player, subtext of {_act} from characters 5 to (length of {_act}), "")
 	else if {_act} is "menu":
 		cosMenu(player)
+	else if {_act} is "phone":
+		# Opening the phone closes this menu; the close handler only clears it.
+		openPhone(player)
 	else if {_act} is "close":
 		close player's inventory
 

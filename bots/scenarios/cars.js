@@ -190,6 +190,31 @@ module.exports = async ({ check }) => {
     check('with a full garage the car crate refuses before the spin, and the key is safe', /garage is full/.test(text(A, t)) && (await keys(A, 'supercar')) === 1 && (await cars(A)).length === cs.length, `${text(A, t)} keys=${await keys(A, 'supercar')}`)
     await cmd('zzcfgreload')
     await closeAll(A)
+
+    // ---------- Out of the water (owner, 2026-09-28: "make cars able to climb land 1 block tall") ----------
+    // A pool 2 deep whose shore is one block above the water: the car sits on the bottom, 3 blocks below where it can
+    // stand. MTVehicles never runs its drive-up check in water; garage.sk lifts a car whose driver holds forward
+    // (zzcarclimb runs that check as if they did: bots can't hold a car's keys).
+    await cmd(`fill 4025 ${Y} 4002 4038 ${Y + 2} 4014 stone`)
+    await cmd(`fill 4025 ${Y + 3} 4002 4038 ${Y + 6} 4014 air`)
+    await cmd(`fill 4026 ${Y} 4003 4031 ${Y + 1} 4011 water`)
+    await cmd(`fill 4026 ${Y + 2} 4003 4031 ${Y + 2} 4011 air`)
+    const gave = await cmd(`dgarage give ${A} sedan Red`)
+    const wet = (gave.match(/: ([A-Z0-9-]+) vin=/) || [])[1]
+    await cmd(`zzcarspawn ${wet} 4028.5 ${Y} 4011.0`)
+    await cmd(`zzcarmount ${A} ${wet}`)
+    await sleep(600)
+    const up = await cmd(`zzcarclimb ${wet}`)
+    const upY = Number((up.match(/y: (-?[\d.]+)/) || [])[1])
+    check('in 2-deep water facing a shore one block above the surface, holding forward lifts the car onto it', upY === Y + 3, `${gave} ${up}`)
+    await cmd(`zzcartp ${wet} 4028.5 ${Y} 4011.0`)
+    await cmd(`fill 4025 ${Y + 3} 4012 4038 ${Y + 3} 4014 stone`) // the shore two blocks above the water now
+    await sleep(600)
+    const stay = await cmd(`zzcarclimb ${wet}`)
+    const stayY = Number((stay.match(/y: (-?[\d.]+)/) || [])[1])
+    check('...but not onto land two blocks above the water (a wall stays a wall)', stayY < Y + 1, stay)
+    await cmd(`dgarage store ${A}`)
+    await cmd(`fill 4025 ${Y} 4002 4038 ${Y + 6} 4014 air`)
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     for (const name of [A, B]) {

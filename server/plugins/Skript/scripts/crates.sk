@@ -681,7 +681,10 @@ function crateMenu(p: player):
 			set {_slot} to 19
 	set {_d} to clock named "&eDaily reward: &f%dailyText({_p})%" with lore "&7A Daily key every day, plus your" and "&7rank's keys (VIP+, Elite, Legend)." and "&eClick to claim."
 	crateButton({_p}, {_gui}, 31, {_d}, "daily")
-	crateButton({_p}, {_gui}, 27, emerald named "&aBuy keys" with lore "&7Keys for Common to Legendary" and "&7are in the store. Car crate keys" and "&7cost game money: click the crate." and "&eClick for the store link.", "store")
+	# The Crates app's main page: "◀ Phone" in the bottom row's first slot (phone.sk's back buttons), as the
+	# preview's "◀ Back"; Buy keys moved from there to 33, the spot of the preview's buy button (51).
+	crateButton({_p}, {_gui}, 27, phoneBackItem(), "phone")
+	crateButton({_p}, {_gui}, 33, emerald named "&aBuy keys" with lore "&7Keys for Common to Legendary" and "&7are in the store. Car crate keys" and "&7cost game money: click the crate." and "&eClick for the store link.", "store")
 	crateButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	open {_gui} to {_p}
 
@@ -805,7 +808,8 @@ function cratePreview(p: player, t: text, stand: boolean):
 	set {_pane} to gray stained glass pane named "&r"
 	loop integers from 45 to 53:
 		set slot loop-value of {_gui} to {_pane}
-	crateButton({_p}, {_gui}, 45, arrow named "&fAll crates", "menu")
+	# Back to /crates, also when a crate stand opened this page (it's where a stand's menu starts).
+	crateButton({_p}, {_gui}, 45, backItem("all crates"), "menu")
 	set {_n} to crateKeys({_p}, {_t})
 	delete {_l::*}
 	add crateKeySource({_t}) to {_l::*}
@@ -862,6 +866,9 @@ function crateAction(p: player, act: text):
 		crateBuyKey({_p}, subtext of {_act} from characters 5 to (length of {_act}))
 	else if {_act} is "menu":
 		crateMenu({_p})
+	else if {_act} is "phone":
+		# Opening the phone closes this menu: the close handler only clears it (a spin has no Phone button).
+		openPhone({_p})
 	else if {_act} is "daily":
 		close {_p}'s inventory
 		dailyClaim({_p})

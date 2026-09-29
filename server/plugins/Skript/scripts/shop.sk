@@ -638,6 +638,10 @@ function renderGun(p: player):
 	button({_p}, 47, tagItem({_t2}, "shopicon:tab"), "tab:weapons")
 	button({_p}, 49, tagItem({_t3}, "shopicon:tab"), "tab:ammo")
 	button({_p}, 51, tagItem({_t4}, "shopicon:tab"), "tab:items")
+	# Back buttons (phone.sk, owner 2026-09-28): the Loadout tab is the shop's first page, so the other tabs get
+	# "◀ Back" to it. The bottom row's first slot (45) is the Loadout tab, so Back takes the row's last slot (53).
+	if {_tab} is not "loadout":
+		button({_p}, 53, tagItem(backItem("the Loadout tab"), "shopicon:back"), "tab:loadout")
 	set {_cells::*} to gunCells()
 	if {_tab} is "loadout":
 		set {_k} to 1

@@ -1,7 +1,9 @@
 // grapple.sk: the Grappler (owner, 2026-09-28: "grappler (not sure on this one, might be too overpowered)"). A hook
 // per pull: right-click pulls you to the block you aim at (24 blocks). The guards against abuse: never onto or near a
-// heist building (6 blocks), never into a heist mid-pull, never from inside one, no-grapple regions, a cooldown, no fall
-// damage right after a pull, getting hurt ends it.
+// heist building (6 blocks, also high above one: the column under the anchor), never into a heist mid-pull, never from
+// inside one, no-grapple regions, no barrier blocks, a cooldown (owner, 2026-09-28: longer, 15 s, winding back on the
+// action bar, and allowed in a fight), no fall damage right after a pull, a hit that lands ends it and stops you, and
+// tool::grappler::enabled false switches hooks already bought off too.
 const { Vec3 } = require('vec3')
 const { join, sleep, messagesSince, quit } = require('../lib')
 const rconLib = require('../rcon')
@@ -70,16 +72,24 @@ module.exports = async ({ check }) => {
     let p1 = await pos()
     check('right-click at a wall 14 blocks away pulls you to it (and uses one hook of 5)', p1 && p1.x > 3710 && p1.x < 3714 && (await hooks()) === 4, `${p0} -> ${p1} hooks=${await hooks()} ${text(t)}`)
 
-    // ---------- Cooldown ----------
+    // ---------- Cooldown: 15 s, winding back on the action bar ----------
     await place(3700.5, 3703.5)
-    await fire(new Vec3(3714, Y + 2.5, 3703.5))
-    await sleep(150)
     t = Date.now()
     const before = await hooks()
     await fire(new Vec3(3714, Y + 2.5, 3703.5))
-    await sleep(500)
+    await sleep(600)
     check('a second pull right away is refused (the cooldown), and no hook is used', /winding back|One pull at a time/.test(text(t)) && (await hooks()) === before, `${text(t)} ${before} -> ${await hooks()}`)
-    await sleep(3500)
+    t = Date.now()
+    await sleep(1200)
+    const meter = messagesSince(bot, t).filter(m => m.kind === 'game_info').map(m => m.text).join(' | ')
+    const secs = Number((meter.match(/winding back \S+ (\d+)s/) || [])[1])
+    check('holding it shows it winding back with the seconds left (15 s cooldown)', /Grappler winding back/.test(meter) && secs >= 5 && secs <= 15, meter.slice(0, 300))
+    // The rest of the test waits 1 s between pulls.
+    await cmd('zzcfgtime grapple::cooldown 1 seconds')
+    await sleep(1200)
+    t = Date.now()
+    await sleep(700)
+    check('...then "Grappler ready" while it\'s held', /Grappler ready/.test(messagesSince(bot, t).filter(m => m.kind === 'game_info').map(m => m.text).join(' | ')), text(t))
 
     // ---------- No fall damage right after ----------
     await place(3700.5, 3716.5)
@@ -129,6 +139,40 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${A} 3700.5 ${Y} 3703.5`)
     await sleep(1500)
 
+    // High above the heist: an antenna 3 blocks over its roof (the region's top), and a barrier (an invisible wall).
+    await cmd(`setblock 3734 ${Y + 11} 3705 stone`)
+    await place(3718.5, 3705.5)
+    t = Date.now()
+    await fire(new Vec3(3734, Y + 11.5, 3705.5))
+    await sleep(700)
+    check('onto an antenna high above a heist\'s roof: refused too (the column under the anchor is checked)', /onto a heist building/.test(text(t)), text(t))
+    await cmd(`fill 3708 ${Y} 3695 3708 ${Y + 4} 3697 barrier`)
+    await place(3700.5, 3696.5)
+    t = Date.now()
+    const nb = await hooks()
+    await fire(new Vec3(3708, Y + 2.5, 3696.5))
+    await sleep(700)
+    check('a barrier block isn\'t an anchor (nothing to hook onto there), no hook used', /Nothing to hook onto there/.test(text(t)) && (await hooks()) === nb, `${text(t)} ${nb} -> ${await hooks()}`)
+    await cmd(`fill 3708 ${Y} 3695 3708 ${Y + 4} 3697 air`)
+
+    // ---------- Allowed in a fight; the off switch ----------
+    await place(3700.5, 3703.5)
+    await cmd(`zztag ${A}`)
+    t = Date.now()
+    await fire(new Vec3(3714, Y + 2.5, 3703.5))
+    await sleep(1600)
+    const pt = await pos()
+    check('combat-tagged: the Grappler still works (owner, 2026-09-28)', pt && pt.x > 3710, `${pt} ${text(t)}`)
+    await cmd(`zzcombatend ${A}`)
+    await cmd('zzcfgbool tool::grappler::enabled false')
+    await place(3700.5, 3703.5)
+    t = Date.now()
+    const no = await hooks()
+    await fire(new Vec3(3714, Y + 2.5, 3703.5))
+    await sleep(700)
+    check('tool::grappler::enabled false stops Grapplers already bought ("out of service")', /out of service/.test(text(t)) && (await hooks()) === no, `${text(t)} ${no} -> ${await hooks()}`)
+    await cmd('zzcfgbool tool::grappler::enabled true')
+
     // ---------- No-grapple regions ----------
     await cmd(`zzregion nograpple_zg 3713 ${Y - 1} 3699 3716 ${Y + 6} 3708`)
     await place(3700.5, 3703.5)
@@ -138,8 +182,8 @@ module.exports = async ({ check }) => {
     check('a no-grapple region (nograpple_*) is off limits', /can't grapple there/.test(text(t)), text(t))
     await cmd('rg remove -w world nograpple_zg')
 
-    // ---------- Getting hurt ends a pull ----------
-    await sleep(3500)
+    // ---------- Getting hurt ends a pull, and stops you ----------
+    await sleep(1500)
     await place(3700.5, 3703.5)
     await fire(new Vec3(3714, Y + 2.5, 3703.5))
     await sleep(150)
@@ -147,8 +191,10 @@ module.exports = async ({ check }) => {
     await sleep(1500)
     const p3 = await pos()
     const ended = /end GrapA why=hurt/.test(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'server', 'plugins', 'Skript', 'logs', 'grapple.log'), 'utf8').split(/\r?\n/).slice(-4).join('\n'))
-    check('getting hurt mid-pull ends it (the log says why=hurt)', ended, `${p3}`)
+    check('a hit mid-pull ends it (the log says why=hurt) and its momentum (short of the wall)', ended && p3 && p3.x < 3710, `${p3}`)
   } finally {
+    await rcon.cmd('zzcfgreload').catch(() => {})
+    await rcon.cmd(`zzcombatend ${A}`).catch(() => {})
     await rcon.cmd(`dheist delete ${HID} confirm`).catch(() => {})
     await rcon.cmd(`rg remove -w world heist_${HID}`).catch(() => {})
     await rcon.cmd('rg remove -w world nograpple_zg').catch(() => {})

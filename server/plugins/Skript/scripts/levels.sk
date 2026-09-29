@@ -450,6 +450,10 @@ every second:
 			if vehicle of {_p} is set:
 				make {_p} dismount
 			set {_back} to {-lvlzone::ok::%{_p}%}
+			# (A zone drawn around where they stood makes that spot a members-only one too: spawn then.)
+			if {_back} is set:
+				if levelZoneBlockAt({_p}, {_back}) is not "":
+					delete {_back}
 			if {_back} is not set:
 				set {_back} to spawn of world "world"
 			teleport {_p} to {_back}

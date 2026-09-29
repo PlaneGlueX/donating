@@ -1345,6 +1345,9 @@ function hitMenu(p: player):
 		set slot 29 of {_gui} to skeleton skull named "&cBounties" with lore "&7Post one here with the Broker:" and "&f/bounty <player> <amount>"
 	else:
 		set slot 29 of {_gui} to skeleton skull named "&cPost a bounty" with lore "&7Type &f/bounty <player> <amount>" and "&7while you're here."
+	# The phone's apps (phone.sk's back buttons), however the menu was opened: the phone, /hits or the Broker.
+	# Slot 28: the bottom row's first slot is "Find the Broker" away from him.
+	hitButton({_p}, {_gui}, 28, phoneBackItem(), "phone")
 	hitButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-hit::gui::%{_p}%} to {_gui}
 	if {-hit::gen::%{_p}%} is not set:
@@ -1366,6 +1369,8 @@ on inventory click:
 	set {_a::*} to {_act} split at ":"
 	if {_a::1} is "close":
 		close player's inventory
+	else if {_a::1} is "phone":
+		openPhone(player)
 	else if {_a::1} is "find":
 		close player's inventory
 		questFind(player, "hits")

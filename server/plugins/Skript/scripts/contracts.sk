@@ -1070,6 +1070,9 @@ function ctMenu(p: player):
 	# His side jobs (jobs.sk), once his board is open.
 	if jobsUnlocked({_p}, "boss") is true:
 		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs from the Boss" with lore "&7Side jobs: /jobs" and "&eClick: open your jobs.", "jobs")
+	# The phone's apps (phone.sk's back buttons), however the menu was opened: the phone, /contracts or a giver.
+	# Slot 28: the bottom row's first slot is the Boss's side jobs.
+	ctButton({_p}, {_gui}, 28, phoneBackItem(), "phone")
 	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
 	set {-ctgui::%{_p}%} to {_gui}
 	if {-ctgen::%{_p}%} is not set:
@@ -1206,6 +1209,8 @@ function ctAction(p: player, act: text):
 	set {_k} to {_a::1}
 	if {_k} is "close":
 		close {_p}'s inventory
+	else if {_k} is "phone":
+		openPhone({_p})
 	else if {_k} is "jobs":
 		jobsMenu({_p})
 	else if {_k} is "find":
