@@ -410,6 +410,8 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (bots, 2026-09-28, 14/14; cu 2026-09-28: the heads wear the contacts' skins, "Broker (1 new)" with the wrapped text, Mara's conversation with "new" and Find Mara).
 160. **Places on the phone's map** (`bots\run.js places`, 6 checks; also phone-map, poi, gps): every POI shows on the phone as a colored banner (a shop orange, a heist by difficulty, quest givers blue), sent within 10 s, gone when removed or when a heist closes; the held phone shows no names; the big map shows a place's name while the cursor is on it.
     - Result: PASS (bots, 2026-09-29). **Owner/cu:** how the banners look on the real city map (too many? the colors?), and the hover names on the big map.
+161. **District names** (`bots\run.js districts`, 8 checks; boards 10): entering a district_<id> region shows its name on the action bar, not again within 30 s; nested districts show the smaller one; the sidebar's Area line ("the outskirts" outside); names by /ddistrict name or from the id; staff only.
+    - Result: PASS (bots, 2026-09-29). **Owner:** draw the districts when the city exists, and say if the action bar is the right place (a subtitle is the other option).
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 

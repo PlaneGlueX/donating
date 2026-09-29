@@ -381,6 +381,8 @@ function loadSettings():
 	# The phone's Messages app (messages.sk, 2026-09-28): texts kept per player, and each contact who texts (story.sk's
 	# storyText signs them: the key is the name in lower case without spaces) with its NPC skin (skins.sk) and the quest
 	# giver kind that finds them on the map ("Find <contact>").
+	# District names (districts.sk): a district's name shows again on entering it only after this long.
+	set {-cfg::district::repeat} to 30 seconds
 	set {-cfg::messages::keep} to 60
 	set {-cfg::msgcontact::mara::skin} to "mara"
 	set {-cfg::msgcontact::mara::kind} to "story"

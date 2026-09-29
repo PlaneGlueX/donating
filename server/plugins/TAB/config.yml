@@ -109,6 +109,7 @@ scoreboard:
         - "&7Cash: &a%donating_balance%"
         - "&7Level: &f%donating_level_num% %donating_level%"
         - "&7Bag: &f%donating_bag%"
+        - "&7Area: %donating_district%"
         - ""
         - "&7Heists open: &f%donating_heists_open% &7/heists"
         - "&7Daily: %donating_daily%"
