@@ -412,6 +412,10 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (bots, 2026-09-29). **Owner/cu:** how the banners look on the real city map (too many? the colors?), and the hover names on the big map.
 161. **District names** (`bots\run.js districts`, 8 checks; boards 10): entering a district_<id> region shows its name on the action bar, not again within 30 s; nested districts show the smaller one; the sidebar's Area line ("the outskirts" outside); names by /ddistrict name or from the id; staff only.
     - Result: PASS (bots, 2026-09-29). **Owner:** draw the districts when the city exists, and say if the action bar is the right place (a subtitle is the other option).
+162. **The city scan** (`bots\run.js cityscan`, 12 checks): `/dphone city scan` draws the phone's city from the world like a vanilla map: against the local vanilla city maps 100.00% of the colors and 99.99% of the exact pixels match; red concrete, lime wool under glass, a poppy, water 3 deep in its checker, a step's bright and dark sides; scale 1 takes the most common color; the phone shows it; one scan at a time; too big or a bad scale refused; `use maps` goes back and the GPS road grid fits again.
+    - Result: PASS (bots, 2026-09-29). **Owner:** once the city is built, scan it (DEPLOY.md) and look at the phone: scale 1 (2 blocks a pixel) or 0 (sharper, closer on the held phone)?
+163. **A hit closes the big map** (`bots\run.js phone`, 1 new check, 35 in all): with the big map open, damage that lands closes it (the bag comes back) and the action bar says "Hit: your map closed."
+    - Result: PASS (bots, 2026-09-29). **Owner/cu:** how it feels in a fight (the camera stays tilted down after it closes).
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 

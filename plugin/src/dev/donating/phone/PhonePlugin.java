@@ -82,7 +82,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private int bpp;          // blocks per city pixel
     private double x0, z0;    // world position of the image's top-left corner
     private int imgW, imgH;
-    private byte[] img;       // imgW x imgH city pixels, read on the first render
+    private byte[] img;       // imgW x imgH city pixels, read on the first render (a scanned city: at load)
+    private boolean scanCity; // the city is city.bin (/dphone city scan), not the city-maps
+    private final CityScan cityScan = new CityScan(this);
     private final List<Poi> pois = new ArrayList<>();
 
     private final List<MapView> pool = new ArrayList<>();
@@ -162,6 +164,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         gps.shutdown(); // the worker thread, a running road scan, and every GPS dot stand
+        cityScan.shutdown();
         marks.shutdown();
         if (nametags != null) nametags.stop();
     }
@@ -200,7 +203,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         gridRoad = mapColor("#F0E040");
         gridBlocked = mapColor("#E02020");
         gps.configure(c);
-        gps.city(tiles == null ? null : world, x0, z0, imgW, imgH, bpp);
+        gps.city(hasCity() ? world : null, x0, z0, imgW, imgH, bpp);
         getLogger().info("GPS roads: " + (gps.roads() == null ? "none" : gps.roads().w + "x" + gps.roads().h + " cells"));
 
         World poolWorld = world != null ? world : Bukkit.getWorlds().get(0);
@@ -253,10 +256,47 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         return MapPalette.matchColor((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
     }
 
-    /** city-maps: rows of map ids (north to south), each row west to east. Old configs: city-map: <id>. */
+    boolean hasCity() { return tiles != null || scanCity; }
+
+    // For CityScan: the city the phones show now.
+    String cityDesc() { return cityDesc; }
+    World cityWorld() { return hasCity() ? world : null; }
+    /** The city's box {x1, z1, x2, z2, blocks per pixel}, or null. */
+    int[] cityBox() {
+        if (!hasCity()) return null;
+        int x1 = (int) Math.floor(x0), z1 = (int) Math.floor(z0);
+        return new int[] {x1, z1, x1 + imgW * bpp - 1, z1 + imgH * bpp - 1, bpp};
+    }
+    /** A scan finished or /dphone city use: load the city again (the GPS's road grid with it). */
+    void cityChanged() { load(); }
+    boolean gpsRoadsFit() { return gps.roads() != null; }
+
+    /**
+     * The city: city.bin when city.yml says "source: scan" (/dphone city scan), else city-maps: rows of map ids
+     * (north to south), each row west to east. Old configs: city-map: <id>.
+     */
     private void loadCity(FileConfiguration c, List<Integer> poolIds) {
         tiles = null;
         world = null;
+        scanCity = false;
+        if (cityScan.useScan()) {
+            CityScan.Image im = cityScan.image();
+            World w = im == null ? null : Bukkit.getWorld(im.world());
+            if (w == null) {
+                getLogger().warning("city.yml says scan, but " + (im == null ? "city.bin is missing or unreadable" : "its world " + im.world() + " isn't loaded") + ": using city-maps");
+            } else {
+                world = w;
+                bpp = im.bpp();
+                x0 = im.x0();
+                z0 = im.z0();
+                imgW = im.w();
+                imgH = im.h();
+                img = im.px();
+                scanCity = true;
+                cityDesc = "scan " + im.world() + " " + im.box() + " (" + (imgW * bpp) + "x" + (imgH * bpp) + " blocks, scale " + im.scale() + ")";
+                return;
+            }
+        }
         List<List<Integer>> rows = new ArrayList<>();
         for (Object row : c.getList("city-maps", List.of())) {
             List<Integer> ids = new ArrayList<>();
@@ -366,7 +406,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
     private boolean bigMapOpen(Player p) {
         MapView v = assigned.get(p.getUniqueId());
-        return v != null && states.containsKey(p.getUniqueId()) && tiles != null && img != null && holds(p, v) && p.getScoreboardTags().contains(openTag);
+        return v != null && states.containsKey(p.getUniqueId()) && img != null && holds(p, v) && p.getScoreboardTags().contains(openTag);
     }
 
     private void pick(Player p) {
@@ -396,6 +436,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
      */
     private void watch() {
         gps.tick();
+        cityScan.tick();
         for (Player p : Bukkit.getOnlinePlayers()) {
             State s = states.get(p.getUniqueId());
             MapView v = assigned.get(p.getUniqueId());
@@ -509,11 +550,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "gps", "mark", "pv", "nametag", "carstat", "place"));
+            options.addAll(List.of("reload", "status", "roads", "city", "gps", "mark", "pv", "nametag", "carstat", "place"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
+                case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel"));
                 case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
                 default -> { }
             }
@@ -521,6 +563,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             if (args[0].equalsIgnoreCase("gps")) options.addAll(List.of("set", "clear", "active"));
             else if (args[0].equalsIgnoreCase("nametag")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
+            else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("use")) options.addAll(List.of("scan", "maps"));
         } else if (args.length == 4) {
             if (args[0].equalsIgnoreCase("gps")) {
                 if (args[2].equalsIgnoreCase("active")) options.addAll(List.of("pin", "quest", "loot", "none"));
@@ -586,13 +629,14 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("place")) return placeCommand(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("city")) return cityScan.command(sender, args);
         if (args.length == 2 && args[0].equalsIgnoreCase("status")) {
             Player p = Bukkit.getPlayerExact(args[1]);
             MapView v = p == null ? null : assigned.get(p.getUniqueId());
             if (v == null) { sender.sendMessage("PHONE " + args[1] + " none"); return true; }
             State s = states.get(p.getUniqueId());
             sender.sendMessage("PHONE " + p.getName() + " map=" + v.getId() + " holding=" + holds(p, v)
-                    + " open=" + p.getScoreboardTags().contains(openTag) + " cityRead=" + (img != null)
+                    + " open=" + p.getScoreboardTags().contains(openTag) + " city=" + (scanCity ? "scan" : tiles != null ? "maps" : "none") + " cityRead=" + (img != null)
                     + " pois=" + pois.size() + " places=" + places.size() + " cursor=" + (s == null ? "none" : s.curX + "," + s.curY) + " route=" + routePin + "," + routeQuest + "," + routeLoot);
             return true;
         }
@@ -600,6 +644,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone [reload]: reload the config and re-read the city (after adding banner labels)");
             sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
             sender.sendMessage("/dphone roads [info | scan [x1 z1 x2 z2] | cancel | show <player> [on|off]]: the GPS road grid");
+            sender.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] | cancel | use scan|maps | pixel <x> <z>]: draw the phone's city from the world (no flying over it with maps)");
             sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
             sender.sendMessage("/dphone mark <player> <entity-uuid> <color|#RRGGBB> <range> | <player> off | <player> status: a locator dot on an entity for one player (hits.sk)");
             sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
@@ -645,8 +690,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
         @Override
         public void render(MapView view, MapCanvas canvas, Player p) {
-            if (tiles == null || !holds(p, view)) return; // nobody sees a phone in the pocket
-            if (img == null) readCity(canvas, p);
+            if (!hasCity() || !holds(p, view)) return; // nobody sees a phone in the pocket
+            if (img == null && tiles != null) readCity(canvas, p);
             if (img == null) return;
             State s = states.computeIfAbsent(p.getUniqueId(), k -> new State());
             s.canvas = canvas;
@@ -718,7 +763,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 for (Place pl : places.values()) {
                     if (!pl.world().equals(world.getName())) continue;
                     Component cap = pl == hp ? Component.text(pl.label(), pl.color()) : null;
-                    put(cursors, (pl.x() - x0) / bpp, (pl.z() - z0) / bpp, cx, cz, f, (byte) 0, pl.type(), cap);
+                    // Direction 8, like vanilla's banners (MapItemSavedData.toggleBanner adds them at 180 degrees): 0 draws them upside down.
+                    put(cursors, (pl.x() - x0) / bpp, (pl.z() - z0) / bpp, cx, cz, f, (byte) 8, pl.type(), cap);
                 }
             }
             // Passive players: a green arrow. Name only on the big map, while the cursor is on it.

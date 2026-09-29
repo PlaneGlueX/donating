@@ -226,6 +226,15 @@ module.exports = async ({ check }) => {
     bot.activateItem()
     await sleep(500)
     check('...and a new click after letting go closes it', / open=false/.test(await phone()), await phone())
+    // Getting hurt closes the big map (the camera is tilted and the bag is off while it's open).
+    await sleep(600)
+    bot.activateItem()
+    await sleep(600)
+    const openBefore = / open=true/.test(await phone())
+    t = Date.now()
+    await rcon.cmd(`minecraft:damage ${NAME} 1 minecraft:generic`)
+    await sleep(600)
+    check('a hit closes the big map and says so', openBefore && / open=false/.test(await phone()) && /Hit: your map closed/.test(text(t)), `${openBefore} ${await phone()} | ${text(t)}`)
   } finally {
     await rcon.cmd(`lp user ${NAME} permission unset donating.inventory.bypass`).catch(() => {})
     await rcon.cmd(`zzpassive ${NAME} off`).catch(() => {})

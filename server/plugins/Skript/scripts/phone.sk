@@ -90,6 +90,13 @@ function closePhoneMap(p: player):
 on held item change:
 	closePhoneMap(player)
 
+# Getting hurt closes the big map (2026-09-29, from the ideas list): while it's open the camera is tilted and the bag
+# is off, so a player reading the map couldn't fight back. Monitor: only a hit that lands.
+on damage of player with priority monitor:
+	victim has scoreboard tag "donating_phone_open"
+	closePhoneMap(victim)
+	hudBar(victim, "&7Hit: your map closed.", 1)
+
 # F with the phone in hand: the apps menu. Runs before inventory.sk's lock (priority highest), which
 # cancels F for everyone else. WeaponMechanics only reads F for guns.
 on swap hand items:

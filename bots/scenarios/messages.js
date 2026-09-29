@@ -1,7 +1,8 @@
 // messages.sk: the phone's Messages app. Every text a contact sends (story.sk's storyText) lands in chat and in the
 // player's inbox; the phone's apps show "Messages (N new)"; /messages lists one head per contact, the newest
 // conversation first, with its unread count; a conversation shows its texts (the unread ones "new") and reading it
-// clears them; ◀ Back to Messages, ◀ Phone to the phone; "Find <contact>" for contacts with a quest giver; only the
+// clears them; ◀ Back to Messages, ◀ Phone to the phone; "Find <contact>" when the map has that contact's quest giver
+// (else "<contact> isn't in town yet"); only the
 // newest 60 texts are kept; /messages <contact> opens one; a join says how many are unread; /messages tab-completes
 // the contacts.
 const { join, sleep, quit, messagesSince } = require('../lib')
@@ -14,6 +15,7 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   let bot = null
+  let mara = ''
   try {
     const text = t => messagesSince(bot, t).map(m => m.text).join(' | ')
     const nbtText = nbt => {
@@ -53,6 +55,8 @@ module.exports = async ({ check }) => {
     bot = await join(A)
     await cmd(`zzinboxclear ${A}`)
     await cmd(`zzclear ${A}`)
+    // Mara stands in town (a story giver); Vic (fence) doesn't.
+    mara = ((await cmd('dquest addat story 30.5 68 -656.5 90 Test Safehouse')).match(/giver (\d+) \(story\) added/) || [])[1] || ''
     await sleep(1500)
 
     // ---------- Texts land in chat and in the inbox ----------
@@ -84,7 +88,7 @@ module.exports = async ({ check }) => {
 
     // ---------- /messages <contact> ----------
     const vic = await chatOpen('/messages vic')
-    check('/messages vic opens his conversation', /Vic/.test(title(vic)) && /Fresh list/.test(itemLore(at(0))), `${title(vic)} ${itemLore(at(0))}`)
+    check('/messages vic opens his conversation; no Vic on the map: "Vic isn\'t in town yet" instead of Find', /Vic/.test(title(vic)) && /Fresh list/.test(itemLore(at(0))) && /Vic isn't in town yet/.test(itemName(at(49))), `${title(vic)} ${itemLore(at(0))} ${itemName(at(49))}`)
     await closeAll()
     t = Date.now()
     bot.chat('/messages nobody')
@@ -112,6 +116,7 @@ module.exports = async ({ check }) => {
     await sleep(7500)
     check('a join says how many texts wait unread', /✉ 1 unread message\(s\)/.test(text(t)), text(t).slice(0, 300))
   } finally {
+    if (mara) await rcon.cmd(`zzconsole dquest remove ${mara}`).catch(() => {})
     await rcon.cmd(`zzinboxclear ${A}`).catch(() => {})
     if (bot) await quit(bot).catch(() => {})
     rcon.close()
