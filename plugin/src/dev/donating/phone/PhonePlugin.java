@@ -101,7 +101,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private byte routePin, routeQuest, routeLoot, gridRoad, gridBlocked;
 
     /** A banner label on the city map, in image pixels. */
-    private record Poi(double ix, double iz, byte dir, MapCursor.Type type, Component caption) {}
+    record Poi(double ix, double iz, byte dir, MapCursor.Type type, Component caption) {}
 
     /**
      * A place on the phone's map, sent by Skript (nav.sk: staff POIs, open heists, quest givers): a colored banner
@@ -152,6 +152,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         saveDefaultConfig();
         load();
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(wallMaps, this);
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();
         // TAB loads first (softdepend); its API is ready once the server has started.
@@ -287,6 +288,13 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     double toImageZ(double wz) { return (wz - z0) / bpp; }
     long placesVersion() { return placesVersion; }
     java.util.Collection<Place> placeList() { return places.values(); }
+    List<Poi> poiList() { return pois; }
+    boolean placesShown() { return placesOn; }
+    boolean isPhoneOrCityMap(int id) {
+        for (MapView v : pool) if (v.getId() == id) return true;
+        if (tiles != null) for (MapView[] row : tiles) for (MapView t : row) if (t.getId() == id) return true;
+        return false;
+    }
 
     /**
      * The city: city.bin when city.yml says "source: scan" (/dphone city scan), else city-maps: rows of map ids
@@ -330,6 +338,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             if (rows.get(r).size() != cols) { getLogger().warning("city-maps: every row needs " + cols + " maps: phones stay blank."); return; }
             for (int col = 0; col < cols; col++) {
                 if (poolIds.contains(rows.get(r).get(col))) { getLogger().warning("city map " + rows.get(r).get(col) + " is one of the phone maps (pool.yml), not a city map: phones stay blank."); return; }
+                if (wallMaps.allIds().contains(rows.get(r).get(col))) { getLogger().warning("city map " + rows.get(r).get(col) + " is a wall map (walls.yml), not a city map: phones stay blank."); return; }
                 MapView v = Bukkit.getMap(rows.get(r).get(col));
                 if (v == null) { getLogger().warning("city map " + rows.get(r).get(col) + " has no map file: phones stay blank."); return; }
                 t[r][col] = v;
@@ -573,7 +582,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
                 case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel"));
-                case "wall" -> options.addAll(List.of("create", "remove", "list"));
+                case "wall" -> options.addAll(List.of("create", "remove", "repair", "list"));
                 case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
                 default -> { }
             }
@@ -582,7 +591,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             else if (args[0].equalsIgnoreCase("nametag")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("use")) options.addAll(List.of("scan", "maps"));
-            else if (args[0].equalsIgnoreCase("wall") && args[1].equalsIgnoreCase("remove")) options.addAll(wallMaps.names());
+            else if (args[0].equalsIgnoreCase("wall") && (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("repair"))) options.addAll(wallMaps.names());
         } else if (args.length == 4) {
             if (args[0].equalsIgnoreCase("gps")) {
                 if (args[2].equalsIgnoreCase("active")) options.addAll(List.of("pin", "quest", "loot", "none"));
@@ -665,7 +674,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
             sender.sendMessage("/dphone roads [info | scan [x1 z1 x2 z2] | cancel | show <player> [on|off]]: the GPS road grid");
             sender.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] | cancel | use scan|maps | pixel <x> <z>]: draw the phone's city from the world (no flying over it with maps)");
-            sender.sendMessage("/dphone wall create <name> <cols> <rows> [<world> <x> <y> <z> <face>] | remove <name> | list: a big city map on a wall (look at its bottom-left block)");
+            sender.sendMessage("/dphone wall create <name> <cols> <rows> [<world> <x> <y> <z> <face>] | remove <name> | repair <name> | list: a big city map on a wall (look at its bottom-left block)");
             sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
             sender.sendMessage("/dphone mark <player> <entity-uuid> <color|#RRGGBB> <range> | <player> off | <player> status: a locator dot on an entity for one player (hits.sk)");
             sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
@@ -900,7 +909,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             for (int r = 0; r < tiles.length; r++) for (int col = 0; col < tiles[r].length; col++) {
                 MapView t = tiles[r][col];
                 List<MapRenderer> base = t.getRenderers();
-                if (base.isEmpty() || base.get(0) == this) { // a city map must not be a phone map
+                if (base.isEmpty() || base.get(0) == this || base.get(0) instanceof WallMaps.Tile) { // a city map must not be a phone or wall map
                     getLogger().warning("city map " + t.getId() + " can't be read (is it one of the phone maps?)");
                     return;
                 }

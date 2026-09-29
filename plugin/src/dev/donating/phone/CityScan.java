@@ -428,14 +428,18 @@ final class CityScan {
                 if (job != this) { if (written != null) written.delete(); return; }
                 job = null;
                 long secs = (System.currentTimeMillis() - started) / 1000;
+                // Staff chose a city with /dphone city use while it ran: keep that choice, on disk too (review fix).
+                if (chose) {
+                    if (written != null) written.delete();
+                    who.sendMessage("CITY scan dropped: you chose a city with /dphone city use while it ran (scan again to use a new one)");
+                    return;
+                }
                 String err = writeErr;
                 if (written != null) {
                     try { commit(written, file()); } catch (IOException e) { err = e.getMessage(); written.delete(); }
                 }
                 if (err != null) { who.sendMessage("CITY scanned in " + secs + " s but NOT saved (" + err + "): the phones keep their city"); return; }
                 String done = "CITY done in " + secs + " s: " + w + "x" + h + " px at scale " + Integer.numberOfTrailingZeros(bpp) + ", saved city.bin";
-                // Staff chose a city with /dphone city use while it ran: keep that choice (review fix).
-                if (chose) { who.sendMessage(done + "; the phones keep the city you chose meanwhile (/dphone city use scan)"); return; }
                 try { setUse(true); } catch (IOException e) { who.sendMessage(done + " but can't save city.yml (" + e.getMessage() + "): /dphone city use scan"); return; }
                 plugin.cityChanged();
                 who.sendMessage(done + "; the phones show it now" + roadsNote());

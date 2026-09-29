@@ -18,6 +18,11 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.GlowItemFrame;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapCanvas;
@@ -36,7 +41,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
  * named and a "You are here" arrow. Staff: create, remove, list. Saved in walls.yml (the frames and map ids travel with
  * the world); the maps draw nothing without this plugin. Same picture for everyone (no players on it).
  */
-final class WallMaps {
+final class WallMaps implements Listener {
     static final int MAX = 8; // frames a side
 
     record Wall(String name, String world, int cols, int rows, List<Integer> ids, int x, int y, int z, BlockFace face) {}
@@ -52,6 +57,81 @@ final class WallMaps {
     }
 
     private File file() { return new File(plugin.getDataFolder(), "walls.yml"); }
+
+    // Only /dphone wall remove takes a frame down (review fix: a creative builder's click broke a tile, and the block
+    // behind being broken popped it). Kill commands still remove them: /dphone wall repair hangs them again.
+    // A frame of a removed wall left in an unloaded chunk isn't protected: a builder breaks it in creative.
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onBreak(HangingBreakEvent e) { if (liveWall(e.getEntity())) e.setCancelled(true); }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onDamage(EntityDamageEvent e) { if (liveWall(e.getEntity())) e.setCancelled(true); }
+
+    private boolean liveWall(Entity e) {
+        if (!e.getScoreboardTags().contains("donating_wall")) return false;
+        for (String t : e.getScoreboardTags()) if (t.startsWith("wall_") && walls.containsKey(t.substring(5))) return true;
+        return false;
+    }
+
+    /** The thin slab a frame hanging in this block on this face takes (review fix: any frame or painting that covers it,
+     *  whatever its size, blocks a new frame there). */
+    private static org.bukkit.util.BoundingBox slot(Block in, BlockFace face) {
+        double x = in.getX(), y = in.getY(), z = in.getZ(), t = 0.0625, e = 0.01;
+        return switch (face) {
+            case SOUTH -> new org.bukkit.util.BoundingBox(x + e, y + e, z, x + 1 - e, y + 1 - e, z + t);
+            case NORTH -> new org.bukkit.util.BoundingBox(x + e, y + e, z + 1 - t, x + 1 - e, y + 1 - e, z + 1);
+            case EAST -> new org.bukkit.util.BoundingBox(x, y + e, z + e, x + t, y + 1 - e, z + 1 - e);
+            default -> new org.bukkit.util.BoundingBox(x + 1 - t, y + e, z + e, x + 1, y + 1 - e, z + 1 - e);
+        };
+    }
+
+    /** "Right" along a wall seen from in front of it: {dx, dz}; null for a floor or ceiling. */
+    private static int[] right(BlockFace face) {
+        return switch (face) {
+            case SOUTH -> new int[] {1, 0};
+            case NORTH -> new int[] {-1, 0};
+            case EAST -> new int[] {0, -1};
+            case WEST -> new int[] {0, 1};
+            default -> null;
+        };
+    }
+
+    /** The block tile i's frame hangs in (tile i is row i / cols from the top, column i % cols from the left). */
+    private static Block frameBlock(Wall w, World world, int i) {
+        int[] rt = right(w.face());
+        int c = i % w.cols(), r = w.rows() - 1 - i / w.cols();
+        return world.getBlockAt(w.x() + rt[0] * c, w.y() + r, w.z() + rt[1] * c).getRelative(w.face());
+    }
+
+    /** The wall's frame at tile i, if its chunk is loaded and it's there. */
+    private GlowItemFrame frameAt(Wall w, World world, int i) {
+        Block in = frameBlock(w, world, i);
+        for (Entity e : world.getNearbyEntities(org.bukkit.util.BoundingBox.of(in), x -> x instanceof GlowItemFrame && x.getScoreboardTags().contains("wall_" + w.name())))
+            return (GlowItemFrame) e;
+        return null;
+    }
+
+    private static ItemStack mapItem(int id) {
+        ItemStack map = new ItemStack(Material.FILLED_MAP);
+        MapMeta meta = (MapMeta) map.getItemMeta();
+        meta.setMapView(Bukkit.getMap(id));
+        map.setItemMeta(meta);
+        return map;
+    }
+
+    private void hang(Wall w, World world, int i) {
+        Block in = frameBlock(w, world, i);
+        ItemStack map = mapItem(w.ids().get(i));
+        world.spawn(in.getLocation(), GlowItemFrame.class, fr -> {
+            fr.setFacingDirection(w.face(), true);
+            fr.setItem(map, false);
+            fr.setFixed(true);
+            fr.setVisible(false);
+            fr.setInvulnerable(true);
+            fr.addScoreboardTag("donating_wall");
+            fr.addScoreboardTag("wall_" + w.name());
+        });
+    }
 
     List<String> names() { return new ArrayList<>(walls.keySet()); }
 
@@ -71,7 +151,19 @@ final class WallMaps {
             if (wall.ids().size() != wall.cols() * wall.rows()) { plugin.getLogger().warning("walls.yml: wall " + name + " has the wrong number of maps"); continue; }
             walls.put(name, wall);
         }
-        for (Wall w : walls.values()) for (int i = 0; i < w.ids().size(); i++) attach(w, i);
+        for (Wall w : walls.values()) for (int i = 0; i < w.ids().size(); i++) {
+            if (plugin.isPhoneOrCityMap(w.ids().get(i))) { plugin.getLogger().warning("wall " + w.name() + ": map " + w.ids().get(i) + " is a phone or city map: not drawn"); continue; }
+            attach(w, i);
+        }
+    }
+
+    /** Every wall's map ids (loadCity refuses them as city maps). */
+    List<Integer> allIds() {
+        List<Integer> out = new ArrayList<>();
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(file());
+        ConfigurationSection s = y.getConfigurationSection("walls");
+        if (s != null) for (String name : s.getKeys(false)) out.addAll(s.getIntegerList(name + ".ids"));
+        return out;
     }
 
     private void save() throws IOException {
@@ -105,8 +197,18 @@ final class WallMaps {
     boolean command(CommandSender who, String[] args) {
         String sub = args.length < 2 ? "list" : args[1].toLowerCase();
         if (sub.equals("list")) {
-            for (Wall w : walls.values()) who.sendMessage("WALL " + w.name() + " " + w.cols() + "x" + w.rows() + " at " + w.world() + " " + w.x() + " " + w.y() + " " + w.z() + " facing " + w.face().name().toLowerCase()
-                    + " ids=" + w.ids().toString().replace(" ", "").replace("[", "").replace("]", ""));
+            for (Wall w : walls.values()) {
+                World world = Bukkit.getWorld(w.world());
+                int here = 0, loaded = 0;
+                if (world != null) for (int i = 0; i < w.ids().size(); i++) {
+                    if (!world.isChunkLoaded(frameBlock(w, world, i).getX() >> 4, frameBlock(w, world, i).getZ() >> 4)) continue;
+                    loaded++;
+                    if (frameAt(w, world, i) != null) here++;
+                }
+                who.sendMessage("WALL " + w.name() + " " + w.cols() + "x" + w.rows() + " at " + w.world() + " " + w.x() + " " + w.y() + " " + w.z() + " facing " + w.face().name().toLowerCase()
+                        + " ids=" + w.ids().toString().replace(" ", "").replace("[", "").replace("]", "") + " frames=" + here + "/" + loaded + " loaded"
+                        + (here < loaded ? " (missing: /dphone wall repair " + w.name() + ")" : ""));
+            }
             who.sendMessage("WALL " + walls.size() + " wall(s)");
             return true;
         }
@@ -127,7 +229,24 @@ final class WallMaps {
             return true;
         }
         if (sub.equals("create") && (args.length == 5 || args.length == 10)) return create(who, args);
-        who.sendMessage("/dphone wall create <name> <cols> <rows> (look at the wall's bottom-left block) | create <name> <cols> <rows> <world> <x> <y> <z> <north|south|east|west> | remove <name> | list");
+        if (sub.equals("repair") && args.length == 3) {
+            // Hangs any missing frame again with its own map (a kill command or an old world copy lost it).
+            Wall w = walls.get(args[2].toLowerCase());
+            World world = w == null ? null : Bukkit.getWorld(w.world());
+            if (world == null) { who.sendMessage("WALL no wall " + args[2]); return true; }
+            int hung = 0, fixed = 0, unloaded = 0;
+            for (int i = 0; i < w.ids().size(); i++) {
+                Block in = frameBlock(w, world, i);
+                if (!world.isChunkLoaded(in.getX() >> 4, in.getZ() >> 4)) { unloaded++; continue; }
+                GlowItemFrame fr = frameAt(w, world, i);
+                if (fr == null) { hang(w, world, i); hung++; }
+                else if (fr.getItem().getType() != Material.FILLED_MAP || !(fr.getItem().getItemMeta() instanceof MapMeta mm) || mm.getMapView() == null
+                        || mm.getMapView().getId() != w.ids().get(i)) { fr.setItem(mapItem(w.ids().get(i)), false); fixed++; }
+            }
+            who.sendMessage("WALL " + w.name() + " repaired: " + hung + " frame(s) hung again, " + fixed + " map(s) put back" + (unloaded > 0 ? ", " + unloaded + " in unloaded chunks (go near them and repair again)" : ""));
+            return true;
+        }
+        who.sendMessage("/dphone wall create <name> <cols> <rows> (look at the wall's bottom-left block) | create <name> <cols> <rows> <world> <x> <y> <z> <north|south|east|west> | remove <name> | repair <name> | list");
         return true;
     }
 
@@ -154,20 +273,15 @@ final class WallMaps {
             face = p.getTargetBlockFace(8);
             if (back == null || face == null) { who.sendMessage("WALL look at the wall's bottom-left block (within 8 blocks)"); return true; }
         }
-        int rx, rz; // "right" along the wall, seen from in front of it
-        switch (face) {
-            case SOUTH -> { rx = 1; rz = 0; }
-            case NORTH -> { rx = -1; rz = 0; }
-            case EAST -> { rx = 0; rz = -1; }
-            case WEST -> { rx = 0; rz = 1; }
-            default -> { who.sendMessage("WALL only on a wall (a north, south, east or west face)"); return true; }
-        }
+        int[] rt = right(face); // "right" along the wall, seen from in front of it
+        if (rt == null) { who.sendMessage("WALL only on a wall (a north, south, east or west face)"); return true; }
+        int rx = rt[0], rz = rt[1];
         // Every frame needs a solid block behind it and room in front.
         for (int r = 0; r < rows; r++) for (int c = 0; c < cols; c++) {
             Block b = back.getRelative(rx * c, r, rz * c);
             Block in = b.getRelative(face);
             if (!b.getType().isSolid()) { who.sendMessage("WALL needs a solid block behind every frame: " + b.getX() + " " + b.getY() + " " + b.getZ() + " is " + b.getType().getKey().getKey()); return true; }
-            if (!in.isPassable() || !in.getWorld().getNearbyEntities(org.bukkit.util.BoundingBox.of(in).expand(-0.1), e -> e instanceof org.bukkit.entity.Hanging).isEmpty()) {
+            if (!in.isPassable() || !in.getWorld().getNearbyEntities(slot(in, face), e -> e instanceof org.bukkit.entity.Hanging).isEmpty()) {
                 who.sendMessage("WALL no room for a frame at " + in.getX() + " " + in.getY() + " " + in.getZ());
                 return true;
             }
@@ -182,31 +296,13 @@ final class WallMaps {
         walls.put(name, w);
         try { save(); } catch (IOException e) { who.sendMessage("WALL can't save walls.yml: " + e.getMessage()); }
         for (int i = 0; i < ids.size(); i++) attach(w, i);
-        // Tile i is row i / cols from the top, column i % cols from the left.
-        for (int i = 0; i < ids.size(); i++) {
-            int c = i % cols, r = rows - 1 - i / cols;
-            Block in = back.getRelative(rx * c, r, rz * c).getRelative(face);
-            ItemStack map = new ItemStack(Material.FILLED_MAP);
-            MapMeta meta = (MapMeta) map.getItemMeta();
-            meta.setMapView(Bukkit.getMap(ids.get(i)));
-            map.setItemMeta(meta);
-            BlockFace f = face;
-            world.spawn(in.getLocation(), GlowItemFrame.class, fr -> {
-                fr.setFacingDirection(f, true);
-                fr.setItem(map, false);
-                fr.setFixed(true);
-                fr.setVisible(false);
-                fr.setInvulnerable(true);
-                fr.addScoreboardTag("donating_wall");
-                fr.addScoreboardTag("wall_" + name);
-            });
-        }
+        for (int i = 0; i < ids.size(); i++) hang(w, world, i);
         who.sendMessage("WALL " + name + " " + cols + "x" + rows + " made (maps " + ids.toString().replace(" ", "") + "): the whole city, its places named");
         return true;
     }
 
     /** One map of a wall: its part of the city, drawn again when the city changes; the places every second. */
-    private final class Tile extends MapRenderer {
+    final class Tile extends MapRenderer {
         final Wall w;
         final int col, row;
         byte[] drawn;           // the city image it shows
@@ -248,7 +344,10 @@ final class WallMaps {
                 MapCursorCollection c = new MapCursorCollection();
                 World cw = plugin.cityWorld();
                 if (cw != null) {
-                    for (PhonePlugin.Place pl : plugin.placeList()) {
+                    // The city maps' own banner labels, like the phones show them (image pixels).
+                    for (PhonePlugin.Poi poi : plugin.poiList()) putImage(c, poi.ix(), poi.iz(), f, wallW, wallH, imgW, imgH, poi.dir(), poi.type(), poi.caption());
+                    // Places only while the phones show them (config places.enabled: review fix).
+                    if (plugin.placesShown()) for (PhonePlugin.Place pl : plugin.placeList()) {
                         if (pl.world().equals(cw.getName())) put(c, pl.x(), pl.z(), f, wallW, wallH, imgW, imgH, (byte) 8, pl.type(), Component.text(pl.label(), pl.color()));
                     }
                     if (cw.getName().equals(w.world())) {
@@ -263,11 +362,15 @@ final class WallMaps {
 
         /** A world point -> an icon on this tile (half pixels from its middle), if it's on this tile. */
         private void put(MapCursorCollection c, double wx, double wz, double f, int wallW, int wallH, int imgW, int imgH, byte dir, MapCursor.Type type, Component caption) {
-            double ix = plugin.toImageX(wx), iz = plugin.toImageZ(wz);
+            putImage(c, plugin.toImageX(wx), plugin.toImageZ(wz), f, wallW, wallH, imgW, imgH, dir, type, caption);
+        }
+
+        /** A city-image point -> an icon on this tile, if it's on this tile. */
+        private void putImage(MapCursorCollection c, double ix, double iz, double f, int wallW, int wallH, int imgW, int imgH, byte dir, MapCursor.Type type, Component caption) {
             double X = (ix - imgW / 2.0) / f + wallW / 2.0 - col * 128, Y = (iz - imgH / 2.0) / f + wallH / 2.0 - row * 128;
             if (X < 0 || Y < 0 || X >= 128 || Y >= 128) return;
-            long mx = Math.round((X - 64) * 2), mz = Math.round((Y - 64) * 2);
-            if (mx < -128 || mx > 127 || mz < -128 || mz > 127) return;
+            // Clamped, not dropped: a point in the last quarter pixel of a tile would round off it and show on no tile.
+            long mx = Math.max(-128, Math.min(127, Math.round((X - 64) * 2))), mz = Math.max(-128, Math.min(127, Math.round((Y - 64) * 2)));
             c.addCursor(new MapCursor((byte) mx, (byte) mz, dir, type, true, caption));
         }
     }
