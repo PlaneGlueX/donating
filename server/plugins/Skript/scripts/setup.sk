@@ -1,9 +1,12 @@
 # setup.sk: /dsetup, the launch checklist (2026-09-29). Everything DEPLOY.md asks staff to build on the map, checked
-# against the scripts' saved data, one line each: "✔" done, "✘" missing (with the command that fixes it), "!" worth a
-# look. It changes nothing. Staff (donating.staff); the phone's city and GPS roads come from DonatingPhone's own
-# /dphone city info and /dphone roads info (ops, or the console).
+# against the scripts' saved data, one line each: "✔" done, "✘" missing or broken (with the command that fixes it),
+# "!" worth a look. It changes nothing. Staff (donating.staff). Reviewed (a correctness lens and a completeness critic
+# with a skeptic each, 2026-09-29): it also checks what Mara's and Vic's missions need at the level they start at,
+# WorldGuard's passthrough flag on every region, exit and cop spots against safe zones, where base and garage POIs
+# stand, crate stands in safe zones, the plugins, the paid-rank groups, and the phone's city and GPS roads (DonatingPhone
+# publishes them as metadata on the main world).
 #   /dsetup            every section
-#   /dsetup <section>  heists | places | shops | quests | jobs | crates | cars | phone | server
+#   /dsetup <section>  heists | story | places | flags | shops | quests | jobs | crates | cars | server | phone
 
 function setupLine(s: command sender, kind: text, text: text):
 	if {_kind} is "ok":
@@ -27,6 +30,17 @@ function setupGivers(kind: text) :: number:
 			add 1 to {_n}
 	return {_n}
 
+# A quest giver's NPC name ("Scrap Yard Boss", "Mara").
+function setupNpc(kind: text) :: text:
+	set {_n} to {-cfg::quest::%{_kind}%::npc}
+	if {_n} is not set:
+		set {_n} to "{place}"
+	set {_place} to {-cfg::quest::%{_kind}%::place}
+	if {_place} is not set:
+		set {_place} to {_kind}
+	replace all "{place}" with {_place} in {_n}
+	return {_n}
+
 # How many shopkeepers of a kind.
 function setupKeepers(kind: text) :: number:
 	set {_n} to 0
@@ -44,6 +58,15 @@ function setupPois(type: text) :: number:
 			add 1 to {_n}
 	return {_n}
 
+# Is there a POI of this type whose name contains this word?
+function setupPoiNamed(type: text, word: text) :: boolean:
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_type}:
+			if "%{_a::6}%" contains {_word}:
+				return true
+	return false
+
 # How many main-world regions have an id starting with this.
 function setupRegions(prefix: text) :: number:
 	set {_n} to 0
@@ -52,6 +75,43 @@ function setupRegions(prefix: text) :: number:
 			add 1 to {_n}
 	return {_n}
 
+# Is there a region with this prefix at a spot?
+function setupRegionAt(l: location, prefix: text) :: boolean:
+	loop regions at {_l}:
+		if name of loop-value starts with {_prefix}:
+			return true
+	return false
+
+# Can a robber of this level enter this heist (a store also has a max level)?
+function setupEnterable(h: text, lvl: number) :: boolean:
+	if heistLevel({_h}) > {_lvl}:
+		return false
+	if heistIsStore({_h}) is true:
+		if {_lvl} > heistMaxLevel({_h}):
+			return false
+	return true
+
+# How many enabled heists a robber of this level can enter that fit a story need ("" = any).
+function setupFitCount(f: text, lvl: number) :: number:
+	set {_n} to 0
+	loop {heists::*}:
+		set {_h} to loop-index
+		if heistState({_h}) is not "disabled":
+			if setupEnterable({_h}, {_lvl}) is true:
+				if storyHeistFits({_h}, {_f}) is true:
+					add 1 to {_n}
+	return {_n}
+
+# A crate stand's spot from its key ("world:x:y:z").
+function setupStandLoc(key: text) :: location:
+	set {_a::*} to {_key} split at ":"
+	set {_w} to world({_a::1})
+	if {_w} is set:
+		return location(({_a::2} parsed as number) + 0.5, ({_a::3} parsed as number), ({_a::4} parsed as number) + 0.5, {_w})
+	return {_none}
+
+# ---------- Heists ----------
+
 function setupHeists(s: command sender):
 	setupHead({_s}, "Heists")
 	set {_all} to 0
@@ -59,50 +119,180 @@ function setupHeists(s: command sender):
 	loop {heists::*}:
 		set {_h} to loop-index
 		add 1 to {_all}
-		if heistIsStore({_h}) is true:
-			add 1 to {_stores}
 		delete {_bad::*}
-		if {heist::%{_h}%::exit} is not set:
+		delete {_warn::*}
+		set {_exit} to {heist::%{_h}%::exit}
+		if {_exit} is not set:
 			add "no exit spot (/dheist exit %{_h}%)" to {_bad::*}
-		if structure template "donating:heist/%{_h}%/1" does not exist:
-			add "no room snapshot (/dheist snapshot %{_h}%, while disabled)" to {_bad::*}
+		else if isSafeZone({_exit}) is true:
+			add "its exit spot is inside a safe zone: tagged robbers can't be moved out at 0:00 (/dheist exit %{_h}%, outside it)" to {_bad::*}
+		else if heistAt({_exit}) is not "":
+			add "its exit spot is inside a heist (/dheist exit %{_h}%)" to {_bad::*}
+		# The room reset reads the saved sections; structure files that came with the world aren't enough (review fix).
+		if heistHasSnapshot({_h}) is false:
+			add "no room snapshot on this server (/dheist snapshot %{_h}%, while disabled)" to {_bad::*}
 		if {heist::%{_h}%::holo} is not set:
 			add "no hologram (/dheist holo %{_h}%)" to {_bad::*}
 		set {_piles} to 0
+		set {_alarms} to 0
 		loop {loots::%{_h}%::*}:
 			if loop-value-2 is "pile":
 				add 1 to {_piles}
+			else:
+				set {_n} to loop-index-2
+				if lootSetting({_h}, {_n}, "alarm") is true:
+					add 1 to {_alarms}
+		set {_alarmtraps} to 0
+		loop {traps::%{_h}%::*}:
+			set {_n} to loop-index-2
+			if "%trapSetting({_h}, {_n}, "effect")%" is "alarm":
+				add 1 to {_alarmtraps}
 		if {_piles} is 0:
 			add "no loot piles (/dloot add %{_h}% pile ...)" to {_bad::*}
 		if heistState({_h}) is "disabled":
 			add "disabled (/dheist enable %{_h}% when it's ready)" to {_bad::*}
-		set {_label} to "%heistName({_h})% (%{_h}%, difficulty %heistDifficulty({_h})%, %{_piles}% piles)"
+		set {_lv} to heistLevel({_h})
+		if heistIsStore({_h}) is true:
+			if {_lv} > heistMaxLevel({_h}):
+				add "its level %{_lv}% is above a store's max level %heistMaxLevel({_h})%: nobody can enter (/dheist set %{_h}% level 0)" to {_bad::*}
+			else:
+				add 1 to {_stores}
+		if {_lv} > cfg("level::max"):
+			add "its level %{_lv}% is above the highest level (/dheist set %{_h}% level <n>)" to {_bad::*}
+		if heistIsAdvanced({_h}) is true:
+			set {_spots::*} to copSpots({_h})
+			if size of {_spots::*} is 0:
+				add "no cops will come: no cop spot or exit spot outside safe zones (/dcops %{_h}% add)" to {_bad::*}
+			else if size of {heist::%{_h}%::cops::*} is 0:
+				add "no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)" to {_warn::*}
+			# Only a camera, a drill or a trap with effect=alarm trips it: without one, no cops and no getaway (review fix).
+			if {_alarms} + {_alarmtraps} is 0:
+				add "nothing trips its alarm, so no cops and no getaway (a camera, a drill, or a trap with effect=alarm)" to {_bad::*}
+			if size of {heist::%{_h}%::lock::*} is 0:
+				add "no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)" to {_warn::*}
+		else if {_alarmtraps} > 0:
+			add "%{_alarmtraps}% alarm trap(s) do nothing: the heist isn't advanced (/dheist set %{_h}% advanced true)" to {_warn::*}
+		set {_label} to "%heistName({_h})% (%{_h}%, difficulty %heistDifficulty({_h})%, level %{_lv}%, %{_piles}% piles)"
 		if {_bad::*} is set:
 			setupLine({_s}, "no", "%{_label}%: %join {_bad::*} with "; "%")
 		else:
 			setupLine({_s}, "ok", {_label})
-		if heistIsAdvanced({_h}) is true:
-			if size of {heist::%{_h}%::cops::*} is 0:
-				setupLine({_s}, "warn", "%heistName({_h})%: no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)")
-			if size of {heist::%{_h}%::lock::*} is 0:
-				setupLine({_s}, "warn", "%heistName({_h})%: no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)")
+		loop {_warn::*}:
+			setupLine({_s}, "warn", "%heistName({_h})%: %loop-value-2%")
 	if {_all} is 0:
 		setupLine({_s}, "no", "no heists yet (/rg define heist_<id>, then /dheist create <id> <difficulty>)")
 	if {_stores} < 2:
-		setupLine({_s}, "warn", "%{_stores}% store(s): 2-3 near spawn and the base give new robbers easy money (/dheist create <id> 0)")
+		setupLine({_s}, "warn", "%{_stores}% store(s) new robbers can enter: 2-3 near spawn and the base give them easy money (/dheist create <id> 0)")
+
+# ---------- Mara's and Vic's missions: each one's needs at the level it starts at (review fix) ----------
+
+function setupNeedOk(need: text, lvl: number) :: boolean:
+	if {_need} is "contracts":
+		if setupGivers("contracts") > 0:
+			if size of {contract::spot::*} > 0:
+				if size of {contract::chop::*} > 0:
+					return true
+		return false
+	if questIsKind({_need}) is true:
+		if setupGivers({_need}) > 0:
+			return true
+		return false
+	if {_need} is "crate":
+		if size of {crateblock::*} > 0:
+			return true
+		return false
+	if {_need} is "heist3":
+		if setupFitCount("", {_lvl}) >= 3:
+			return true
+		return false
+	set {_f} to {_need}
+	if {_need} is "heist":
+		set {_f} to ""
+	if setupFitCount({_f}, {_lvl}) > 0:
+		return true
+	return false
+
+function setupNeedText(need: text, lvl: number) :: text:
+	if {_need} is "contracts":
+		return "a %setupNpc("contracts")%, a car spot and a chop shop (/dquest add contracts, /dcontract spot add, /dcontract chop add)"
+	if questIsKind({_need}) is true:
+		return "%setupNpc({_need})% on the map (/dquest add %{_need}%)"
+	if {_need} is "crate":
+		return "a crate stand (/dcrate place daily)"
+	if {_need} is "heist3":
+		return "3 enabled heists a level-%{_lvl}% robber can enter"
+	if {_need} is "heist":
+		return "an enabled heist a level-%{_lvl}% robber can enter (a store, or a difficulty-1 heist)"
+	if {_need} is "safe":
+		return "an enabled heist with a safe that a level-%{_lvl}% robber can enter (stores can't have one: /dloot add <heist> safe)"
+	if {_need} is "drill":
+		return "an enabled heist with a vault door to drill that a level-%{_lvl}% robber can enter (/dloot add <heist> drill)"
+	if {_need} is "adv":
+		return "an enabled advanced heist a level-%{_lvl}% robber can enter (/dheist set <heist> advanced true)"
+	if {_need} is "d4":
+		return "an enabled difficulty-4 heist a level-%{_lvl}% robber can enter"
+	if {_need} is "finale":
+		return "an enabled advanced difficulty-4 heist with both a safe and a vault door, open at level %{_lvl}%"
+	return "an enabled heist that fits ""%{_need}%"" at level %{_lvl}%"
+
+function setupChain(s: command sender, who: text, missions: texts, start: number) :: number:
+	set {_bad} to 0
+	set {_lvl} to {_start}
+	loop {_missions::*}:
+		set {_m} to loop-value
+		set {_need} to {-cfg::story::%{_m}%::needs}
+		if {_need} is set:
+			if setupNeedOk({_need}, {_lvl}) is false:
+				set {_label} to {-cfg::story::%{_m}%::label}
+				if {_label} is not set:
+					set {_label} to {_m}
+				setupLine({_s}, "no", "%{_who}%'s mission ""%{_label}%"" would be skipped for good: it needs %setupNeedText({_need}, {_lvl})%")
+				add 1 to {_bad}
+		set {_o} to {-cfg::story::%{_m}%::obj}
+		if {_o} is set:
+			if {_o} starts with "state|level|":
+				set {_n} to (subtext of {_o} from characters 13 to (length of {_o})) parsed as number
+				if {_n} is set:
+					set {_lvl} to {_n}
+	return {_bad}
+
+function setupStory(s: command sender):
+	setupHead({_s}, "Mara's and Vic's missions")
+	set {_bad} to setupChain({_s}, "Mara", {-cfg::story::missions::*}, 0)
+	set {_vic} to cfg("fence::level")
+	if {_vic} is not set:
+		set {_vic} to 0
+	if setupGivers("fence") is 0:
+		setupLine({_s}, "warn", "%setupNpc("fence")% isn't on the map, so his arc waits (/dquest add fence %{-cfg::quest::fence::place}%)")
+	else:
+		add setupChain({_s}, "Vic", {-cfg::chain::vic::missions::*}, {_vic}) to {_bad}
+	if {_bad} is 0:
+		setupLine({_s}, "ok", "every mission of Mara's and Vic's can be done on this map at the level it starts at")
+
+# ---------- Places ----------
 
 function setupPlaces(s: command sender):
 	setupHead({_s}, "Places")
-	set {_zones} to setupRegions("safe")
-	set {_base} to setupRegions(cfg("bag::base-prefix"))
+	set {_bp} to cfg("bag::base-prefix")
+	set {_sp} to cfg("pvp::safe-prefix")
+	set {_gp} to cfg("garage::region-prefix")
+	set {_base} to setupRegions({_bp})
 	if {_base} > 0:
-		setupLine({_s}, "ok", "%{_base}% base zone(s) where loot sells (regions %cfg("bag::base-prefix")%*)")
+		setupLine({_s}, "ok", "%{_base}% base zone(s) where loot sells (regions %{_bp}%*)")
 	else:
-		setupLine({_s}, "no", "no base zone: loot can't be sold (/rg define %cfg("bag::base-prefix")%, passthrough allow, weapon-shoot deny)")
-	if {_zones} > {_base}:
-		setupLine({_s}, "ok", "%{_zones}% safe zone(s) (regions safe*)")
+		setupLine({_s}, "no", "no base zone: loot can't be sold (/rg define %{_bp}%, passthrough allow, weapon-shoot deny)")
+	# Safe zones besides the base and the garages (spawn, the shops).
+	set {_zones} to 0
+	loop all regions in poiMainWorld():
+		set {_id} to name of loop-value
+		if {_id} starts with {_sp}:
+			if {_id} does not start with {_bp}:
+				if {_id} does not start with {_gp}:
+					add 1 to {_zones}
+	if {_zones} > 0:
+		setupLine({_s}, "ok", "%{_zones}% other safe zone(s) (spawn, the shops)")
 	else:
-		setupLine({_s}, "warn", "no safe zone besides the base: spawn and the shops want one (/rg define safe_spawn ...)")
+		setupLine({_s}, "warn", "no safe zone besides the base and garages: spawn and the shops want one (/rg define %{_sp}%_spawn ...)")
 	loop "base", "shop" and "spawn":
 		set {_n} to setupPois(loop-value)
 		if {_n} > 0:
@@ -111,40 +301,103 @@ function setupPlaces(s: command sender):
 			setupLine({_s}, "warn", "no spawn POI (/dpoi add spawn Spawn)")
 		else:
 			setupLine({_s}, "no", "no %loop-value% POI: players can't find it (/dpoi add %loop-value% <name>)")
+	# Where the GPS leads matters: a base POI outside a base zone sells nothing.
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_l} to poiLocation(loop-value)
+		if {_l} is set:
+			if {_a::1} is "base":
+				if setupRegionAt({_l}, {_bp}) is false:
+					setupLine({_s}, "no", "base POI %loop-index% (%{_a::6}%) isn't inside a base zone: robbers the GPS leads there can't sell (/dpoi remove %loop-index%, add it inside)")
+			else if {_a::1} is "spawn":
+				if isSafeZone({_l}) is false:
+					setupLine({_s}, "warn", "spawn POI %loop-index% isn't inside a safe zone")
+	# Mara's missions find the shops on the GPS by a word in their POI's name (review fix).
+	loop "Gun", "Bag", "Gear" and "Car":
+		if setupPoiNamed("shop", loop-value) is false:
+			if loop-value is "Car":
+				setupLine({_s}, "warn", "no shop POI named ""Car ..."": Mara's buy-a-car mission has no GPS route (/dpoi add shop Car Dealer)")
+			else:
+				setupLine({_s}, "warn", "no shop POI named ""%loop-value% ..."": Mara's missions have no GPS route to it (/dpoi add shop %loop-value% Shop)")
 	set {_d} to setupRegions("district_")
 	if {_d} > 0:
 		setupLine({_s}, "ok", "%{_d}% district(s) (/ddistrict list)")
 	else:
 		setupLine({_s}, "warn", "no districts: the sidebar says ""the outskirts"" everywhere (/rg define district_<id> after //expand vert)")
 
+# ---------- WorldGuard flags (review fix: a region without passthrough protects everything in it) ----------
+
+function setupFlags(s: command sender):
+	setupHead({_s}, "WorldGuard flags")
+	set {_w} to poiMainWorld()
+	set {_sp} to cfg("pvp::safe-prefix")
+	set {_n} to 0
+	set {_bad} to 0
+	loop all regions in {_w}:
+		set {_id} to name of loop-value
+		if {_id} is not "__global__":
+			add 1 to {_n}
+			if flag "passthrough" of loop-value is not true:
+				setupLine({_s}, "no", "%{_id}% protects everything inside (no PvP, doors, NPC or loot clicks) (/rg flag -w %{_w}% %{_id}% passthrough allow)")
+				add 1 to {_bad}
+			if {_id} starts with {_sp}:
+				if flag "weapon-shoot" of loop-value is not false:
+					setupLine({_s}, "warn", "%{_id}%: guns fire in this safe zone (/rg flag -w %{_w}% %{_id}% weapon-shoot deny)")
+	if {_bad} is 0:
+		setupLine({_s}, "ok", "%{_n}% region(s), every one with passthrough allow")
+
+# ---------- Shopkeepers ----------
+
 function setupShops(s: command sender):
 	setupHead({_s}, "Shopkeepers")
 	loop "gun", "gear", "bag", "tools" and "cars":
-		set {_n} to setupKeepers(loop-value)
+		set {_k} to loop-value
+		set {_n} to setupKeepers({_k})
 		if {_n} > 0:
-			setupLine({_s}, "ok", "%{_n}% %loop-value% shopkeeper(s)")
+			setupLine({_s}, "ok", "%{_n}% %{_k}% shopkeeper(s)")
+		else if {_k} is "tools":
+			# The gun shop's Items tab sells the heist tools too (review fix).
+			if setupKeepers("gun") > 0:
+				setupLine({_s}, "warn", "no tools shopkeeper: the heist tools are still sold in the gun shop's Items tab (/dshopkeeper add tools)")
+			else:
+				setupLine({_s}, "no", "no tools shopkeeper and no gun shop: no heist tools (/dshopkeeper add tools)")
 		else:
-			setupLine({_s}, "no", "no %loop-value% shopkeeper (/dshopkeeper add %loop-value%, inside a safe zone)")
+			setupLine({_s}, "no", "no %{_k}% shopkeeper (/dshopkeeper add %{_k}%, inside a safe zone)")
 	if size of {garagesites::*} > 0:
 		if setupKeepers("garage") is 0:
 			setupLine({_s}, "warn", "no garage attendant: /garage still works in the garage (/dshopkeeper add garage)")
+	loop {shop::keepers::*}:
+		set {_l} to {shop::keeper::%loop-index%::loc}
+		if {_l} is set:
+			if isSafeZone({_l}) is false:
+				setupLine({_s}, "warn", "shopkeeper %loop-index% (%loop-value%) isn't inside a safe zone: shoppers can be shot")
+
+# ---------- Quest givers ----------
 
 function setupQuests(s: command sender):
 	setupHead({_s}, "Quest givers")
 	loop {-cfg::quests::*}:
 		set {_k} to loop-value
 		set {_n} to setupGivers({_k})
-		set {_who} to {-cfg::quest::%{_k}%::name}
+		set {_who} to setupNpc({_k})
+		set {_place} to {-cfg::quest::%{_k}%::place}
 		if {_n} > 0:
-			setupLine({_s}, "ok", "%{_n}% %{_who}% giver(s) (%{_k}%)")
+			setupLine({_s}, "ok", "%{_who}% (%{_n}%)")
 		else if {_k} is "contracts":
-			setupLine({_s}, "no", "no %{_who}% giver: no car jobs or lockpicks (/dquest add contracts Scrap Yard)")
+			setupLine({_s}, "no", "%{_who}% isn't on the map: no car jobs or lockpicks (/dquest add contracts %{_place}%)")
 		else if {_k} is "hits":
-			setupLine({_s}, "no", "no %{_who}% giver: no hit contracts, no bounties posted (/dquest add hits Pool Hall)")
+			setupLine({_s}, "no", "%{_who}% isn't on the map: no hit contracts (bounties can be posted anywhere until he stands) (/dquest add hits %{_place}%)")
 		else if {_k} is "story":
-			setupLine({_s}, "warn", "no %{_who}% giver: Mara's missions wait (/missions has Call Mara) (/dquest add story Safehouse)")
+			setupLine({_s}, "warn", "%{_who}% isn't on the map: her missions wait (/missions has Call Mara) (/dquest add story %{_place}%)")
 		else:
-			setupLine({_s}, "warn", "no %{_who}% giver (/dquest add %{_k}% <place>)")
+			setupLine({_s}, "warn", "%{_who}% isn't on the map (/dquest add %{_k}% %{_place}%)")
+	loop {quest::giver::*}:
+		set {_l} to questLoc(loop-index)
+		if {_l} is set:
+			if isSafeZone({_l}) is false:
+				setupLine({_s}, "warn", "quest giver %loop-index% (%questNpcName(loop-index)%) isn't inside a safe zone: players in its menu can be shot")
+
+# ---------- Car jobs and hits ----------
 
 function setupJobs(s: command sender):
 	setupHead({_s}, "Car jobs and hits")
@@ -171,9 +424,11 @@ function setupJobs(s: command sender):
 		if {_edges} > 0:
 			setupLine({_s}, "ok", "%{_nodes}% street nodes for hit targets")
 		else:
-			setupLine({_s}, "no", "%{_nodes}% street nodes but no links: targets can't walk (/dhit node link <a> <b>)")
+			setupLine({_s}, "no", "%{_nodes}% street nodes but no links: targets can't walk (/dhit node link <node1> <node2>)")
 	else:
 		setupLine({_s}, "no", "no street nodes: hit targets have nowhere to walk (/dhit node add)")
+
+# ---------- Crate stands (crates open only in safe zones: review fix) ----------
 
 function setupCrates(s: command sender):
 	setupHead({_s}, "Crate stands")
@@ -182,26 +437,84 @@ function setupCrates(s: command sender):
 		set {_n} to 0
 		loop {crateblock::*}:
 			if loop-value-2 is {_c}:
-				add 1 to {_n}
+				set {_l} to setupStandLoc(loop-index-2)
+				if {_l} is set:
+					if isSafeZone({_l}) is true:
+						add 1 to {_n}
 		if {_n} > 0:
 			setupLine({_s}, "ok", "%{_n}% stand(s) for %{_c}% keys")
 		else if {_c} is "hacked":
 			setupLine({_s}, "warn", "no Hacked stand (special events only: place one when an event gives keys)")
 		else:
-			setupLine({_s}, "no", "no stand for %{_c}% keys: they can't be opened (/dcrate place %{_c}%, in a safe zone)")
+			setupLine({_s}, "no", "no stand for %{_c}% keys in a safe zone: they can't be opened (/dcrate place %{_c}%, in a safe zone)")
+	loop {crateblock::*}:
+		set {_l} to setupStandLoc(loop-index)
+		if {_l} is set:
+			if isSafeZone({_l}) is false:
+				set {_a::*} to loop-index split at ":"
+				setupLine({_s}, "no", "the %loop-value% stand at %{_a::2}% %{_a::3}% %{_a::4}% is outside a safe zone: it can't be opened (/dcrate remove %{_a::2}% %{_a::3}% %{_a::4}%, place it inside one)")
+
+# ---------- Garages (a site works only once it has an exit lane: review fix) ----------
 
 function setupCars(s: command sender):
 	setupHead({_s}, "Garages")
-	set {_g} to size of {garagesites::*}
-	if {_g} > 0:
-		setupLine({_s}, "ok", "%{_g}% garage site(s)")
+	set {_ok} to 0
+	loop {garagesites::*}:
+		set {_g} to loop-index
+		if garageHasExit({_g}) is true:
+			add 1 to {_ok}
+		else:
+			setupLine({_s}, "no", "garage site %{_g}% has no exit lane, so it does nothing (/dgaragesite exit add, standing inside)")
+	if {_ok} > 0:
+		setupLine({_s}, "ok", "%{_ok}% garage site(s) with exit lanes")
 		if setupPois("garage") is 0:
 			setupLine({_s}, "warn", "no garage POI: players can't find the garage (/dpoi add garage <name>)")
 	else:
-		setupLine({_s}, "warn", "no garage site: cars come to players anywhere until one exists (/rg define %cfg("garage::region-prefix")%<id>, /dgaragesite exit add)")
+		setupLine({_s}, "warn", "no working garage site: cars come to players anywhere until one exists (/rg define %cfg("garage::region-prefix")%<id>, /dgaragesite exit add)")
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is "garage":
+			set {_l} to poiLocation(loop-value)
+			if {_l} is set:
+				if garageSiteOf({_l}) is "":
+					setupLine({_s}, "no", "garage POI %loop-index% (%{_a::6}%) isn't inside a garage site with an exit lane: ""Find a garage"" leads nowhere (/dpoi remove %loop-index%)")
+
+# ---------- Server ----------
 
 function setupServer(s: command sender):
 	setupHead({_s}, "Server")
+	# Plugins the scripts only reach through console commands fail quietly when a jar is missing.
+	set {_missing} to 0
+	loop "Citizens", "Sentinel", "Tebex", "DecentHolograms", "WeaponMechanics", "MechanicsCore", "DonatingPhone", "TAB", "MTVehicles", "PlaceholderAPI", "skript-placeholders", "SkBee", "skript-worldguard", "WorldGuard", "WorldEdit", "Essentials", "EssentialsSpawn", "LuckPerms", "Vault", "LPC", "ViaVersion", "packetevents" and "CoreProtect":
+		if plugin loop-value is not enabled:
+			setupLine({_s}, "no", "plugin %loop-value% isn't running (DEPLOY.md step 3: upload its jar)")
+			add 1 to {_missing}
+	if {_missing} is 0:
+		setupLine({_s}, "ok", "every plugin is running")
+	# The paid ranks' LuckPerms groups (/dranks setup): without them a purchase gives nothing.
+	set {_groups::*} to all groups
+	set {_nogroup} to 0
+	loop {-cfg::paidranks::*}:
+		set {_r} to loop-value
+		set {_name} to {-cfg::paidrank::%{_r}%::name}
+		set {_has} to false
+		loop {_groups::*}:
+			if loop-value-2 is {_r}:
+				set {_has} to true
+			else if loop-value-2 is {_name}:
+				set {_has} to true
+		if {_has} is false:
+			setupLine({_s}, "no", "no LuckPerms group for the paid rank %{_name}%: a purchase would give nothing (/dranks setup)")
+			add 1 to {_nogroup}
+	if {_nogroup} is 0:
+		setupLine({_s}, "ok", "the paid ranks' groups exist")
+	# Staff whose "*" includes donating.wanted count as wanted forever; players without WeaponMechanics' permission can't shoot.
+	loop all players:
+		if loop-player has permission "donating.staff":
+			if loop-player has permission "donating.wanted":
+				setupLine({_s}, "no", "%loop-player% counts as wanted all the time (lp group <their group> permission set donating.wanted false)")
+		else if loop-player does not have permission "weaponmechanics.use.AK_47":
+			setupLine({_s}, "no", "%loop-player% can't shoot: the default group needs weaponmechanics.use.* (lp group default permission set weaponmechanics.use.* true)")
 	if {season::state} is "live":
 		setupLine({_s}, "ok", "season %{season::num}% is running")
 	else:
@@ -213,17 +526,22 @@ function setupServer(s: command sender):
 	if {-zz::loaded} is true:
 		setupLine({_s}, "warn", "the local test helpers (zz-*.sk) are loaded: never upload them to Minehut")
 
-# The phone's city and GPS roads: DonatingPhone answers the sender itself.
+# ---------- The phone's city and GPS roads (DonatingPhone publishes them on the main world: review fix) ----------
+
 function setupPhone(s: command sender):
-	setupHead({_s}, "The phone's city (DonatingPhone)")
-	if {_s} is a player:
-		set {_p} to "%{_s}%" parsed as player
-		if {_p} does not have permission "donating.phone.admin":
-			setupLine({_s}, "warn", "ask an op for /dphone city info and /dphone roads info (the city scan and the GPS roads)")
-			stop
-	# As the sender, so the replies come back to them (also over RCON).
-	execute command "dphone city info" by {_s}
-	execute command "dphone roads info" by {_s}
+	setupHead({_s}, "The phone's city")
+	set {_w} to poiMainWorld()
+	set {_city} to metadata value "donating_phone_city" of {_w}
+	set {_desc} to metadata value "donating_phone_city_desc" of {_w}
+	set {_roads} to metadata value "donating_phone_roads" of {_w}
+	if "%{_city}%" is "scan" or "maps":
+		setupLine({_s}, "ok", "the phones show the city: %{_desc}%")
+	else:
+		setupLine({_s}, "no", "no city: the phones are blank (/dphone city scan <x1> <z1> <x2> <z2> over the city)")
+	if "%{_roads}%" is "ok":
+		setupLine({_s}, "ok", "the GPS follows the roads (roads.bin)")
+	else:
+		setupLine({_s}, "no", "the GPS points straight at targets: %{_roads}% (/dphone roads scan, after the city scan)")
 
 command /dsetup [<text>]:
 	permission: donating.staff
@@ -233,13 +551,21 @@ command /dsetup [<text>]:
 		if {_w} is not set:
 			set {_w} to "all"
 		set {_w} to {_w} in lower case
+		# A mistyped section would print an empty all-clear (review fix).
+		if {_w} is not "all" or "heists" or "story" or "places" or "flags" or "shops" or "quests" or "jobs" or "crates" or "cars" or "server" or "phone":
+			send "/dsetup [heists | story | places | flags | shops | quests | jobs | crates | cars | server | phone]: the launch checklist" to sender
+			stop
 		set {-setup::missing} to 0
 		set {-setup::warn} to 0
 		send colored "&6&lLaunch checklist&r &7(DEPLOY.md: ✔ done, ✘ missing, ! worth a look)" to sender
 		if {_w} is "all" or "heists":
 			setupHeists(sender)
+		if {_w} is "all" or "story":
+			setupStory(sender)
 		if {_w} is "all" or "places":
 			setupPlaces(sender)
+		if {_w} is "all" or "flags":
+			setupFlags(sender)
 		if {_w} is "all" or "shops":
 			setupShops(sender)
 		if {_w} is "all" or "quests":
@@ -252,9 +578,8 @@ command /dsetup [<text>]:
 			setupCars(sender)
 		if {_w} is "all" or "server":
 			setupServer(sender)
-		send colored "&6SETUP %{-setup::missing}% missing, %{-setup::warn}% to look at" to sender
-		# Last: DonatingPhone's own lines arrive after the rest.
 		if {_w} is "all" or "phone":
 			setupPhone(sender)
+		send colored "&6SETUP %{-setup::missing}% missing, %{-setup::warn}% to look at" to sender
 		delete {-setup::missing}
 		delete {-setup::warn}

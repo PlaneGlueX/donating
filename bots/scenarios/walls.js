@@ -157,7 +157,9 @@ module.exports = async ({ check }) => {
     check('/dphone wall remove: the frames go', /removed \(4 of 4 frames/.test(removed) && await frames('tag=wall_ztest') === 0 && !/ztest/.test(await cmd('dphone wall list')), removed)
     await cmd(`dphone wall create ztest 2 1 world ${WX} ${WY} ${WZ} south`)
     const reused = await idsOf('ztest')
-    check('a new wall uses the removed wall\'s maps again (no new map files)', reused.length === 2 && reused.every(id => ids.includes(id)), `${reused} from ${ids}`)
+    // Freed maps are used again (any freed ones, also an earlier wall's): a new map id would be above every one so far.
+    const maxKnown = Math.max(...ids, sid)
+    check('a new wall uses removed walls\' maps again (no new map files)', reused.length === 2 && reused.every(id => id <= maxKnown), `${reused} from ${ids} (max ${maxKnown})`)
   } finally {
     if (poiId) await rcon.cmd(`zzconsole dpoi remove ${poiId}`).catch(() => {})
     await rcon.cmd('dphone wall remove ztest').catch(() => {})

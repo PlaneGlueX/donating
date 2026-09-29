@@ -229,6 +229,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
         getLogger().info("Phone maps " + ids + ", city " + cityDesc);
         wallMaps.load();
+        publishState();
     }
 
     /** The held phone's strip while a GPS target is set: its name and how far along the way ("Chop shop 340m"). */
@@ -275,6 +276,14 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     /** A scan finished or /dphone city use: load the city again (the GPS's road grid with it). */
     void cityChanged() { load(); }
     boolean gpsRoadsFit() { return gps.roads() != null; }
+
+    /** For setup.sk's /dsetup: the city and the GPS road grid, as metadata on the main world (Skript reads it there). */
+    void publishState() {
+        World w = Bukkit.getWorlds().get(0);
+        w.setMetadata("donating_phone_city", new FixedMetadataValue(this, scanCity ? "scan" : tiles != null ? "maps" : "none"));
+        w.setMetadata("donating_phone_city_desc", new FixedMetadataValue(this, cityDesc));
+        w.setMetadata("donating_phone_roads", new FixedMetadataValue(this, gps.roads() != null ? "ok" : gps.roadsNote()));
+    }
 
     // For WallMaps: the city image (read from the city maps on first use, like a phone does), its size and places.
     byte[] cityImage(MapCanvas canvas, Player p) {
