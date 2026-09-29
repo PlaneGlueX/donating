@@ -416,6 +416,8 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: PASS (bots, 2026-09-29). **Owner:** once the city is built, scan it (DEPLOY.md) and look at the phone: scale 1 (2 blocks a pixel) or 0 (sharper, closer on the held phone)?
 163. **A hit closes the big map** (`bots\run.js phone`, 1 new check, 35 in all): with the big map open, damage that lands closes it (the bag comes back) and the action bar says "Hit: your map closed."
     - Result: PASS (bots, 2026-09-29). **Owner/cu:** how it feels in a fight (the camera stays tilted down after it closes).
+164. **Wall maps** (`bots\run.js walls`, 10 checks): `/dphone wall create <name> <cols> <rows>` hangs invisible glow frames with the whole city (pixel for pixel on 2x2 against the local city maps, shrunk on 1x1), places named, a green "You are here"; refusals; kept through a reload; removed; the maps used again by the next wall. Also the review of the city scan and districts (11 confirmed, all fixed): districts 11 checks (the name on join and when stepping back out of an inner district, the full region id, a warning for a missing region), cityscan 14 (a 40,000-chunk budget needing confirm, the lined-up automatic scale, cancel keeping city.bin).
+    - Result: PASS (bots, 2026-09-29). **Owner/cu:** how a wall looks in the real client (the banner names on framed maps, the dark edge, the glow frames), and where the base's wall goes.
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 

@@ -85,6 +85,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private byte[] img;       // imgW x imgH city pixels, read on the first render (a scanned city: at load)
     private boolean scanCity; // the city is city.bin (/dphone city scan), not the city-maps
     private final CityScan cityScan = new CityScan(this);
+    private final WallMaps wallMaps = new WallMaps(this, BLACK);
     private final List<Poi> pois = new ArrayList<>();
 
     private final List<MapView> pool = new ArrayList<>();
@@ -106,8 +107,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
      * A place on the phone's map, sent by Skript (nav.sk: staff POIs, open heists, quest givers): a colored banner
      * icon, its name while the big map's cursor is on it. /dphone place set|remove|clear|list.
      */
-    private record Place(String world, double x, double z, MapCursor.Type type, String label, NamedTextColor color) {}
+    record Place(String world, double x, double z, MapCursor.Type type, String label, NamedTextColor color) {}
     private final Map<String, Place> places = new LinkedHashMap<>();
+    private long placesVersion; // every change of the places (the wall maps redraw their icons)
     private boolean placesOn, placesHeld;
 
     /** A place type's icon and name color; null for an unknown type. */
@@ -225,6 +227,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             pool.add(v);
         }
         getLogger().info("Phone maps " + ids + ", city " + cityDesc);
+        wallMaps.load();
     }
 
     /** The held phone's strip while a GPS target is set: its name and how far along the way ("Chop shop 340m"). */
@@ -257,6 +260,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     }
 
     boolean hasCity() { return tiles != null || scanCity; }
+    boolean isScanCity() { return scanCity; }
 
     // For CityScan: the city the phones show now.
     String cityDesc() { return cityDesc; }
@@ -270,6 +274,19 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     /** A scan finished or /dphone city use: load the city again (the GPS's road grid with it). */
     void cityChanged() { load(); }
     boolean gpsRoadsFit() { return gps.roads() != null; }
+
+    // For WallMaps: the city image (read from the city maps on first use, like a phone does), its size and places.
+    byte[] cityImage(MapCanvas canvas, Player p) {
+        if (!hasCity()) return null;
+        if (img == null && tiles != null) renderer.readCity(canvas, p);
+        return img;
+    }
+    int imgW() { return imgW; }
+    int imgH() { return imgH; }
+    double toImageX(double wx) { return (wx - x0) / bpp; }
+    double toImageZ(double wz) { return (wz - z0) / bpp; }
+    long placesVersion() { return placesVersion; }
+    java.util.Collection<Place> placeList() { return places.values(); }
 
     /**
      * The city: city.bin when city.yml says "source: scan" (/dphone city scan), else city-maps: rows of map ids
@@ -550,12 +567,13 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "gps", "mark", "pv", "nametag", "carstat", "place"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
                 case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel"));
+                case "wall" -> options.addAll(List.of("create", "remove", "list"));
                 case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
                 default -> { }
             }
@@ -564,6 +582,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             else if (args[0].equalsIgnoreCase("nametag")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("use")) options.addAll(List.of("scan", "maps"));
+            else if (args[0].equalsIgnoreCase("wall") && args[1].equalsIgnoreCase("remove")) options.addAll(wallMaps.names());
         } else if (args.length == 4) {
             if (args[0].equalsIgnoreCase("gps")) {
                 if (args[2].equalsIgnoreCase("active")) options.addAll(List.of("pin", "quest", "loot", "none"));
@@ -630,6 +649,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("place")) return placeCommand(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("city")) return cityScan.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("wall")) return wallMaps.command(sender, args);
         if (args.length == 2 && args[0].equalsIgnoreCase("status")) {
             Player p = Bukkit.getPlayerExact(args[1]);
             MapView v = p == null ? null : assigned.get(p.getUniqueId());
@@ -645,6 +665,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
             sender.sendMessage("/dphone roads [info | scan [x1 z1 x2 z2] | cancel | show <player> [on|off]]: the GPS road grid");
             sender.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] | cancel | use scan|maps | pixel <x> <z>]: draw the phone's city from the world (no flying over it with maps)");
+            sender.sendMessage("/dphone wall create <name> <cols> <rows> [<world> <x> <y> <z> <face>] | remove <name> | list: a big city map on a wall (look at its bottom-left block)");
             sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
             sender.sendMessage("/dphone mark <player> <entity-uuid> <color|#RRGGBB> <range> | <player> off | <player> status: a locator dot on an entity for one player (hits.sk)");
             sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
@@ -668,11 +689,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             try { x = Double.parseDouble(args[5]); z = Double.parseDouble(args[6]); } catch (NumberFormatException ex) { st = null; x = z = 0; }
             if (st == null) { sender.sendMessage("PLACE bad type or position: " + String.join(" ", args)); return true; }
             String name = String.join(" ", java.util.Arrays.copyOfRange(args, 7, args.length));
-            places.put(args[2], new Place(args[4], x, z, st.getKey(), name, st.getValue()));
+            Place np = new Place(args[4], x, z, st.getKey(), name, st.getValue());
+            if (!np.equals(places.put(args[2], np))) placesVersion++;
             return true;
         }
-        if (sub.equals("remove") && args.length == 3) { places.remove(args[2]); return true; }
-        if (sub.equals("clear")) { places.clear(); return true; } // silent: nav.sk clears every minute before sending them all again
+        if (sub.equals("remove") && args.length == 3) { if (places.remove(args[2]) != null) placesVersion++; return true; }
+        if (sub.equals("clear")) { places.clear(); placesVersion++; return true; } // silent: nav.sk clears every minute before sending them all again
         if (sub.equals("list")) {
             List<String> out = new ArrayList<>();
             for (Map.Entry<String, Place> e : places.entrySet()) out.add(e.getKey() + "=" + e.getValue().type().getKey().getKey() + "@" + Math.round(e.getValue().x()) + "," + Math.round(e.getValue().z()) + " " + e.getValue().label());

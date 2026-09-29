@@ -2,6 +2,7 @@
 // fills a map, so nobody flies over the city holding maps. Checked: a scan of the city-maps' own box against those vanilla
 // maps pixel by pixel; exact pixels on a test build (colors, a glass roof, a flower, water depth in a checker, shading
 // at a step, the most common color at scale 1); the phone draws the scan; refusals; switching back to the maps.
+// A scan the owner made (city.bin, city.yml) is put aside first and put back afterwards (review fix, 2026-09-29).
 const fs = require('fs')
 const path = require('path')
 const zlib = require('zlib')
@@ -27,6 +28,12 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   let bot = null
+  // The owner's own scan, if any: kept aside while the test runs.
+  const saved = []
+  for (const name of ['city.bin', 'city.yml']) {
+    const file = path.join(DATA, name)
+    if (fs.existsSync(file)) { fs.copyFileSync(file, file + '.testbak'); saved.push(name) }
+  }
   try {
     const info = async () => cmd('dphone city info')
     const until = async (fn, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(500) } return Boolean(await fn()) }
@@ -50,6 +57,7 @@ module.exports = async ({ check }) => {
     await cmd('save-all flush')
     const config = fs.readFileSync(path.join(DATA, 'config.yml'), 'utf8')
     const grid = JSON.parse((config.match(/^city-maps:\s*(\[.*\])\s*$/m) || [])[1] || '[]')
+    if (!grid.length) { check('this test needs the local test city (city-maps in DonatingPhone\'s config.yml)', false, 'no city-maps'); return }
     const tiles = []
     for (const row of grid) {
       const r = []
@@ -159,6 +167,15 @@ module.exports = async ({ check }) => {
     const big = await cmd('dphone city scan 0 0 100000 100000 0')
     const scale9 = await cmd(`dphone city scan ${B} ${B} ${B + 31} ${B + 31} 9`)
     check('refused: an image over 2048 pixels a side, a scale over 4', /too big/.test(big) && /scale is 0-4/.test(scale9), `${big} | ${scale9}`)
+    const budget = await cmd('dphone city scan 0 0 7999 7999 2')
+    check('a box over 40,000 chunks needs "confirm" at the end (a typo can\'t queue millions)', /chunks .*add confirm at the end/.test(budget) && !/scanning/.test(await info()), budget)
+    // 4,096 blocks from x 1: 2,049 pixels at scale 1 once lined up, so the automatic scale must be 2 (it was refused before).
+    const auto = await cmd('dphone city scan 1 0 4096 100')
+    const binBefore = fs.statSync(path.join(DATA, 'city.bin')).mtimeMs
+    const cancel = await cmd('dphone city cancel')
+    await sleep(1500)
+    check('no scale given: the smallest that fits once the pixels line up (scale 2 here); cancel keeps the city', /at scale 2/.test(auto) && /scan cancelled/.test(cancel) && fs.statSync(path.join(DATA, 'city.bin')).mtimeMs === binBefore && !/scanning/.test(await info()),
+      `${auto} | ${cancel}`)
 
     // ---------- Back to the maps ----------
     const back = await cmd('dphone city use maps')
@@ -168,7 +185,12 @@ module.exports = async ({ check }) => {
   } finally {
     await rcon.cmd('dphone city cancel').catch(() => {})
     await rcon.cmd('dphone city use maps').catch(() => {})
-    for (const f of ['city.bin', 'city.yml']) { try { fs.unlinkSync(path.join(DATA, f)) } catch (e) { } }
+    for (const name of ['city.bin', 'city.yml']) {
+      const file = path.join(DATA, name)
+      try { fs.unlinkSync(file) } catch (e) { }
+      if (saved.includes(name)) fs.renameSync(file + '.testbak', file)
+    }
+    await rcon.cmd('dphone').catch(() => {}) // the owner's city again (and roads.bin with it)
     await rcon.cmd(`fill ${B} ${Y - 9} ${B} ${B + 31} ${Y + 6} ${B + 31} air`).catch(() => {})
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
     if (bot) await quit(bot).catch(() => {})

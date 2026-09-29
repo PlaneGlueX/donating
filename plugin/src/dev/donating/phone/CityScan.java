@@ -6,7 +6,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayDeque;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,6 +43,7 @@ import org.bukkit.map.MapPalette;
 final class CityScan {
     static final int MAGIC = 0x44504331; // "DPC1"
     static final int MAX_SIDE = 2048;    // image pixels per side
+    static final int MAX_CHUNKS = 40_000; // more needs "confirm" (a 3.2 km square; a typo can't queue millions)
 
     /** The saved image: pixel (x, z) is px[z * w + x], its top-left corner at block (x0, z0), bpp blocks per pixel. */
     record Image(String world, int x0, int z0, int bpp, int w, int h, long made, byte[] px) {
@@ -86,7 +89,8 @@ final class CityScan {
         }
     }
 
-    private static void save(Image im, File f) throws IOException {
+    /** Writes the image to f's .tmp (the worker); commit() puts it in place (the main thread, only if the scan still counts). */
+    private static File writeTmp(Image im, File f) throws IOException {
         File tmp = new File(f.getParentFile(), f.getName() + ".tmp");
         try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(tmp)))) {
             out.writeInt(MAGIC);
@@ -99,8 +103,16 @@ final class CityScan {
             out.writeLong(im.made);
             out.write(im.px);
         }
-        if (f.exists() && !f.delete()) throw new IOException("can't replace " + f.getName());
-        if (!tmp.renameTo(f)) throw new IOException("can't write " + f.getName());
+        return tmp;
+    }
+
+    /** Replaces f with tmp in one step (review fix: deleting first lost the old file when the rename then failed). */
+    static void commit(File tmp, File f) throws IOException {
+        try {
+            Files.move(tmp.toPath(), f.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tmp.toPath(), f.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     /** The scanned image, or null (none, unreadable). */
@@ -141,10 +153,13 @@ final class CityScan {
                     return true;
                 }
                 boolean scan = args[2].equalsIgnoreCase("scan");
-                if (scan && image() == null) { who.sendMessage("CITY no city.bin yet: /dphone city scan first"); return true; }
+                Image im = scan ? image() : null;
+                if (scan && im == null) { who.sendMessage("CITY no city.bin yet: /dphone city scan first"); return true; }
+                if (scan && Bukkit.getWorld(im.world) == null) { who.sendMessage("CITY city.bin is of the world " + im.world + ", which isn't loaded here"); return true; }
                 try { setUse(scan); } catch (IOException e) { who.sendMessage("CITY can't save city.yml: " + e.getMessage()); return true; }
+                if (job != null) job.chose = true;
                 plugin.cityChanged();
-                who.sendMessage("CITY the phones show " + (scan ? "the scan" : "the city-maps") + ": " + plugin.cityDesc() + roadsNote());
+                who.sendMessage("CITY the phones show " + (plugin.isScanCity() ? "the scan" : "the city-maps") + ": " + plugin.cityDesc() + roadsNote());
             }
             case "pixel" -> {
                 // Tests: one pixel of the saved scan at a block.
@@ -167,8 +182,10 @@ final class CityScan {
         return plugin.gpsRoadsFit() ? "" : " (the GPS goes straight at targets until /dphone roads scan)";
     }
 
-    private void scanCommand(CommandSender who, String[] args) {
+    private void scanCommand(CommandSender who, String[] rawArgs) {
         if (job != null) { who.sendMessage("CITY a scan is running (" + job.progress() + "): /dphone city cancel first"); return; }
+        boolean confirm = rawArgs.length > 2 && rawArgs[rawArgs.length - 1].equalsIgnoreCase("confirm");
+        String[] args = confirm ? java.util.Arrays.copyOf(rawArgs, rawArgs.length - 1) : rawArgs;
         World world;
         int x1, z1, x2, z2, scale;
         try {
@@ -202,13 +219,15 @@ final class CityScan {
         if (scale < 0) {
             // Default: 2 blocks a pixel (like the recommended scale-1 city maps), coarser only when the city is too big.
             scale = 1;
-            while (scale < 4 && Math.max(hx - lx + 1, hz - lz + 1) > MAX_SIDE << scale) scale++;
+            while (scale < 4 && Math.max(Math.floorDiv(hx, 1 << scale) - Math.floorDiv(lx, 1 << scale) + 1, Math.floorDiv(hz, 1 << scale) - Math.floorDiv(lz, 1 << scale) + 1) > MAX_SIDE) scale++;
         }
         int bpp = 1 << scale;
         // Pixels line up with multiples of bpp (like vanilla maps), so each pixel's blocks lie in one chunk.
         int x0 = Math.floorDiv(lx, bpp) * bpp, z0 = Math.floorDiv(lz, bpp) * bpp;
         int w = Math.floorDiv(hx, bpp) - x0 / bpp + 1, h = Math.floorDiv(hz, bpp) - z0 / bpp + 1;
         if (w > MAX_SIDE || h > MAX_SIDE) { who.sendMessage("CITY too big: " + w + "x" + h + " pixels at scale " + scale + " (at most " + MAX_SIDE + " a side): use a higher scale"); return; }
+        long chunks = (long) (((x0 + w * bpp - 1) >> 4) - (x0 >> 4) + 1) * (((z0 + h * bpp - 1) >> 4) - ((z0 - bpp) >> 4) + 1);
+        if (chunks > MAX_CHUNKS && !confirm) { who.sendMessage("CITY that box is " + chunks + " chunks (about " + chunks / 15 / 60 + " min): add confirm at the end if you mean it"); return; }
         job = new Job(who, world, x0, z0, bpp, w, h);
         who.sendMessage("CITY scanning " + world.getName() + " " + x0 + " " + z0 + " " + (x0 + w * bpp - 1) + " " + (z0 + h * bpp - 1) + " at scale " + scale
                 + " (" + w + "x" + h + " px, " + job.total + " chunks, about " + Math.max(1, job.total / 15) + " s)");
@@ -221,7 +240,9 @@ final class CityScan {
         final World world;
         final int x0, z0, bpp, w, h, minY, maxY;
         final int zTop;                        // the pixel row north of the image (shades the first row, like vanilla)
-        final ArrayDeque<int[]> queue = new ArrayDeque<>();
+        final int cx1, cz1, rowsZ;             // the chunks: index i = (cx - cx1) * rowsZ + (cz - cz1)
+        int next;                              // the next chunk to ask for
+        boolean chose;                         // staff ran /dphone city use while it ran: keep their choice
         final AtomicInteger done = new AtomicInteger();
         final long started = System.currentTimeMillis();
         final int total;
@@ -255,9 +276,10 @@ final class CityScan {
             got = new BitSet(w * (h + 1));
             water = idOf(Material.WATER.createBlockData().getMapColor().asRGB());
             lava = idOf(Material.LAVA.createBlockData().getMapColor().asRGB());
-            for (int cx = x0 >> 4; cx <= (x0 + w * bpp - 1) >> 4; cx++)
-                for (int cz = zTop >> 4; cz <= (z0 + h * bpp - 1) >> 4; cz++) queue.add(new int[] {cx, cz});
-            total = queue.size();
+            cx1 = x0 >> 4;
+            cz1 = zTop >> 4;
+            rowsZ = ((z0 + h * bpp - 1) >> 4) - cz1 + 1;
+            total = (((x0 + w * bpp - 1) >> 4) - cx1 + 1) * rowsZ;
         }
 
         String progress() { return done.get() + "/" + total + " chunks"; }
@@ -279,7 +301,7 @@ final class CityScan {
             if (cancelled) return;
             int tenth = total == 0 ? 10 : done.get() * 10 / total;
             if (tenth > lastTenth && tenth < 10) { lastTenth = tenth; who.sendMessage("CITY " + tenth * 10 + "% (" + progress() + ")"); }
-            if (queue.isEmpty()) {
+            if (next >= total) {
                 if (inFlight == 0 && !finishing) {
                     finishing = true;
                     worker.execute(this::finish);
@@ -287,9 +309,10 @@ final class CityScan {
                 return;
             }
             if (inFlight >= 4 || Bukkit.getAverageTickTime() > 40) return;
-            int[] c = queue.poll();
+            int cx = cx1 + next / rowsZ, cz = cz1 + next % rowsZ;
+            next++;
             inFlight++;
-            world.getChunkAtAsync(c[0], c[1], false, false, chunk -> {
+            world.getChunkAtAsync(cx, cz, false, false, chunk -> {
                 inFlight--;
                 if (cancelled) return;
                 if (chunk == null) { done.incrementAndGet(); return; } // never generated: stays see-through
@@ -310,18 +333,21 @@ final class CityScan {
             for (int r = r1; r <= r2; r++) for (int px = px1; px <= px2; px++) {
                 int bx = x0 + px * bpp, bz = zTop + r * bpp;
                 if (bx < bx0 || bz < bz0 || bx + bpp > bx0 + 16 || bz + bpp > bz0 + 16) continue; // not this chunk's
-                int kinds = 0, sum = 0, deep = 0;
-                for (int dz = 0; dz < bpp; dz++) for (int dx = 0; dx < bpp; dx++) {
-                    long col = column(s, bx + dx - bx0, bz + dz - bz0);
-                    int id = (int) (col & 255);
-                    sum += (int) (col >> 16);
-                    deep += (int) ((col >> 8) & 255);
-                    if (count[id]++ == 0) order[kinds++] = id;
+                int kinds = 0, sum = 0, deep = 0, best = 0;
+                try {
+                    // x outer, like vanilla: a tie goes to the color seen first in that order.
+                    for (int dx = 0; dx < bpp; dx++) for (int dz = 0; dz < bpp; dz++) {
+                        long col = column(s, bx + dx - bx0, bz + dz - bz0);
+                        int id = (int) (col & 255);
+                        sum += (int) (col >> 16);
+                        deep += (int) ((col >> 8) & 255);
+                        if (count[id]++ == 0) order[kinds++] = id;
+                    }
+                    best = order[0];
+                    for (int k = 1; k < kinds; k++) if (count[order[k]] > count[best]) best = order[k];
+                } finally {
+                    for (int k = 0; k < kinds; k++) count[order[k]] = 0;
                 }
-                // The most common color (a tie goes to the one seen first).
-                int best = order[0];
-                for (int k = 1; k < kinds; k++) if (count[order[k]] > count[best]) best = order[k];
-                for (int k = 0; k < kinds; k++) count[order[k]] = 0;
                 int i = r * w + px;
                 ids[i] = (byte) best;
                 sumH[i] = sum;
@@ -342,7 +368,7 @@ final class CityScan {
             }
             if (rgb == 0) return ((long) y << 16); // nothing down to the bottom
             int deep = 0;
-            int fluid = fluid(d);
+            int fluid = y > minY ? fluid(d) : 0; // like vanilla: no depth for the bottom block
             if (fluid != 0) {
                 int l = y - 1;
                 BlockData below;
@@ -390,19 +416,29 @@ final class CityScan {
                 }
             }
             Image im = new Image(world.getName(), x0, z0, bpp, w, h, System.currentTimeMillis(), px);
+            // Written here, put in place on the main thread only while the scan still counts (review fix: a cancel during
+            // this step replaced city.bin anyway).
+            File tmp;
             String saved;
-            try { save(im, file()); saved = null; } catch (IOException e) { saved = e.getMessage(); }
-            String err = saved;
-            if (!plugin.isEnabled()) return;
+            try { tmp = writeTmp(im, file()); saved = null; } catch (IOException e) { tmp = null; saved = e.getMessage(); }
+            File written = tmp;
+            String writeErr = saved;
+            if (!plugin.isEnabled()) { if (written != null) written.delete(); return; }
             Bukkit.getScheduler().runTask(plugin, () -> {
-                if (job != this) return;
+                if (job != this) { if (written != null) written.delete(); return; }
                 job = null;
                 long secs = (System.currentTimeMillis() - started) / 1000;
+                String err = writeErr;
+                if (written != null) {
+                    try { commit(written, file()); } catch (IOException e) { err = e.getMessage(); written.delete(); }
+                }
                 if (err != null) { who.sendMessage("CITY scanned in " + secs + " s but NOT saved (" + err + "): the phones keep their city"); return; }
-                try { setUse(true); } catch (IOException e) { who.sendMessage("CITY saved city.bin but can't save city.yml (" + e.getMessage() + "): /dphone city use scan"); return; }
+                String done = "CITY done in " + secs + " s: " + w + "x" + h + " px at scale " + Integer.numberOfTrailingZeros(bpp) + ", saved city.bin";
+                // Staff chose a city with /dphone city use while it ran: keep that choice (review fix).
+                if (chose) { who.sendMessage(done + "; the phones keep the city you chose meanwhile (/dphone city use scan)"); return; }
+                try { setUse(true); } catch (IOException e) { who.sendMessage(done + " but can't save city.yml (" + e.getMessage() + "): /dphone city use scan"); return; }
                 plugin.cityChanged();
-                who.sendMessage("CITY done in " + secs + " s: " + w + "x" + h + " px at scale " + Integer.numberOfTrailingZeros(bpp)
-                        + ", saved city.bin; the phones show it now" + roadsNote());
+                who.sendMessage(done + "; the phones show it now" + roadsNote());
             });
         }
     }

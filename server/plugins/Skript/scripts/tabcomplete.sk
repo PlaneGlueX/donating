@@ -389,6 +389,14 @@ on tab complete of "/dpoi" and "/skript:dpoi":
 		if {_l::*} is set:
 			set tab completions for position 2 to {_l::*}
 
+on tab complete of "/ddistrict" and "/skript:ddistrict":
+	set tab completions for position 1 to "name", "list", "here" and "dump"
+	if tab arg-1 is "name":
+		set {_l::*} to districtIds()
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+		set tab completions for position 3 to "default"
+
 on tab complete of "/dquest" and "/skript:dquest":
 	set tab completions for position 1 to "add", "addat", "remove", "list", "dump" and "open"
 	set {_s} to tab arg-1
