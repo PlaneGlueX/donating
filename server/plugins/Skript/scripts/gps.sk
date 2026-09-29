@@ -659,7 +659,7 @@ function gpsCat(p: player, cat: text, page: number):
 					set {_i} to glint({_i})
 			gpsButton({_p}, {_gui}, {_slots::%loop-number%}, {_i}, {_act})
 	if {_n} is 0:
-		set slot 22 of {_gui} to appIcon("blank", "&7Nothing here yet")
+		set slot 22 of {_gui} to phoneEmptyIcon("Nothing here yet")
 	gpsButton({_p}, {_gui}, 49, appIcon("blank", "&fHome"), "phone")
 	gpsOpen({_p}, {_gui})
 
@@ -768,8 +768,7 @@ function gpsQuestAction(p: player, q: text, right: boolean):
 		else if {_q} is "hits":
 			hitMenu({_p})
 		else if {_q} is "bounties":
-			close {_p}'s inventory
-			showBounties({_p})
+			bountyPage({_p})
 		stop
 	close {_p}'s inventory
 	if {_q} is "story":

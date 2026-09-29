@@ -176,7 +176,7 @@ module.exports = async ({ check }) => {
 
     // ---------- The menu ----------
     let w = await menu(A)
-    check('/contracts opens the menu: three offers (cars), three lockpicks', w && /Car contracts/.test(JSON.stringify(w.title)) && [11, 13, 15].every(s => w.slots[s] && ['diamond_hoe', 'gray_dye'].includes(w.slots[s].name)) && [20, 22, 24].every(s => w.slots[s] && w.slots[s].name === 'flint'), `${JSON.stringify(w && w.title)} ${w && [11, 13, 15, 20, 22, 24].map(s => w.slots[s] && w.slots[s].name)}`)
+    check('/contracts opens the menu: three offers (cars), three lockpicks', w && /Contracts/.test(JSON.stringify(w.title)) && [11, 13, 15].every(s => w.slots[s] && ['diamond_hoe', 'gray_dye'].includes(w.slots[s].name)) && [20, 22, 24].every(s => w.slots[s] && w.slots[s].name === 'flint'), `${JSON.stringify(w && w.title)} ${w && [11, 13, 15, 20, 22, 24].map(s => w.slots[s] && w.slots[s].name)}`)
     check('level 0: the Street job needs level 5', /Needs level 5/.test(itemText(w && w.slots[11])), itemText(w && w.slots[11]).slice(0, 400))
     await closeAll(A)
     t = Date.now()

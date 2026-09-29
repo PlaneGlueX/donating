@@ -59,6 +59,36 @@ module.exports = async ({ check }) => {
     return ok && new RegExp(`"threshold": ${n},\\s*"model": \\{\\s*"type": "minecraft:model",\\s*"model": "donating:item/tracer_${k}"`).test(nugget)
   })
   check('...and the pack draws each tracer (glowing, forward of the shooter\'s eye) for its number, and light ammo keeps its icon', art.length === 3 && /"when": "donating:ammo_light"/.test(nugget), art.map(a => a[0]).join(' '))
+  // Our gun art (tools\make-item-art.js, tools\guns\): the built pack's feather.json draws every skin number
+  // WeaponMechanics gives what we sell (Default, Scope +1000, Sprint +2000 of the four guns; the Combat
+  // Knife -10; the Stim -1) with donating: models, with no re-equip dip on a state change, sorted by
+  // threshold (the client picks the last entry <= the number), and keeps WeaponMechanics' own entries for
+  // the guns we don't sell (build-pack.js merges the two files by threshold).
+  {
+    const { readZip } = require('../../tools/make-car-wraps')
+    const packs = path.join(__dirname, '..', '..', 'extras', 'packs')
+    const jsonIn = (zip, name) => { try { return JSON.parse(readZip(zip).get(name).toString('utf8').replace(/^﻿/, '')) } catch (e) { return null } }
+    const NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014]
+    const feather = jsonIn(path.join(packs, 'Donating-pack.zip'), 'assets/minecraft/items/feather.json')
+    const entries = feather && feather.model && Array.isArray(feather.model.entries) ? feather.model.entries : []
+    const modelsOf = m => !m || typeof m !== 'object' ? [] : [
+      ...(/(^|:)model$/.test(m.type) && typeof m.model === 'string' ? [m.model] : []),
+      ...Object.values(m).flatMap(v => Array.isArray(v) ? v.flatMap(modelsOf) : typeof v === 'object' ? modelsOf(v) : [])
+    ]
+    const drawn = NUMBERS.filter(n => {
+      const e = entries.filter(x => x.threshold === n)
+      const ms = e.length === 1 ? modelsOf(e[0].model) : []
+      return ms.length > 0 && ms.every(id => id.startsWith('donating:'))
+    })
+    const sorted = entries.every((e, i) => i === 0 || entries[i - 1].threshold < e.threshold)
+    check('the built pack\'s feather.json draws all 14 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
+      `ours: ${drawn.join(' ')}; hand_animation_on_swap ${feather && feather.hand_animation_on_swap}; sorted ${sorted}`)
+    const wm = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/items/feather.json')
+    const others = wm ? wm.model.entries.filter(e => !NUMBERS.includes(e.threshold)) : []
+    const kept = others.filter(e => { const x = entries.find(y => y.threshold === e.threshold); return x && JSON.stringify(x.model) === JSON.stringify(e.model) })
+    check('...and keeps WeaponMechanics\' other entries (the guns we don\'t sell) and its fallback', !!wm && others.length > 0 && kept.length === others.length &&
+      JSON.stringify(feather.model.fallback) === JSON.stringify(wm.model.fallback), wm ? `${kept.length}/${others.length} kept` : 'WeaponMechanics\' pack is missing')
+  }
 
   const rcon = await rconLib.connect()
   let bot = null

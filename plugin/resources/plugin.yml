@@ -8,7 +8,7 @@ description: Draws the Donating phone map. Game rules live in Skript.
 commands:
   dphone:
     description: Reload the phone config and re-read the city map (pixels + banner labels), or show one player's phone.
-    usage: /dphone [reload | status <player> | roads [info|scan|cancel|show] | gps <player> [set ...|clear] | nametag <viewer> <target> | carstat <plate> [max accel steering]]
+    usage: /dphone [reload | status <player> | roads [info|scan|cancel|show] | gps <player> [set ...|clear] | nametag <viewer> <target> | carstat <plate> [max accel steering] | carsmooth [off|sync|track|all] | carprobe <plate> [ticks] | cam <player>]
     permission: donating.phone.admin
 permissions:
   donating.phone.admin:

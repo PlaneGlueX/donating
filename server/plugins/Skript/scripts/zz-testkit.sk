@@ -406,18 +406,6 @@ command /zzpack <player>:
 		send resource pack from "http://127.0.0.1:8765/pack.zip" to arg-1
 		send "PACK sent to %arg-1%"
 
-# The phone UI experiment: a 6-row chest whose title draws a background glyph (U+E010) from the menu's left edge.
-command /zzphoneui <player>:
-	executable by: console
-	trigger:
-		set {_g} to chest inventory with 6 rows named "&f"
-		set slot 0 of {_g} to diamond
-		set slot 10 of {_g} to apple
-		set slot 22 of {_g} to compass
-		set slot 53 of {_g} to barrier
-		open {_g} to arg-1
-		send "UI opened for %arg-1%"
-
 # ---------- traps.sk ----------
 
 # Health in HP (20 = full): /zzhp <player> [hp]. Also fills food and saturation to 20 / 0 when setting,
@@ -1224,26 +1212,3 @@ command /zzclose <player>:
 	trigger:
 		close arg-1's inventory
 		send "CLOSED %arg-1%"
-
-command /zzchar:
-	executable by: console
-	trigger:
-		set {_c} to character from codepoint 57360
-		send "CHAR %{_c}% len=%length of {_c}% cp=%codepoint of {_c}%"
-
-command /zztime:
-	executable by: console
-	trigger:
-		set {_w} to world("world")
-		send "TIME %time in {_w}%"
-
-command /zzui <player>:
-	executable by: console
-	trigger:
-		set {_t} to phoneTitle("home", phoneClock(arg-1))
-		send "UI title length %length of {_t}%"
-		set {_g} to chest inventory with 6 rows named {_t}
-		set slot 2 of {_g} to appIcon("crates", "&fCrates")
-		set slot 40 of {_g} to appIcon("gps", "&fGPS")
-		set slot 49 of {_g} to appIcon("blank", "&fClose")
-		open {_g} to arg-1

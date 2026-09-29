@@ -48,6 +48,19 @@ module.exports = async ({ check }) => {
     const nameAt = (win, n) => (win && win.slots[n] ? itemName(win.slots[n]) : '')
     // The home screen: GPS in the dock and the home button (Close) at 49 (its title is only the clock).
     const isHome = win => Boolean(win && nameAt(win, 39) === 'GPS' && nameAt(win, 49) === 'Close')
+    // A window's title as text (phone pages start with private-use glyphs: match their ends).
+    const winTitle = win => (win ? (typeof win.title === 'string' ? win.title : nbtText(win.title)) : '')
+    // Clicks a slot of the open menu and resolves with the window it opens (or null).
+    const clickOpens = async (slot, mouse = 0) => {
+      const opened = new Promise(resolve => {
+        const timer = setTimeout(() => resolve(null), 3000)
+        bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) })
+      })
+      bot.clickWindow(slot, mouse, 0).catch(() => {})
+      const w2 = await opened
+      await sleep(400)
+      return w2
+    }
 
     // F key (swap hands): the player-action packet a real client sends.
     const pressF = () => bot._client.write('block_dig', { status: 6, location: new Vec3(0, 0, 0), face: 0, sequence: 0 })
@@ -145,7 +158,7 @@ module.exports = async ({ check }) => {
     const garageOpen = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) }) })
     await click(41, 0, 0)
     const gw = await garageOpen
-    check('the Garage app opens your garage (garage.sk)', gw && /Your garage/.test(JSON.stringify(gw.title)), JSON.stringify(gw && gw.title))
+    check('the Garage app opens your garage (garage.sk)', gw && /Garage/.test(JSON.stringify(gw.title)), JSON.stringify(gw && gw.title))
     if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
     w = await openMenu()
     const gpsOpen = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 3000); bot.once('windowOpen', w2 => { clearTimeout(timer); resolve(w2) }) })
@@ -154,11 +167,19 @@ module.exports = async ({ check }) => {
     check('the GPS app opens the GPS (gps.sk: Quests, Heists, Shops, Places)', gpw && ['Quests', 'Heists', 'Shops', 'Places'].every((n, k) => nameAt(gpw, 11 + k) === n), gpw ? [11, 12, 13, 14].map(n => nameAt(gpw, n)).join(',') : 'no window')
     if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
     let closing
+    // The Bounties app: a phone page (bounty.sk bountyPage): "◀ Phone" at 2, your bounty at 4, "Post one" at 6, and
+    // every online player with a bounty as a head with "$X" (this bot, with a bounty for the check).
+    await rcon.cmd(`zzdata ${NAME} bounty 700`)
     w = await openMenu()
-    t = Date.now()
-    closing = closed()
-    await click(5, 0, 0)
-    check('the Bounties app closes the menu and lists bounties', (await closing) && /Bounties \(players online\)/.test(text(t)) && /Place one: \/bounty/.test(text(t)), text(t))
+    const bw = await clickOpens(5)
+    const bountyHeads = []
+    for (const s of [11, 12, 13, 14, 15, 20, 21, 22, 23, 24]) if (bw && bw.slots[s] && bw.slots[s].name === 'player_head') bountyHeads.push(`${nameAt(bw, s)} ${loreText(bw.slots[s])}`)
+    check('the Bounties app opens the Bounties page ("◀ Phone" at 2, yours at 4, "Post one" at 6)', /Bounties$/.test(winTitle(bw)) && nameAt(bw, 2) === '◀ Phone' && /\$700/.test(loreText(bw && bw.slots[4])) && nameAt(bw, 6) === 'Post one', `"${winTitle(bw)}" 2=${nameAt(bw, 2)} 4=${loreText(bw && bw.slots[4])} 6=${nameAt(bw, 6)}`)
+    check('...listing online players with a bounty as heads with "$X"', bountyHeads.some(h => h.startsWith(`${NAME} `) && /\$700/.test(h)), bountyHeads.join(' | '))
+    w = await clickOpens(2)
+    check('...and "◀ Phone" there opens the phone', isHome(w), w ? `${nameAt(w, 39)} ${nameAt(w, 49)}` : 'no window')
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+    await rcon.cmd(`zzdata ${NAME} bounty none`)
 
     // ---------- Passive switch ----------
     w = await openMenu()
@@ -193,11 +214,25 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`zzdata ${NAME} bounty none`)
 
     // ---------- Help and close ----------
+    // How to play: a phone page (help.sk helpPage): "◀ Phone" at 2, "Commands" at 6 (closes it and prints /help
+    // commands), topic tiles; a tile with a page of its own opens it (Quests: the GPS's Quests page).
     w = await openMenu()
+    let hw = await clickOpens(12)
+    check('How to play opens the How to play page ("◀ Phone" at 2, "Commands" at 6, the topic tiles)', /How to play$/.test(winTitle(hw)) && nameAt(hw, 2) === '◀ Phone' && nameAt(hw, 6) === 'Commands' && nameAt(hw, 11) === 'Heists' && nameAt(hw, 21) === 'Quests', `"${winTitle(hw)}" 2=${nameAt(hw, 2)} 6=${nameAt(hw, 6)} 11=${nameAt(hw, 11)} 21=${nameAt(hw, 21)}`)
     t = Date.now()
     closing = closed()
-    await click(12, 0, 0)
-    check('How to play closes the menu and shows the help page', (await closing) && /How to play/.test(text(t)), text(t))
+    await click(6, 0, 0)
+    check('...its Commands button closes it and prints every command', (await closing) && /Commands/.test(text(t)) && /\/heists/.test(text(t)), text(t).slice(0, 300))
+    w = await openMenu()
+    hw = await clickOpens(12)
+    const qw = await clickOpens(21)
+    check('...a tile opens its page (Quests: the GPS\'s Quests page)', /How to play$/.test(winTitle(hw)) && /GPS · Quests$/.test(winTitle(qw)), `"${winTitle(hw)}" -> "${winTitle(qw)}"`)
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
+    w = await openMenu()
+    hw = await clickOpens(12)
+    w = await clickOpens(2)
+    check('...and "◀ Phone" there opens the phone', /How to play$/.test(winTitle(hw)) && isHome(w), `"${winTitle(hw)}" -> ${w ? `${nameAt(w, 39)} ${nameAt(w, 49)}` : 'no window'}`)
+    if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await sleep(300) }
     w = await openMenu()
     closing = closed()
     await click(49, 0, 0)

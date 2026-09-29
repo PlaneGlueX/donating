@@ -927,60 +927,68 @@ function storyAwayText(k: text) :: text:
 		return "&7Not at the %{_place}%"
 	return "&7Not in town"
 
+# A phone page (ui.sk, 2026-09-29): ◀ Phone at 2, Side jobs at 6 once a contact's board is open; one screen row per
+# chain (Mara's first: its card, then its Call button), then the five chapters in one row (29-33, or the row after the
+# last chain's).
 function storyMenu(p: player):
 	closePhoneMap({_p})
 	set {_id} to storyId({_p})
-	set {_gui} to chest inventory with 4 rows named "&8Missions"
+	set {_gui} to phonePage("Missions")
 	delete {-story::act::%{_p}%::*}
-	set {_pane} to gray stained glass pane named "&r"
-	loop 36 times:
-		set slot (loop-number - 1) of {_gui} to {_pane}
-	if {_id} is "done":
-		set slot 13 of {_gui} to nether star named "&6The story is done"
-		if {-cfg::jobs::contacts::*} is set:
-			# Mara's and the Boss's side jobs (jobs.sk), with what's waiting and taken.
-			set {_i} to paper named "&dSide jobs"
-			set {_new} to 0
-			set {_taken} to 0
-			loop {-cfg::jobs::contacts::*}:
-				set {_jc} to loop-value
-				if jobsUnlocked({_p}, {_jc}) is true:
-					loop jobsSlots({_p}, {_jc}) times:
-						set {_s} to jobsState({_p}, {_jc}, loop-value-2)
-						if {_s} is "waiting":
-							add 1 to {_new}
-						else if {_s} is "taken":
-							add 1 to {_taken}
+	storyButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
+	# Mara's and the Boss's side jobs (jobs.sk), with what's waiting and taken, once a board is open.
+	if {-cfg::jobs::contacts::*} is set:
+		set {_open} to false
+		set {_new} to 0
+		set {_taken} to 0
+		loop {-cfg::jobs::contacts::*}:
+			set {_jc} to loop-value
+			if jobsUnlocked({_p}, {_jc}) is true:
+				set {_open} to true
+				loop jobsSlots({_p}, {_jc}) times:
+					set {_s} to jobsState({_p}, {_jc}, loop-value-2)
+					if {_s} is "waiting":
+						add 1 to {_new}
+					else if {_s} is "taken":
+						add 1 to {_taken}
+		if {_open} is true:
+			set {_i} to appIcon("quests", "&dSide jobs")
 			if {_new} + {_taken} > 0:
-				set {_i} to paper named "&dSide jobs" with lore "&f%{_new}% waiting &7· &f%{_taken}% taken"
-			storyButton({_p}, {_gui}, 22, {_i}, "jobs")
+				set lore of {_i} to "&f%{_new}% waiting &7· &f%{_taken}% taken"
+			storyButton({_p}, {_gui}, 6, {_i}, "jobs")
+	# Mara's row.
+	if {_id} is "done":
+		set slot 11 of {_gui} to nether star named "&6The story is done"
 	else if storyExists({_id}) is true:
-		storyButton({_p}, {_gui}, 13, storyCard({_p}, {_id}), "gps:story")
+		storyButton({_p}, {_gui}, 11, storyCard({_p}, {_id}), "gps:story")
 		# No Mara on the map (yet): a talk mission can be done from here, so the chain never blocks.
 		if storyObj({_id}) is "talk|story":
 			if storyNeedsMet({_p}, "story") is false:
 				set {_away} to storyAwayText("story")
-				storyButton({_p}, {_gui}, 22, paper named "&dCall Mara" with lore {_away}, "call:story")
+				storyButton({_p}, {_gui}, 12, paper named "&dCall Mara" with lore {_away}, "call:story")
 	else:
 		# Between missions (a join's first seconds, a reward being paid).
-		set slot 13 of {_gui} to paper named "&7No mission right now"
-	# The other chains (Vic's): a card while running, a call button when their giver isn't on the map.
-	set {_slot} to 15
+		set slot 11 of {_gui} to paper named "&7No mission right now"
+	# The other chains (Vic's), a row each: a card while running, a call button when their giver isn't on the map.
+	set {_row} to 20
 	loop {-cfg::story::chains::*}:
 		set {_c} to loop-value
 		if {_c} is not "story":
 			set {_cid} to storyIdOf({_p}, {_c})
 			if storyLive({_cid}) is true:
-				storyButton({_p}, {_gui}, {_slot}, storyCard({_p}, {_cid}), "gps:%{_c}%")
-				set {_k} to {-cfg::chain::%{_c}%::giver}
-				if storyObj({_cid}) is "talk|%{_k}%":
-					if storyNeedsMet({_p}, {_k}) is false:
-						set {_who} to {-cfg::chain::%{_c}%::from}
-						set {_away} to storyAwayText({_k})
-						storyButton({_p}, {_gui}, {_slot} + 9, paper named "&6Call %{_who}%" with lore {_away}, "call:%{_c}%")
-				add 1 to {_slot}
+				if {_row} <= 38:
+					storyButton({_p}, {_gui}, {_row}, storyCard({_p}, {_cid}), "gps:%{_c}%")
+					set {_k} to {-cfg::chain::%{_c}%::giver}
+					if storyObj({_cid}) is "talk|%{_k}%":
+						if storyNeedsMet({_p}, {_k}) is false:
+							set {_who} to {-cfg::chain::%{_c}%::from}
+							set {_away} to storyAwayText({_k})
+							storyButton({_p}, {_gui}, {_row} + 1, paper named "&6Call %{_who}%" with lore {_away}, "call:%{_c}%")
+					add 9 to {_row}
 	# Mara's chapters: done, now, later.
-	set {_slot} to 29
+	set {_slot} to max(29, {_row})
+	if {_slot} > 38:
+		set {_slot} to 38
 	set {_nowch} to 0
 	if storyExists({_id}) is true:
 		set {_nowch} to {-cfg::story::%{_id}%::chapter}
@@ -995,11 +1003,12 @@ function storyMenu(p: player):
 			set {_i} to orange dye named "&6Chapter %{_c}%: %{_cn}%" with lore "&7Now"
 		else:
 			set {_i} to gray dye named "&7Chapter %{_c}%: %{_cn}%" with lore "&7Later"
-		set slot {_slot} of {_gui} to {_i}
+		if mod({_slot}, 9) >= 2:
+			if mod({_slot}, 9) <= 6:
+				set slot {_slot} of {_gui} to {_i}
 		add 1 to {_slot}
-	# The phone's apps (phone.sk's back buttons), however the menu was opened: the phone, /missions or Mara.
-	storyButton({_p}, {_gui}, 27, phoneBackItem(), "phone")
-	storyButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
+	# The home button (the phone), however the menu was opened: the phone, /missions or Mara.
+	storyButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	set {-story::gui::%{_p}%} to {_gui}
 	if {-story::gen::%{_p}%} is not set:
 		set {-story::gen::%{_p}%} to 0

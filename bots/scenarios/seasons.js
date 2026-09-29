@@ -159,13 +159,16 @@ module.exports = async ({ check }) => {
     bots[A].chat('/lb')
     let w = await o
     await sleep(300)
-    const firstRow = itemText(w && w.slots[20])
-    const mine = itemText(w && w.slots[40])
+    // A phone page (seasons.sk lbMenu): the status bar says "Season 1"; the boards are tabs at 3-5 (the one shown
+    // glints), #1-5 at 11-15, #6-10 at 20-24, you at 31.
+    const firstRow = itemText(w && w.slots[11])
+    const mine = itemText(w && w.slots[31])
+    const shown = (win, n, board) => Boolean(win && win.slots[n] && /enchantment_glint_override/.test(itemText(win.slots[n])) && itemText(win.slots[n]).includes(board))
     o = windowOpen(bots[A])
     bots[A].clickWindow(4, 0, 0).catch(() => {})
     const w2 = await o
     await sleep(300)
-    check('/lb: the top 10 as heads, your own place, the three boards as tabs', /Season 1 . Top Earners/.test(title(w)) && w.slots[20] && w.slots[20].name === 'player_head' && /#1/.test(firstRow) && /SeasA/.test(firstRow) && /"You: "/.test(mine) && /"#1"/.test(mine) && /Master Thieves/.test(title(w2)), `title=${/Season 1 . Top Earners/.test(title(w))} head=${w && w.slots[20] && w.slots[20].name} r1=${/#1/.test(firstRow)} name=${/SeasA/.test(firstRow)} mine=${/"You: "/.test(mine) && /"#1"/.test(mine)} tab=${/Master Thieves/.test(title(w2))} ${(mine.match(/"value":"[^"]*"/g) || []).join(" ")}`)
+    check('/lb: the top 10 as heads, your own place, the three boards as tabs', /Season 1"/.test(title(w)) && shown(w, 3, 'Top Earners') && w.slots[11] && w.slots[11].name === 'player_head' && /#1/.test(firstRow) && /SeasA/.test(firstRow) && /"You: "/.test(mine) && /"#1"/.test(mine) && shown(w2, 4, 'Master Thieves'), `title=${/Season 1"/.test(title(w))} tab1=${shown(w, 3, 'Top Earners')} head=${w && w.slots[11] && w.slots[11].name} r1=${/#1/.test(firstRow)} name=${/SeasA/.test(firstRow)} mine=${/"You: "/.test(mine) && /"#1"/.test(mine)} tab=${shown(w2, 4, 'Master Thieves')} ${(mine.match(/"value":"[^"]*"/g) || []).join(" ")}`)
     await closeAll(A)
     t = Date.now()
     bots[A].chat('/season')

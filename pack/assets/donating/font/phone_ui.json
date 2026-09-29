@@ -38,6 +38,60 @@
       "chars": [
         ""
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/panel_1.png",
+      "ascent": 13,
+      "height": 35,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/panel_2.png",
+      "ascent": 13,
+      "height": 53,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/panel_3.png",
+      "ascent": 13,
+      "height": 71,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/panel_4.png",
+      "ascent": 13,
+      "height": 89,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/panel_5.png",
+      "ascent": 13,
+      "height": 107,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "donating:font/panel_6.png",
+      "ascent": 13,
+      "height": 125,
+      "chars": [
+        ""
+      ]
     }
   ]
 }

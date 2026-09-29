@@ -1161,16 +1161,16 @@ function jobsMenu(p: player):
 	# Arrivals are counted before the board is drawn (spec §2).
 	loop {-cfg::jobs::contacts::*}:
 		jobsFill({_p}, loop-value)
-	set {_gui} to chest inventory with 5 rows named "&8Jobs"
+	# A phone page (ui.sk, 2026-09-29): the toolbar 2 back, 4 the legend, 6 Missions; a row per contact (Mara 11,
+	# the Boss 20: the contact, then the jobs at +1 to +4), Vic's row 29-32 (fence.sk fenceRow), Swap 38 (Mara) and
+	# 39 (the Boss) while near them, Home 49.
+	set {_gui} to phonePage("Jobs")
 	delete {-jobs::act::%{_p}%::*}
-	set {_pane} to gray stained glass pane named "&r"
-	loop 45 times:
-		set slot (loop-number - 1) of {_gui} to {_pane}
 	set slot 4 of {_gui} to book named "&6Jobs" with lore "&e★ Bonus: +50%% &7· &b❄ cold heist: +25%%"
 	set {_row} to 0
 	loop {-cfg::jobs::contacts::*}:
 		set {_c} to loop-value
-		set {_base} to 9 + {_row} * 9
+		set {_base} to 11 + {_row} * 9
 		set {_who} to jobsName({_c})
 		set {_near} to false
 		if questNear({_p}, jobsGiver({_c})) is not "":
@@ -1218,7 +1218,7 @@ function jobsMenu(p: player):
 				set {_k} to loop-value-2
 				set {_slot} to {_base} + {_k}
 				if jobsState({_p}, {_c}, {_k}) is "":
-					set slot {_slot} of {_gui} to light gray stained glass pane named "&7Empty"
+					set slot {_slot} of {_gui} to phoneEmptyIcon("Empty")
 				else:
 					set {_card} to jobsCard({_p}, {_c}, {_k}, {_near})
 					if {-jobs::arm::%{_p}%} is "drop:%{_c}%:%{_k}%":
@@ -1236,19 +1236,18 @@ function jobsMenu(p: player):
 					else:
 						set slot {_slot} of {_gui} to {_card}
 			if {_near} is true:
-				jobsButton({_p}, {_gui}, {_base} + 8, lime dye named "&aSwap a job" with lore "&7Once a day" and "&eThen click a job", "swapmode:%{_c}%")
+				jobsButton({_p}, {_gui}, 38 + {_row}, lime dye named "&aSwap a job" with lore "&7Once a day" and "&eThen click a job", "swapmode:%{_c}%")
 		add 1 to {_row}
 	# Vic the Fence's row: his arc, then his weekly Wanted List (fence.sk).
 	fenceRow({_p}, {_gui})
-	jobsButton({_p}, {_gui}, 36, writable book named "&dMissions", "missions")
-	# phone.sk's back buttons (slot 37: the bottom row's first slot is Missions). Picking a job to swap is its own
-	# step, so there it's "◀ Back" to the board (it ends swap mode); else "◀ Back" to the GPS's Quests page (gps.sk),
-	# where this board lives since the phone's apps went (2026-09-29), however the menu was opened.
+	jobsButton({_p}, {_gui}, 6, writable book named "&dMissions", "missions")
+	# Back: picking a job to swap is its own step, so there it's "◀ Jobs" (it ends swap mode); else "◀ Quests", the
+	# GPS's Quests page (gps.sk), where this board lives, however the menu was opened.
 	if {-jobs::swapmode::%{_p}%} is set:
-		jobsButton({_p}, {_gui}, 37, backItem("your jobs"), "back")
+		jobsButton({_p}, {_gui}, 2, phoneBackIcon("Jobs"), "back")
 	else:
-		jobsButton({_p}, {_gui}, 37, backItem("quests"), "gps")
-	jobsButton({_p}, {_gui}, 44, barrier named "&cClose", "close")
+		jobsButton({_p}, {_gui}, 2, phoneBackIcon("Quests"), "gps")
+	jobsButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	set {-jobs::gui::%{_p}%} to {_gui}
 	if {-jobs::gen::%{_p}%} is not set:
 		set {-jobs::gen::%{_p}%} to 0
@@ -1289,6 +1288,9 @@ on inventory click:
 	set {_a::*} to {_act} split at ":"
 	if {_a::1} is "close":
 		close player's inventory
+	else if {_a::1} is "phone":
+		delete {-jobs::swapmode::%player%}
+		openPhone(player)
 	else if {_a::1} is "gps":
 		gpsCat(player, "quests", 1)
 	else if {_a::1} is "back":

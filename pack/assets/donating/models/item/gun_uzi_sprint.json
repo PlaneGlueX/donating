@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_uzi",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -20,
+        -40,
+        0
+      ],
+      "translation": [
+        -5,
+        2.5,
+        -2
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -20,
+        140,
+        0
+      ],
+      "translation": [
+        -5,
+        2.5,
+        -2
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    }
+  }
+}

@@ -1237,7 +1237,11 @@ on command:
 # Back buttons (phone.sk's convention, owner 2026-09-28): the garage is a phone app, so its main page has "◀ Phone"
 # (openPhone, also when an attendant or /garage opened it); a car's options go back to the garage, its repaint and
 # tuning pages to its options, the dealer's colors to the dealer's cars. The dealer's model list is a shop's main page
-# (an NPC's, not a phone app): no button there, like the other shops. Always the bottom row's first slot.
+# (an NPC's, not a phone app): no button there, like the other shops.
+# The garage's own pages are phone pages (ui.sk, 2026-09-29, owner: "update the phone view for all menus inside the
+# phone"): back at slot 2 (named for where it goes), the page's main item at 4, page arrows at 5/6, the content on the
+# screen's 20 slots (phoneSlots()), Home at 49; no panes, no Close. The Car Dealer is a shopkeeper's counter: a plain
+# chest as before, its back button in the bottom row's first slot.
 
 function carClearGui(p: player):
 	delete {-car::gui::%{_p}%}
@@ -1337,17 +1341,18 @@ function garageColors(p: player, id: text):
 # A car's other colors (the paint shop).
 function garagePaintColors(p: player, plate: text):
 	set {_id} to carModelOf({_plate})
-	set {_title} to "&8%carName({_id})%: repaint"
-	set {_gui} to chest inventory with 3 rows named {_title}
+	set {_gui} to phonePage("Repaint")
 	carClearGui({_p})
 	set {-car::screen::%{_p}%} to "paint:%{_plate}%"
-	carPane({_gui}, 3)
-	set {_slot} to 10
+	set {_slots::*} to phoneSlots()
+	set {_k} to 0
 	set {_now} to carColor({_plate})
 	set {_pr} to cfg("car::paint-price")
 	set {_price} to formatMoney({_pr})
 	loop carColorLabels({_id}):
 		set {_label} to loop-value
+		add 1 to {_k}
+		set {_slot} to {_slots::%{_k}%}
 		if {_label} is {_now}:
 			set {_i} to carIcon({_id}, {_label}) named "&f%{_label}% &6%carName({_id})%" with lore "&aCurrent color"
 			set slot {_slot} of {_gui} to {_i}
@@ -1357,15 +1362,11 @@ function garagePaintColors(p: player, plate: text):
 			else:
 				set {_i} to carIcon({_id}, {_label}) named "&f%{_label}% &6%carName({_id})%" with lore "&7Repaint: %carPriceColor({_p}, {_pr})%%{_price}%"
 			carButton({_p}, {_gui}, {_slot}, {_i}, "paint:%{_plate}%:%{_label}%")
-		add 1 to {_slot}
-		# 18 is "◀ Back": a model with more than 8 colors goes on in the bottom row.
-		if {_slot} is 18:
-			set {_slot} to 19
-	carButton({_p}, {_gui}, 18, backItem("your %carTitle({_plate})%"), "options:%{_plate}%")
-	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+	carButton({_p}, {_gui}, 2, phoneBackIcon(carName({_id})), "options:%{_plate}%")
+	carButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	carOpen({_p}, {_gui})
 
-# The garage: every car the player owns, 36 a page, best first.
+# The garage: every car the player owns, 20 a page (the phone's screen), best first.
 function garageMenu(p: player):
 	garageMenuPage({_p}, 1)
 
@@ -1373,36 +1374,43 @@ function garageMenuPage(p: player, page: number):
 	closePhoneMap({_p})
 	set {_cars::*} to carsOf({_p})
 	set {_total} to size of {_cars::*}
-	set {_pages} to max(1, ceil({_total} / 36))
+	set {_pages} to max(1, ceil({_total} / 20))
 	set {_page} to max(1, min({_page}, {_pages}))
-	set {_gui} to chest inventory with 6 rows named "&8Your garage (%{_total}%/%cfg("car::garage-max")%)"
+	set {_gui} to phonePage("Garage")
 	carClearGui({_p})
-	carPane({_gui}, 6)
-	# Where the cars come out (citygarage.sk): at this garage, Valet anywhere, or find a garage.
+	set {_count} to "&7Cars: &f%{_total}%/%cfg("car::garage-max")%"
+	# Where the cars come out (citygarage.sk): at this garage, Valet anywhere, or find a garage. Slot 4 also carries the
+	# count (the status bar has no room for it).
 	set {_site} to garageAt({_p})
 	set {_access} to false
 	if garageAccessBlock({_p}) is "":
 		set {_access} to true
 	if garagesExist() is true:
 		if {_site} is not "":
-			set slot 4 of {_gui} to minecart named "&aGarage" with lore "&7Park: drive into a return lane"
+			set slot 4 of {_gui} to minecart named "&aGarage" with lore {_count} and "&7Park: drive into a return lane"
 		else if {_access} is true:
-			set slot 4 of {_gui} to compass named "&6Valet" with lore "&7Cars come to you anywhere" and "&7Not in heists or combat"
+			set slot 4 of {_gui} to compass named "&6Valet" with lore {_count} and "&7Cars come to you anywhere" and "&7Not in heists or combat"
 		else:
 			set {_gn} to garageNearest({_p})
 			set {_where} to "&7No garage on the map yet"
 			if {_gn} is not "":
 				set {_gd} to round(distance between (location of {_p}) and poiLocation({poi::%{_gn}%}))
 				set {_where} to "&7Nearest: &f%garagePoiName({_gn})% (%{_gd}%m)"
-			carButton({_p}, {_gui}, 4, compass named "&6Find a garage" with lore {_where} and "&7Valet: &6[Elite] &d[Legend]", "find")
-	set {_slot} to 9
-	set {_from} to ({_page} - 1) * 36 + 1
-	set {_to} to {_page} * 36
+			carButton({_p}, {_gui}, 4, compass named "&6Find a garage" with lore {_count} and {_where} and "&7Valet: &6[Elite] &d[Legend]", "find")
+	else:
+		set {_i} to appIcon("garage", "&fGarage")
+		set lore of {_i} to colored {_count}
+		set slot 4 of {_gui} to {_i}
+	set {_slots::*} to phoneSlots()
+	set {_from} to ({_page} - 1) * 20 + 1
+	set {_to} to {_page} * 20
 	set {_k} to 0
 	loop {_cars::*}:
 		add 1 to {_k}
 		if {_k} >= {_from}:
 			if {_k} <= {_to}:
+				set {_n} to {_k} - {_from} + 1
+				set {_slot} to {_slots::%{_n}%}
 				set {_plate} to loop-value
 				set {_l::*} to carLoreOf({_plate})
 				set {_dw} to carDriveBlock({_p}, {_plate})
@@ -1434,7 +1442,6 @@ function garageMenuPage(p: player, page: number):
 				if carGrade({_plate}) >= 3:
 					set {_i} to glint({_i})
 				carButton({_p}, {_gui}, {_slot}, {_i}, "car:%{_plate}%")
-				add 1 to {_slot}
 	if {_total} is 0:
 		# The cheapest level a dealer car needs (crate cars need none).
 		set {_low} to 1000
@@ -1442,15 +1449,15 @@ function garageMenuPage(p: player, page: number):
 			if {-cfg::car::%loop-value%::crate} is not true:
 				if {-cfg::car::%loop-value%::level} is set:
 					set {_low} to min({_low}, {-cfg::car::%loop-value%::level})
-		set slot 22 of {_gui} to paper named "&7No cars yet" with lore "&7Car Dealer: from level %{_low}%"
-	# "◀ Phone" keeps the bottom-left slot on every page (where every menu's back button is); the page arrows sit
-	# together on the right.
-	carButton({_p}, {_gui}, 45, phoneBackItem(), "phone")
+		set {_i} to phoneEmptyIcon("No cars yet")
+		set lore of {_i} to colored "&7Car Dealer: from level %{_low}%"
+		set slot 22 of {_gui} to {_i}
+	carButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
 	if {_page} > 1:
-		carButton({_p}, {_gui}, 52, arrow named "&fPage %{_page} - 1%", "page:%{_page} - 1%")
+		carButton({_p}, {_gui}, 5, phonePrevIcon({_page}), "page:%{_page} - 1%")
 	if {_page} < {_pages}:
-		carButton({_p}, {_gui}, 53, arrow named "&fPage %{_page} + 1%", "page:%{_page} + 1%")
-	carButton({_p}, {_gui}, 49, barrier named "&cClose", "close")
+		carButton({_p}, {_gui}, 6, phoneNextIcon({_page}), "page:%{_page} + 1%")
+	carButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	set {-car::page::%{_p}%} to {_page}
 	carOpen({_p}, {_gui})
 
@@ -1458,15 +1465,15 @@ function garageMenuPage(p: player, page: number):
 function garageOptions(p: player, plate: text):
 	carOwns({_p}, {_plate}) is true
 	set {_id} to carModelOf({_plate})
-	set {_gui} to chest inventory with 3 rows named "&8%carTitle({_plate})%"
+	# The status bar only fits the model's name (carTitle can run past it).
+	set {_gui} to phonePage(carName({_id}))
 	carClearGui({_p})
-	carPane({_gui}, 3)
 	set {_i} to carIconOf({_plate}) named "&6%carTitle({_plate})%%carSerialText({_plate})%" with lore carLoreOf({_plate})
 	set slot 4 of {_gui} to {_i}
 	if carLocked({_plate}) is true:
-		carButton({_p}, {_gui}, 10, iron door named "&cLocked" with lore "&7Unlock: others can ride along", "lock:%{_plate}%")
+		carButton({_p}, {_gui}, 11, iron door named "&cLocked" with lore "&7Unlock: others can ride along", "lock:%{_plate}%")
 	else:
-		carButton({_p}, {_gui}, 10, oak door named "&aUnlocked" with lore "&7Others can ride along", "lock:%{_plate}%")
+		carButton({_p}, {_gui}, 11, oak door named "&aUnlocked" with lore "&7Others can ride along", "lock:%{_plate}%")
 	# Why a repaint or tuning can't happen right now (the car is out, or away from a garage), else "".
 	set {_now} to ""
 	if {car::out::%{_plate}%} is set:
@@ -1487,15 +1494,15 @@ function garageOptions(p: player, plate: text):
 			carButton({_p}, {_gui}, 12, red dye named "&dRepaint" with lore "&a%{_price}%" and {_now}, "paint:%{_plate}%")
 	set {_tb} to carTuneBlock({_plate})
 	if {_tb} is not "":
-		set slot 14 of {_gui} to gray dye named "&7Tune" with lore "&7%{_tb}%"
+		set slot 13 of {_gui} to gray dye named "&7Tune" with lore "&7%{_tb}%"
 	else if {_now} is "":
-		carButton({_p}, {_gui}, 14, piston named "&bTune", "tune:%{_plate}%")
+		carButton({_p}, {_gui}, 13, piston named "&bTune", "tune:%{_plate}%")
 	else:
-		carButton({_p}, {_gui}, 14, piston named "&bTune" with lore {_now}, "tune:%{_plate}%")
+		carButton({_p}, {_gui}, 13, piston named "&bTune" with lore {_now}, "tune:%{_plate}%")
 	if {car::out::%{_plate}%} is set:
-		carButton({_p}, {_gui}, 16, chest named "&eSend it back", "store:%{_plate}%")
-	carButton({_p}, {_gui}, 18, backItem("your garage"), "garage")
-	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+		carButton({_p}, {_gui}, 14, chest named "&eSend it back", "store:%{_plate}%")
+	carButton({_p}, {_gui}, 2, phoneBackIcon("Garage"), "garage")
+	carButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	carOpen({_p}, {_gui})
 
 # The price of a part's next stage n for a model: max(min, floor(the model's price × share)).
@@ -1509,10 +1516,9 @@ function carModPrice(id: text, n: number) :: number:
 function garageTune(p: player, plate: text):
 	carOwns({_p}, {_plate}) is true
 	set {_id} to carModelOf({_plate})
-	set {_gui} to chest inventory with 3 rows named "&8Tune: %carTitle({_plate})%"
+	set {_gui} to phonePage("Tune")
 	carClearGui({_p})
 	set {-car::screen::%{_p}%} to "tune:%{_plate}%"
-	carPane({_gui}, 3)
 	set slot 4 of {_gui} to carIconOf({_plate}) named "&6%carTitle({_plate})%" with lore carLoreOf({_plate})
 	set {_slot} to 11
 	loop {-cfg::carmod::parts::*}:
@@ -1541,9 +1547,9 @@ function garageTune(p: player, plate: text):
 			else:
 				set {_i} to piston named "&b%carModName({_part})% %carRoman({_n})%" with lore {_l::*}
 			carButton({_p}, {_gui}, {_slot}, {_i}, "tunebuy:%{_plate}%:%{_part}%")
-		add 2 to {_slot}
-	carButton({_p}, {_gui}, 18, backItem("your %carTitle({_plate})%"), "options:%{_plate}%")
-	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
+		add 1 to {_slot}
+	carButton({_p}, {_gui}, 2, phoneBackIcon(carName({_id})), "options:%{_plate}%")
+	carButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	carOpen({_p}, {_gui})
 
 on inventory click:

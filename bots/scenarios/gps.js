@@ -299,9 +299,9 @@ module.exports = async ({ check }) => {
     check('Quests lists Mara\'s missions, car contracts, side jobs, Vic\'s Wanted List, hit contracts and bounties', /GPS . Quests$/.test(title(w)) && quests.every(s => s >= 0), `${title(w)} | ${names()}`)
     const ct = find(/^Car contracts/)
     const ctw = ct >= 0 ? await clickOpen(ct, 1) : null
-    const ctBack = find(/^◀ Back$/)
+    const ctBack = find(/^◀ Quests$/)
     const backQ = ctBack >= 0 ? await clickOpen(ctBack) : null
-    check('...a right-click on car contracts opens its menu, and its "◀ Back" comes back to Quests', /^Car contracts/.test(title(ctw)) && /GPS . Quests$/.test(title(backQ)), `"${title(ctw)}" back@${ctBack} -> "${title(backQ)}"`)
+    check('...a right-click on car contracts opens its menu (a phone page, Contracts), and its "◀ Quests" (slot 2) comes back to Quests', /Contracts$/.test(title(ctw)) && ctBack === 2 && /GPS . Quests$/.test(title(backQ)), `"${title(ctw)}" back@${ctBack} -> "${title(backQ)}"`)
 
     // Heists: the open test heist with its state and distance.
     w = await chatOpen('/gps heists')

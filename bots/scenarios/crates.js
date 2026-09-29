@@ -60,11 +60,15 @@ module.exports = async ({ check }) => {
       await sleep(300)
       return w
     }
+    // Phone pages (ui.sk, 2026-09-29): the content is the screen's 20 slots, the toolbar is row 0 (2 back, 3-6), 49 home.
+    const SCREEN = [11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33, 38, 39, 40, 41, 42]
     const slotOf = (w, crate) => {
       if (!w) return -1
-      for (let s = 9; s < 18; s++) if (w.slots[s] && new RegExp(`${crate} Crate`, 'i').test(itemText(w.slots[s]))) return s
+      for (const s of SCREEN) if (w.slots[s] && new RegExp(`${crate} Crate`, 'i').test(itemText(w.slots[s]))) return s
       return -1
     }
+    // A crate's preview is a phone page whose status bar is the rarity alone ("Common"); the spin says "Common Crate".
+    const isPreview = (t, rarity) => new RegExp(rarity).test(t) && !/Crate/.test(t)
     // Clicks a crate stand: its "what's inside" menu with the Open button.
     const stand = async (name, crate) => {
       await closeAll(name)
@@ -81,7 +85,7 @@ module.exports = async ({ check }) => {
       const w = await stand(name, crate)
       const t = Date.now()
       const spin = windowOpen(bot)
-      bot.clickWindow(49, 0, 0).catch(() => {})
+      bot.clickWindow(4, 0, 0).catch(() => {})
       const sw = await spin
       let during = null
       if (mid) during = await mid()
@@ -206,7 +210,7 @@ module.exports = async ({ check }) => {
     let before = await bal(A)
     let w = await menu(A)
     const hackedShown = w && w.slots.some(i => i && i.name === 'sculk_shrieker')
-    check('/crates shows every crate with your keys, Hacked too, and a Store link (33)', /Crates/.test(title(w)) && slotOf(w, 'Common') >= 0 && hackedShown && /Keys: /.test(itemText(w && w.slots[slotOf(w, 'Common')])) && Boolean(w && w.slots[33] && w.slots[33].name === 'emerald' && /Store/.test(itemText(w.slots[33]))), `${title(w)} common=${slotOf(w, 'Common')} hacked=${hackedShown} ${itemText(w && w.slots[slotOf(w, 'Common')]).slice(0, 300)}`)
+    check('/crates (a phone page) shows every crate with your keys, Hacked too, a Store link (6), the daily reward (4) and home (49)', /Crates/.test(title(w)) && slotOf(w, 'Common') >= 0 && hackedShown && /Keys: /.test(itemText(w && w.slots[slotOf(w, 'Common')])) && Boolean(w && w.slots[6] && w.slots[6].name === 'emerald' && /Store/.test(itemText(w.slots[6]))) && /Daily reward/.test(itemText(w && w.slots[4])) && /Home/.test(itemText(w && w.slots[49])) && !(w && w.slots.slice(0, 54).some(i => i && /glass_pane|barrier/.test(i.name))), `${title(w)} common=${slotOf(w, 'Common')} hacked=${hackedShown} ${itemText(w && w.slots[slotOf(w, 'Common')]).slice(0, 300)}`)
     // The Hacked name is animated: reads of its placeholder over one 4.4 s loop differ, some obfuscated
     // (&k), one fully revealed.
     const frames = []
@@ -219,26 +223,26 @@ module.exports = async ({ check }) => {
     bots[A].clickWindow(slotOf(w, 'Common'), 0, 0).catch(() => {})
     const pw = await seeing
     await sleep(300)
-    check('clicking a crate in /crates shows what\'s inside with each chance, and says to open it at a stand', /what's inside/.test(title(pw)) && /Chance/.test(itemText(pw && pw.slots[0])) && /100/.test(itemText(pw && pw.slots[0])) && /crate stand/.test(itemText(pw && pw.slots[49])) && !/Open one/.test(itemText(pw && pw.slots[49])), `${title(pw)} ${itemText(pw && pw.slots[49]).slice(0, 300)}`)
+    check('clicking a crate in /crates shows what\'s inside with each chance, and says to open it at a stand', isPreview(title(pw), 'Common') && /Chance/.test(itemText(pw && pw.slots[11])) && /100/.test(itemText(pw && pw.slots[11])) && /crate stand/.test(itemText(pw && pw.slots[4])) && !/Open one/.test(itemText(pw && pw.slots[4])), `${title(pw)} ${itemText(pw && pw.slots[4]).slice(0, 300)}`)
     // A set shows its most visible part (found in the client: both Hacked sets were name tags, so the
     // spin looked frozen): H4CK3R + Matrix is the Matrix bag, Zero Day + Glitch the kill effect.
     w = await menu(A)
-    const hs = w ? w.slots.findIndex((i, n) => n >= 9 && n < 27 && i && i.name === 'sculk_shrieker') : -1
+    const hs = w ? w.slots.findIndex((i, n) => SCREEN.includes(n) && i && i.name === 'sculk_shrieker') : -1
     const hackedPage = windowOpen(bots[A])
     bots[A].clickWindow(hs, 0, 0).catch(() => {})
     const hw = await hackedPage
     await sleep(300)
-    const hs5 = hw ? hw.slots.slice(0, 5) : []
+    const hs5 = hw ? SCREEN.slice(0, 5).map(n => hw.slots[n]) : []
     check('a cosmetic set shows its bag skin or kill effect, not the title (the Hacked spin moves); the crate cars show as cars', hs5.some(i => i && i.name === 'leather' && /bag_matrix/.test(itemText(i))) && hs5.some(i => i && i.name === 'blaze_powder') && hs5.filter(i => i && i.name === 'diamond_hoe').length === 3, hs5.map(i => i && i.name).join(' '))
-    // Hacked keys can't be bought: no Store (47), no Buy a key (51); slot 49 says where they come from.
-    check('the Hacked crate has no Store and no Buy a key button; "Events only"', Boolean(hw) && !(hw.slots[47] && hw.slots[47].name === 'emerald') && !(hw.slots[51] && hw.slots[51].name === 'gold_ingot') && /Events only/.test(itemText(hw.slots[49])), `${itemText(hw && hw.slots[47]).slice(0, 80)} ${itemText(hw && hw.slots[49]).slice(0, 200)} ${itemText(hw && hw.slots[51]).slice(0, 80)}`)
+    // Hacked keys can't be bought: no Store (3), no Buy a key (5); slot 4 says where they come from.
+    check('the Hacked crate has no Store and no Buy a key button; "Events only"', Boolean(hw) && !(hw.slots[3] && hw.slots[3].name === 'emerald') && !(hw.slots[5] && hw.slots[5].name === 'gold_ingot') && /Events only/.test(itemText(hw.slots[4])), `${itemText(hw && hw.slots[3]).slice(0, 80)} ${itemText(hw && hw.slots[4]).slice(0, 200)} ${itemText(hw && hw.slots[5]).slice(0, 80)}`)
     await closeAll(A)
     check('...and nothing was opened (no key used)', (await keys(A, 'common')) === 5 && (await bal(A)) === before, `keys=${await keys(A, 'common')}`)
 
     // ---------- Opening at a stand ----------
     mark = log('crates').length
     let r = await openCrate(A, 'Common', { mid: async () => { await sleep(300); return { bal: await bal(A), keys: await keys(A, 'common'), pending: await pending(A) } } })
-    check('a stand shows the crate with an Open button; the key is used when the spin starts', /Common Crate: what's inside/.test(r.standTitle) && /Common Crate/.test(r.spinTitle) && r.during && r.during.keys === 4 && /money\|777/.test(r.during.pending), JSON.stringify(r.during))
+    check('a stand shows the crate with an Open button; the key is used when the spin starts', isPreview(r.standTitle, 'Common') && /Common Crate/.test(r.spinTitle) && r.during && r.during.keys === 4 && /money\|777/.test(r.during.pending), JSON.stringify(r.during))
     check('...and the reward comes when the spin stops, not before', r.during && r.during.bal === before && /you got .*\$777/.test(r.said) && (await bal(A)) - before === 777 && r.ms > 1500 && (await pending(A)) === 'none', `during=${JSON.stringify(r.during)} after +${(await bal(A)) - before} in ${r.ms} ms / ${r.said}`)
     check('every opening and grant is logged', /open CrateA [0-9a-f-]+ common keys-left=4 line=1\|money\|777/.test(log('crates').slice(mark)) && /grant CrateA [0-9a-f-]+ common line=1\|money\|777/.test(log('crates').slice(mark)))
     before = await bal(A)
@@ -250,7 +254,7 @@ module.exports = async ({ check }) => {
       const bot = bots[A]
       await stand(A, 'Common')
       const spin = windowOpen(bot)
-      bot.clickWindow(49, 0, 0).catch(() => {})
+      bot.clickWindow(4, 0, 0).catch(() => {})
       await spin
       await sleep(200)
       await quit(bot)
@@ -295,7 +299,7 @@ module.exports = async ({ check }) => {
     await cmd(`zztag ${A}`)
     await stand(A, 'Common')
     t = Date.now()
-    bots[A].clickWindow(49, 0, 0).catch(() => {})
+    bots[A].clickWindow(4, 0, 0).catch(() => {})
     await sleep(900)
     check('no opening while in combat (the key stays)', /while in combat/.test(text(A, t)) && (await keys(A, 'common')) === 1, `${text(A, t)} keys=${await keys(A, 'common')}`)
     await cmd(`zzcombatend ${A}`)
@@ -303,7 +307,7 @@ module.exports = async ({ check }) => {
     await cmd(`rg remove -w world ${SAFE}`)
     await stand(A, 'Common')
     t = Date.now()
-    bots[A].clickWindow(49, 0, 0).catch(() => {})
+    bots[A].clickWindow(4, 0, 0).catch(() => {})
     await sleep(900)
     check('crates open only in safe zones (the key stays)', /only in safe zones/.test(text(A, t)) && (await keys(A, 'common')) === 1, `${text(A, t)} keys=${await keys(A, 'common')}`)
     await closeAll(A)
@@ -311,18 +315,18 @@ module.exports = async ({ check }) => {
     await cmd(`rg flag -w world ${SAFE} passthrough allow`)
     await cmd(`dcrate take ${A} common 100`)
     w = await stand(A, 'Common')
-    check('no keys: the stand has no Open button; the Store (47) and a key for game money (51, $1,500) are next to it', /No keys/.test(itemText(w && w.slots[49])) && Boolean(w && w.slots[47] && w.slots[47].name === 'emerald' && /Store/.test(itemText(w.slots[47]))) && Boolean(w && w.slots[51] && w.slots[51].name === 'gold_ingot' && /Buy a key/.test(itemText(w.slots[51])) && /1,500/.test(itemText(w.slots[51]))), `${itemText(w && w.slots[47]).slice(0, 120)} | ${itemText(w && w.slots[49]).slice(0, 200)} | ${itemText(w && w.slots[51]).slice(0, 200)}`)
+    check('no keys: the stand (a phone page: ◀ Crates at 2, home at 49) has no Open button; the Store (3) and a key for game money (5, $1,500) are next to it', /No keys/.test(itemText(w && w.slots[4])) && Boolean(w && w.slots[3] && w.slots[3].name === 'emerald' && /Store/.test(itemText(w.slots[3]))) && Boolean(w && w.slots[5] && w.slots[5].name === 'gold_ingot' && /Buy a key/.test(itemText(w.slots[5])) && /1,500/.test(itemText(w.slots[5]))) && /◀ Crates/.test(itemText(w && w.slots[2])) && /Home/.test(itemText(w && w.slots[49])), `${itemText(w && w.slots[3]).slice(0, 120)} | ${itemText(w && w.slots[4]).slice(0, 200)} | ${itemText(w && w.slots[5]).slice(0, 200)}`)
 
     // ---------- Common to Legendary keys for game money too (owner, 2026-09-29) ----------
     await cmd(`eco set ${A} 1000`)
     t = Date.now()
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     await sleep(900)
     check('a Common key for game money: too little money ($1,000) is refused on the first click, no confirm, no key', /costs \$1,500/.test(text(A, t)) && (await keys(A, 'common')) === 0 && (await bal(A)) === 1000, text(A, t))
     await cmd(`zztag ${A}`)
     await stand(A, 'Common')
     t = Date.now()
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     await sleep(900)
     await cmd(`zzcombatend ${A}`)
     check('...no buying keys while in combat', /while in combat/.test(text(A, t)) && (await keys(A, 'common')) === 0, text(A, t))
@@ -330,26 +334,26 @@ module.exports = async ({ check }) => {
     await stand(A, 'Common')
     mark = log('crates').length
     let gm = windowOpen(bots[A])
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     const gw1 = await gm
     await sleep(300)
-    const armedC = itemText(gw1 && gw1.slots[51])
+    const armedC = itemText(gw1 && gw1.slots[5])
     const keysArmed = await keys(A, 'common')
     gm = windowOpen(bots[A])
     t = Date.now()
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     const gw2 = await gm
     await sleep(500)
-    check('the first click arms it ("Confirm purchase?"), the second buys a Common key for $1,500 (logged); the stand\'s Open button appears', /Confirm purchase/.test(armedC) && /1,500/.test(armedC) && keysArmed === 0 && (await keys(A, 'common')) === 1 && (await bal(A)) === 3500 && /buy CrateA \S+ common price=1500 keys=1/.test(log('crates').slice(mark)) && /Open one/.test(itemText(gw2 && gw2.slots[49])) && /Bought a .*key for \$1,500/.test(text(A, t)) && !/crate stand/.test(text(A, t)), `${armedC.slice(0, 200)} keys=${await keys(A, 'common')} bal=${await bal(A)} ${text(A, t)}`)
+    check('the first click arms it ("Confirm purchase?"), the second buys a Common key for $1,500 (logged); the stand\'s Open button appears', /Confirm purchase/.test(armedC) && /1,500/.test(armedC) && keysArmed === 0 && (await keys(A, 'common')) === 1 && (await bal(A)) === 3500 && /buy CrateA \S+ common price=1500 keys=1/.test(log('crates').slice(mark)) && /Open one/.test(itemText(gw2 && gw2.slots[4])) && /Bought a .*key for \$1,500/.test(text(A, t)) && !/crate stand/.test(text(A, t)), `${armedC.slice(0, 200)} keys=${await keys(A, 'common')} bal=${await bal(A)} ${text(A, t)}`)
     // Arming and closing the menu buys nothing, and the first click's 5 s timer never buys a second key (review fix,
     // 2026-09-29: a failing check after the wait fell through to the purchase).
     const k1 = await keys(A, 'common')
     const b1 = await bal(A)
     gm = windowOpen(bots[A])
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     const gw3 = await gm
     await sleep(300)
-    const armedAgain = /Confirm purchase/.test(itemText(gw3 && gw3.slots[51]))
+    const armedAgain = /Confirm purchase/.test(itemText(gw3 && gw3.slots[5]))
     await closeAll(A)
     await sleep(6000)
     check('...arming it and closing the menu buys nothing (not after the 5 s either)', armedAgain && (await keys(A, 'common')) === k1 && (await bal(A)) === b1, `armed=${armedAgain} keys=${await keys(A, 'common')} bal=${await bal(A)}`)
@@ -387,15 +391,16 @@ module.exports = async ({ check }) => {
     bots[A].clickWindow(11, 0, 0).catch(() => {})
     const tw = await opened
     await sleep(300)
-    const worn = itemText(tw && tw.slots[0])
+    const worn = itemText(tw && SCREEN.map(n => tw.slots[n]).find(i => /Wearing it/.test(itemText(i))))
+    const takeOff = itemText(tw && tw.slots[4])
     opened = windowOpen(bots[A])
-    bots[A].clickWindow(49, 0, 0).catch(() => {})
+    bots[A].clickWindow(4, 0, 0).catch(() => {})
     await opened
     await sleep(500)
     await closeAll(A)
     await sleep(1500)
     const shownAfter = bots[B].players[A] && bots[B].players[A].displayName ? bots[B].players[A].displayName.toString() : ''
-    check('/cosmetics: the Titles page shows the worn one; "Take it off" removes it (chat and tab list)', /Your cosmetics/.test(title(ww)) && /Wearing it/.test(worn) && /title=<none>|title= /.test(await cos(A) + ' ') && !/«Ghost»/.test(shownAfter), `${title(ww)} ${worn.slice(0, 160)} ${await cos(A)} tab=${shownAfter}`)
+    check('/cosmetics: the Titles page shows the worn one; "Take it off" (4) removes it (chat and tab list)', /Cosmetics/.test(title(ww)) && /Titles/.test(itemText(ww && ww.slots[11])) && /Titles/.test(title(tw)) && /Take it off/.test(takeOff) && /Wearing it/.test(worn) && /title=<none>|title= /.test(await cos(A) + ' ') && !/«Ghost»/.test(shownAfter), `${title(ww)} ${worn.slice(0, 160)} ${await cos(A)} tab=${shownAfter}`)
     // Owner, 2026-09-26: /titles, /bagskins and /killeffects open their page of the wardrobe.
     const pages = []
     for (const c of ['titles', 'bagskins', 'killeffects']) {
@@ -406,7 +411,7 @@ module.exports = async ({ check }) => {
       await sleep(300)
     }
     await closeAll(A)
-    check('/titles, /bagskins and /killeffects open their page of the wardrobe', /Your titles/.test(pages[0]) && /Your bag skins/.test(pages[1]) && /Your kill effects/.test(pages[2]), pages.join(' | '))
+    check('/titles, /bagskins and /killeffects open their page of the wardrobe', /Titles/.test(pages[0]) && /Bag skins/.test(pages[1]) && /Kill effects/.test(pages[2]), pages.join(' | '))
 
     // Bag skins from crates work without a rank. Tiger is Epic: not announced (only Legendary and Hacked).
     await cmd('zzcratelines common 1|cos|tiger')
@@ -579,21 +584,21 @@ module.exports = async ({ check }) => {
     bots[A].clickWindow(sc, 0, 0).catch(() => {})
     let pv = await po
     await sleep(300)
-    check('a car crate\'s preview sells a key for game money ($1,000,000, slot 51); its keys aren\'t in the store (no Store button at 47)', /Buy a key/.test(itemText(pv && pv.slots[51])) && /1,000,000/.test(itemText(pv && pv.slots[51])) && Boolean(pv) && !(pv.slots[47] && pv.slots[47].name === 'emerald'), `${sc} ${itemText(pv && pv.slots[47]).slice(0, 100)} | ${itemText(pv && pv.slots[51]).slice(0, 300)}`)
+    check('a car crate\'s preview sells a key for game money ($1,000,000, slot 5); its keys aren\'t in the store (no Store button at 3)', /Buy a key/.test(itemText(pv && pv.slots[5])) && /1,000,000/.test(itemText(pv && pv.slots[5])) && Boolean(pv) && !(pv.slots[3] && pv.slots[3].name === 'emerald'), `${sc} ${itemText(pv && pv.slots[3]).slice(0, 100)} | ${itemText(pv && pv.slots[5]).slice(0, 300)}`)
     t = Date.now()
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     await sleep(900)
     check('too little money ($900,000): refused on the first click, no confirm, no key', /costs \$1,000,000/.test(text(A, t)) && (await keys(A, 'supercar')) === k0 && (await bal(A)) === 900000, `${text(A, t)} keys=${await keys(A, 'supercar')}`)
     await cmd(`eco set ${A} 1500000`)
     po = windowOpen(bots[A])
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     pv = await po
     await sleep(300)
-    const armed = itemText(pv && pv.slots[51])
+    const armed = itemText(pv && pv.slots[5])
     const before2 = await keys(A, 'supercar')
     po = windowOpen(bots[A])
     t = Date.now()
-    bots[A].clickWindow(51, 0, 0).catch(() => {})
+    bots[A].clickWindow(5, 0, 0).catch(() => {})
     await po
     await sleep(500)
     check('the first click arms it ("Confirm purchase?"), the second buys one key for $1,000,000 (logged)', /Confirm purchase/.test(armed) && before2 === k0 && (await keys(A, 'supercar')) === k0 + 1 && (await bal(A)) === 500000 && /buy CrateA \S+ supercar price=1000000/.test(log('crates')), `${armed.slice(0, 200)} keys=${await keys(A, 'supercar')} bal=${await bal(A)} ${text(A, t)}`)

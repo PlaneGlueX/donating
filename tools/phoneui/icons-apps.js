@@ -224,6 +224,19 @@ module.exports = {
   // The home button's clickable item: nothing (the button is drawn in the background).
   blank: c => { },
 
+  // An empty page's note ("No messages yet", ui.sk phoneEmptyIcon): a dim empty tray, no tile, so it reads as "nothing
+  // here" and its name shows on hover (a see-through icon left empty pages looking broken).
+  empty: c => glyph(c, [
+    '#..........#',
+    '#..........#',
+    '#..........#',
+    '#..........#',
+    '####....####',
+    '#..######..#',
+    '#..........#',
+    '############'
+  ], { '#': [142, 142, 147, 255] }),
+
   // Header arrows: no tile, a white symbol with a soft shadow.
   back: c => glyph(c, [
     '....##',

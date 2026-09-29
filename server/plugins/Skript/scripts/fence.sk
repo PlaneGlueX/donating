@@ -281,33 +281,34 @@ function fenceLeftText(s: number) :: text:
 		return "%{_d}%d %{_h}%h"
 	return "%{_h}%h %floor(mod({_s}, 3600) / 60)%m"
 
+# The jobs board's third row (a phone page, jobs.sk jobsMenu): his card at 29, his mission or the 3 orders at 30-32.
 function fenceRow(p: player, gui: inventory):
 	set {_lvl} to cfg("fence::level")
 	if storyNeedsMet({_p}, "fence") is false:
-		set slot 27 of {_gui} to gray dye named "&7Vic the Fence" with lore "&7Not in town yet."
+		set slot 29 of {_gui} to gray dye named "&7Vic the Fence" with lore "&7Not in town yet."
 		stop
 	if levelOk({_p}, {_lvl}) is false:
-		set slot 27 of {_gui} to gray dye named "&7Vic the Fence" with lore "&7Reach level %{_lvl}%."
+		set slot 29 of {_gui} to gray dye named "&7Vic the Fence" with lore "&7Reach level %{_lvl}%."
 		stop
 	set {_where} to questNearestText({_p}, "fence")
 	set {_left} to fenceLeftText(fenceWeekLeft())
 	if fenceArcDone({_p}) is false:
 		# Before his arc is done there's no list yet: the card next to this one is his mission.
-		jobsButton({_p}, {_gui}, 27, gold ingot named "&6Vic the Fence" with lore "&7Where: &f%{_where}%" and "&7Finish his jobs first", "vicfind")
+		jobsButton({_p}, {_gui}, 29, gold ingot named "&6Vic the Fence" with lore "&7Where: &f%{_where}%" and "&7Finish his jobs first", "vicfind")
 	else:
 		set {_status} to "&eThis week's list is ready"
 		if getData({_p}, "fence::took") is progWeek():
 			set {_status} to "&aThis week's list: taken ✔"
-		jobsButton({_p}, {_gui}, 27, gold ingot named "&6Vic the Fence" with lore "&7Where: &f%{_where}%" and {_status} and "&7Next list in %{_left}%", "vicfind")
+		jobsButton({_p}, {_gui}, 29, gold ingot named "&6Vic the Fence" with lore "&7Where: &f%{_where}%" and {_status} and "&7Next list in %{_left}%", "vicfind")
 	if fenceArcDone({_p}) is false:
 		set {_vid} to storyIdOf({_p}, "vic")
 		if storyLive({_vid}) is true:
-			jobsButton({_p}, {_gui}, 28, storyCard({_p}, {_vid}), "vicgps")
+			jobsButton({_p}, {_gui}, 30, storyCard({_p}, {_vid}), "vicgps")
 		stop
 	set {_took} to false
 	if getData({_p}, "fence::took") is progWeek():
 		set {_took} to true
-	set {_slot} to 28
+	set {_slot} to 30
 	loop 3 times:
 		set {_o} to fenceOrder(loop-number)
 		if {_o} is not "":

@@ -1018,6 +1018,8 @@ function ctGps(u: text):
 # ---------- The menu: a contract giver, /contracts and the GPS's Quests page ----------
 # At a giver (quests.sk questNear): take a job, buy lockpicks. Anywhere else: the same offers to look at, your
 # job and its drop button, and every other click pins the nearest giver on the GPS.
+# A phone page (ui.sk, 2026-09-29), however it opens (the GPS, /contracts, a giver): the toolbar 2 ◀ Quests, 4 the
+# giver (at a giver), 6 his side jobs; the offers 11/13/15 (a job 13, Drop 15), lockpicks 20/22/24, Find 31, Home 49.
 
 function ctButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
@@ -1028,14 +1030,14 @@ function ctMenu(p: player):
 	set {_u} to "%uuid of {_p}%"
 	ctOffersFresh({_p})
 	set {_at} to questNear({_p}, "contracts")
-	set {_title} to "&8Car contracts"
-	if {_at} is not "":
-		set {_title} to "&8Car contracts · %questPlace({_at})%"
-	set {_gui} to chest inventory with 4 rows named {_title}
+	set {_gui} to phonePage("Contracts")
 	delete {-ctact::%{_p}%::*}
-	set {_pane} to gray stained glass pane named "&r"
-	loop 36 times:
-		set slot (loop-number - 1) of {_gui} to {_pane}
+	ctButton({_p}, {_gui}, 2, phoneBackIcon("Quests"), "back")
+	# At a giver: his head, named for the place.
+	if {_at} is not "":
+		set {_i} to msgIcon("boss")
+		set name of {_i} to "&6%questPlace({_at})%"
+		set slot 4 of {_gui} to {_i}
 	set {_near} to questNearestText({_p}, "contracts")
 	if {-ctjob::%{_u}%} is set:
 		set slot 13 of {_gui} to ctJobIcon({_p})
@@ -1067,11 +1069,8 @@ function ctMenu(p: player):
 		add 2 to {_slot}
 	# His side jobs (jobs.sk), once his board is open.
 	if jobsUnlocked({_p}, "boss") is true:
-		ctButton({_p}, {_gui}, 27, paper named "&6Side jobs", "jobs")
-	# "◀ Back" to the GPS's Quests page (gps.sk), where this menu lives since the phone's apps went (2026-09-29),
-	# however it was opened: the GPS, /contracts or a giver. Slot 28: the bottom row's first slot is the side jobs.
-	ctButton({_p}, {_gui}, 28, backItem("quests"), "back")
-	ctButton({_p}, {_gui}, 35, barrier named "&cClose", "close")
+		ctButton({_p}, {_gui}, 6, paper named "&6Side jobs", "jobs")
+	ctButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	set {-ctgui::%{_p}%} to {_gui}
 	if {-ctgen::%{_p}%} is not set:
 		set {-ctgen::%{_p}%} to 0
@@ -1202,6 +1201,8 @@ function ctAction(p: player, act: text):
 	set {_k} to {_a::1}
 	if {_k} is "close":
 		close {_p}'s inventory
+	else if {_k} is "phone":
+		openPhone({_p})
 	else if {_k} is "back":
 		gpsCat({_p}, "quests", 1)
 	else if {_k} is "jobs":

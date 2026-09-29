@@ -94,6 +94,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final Renderer renderer = new Renderer();
     private final Gps gps = new Gps(this);
     private final Marks marks = new Marks(this);
+    private final CarSmooth carSmooth = new CarSmooth(this);
+    private final CarCam carCam = new CarCam(this);
     private Nametags nametags; // null without TAB
     /** Personal views (pv.sk): entities tagged this are invisible to everyone before they exist; Skript reveals them. */
     static final String PV_TAG = "donating_pv";
@@ -153,6 +155,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         load();
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(wallMaps, this);
+        // Classic chest menus draw their vanilla top panel from the title (the pack's generic_54.png is see-through there).
+        getServer().getPluginManager().registerEvents(new MenuPanels(this), this);
+        getServer().getPluginManager().registerEvents(carSmooth, this);
+        getServer().getPluginManager().registerEvents(carCam, this);
+        carSmooth.start();
+        carCam.start();
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();
         // TAB loads first (softdepend); its API is ready once the server has started.
@@ -166,6 +174,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        carCam.shutdown(); // every driver's camera back to them before the displays go
+        carSmooth.shutdown();
         gps.shutdown(); // the worker thread, a running road scan, and every GPS dot stand
         cityScan.shutdown();
         marks.shutdown();
@@ -206,6 +216,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         gridRoad = mapColor("#F0E040");
         gridBlocked = mapColor("#E02020");
         gps.configure(c);
+        carSmooth.configure(c);
+        carCam.configure(c);
         gps.city(hasCity() ? world : null, x0, z0, imgW, imgH, bpp);
         getLogger().info("GPS roads: " + (gps.roads() == null ? "none" : gps.roads().w + "x" + gps.roads().h + " cells"));
 
@@ -585,7 +597,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "cam"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
@@ -611,6 +623,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         } else if (args.length == 5 && args[0].equalsIgnoreCase("gps") && args[2].equalsIgnoreCase("set")) {
             for (org.bukkit.World w : Bukkit.getWorlds()) options.add(w.getName());
         }
+        if (args.length >= 2 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe"))) options.addAll(carSmooth.complete(args));
+        if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
         List<String> out = new ArrayList<>();
         for (String o : options) if (o.toLowerCase().startsWith(typed)) out.add(o);
@@ -635,6 +649,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             }
             return true;
         }
+        if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe"))) return carSmooth.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("mark")) {
             if (args.length == 3 && args[2].equalsIgnoreCase("status")) {
@@ -690,6 +706,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone nametag <viewer> <target>: whether TAB hides the target's name from the viewer (behind walls)");
             sender.sendMessage("/dphone carstat <plate> [<max speed> <acceleration> <steering>]: a driven car's stats in MTVehicles (garage.sk's mods)");
             sender.sendMessage("/dphone place set <id> <base|shop|spawn|landmark|garage|quest|heist0-4> <world> <x> <z> <name...> | remove <id> | clear | list: icons on the phone's map (nav.sk)");
+            sender.sendMessage("/dphone carsmooth [off|sync|track|all] | carprobe <plate> [<ticks>]: smoother MTVehicles cars (seats synced every tick, car stands sent every tick) and a probe log");
+            sender.sendMessage("/dphone cam <player> | cam tune [<key> <value>]: the chase camera in cars (carcam.sk)");
             return true;
         }
         load();

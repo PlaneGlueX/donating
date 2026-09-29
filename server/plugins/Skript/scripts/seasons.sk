@@ -641,7 +641,10 @@ function lbButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
 	set {-lb::act::%{_p}%::%{_slot}%} to {_act}
 
-# The board menu: the three boards as tabs, the top 10, your own place; "last" = last season's finals.
+# The board menu, a phone page (ui.sk): the status bar says the season ("Season 2", or "S1 · Final" on last season's
+# finals); the toolbar: 2 back, 3-5 the three boards as tabs (the one shown glints), 6 Last season (while a season runs
+# and one came before); the top 10 in rows 1-2 (11-15, 20-24), you at 31 (a running season only), the prizes at 40, the
+# home button 49. "last" = last season's finals.
 function lbMenu(p: player, b: text, last: boolean):
 	closePhoneMap({_p})
 	set {_u} to "%uuid of {_p}%"
@@ -650,15 +653,12 @@ function lbMenu(p: player, b: text, last: boolean):
 		set {_s} to seasonNum() - 1
 		if {season::state} is "off":
 			set {_s} to seasonNum()
-	set {_title} to "&8Season %{_s}% · %seasonBoardName({_b})%"
+	set {_status} to "Season %{_s}%"
 	if {_last} is true:
-		set {_title} to "&8Season %{_s}% (final) · %seasonBoardName({_b})%"
-	set {_gui} to chest inventory with 6 rows named {_title}
+		set {_status} to "S%{_s}% · Final"
+	set {_gui} to phonePage({_status})
 	delete {-lb::act::%{_p}%::*}
-	set {_pane} to gray stained glass pane named "&r"
-	loop 54 times:
-		set slot (loop-number - 1) of {_gui} to {_pane}
-	set {_slot} to 2
+	set {_slot} to 3
 	loop {-cfg::season::boards::*}:
 		set {_icon} to {-cfg::season::board::%loop-value%::icon}
 		set {_i} to {_icon} named "&6%seasonBoardName(loop-value)%" with lore "&7%seasonBoardWhat(loop-value)%"
@@ -668,8 +668,8 @@ function lbMenu(p: player, b: text, last: boolean):
 			lbButton({_p}, {_gui}, {_slot}, {_i}, "last:%loop-value%")
 		else:
 			lbButton({_p}, {_gui}, {_slot}, {_i}, "board:%loop-value%")
-		add 2 to {_slot}
-	set {_slots::*} to 20, 21, 22, 23, 24, 29, 30, 31, 32 and 33
+		add 1 to {_slot}
+	set {_slots::*} to 11, 12, 13, 14, 15, 20, 21, 22, 23 and 24
 	loop 10 times:
 		set {_r} to loop-number
 		set {_who} to ""
@@ -691,31 +691,42 @@ function lbMenu(p: player, b: text, last: boolean):
 			set {_head} to skull of ({_who} parsed as offline player)
 			set {_i} to {_head} named "&e#%{_r}% &f%{_name}%" with lore "&a%seasonValueText({_b}, {_v})%"
 		else:
-			set {_i} to light gray stained glass pane named "&7#%{_r}% &8—"
+			set {_i} to appIcon("empty", "&7#%{_r}% —")
 		set slot {_slots::%{_r}%} of {_gui} to {_i}
 	if {_last} is false:
 		set {_mine} to {-lb::rank::%{_b}%::%{_u}%}
 		set {_mv} to {ss::%{_s}%::%{_b}%::%{_u}%}
 		if {_mine} is set:
-			set slot 40 of {_gui} to skull of {_p} named "&fYou: &e#%{_mine}%" with lore "&a%seasonValueText({_b}, {_mv})%" and "&7Season %{_s}% · %seasonLeftText()% left"
+			set slot 31 of {_gui} to skull of {_p} named "&fYou: &e#%{_mine}%" with lore "&a%seasonValueText({_b}, {_mv})%" and "&7%seasonLeftText()% left"
 		else:
-			set slot 40 of {_gui} to skull of {_p} named "&fYou: &7not ranked yet" with lore "&7Season %{_s}% · %seasonLeftText()% left"
-		# Slot 45 is the menu's back button (below), so Last season sits at 47.
+			set slot 31 of {_gui} to skull of {_p} named "&fYou: &7not ranked yet" with lore "&7%seasonLeftText()% left"
 		if seasonNum() > 1:
-			lbButton({_p}, {_gui}, 47, book named "&fLast season", "last:%{_b}%")
-	# Back buttons (phone.sk): this season's boards are the Season app's main page ("◀ Phone"); last season's finals
-	# are a page under them while a season runs ("◀ Back" to them, where "This season" was), and the main page when
-	# none runs (lbOpen opens the finals then).
+			lbButton({_p}, {_gui}, 6, book named "&fLast season", "last:%{_b}%")
+	# Back (phone.sk's rule): this season's boards are the Season app's main page ("◀ Phone"); last season's finals are
+	# a page under them while a season runs ("◀ Season"), and the main page when none runs (lbOpen opens the finals then).
 	if {_last} is true:
 		if {season::state} is "live":
-			lbButton({_p}, {_gui}, 45, backItem("this season's boards"), "board:%{_b}%")
+			lbButton({_p}, {_gui}, 2, phoneBackIcon("Season"), "board:%{_b}%")
 		else:
-			lbButton({_p}, {_gui}, 45, phoneBackItem(), "phone")
+			lbButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
 	else:
-		lbButton({_p}, {_gui}, 45, phoneBackItem(), "phone")
+		lbButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
 	set {_mh} to cfg("season::min-hours")
-	set slot 49 of {_gui} to paper named "&6Prizes" with lore "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7+ Season keys and a title" and "&7Needs %{_mh}%h played, not AFK"
-	lbButton({_p}, {_gui}, 53, barrier named "&cClose", "close")
+	set slot 40 of {_gui} to paper named "&6Prizes" with lore "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7+ Season keys and a title" and "&7Needs %{_mh}%h played, not AFK"
+	lbButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
+	lbShow({_p}, {_gui})
+
+# No season has ever started: the Season app is an empty page.
+function lbNone(p: player):
+	closePhoneMap({_p})
+	set {_gui} to phonePage("Season")
+	delete {-lb::act::%{_p}%::*}
+	lbButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
+	set slot 22 of {_gui} to phoneEmptyIcon("No season yet")
+	lbButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
+	lbShow({_p}, {_gui})
+
+function lbShow(p: player, gui: inventory):
 	set {-lb::gui::%{_p}%} to {_gui}
 	if {-lb::gen::%{_p}%} is not set:
 		set {-lb::gen::%{_p}%} to 0
@@ -760,7 +771,7 @@ function lbOpen(p: player, a: text):
 	if {-cfg::season::boards::*} contains {_a}:
 		set {_b} to {_a}
 	if seasonNum() is 0:
-		msg({_p}, "&7No season has started yet.")
+		lbNone({_p})
 		stop
 	# No season running: the finals of the one that ended.
 	if {season::state} is not "live":

@@ -68,6 +68,13 @@
         }
       },
       {
+        "when": "donating:app_empty",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/empty"
+        }
+      },
+      {
         "when": "donating:app_garage",
         "model": {
           "type": "minecraft:model",

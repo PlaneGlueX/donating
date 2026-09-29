@@ -242,10 +242,10 @@ function phoneButton(p: player, act: text):
 		storyMenu({_p})
 	else if {_act} is "phone:bounties":
 		close {_p}'s inventory
-		showBounties({_p})
+		bountyPage({_p})
 	else if {_act} is "phone:help":
 		close {_p}'s inventory
-		showHelp({_p})
+		helpPage({_p})
 	else if {_act} is "phone:bag":
 		close {_p}'s inventory
 		bagMenu({_p})

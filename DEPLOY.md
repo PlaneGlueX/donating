@@ -7,6 +7,7 @@ The exact steps to move the local test server to Minehut (free plan). Local-only
 - Decide the open numbers (PROPOSALs in `server/plugins/Skript/scripts/core.sk`): money, bag sizes, prices, levels, crate contents, cop strength. They can change later, but players notice.
 - Build the city (or at least spawn, the base, one gun shop and one heist) in the local world first: the world is uploaded as a folder.
 - Build the phone plugin: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-plugin.ps1` (makes `server\plugins\DonatingPhone.jar`; it compiles against `server\plugins\TAB-*.jar` for the nametags, so TAB must be there).
+- The pack and DonatingPhone.jar go live together (2026-09-29): the pack's generic_54.png has a see-through chest part, and DonatingPhone's MenuPanels puts every chest menu's vanilla panel back through its title; either one alone leaves chest menus see-through or doubled. Upload the jar and set the pack in the same restart.
 - Build the resource pack: `tools\node\node.exe tools\make-item-art.js`, `tools\node\node.exe tools\make-phone-art.js`, `tools\node\node.exe tools\make-phone-ui.js` (the phone-style menus: backgrounds and app icons), `tools\node\node.exe tools\make-car-wraps.js` (the car wraps: it also writes the wrap variants into `vehicles.yml` and `carwraps.sk`), then `tools\node\node.exe tools\build-pack.js` (makes `extras\packs\Donating-pack.zip`).
 
 ## 2. Minehut dashboard

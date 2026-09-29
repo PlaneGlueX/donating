@@ -1,6 +1,7 @@
 // Builds Donating's server resource pack into extras\packs\Donating-pack.zip:
 //   1. WeaponMechanics' official pack (extras\packs\wm\WeaponMechanicsResourcePack-3.0.0.zip, fetched
-//      by tools\fetch.ps1): the 3D gun models, gun sounds, crosshair and scope overlay. Its README
+//      by tools\fetch.ps1): gun sounds, crosshair, scope overlay and the models of the guns we don't
+//      sell (the sold guns, the knife and the Stim are ours: see feather.json below). Its README
 //      allows merging it into a server pack and hosting it for our players; not selling it, claiming
 //      it as ours, or publishing it inside packs online. So it stays out of git (extras\ is ignored)
 //      and its README is kept in the zip as WeaponMechanics-README.yml (credits).
@@ -13,9 +14,13 @@
 //      atlas file is replaced by one that adds textures/custom/ to the block atlas. The car wraps
 //      (tools\make-car-wraps.js: models in pack\, their damages in tools\car-wraps.generated.json) get
 //      entries of their own in the car dispatch.
-//   3. Our own pack\ on top (the phone, the bag, ammo, the XP bar, the tab-list logo, the car wraps).
+//   3. Our own pack\ on top (the phone, the bag, ammo, the XP bar, the tab-list logo, the car wraps, the
+//      sold guns, the knife and the Stim).
 // Merging: sounds.json is joined event by event, atlases and fonts list by list (a clash stops the
-// build); any other file in two sources stops the build unless it's ours (pack\ wins, with a note).
+// build); items/feather.json (WeaponMechanics' skin numbers, a range_dispatch on custom_model_data) entry
+// by entry, ours winning on the same threshold (tools\merge-dispatch.js), and the build stops unless every
+// number of a gun, the knife and the Stim we sell is drawn by our model (tools\make-item-art.js with
+// tools\guns\); any other file in two sources stops the build unless it's ours (pack\ wins, with a note).
 // Paths inside the zip use forward slashes (Windows PowerShell's Compress-Archive writes backslashes,
 // which Minecraft can't read). Same input, same zip: entries are sorted and dated 1980-01-01.
 //
@@ -75,6 +80,11 @@ const readZip = file => {
 }
 const parseJson = b => JSON.parse(b.toString('utf8').replace(/^\uFEFF/, ''))
 const toJson = o => Buffer.from(JSON.stringify(o))
+const { mergeRangeDispatch } = require('./merge-dispatch')
+// WeaponMechanics' skin numbers of what we sell (Default, Scope +1000, Sprint +2000; the knife, the Stim):
+// the final feather.json must draw every one of them with our model.
+const FEATHER = 'assets/minecraft/items/feather.json'
+const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014]
 
 // ---------- Entries, with the merge guard ----------
 const entries = new Map() // name -> { data, from }
@@ -88,9 +98,18 @@ const MERGE = {
     return toJson({ ...A, ...B })
   },
   atlas: (a, b) => toJson({ sources: [...parseJson(a).sources, ...parseJson(b).sources] }),
-  font: (a, b) => toJson({ providers: [...parseJson(a).providers, ...parseJson(b).providers] })
+  font: (a, b) => toJson({ providers: [...parseJson(a).providers, ...parseJson(b).providers] }),
+  // feather.json: the other pack's range_dispatch entries plus ours, ours winning on the same threshold.
+  dispatch: (a, b, name, fa, fb) => {
+    if (fa !== 'ours' && fb !== 'ours') throw new Error(`${name} comes from ${fa} and ${fb}: only ours can be merged into it`)
+    const [base, mine, from] = fb === 'ours' ? [a, b, fa] : [b, a, fb]
+    const r = mergeRangeDispatch(parseJson(base), parseJson(mine), name)
+    console.log(`${name}: ${r.replaced.length + r.added.length} entries of ours, replacing ${from}'s ${r.replaced.join(', ') || 'none'}` +
+      (r.added.length ? ` (new: ${r.added.join(', ')})` : ''))
+    return toJson(r.json)
+  }
 }
-const kindOf = n => /^assets\/[^/]+\/sounds\.json$/.test(n) ? 'sounds'
+const kindOf = n => n === FEATHER ? 'dispatch' : /^assets\/[^/]+\/sounds\.json$/.test(n) ? 'sounds'
   : /^assets\/[^/]+\/atlases\/[^/]+\.json$/.test(n) ? 'atlas'
     : /^assets\/[^/]+\/font\/[^/]+\.json$/.test(n) ? 'font' : null
 const put = (name, data, from, ours = false) => {
@@ -254,6 +273,20 @@ const walk = dir => {
 }
 walk(root)
 if (merged.length) console.log(`merged JSON: ${merged.join(', ')}`)
+{
+  // Every sold number must be ours in the final feather.json (without our file, or with a stale one,
+  // WeaponMechanics' models or a plain feather would show).
+  const oursFile = path.join(root, ...FEATHER.split('/'))
+  const mine = fs.existsSync(oursFile) ? parseJson(fs.readFileSync(oursFile)).model.entries : []
+  const final = entries.has(FEATHER) ? parseJson(entries.get(FEATHER).data).model.entries : []
+  const same = n => {
+    const a = mine.find(e => e.threshold === n)
+    const b = final.find(e => e.threshold === n)
+    return a && b && JSON.stringify(a) === JSON.stringify(b)
+  }
+  const bad = OUR_FEATHER_NUMBERS.filter(n => !same(n))
+  if (bad.length) throw new Error(`${FEATHER}: ${bad.join(', ')} aren't drawn by our models (run tools\\node\\node.exe tools\\make-item-art.js)`)
+}
 
 // ---------- Write ----------
 const locals = []

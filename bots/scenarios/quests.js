@@ -181,7 +181,7 @@ module.exports = async ({ check }) => {
     await sleep(500)
     const phoneAfterNpc = await phoneOpen(Q)
     const offerAt = itemText(w && w.slots[11])
-    check('a right-click on the NPC opens "Car contracts · Quest Yard", its offer takeable there (no "Take it from a contract giver")', /Car contracts . Quest Yard/.test(title(w)) && /Red Sedan/.test(offerAt) && !/contract giver/.test(offerAt), `${title(w)} ${offerAt.slice(0, 300)}`)
+    check('a right-click on the NPC opens the Contracts page with the giver named "Quest Yard" at 4, its offer takeable there (no "Take it from a contract giver")', /Contracts/.test(title(w)) && /Quest Yard/.test(itemText(w && w.slots[4])) && /Red Sedan/.test(offerAt) && !/contract giver/.test(offerAt), `${title(w)} ${itemText(w && w.slots[4])} ${offerAt.slice(0, 300)}`)
     // Buying a lockpick works here.
     bots[Q].clickWindow(20, 0, 0).catch(() => {})
     await sleep(900)
