@@ -56,7 +56,24 @@ module.exports = async ({ check }) => {
     check('/ddistrict is staff only', /Staff only/.test(text(t)), text(t))
     const list = await cmd('ddistrict list')
     check('/ddistrict list (console) shows both with their names', /ztown: Test Town/.test(list) && /zold_square: Zold Square/.test(list), list)
+
+    // ---------- What fires no region enter: a join, and back out of an inner district ----------
+    await quit(bot)
+    await sleep(1500)
+    t = Date.now()
+    bot = await join(A)
+    await sleep(3000)
+    check('joining inside a district shows its name (the every-second pass)', /— Zold Square —/.test(bar(t)), bar(t))
+    t = Date.now()
+    await tp(3802.5, 3802.5)
+    check('back out of the inner district into the outer one (no enter fires): the outer name shows', /— Test Town —/.test(bar(t)), bar(t))
+
+    // ---------- /ddistrict name with the region's full id, and a name with no region ----------
+    const full = await cmd('ddistrict name district_ztown Full Id')
+    const none = await cmd('ddistrict name znowhere Nowhere')
+    check('/ddistrict name takes the region\'s full id too, and warns when no such region exists', /DISTRICT ztown = Full Id/.test(full) && !/warning/.test(full) && /warning: no region district_znowhere/.test(none), `${full} | ${none}`)
   } finally {
+    await rcon.cmd('ddistrict name znowhere default').catch(() => {})
     await rcon.cmd('ddistrict name ztown default').catch(() => {})
     await rcon.cmd('rg remove -w world district_ztown').catch(() => {})
     await rcon.cmd('rg remove -w world district_zold_square').catch(() => {})

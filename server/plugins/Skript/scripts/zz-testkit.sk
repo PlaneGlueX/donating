@@ -1,4 +1,8 @@
 # zz-testkit.sk: LOCAL TEST HELPERS ONLY. Never upload to Minehut.
+# setup.sk's /dsetup warns while these test helpers are loaded (never upload them).
+on load:
+	set {-zz::loaded} to true
+
 # Console commands the bot scenarios use to set up a known inventory.
 
 # A known layout: test sword in hotbar 1, test ammo in the first upper slot, a tier-2 bag.

@@ -102,7 +102,9 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dcrate place <crate> | remove [x y z] | list", "crate stands")
 		ahLine({_s}, "/dseason holo <board>", "a leaderboard hologram")
 		ahLine({_s}, "/dskins [respawn]", "the NPC skins (respawn the NPCs to wear them)")
-		ahLine({_s}, "/dphone [reload] | roads scan/info/show/cancel", "the phone map and the GPS roads")
+		ahLine({_s}, "/dphone [reload] | roads scan/info/show/cancel | city scan/use/info/cancel | wall create/remove/list", "the phone map, the GPS roads, the city scan, wall maps")
+		ahLine({_s}, "/ddistrict name <id> <name...>/default | list | here | dump", "district names (regions district_<id>)")
+		ahLine({_s}, "/dsetup [heists/places/shops/quests/jobs/crates/cars/phone/server]", "the launch checklist: what the map still needs")
 		send colored "&7Regions by name: &fsafe_&7<x> safe zone, &fsafe_base&7<x> sells loot, &fsafe_garage_&7<x> a garage, &fheist_&7<id> a heist, &fnolock&7<x> no car locks, &fnograpple&7<x> no Grappler, &flvl150_&7<x> level 150+ only (any number). Add &fpassthrough allow&7 to each." to {_s}
 	else if {_topic} is "players":
 		ahTitle({_s}, "Staff: players")

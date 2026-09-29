@@ -47,7 +47,22 @@ final class Roads {
     }
 
     boolean fits(Roads o) {
+        // k too: the phone draws cells at k city pixels each (review fix: a rescan at another scale kept a wrong k).
+        return o != null && world.equals(o.world) && x0 == o.x0 && z0 == o.z0 && w == o.w && h == o.h && k == o.k && cellBlocks == o.cellBlocks;
+    }
+
+    /** The same cells in the world (only the city image's pixels per cell differ: the city was drawn at another scale). */
+    boolean sameCells(Roads o) {
         return o != null && world.equals(o.world) && x0 == o.x0 && z0 == o.z0 && w == o.w && h == o.h && cellBlocks == o.cellBlocks;
+    }
+
+    /** This grid drawn at k city pixels per cell. */
+    Roads withK(int newK) {
+        Roads c = new Roads(world, x0, z0, w, h, newK, cellBlocks);
+        System.arraycopy(kind, 0, c.kind, 0, kind.length);
+        c.fingerprint = fingerprint;
+        c.count();
+        return c;
     }
 
     Roads copy() {
@@ -158,7 +173,10 @@ final class Roads {
 
     // ---------- File ----------
 
-    void save(File f) throws IOException {
+    void save(File f) throws IOException { commit(writeTmp(f), f); }
+
+    /** Writes f's .tmp (the scan thread); commit() puts it in place (the main thread, only if the scan still counts). */
+    File writeTmp(File f) throws IOException {
         File tmp = new File(f.getPath() + ".tmp");
         try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(tmp)))) {
             out.writeInt(MAGIC);
@@ -172,9 +190,10 @@ final class Roads {
             out.writeUTF(fingerprint);
             out.write(kind);
         }
-        if (f.exists() && !f.delete()) throw new IOException("can't replace " + f);
-        if (!tmp.renameTo(f)) throw new IOException("can't write " + f);
+        return tmp;
     }
+
+    static void commit(File tmp, File f) throws IOException { CityScan.commit(tmp, f); }
 
     static Roads load(File f) throws IOException {
         try (DataInputStream in = new DataInputStream(new GZIPInputStream(new FileInputStream(f)))) {

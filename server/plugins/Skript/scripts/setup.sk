@@ -1,0 +1,260 @@
+# setup.sk: /dsetup, the launch checklist (2026-09-29). Everything DEPLOY.md asks staff to build on the map, checked
+# against the scripts' saved data, one line each: "✔" done, "✘" missing (with the command that fixes it), "!" worth a
+# look. It changes nothing. Staff (donating.staff); the phone's city and GPS roads come from DonatingPhone's own
+# /dphone city info and /dphone roads info (ops, or the console).
+#   /dsetup            every section
+#   /dsetup <section>  heists | places | shops | quests | jobs | crates | cars | phone | server
+
+function setupLine(s: command sender, kind: text, text: text):
+	if {_kind} is "ok":
+		send colored "&a✔ &f%{_text}%" to {_s}
+	else if {_kind} is "no":
+		add 1 to {-setup::missing}
+		send colored "&c✘ &f%{_text}%" to {_s}
+	else:
+		add 1 to {-setup::warn}
+		send colored "&e! &7%{_text}%" to {_s}
+
+function setupHead(s: command sender, title: text):
+	send colored "&6&l%{_title}%&r" to {_s}
+
+# How many quest givers of a kind stand on the map.
+function setupGivers(kind: text) :: number:
+	set {_n} to 0
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_kind}:
+			add 1 to {_n}
+	return {_n}
+
+# How many shopkeepers of a kind.
+function setupKeepers(kind: text) :: number:
+	set {_n} to 0
+	loop {shop::keepers::*}:
+		if loop-value is {_kind}:
+			add 1 to {_n}
+	return {_n}
+
+# How many POIs of a type.
+function setupPois(type: text) :: number:
+	set {_n} to 0
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_type}:
+			add 1 to {_n}
+	return {_n}
+
+# How many main-world regions have an id starting with this.
+function setupRegions(prefix: text) :: number:
+	set {_n} to 0
+	loop all regions in poiMainWorld():
+		if name of loop-value starts with {_prefix}:
+			add 1 to {_n}
+	return {_n}
+
+function setupHeists(s: command sender):
+	setupHead({_s}, "Heists")
+	set {_all} to 0
+	set {_stores} to 0
+	loop {heists::*}:
+		set {_h} to loop-index
+		add 1 to {_all}
+		if heistIsStore({_h}) is true:
+			add 1 to {_stores}
+		delete {_bad::*}
+		if {heist::%{_h}%::exit} is not set:
+			add "no exit spot (/dheist exit %{_h}%)" to {_bad::*}
+		if structure template "donating:heist/%{_h}%/1" does not exist:
+			add "no room snapshot (/dheist snapshot %{_h}%, while disabled)" to {_bad::*}
+		if {heist::%{_h}%::holo} is not set:
+			add "no hologram (/dheist holo %{_h}%)" to {_bad::*}
+		set {_piles} to 0
+		loop {loots::%{_h}%::*}:
+			if loop-value-2 is "pile":
+				add 1 to {_piles}
+		if {_piles} is 0:
+			add "no loot piles (/dloot add %{_h}% pile ...)" to {_bad::*}
+		if heistState({_h}) is "disabled":
+			add "disabled (/dheist enable %{_h}% when it's ready)" to {_bad::*}
+		set {_label} to "%heistName({_h})% (%{_h}%, difficulty %heistDifficulty({_h})%, %{_piles}% piles)"
+		if {_bad::*} is set:
+			setupLine({_s}, "no", "%{_label}%: %join {_bad::*} with "; "%")
+		else:
+			setupLine({_s}, "ok", {_label})
+		if heistIsAdvanced({_h}) is true:
+			if size of {heist::%{_h}%::cops::*} is 0:
+				setupLine({_s}, "warn", "%heistName({_h})%: no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)")
+			if size of {heist::%{_h}%::lock::*} is 0:
+				setupLine({_s}, "warn", "%heistName({_h})%: no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)")
+	if {_all} is 0:
+		setupLine({_s}, "no", "no heists yet (/rg define heist_<id>, then /dheist create <id> <difficulty>)")
+	if {_stores} < 2:
+		setupLine({_s}, "warn", "%{_stores}% store(s): 2-3 near spawn and the base give new robbers easy money (/dheist create <id> 0)")
+
+function setupPlaces(s: command sender):
+	setupHead({_s}, "Places")
+	set {_zones} to setupRegions("safe")
+	set {_base} to setupRegions(cfg("bag::base-prefix"))
+	if {_base} > 0:
+		setupLine({_s}, "ok", "%{_base}% base zone(s) where loot sells (regions %cfg("bag::base-prefix")%*)")
+	else:
+		setupLine({_s}, "no", "no base zone: loot can't be sold (/rg define %cfg("bag::base-prefix")%, passthrough allow, weapon-shoot deny)")
+	if {_zones} > {_base}:
+		setupLine({_s}, "ok", "%{_zones}% safe zone(s) (regions safe*)")
+	else:
+		setupLine({_s}, "warn", "no safe zone besides the base: spawn and the shops want one (/rg define safe_spawn ...)")
+	loop "base", "shop" and "spawn":
+		set {_n} to setupPois(loop-value)
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%{_n}% %loop-value% POI(s) (locator bar, phone map, /gps)")
+		else if loop-value is "spawn":
+			setupLine({_s}, "warn", "no spawn POI (/dpoi add spawn Spawn)")
+		else:
+			setupLine({_s}, "no", "no %loop-value% POI: players can't find it (/dpoi add %loop-value% <name>)")
+	set {_d} to setupRegions("district_")
+	if {_d} > 0:
+		setupLine({_s}, "ok", "%{_d}% district(s) (/ddistrict list)")
+	else:
+		setupLine({_s}, "warn", "no districts: the sidebar says ""the outskirts"" everywhere (/rg define district_<id> after //expand vert)")
+
+function setupShops(s: command sender):
+	setupHead({_s}, "Shopkeepers")
+	loop "gun", "gear", "bag", "tools" and "cars":
+		set {_n} to setupKeepers(loop-value)
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%{_n}% %loop-value% shopkeeper(s)")
+		else:
+			setupLine({_s}, "no", "no %loop-value% shopkeeper (/dshopkeeper add %loop-value%, inside a safe zone)")
+	if size of {garagesites::*} > 0:
+		if setupKeepers("garage") is 0:
+			setupLine({_s}, "warn", "no garage attendant: /garage still works in the garage (/dshopkeeper add garage)")
+
+function setupQuests(s: command sender):
+	setupHead({_s}, "Quest givers")
+	loop {-cfg::quests::*}:
+		set {_k} to loop-value
+		set {_n} to setupGivers({_k})
+		set {_who} to {-cfg::quest::%{_k}%::name}
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%{_n}% %{_who}% giver(s) (%{_k}%)")
+		else if {_k} is "contracts":
+			setupLine({_s}, "no", "no %{_who}% giver: no car jobs or lockpicks (/dquest add contracts Scrap Yard)")
+		else if {_k} is "hits":
+			setupLine({_s}, "no", "no %{_who}% giver: no hit contracts, no bounties posted (/dquest add hits Pool Hall)")
+		else if {_k} is "story":
+			setupLine({_s}, "warn", "no %{_who}% giver: Mara's missions wait (/missions has Call Mara) (/dquest add story Safehouse)")
+		else:
+			setupLine({_s}, "warn", "no %{_who}% giver (/dquest add %{_k}% <place>)")
+
+function setupJobs(s: command sender):
+	setupHead({_s}, "Car jobs and hits")
+	set {_spots} to size of {contract::spot::*}
+	set {_chops} to size of {contract::chop::*}
+	if {_spots} >= 3:
+		setupLine({_s}, "ok", "%{_spots}% car spots for contracts")
+	else if {_spots} > 0:
+		setupLine({_s}, "warn", "only %{_spots}% car spot(s): 3+ keep the three offers apart (/dcontract spot add)")
+	else:
+		setupLine({_s}, "no", "no car spots: no car jobs (/dcontract spot add, facing the car's way)")
+	if {_chops} > 0:
+		setupLine({_s}, "ok", "%{_chops}% chop shop(s)")
+	else:
+		setupLine({_s}, "no", "no chop shop: stolen cars can't be delivered (/dcontract chop add)")
+	set {_nodes} to 0
+	set {_edges} to 0
+	loop {hit::node::*}:
+		add 1 to {_nodes}
+		set {_a} to loop-index
+		loop {hit::edge::%{_a}%::*}:
+			add 1 to {_edges}
+	if {_nodes} >= 2:
+		if {_edges} > 0:
+			setupLine({_s}, "ok", "%{_nodes}% street nodes for hit targets")
+		else:
+			setupLine({_s}, "no", "%{_nodes}% street nodes but no links: targets can't walk (/dhit node link <a> <b>)")
+	else:
+		setupLine({_s}, "no", "no street nodes: hit targets have nowhere to walk (/dhit node add)")
+
+function setupCrates(s: command sender):
+	setupHead({_s}, "Crate stands")
+	loop {-cfg::crates::*}:
+		set {_c} to loop-value
+		set {_n} to 0
+		loop {crateblock::*}:
+			if loop-value-2 is {_c}:
+				add 1 to {_n}
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%{_n}% stand(s) for %{_c}% keys")
+		else if {_c} is "hacked":
+			setupLine({_s}, "warn", "no Hacked stand (special events only: place one when an event gives keys)")
+		else:
+			setupLine({_s}, "no", "no stand for %{_c}% keys: they can't be opened (/dcrate place %{_c}%, in a safe zone)")
+
+function setupCars(s: command sender):
+	setupHead({_s}, "Garages")
+	set {_g} to size of {garagesites::*}
+	if {_g} > 0:
+		setupLine({_s}, "ok", "%{_g}% garage site(s)")
+		if setupPois("garage") is 0:
+			setupLine({_s}, "warn", "no garage POI: players can't find the garage (/dpoi add garage <name>)")
+	else:
+		setupLine({_s}, "warn", "no garage site: cars come to players anywhere until one exists (/rg define %cfg("garage::region-prefix")%<id>, /dgaragesite exit add)")
+
+function setupServer(s: command sender):
+	setupHead({_s}, "Server")
+	if {season::state} is "live":
+		setupLine({_s}, "ok", "season %{season::num}% is running")
+	else:
+		setupLine({_s}, "warn", "no season running: the boards don't count (/dseason start)")
+	if cfg("store::url") is "":
+		setupLine({_s}, "warn", "no store address (core.sk store::url, once Tebex gives the store its domain)")
+	else:
+		setupLine({_s}, "ok", "store: %cfg("store::url")%")
+	if {-zz::loaded} is true:
+		setupLine({_s}, "warn", "the local test helpers (zz-*.sk) are loaded: never upload them to Minehut")
+
+# The phone's city and GPS roads: DonatingPhone answers the sender itself.
+function setupPhone(s: command sender):
+	setupHead({_s}, "The phone's city (DonatingPhone)")
+	if {_s} is a player:
+		set {_p} to "%{_s}%" parsed as player
+		if {_p} does not have permission "donating.phone.admin":
+			setupLine({_s}, "warn", "ask an op for /dphone city info and /dphone roads info (the city scan and the GPS roads)")
+			stop
+	# As the sender, so the replies come back to them (also over RCON).
+	execute command "dphone city info" by {_s}
+	execute command "dphone roads info" by {_s}
+
+command /dsetup [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_w} to arg-1
+		if {_w} is not set:
+			set {_w} to "all"
+		set {_w} to {_w} in lower case
+		set {-setup::missing} to 0
+		set {-setup::warn} to 0
+		send colored "&6&lLaunch checklist&r &7(DEPLOY.md: ✔ done, ✘ missing, ! worth a look)" to sender
+		if {_w} is "all" or "heists":
+			setupHeists(sender)
+		if {_w} is "all" or "places":
+			setupPlaces(sender)
+		if {_w} is "all" or "shops":
+			setupShops(sender)
+		if {_w} is "all" or "quests":
+			setupQuests(sender)
+		if {_w} is "all" or "jobs":
+			setupJobs(sender)
+		if {_w} is "all" or "crates":
+			setupCrates(sender)
+		if {_w} is "all" or "cars":
+			setupCars(sender)
+		if {_w} is "all" or "server":
+			setupServer(sender)
+		send colored "&6SETUP %{-setup::missing}% missing, %{-setup::warn}% to look at" to sender
+		# Last: DonatingPhone's own lines arrive after the rest.
+		if {_w} is "all" or "phone":
+			setupPhone(sender)
+		delete {-setup::missing}
+		delete {-setup::warn}

@@ -200,7 +200,10 @@ final class Gps {
 
     /** The city changed (or the config was reloaded): the grid it needs, and roads.bin if it fits. */
     void city(World world, double x0, double z0, int imgW, int imgH, int bpp) {
-        if (scan != null) {
+        // A running road scan goes on when nothing it depends on changed (review fix: a city scan of the same box cancelled it).
+        boolean same = scan != null && world == cityWorld && x0 == cx0 && z0 == cz0 && imgW == this.imgW && imgH == this.imgH && bpp == this.bpp
+                && world != null && fingerprint(world).equals(scan.startPrint);
+        if (scan != null && !same) {
             scan.cancelled = true;
             scan.who.sendMessage("ROADS scan cancelled: the city or the settings changed (/dphone roads scan again)");
             scan = null;
@@ -219,7 +222,10 @@ final class Gps {
         if (!f.exists()) { roadsNote = "no roads.bin yet: /dphone roads scan"; return; }
         try {
             Roads r = Roads.load(f);
-            if (!empty().fits(r)) { roadsNote = "roads.bin is for another city map: /dphone roads scan"; return; }
+            Roads e = empty();
+            // The same cells, the city drawn at another scale: keep them, drawn at the new pixels per cell (review fix).
+            if (!e.fits(r) && e.sameCells(r)) r = r.withK(e.k);
+            if (!e.fits(r)) { roadsNote = "roads.bin is for another city map: /dphone roads scan"; return; }
             roads = r;
             roadsNote = r.fingerprint.equals(fingerprint(world)) ? "ok" : "ok, but scanned with other road blocks or street heights: /dphone roads scan";
         } catch (IOException e) {
@@ -724,7 +730,7 @@ final class Gps {
         String sub = a.length > 1 ? a[1].toLowerCase() : "info";
         switch (sub) {
             case "scan" -> {
-                if (cityWorld == null) { sender.sendMessage("ROADS no city map: set city-maps first"); return true; }
+                if (cityWorld == null) { sender.sendMessage("ROADS no city yet: /dphone city scan first (or set city-maps)"); return true; }
                 if (scan != null) { sender.sendMessage("ROADS a scan is running (" + scan.progress() + ")"); return true; }
                 int x1, z1, x2, z2;
                 if (a.length >= 6) {
@@ -793,6 +799,7 @@ final class Gps {
         final CommandSender who;
         final Roads into;
         final int bx1, bz1, bx2, bz2, total, yMin, yMax, worldMax;
+        final String startPrint; // the road settings it scans with
         final World world;
         final ArrayDeque<int[]> queue = new ArrayDeque<>();
         final AtomicInteger done = new AtomicInteger();
@@ -812,6 +819,7 @@ final class Gps {
             yMin = yMin(world);
             yMax = yMax(world);
             worldMax = world.getMaxHeight();
+            startPrint = fingerprint(world);
             for (int cx = bx1 >> 4; cx <= bx2 >> 4; cx++) for (int cz = bz1 >> 4; cz <= bz2 >> 4; cz++) queue.add(new int[] {cx, cz});
             total = queue.size();
             scanner.execute(() -> into.startBox(bx1, bz1, bx2, bz2));
@@ -851,12 +859,20 @@ final class Gps {
             if (cancelled) return;
             into.finish();
             into.fingerprint = fingerprint(world);
+            // The file is written here but only put in place on the main thread while the scan still counts (review fix,
+            // 2026-09-29: a cancel during this step replaced roads.bin anyway).
+            File tmp;
             String saved;
-            try { into.save(file()); saved = "saved roads.bin"; } catch (IOException e) { saved = "NOT saved (" + e.getMessage() + ")"; }
-            String note = saved;
-            if (!plugin.isEnabled()) return;
+            try { tmp = into.writeTmp(file()); saved = "saved roads.bin"; } catch (IOException e) { tmp = null; saved = "NOT saved (" + e.getMessage() + ")"; }
+            File written = tmp;
+            String savedNote = saved;
+            if (!plugin.isEnabled()) { if (written != null) written.delete(); return; }
             Bukkit.getScheduler().runTask(plugin, () -> {
-                if (scan != this) return;
+                if (scan != this) { if (written != null) written.delete(); return; }
+                String note = savedNote;
+                if (written != null) {
+                    try { Roads.commit(written, file()); } catch (IOException e) { note = "NOT saved (" + e.getMessage() + ")"; }
+                }
                 scan = null;
                 roads = into;
                 roadsNote = "ok";

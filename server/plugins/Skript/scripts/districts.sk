@@ -3,7 +3,9 @@
 # them over the city's parts: /rg define district_downtown). Its name is {districtname::<id>} (/ddistrict name), else
 # the id made readable ("district_old_town" -> "Old Town").
 #   - Walking, driving or teleporting into one shows "— Old Town —" on the action bar (hudBar priority 1: combat and
-#     heist messages win), once per district every district::repeat (30 s), like GTA's area names.
+#     heist messages win), once per district every district::repeat (30 s), like GTA's area names. At once on a region
+#     enter; the every-second pass also catches what fires no enter (review fix, 2026-09-29): back out of an inner
+#     district into the outer one, across an overlap, riding as a passenger, and a join.
 #   - The main sidebar's "Area" line (%donating_district%): the district you're in, else "the outskirts" (every second,
 #     into memory: the placeholder only reads memory). Nested districts: the smallest one you're in.
 #   - Add "passthrough allow" to district regions (like every Donating region): they must never protect anything.
@@ -51,6 +53,21 @@ function districtAt(l: location) :: text:
 				set {_bestsize} to {_size}
 	return {_best}
 
+# Is there a region district_<id> in the main world?
+function districtExists(id: text) :: boolean:
+	loop all regions in poiMainWorld():
+		if districtId(name of loop-value) is {_id}:
+			return true
+	return false
+
+# Every district id in the main world (tab completion).
+function districtIds() :: texts:
+	loop all regions in poiMainWorld():
+		set {_id} to districtId(name of loop-value)
+		if {_id} is set:
+			add {_id} to {_out::*}
+	return {_out::*}
+
 function districtShow(p: player, id: text):
 	set {_at} to {-district::shown::%{_p}%::%{_id}%}
 	if {_at} is set:
@@ -68,7 +85,7 @@ on region enter:
 	districtAt(location of player) is {_id}
 	districtShow(player, {_id})
 
-# The sidebar's "Area" line, in memory (TAB asks from its own thread).
+# The sidebar's "Area" line, in memory (TAB asks from its own thread), and the name when the district changed.
 every second:
 	loop all players:
 		set {_id} to districtAt(location of loop-player)
@@ -76,9 +93,13 @@ every second:
 			set {-ph::district::%loop-player%} to "&7the outskirts"
 		else:
 			set {-ph::district::%loop-player%} to "&f%districtName({_id})%"
+			if "%{-district::cur::%loop-player%}%" is not {_id}:
+				districtShow(loop-player, {_id})
+		set {-district::cur::%loop-player%} to {_id}
 
 on quit:
 	delete {-ph::district::%player%}
+	delete {-district::cur::%player%}
 	delete {-district::shown::%player%::*}
 
 command /ddistrict [<text>]:
@@ -95,6 +116,9 @@ command /ddistrict [<text>]:
 				send "DISTRICT usage: /ddistrict name <id> <name...> (the region is district_<id>; 'default' clears the name)" to sender
 				stop
 			set {_id} to {_a::2} in lower case
+			# The region's full id works too (review fix: "district_strip" saved a name nothing read).
+			if {_id} starts with "district_":
+				set {_id} to subtext of {_id} from characters 10 to (length of {_id})
 			set {_parts::*} to {_a::*}
 			delete {_parts::1}
 			delete {_parts::2}
@@ -108,6 +132,9 @@ command /ddistrict [<text>]:
 				stop
 			set {districtname::%{_id}%} to {_name}
 			send "DISTRICT %{_id}% = %{_name}%" to sender
+			# A name may come before its region (the dump lines on Minehut), so only a warning.
+			if districtExists({_id}) is false:
+				send "DISTRICT warning: no region district_%{_id}% in %poiMainWorld()% yet (/rg define district_%{_id}%, //expand vert first)" to sender
 		else if {_sub} is "list":
 			set {_w} to poiMainWorld()
 			set {_n} to 0

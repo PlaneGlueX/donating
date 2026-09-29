@@ -17,7 +17,7 @@ module.exports = async ({ check }) => {
   try {
     await sleep(1000)
     // Leftover persistent mobs near spawn would kill the bot mid-test.
-    await rcon.cmd('minecraft:kill @e[type=!player,tag=!donating_shop]') // not the shopkeepers
+    await rcon.cmd('minecraft:kill @e[type=!player,tag=!donating_shop,tag=!donating_wall]') // not the shopkeepers or wall maps
     await sleep(200)
     await rcon.cmd('minecraft:kill @e[type=item]') // loot from the mobs killed above
     await rcon.cmd(`gamemode survival ${NAME}`)
