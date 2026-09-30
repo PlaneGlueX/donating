@@ -100,26 +100,47 @@ carcam:
   camera: stand
   # F5's geometry around the driver's eye: this many blocks back along the view (vanilla F5: 4), looking down this many
   # degrees behind the car. A block between the eye and the camera pulls it in, like vanilla (never inside a wall).
-  distance: 6.5
-  pitch: 12
+  distance: 5.5
+  pitch: 18
   # The mouse can tilt the view between these (degrees; down is positive).
   pitch-min: -20
   pitch-max: 70
   # Blocks kept off a wall the camera was pulled in by (the client draws the camera between two ticks' spots).
   clip-margin: 0.15
-  # How fast the camera swings behind the car in a turn (share of the angle left, per tick; 1 = locked to the car).
+  # How the camera follows the car's heading. spring: a critically damped spring that trails yaw-lag seconds of turning
+  # in a steady turn (0.15 s at the Apex's 220 degrees a second = 33 degrees, less the look-ahead) and never jolts when a
+  # turn starts or ends. lerp: the first version (yaw-smooth of the angle left, per tick; 1 = locked to the car).
+  yaw-follow: spring
+  yaw-lag: 0.15
   yaw-smooth: 0.35
+  # A little into the turn: the car's turn rate times this many seconds is added to the heading the camera follows (at
+  # most look-ahead-max degrees), so the view starts swinging sooner and shows more of where the car is going.
+  look-ahead: 0.05
+  look-ahead-max: 15
   # Degrees added to the car's heading (180 would put the camera in front, looking back).
   yaw-offset: 0
-  # (stand) Ticks the car's heading is sent late: the client turns a camera's view as soon as the yaw arrives, but the
-  # car's body a tick later, through its movement queue.
-  yaw-delay: 1
+  # (stand) How the camera's view yaw (its head) is sent. exact: one head packet a tick with the target worked out from
+  # what the client's head is, so it lands on the view in the same tick as the camera's position (26.3 clients: they put
+  # a moving entity exactly where each move says). filtered: the view yaw itself each tick (the client eases the head by
+  # 1/3 a tick, like it eases positions on 1.21.11, 26.1 and 26.2 clients). tracker: the first version (the server's own
+  # head packets). auto: exact for 26.3+ clients through ViaVersion, filtered for the rest.
+  head: auto
+  # (exact) Aim the head at the tick the client shows the camera's spot at: a 26.3 client queues a living entity's
+  # moves, and after a resync (the camera's first, with the car's stands: carsmooth.together) shows both about 2 ticks
+  # late while they move; the plugin models that queue from what it sends (false: aim at this tick).
+  queue-model: true
+  # (stand) Ticks the view yaw is held back (0: with exact/filtered heads the view and the position already match).
+  yaw-delay: 0
   # The mouse orbits the camera around the car (like F5); after orbit-return seconds without mouse movement it eases back
-  # behind the car, closing orbit-return-speed of the angle left each tick. It follows the mouse about ping + 225 ms late.
+  # behind the car, closing orbit-return-speed of the angle left each tick. It follows the mouse about ping + 175 ms late
+  # (worked out, not measured: the round trip, a tick each way, orbit-smooth; 100 ms less than with the tracker head).
   orbit: true
   orbit-return: 1.5
   orbit-return-speed: 0.15
   orbit-sensitivity: 1.0
+  # The mouse's rotation packets reach the server 0, 1 or 2 to a tick: the orbit follows their sum through a spring this
+  # many seconds long (0 = raw, jerky).
+  orbit-smooth: 0.05
   # (display) Client-side smoothing of each camera move, in ticks.
   teleport-duration: 3
   # true: only while the car key (hotbar 9) is held. false: the whole ride (select-key below picks the key anyway).
@@ -127,10 +148,16 @@ carcam:
   # true: when the view starts, hotbar 9 is selected (the car key), and getting out puts back the slot held before,
   # unless the player picked another slot during the ride (theirs then).
   select-key: true
-  # No hands in the view: while it's on, the car key (or the phone) in hotbar 9 is a tripwire hook without a map (the
-  # client draws arms with anything that has a map; the pack draws the hook as the key and hides it in first person
-  # under the chase camera). The map comes back on getting out. false: the key stays a map (a GPS map in the corner,
-  # with an arm).
+  # The GPS minimap in the view: the car key (or the phone) in hotbar 9 stays a map, drawn in the corner with no arm,
+  # because the driver's own client is told the driver is invisible (self-invisible; nobody else sees any change). It
+  # needs something in the offhand (the bag, or cash in hand): with an empty offhand the client draws a held map big in
+  # the middle, so that driver gets the hook below.
+  minimap: true
+  self-invisible: true
+  # No minimap (minimap false, an empty offhand, or self-invisible not working): the key (or phone) is a tripwire hook
+  # without a map while the view is on (the client draws arms with anything that has a map; the pack draws the hook as
+  # the key and hides it in first person under the chase camera). The map comes back on getting out. false: the key
+  # stays a map anyway (with an arm unless self-invisible).
   hook-key: true
   # The client never draws the driver's own player under another camera, so the car looked empty. true: a mannequin with
   # the driver's skin rides the driver's seat, sent to the driver only (the client sits it and turns it with the car);

@@ -892,16 +892,18 @@ function carNum(x: number) :: text:
 
 # The key is the phone's map underneath (the player's phone map id), so holding it while driving still shows
 # the GPS view; the pack draws it as a key in the inventory (custom model data donating:carkey).
-# While the chase camera is on (DonatingPhone CarCam sets the metadata "donating_carcam"), the key is the same item as a
-# tripwire hook with no map_id: the 26.3 client draws the player's arms with anything that has a map_id, and the pack
-# draws the hook as the key and hides it in first person under the chase camera (no hands in the view). CarCam turns a
-# map key into the hook when the view starts and back into the map on every way out; built here, a refresh (locking,
-# unlocking) doesn't put the map back mid-view.
+# While the chase camera can't show the GPS minimap (DonatingPhone CarCam sets the metadata "donating_carcam_hook": no
+# bag or cash in the offhand, carcam.minimap off), the key is the same item as a tripwire hook with no map_id: the 26.3
+# client draws the player's arms with anything that has a map_id, and the pack draws the hook as the key and hides it in
+# first person under the chase camera (no hands in the view). Otherwise the key stays the map in the view too (CarCam
+# tells only the driver's own client the driver is invisible, so the map is drawn without arms). CarCam switches the key
+# every tick while the view is on and puts the map back on every way out; built here, a refresh (locking, unlocking)
+# doesn't flip it mid-view.
 function carKey(p: player, plate: text) :: item:
 	set {_state} to "&aunlocked"
 	if carLocked({_plate}) is true:
 		set {_state} to "&clocked"
-	set {_cam} to metadata value "donating_carcam" of {_p}
+	set {_cam} to metadata value "donating_carcam_hook" of {_p}
 	if {_cam} is set:
 		set {_i} to tripwire hook named "&6Car key &7· &f%carTitle({_plate})%" with lore "&7Right-click: lock/unlock" and "&7Doors: %{_state}%"
 	else:

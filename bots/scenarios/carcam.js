@@ -11,6 +11,11 @@
 // placed like F5 (carcam.distance back from the driver's eye along the view, pulled in before a wall), the mouse orbits
 // it and it eases back behind the car after 1.5 s, and the key in hotbar 9 is a tripwire hook without a map_id while the
 // view is on (the client draws arms with anything that has a map_id), a map again after.
+// The minimap and the turning (2026-09-29, "keep the key/minimap on screen ... fix the raggedy feel of turning the
+// camera"): with something in the offhand the key stays a map and only the driver's own client is told the driver is
+// invisible (flags 0x20 on its own entity; the bystander never sees it), the hook only with an empty offhand; the
+// camera's view yaw goes out as one head packet a tick from the plugin (carcam.head: filtered for this native bot,
+// exact checked by replaying the bytes through the 26.3 client's head step).
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -49,6 +54,11 @@ module.exports = async ({ check }) => {
       for (const m of [...String(await cmd(`dgarage info ${name}`)).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await cmd(`dgarage take ${name} ${m[1]}`)
     }
     await cmd(`dlevel set ${D} 150`)
+    // A bag in the offhand (the minimap is drawn one-handed only next to something in the offhand).
+    await cmd(`zzdata ${D} bag-tier 1`)
+    await cmd(`zzbagapply ${D}`)
+    await cmd(`dphone cam tune head auto`)
+    await cmd(`dphone cam tune minimap true`)
     await cmd(`zzheisttp ${D} ${CAR[0] - 2} ${Y} ${CAR[2]}`)
     await cmd(`zzheisttp ${O} 6432.5 ${Y} 6426.5`) // 16 blocks off: in tracking range, clear of the camera and the wall
     await sleep(2500)
@@ -60,7 +70,13 @@ module.exports = async ({ check }) => {
     for (const name of [D, O]) {
       const c = bots[name]._client
       c.on('camera', p => seen[name].push({ t: Date.now(), k: 'camera', id: p.cameraId }))
-      c.on('spawn_entity', p => seen[name].push({ t: Date.now(), k: 'spawn', id: p.entityId, type: p.type }))
+      c.on('spawn_entity', p => seen[name].push({ t: Date.now(), k: 'spawn', id: p.entityId, type: p.type, head: p.headPitch }))
+      // The shared flags byte (entity data 0) of any entity, and head turns (the camera's view yaw).
+      c.on('entity_metadata', p => {
+        const f = (p.metadata || []).find(m => m.key === 0)
+        if (f && typeof f.value === 'number') seen[name].push({ t: Date.now(), k: 'flags', id: p.entityId, v: f.value & 0xff })
+      })
+      c.on('entity_head_rotation', p => seen[name].push({ t: Date.now(), k: 'head', id: p.entityId, b: p.headYaw }))
       c.on('entity_destroy', p => seen[name].push({ t: Date.now(), k: 'destroy', ids: p.entityIds }))
       c.on('held_item_slot', p => seen[name].push({ t: Date.now(), k: 'held', slot: p.slot }))
       c.on('set_passengers', p => seen[name].push({ t: Date.now(), k: 'passengers', id: p.entityId, list: p.passengers || [] }))
@@ -88,7 +104,16 @@ module.exports = async ({ check }) => {
       bodyId: num(s, / bodyid=(\d+)/),
       bodySeat: (s.match(/ bodyseat=(\S+)/) || [])[1],
       key: (s.match(/ key=(\S+)/) || [])[1],
-      keymap: (s.match(/ keymap=(\S+)/) || [])[1]
+      keymap: (s.match(/ keymap=(\S+)/) || [])[1],
+      self: (s.match(/ self=(\S+)/) || [])[1],
+      rewrites: num(s, / rewrites=(\d+)/),
+      hook: (s.match(/ hook=(\S+)/) || [])[1],
+      head: (s.match(/ head=(\w+)/) || [])[1],
+      headyaw: num(s, / headyaw=(-?[\d.]+)/),
+      heads: num(s, / heads=(\d+)/),
+      sentyaw: num(s, / sentyaw=(-?[\d.]+)/),
+      shownlag: num(s, / shownlag=(-?[\d.]+)/),
+      watch: ((s.match(/ watch=(\d+)\/(\d+)\/(\d+)/) || []).slice(1)).map(Number)
     })
     const mount = async () => { await cmd(`zzcarmount ${D} ${plate}`); await sleep(1500) }
     const select = async slot => { bots[D].setQuickBarSlot(slot); await sleep(400) }
@@ -108,6 +133,9 @@ module.exports = async ({ check }) => {
     const dump = async () => cmd(`zzdump ${D}`)
     const slot8 = s => ((s.match(/ 8=([^|]*)\|/) || [])[1] || '').trim()
     const botKey = () => bots[D].inventory.slots[44]
+    // The driver's own flags as each client was told (the driver's client about itself; the bystander's about the driver).
+    const flagsOf = (name, t0) => seen[name].filter(e => e.k === 'flags' && e.t >= t0 && e.id === bots[D].entity.id).map(e => e.v)
+    const INVIS = 0x20
     const hasMapId = it => !!(it && it.componentMap && it.componentMap.has('map_id'))
     const lockedOf = async () => ((await cmd(`dgarage info ${D}`)).match(new RegExp(`${plate}=[^)]*locked=(true|false)`)) || [])[1]
 
@@ -144,9 +172,34 @@ module.exports = async ({ check }) => {
     // The car key in hand (the client draws the held item at the camera).
     check('the chase view selects hotbar 9 (the car key, index 8): the server sends it to the driver and keeps slot 2 to put back', / slot=2/.test(before) && bots[D].quickBarSlot === 8 && cam.slot === 8 && cam.restore === 2 && since(D, t, 'held').some(e => e.slot === 8), `before: ${before} | now: ${st} | bot slot=${bots[D].quickBarSlot} held=${JSON.stringify(since(D, t, 'held'))}`)
     let dmp = await dump()
-    check('no hands in the view: the car key in hotbar 9 is a tripwire hook without a map_id while the view is on (still the key: carkey:<plate>), on the server and in the driver\'s client',
-      cam.key === 'key-hook' && cam.keymap === 'none' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)) && botKey() && botKey().name === 'tripwire_hook' && !hasMapId(botKey()),
-      `${st} | ${dmp} | bot: ${botKey() && botKey().name} components=${JSON.stringify(botKey() && botKey().components)}`)
+    st = await status()
+    cam = camOf(st)
+    const offhand = bots[D].inventory.slots[45]
+    const keyMapNow = ((await cmd(`data get entity ${D} Inventory[{Slot:8b}].components."minecraft:map_id"`)).match(/data: (\d+)/) || [])[1]
+    check('the GPS minimap stays: with a bag in the offhand the car key in hotbar 9 is still a filled map with the phone\'s map_id while the view is on, on the server and in the driver\'s client',
+      offhand && cam.key === 'key-map' && cam.hook === 'false' && keyMapNow && cam.keymap === keyMapNow && /^filled map x1 \[carkey:/.test(slot8(dmp)) && botKey() && botKey().name === 'filled_map' && hasMapId(botKey()),
+      `offhand=${offhand && offhand.name} | ${st} | ${dmp} | map_id=${keyMapNow} | bot: ${botKey() && botKey().name}`)
+    const ownFlags = flagsOf(D, t)
+    check('...with no arms: the driver\'s own client is told the driver is invisible (shared flags 0x20 on its own entity) once the view starts',
+      ownFlags.length > 0 && (ownFlags[ownFlags.length - 1] & INVIS) !== 0 && /^on$/.test(cam.self) && cam.rewrites > 0,
+      `own flags ${JSON.stringify(ownFlags)} | ${st}`)
+    // A real change of the driver's flags (glowing, bit 0x40) goes to everyone tracking them: the bystander gets the real
+    // byte, the driver's own client the same with 0x20.
+    let tg = Date.now()
+    await cmd(`effect give ${D} minecraft:glowing 3 0 true`)
+    await sleep(700)
+    const glowD = flagsOf(D, tg), glowO = flagsOf(O, tg)
+    check('...and only the driver\'s own client: when the driver starts glowing the bystander gets the driver\'s flags with 0x40 and never 0x20, the driver\'s client with both',
+      glowO.length > 0 && glowO.some(v => (v & 0x40) !== 0) && glowO.every(v => (v & INVIS) === 0) && glowD.some(v => (v & 0x40) !== 0 && (v & INVIS) !== 0) && glowD.every(v => (v & INVIS) !== 0),
+      `driver saw ${JSON.stringify(glowD)} | bystander saw ${JSON.stringify(glowO)}`)
+    await cmd(`effect clear ${D} minecraft:glowing`)
+    await sleep(300)
+    st = await status()
+    const headsNow = camOf(st).heads
+    const headPk = seen[D].filter(e => e.k === 'head' && e.id === cam.id).length
+    check('the camera\'s view yaw for this client: auto picks "filtered" for a native 1.21.11 client (it eases positions by 1/3 a tick, like the head); one head packet a tick from the plugin and none from the tracker (the client got as many as the plugin sent)',
+      camOf(st).head === 'filtered' && headsNow > 20 && Math.abs(headPk - headsNow) <= 3,
+      `client got ${headPk} head packets | ${st}`)
 
     // The driver's own body (the client never draws its own player under another camera).
     const bodySpawn = since(D, t, 'spawn').find(e => e.id === cam.bodyId)
@@ -220,8 +273,66 @@ module.exports = async ({ check }) => {
     check('...and with the mouse still it eases back behind the car (not before carcam.orbit-return, 1.5 s, and within about 3.5 s)',
       backAgain && backAgain.after >= 1300 && backAgain.after <= 4500 && Math.abs(wrap(backAgain.c.view[0] - backAgain.c.eased)) < 1,
       backAgain ? `${backAgain.after} ms: ${JSON.stringify(backAgain.c.orbit)}` : 'never came back')
+    // Right after mounting nothing turned, so the count check above can't tell whether the tracker would send heads too;
+    // after the swing round and back it can (the tracker sends one whenever the stand's head byte changes).
+    const stF = await status()
+    const cF = camOf(stF)
+    const pkF = seen[D].filter(e => e.k === 'head' && e.id === cF.id).length
+    check('...and all the way round and back only the plugin sent the camera\'s head: the client got as many head packets as the plugin sent (tracker heads would fight the plugin\'s in every turn)',
+      cF.id === cam.id && cF.head === 'filtered' && cF.heads > 40 && Math.abs(pkF - cF.heads) <= 3,
+      `client got ${pkF} head packets | ${stF}`)
 
-    // ---------- Locking and unlocking with the hook key ----------
+    // ---------- The exact head (26.3 clients): the head lands on the view in the tick it arrives ----------
+    // Forced for this 1.21.11 bot (auto would pick filtered): the camera is remade, and replaying the head bytes the bot
+    // got through the 26.3 client's head step (a third of the way to each target, a packet a tick, from the spawn
+    // packet's head) must give the plugin's modelled head: no packet missing, none extra from the tracker. (That the
+    // model lands on a moving view in the tick is the plugin's arithmetic, checked offline: within 0.23°.)
+    await cmd('dphone cam tune head exact')
+    await sleep(800)
+    cam = camOf(await status())
+    const exactId = cam.id
+    await look(camOf(await status()).look[0] + 30, p0)
+    await sleep(900) // the orbit has settled and hasn't started back yet (orbit-return 1.5 s)
+    st = await status()
+    const ex = camOf(st)
+    const spawnHead = seen[D].find(e => e.k === 'spawn' && e.id === exactId)
+    let h = spawnHead && typeof spawnHead.head === 'number' ? spawnHead.head * 360 / 256 : NaN
+    const exHeads = seen[D].filter(e => e.k === 'head' && e.id === exactId)
+    for (const e of exHeads) h = h + wrap(e.b * 360 / 256 - h) / 3
+    check('carcam.head exact: the camera is remade with one head packet a tick; replaying the bytes the client got like the 26.3 client (1/3 to each target) gives exactly the head the plugin models (so a moving view lands where it wants in the tick it arrives: the view and the camera\'s spot turn together), and at rest it sits on the byte nearest the wanted view yaw',
+      ex.head === 'exact' && ex.id === exactId && exHeads.length > 20 && Math.abs(ex.orbit[0] - 30) < 2 && Math.abs(wrap(h - ex.headyaw)) < 0.1 && Math.abs(wrap(ex.headyaw - ex.sentyaw)) < 0.75 && Math.abs(exHeads.length - ex.heads) <= 3,
+      `replayed ${h.toFixed(2)} from ${exHeads.length} packets, plugin sent ${ex.heads} (spawn head ${spawnHead && spawnHead.head}) | ${st}`)
+    // The model of the 26.3 client's movement queue: fed by what the server really sent the driver for the camera.
+    const exSyncs = seen[D].filter(e => e.k === 'sync' && e.id === exactId).length
+    const exMoves = seen[D].filter(e => e.k === 'move' && e.id === exactId).length
+    check('...and its model of the client\'s movement queue is fed by what the driver was really sent for the camera: the resyncs (its first, when the driver started tracking it) and the moves (the orbit), counted on the driver\'s own channel',
+      ex.watch.length === 3 && ex.watch[0] >= 1 && ex.watch[0] === exSyncs && Math.abs(ex.watch[1] - exMoves) <= 2 && exMoves > 0 && ex.shownlag >= 0 && ex.shownlag <= 40, // at rest the client shows the last spot it was sent: the lag is the ticks since the camera last moved
+      `watch=${ex.watch} | client: ${exSyncs} resyncs, ${exMoves} moves | shownlag ${ex.shownlag}`)
+    // A fast flick: 150° to the left in one look packet. The orbit's spring moves the view ~85° in its first tick; a
+    // tripled correction past 180° would wrap in the client and turn the head the wrong way (then stay ~120° off while
+    // anything kept turning). The replayed head must only ever step left, end up 150° round, and land on the view.
+    const tf = Date.now()
+    await look(ex.look[0] - 150, p0)
+    await sleep(600)
+    const stFl = await status()
+    const fl = camOf(stFl)
+    const flHeads = seen[D].filter(e => e.k === 'head' && e.id === exactId)
+    let hf = spawnHead && typeof spawnHead.head === 'number' ? spawnHead.head * 360 / 256 : NaN
+    let maxWrong = 0, turnedBy = 0
+    for (const e of flHeads) {
+      const step = wrap(e.b * 360 / 256 - hf) / 3
+      hf = hf + step
+      if (e.t >= tf) { maxWrong = Math.max(maxWrong, step); turnedBy += step }
+    }
+    check('...and a fast 150° flick: the head only ever turns the way the view does (no wrap in the client), goes the whole 150° round and lands on the view within 0.75° (the correction is capped at 59° a tick and caught up over the next ticks)',
+      fl.id === exactId && Math.abs(fl.orbit[0] - (ex.orbit[0] - 150)) < 3 && maxWrong < 1 && Math.abs(turnedBy + 150) < 6 && Math.abs(wrap(hf - fl.headyaw)) < 0.1 && Math.abs(wrap(fl.headyaw - fl.sentyaw)) < 0.75,
+      `worst step the wrong way ${maxWrong.toFixed(2)}°, turned ${turnedBy.toFixed(1)}° | replayed ${hf.toFixed(2)} | ${stFl}`)
+    await cmd('dphone cam tune head auto')
+    await sleep(800)
+    cam = camOf(await status())
+    for (let i = 0; i < 20 && Math.abs(cam.orbit[0]) >= 1; i++) { await sleep(200); cam = camOf(await status()) } // back behind the car
+
+    // ---------- Locking and unlocking with the key (a map: the minimap) ----------
     const lock0 = await lockedOf()
     t = Date.now()
     bots[D].activateItem()
@@ -232,9 +343,36 @@ module.exports = async ({ check }) => {
     st = await status()
     dmp = await dump()
     const lockBar = messagesSince(bots[D], t).filter(m => m.kind === 'game_info').map(m => m.text)
-    check('right-clicking the hook key locks or unlocks the car (garage.sk matches the key by its id), and the refreshed key is still the hook (carKey builds it while the view is on)',
-      lock0 && lock1 && lock0 !== lock1 && lockBar.some(s => /Locked|Unlocked/.test(s)) && camOf(st).key === 'key-hook' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)),
+    check('right-clicking the key locks or unlocks the car (garage.sk matches the key by its id), and the refreshed key is still the map (carKey builds the hook only while donating_carcam_hook is set)',
+      lock0 && lock1 && lock0 !== lock1 && lockBar.some(s => /Locked|Unlocked/.test(s)) && camOf(st).key === 'key-map' && /^filled map x1 \[carkey:/.test(slot8(dmp)),
       `locked ${lock0} -> ${lock1} | bar ${lockBar.slice(-3).join(' | ')} | ${st} | ${dmp}`)
+
+    // ---------- Nothing in the offhand: the key is the hook (a held map would be drawn big in the middle) ----------
+    await cmd(`zzdata ${D} bag-tier none`)
+    await cmd(`zzbagapply ${D}`)
+    await sleep(500)
+    st = await status()
+    dmp = await dump()
+    check('a driver with an empty offhand: the key in hotbar 9 becomes a tripwire hook without a map_id (still carkey:<plate>), on the server and in the driver\'s client',
+      !bots[D].inventory.slots[45] && camOf(st).key === 'key-hook' && camOf(st).hook === 'true' && camOf(st).keymap === 'none' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)) && botKey() && botKey().name === 'tripwire_hook' && !hasMapId(botKey()),
+      `offhand=${JSON.stringify(bots[D].inventory.slots[45])} | ${st} | ${dmp} | bot: ${botKey() && botKey().name}`)
+    const lock2 = await lockedOf()
+    t = Date.now()
+    bots[D].activateItem()
+    await sleep(150)
+    bots[D].deactivateItem()
+    await sleep(600)
+    const lock3 = await lockedOf()
+    st = await status()
+    dmp = await dump()
+    check('...right-clicking the hook key locks or unlocks the car, and the refreshed key is still the hook (carKey builds it while donating_carcam_hook is set)',
+      lock2 && lock3 && lock2 !== lock3 && camOf(st).key === 'key-hook' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)),
+      `locked ${lock2} -> ${lock3} | ${st} | ${dmp}`)
+    await cmd(`zzdata ${D} bag-tier 1`)
+    await cmd(`zzbagapply ${D}`)
+    await sleep(500)
+    st = await status()
+    check('...and with the bag back in the offhand the key is the map again (the minimap)', camOf(st).key === 'key-map' && camOf(st).hook === 'false' && botKey() && botKey().name === 'filled_map' && hasMapId(botKey()), st)
 
     // ---------- Getting out: first person again ----------
     t = Date.now()
@@ -243,6 +381,8 @@ module.exports = async ({ check }) => {
     let r = resetAfter(t, cam.id, cam.bodyId)
     st = await status()
     check('getting out: the body goes, then the camera goes back to the driver\'s own entity, then the camera stand is removed', r.ok && /none reason=not-driving/.test(st) && /none/.test(await cmd(`dphone pv ${cam.uuid}`)) && /none/.test(await cmd(`dphone pv ${cam.body}`)), `${JSON.stringify(r)} ${st} ${JSON.stringify(seen[D].filter(e => e.t >= t && e.k !== 'move' && e.k !== 'sync'))}`)
+    const outFlags = flagsOf(D, t)
+    check('...and the driver\'s own client gets its real flags again (no 0x20: arms back in first person)', outFlags.length > 0 && (outFlags[outFlags.length - 1] & INVIS) === 0 && / self=off/.test(st), `own flags since getting out ${JSON.stringify(outFlags)} | ${st}`)
     check('getting out puts back the slot from before (2): the server sends it, and the driver holds it', bots[D].quickBarSlot === 2 && / slot=2/.test(st) && since(D, t, 'held').some(e => e.slot === 2), `bot slot=${bots[D].quickBarSlot} | ${st} | held=${JSON.stringify(since(D, t, 'held'))}`)
     dmp = await dump()
     // (the key turns back into the map at once; garage.sk then swaps the phone back in within a second)
@@ -283,7 +423,7 @@ module.exports = async ({ check }) => {
     await sleep(1200)
     st = await status()
     cam = camOf(st)
-    check('/carcam on while driving: the chase view comes back, with the key (a hook again) and a new body', cam.id && since(D, t, 'camera').some(e => e.id === cam.id) && cam.slot === 8 && cam.restore === 2 && cam.body && since(D, t, 'spawn').some(e => e.id === cam.bodyId) && cam.key === 'key-hook', st)
+    check('/carcam on while driving: the chase view comes back, with the key (still the map: the minimap) and a new body', cam.id && since(D, t, 'camera').some(e => e.id === cam.id) && cam.slot === 8 && cam.restore === 2 && cam.body && since(D, t, 'spawn').some(e => e.id === cam.bodyId) && cam.key === 'key-map' && cam.hook === 'false', st)
 
     // ---------- A teleport ends it (the driver is taken out of the car) ----------
     t = Date.now()
@@ -305,6 +445,9 @@ module.exports = async ({ check }) => {
   } finally {
     if (box) await rcon.cmd(`fill ${box} air`).catch(() => {})
     await rcon.cmd(`zzdata ${D} carcam none`).catch(() => {})
+    await rcon.cmd(`dphone cam tune head auto`).catch(() => {})
+    await rcon.cmd(`effect clear ${D} minecraft:glowing`).catch(() => {})
+    await rcon.cmd(`zzdata ${D} bag-tier none`).catch(() => {})
     await rcon.cmd(`tag ${D} remove donating_carcam_off`).catch(() => {})
     for (const name of [D, O]) {
       for (const m of [...String(await rcon.cmd(`dgarage info ${name}`).catch(() => '')).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) {
