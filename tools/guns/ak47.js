@@ -70,13 +70,13 @@ module.exports = ({ solid, icon, art, iconOr3d, state, aim, display }) => {
     { from: [23.8, 2.5, 7.05], to: [26, 3.6, 8.95], c: WOOD },
     { from: [26, 2.3, 6.9], to: [26.8, 8.6, 9.1], c: METAL }
   ], display({
-    firstperson: { rotation: [0, -82, 0], translation: [-5.5, 5, -3.5], scale: [0.85, 0.85, 0.85] },
+    firstperson: { rotation: [0, -82, 0], translation: [-5.26, 4.11, -1.79], scale: [0.68, 0.68, 0.68] },
     thirdperson: { rotation: [0, -90, 0], translation: [0, 1.5, -5.5], scale: [0.8, 0.8, 0.8] },
     gui: { rotation: [30, 45, 0], translation: [-0.5, 0.5, 0], scale: [0.72, 0.72, 0.72] },
     ground: { rotation: [0, 0, -45], translation: [-1, 8.25, 0], scale: [0.9, 0.9, 0.9] },
     fixed: { rotation: [0, 0, -45], translation: [-0.5, 1, -1], scale: [0.9, 0.9, 0.9] }
   }))
-  state(`${name}_ads`, name, aim({ sightY: SY, rearX: 10.4, rearDepth: 0.8 }))
-  state(`${name}_sprint`, name, { rotation: [21.5, -25.25, 0], translation: [-12.25, 4, 1], scale: [0.9, 0.9, 0.9] })
+  state(`${name}_ads`, name, aim({ sightY: SY, rearX: 10.4, rearDepth: 0.8, scale: [1.6, 2.4, 2.4] }))
+  state(`${name}_sprint`, name, { rotation: [21.5, -25.25, 0], translation: [-10.6, 2.84, 1.38], scale: [0.72, 0.72, 0.72] })
   return { 5: iconOr3d(name), 1005: iconOr3d(name, `${name}_ads`), 2005: iconOr3d(name, `${name}_sprint`) }
 }

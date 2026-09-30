@@ -56,13 +56,13 @@ module.exports = ({ solid, icon, art, iconOr3d, state, aim, display }) => {
     { from: [4, 5.1, 9.4], to: [14, 5.6, 9.8], c: 3 },
     { from: [3.4, 4.9, 6.2], to: [4, 5.8, 9.8], c: 4 } // the butt plate folded under the barrel
   ], display({
-    firstperson: { rotation: [0, -78, 0], translation: [-5, 4.5, 0], scale: [0.8, 0.8, 0.8] },
+    firstperson: { rotation: [0, -78, 0], translation: [-4.94, 3.78, 0.3], scale: [0.64, 0.64, 0.64] },
     thirdperson: { rotation: [0, -90, -80], translation: [0, 3, 3], scale: [1, 1, 1] },
     ground: { rotation: [0, 0, -50], translation: [0.75, 4, 0], scale: [1.2, 1.2, 1.2] },
     fixed: { rotation: [0, 0, -45], translation: [0, 1.5, 0], scale: [1, 1, 1] },
     head: { rotation: [0, -90, 0], translation: [0, 13, 7], scale: [1, 1, 1] }
   }))
-  state(`${name}_ads`, name, aim({ sightY: SY, rearX: 12.6, rearDepth: 1.1 }))
-  state(`${name}_sprint`, name, { rotation: [-20, -40, 0], translation: [-5, 2.5, -2], scale: [0.8, 0.8, 0.8] })
+  state(`${name}_ads`, name, aim({ sightY: SY, rearX: 12.6, rearDepth: 1.1, scale: [1.6, 2.4, 2.4] }))
+  state(`${name}_sprint`, name, { rotation: [-20, -40, 0], translation: [-4.77, 1.89, -1.57], scale: [0.64, 0.64, 0.64] })
   return { 1: iconOr3d(name), 1001: iconOr3d(name, `${name}_ads`), 2001: iconOr3d(name, `${name}_sprint`) }
 }

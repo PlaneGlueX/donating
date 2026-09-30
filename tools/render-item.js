@@ -168,7 +168,9 @@ const resolveItemModel = (m, ctx, out = []) => {
   if (!m) return out
   if (typeIs(m.type, 'model')) out.push(m.model)
   else if (typeIs(m.type, 'composite')) (m.models || []).forEach(x => resolveItemModel(x, ctx, out))
-  else if (typeIs(m.type, 'condition')) resolveItemModel(m.on_false, ctx, out) // not using, not broken...
+  // view_entity: the holder is the camera (true in a preview, as in normal first person; build-pack.js hides
+  // first-person items under the car camera with it); other conditions: not using, not broken...
+  else if (typeIs(m.type, 'condition')) resolveItemModel(typeIs(m.property, 'view_entity') && ctx.viewEntity !== false ? m.on_true : m.on_false, ctx, out)
   else if (typeIs(m.type, 'select')) {
     let v = null
     if (typeIs(m.property, 'display_context')) v = ctx.display

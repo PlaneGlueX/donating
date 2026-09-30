@@ -2,9 +2,12 @@
 # out). DonatingPhone's CarCam.java draws it (an invisible camera behind the car that only the driver looks through);
 # this script owns the player's setting and the HUD. While the view is on the client hides the hotbar, hearts and food
 # (vanilla: they're only drawn when the camera is the player), so the driver's health goes on the action bar.
-# The plugin also selects hotbar 9 when the view starts (the car key: its GPS map sits in the corner instead of a gun
-# across the view) and puts the slot from before back on getting out, and gives the driver a body in the seat that
-# only they see (config carcam.select-key, carcam.body).
+# The plugin also selects hotbar 9 when the view starts (the car key) and puts the slot from before back on getting
+# out, turns the key into a hook without a map while the view is on (no hands drawn in the view: the pack hides it; the
+# map comes back on getting out; garage.sk's carKey builds the hook itself while "donating_carcam" is set), and gives
+# the driver a body in the seat that only they see (config carcam.select-key, carcam.hook-key, carcam.body).
+# Since 2026-09-29 the camera works like F5: the mouse swings it around the car, and it eases back behind the car
+# after 1.5 s without mouse movement (config carcam.orbit).
 #
 # The plugin reads the scoreboard tag "donating_carcam_off" (the player turned it off) and sets player metadata
 # "donating_carcam" = the plate while the view is on. Setting: data "carcam" = "off" (unset = on).
@@ -52,15 +55,15 @@ on tab complete of "/carcam" and "/skript:carcam":
 	set tab completions for position 1 to "on" and "off"
 
 # Health and the keys while the view is on (hud.sk's action bar, below every other message: combat, traps, loot and
-# prompts all win). "F5 x2" is the client's front view, which with the chase camera looks back from the car.
+# prompts all win). The mouse looks around (the camera swings around the car like F5, then back behind it).
 function carcamHud(p: player):
 	set {_hp} to health of {_p}
 	set {_h} to (round({_hp} * 2)) / 2
 	set {_m} to max health of {_p}
-	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}% &7· Sneak: get out · F5 x2: look back", -1)
-	if getData({_p}, "carcam-tip") is not set:
-		setData({_p}, "carcam-tip", true)
-		msg({_p}, "&7Chase camera: the car key's map on screen is your GPS. &f/carcam off &7for first person.")
+	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}% &7· Sneak: get out · Mouse: look around", -1)
+	if getData({_p}, "carcam-tip2") is not set:
+		setData({_p}, "carcam-tip2", true)
+		msg({_p}, "&7Chase camera: move the mouse to look around the car; it swings back behind you. &f/carcam off &7for first person.")
 
 every 1 second:
 	loop all players:

@@ -83,29 +83,55 @@ carsmooth:
   range: 128
   # Ticks between the car stands' position packets while tracked (vanilla armor stands: 3).
   update-interval: 1
+  # (track mode) The car's model, seats and chase camera resync together: never the periodic 20-second resync while
+  # driving, and when one of them has to (a player starting to watch it), all of them in the same tick. Without it a
+  # 26.3 client (through ViaVersion) could leave the driver's seat up to 2 blocks off the car model until the car stops.
+  # /dphone carsmooth together on|off switches it live (kept in carsmooth.yml).
+  together: true
 
-# The chase camera (CarCam.java): drivers look through an invisible camera behind and above their car instead of first
-# person, from getting in to getting out (carcam.sk: /carcam on|off per player, health on the action bar while it's on,
-# since the client hides the hotbar and hearts under another camera). Tune live: /dphone cam tune <key> <value>.
+# The chase camera (CarCam.java): drivers look through an invisible camera behind their car instead of first person, from
+# getting in to getting out, and it works like F5: the mouse swings it around the car. carcam.sk: /carcam on|off per
+# player, health on the action bar while it's on (the client hides the hotbar and hearts under another camera).
+# Tune live: /dphone cam tune <key> <value>.
 carcam:
   enabled: true
-  # Blocks behind the car, the camera's height over the car, and the height it looks at (pitch = atan((height -
-  # look-height) / distance)). A wall between the car and the camera pulls it in (never inside a block).
-  distance: 5.5
-  height: 2.3
-  look-height: 1.2
+  # stand: an invisible marker armor stand, smoothed on the client exactly like the car's own stands (the car stays put in
+  # the frame). display: the first version's item display (eased on a curve of its own: the car slid about), for an A/B.
+  camera: stand
+  # F5's geometry around the driver's eye: this many blocks back along the view (vanilla F5: 4), looking down this many
+  # degrees behind the car. A block between the eye and the camera pulls it in, like vanilla (never inside a wall).
+  distance: 6.5
+  pitch: 12
+  # The mouse can tilt the view between these (degrees; down is positive).
+  pitch-min: -20
+  pitch-max: 70
+  # Blocks kept off a wall the camera was pulled in by (the client draws the camera between two ticks' spots).
+  clip-margin: 0.15
   # How fast the camera swings behind the car in a turn (share of the angle left, per tick; 1 = locked to the car).
   yaw-smooth: 0.35
   # Degrees added to the car's heading (180 would put the camera in front, looking back).
   yaw-offset: 0
-  # Client-side smoothing of each camera move, in ticks (0 = snap; 1-5 worth trying in a playtest).
+  # (stand) Ticks the car's heading is sent late: the client turns a camera's view as soon as the yaw arrives, but the
+  # car's body a tick later, through its movement queue.
+  yaw-delay: 1
+  # The mouse orbits the camera around the car (like F5); after orbit-return seconds without mouse movement it eases back
+  # behind the car, closing orbit-return-speed of the angle left each tick. It follows the mouse about ping + 225 ms late.
+  orbit: true
+  orbit-return: 1.5
+  orbit-return-speed: 0.15
+  orbit-sensitivity: 1.0
+  # (display) Client-side smoothing of each camera move, in ticks.
   teleport-duration: 3
   # true: only while the car key (hotbar 9) is held. false: the whole ride (select-key below picks the key anyway).
   only-with-key: false
-  # The client still draws the held item at the camera (a gun covered a third of the view). true: when the view starts,
-  # hotbar 9 is selected (the car key, a map with the phone's GPS view, drawn small in the corner like a minimap), and
-  # getting out puts back the slot held before, unless the player picked another slot during the ride (theirs then).
+  # true: when the view starts, hotbar 9 is selected (the car key), and getting out puts back the slot held before,
+  # unless the player picked another slot during the ride (theirs then).
   select-key: true
+  # No hands in the view: while it's on, the car key (or the phone) in hotbar 9 is a tripwire hook without a map (the
+  # client draws arms with anything that has a map; the pack draws the hook as the key and hides it in first person
+  # under the chase camera). The map comes back on getting out. false: the key stays a map (a GPS map in the corner,
+  # with an arm).
+  hook-key: true
   # The client never draws the driver's own player under another camera, so the car looked empty. true: a mannequin with
   # the driver's skin rides the driver's seat, sent to the driver only (the client sits it and turns it with the car);
   # invulnerable and not collidable, so no bullet or arrow ever hits it instead of the driver. false: an empty car.

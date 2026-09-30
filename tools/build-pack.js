@@ -288,6 +288,40 @@ if (merged.length) console.log(`merged JSON: ${merged.join(', ')}`)
   if (bad.length) throw new Error(`${FEATHER}: ${bad.join(', ')} aren't drawn by our models (run tools\\node\\node.exe tools\\make-item-art.js)`)
 }
 
+// ---------- No hands under the car camera ----------
+// The chase camera (DonatingPhone CarCam) makes another entity the client's camera. The first-person
+// items are still drawn, with the local player as their holder, so minecraft:view_entity is false for
+// them then and true in normal first person (26.3 IsViewEntity, checked; the same since 1.21.4). Every
+// item definition (ours, WeaponMechanics', MTVehicles') draws nothing in the two first-person contexts
+// while the local player isn't the camera; every other context (gui, ground, fixed, head, third person,
+// other players' hands) is unchanged. Other top-level fields (hand_animation_on_swap, ...) are kept.
+// Not covered by this: an empty main hand (the arm) and a stack with a map_id (the client's map path
+// ignores the item model): CarCam swaps the map key for a tripwire hook while the view is on.
+{
+  const FP = ['firstperson_righthand', 'firstperson_lefthand']
+  const isWrapped = m => !!m && /^(minecraft:)?select$/.test(m.type) && /^(minecraft:)?display_context$/.test(m.property) &&
+    Array.isArray(m.cases) && m.cases.some(c => Array.isArray(c.when) && FP.every(x => c.when.includes(x)) &&
+      c.model && /^(minecraft:)?condition$/.test(c.model.type) && /^(minecraft:)?view_entity$/.test(c.model.property) &&
+      c.model.on_false && /^(minecraft:)?empty$/.test(c.model.on_false.type))
+  const wrap = M => ({
+    type: 'minecraft:select',
+    property: 'minecraft:display_context',
+    cases: [{ when: FP, model: { type: 'minecraft:condition', property: 'minecraft:view_entity', on_true: M, on_false: { type: 'minecraft:empty' } } }],
+    fallback: M
+  })
+  let wrapped = 0
+  let already = 0
+  for (const [name, e] of entries) {
+    if (!/^assets\/[^/]+\/items\/[^/]+\.json$/.test(name)) continue
+    const def = parseJson(e.data)
+    if (!def || typeof def.model !== 'object') throw new Error(`${name}: no item model to wrap`)
+    if (isWrapped(def.model)) { already++; continue }
+    entries.set(name, { data: toJson({ ...def, model: wrap(def.model) }), from: e.from })
+    wrapped++
+  }
+  console.log(`first-person hands hidden under a foreign camera: ${wrapped} item definitions wrapped` + (already ? `, ${already} already wrapped` : ''))
+}
+
 // ---------- Write ----------
 const locals = []
 const centrals = []

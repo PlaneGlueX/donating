@@ -207,7 +207,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dcontract info/end <player>", "a player's car job")
 		ahLine({_s}, "/dpv info <player> | xray on/off | reset", "personal views")
 		ahLine({_s}, "/dphone status/gps/mark/nametag/carstat ...", "the phone plugin, for tests")
-		ahLine({_s}, "/dphone carsmooth [off/sync/track/all] | carprobe <plate> [ticks] | cam <player> | cam tune <key> <value>", "smoother cars and the chase camera")
+		ahLine({_s}, "/dphone carsmooth [off/sync/track/all | together on/off] | carprobe <plate> [ticks] | cam <player> | cam tune <key> <value>", "smoother cars and the chase camera")
 		ahLine({_s}, "/staffchat &7(/sc)&e, /broadcast &7(/bc)", "staff chat, a server message")
 	else if {_topic} is "store":
 		ahTitle({_s}, "Owner and store (donating.store / donating.season.admin; Tebex runs these)")
