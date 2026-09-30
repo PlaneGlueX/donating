@@ -798,6 +798,23 @@ command /zzcarseat <player>:
 	trigger:
 		send "SEAT %arg-1% %carSeatOf(arg-1)% riding=%{-car::riding::%uuid of arg-1%}% slot8=%itemId(slot 8 of arg-1's inventory)%"
 
+# The next join of a player puts them on a plate's driver's seat in the join tick (what vanilla does with a seat saved
+# with the player: carshake.js checks DonatingPhone takes them out of it).
+command /zzseatonjoin <text> <text>:
+	executable by: console
+	trigger:
+		set {-zz::seatonjoin::%arg-1%} to arg-2
+		send "SEATONJOIN %arg-1% %arg-2%"
+
+on join:
+	set {_plate} to {-zz::seatonjoin::%name of player%}
+	{_plate} is set
+	delete {-zz::seatonjoin::%name of player%}
+	loop all armor stands:
+		if name of loop-entity is "MTVEHICLES_MAINSEAT_%{_plate}%":
+			make player ride loop-entity
+			stop
+
 # Makes a player sit in the driver's seat of a plate (MTVehicles' mount effect: no enter event).
 command /zzcarmount <player> <text>:
 	executable by: console

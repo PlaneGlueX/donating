@@ -154,6 +154,9 @@ carcam:
   # the middle, so that driver gets the hook below.
   minimap: true
   self-invisible: true
+  # TAB's sidebar is off while the view is on (at a usual GUI scale it covers the top of the minimap) and back on every
+  # exit; a player who turned it off themselves (/sb) keeps it off.
+  hide-sidebar: true
   # No minimap (minimap false, an empty offhand, or self-invisible not working): the key (or phone) is a tripwire hook
   # without a map while the view is on (the client draws arms with anything that has a map; the pack draws the hook as
   # the key and hides it in first person under the chase camera). The map comes back on getting out. false: the key

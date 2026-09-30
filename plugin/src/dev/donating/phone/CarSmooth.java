@@ -573,6 +573,64 @@ final class CarSmooth implements Listener {
     }
 
     /**
+     * Takes a player out of a car's seat. Vanilla saves a player's vehicle with the player (the seat stand goes from the
+     * world into their data) and puts it back at their next join: a lone copy of the seat that the car cleanup then
+     * removes as a stray, which threw the player out a few seconds after joining (found 2026-09-30 by the seat-exit log,
+     * after a server restart). A normal logout is fine (MTVehicles' LeaveListener takes a quitting driver out), but a
+     * server stop disables the plugins before the players are saved: PhonePlugin.onDisable takes everyone out first.
+     */
+    static boolean leaveCar(Player p) {
+        return p.getVehicle() instanceof ArmorStand s && s.getName().startsWith("MTVEHICLES_") && p.leaveVehicle();
+    }
+
+    /** A seat that came back with a player anyway (a crash, a player file from before this): out of it at once. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoinInCar(org.bukkit.event.player.PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline() && leaveCar(p)) plugin.getLogger().info("carsmooth: " + p.getName() + " joined in a car seat saved with them: out of it");
+        }, 1L);
+    }
+
+    /**
+     * A driver or passenger leaving a car's seat: one log line with what took them out (the call stack's frames outside
+     * the event system), the keys they held and the car's speed. Exits are rare, so it's always on: it's how an
+     * unexpected ejection gets found (the owner, 2026-09-30: popped out while going back and forth fast).
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSeatLeave(org.bukkit.event.entity.EntityDismountEvent e) {
+        if (!(e.getDismounted() instanceof ArmorStand seat)) return;
+        String name = seat.getName();
+        if (!name.startsWith(MAINSEAT) && !name.startsWith(SEAT)) return;
+        // A player, or the chase camera's body of the driver (CarCam.BODY_TAG: what the driver sees in the seat).
+        Player p = e.getEntity() instanceof Player q ? q : null;
+        if (p == null && !e.getEntity().getScoreboardTags().contains(CarCam.BODY_TAG)) return;
+        String plate = name.substring(name.lastIndexOf('_') + 1);
+        ArmorStand main = stand(plugin, MAIN + plate);
+        String keys = "";
+        if (p != null) {
+            org.bukkit.Input in = p.getCurrentInput();
+            keys = (in.isForward() ? "W" : "") + (in.isBackward() ? "S" : "") + (in.isLeft() ? "A" : "") + (in.isRight() ? "D" : "")
+                    + (in.isJump() ? " jump" : "") + (in.isSneak() ? " sneak" : "") + (in.isSprint() ? " sprint" : "");
+        }
+        StringBuilder stack = new StringBuilder();
+        int n = 0;
+        for (StackTraceElement f : new Throwable().getStackTrace()) {
+            String c = f.getClassName();
+            if (c.startsWith("dev.donating.phone.CarSmooth") || c.startsWith("org.bukkit.plugin.") || c.startsWith("io.papermc.paper.plugin.")
+                    || c.startsWith("co.aikar.") || c.startsWith("jdk.internal.") || c.startsWith("java.lang.reflect.") || c.contains("EventExecutor")
+                    || c.startsWith("com.destroystokyo.paper.event.executor")) continue;
+            if (stack.length() > 0) stack.append(" < ");
+            stack.append(c.substring(c.lastIndexOf('.') + 1)).append('.').append(f.getMethodName()).append(':').append(f.getLineNumber());
+            if (++n >= 14) break;
+        }
+        Vector v = main != null ? main.getVelocity() : null;
+        plugin.getLogger().info(String.format(Locale.ROOT, "CARLEAVE %s from %s tick=%d keys=[%s] sneaking=%s dead=%s seatValid=%s mainVel=%s cancelled=%s by %s",
+                p != null ? p.getName() : "body(" + e.getEntity().getEntityId() + ")", name, tickNo, keys.trim(), p != null && p.isSneaking(), e.getEntity().isDead(), seat.isValid(),
+                v == null ? "none" : String.format(Locale.ROOT, "%.3f,%.3f,%.3f", v.getX(), v.getY(), v.getZ()), e.isCancelled(), stack));
+    }
+
+    /**
      * A player starts tracking a car's stand (or its camera): Paper fires this in ChunkMap.TrackedEntity.updatePlayer,
      * just before ServerEntity.onPlayerAdd sets that stand's forceStateResync (also when the event is cancelled, so
      * cancelled ones count too). The rest of the car gets the flag now: the stands the tracker handles after this one
