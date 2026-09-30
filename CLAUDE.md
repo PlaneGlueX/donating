@@ -80,6 +80,7 @@ Read this whole file before doing anything. It is the agreed plan from the owner
 ### Playtests with computer use
 - The owner runs this project in the **Code section of the Claude desktop app**, where Claude Code can use computer use to see and control the screen. It's off by default: Settings → General → Enable computer use (macOS and Windows; Pro or Max plan; on macOS it also needs Accessibility and Screen Recording permissions). The VS Code extension can't do this; if computer use isn't available, ask the owner to playtest instead.
 - The owner allows Claude to launch Minecraft with the owner's account and join the local server for testing. Claude asks permission per app the first time. Never type passwords or sign in for the owner; if the launcher asks, the owner does it.
+- Owner, 2026-09-30: "use my pc now, and from now on keep using it if i say to, if im at my pc and i want to use it i will stop your pc use". Once told to use the PC, keep using it (don't back off because the PC looks busy); the owner stops it themselves.
 - Good for: joining localhost, chat commands, clicking through menus, reading the UI (sidebar, boss bar, XP bar, holograms), checking models and textures.
 - Weak for: fast movement, aiming, driving and PvP (screenshot-based control is slow). Bots cover scripted actions; the owner covers how things feel.
 - Run Minecraft in a window and turn off "pause on lost focus" (F3+P).
