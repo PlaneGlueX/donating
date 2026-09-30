@@ -156,6 +156,10 @@ final class CarCam implements Listener {
     private final Map<UUID, Integer> retryAt = new HashMap<>();
     private ScheduledTask task;
     private int tickNo;
+    // /dphone cam probe <player> <ticks>: a row a tick into camprobe.log (for judging the turning offline).
+    private UUID probeWho;
+    private int probeLeft;
+    private java.io.BufferedWriter probeOut;
 
     // Tunables (config carcam.*; /dphone cam tune changes them until the next reload).
     boolean enabled = true;
@@ -165,6 +169,9 @@ final class CarCam implements Listener {
     int yawDelay = 0, teleportDuration = 3;
     boolean orbit = true, hookKey = true;
     boolean minimap = true, selfInvisible = true;
+    /** TAB's sidebar off while the view is on (it covers the top of the corner minimap); back on every exit. */
+    boolean hideSidebar = true;
+    private final java.util.Set<UUID> sidebarHidden = new java.util.HashSet<>();
     /** Exact heads aim at the tick the client shows the camera at (its movement queue, modelled). */
     boolean queueModel = true;
     /** How the camera stand's head (its view yaw) is sent: auto, exact, filtered or tracker (see the class notes). */
@@ -208,6 +215,8 @@ final class CarCam implements Listener {
         boolean hook;      // the key must be the hook this tick (no minimap)
         int age;
         int sent;          // camera packets sent (the first goes a tick after the spawn; one more a few ticks later)
+        int resendAt;      // the driver's client made the camera again (it left its view and came back): send at this age
+        int exactFor;      // head packets still to correct exactly after a re-send (whatever carcam.head says)
         int prevSlot = -1; // the hotbar slot held before the view picked the key (-1: nothing to put back)
         Mannequin body;    // the driver's own body, sent to the driver only
         float bodyYaw = Float.NaN;
@@ -279,6 +288,7 @@ final class CarCam implements Listener {
         if (head == null) head = "auto";
         minimap = c.getBoolean("carcam.minimap", true);
         selfInvisible = c.getBoolean("carcam.self-invisible", true);
+        hideSidebar = c.getBoolean("carcam.hide-sidebar", true);
         queueModel = c.getBoolean("carcam.queue-model", true);
         clipMargin = clamp(c.getDouble("carcam.clip-margin", 0.15), 0, 1);
         orbit = c.getBoolean("carcam.orbit", true);
@@ -359,6 +369,7 @@ final class CarCam implements Listener {
 
     void shutdown() {
         if (task != null) { task.cancel(); task = null; }
+        endProbe();
         offAll();
         flags.shutdown(); // every handler out of the pipelines (a reload must not leave this class loader's code there)
     }
@@ -465,7 +476,14 @@ final class CarCam implements Listener {
                     if (!sendCamera(p, c.cam)) { off(p); continue; }
                     c.sent++;
                     p.setMetadata(META, new FixedMetadataValue(plugin, plate));
-                    if (c.sent == 1) pickKey(p, c);
+                    if (c.sent == 1) { pickKey(p, c); sidebarOff(p); }
+                }
+                // The client drops its camera when the camera entity goes (a car teleported far: the stand left the
+                // driver's view and was sent again) and never looks through the new copy by itself.
+                if (c.resendAt > 0 && c.age >= c.resendAt) {
+                    c.resendAt = 0;
+                    if (!sendCamera(p, c.cam)) { off(p); continue; }
+                    plugin.getLogger().info("carcam " + p.getName() + ": the camera was sent to the client again, looking through it again");
                 }
                 Location at = spot(p, main, seat, c);
                 boolean ownHead = c.stand && c.head != Head.TRACKER;
@@ -477,11 +495,13 @@ final class CarCam implements Listener {
                 if (c.stand) CarSmooth.likeCar(c.cam, plate);
                 // Sent before the tracker sends this tick's move: the client applies both in the same tick.
                 if (ownHead && !sendHead(p, c)) c.head = Head.TRACKER;
+                if (probeOut != null && p.getUniqueId().equals(probeWho)) probeRow(c, main, at);
                 if (c.sent > 0) {
                     // A player who picks another slot while driving keeps it: nothing to put back any more.
                     if (c.prevSlot >= 0 && p.getInventory().getHeldItemSlot() != KEY_SLOT) c.prevSlot = -1;
                     handsAndKey(p, c);
                     body(p, c);
+                    if (tickNo % 10 == 0) sidebarTheirs(p);
                     if (c.age % 40 == 0 && flags.isOn(p)) flags.resend(p); // a flags packet that got past the handler
                 }
             } catch (RuntimeException ex) {
@@ -709,7 +729,8 @@ final class CarCam implements Listener {
         // The view of the tick the client shows the camera's spot at (exact with the queue model; else this tick's).
         c.sentYaw = (float) histAt(c.viewHist, c, c.shown - yawDelay);
         double[] st = {c.headH, c.headWantPrev};
-        byte b = headByte(st, c.sentYaw, c.head == Head.EXACT);
+        byte b = headByte(st, c.sentYaw, c.head == Head.EXACT || c.exactFor > 0);
+        if (c.exactFor > 0) c.exactFor--;
         try {
             Object nmsCam = c.cam.getClass().getMethod("getHandle").invoke(c.cam);
             if (!sendPacket(p, headCtor.newInstance(nmsCam, b))) return false;
@@ -722,6 +743,27 @@ final class CarCam implements Listener {
         c.headByte = b;
         c.headSent++;
         return true;
+    }
+
+    /** One camprobe.log row: tick, head mode, the car (MAIN) x z yaw, the camera x z, view/sent/eased yaw, the modelled head, lead, orbit, shown. */
+    private void probeRow(Cam c, ArmorStand main, Location at) {
+        Location m = main.getLocation();
+        try {
+            probeOut.write(String.format(Locale.ROOT, "%d,%s,%.4f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f%n",
+                    tickNo, c.head.name().toLowerCase(Locale.ROOT), m.getX(), m.getZ(), wrap(m.getYaw()), at.getX(), at.getZ(),
+                    c.viewYaw, c.sentYaw, c.yaw, c.headH, c.lead, c.orbitYaw, Double.isNaN(c.shown) ? 0 : tickNo - c.shown));
+            probeOut.flush();
+            if (--probeLeft <= 0) endProbe();
+        } catch (java.io.IOException ex) {
+            plugin.getLogger().warning("camprobe: " + ex.getMessage());
+            endProbe();
+        }
+    }
+
+    private void endProbe() {
+        try { if (probeOut != null) probeOut.close(); } catch (java.io.IOException ignored) { }
+        probeOut = null;
+        probeWho = null;
     }
 
     /**
@@ -998,6 +1040,7 @@ final class CarCam implements Listener {
         if (!(p.getVehicle() instanceof ArmorStand seat)) return;
         Mannequin m = c.body;
         if (m != null && (!m.isValid() || m.getVehicle() == null || !m.getVehicle().getUniqueId().equals(seat.getUniqueId()))) {
+            plugin.getLogger().info("carcam " + p.getName() + ": the body left the seat (valid=" + m.isValid() + " vehicle=" + (m.getVehicle() == null ? "none" : m.getVehicle().getName()) + "), made again");
             dropBody(c);
             m = null;
             c.bodyNextTry = c.age + 10;
@@ -1114,6 +1157,8 @@ final class CarCam implements Listener {
         Cam c = cams.remove(p.getUniqueId());
         p.removeMetadata(META, plugin);
         p.removeMetadata(HOOK_META, plugin);
+        if (putBack || c == null) sidebarBack(p); // a camera remade at once (putBack false) keeps it hidden
+        if (putBack && c != null && probeOut != null && p.getUniqueId().equals(probeWho)) endProbe(); // the ride ended: so does its probe
         if (c == null) { mapKey(p); if (flags.isOn(p)) flags.set(p, false); return -1; }
         dropBody(c); // before the reset: never a frame of first person from inside its head
         if (p.isOnline() && c.sent > 0) sendCamera(p, p);
@@ -1125,7 +1170,42 @@ final class CarCam implements Listener {
         return c.prevSlot;
     }
 
+    /** The chase view started: TAB's sidebar off for the ride (only if it showed: a player's own /sb stays theirs). */
+    private void sidebarOff(Player p) {
+        if (!hideSidebar || sidebarHidden.contains(p.getUniqueId()) || !Sidebar.present()) return;
+        try {
+            if (Sidebar.hide(p)) sidebarHidden.add(p.getUniqueId());
+        } catch (LinkageError | RuntimeException ex) {
+            plugin.getLogger().warning("carcam: can't hide TAB's sidebar (" + ex + "); it stays on");
+            hideSidebar = false;
+        }
+    }
+
+    /** The player turned the sidebar on again mid-ride (/sb): it's theirs from now on (a later /sb off stays off at the exit). */
+    private void sidebarTheirs(Player p) {
+        if (!sidebarHidden.contains(p.getUniqueId()) || !Sidebar.present()) return;
+        try {
+            if (Sidebar.visible(p)) sidebarHidden.remove(p.getUniqueId());
+        } catch (LinkageError | RuntimeException ex) {
+            sidebarHidden.remove(p.getUniqueId()); // TAB's scoreboard went away (a /tab reload): nothing to put back
+        }
+    }
+
+    /** The sidebar back, if the view hid it. */
+    private void sidebarBack(Player p) {
+        if (!sidebarHidden.remove(p.getUniqueId()) || !p.isOnline() || !Sidebar.present()) return;
+        try {
+            Sidebar.show(p);
+        } catch (LinkageError | RuntimeException ex) {
+            plugin.getLogger().warning("carcam: can't show TAB's sidebar again (" + ex + ")");
+        }
+    }
+
     void offAll() {
+        for (UUID u : new ArrayList<>(sidebarHidden)) {
+            Player p = Bukkit.getPlayer(u);
+            if (p == null) sidebarHidden.remove(u);
+        }
         for (UUID u : new ArrayList<>(cams.keySet())) {
             Player p = Bukkit.getPlayer(u);
             if (p != null) off(p);
@@ -1140,7 +1220,7 @@ final class CarCam implements Listener {
     String status(Player p) {
         Cam c = cams.get(p.getUniqueId());
         int held = p.getInventory().getHeldItemSlot();
-        String key = " key=" + keyState(p) + " keymap=" + keyMapId(p) + " self=" + flags.state(p);
+        String key = " key=" + keyState(p) + " keymap=" + keyMapId(p) + " self=" + flags.state(p) + " sidebar=" + (sidebarHidden.contains(p.getUniqueId()) ? "hidden" : "kept");
         if (c == null || c.cam == null) {
             String w = why(p);
             return "CARCAM " + p.getName() + " none reason=" + (w.isEmpty() ? "starting" : w) + " slot=" + held + key + (error != null ? " error=" + error : "");
@@ -1196,6 +1276,10 @@ final class CarCam implements Listener {
                         case "hook-key" -> hookKey = Boolean.parseBoolean(v); // running views follow on the next tick
                         case "minimap" -> minimap = Boolean.parseBoolean(v);
                         case "self-invisible" -> selfInvisible = Boolean.parseBoolean(v);
+                        case "hide-sidebar" -> {
+                            hideSidebar = Boolean.parseBoolean(v);
+                            if (!hideSidebar) for (UUID u : new ArrayList<>(sidebarHidden)) { Player q = Bukkit.getPlayer(u); if (q != null) sidebarBack(q); else sidebarHidden.remove(u); }
+                        }
                         case "head" -> {
                             String h = parseHead(v);
                             if (h == null) { sender.sendMessage("CARCAM tune: head is auto, exact, filtered or tracker"); return true; }
@@ -1229,12 +1313,32 @@ final class CarCam implements Listener {
                     return true;
                 }
             }
-            sender.sendMessage(String.format(Locale.ROOT, "CARCAM tune enabled=%s camera=%s distance=%.2f pitch=%.1f pitch-min=%.1f pitch-max=%.1f yaw-smooth=%.2f yaw-offset=%.1f yaw-delay=%d clip-margin=%.2f orbit=%s orbit-return=%.2f orbit-return-speed=%.2f orbit-sensitivity=%.2f teleport-duration=%d only-with-key=%s select-key=%s hook-key=%s minimap=%s self-invisible=%s head=%s yaw-follow=%s yaw-lag=%.3f look-ahead=%.3f look-ahead-max=%.1f orbit-smooth=%.3f queue-model=%s body=%s seat-camera-distance=%.1f (until /dphone reload; keep them in config.yml carcam.*)",
+            sender.sendMessage(String.format(Locale.ROOT, "CARCAM tune enabled=%s camera=%s distance=%.2f pitch=%.1f pitch-min=%.1f pitch-max=%.1f yaw-smooth=%.2f yaw-offset=%.1f yaw-delay=%d clip-margin=%.2f orbit=%s orbit-return=%.2f orbit-return-speed=%.2f orbit-sensitivity=%.2f teleport-duration=%d only-with-key=%s select-key=%s hook-key=%s minimap=%s self-invisible=%s hide-sidebar=%s head=%s yaw-follow=%s yaw-lag=%.3f look-ahead=%.3f look-ahead-max=%.1f orbit-smooth=%.3f queue-model=%s body=%s seat-camera-distance=%.1f (until /dphone reload; keep them in config.yml carcam.*)",
                     enabled, camera, distance, pitch, pitchMin, pitchMax, yawSmooth, yawOffset, yawDelay, clipMargin, orbit, orbitReturn, orbitReturnSpeed, orbitSensitivity,
-                    teleportDuration, onlyWithKey, selectKey, hookKey, minimap, selfInvisible, head, yawFollow, yawLag, lookAhead, lookAheadMax, orbitSmooth, queueModel, body, seatCameraDistance));
+                    teleportDuration, onlyWithKey, selectKey, hookKey, minimap, selfInvisible, hideSidebar, head, yawFollow, yawLag, lookAhead, lookAheadMax, orbitSmooth, queueModel, body, seatCameraDistance));
             return true;
         }
-        if (a.length != 2) { sender.sendMessage("CARCAM usage: /dphone cam <player> | /dphone cam tune [<key> <value>]"); return true; }
+        if (a.length == 4 && a[1].equalsIgnoreCase("probe")) {
+            Player who = Bukkit.getPlayerExact(a[2]);
+            if (who == null) { sender.sendMessage("CARCAM no player " + a[2]); return true; }
+            endProbe();
+            try {
+                probeLeft = (int) clamp(Integer.parseInt(a[3]), 1, 12000);
+                probeOut = new java.io.BufferedWriter(new java.io.FileWriter(new java.io.File(plugin.getDataFolder(), "camprobe.log"), true));
+                probeOut.write("# camprobe " + who.getName() + " ticks=" + probeLeft + " head=" + head + " yaw-follow=" + yawFollow + " yaw-lag=" + yawLag + " yaw-delay=" + yawDelay
+                        + " look-ahead=" + lookAhead + " orbit-smooth=" + orbitSmooth + " at " + new java.util.Date() + System.lineSeparator());
+                probeOut.write("# tick,head,carx,carz,caryaw,camx,camz,view,sent,eased,headmodel,lead,orbit,shownlag" + System.lineSeparator());
+                probeWho = who.getUniqueId();
+                sender.sendMessage("CARCAM probe " + who.getName() + " for " + probeLeft + " ticks -> camprobe.log");
+            } catch (NumberFormatException ex) {
+                sender.sendMessage("CARCAM probe: ticks is a number");
+            } catch (java.io.IOException ex) {
+                endProbe();
+                sender.sendMessage("CARCAM probe: can't write camprobe.log: " + ex.getMessage());
+            }
+            return true;
+        }
+        if (a.length != 2) { sender.sendMessage("CARCAM usage: /dphone cam <player> | /dphone cam tune [<key> <value>] | /dphone cam probe <player> <ticks>"); return true; }
         Player p = Bukkit.getPlayerExact(a[1]);
         sender.sendMessage(p == null ? "CARCAM no player " + a[1] : status(p));
         return true;
@@ -1242,18 +1346,47 @@ final class CarCam implements Listener {
 
     static final List<String> TUNE_KEYS = List.of("enabled", "camera", "distance", "pitch", "pitch-min", "pitch-max", "yaw-smooth", "yaw-offset", "yaw-delay",
             "clip-margin", "orbit", "orbit-return", "orbit-return-speed", "orbit-sensitivity", "teleport-duration", "only-with-key", "select-key", "hook-key",
-            "minimap", "self-invisible", "head", "yaw-follow", "yaw-lag", "look-ahead", "look-ahead-max", "orbit-smooth", "queue-model", "preset", "body", "seat-camera-distance");
+            "minimap", "self-invisible", "hide-sidebar", "head", "yaw-follow", "yaw-lag", "look-ahead", "look-ahead-max", "orbit-smooth", "queue-model", "preset", "body", "seat-camera-distance");
 
     /** Tab completion for /dphone cam (args as /dphone gets them). */
     List<String> complete(String[] a, List<String> players) {
         List<String> out = new ArrayList<>();
-        if (a.length == 2) { out.add("tune"); out.addAll(players); }
+        if (a.length == 2) { out.add("tune"); out.add("probe"); out.addAll(players); }
+        else if (a.length == 3 && a[1].equalsIgnoreCase("probe")) out.addAll(players);
+        else if (a.length == 4 && a[1].equalsIgnoreCase("probe")) out.addAll(List.of("200", "400"));
         else if (a.length == 3 && a[1].equalsIgnoreCase("tune")) out.addAll(TUNE_KEYS);
         else if (a.length == 4 && a[1].equalsIgnoreCase("tune") && a[2].equalsIgnoreCase("camera")) out.addAll(List.of("stand", "display"));
         else if (a.length == 4 && a[1].equalsIgnoreCase("tune") && a[2].equalsIgnoreCase("head")) out.addAll(List.of("auto", "exact", "filtered", "tracker"));
         else if (a.length == 4 && a[1].equalsIgnoreCase("tune") && a[2].equalsIgnoreCase("yaw-follow")) out.addAll(List.of("spring", "lerp"));
         else if (a.length == 4 && a[1].equalsIgnoreCase("tune") && a[2].equalsIgnoreCase("preset")) out.addAll(List.of("old", "new"));
         return out;
+    }
+
+    /** The driver's client being sent the camera again after it lost it (not the first time: that one's ours). */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCamTracked(io.papermc.paper.event.player.PlayerTrackEntityEvent e) {
+        Cam c = cams.get(e.getPlayer().getUniqueId());
+        if (c == null) return;
+        UUID id = e.getEntity().getUniqueId();
+        // The body sent again: its head is what its spawn packet gives (the body's own yaw), not what the model had.
+        if (c.body != null && id.equals(c.body.getUniqueId())) {
+            if (!Float.isNaN(c.bodyYaw)) { c.bodyHead[0] = unpackDegrees(packFloor(c.bodyYaw)); c.bodyHead[1] = Double.NaN; }
+            return;
+        }
+        if (c.cam == null || c.sent == 0 || !id.equals(c.cam.getUniqueId())) return;
+        c.resendAt = c.age + 1; // after the tracker's spawn packet (it goes out this tick)
+        // The spawn packet (sent right after this event) puts the client's head at the stand's own yaw and starts its
+        // movement queue again: the models start from there, and the head is corrected exactly for two ticks (a
+        // filtered client would otherwise ease over from the stand's yaw, the camera's yaw when it was made).
+        c.headH = unpackDegrees(packFloor(c.fixedYaw));
+        c.headWantPrev = Double.NaN;
+        c.exactFor = 2;
+        if (c.queue != null) {
+            c.queue = new StepQueue(tickNo);
+            c.queueTick = tickNo - 1;
+            c.lastPacketTick = tickNo;
+            c.movedPrev = false;
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -1280,8 +1413,20 @@ final class CarCam implements Listener {
         off(e.getPlayer());
     }
 
+    /**
+     * First thing on quitting: forget the sidebar the view hid. MTVehicles takes a quitting driver out of the seat at
+     * NORMAL (its LeaveListener), and that exit's sidebarBack must not call TAB for a player who is leaving.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onQuitEarly(PlayerQuitEvent e) {
+        sidebarHidden.remove(e.getPlayer().getUniqueId());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent e) {
+        // Never TAB for a quitting player: TAB removes them on its own threads, and a sidebar shown now could leave them on
+        // its board (remember-toggle-choice is false: a rejoin starts with the sidebar anyway).
+        sidebarHidden.remove(e.getPlayer().getUniqueId());
         off(e.getPlayer());
         flags.remove(e.getPlayer());
     }

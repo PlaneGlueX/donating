@@ -80,6 +80,9 @@ module.exports = async ({ check }) => {
       c.on('entity_destroy', p => seen[name].push({ t: Date.now(), k: 'destroy', ids: p.entityIds }))
       c.on('held_item_slot', p => seen[name].push({ t: Date.now(), k: 'held', slot: p.slot }))
       c.on('set_passengers', p => seen[name].push({ t: Date.now(), k: 'passengers', id: p.entityId, list: p.passengers || [] }))
+      // TAB's sidebar: its objective removed (action 1) or made (0), and what shows in the sidebar slot (position 1).
+      c.on('scoreboard_objective', p => seen[name].push({ t: Date.now(), k: 'sbobj', name: p.name, action: p.action }))
+      c.on('scoreboard_display_objective', p => seen[name].push({ t: Date.now(), k: 'sbslot', pos: p.position, name: p.name }))
       c.on('packet', (d, meta) => { if (d && MOVES.has(meta.name) && d.entityId !== undefined) seen[name].push({ t: Date.now(), k: meta.name === 'sync_entity_position' ? 'sync' : 'move', id: d.entityId }) })
     }
     const standType = bots[D].registry.entitiesByName.armor_stand.id
@@ -106,6 +109,7 @@ module.exports = async ({ check }) => {
       key: (s.match(/ key=(\S+)/) || [])[1],
       keymap: (s.match(/ keymap=(\S+)/) || [])[1],
       self: (s.match(/ self=(\S+)/) || [])[1],
+      sidebar: (s.match(/ sidebar=(\S+)/) || [])[1],
       rewrites: num(s, / rewrites=(\d+)/),
       hook: (s.match(/ hook=(\S+)/) || [])[1],
       head: (s.match(/ head=(\w+)/) || [])[1],
@@ -183,6 +187,11 @@ module.exports = async ({ check }) => {
     check('...with no arms: the driver\'s own client is told the driver is invisible (shared flags 0x20 on its own entity) once the view starts',
       ownFlags.length > 0 && (ownFlags[ownFlags.length - 1] & INVIS) !== 0 && /^on$/.test(cam.self) && cam.rewrites > 0,
       `own flags ${JSON.stringify(ownFlags)} | ${st}`)
+    // TAB's sidebar covers the top of the corner minimap: off for the ride, for the driver only.
+    const sbD = since(D, t, 'sbobj'), sbO = since(O, t, 'sbobj')
+    check('...and TAB\'s sidebar is off for the ride (it covers the top of the minimap): the driver\'s client has its objective removed, the bystander\'s keeps it',
+      cam.sidebar === 'hidden' && sbD.some(e => e.action === 1) && !sbO.some(e => e.action === 1),
+      `${st} | driver ${JSON.stringify(sbD)} | bystander ${JSON.stringify(sbO)}`)
     // A real change of the driver's flags (glowing, bit 0x40) goes to everyone tracking them: the bystander gets the real
     // byte, the driver's own client the same with 0x20.
     let tg = Date.now()
@@ -387,6 +396,9 @@ module.exports = async ({ check }) => {
     dmp = await dump()
     // (the key turns back into the map at once; garage.sk then swaps the phone back in within a second)
     check('...and hotbar 9 is a map again (the key or already the phone, with its map_id)', /^filled map x1 \[(phone|carkey:[^\]]+)\]/.test(slot8(dmp)) && / key=(phone|key)-map keymap=\d+/.test(st), `${dmp} | ${st}`)
+    check('...and TAB\'s sidebar is back: its objective made again and shown in the sidebar slot',
+      / sidebar=kept/.test(st) && since(D, t, 'sbobj').some(e => e.action === 0) && since(D, t, 'sbslot').some(e => e.pos === 1 && e.name),
+      `${st} | ${JSON.stringify(since(D, t, 'sbobj'))} ${JSON.stringify(since(D, t, 'sbslot'))}`)
 
     // ---------- A slot picked during the ride is the player's: nothing is put back ----------
     await mount()
