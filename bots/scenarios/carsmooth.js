@@ -17,6 +17,14 @@
 // The floating driver (2026-09-29): CarSmooth's track also raises a driven car's stands' tracker range to
 // carsmooth.range (128, the driver's). A third bot (SmoothF) stands 84-105 blocks from the course on a pad of its own:
 // with off and sync it's sent the driver on his seat but never the car model; with track and all the model too.
+// Resyncing together (2026-09-29, the owner's 26.3 client: "player velocity doesnt match the car and their head glitches
+// out"): a full position resync (sync_entity_position) becomes a 3-tick step for a 26.3 client through ViaVersion while
+// the per-tick moves are 1-tick steps, so the model (SKIN) and the driver's seat (MAINSEAT) resyncing on different ticks
+// put the driver up to 2 blocks off the car. CarSmooth's carsmooth.together (track mode) never lets the periodic resync
+// fire while driving and makes the whole car resync in the same tick whenever one stand has to (a new player starting to
+// watch it). The last drive checks it: 32 s in track mode (past the 400-tick periodic resync), and a fourth bot (SmoothN)
+// comes into range mid-drive, leaves and comes back; every resync any bot gets of SKIN has one of MAINSEAT in the same
+// tick and back, and the probe counts no tick where exactly one of them resynced.
 const fs = require('fs')
 const path = require('path')
 const { join, sleep, quit } = require('../lib')
@@ -34,6 +42,11 @@ const WATCH = [6147.5, Y, 6122.5] // the watcher, beside the middle of the cours
 const FAR = [6160.5, Y, 6232.5] // SmoothF, south of the platform (84-105 blocks from the car)
 const FAR_PAD = `6158 ${Y - 1} 6230 6162 ${Y - 1} 6234` // block coordinates are whole numbers (a .5 makes fill and forceload fail)
 const FAR_CHUNKS = `6158 6230 6162 6234`
+const N = 'SmoothN' // the together drive: out of range (340 blocks off, past the view distance), then in, out and in again
+const N_PAD_SPOT = [6160.5, Y, 6480.5]
+const N_PAD = `6158 ${Y - 1} 6478 6162 ${Y - 1} 6482`
+const N_CHUNKS = `6158 6478 6162 6482`
+const N_WATCH = [6130.5, Y, 6168.5] // on the platform, 20-50 blocks from the circle
 const MODES = ['off', 'sync', 'track', 'all']
 const PROBE_LOG = path.join(__dirname, '..', '..', 'server', 'plugins', 'DonatingPhone', 'carprobe.log')
 // Packets that move an entity (entity_look and entity_head_rotation only turn it).
@@ -43,12 +56,12 @@ const now = () => Number(process.hrtime.bigint()) / 1e6
 // Everything a bot is sent about entities: arrival time, the packet, its size, and the entity's position after it (as the
 // client works it out: spawn and sync absolute, moves as deltas in 1/4096 blocks).
 function watch (bot) {
-  const w = { events: [], pos: new Map(), spawned: new Map(), destroyed: new Map(), passengers: new Map() }
+  const w = { events: [], pos: new Map(), spawned: new Map(), destroyed: new Map(), everDestroyed: new Set(), passengers: new Map() }
   bot._client.on('packet', (d, meta, buf) => {
     if (!d) return
     const t = now()
     const n = meta.name
-    if (n === 'entity_destroy') { for (const id of d.entityIds || []) w.destroyed.set(id, t); return }
+    if (n === 'entity_destroy') { for (const id of d.entityIds || []) { w.destroyed.set(id, t); w.everDestroyed.add(id) } return }
     if (d.entityId === undefined) return
     if (n === 'set_passengers') w.passengers.set(d.entityId, d.passengers || [])
     let p = w.pos.get(d.entityId)
@@ -122,6 +135,30 @@ function probeRows (plate, mode, ticks) {
   return rows
 }
 
+// Resyncs of two stands a bot was sent between t0 and t1: each one's count, and how many of either have none of the other
+// within 20 ms (a tick's packets arrive together).
+function resyncPairs (w, a, b, t0, t1) {
+  const at = id => w.events.filter(e => e.id === id && e.n === 'sync_entity_position' && e.t >= t0 && e.t <= t1).map(e => e.t)
+  const sa = at(a), sb = at(b)
+  const lone = (xs, ys) => xs.filter(t => !ys.some(u => Math.abs(u - t) <= 20))
+  return { a: sa.length, b: sb.length, miss: lone(sa, sb).length + lone(sb, sa).length, loneA: lone(sa, sb).map(Math.round), loneB: lone(sb, sa).map(Math.round) }
+}
+
+// Every row of the last carprobe block for a plate, mode and length, with the resync columns (24-33).
+function probeRowsFull (plate, mode, ticks) {
+  const lines = fs.readFileSync(PROBE_LOG, 'utf8').split(/\r?\n/)
+  let start = -1
+  for (let i = lines.length - 1; i >= 0; i--) if (lines[i].startsWith(`# carprobe ${plate} ticks=${ticks} mode=${mode} `)) { start = i; break }
+  if (start < 0) return []
+  const rows = []
+  for (let i = start + 2; i < lines.length && !lines[i].startsWith('#'); i++) {
+    const c = lines[i].split(',')
+    if (c.length < 34) continue
+    rows.push({ mainStep: +c[22], skinTd: +c[24], skinForce: c[25] === 'true', seatTd: +c[27], seatForce: c[28] === 'true', forced: c[30] === 'true', predicted: c[31] === 'true', prevSkin: c[32] === 'true', prevSeat: c[33] === 'true' })
+  }
+  return rows
+}
+
 const yawDiff = (a, b) => { const d = Math.abs(((a - b) % 360 + 540) % 360 - 180); return d }
 const f1 = x => Number.isFinite(x) ? x.toFixed(1) : String(x)
 const f0 = x => Number.isFinite(x) ? x.toFixed(0) : String(x)
@@ -133,14 +170,19 @@ module.exports = async ({ check }) => {
   const bots = {}
   let plate = null
   let modeBefore = 'track'
+  let togetherBefore = 'on'
   try {
-    modeBefore = ((await cmd('dphone carsmooth')).match(/mode=(\w+)/) || [])[1] || 'track'
+    const was = await cmd('dphone carsmooth')
+    modeBefore = (was.match(/mode=(\w+)/) || [])[1] || 'track'
+    togetherBefore = (was.match(/together=(on|off)/) || [])[1] || 'on'
     // ---------- Setup ----------
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} gray_concrete`)
     await cmd(`forceload add ${FAR_CHUNKS}`)
     await cmd(`fill ${FAR_PAD} gray_concrete`)
-    for (const name of [D, O, F]) {
+    await cmd(`forceload add ${N_CHUNKS}`)
+    await cmd(`fill ${N_PAD} gray_concrete`)
+    for (const name of [D, O, F, N]) {
       bots[name] = await join(name)
       await cmd(`gamemode survival ${name}`)
       await cmd(`zzclear ${name}`)
@@ -149,10 +191,12 @@ module.exports = async ({ check }) => {
       await cmd(`tag ${name} add donating_carcam_off`) // no chase camera in this test (carcam.js covers it)
       for (const m of [...String(await cmd(`dgarage info ${name}`)).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await cmd(`dgarage take ${name} ${m[1]}`)
     }
-    const view = { [D]: watch(bots[D]), [O]: watch(bots[O]), [F]: watch(bots[F]) }
+    const view = { [D]: watch(bots[D]), [O]: watch(bots[O]), [F]: watch(bots[F]), [N]: watch(bots[N]) }
     await cmd(`dlevel set ${D} 150`)
     await cmd(`zzheisttp ${O} ${WATCH.join(' ')}`)
     await cmd(`zzheisttp ${F} ${FAR.join(' ')}`)
+    await cmd(`zzheisttp ${N} ${N_PAD_SPOT.join(' ')}`)
+    await cmd('dphone carsmooth together on')
     const gave = await cmd(`dgarage give ${D} sedan Red`)
     plate = (gave.match(/: ([A-Z0-9-]+) vin=/) || [])[1]
     if (!plate) throw new Error(`no car: ${gave}`)
@@ -336,9 +380,59 @@ module.exports = async ({ check }) => {
     check('the cost stays small: the average tick with carsmooth all is at most 3 ms longer than with it off',
       all.mspt[0] <= off.mspt[0] + 3,
       MODES.map(m => `${m}: mspt ${runs[m].mspt.join('/')}, the watcher is sent ${f0(runs[m][O].carBytes)} B/s for the car`).join(' | '))
+
+    // ---------- Resyncing together: a 32 s drive with a new watcher coming and going ----------
+    await cmd('dphone carsmooth track')
+    await cmd('dphone carsmooth together on')
+    await place()
+    await cmd(`dphone carprobe ${plate} 1`)
+    await sleep(250)
+    const tids = idsOf(await probe())
+    for (let i = 0; i < 50 && ![D, O, F].every(b => view[b].spawned.has(tids.SKIN) && view[b].spawned.has(tids.MAINSEAT)); i++) await sleep(100)
+    const LONG = 640
+    await cmd(`dphone carprobe ${plate} ${LONG}`)
+    await sleep(250)
+    const tt0 = now()
+    await keys('w'); await sleep(2000)
+    await keys('wa'); await sleep(4000) // circling from here on
+    const nIn1 = now()
+    await cmd(`zzheisttp ${N} ${N_WATCH.join(' ')}`) // into range mid-drive: it starts tracking the car
+    await sleep(8000)
+    const nOut = now()
+    await cmd(`zzheisttp ${N} ${N_PAD_SPOT.join(' ')}`)
+    await sleep(4000)
+    const nIn2 = now()
+    await cmd(`zzheisttp ${N} ${N_WATCH.join(' ')}`) // and again
+    await sleep(12500)
+    const tt1 = now()
+    await brake()
+    let lsum = await probe()
+    for (let i = 0; i < 80 && / running /.test(lsum); i++) { await sleep(100); lsum = await probe() }
+    const lrows = probeRowsFull(plate, 'track', LONG)
+    const nSpawns = [nIn1, nIn2].map(t => { const s = view[N].spawned.get(tids.SKIN); return s !== undefined && s >= t })
+    const nSpawnedSkin = view[N].events.filter(e => e.id === tids.SKIN && e.n === 'spawn_entity' && e.t >= nIn1).length
+    const nSpawnedSeat = view[N].events.filter(e => e.id === tids.MAINSEAT && e.n === 'spawn_entity' && e.t >= nIn1).length
+    const pr = {}
+    for (const b of [D, O, F, N]) pr[b] = resyncPairs(view[b], tids.SKIN, tids.MAINSEAT, tt0, tt1 + 1500)
+    const prText = [D, O, F, N].map(b => `${b}: SKIN ${pr[b].a} MAINSEAT ${pr[b].b} alone ${pr[b].miss}${pr[b].miss ? ` (SKIN ${pr[b].loneA.join(' ')} MAINSEAT ${pr[b].loneB.join(' ')})` : ''}`).join(' | ')
+    const maxTd = lrows.reduce((a, r) => Math.max(a, r.skinTd, r.seatTd), 0)
+    const forcedRows = lrows.filter(r => r.forced).length
+    check('the together drive: 32 s in track mode (past the 20 s periodic resync), the probe ran every tick, and the new watcher was sent the car both times it came into range (and left in between)',
+      lrows.length >= LONG - 5 && num(lsum, 'moved') > 60 && nSpawnedSkin >= 2 && nSpawnedSeat >= 2 && view[N].everDestroyed.has(tids.SKIN),
+      `${lsum} | rows ${lrows.length} | N spawns SKIN ${nSpawnedSkin} MAINSEAT ${nSpawnedSeat} (${nSpawns}) out at ${Math.round(nOut - tt0)} ms`)
+    check('while driving, the periodic resync never comes near (teleportDelay kept at 0-1 on the model and the seat, not counting up to 400)',
+      lrows.length > 0 && maxTd <= 2, `max teleportDelay ${maxTd}`)
+    check('every resync of the car\'s model (SKIN) reaches every bot in the same tick as one of the driver\'s seat (MAINSEAT) and back: the driver, the watcher, the far watcher and the one who came into range mid-drive (none alone)',
+      [D, O, F, N].every(b => pr[b].miss === 0) && [D, O].every(b => pr[b].a >= 2), prText)
+    // (A teleported player is usually added by the tracker the tick its chunks arrive, which the pre-tracker prediction
+    // can't see: then the new-tracker event flags the rest of the car. Either way both resync in one tick.)
+    check('the probe: no tick where exactly one of SKIN and MAINSEAT resynced (target 0), with the new watcher\'s tracking seen both times (at least 4 new trackers: the model and the seat, twice) and resyncs of both counted',
+      / together=true /.test(lsum) && num(lsum, 'oneResync') === 0 && num(lsum, 'events') >= 4 && num(lsum, 'bothResync') >= 2,
+      `${lsum} | forced rows ${forcedRows}, predicted ${lrows.filter(r => r.predicted).length}`)
   } finally {
     await rcon.cmd(`dphone carsmooth ${modeBefore}`).catch(() => {})
-    for (const name of [D, O, F]) {
+    await rcon.cmd(`dphone carsmooth together ${togetherBefore}`).catch(() => {})
+    for (const name of [D, O, F, N]) {
       await rcon.cmd(`minecraft:ride ${name} dismount`).catch(() => {})
       await rcon.cmd(`tag ${name} remove donating_carcam_off`).catch(() => {})
       for (const m of [...String(await rcon.cmd(`dgarage info ${name}`).catch(() => '')).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) {
@@ -354,6 +448,8 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
     await rcon.cmd(`fill ${FAR_PAD} air`).catch(() => {})
     await rcon.cmd(`forceload remove ${FAR_CHUNKS}`).catch(() => {})
+    await rcon.cmd(`fill ${N_PAD} air`).catch(() => {})
+    await rcon.cmd(`forceload remove ${N_CHUNKS}`).catch(() => {})
     rcon.close()
   }
 }

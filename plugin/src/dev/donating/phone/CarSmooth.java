@@ -57,6 +57,24 @@ import org.bukkit.util.Vector;
  *    from its VehicleData maps), SKIN is put on MAIN, and a skipped movement tick gets MAIN's last velocity again.
  * Every reflective step switches only its own part off, with one log line, when it fails.
  * /dphone carsmooth [off|sync|track|all]: a live A/B switch (kept in carsmooth.yml). /dphone carprobe: per-tick numbers.
+ *
+ * Resyncing together (owner, 2026-09-29, in the 26.3 client: "sometimes, player velocity doesnt match the car and their
+ * head glitches out"; research glitch-research.md "Fix A", checked in the Paper 1.21.11 bytecode). ViaVersion turns each
+ * per-tick move of a stand into a 1-tick step for a 26.3 client, but a full position resync (ENTITY_POSITION_SYNC) into a
+ * 3-tick step, and the client only catches up once more than 3 ticks are queued: a stand that resyncs stays 2 ticks behind
+ * until the car stops. A stand resyncs on its own every 400 sends (20 s at one a tick; ServerEntity.teleportDelay), when a
+ * player starts tracking it (onPlayerAdd sets forceStateResync) and when its onGround flips; the model (SKIN) and the seat
+ * (MAINSEAT) doing it on different ticks put the driver up to 2 blocks off the car model. So, with carsmooth.together
+ * (track mode), every tick before the tracker, for each driven car's visible stands and the driver's chase camera
+ * (CarCam registers it with likeCar): teleportDelay back to 0 (the periodic resync never fires while driving: relative
+ * moves are exact 1/4096 steps, nothing drifts), an onGround flip isn't passed on as a resync (every move packet carries
+ * the flag), and when any one of them would resync this tick (its flag already set by a player who started tracking it
+ * outside the tracker, or a player about to start tracking it: the tracker's own range, view-distance, canSee and chunk
+ * checks), forceStateResync on all of them. The tracker handles each entity in one pass (updatePlayers, then
+ * sendChanges), so a new tracker found only there (PlayerTrackEntityEvent, which Paper fires just before onPlayerAdd;
+ * usually a player whose chunks just arrived) flags the rest of the car too: the ones after it in the list resync in the
+ * same tick, the ones before it one tick later (the probe counts those). /dphone carsmooth together on|off (kept in
+ * carsmooth.yml) for A/B drives.
  */
 final class CarSmooth implements Listener {
     enum Mode {
@@ -67,8 +85,12 @@ final class CarSmooth implements Listener {
 
     static final String MAIN = "MTVEHICLES_MAIN_", SKIN = "MTVEHICLES_SKIN_", MAINSEAT = "MTVEHICLES_MAINSEAT_", SEAT = "MTVEHICLES_SEAT";
 
+    /** The running instance (for CarCam's camera stand: likeCar); null while the plugin is stopped. */
+    private static CarSmooth instance;
+
     private final JavaPlugin plugin;
     private Mode mode = Mode.TRACK;
+    private boolean together = true;
     private int interval = 1;
     private int range = 128;
     private ScheduledTask task;
@@ -90,6 +112,47 @@ final class CarSmooth implements Listener {
     /** Each TrackedEntity whose range we raised and its own range. */
     private final Map<Object, Integer> ranged = new WeakHashMap<>();
 
+    // Resyncing together (ServerEntity's private teleportDelay, forceStateResync, wasOnGround; TrackedEntity's seenBy
+    // and getEffectiveRange; ServerPlayer's connection).
+    private String resyncError;
+    private Field fTeleportDelay, fForceResync, fWasOnGround, fSeenBy, fConnection;
+    private Method mEffectiveRange;
+    private boolean effRangeFailed;
+    /** This tick's groups: each driven car's visible stands and its chase camera (rebuilt every tick). */
+    private final Map<String, List<Entity>> groups = new HashMap<>();
+    private final Map<Integer, String> groupPlate = new HashMap<>();
+    /** Entities that go with a car (CarCam's camera stand), refreshed by likeCar every tick. */
+    private static final class Extra {
+        final Entity e;
+        long stamp;
+        Extra(Entity e, long stamp) { this.e = e; this.stamp = stamp; }
+    }
+    private final Map<String, Map<Integer, Extra>> extras = new HashMap<>();
+    /** Which stands resync in which tick, per car: "now" (this tick, still growing during the tracker), "prev". */
+    private static final class SyncState {
+        long tick = -1;
+        Set<Integer> now = new HashSet<>();
+        Set<Integer> prev = new HashSet<>();
+        /** Stands a new tracker's event flagged in this tick / the last (one the tracker had already passed resyncs a tick late). */
+        Set<Integer> flaggedNow = new HashSet<>();
+        Set<Integer> flaggedPrev = new HashSet<>();
+    }
+    private final Map<String, SyncState> syncs = new HashMap<>();
+    /** "entityId|player uuid" -> the tick a new tracker was predicted (not again for 40 ticks if it didn't happen). */
+    private final Map<String, Long> predicted = new HashMap<>();
+    private long forcedTotal, eventsTotal, flaggedTotal;
+
+    /** What resync() saw of one stand this tick (for the probe). */
+    private static final class Read {
+        int td = -1;
+        boolean fsr, ground, tracked;
+    }
+    private static final class SyncView {
+        final Map<Integer, Read> reads = new HashMap<>();
+        Set<Integer> prevResynced = new HashSet<>();
+        boolean forced, predictedAdd;
+    }
+
     /** What the last tick saw of each driven car (by plate). */
     private static final class CarState {
         double mx = Double.NaN, my, mz; // MAIN where it was at the last sample
@@ -110,6 +173,11 @@ final class CarSmooth implements Listener {
         double sx = Double.NaN, sy, sz; // SKIN at the last sample
         double lastMx = Double.NaN, lastMy, lastMz; // MAIN at the last sample
         String result;
+        // Resyncs (the rows' last columns): ticks where exactly one of SKIN and MAINSEAT resynced (target 0), both did,
+        // the whole car was forced to, and new trackers seen (PlayerTrackEntityEvent) since the probe started.
+        int oneResync, bothResync, forcedTicks;
+        long events0;
+        boolean together;
     }
     private Probe probe;
 
@@ -120,12 +188,24 @@ final class CarSmooth implements Listener {
         interval = Math.max(1, Math.min(3, c.getInt("carsmooth.update-interval", 1)));
         range = Math.max(16, Math.min(512, c.getInt("carsmooth.range", 128)));
         Mode m = parse(c.getString("carsmooth.mode", "track"));
+        boolean tog = c.getBoolean("carsmooth.together", true);
         File f = new File(plugin.getDataFolder(), "carsmooth.yml");
         if (f.exists()) {
-            Mode saved = parse(YamlConfiguration.loadConfiguration(f).getString("mode", ""));
+            YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
+            Mode saved = parse(y.getString("mode", ""));
             if (saved != null) m = saved;
+            if (y.isBoolean("together")) tog = y.getBoolean("together");
         }
+        together = tog;
         setMode(m == null ? Mode.TRACK : m);
+    }
+
+    private void saveSwitches(CommandSender sender) {
+        YamlConfiguration y = new YamlConfiguration();
+        y.set("mode", mode.name().toLowerCase(Locale.ROOT));
+        y.set("together", together);
+        y.options().setHeader(List.of("The live /dphone carsmooth switches (override config.yml carsmooth.mode and carsmooth.together). Made by the plugin."));
+        try { y.save(new File(plugin.getDataFolder(), "carsmooth.yml")); } catch (IOException ex) { sender.sendMessage("CARSMOOTH can't save carsmooth.yml: " + ex.getMessage()); }
     }
 
     private static Mode parse(String s) {
@@ -139,6 +219,7 @@ final class CarSmooth implements Listener {
     }
 
     void start() {
+        instance = this;
         if (task != null) return;
         task = Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, t -> tick(), 1L, 1L);
     }
@@ -148,6 +229,38 @@ final class CarSmooth implements Listener {
         restoreIntervals();
         endProbe("stopped");
         cars.clear();
+        groups.clear();
+        groupPlate.clear();
+        extras.clear();
+        syncs.clear();
+        if (instance == this) instance = null;
+    }
+
+    /**
+     * An entity that goes with a driven car (CarCam's camera stand): sent like the car's stands (the same update interval
+     * and tracking range while "track" is on, vanilla's otherwise, exactly like them) and resynced together with them.
+     * Call it every tick the entity exists, before the entity tracker (a global-region task), and before showing a new
+     * one to anyone, so its first resync (the new tracker) brings the car's stands along in the same tick.
+     */
+    static void likeCar(Entity e, String plate) {
+        CarSmooth s = instance;
+        if (s == null || e == null || plate == null || !e.isValid()) return;
+        Extra x = s.extras.computeIfAbsent(plate, k -> new HashMap<>()).get(e.getEntityId());
+        if (x == null) s.extras.get(plate).put(e.getEntityId(), new Extra(e, s.tickNo));
+        else x.stamp = s.tickNo;
+        // Into this tick's group at once (the tracker and a new tracker's event come after this).
+        List<Entity> g = s.groups.get(plate);
+        if (g != null && !s.groupPlate.containsKey(e.getEntityId())) { g.add(e); s.groupPlate.put(e.getEntityId(), plate); }
+        if (s.mode.track()) s.track(e);
+    }
+
+    /** No longer with a car (CarCam's camera removed). */
+    static void forget(Entity e) {
+        CarSmooth s = instance;
+        if (s == null || e == null) return;
+        for (Map<Integer, Extra> m : s.extras.values()) m.remove(e.getEntityId());
+        String plate = s.groupPlate.remove(e.getEntityId());
+        if (plate != null && s.groups.get(plate) != null) s.groups.get(plate).remove(e);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -234,20 +347,27 @@ final class CarSmooth implements Listener {
         mAbsSnapTo.invoke(h, x, y, z, yaw, pitch);
     }
 
-    /** The stand's ServerEntity (null while nobody tracks it). */
-    private Object serverEntity(Entity e) throws ReflectiveOperationException {
+    /** The entity's ChunkMap.TrackedEntity (null while it isn't in the tracker). */
+    private Object trackedOf(Entity e) throws ReflectiveOperationException {
         Object h = handle(e);
         if (mGetTrackedEntity == null) {
             mGetTrackedEntity = findMethod(h.getClass(), "moonrise$getTrackedEntity");
             mGetTrackedEntity.setAccessible(true);
         }
-        Object tracked = mGetTrackedEntity.invoke(h);
+        return mGetTrackedEntity.invoke(h);
+    }
+
+    private Object serverEntityOf(Object tracked) throws ReflectiveOperationException {
+        if (fServerEntity == null) fServerEntity = tracked.getClass().getField("serverEntity");
+        return fServerEntity.get(tracked);
+    }
+
+    /** The stand's ServerEntity (null while nobody tracks it). */
+    private Object serverEntity(Entity e) throws ReflectiveOperationException {
+        Object tracked = trackedOf(e);
         if (tracked == null) return null;
-        if (fServerEntity == null) {
-            fServerEntity = tracked.getClass().getField("serverEntity");
-        }
         raiseRange(tracked);
-        Object se = fServerEntity.get(tracked);
+        Object se = serverEntityOf(tracked);
         if (se != null && fUpdateInterval == null) {
             fUpdateInterval = se.getClass().getDeclaredField("updateInterval");
             fUpdateInterval.setAccessible(true);
@@ -310,11 +430,192 @@ final class CarSmooth implements Listener {
         changed.clear();
     }
 
+    // ---------------------------------------------------------------- resyncing together
+
+    private boolean resyncReady(Object tracked, Object se) {
+        if (resyncError != null) return false;
+        if (fTeleportDelay != null && fSeenBy != null) return true;
+        try {
+            Class<?> c = se.getClass();
+            Field td = c.getDeclaredField("teleportDelay"), fsr = c.getDeclaredField("forceStateResync"), og = c.getDeclaredField("wasOnGround");
+            td.setAccessible(true);
+            fsr.setAccessible(true);
+            og.setAccessible(true);
+            fSeenBy = tracked.getClass().getField("seenBy");
+            fForceResync = fsr;
+            fWasOnGround = og;
+            fTeleportDelay = td;
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            resyncError = String.valueOf(ex);
+            plugin.getLogger().warning("carsmooth together: off (" + resyncError + ")");
+            return false;
+        }
+    }
+
+    private Object connection(Player p) {
+        try {
+            Object h = handle(p);
+            if (fConnection == null) fConnection = h.getClass().getField("connection");
+            return fConnection.get(h);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return null;
+        }
+    }
+
+    /** TrackedEntity.getEffectiveRange() (its range, or a passenger's if bigger), else the range field or ours. */
+    private int effectiveRange(Object tracked) {
+        if (!effRangeFailed) {
+            try {
+                if (mEffectiveRange == null) {
+                    mEffectiveRange = tracked.getClass().getDeclaredMethod("getEffectiveRange");
+                    mEffectiveRange.setAccessible(true);
+                }
+                return (Integer) mEffectiveRange.invoke(tracked);
+            } catch (ReflectiveOperationException | RuntimeException ex) {
+                effRangeFailed = true;
+                plugin.getLogger().warning("carsmooth: TrackedEntity.getEffectiveRange unreadable (" + ex + "); using the range field");
+            }
+        }
+        try { if (fRange != null) return fRange.getInt(tracked); } catch (ReflectiveOperationException | RuntimeException ignored) { }
+        return range;
+    }
+
+    /** What ChunkMap.TrackedEntity.updatePlayer checks before it adds a player (Paper 1.21.11; tracking-range-y left out: off by default). */
+    private boolean wouldTrack(Object tracked, Entity e, Player p) {
+        if (p == e || !p.getWorld().equals(e.getWorld())) return false;
+        Location l = e.getLocation(), pl = p.getLocation();
+        double dx = pl.getX() - l.getX(), dz = pl.getZ() - l.getZ();
+        int r = Math.min(effectiveRange(tracked), p.getSendViewDistance() * 16);
+        if (dx * dx + dz * dz > (double) r * r) return false;
+        if (!p.canSee(e)) return false;
+        return p.isChunkSent(org.bukkit.Chunk.getChunkKey(l.getBlockX() >> 4, l.getBlockZ() >> 4));
+    }
+
+    /**
+     * One car's group before the tracker: reads each stand's resync state, sets teleportDelay back to 0 and, when any of
+     * them resyncs this tick, makes all of them resync (track mode with carsmooth.together; otherwise only reads). Also
+     * works out which stands resynced in the tick before (the probe's numbers). Null when the fields can't be read.
+     */
+    private SyncView resync(String plate, List<Entity> group) {
+        SyncState st = syncs.computeIfAbsent(plate, k -> new SyncState());
+        boolean last = st.tick == tickNo - 1;
+        st.prev = last ? st.now : new HashSet<>();
+        st.flaggedPrev = last ? st.flaggedNow : new HashSet<>();
+        st.now = new HashSet<>();
+        st.flaggedNow = new HashSet<>();
+        st.tick = tickNo;
+        SyncView v = new SyncView();
+        List<Object> ses = new ArrayList<>();
+        boolean any = false;
+        Map<Player, Object> conns = new HashMap<>();
+        try {
+            for (Entity e : group) {
+                Read r = new Read();
+                v.reads.put(e.getEntityId(), r);
+                Object tracked = trackedOf(e);
+                if (tracked == null) continue;
+                Object se = serverEntityOf(tracked);
+                if (se == null || !resyncReady(tracked, se)) { if (resyncError != null) return null; continue; }
+                r.tracked = true;
+                r.td = fTeleportDelay.getInt(se);
+                r.fsr = fForceResync.getBoolean(se);
+                r.ground = fWasOnGround.getBoolean(se) != e.isOnGround();
+                ses.add(se);
+                // A flag still set now was set after its own sendChanges last tick: it resyncs in this tick, not the last
+                // one. When our event handler set it (the rest of the car resynced last tick), it's only late: forcing
+                // the others again would put them a second resync behind it. Any other flag (a player starting to track
+                // it outside the tracker, e.g. showEntity in a task) brings the whole car along.
+                if (r.fsr) st.prev.remove(e.getEntityId());
+                boolean late = r.fsr && st.flaggedPrev.contains(e.getEntityId());
+                boolean ours = together && mode.track();
+                // An onGround flip resyncs a stand only to send the flag, which every move packet carries anyway: while
+                // driving, the tracker is told it didn't flip (no lone resync; it never forces the whole car either).
+                if (r.ground && ours) fWasOnGround.setBoolean(se, e.isOnGround());
+                boolean own = r.fsr || (!ours && (r.ground || r.td + 1 > 400));
+                if (own) st.now.add(e.getEntityId());
+                if (own && !late) any = true;
+                if (!any && ours && predictAdd(tracked, e, conns)) { any = true; v.predictedAdd = true; }
+            }
+            if (together && mode.track()) {
+                for (Object se : ses) fTeleportDelay.setInt(se, 0);
+                if (any && ses.size() > 1) {
+                    for (Object se : ses) fForceResync.setBoolean(se, true);
+                    for (Entity e : group) if (v.reads.get(e.getEntityId()).tracked) st.now.add(e.getEntityId());
+                    v.forced = true;
+                    forcedTotal++;
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            resyncError = String.valueOf(ex);
+            plugin.getLogger().warning("carsmooth together: off (" + resyncError + ")");
+            return null;
+        }
+        v.prevResynced = st.prev;
+        return v;
+    }
+
+    /** A player the tracker is about to add for this entity (not predicted again for 40 ticks when it didn't happen). */
+    private boolean predictAdd(Object tracked, Entity e, Map<Player, Object> conns) throws ReflectiveOperationException {
+        Set<?> seen = (Set<?>) fSeenBy.get(tracked);
+        for (Player p : e.getWorld().getPlayers()) {
+            Object conn = conns.computeIfAbsent(p, this::connection);
+            if (conn == null) continue;
+            String key = e.getEntityId() + "|" + p.getUniqueId();
+            if (seen.contains(conn)) { predicted.remove(key); continue; }
+            if (!wouldTrack(tracked, e, p)) continue;
+            Long at = predicted.get(key);
+            if (at != null && tickNo - at < 40) continue;
+            predicted.put(key, tickNo);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * A player starts tracking a car's stand (or its camera): Paper fires this in ChunkMap.TrackedEntity.updatePlayer,
+     * just before ServerEntity.onPlayerAdd sets that stand's forceStateResync (also when the event is cancelled, so
+     * cancelled ones count too). The rest of the car gets the flag now: the stands the tracker handles after this one
+     * resync in the same tick. Usually the pre-tracker prediction already flagged them all.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onTrack(io.papermc.paper.event.player.PlayerTrackEntityEvent e) {
+        Entity en = e.getEntity();
+        String plate = groupPlate.get(en.getEntityId());
+        if (plate == null) return;
+        eventsTotal++;
+        SyncState st = syncs.get(plate);
+        List<Entity> g = groups.get(plate);
+        boolean flag = g != null && together && mode.track() && resyncError == null && fForceResync != null;
+        // Already resyncing in this tick (forced before the tracker, or flagged/added by an earlier event this tick):
+        // left alone, or a stand the tracker has passed would resync a second time next tick.
+        Set<Integer> already = st != null ? new HashSet<>(st.now) : Set.of();
+        if (st != null) st.now.add(en.getEntityId());
+        if (!flag) return;
+        try {
+            for (Entity o : g) {
+                if (o == en || !o.isValid() || already.contains(o.getEntityId())) continue;
+                Object tracked = trackedOf(o);
+                if (tracked == null) continue;
+                Object se = serverEntityOf(tracked);
+                if (se == null || fForceResync.getBoolean(se)) continue;
+                fForceResync.setBoolean(se, true);
+                flaggedTotal++;
+                if (st != null) { st.now.add(o.getEntityId()); st.flaggedNow.add(o.getEntityId()); }
+            }
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            resyncError = String.valueOf(ex);
+            plugin.getLogger().warning("carsmooth together: off (" + resyncError + ")");
+        }
+    }
+
     // ---------------------------------------------------------------- the tick
 
     private void tick() {
         tickNo++;
         loadData(plugin);
+        groups.clear();
+        groupPlate.clear();
         if (dataError != null) return;
         Set<String> driven = new HashSet<>();
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -327,6 +628,12 @@ final class CarSmooth implements Listener {
             }
         }
         cars.keySet().removeIf(k -> !driven.contains(k));
+        syncs.keySet().removeIf(k -> !driven.contains(k));
+        extras.entrySet().removeIf(en -> {
+            en.getValue().values().removeIf(x -> !x.e.isValid() || tickNo - x.stamp > 20);
+            return en.getValue().isEmpty();
+        });
+        if (tickNo % 200 == 0) predicted.values().removeIf(t -> tickNo - t > 200);
         if (probe != null && probe.out != null && !driven.contains(probe.plate) && probe.done > 0) endProbe("car not driven");
     }
 
@@ -382,17 +689,29 @@ final class CarSmooth implements Listener {
                 plugin.getLogger().warning("carsmooth sync: off (" + syncError + ")");
             }
         }
-        if (mode.track()) {
-            track(skin);
-            for (ArmorStand s : seats) track(s);
+        // The group that resyncs together: the model, the seats and whatever goes with the car (the chase camera).
+        List<Entity> group = new ArrayList<>();
+        group.add(skin);
+        group.addAll(seats);
+        Map<Integer, Extra> ex = extras.get(plate);
+        if (ex != null) {
+            for (Extra x : ex.values()) {
+                if (x.e.isValid() && x.e.getWorld().equals(skin.getWorld()) && tickNo - x.stamp <= 2 && !group.contains(x.e)) group.add(x.e);
+            }
         }
+        if (mode.track()) {
+            for (Entity e : group) track(e);
+        }
+        groups.put(plate, group);
+        for (Entity e : group) groupPlate.put(e.getEntityId(), plate);
+        SyncView sv = resync(plate, group);
         // Before the entity tick, MAIN's velocity is still the one MTVehicles just set (a skip tick's is ours or friction's).
         if (skinAtMain) st.vel = main.getVelocity();
         st.ran = !skipped;
         st.mx = m.getX(); st.my = m.getY(); st.mz = m.getZ();
         st.seen = tickNo;
 
-        if (probe != null && probe.out != null && plate.equals(probe.plate)) sample(probe, m, skin, seat, offs.get(0), skipped, reapplied, ran, main, seats);
+        if (probe != null && probe.out != null && plate.equals(probe.plate)) sample(probe, m, skin, seat, offs.get(0), skipped, reapplied, ran, main, seats, sv);
     }
 
     private static boolean close(Location l, double x, double y, double z, double eps) {
@@ -401,7 +720,7 @@ final class CarSmooth implements Listener {
 
     // ---------------------------------------------------------------- the probe
 
-    private void sample(Probe pr, Location m, ArmorStand skin, ArmorStand seat, double[] off, boolean skipped, boolean reapplied, boolean ran, ArmorStand main, List<ArmorStand> seats) {
+    private void sample(Probe pr, Location m, ArmorStand skin, ArmorStand seat, double[] off, boolean skipped, boolean reapplied, boolean ran, ArmorStand main, List<ArmorStand> seats, SyncView sv) {
         Location s = skin.getLocation(), t = seat.getLocation();
         double err = Double.NaN;
         double[] want = Double.isNaN(off[0]) ? null : seatSpot(s, off[0], off[1], off[2]);
@@ -427,11 +746,23 @@ final class CarSmooth implements Listener {
         if (skipped) pr.skips++;
         if (reapplied) pr.reapplied++;
         if (hitch) pr.hitches++;
+        // Resyncs: this tick's reads of SKIN and MAINSEAT, and which of them resynced in the tick before (known only now).
+        Read rs = sv == null ? null : sv.reads.get(skin.getEntityId()), rt = sv == null ? null : sv.reads.get(seat.getEntityId());
+        boolean prevSkin = sv != null && sv.prevResynced.contains(skin.getEntityId());
+        boolean prevSeat = sv != null && sv.prevResynced.contains(seat.getEntityId());
+        if (sv != null && pr.done > 1) { // the first row's "tick before" is from before the probe
+            if (prevSkin != prevSeat) pr.oneResync++;
+            else if (prevSkin) pr.bothResync++;
+        }
+        if (sv != null && sv.forced) pr.forcedTicks++;
         try {
-            pr.out.write(String.format(Locale.ROOT, "%d,%d,%.2f,%s,%.4f,%.4f,%.4f,%.2f,%.4f,%.4f,%.4f,%.2f,%.4f,%.4f,%.4f,%.2f,%s,%.4f,%s,%s,%s,%s,%.4f,%.4f%n",
+            pr.out.write(String.format(Locale.ROOT, "%d,%d,%.2f,%s,%.4f,%.4f,%.4f,%.2f,%.4f,%.4f,%.4f,%.2f,%.4f,%.4f,%.4f,%.2f,%s,%.4f,%s,%s,%s,%s,%.4f,%.4f,%d,%s,%s,%d,%s,%s,%s,%s,%s,%s%n",
                     tickNo, System.nanoTime(), lastMspt, mode.name().toLowerCase(Locale.ROOT),
                     m.getX(), m.getY(), m.getZ(), m.getYaw(), s.getX(), s.getY(), s.getZ(), s.getYaw(), t.getX(), t.getY(), t.getZ(), t.getYaw(),
-                    eq, err, ran, skipped, reapplied, hitch, mainStep, skinStep));
+                    eq, err, ran, skipped, reapplied, hitch, mainStep, skinStep,
+                    rs == null ? -1 : rs.td, rs != null && rs.fsr, rs != null && rs.ground,
+                    rt == null ? -1 : rt.td, rt != null && rt.fsr, rt != null && rt.ground,
+                    sv != null && sv.forced, sv != null && sv.predictedAdd, prevSkin, prevSeat));
         } catch (IOException ex) {
             plugin.getLogger().warning("carprobe: " + ex.getMessage());
             endProbe("write failed");
@@ -445,9 +776,10 @@ final class CarSmooth implements Listener {
     private static double sq(double d) { return d * d; }
 
     private String summary(Probe pr, String state) {
-        return String.format(Locale.ROOT, "CARPROBE %s %s ticks=%d/%d mode=%s mspt=%.1f/%.1f seatErr=%.3f/%.3f skips=%d reapplied=%d hitches=%d moved=%.2f ids=%s",
+        return String.format(Locale.ROOT, "CARPROBE %s %s ticks=%d/%d mode=%s mspt=%.1f/%.1f seatErr=%.3f/%.3f skips=%d reapplied=%d hitches=%d moved=%.2f together=%s oneResync=%d bothResync=%d forced=%d events=%d ids=%s",
                 pr.plate, state, pr.done, pr.want, pr.mode, pr.done == 0 ? 0 : pr.msptSum / pr.done, pr.msptMax,
-                pr.errN == 0 ? 0 : pr.errSum / pr.errN, pr.errMax, pr.skips, pr.reapplied, pr.hitches, pr.moved, pr.ids);
+                pr.errN == 0 ? 0 : pr.errSum / pr.errN, pr.errMax, pr.skips, pr.reapplied, pr.hitches, pr.moved,
+                pr.together, pr.oneResync, pr.bothResync, pr.forcedTicks, eventsTotal - pr.events0, pr.ids);
     }
 
     private void endProbe(String why) {
@@ -468,19 +800,23 @@ final class CarSmooth implements Listener {
     boolean command(CommandSender sender, String[] a) {
         if (a[0].equalsIgnoreCase("carprobe")) return probeCommand(sender, a);
         if (a.length >= 2 && a[1].equalsIgnoreCase("input")) return inputCommand(sender, a);
-        if (a.length == 2) {
+        if (a.length == 3 && a[1].equalsIgnoreCase("together")) {
+            String v = a[2].toLowerCase(Locale.ROOT);
+            if (!v.equals("on") && !v.equals("off")) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth together on|off"); return true; }
+            together = v.equals("on");
+            saveSwitches(sender);
+        } else if (a.length == 2) {
             Mode m = parse(a[1]);
-            if (m == null) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth [off|sync|track|all]"); return true; }
+            if (m == null) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth [off|sync|track|all] | together on|off"); return true; }
             setMode(m);
-            YamlConfiguration y = new YamlConfiguration();
-            y.set("mode", m.name().toLowerCase(Locale.ROOT));
-            y.options().setHeader(List.of("The live /dphone carsmooth switch (overrides config.yml carsmooth.mode). Made by the plugin."));
-            try { y.save(new File(plugin.getDataFolder(), "carsmooth.yml")); } catch (IOException ex) { sender.sendMessage("CARSMOOTH can't save carsmooth.yml: " + ex.getMessage()); }
+            saveSwitches(sender);
         }
         loadData(plugin);
         sender.sendMessage("CARSMOOTH mode=" + mode.name().toLowerCase(Locale.ROOT) + " interval=" + interval
                 + " data=" + (dataError == null ? "ok" : dataError) + " sync=" + (syncError == null ? "ok" : syncError)
-                + " track=" + (trackError == null ? "ok" : trackError) + " driven=" + cars.size() + " tracked=" + changed.size() + " reapplied=" + reappliedTotal);
+                + " track=" + (trackError == null ? "ok" : trackError) + " driven=" + cars.size() + " tracked=" + changed.size() + " reapplied=" + reappliedTotal
+                + " together=" + (together ? "on" : "off") + " resync=" + (resyncError == null ? "ok" : resyncError)
+                + " forced=" + forcedTotal + " events=" + eventsTotal + " flagged=" + flaggedTotal);
         return true;
     }
 
@@ -501,11 +837,16 @@ final class CarSmooth implements Listener {
         pr.plate = plate;
         pr.want = ticks;
         pr.mode = mode.name().toLowerCase(Locale.ROOT);
+        pr.together = together && mode.track();
+        pr.events0 = eventsTotal;
         try {
             plugin.getDataFolder().mkdirs();
             pr.out = new BufferedWriter(new FileWriter(new File(plugin.getDataFolder(), "carprobe.log"), true));
             pr.out.write("# carprobe " + plate + " ticks=" + ticks + " mode=" + pr.mode + " at " + new java.util.Date() + System.lineSeparator());
-            pr.out.write("tick,nano,mspt,mode,mainX,mainY,mainZ,mainYaw,skinX,skinY,skinZ,skinYaw,seatX,seatY,seatZ,seatYaw,skinEqMain,seatErr,ran,skipped,reapplied,hitch,mainStep,skinStep" + System.lineSeparator());
+            // skinTd..seatGround: this tick's teleportDelay / forceStateResync already set / onGround flipping, before the
+            // tracker; forced: the whole car made to resync this tick; predicted: a new tracker seen coming; prevSkinResync,
+            // prevSeatResync: whether each resynced in the tick before (known one tick later).
+            pr.out.write("tick,nano,mspt,mode,mainX,mainY,mainZ,mainYaw,skinX,skinY,skinZ,skinYaw,seatX,seatY,seatZ,seatYaw,skinEqMain,seatErr,ran,skipped,reapplied,hitch,mainStep,skinStep,skinTd,skinForce,skinGround,seatTd,seatForce,seatGround,forced,predicted,prevSkinResync,prevSeatResync" + System.lineSeparator());
         } catch (IOException ex) {
             sender.sendMessage("CARPROBE can't write carprobe.log: " + ex.getMessage());
             return true;
@@ -553,7 +894,8 @@ final class CarSmooth implements Listener {
     /** Tab completion for /dphone carsmooth and carprobe (args as /dphone gets them). */
     List<String> complete(String[] a) {
         List<String> out = new ArrayList<>();
-        if (a.length == 2 && a[0].equalsIgnoreCase("carsmooth")) out.addAll(List.of("off", "sync", "track", "all"));
+        if (a.length == 2 && a[0].equalsIgnoreCase("carsmooth")) out.addAll(List.of("off", "sync", "track", "all", "together"));
+        if (a.length == 3 && a[0].equalsIgnoreCase("carsmooth") && a[1].equalsIgnoreCase("together")) out.addAll(List.of("on", "off"));
         if (a.length == 2 && a[0].equalsIgnoreCase("carprobe")) {
             for (Player p : Bukkit.getOnlinePlayers()) { String pl = driverPlate(p); if (pl != null) out.add(pl); }
         }

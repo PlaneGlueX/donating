@@ -1,25 +1,39 @@
 // The chase camera (DonatingPhone CarCam.java + carcam.sk; owner, 2026-09-29: third person on getting into a car, first
-// person on getting out). The driver's client is told to look through an invisible item display that only it is sent;
-// every way out (getting out, /carcam off, a teleport, quitting) first points the camera back at the player's own entity,
-// then removes the display. Health goes on the action bar (the client hides the hearts under another camera), and the
-// seat stand's camera_distance makes F5 sit farther back for everyone (the cautious fallback).
-// From the owner's client (2026-09-29): the view selects hotbar 9 (the car key's GPS map instead of a gun across the view)
-// and puts the slot from before back on getting out; the driver gets a body in the seat (a mannequin with their skin,
-// riding the seat) that only their client is sent, removed before the camera goes back.
+// person on getting out). The driver's client is told to look through an invisible camera that only it is sent; every
+// way out (getting out, /carcam off, a teleport, quitting) first points the camera back at the player's own entity, then
+// removes the camera. Health goes on the action bar (the client hides the hearts under another camera), and the seat
+// stand's camera_distance makes F5 sit farther back for everyone (the cautious fallback).
+// From the owner's client (2026-09-29): the view selects hotbar 9 (the car key) and puts the slot from before back on
+// getting out; the driver gets a body in the seat (a mannequin with their skin, riding the seat) that only their client
+// is sent, removed before the camera goes back.
+// The rebuild (2026-09-29, "make it more like 3rd person f5 mode ... and also get rid of the hands"): the camera is a
+// marker armor stand (smoothed on the client like the car's stands, resynced together with them: CarSmooth.likeCar),
+// placed like F5 (carcam.distance back from the driver's eye along the view, pulled in before a wall), the mouse orbits
+// it and it eases back behind the car after 1.5 s, and the key in hotbar 9 is a tripwire hook without a map_id while the
+// view is on (the client draws arms with anything that has a map_id), a map again after.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
 const D = 'CamD' // the driver
-const O = 'CamO' // someone standing next to the car
+const O = 'CamO' // someone standing near the car
 const Y = 200
 const CHUNKS = '6400 6400 6440 6430'
 const PLATFORM = `6400 ${Y - 1} 6400 6440 ${Y - 1} 6430`
+const CAR = [6415.5, Y, 6415.5]
+
+// Vanilla's look vector for a yaw and pitch in degrees (Location#getDirection).
+const dir = (yaw, pitch) => {
+  const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180
+  return [-Math.cos(p) * Math.sin(y), -Math.sin(p), Math.cos(p) * Math.cos(y)]
+}
+const wrap = a => { a %= 360; if (a >= 180) a -= 360; if (a < -180) a += 360; return a }
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   const bots = {}
   let plate = null
+  let box = null
   try {
     // ---------- Setup ----------
     await cmd(`forceload add ${CHUNKS}`)
@@ -35,13 +49,14 @@ module.exports = async ({ check }) => {
       for (const m of [...String(await cmd(`dgarage info ${name}`)).matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await cmd(`dgarage take ${name} ${m[1]}`)
     }
     await cmd(`dlevel set ${D} 150`)
-    await cmd(`zzheisttp ${D} 6408.5 ${Y} 6410.5`)
-    await cmd(`zzheisttp ${O} 6412.5 ${Y} 6406.5`)
+    await cmd(`zzheisttp ${D} ${CAR[0] - 2} ${Y} ${CAR[2]}`)
+    await cmd(`zzheisttp ${O} 6432.5 ${Y} 6426.5`) // 16 blocks off: in tracking range, clear of the camera and the wall
     await sleep(2500)
 
     // What each client is sent: camera packets, entity spawns (with their type) and removals, the held slot the server
-    // picks, and who rides what, in arrival order.
+    // picks, who rides what, and position resyncs, in arrival order.
     const seen = { [D]: [], [O]: [] }
+    const MOVES = new Set(['rel_entity_move', 'entity_move_look', 'sync_entity_position', 'entity_teleport'])
     for (const name of [D, O]) {
       const c = bots[name]._client
       c.on('camera', p => seen[name].push({ t: Date.now(), k: 'camera', id: p.cameraId }))
@@ -49,26 +64,36 @@ module.exports = async ({ check }) => {
       c.on('entity_destroy', p => seen[name].push({ t: Date.now(), k: 'destroy', ids: p.entityIds }))
       c.on('held_item_slot', p => seen[name].push({ t: Date.now(), k: 'held', slot: p.slot }))
       c.on('set_passengers', p => seen[name].push({ t: Date.now(), k: 'passengers', id: p.entityId, list: p.passengers || [] }))
+      c.on('packet', (d, meta) => { if (d && MOVES.has(meta.name) && d.entityId !== undefined) seen[name].push({ t: Date.now(), k: meta.name === 'sync_entity_position' ? 'sync' : 'move', id: d.entityId }) })
     }
-    const displayType = bots[D].registry.entitiesByName.item_display.id
+    const standType = bots[D].registry.entitiesByName.armor_stand.id
     const mannequinType = (bots[D].registry.entitiesByName.mannequin || {}).id
     const since = (name, t, k) => seen[name].filter(e => e.t >= t && e.k === k)
     const status = async () => cmd(`dphone cam ${D}`)
     const num = (s, re) => { const m = s.match(re); return m ? Number(m[1]) : NaN }
+    const vec = (s, k) => { const m = s.match(new RegExp(` ${k}=(-?[\\d.]+),(-?[\\d.]+)(?:,(-?[\\d.]+))?`)); return m ? m.slice(1).filter(x => x !== undefined).map(Number) : [] }
     const camOf = s => ({
       id: num(s, / id=(\d+)/),
-      uuid: (s.match(/display=([0-9a-f-]+)/) || [])[1],
+      uuid: (s.match(/ cam=([0-9a-f-]+)/) || [])[1],
+      type: (s.match(/ type=(\w+)/) || [])[1],
+      marker: (s.match(/ marker=(\S+)/) || [])[1],
       plate: (s.match(/plate=(\S+)/) || [])[1],
+      at: vec(s, 'at'), eye: vec(s, 'eye'), view: vec(s, 'view'), look: vec(s, 'look'), orbit: vec(s, 'orbit'),
+      yaw: num(s, / yaw=(-?[\d.]+)/), pitch: num(s, / pitch=(-?[\d.]+)/),
+      dist: num(s, / dist=(-?[\d.]+)/), want: num(s, / want=(-?[\d.]+)/),
+      caryaw: num(s, / caryaw=(-?[\d.]+)/), eased: num(s, / eased=(-?[\d.]+)/),
       slot: num(s, / slot=(\d+)/),
       restore: num(s, / restore=(-?\d+)/),
       body: (s.match(/ body=([0-9a-f-]+)/) || [])[1],
       bodyId: num(s, / bodyid=(\d+)/),
-      bodySeat: (s.match(/ bodyseat=(\S+)/) || [])[1]
+      bodySeat: (s.match(/ bodyseat=(\S+)/) || [])[1],
+      key: (s.match(/ key=(\S+)/) || [])[1],
+      keymap: (s.match(/ keymap=(\S+)/) || [])[1]
     })
     const mount = async () => { await cmd(`zzcarmount ${D} ${plate}`); await sleep(1500) }
     const select = async slot => { bots[D].setQuickBarSlot(slot); await sleep(400) }
     // The way back: the body goes first (never a frame of first person inside its head), then a camera packet with the
-    // driver's own entity id, then the display's removal.
+    // driver's own entity id, then the camera's removal.
     const resetAfter = (t, id, bodyId) => {
       const list = seen[D].filter(e => e.t >= t)
       const cam = list.findIndex(e => e.k === 'camera' && e.id === bots[D].entity.id)
@@ -77,11 +102,19 @@ module.exports = async ({ check }) => {
       const bodyOk = bodyId >= 0 ? body >= 0 && body < cam : true
       return { cam, gone, body, ok: cam >= 0 && gone >= 0 && cam < gone && bodyOk }
     }
+    // Where F5 would put the camera: the eye, back along the view by dist.
+    const expectAt = c => { const v = dir(c.view[0], c.view[1]); return c.eye.map((x, i) => x - v[i] * c.dist) }
+    const off3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+    const dump = async () => cmd(`zzdump ${D}`)
+    const slot8 = s => ((s.match(/ 8=([^|]*)\|/) || [])[1] || '').trim()
+    const botKey = () => bots[D].inventory.slots[44]
+    const hasMapId = it => !!(it && it.componentMap && it.componentMap.has('map_id'))
+    const lockedOf = async () => ((await cmd(`dgarage info ${D}`)).match(new RegExp(`${plate}=[^)]*locked=(true|false)`)) || [])[1]
 
-    // ---------- Getting in: the camera moves to a display only the driver has ----------
+    // ---------- Getting in: the camera moves to a marker armor stand only the driver has ----------
     const gave = await cmd(`dgarage give ${D} sedan Red`)
     plate = (gave.match(/: ([A-Z0-9-]+) vin=/) || [])[1]
-    await cmd(`zzcarspawn ${plate} 6410.5 ${Y} 6410.5`)
+    await cmd(`zzcarspawn ${plate} ${CAR.join(' ')}`)
     await select(2) // a slot that isn't the key: the view should pick the key and put 2 back afterwards
     const before = await status()
     let t = Date.now()
@@ -90,13 +123,30 @@ module.exports = async ({ check }) => {
     let cam = camOf(st)
     const spawned = since(D, t, 'spawn').find(e => e.id === cam.id)
     const camPk = since(D, t, 'camera').find(e => e.id === cam.id)
-    check('getting into the driver\'s seat: the driver\'s client is sent an item display and a camera packet for it (the chase view)', plate && cam.plate === plate && spawned && spawned.type === displayType && camPk, `${gave} | ${st} | spawned=${JSON.stringify(spawned)} camera=${JSON.stringify(since(D, t, 'camera'))}`)
-    check('nobody else is ever sent the camera display (the player standing next to the car)', !seen[O].some(e => e.k === 'spawn' && e.id === cam.id), JSON.stringify(seen[O].filter(e => e.k === 'spawn').slice(-10)))
+    check('getting into the driver\'s seat: the driver\'s client is sent a marker armor stand and a camera packet for it (the chase view)', plate && cam.plate === plate && cam.type === 'stand' && cam.marker === 'true' && spawned && spawned.type === standType && camPk, `${gave} | ${st} | spawned=${JSON.stringify(spawned)} camera=${JSON.stringify(since(D, t, 'camera'))}`)
+    check('nobody else is ever sent the camera (the player standing near the car)', !seen[O].some(e => e.k === 'spawn' && e.id === cam.id), JSON.stringify(seen[O].filter(e => e.k === 'spawn').slice(-10)))
     const pv = cam.uuid ? await cmd(`dphone pv ${cam.uuid}`) : ''
     check('...and the server tracks it for the driver only', /default=false/.test(pv) && / tracked=CamD( |$)/.test(pv), pv)
 
-    // The car key in hand (the client draws the held item at the camera: a gun covered a third of the view).
+    // The camera's first resync (the driver starting to track it) brings the car along in the same tick (CarSmooth.likeCar).
+    const probeIds = async () => {
+      await cmd(`dphone carprobe ${plate} 1`)
+      await sleep(250)
+      return Object.fromEntries((((await cmd(`dphone carprobe ${plate}`)).match(/ids=(\S+)/) || [])[1] || '').split(',').filter(Boolean).map(x => x.split(':')).map(([k, v]) => [k, Number(v)]))
+    }
+    const ids = await probeIds()
+    const camSync = since(D, t, 'sync').find(e => e.id === cam.id)
+    const near = (id, at) => seen[D].some(e => e.k === 'sync' && e.id === id && Math.abs(e.t - at) <= 20)
+    check('the camera\'s first position resync reaches the driver in the same tick as a resync of the car\'s model (SKIN) and seat (MAINSEAT): no car sliding against the camera (a 26.3 client through ViaVersion keeps a resynced entity 2 ticks behind)',
+      camSync && ids.SKIN && ids.MAINSEAT && near(ids.SKIN, camSync.t) && near(ids.MAINSEAT, camSync.t),
+      `ids=${JSON.stringify(ids)} camSync=${JSON.stringify(camSync)} syncs=${JSON.stringify(since(D, t, 'sync').slice(0, 12))}`)
+
+    // The car key in hand (the client draws the held item at the camera).
     check('the chase view selects hotbar 9 (the car key, index 8): the server sends it to the driver and keeps slot 2 to put back', / slot=2/.test(before) && bots[D].quickBarSlot === 8 && cam.slot === 8 && cam.restore === 2 && since(D, t, 'held').some(e => e.slot === 8), `before: ${before} | now: ${st} | bot slot=${bots[D].quickBarSlot} held=${JSON.stringify(since(D, t, 'held'))}`)
+    let dmp = await dump()
+    check('no hands in the view: the car key in hotbar 9 is a tripwire hook without a map_id while the view is on (still the key: carkey:<plate>), on the server and in the driver\'s client',
+      cam.key === 'key-hook' && cam.keymap === 'none' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)) && botKey() && botKey().name === 'tripwire_hook' && !hasMapId(botKey()),
+      `${st} | ${dmp} | bot: ${botKey() && botKey().name} components=${JSON.stringify(botKey() && botKey().components)}`)
 
     // The driver's own body (the client never draws its own player under another camera).
     const bodySpawn = since(D, t, 'spawn').find(e => e.id === cam.bodyId)
@@ -106,7 +156,7 @@ module.exports = async ({ check }) => {
     const rides = since(D, t, 'passengers').some(e => e.list.includes(cam.bodyId) && e.list.includes(bots[D].entity.id))
     check('the driver\'s body: a mannequin sent to the driver after the camera packet, riding the driver\'s own seat (the client sits it where the driver sits)', cam.body && bodySpawn && (mannequinType === undefined || bodySpawn.type === mannequinType) && camIdx >= 0 && bodyIdx > camIdx && cam.bodySeat === 'true' && rides, `${st} | spawn=${JSON.stringify(bodySpawn)} mannequin=${mannequinType} camIdx=${camIdx} bodyIdx=${bodyIdx} passengers=${JSON.stringify(since(D, t, 'passengers'))}`)
     const pvBody = cam.body ? await cmd(`dphone pv ${cam.body}`) : ''
-    check('nobody else is ever sent the body (the player next to the car), and the server tracks it for the driver only', cam.body && !seen[O].some(e => e.k === 'spawn' && e.id === cam.bodyId) && /default=false/.test(pvBody) && / tracked=CamD( |$)/.test(pvBody), `${pvBody} | O spawns: ${JSON.stringify(seen[O].filter(e => e.k === 'spawn').slice(-10))}`)
+    check('nobody else is ever sent the body (the player near the car), and the server tracks it for the driver only', cam.body && !seen[O].some(e => e.k === 'spawn' && e.id === cam.bodyId) && /default=false/.test(pvBody) && / tracked=CamD( |$)/.test(pvBody), `${pvBody} | O spawns: ${JSON.stringify(seen[O].filter(e => e.k === 'spawn').slice(-10))}`)
 
     await sleep(1500)
     const bar = messagesSince(bots[D], t).filter(m => m.kind === 'game_info').map(m => m.text)
@@ -114,14 +164,89 @@ module.exports = async ({ check }) => {
     const dist = await cmd(`execute as ${D} on vehicle run attribute @s minecraft:camera_distance base get`)
     check('the fallback for everyone: the driver\'s seat stand has camera_distance 7 (F5 in a car sits farther back)', /\s7(\.0+)?\s*$/.test(dist), dist)
 
+    // ---------- F5's geometry: behind the driver's eye, pulled in before a wall ----------
+    st = await status()
+    cam = camOf(st)
+    const want = expectAt(cam)
+    const back = [cam.eye[0] - cam.at[0], cam.eye[2] - cam.at[2]] // from the camera to the eye, flat
+    const facing = wrap(Math.atan2(-back[0], back[1]) * 180 / Math.PI) // the yaw that looks from the camera at the eye
+    check('the camera sits where F5 would: carcam.distance back from the driver\'s eye along the view (open ground: the full distance), looking at the eye',
+      cam.at.length === 3 && cam.eye.length === 3 && off3(cam.at, want) < 0.05 && Math.abs(cam.dist - cam.want) < 0.01 && Math.abs(cam.pitch - cam.view[1]) < 0.01,
+      `${st} | expected ${want.map(x => x.toFixed(3)).join(',')}`)
+    check('...and behind the car: with the car standing and the mouse still, the view is the car\'s heading (the camera looks along it at the driver)',
+      Math.abs(wrap(cam.view[0] - cam.caryaw)) < 3 && Math.abs(wrap(facing - cam.caryaw)) < 3 && Math.abs(cam.orbit[0]) < 0.5,
+      `view ${cam.view[0]} car ${cam.caryaw} camera->eye ${facing.toFixed(2)} orbit ${cam.orbit}`)
+    // A 3x3x3 stone box on the camera's line, about 4 blocks back: the camera comes in front of it, never inside.
+    const v = dir(cam.view[0], cam.view[1])
+    const P = cam.eye.map((x, i) => Math.floor(x - v[i] * 4))
+    box = `${P[0] - 1} ${P[1] - 1} ${P[2] - 1} ${P[0] + 1} ${P[1] + 1} ${P[2] + 1}`
+    await cmd(`fill ${box} stone`)
+    await sleep(500)
+    st = await status()
+    const walled = camOf(st)
+    const camBlock = walled.at.map(Math.floor)
+    const air = await cmd(`execute if block ${camBlock.join(' ')} minecraft:air`)
+    check('a wall behind the car pulls the camera in (shorter than carcam.distance, still on the F5 line) and never into the wall (no x-ray)',
+      walled.dist < walled.want - 1 && walled.dist > 0.5 && off3(walled.at, expectAt(walled)) < 0.05 && /Test passed/.test(air),
+      `${st} | box ${box} | camera block ${camBlock.join(' ')}: ${air}`)
+    await cmd(`fill ${box} air`)
+    box = null
+    await sleep(500)
+    st = await status()
+    check('...and back to the full distance once the wall is gone', Math.abs(camOf(st).dist - camOf(st).want) < 0.01, st)
+
+    // ---------- The mouse orbits it (like F5), and it comes back behind the car ----------
+    const look = async (yaw, pitch) => {
+      // Mineflayer's own movement packets carry its yaw too, so its idea of the look moves with ours (radians, its own convention).
+      await bots[D].look(Math.PI - yaw * Math.PI / 180, -pitch * Math.PI / 180, true)
+      bots[D]._client.write('look', { yaw, pitch, flags: { onGround: false, hasHorizontalCollision: false } })
+    }
+    cam = camOf(await status())
+    const y0 = cam.look[0], p0 = cam.look[1]
+    await look(y0 + 40, p0)
+    await sleep(350)
+    st = await status()
+    const turned = camOf(st)
+    check('turning the mouse 40° to the right swings the camera 40° around the car (the orbit follows the player\'s own look, next tick)',
+      Math.abs(turned.orbit[0] - 40) < 1.5 && Math.abs(wrap(turned.view[0] - (turned.eased + turned.orbit[0]))) < 0.1 && off3(turned.at, expectAt(turned)) < 0.05,
+      `look ${y0} -> ${turned.look[0]} | ${st}`)
+    let backAgain = null
+    const tb = Date.now()
+    for (let i = 0; i < 30 && !backAgain; i++) {
+      await sleep(200)
+      const c = camOf(await status())
+      if (Math.abs(c.orbit[0]) < 1) backAgain = { c, after: Date.now() - tb }
+    }
+    check('...and with the mouse still it eases back behind the car (not before carcam.orbit-return, 1.5 s, and within about 3.5 s)',
+      backAgain && backAgain.after >= 1300 && backAgain.after <= 4500 && Math.abs(wrap(backAgain.c.view[0] - backAgain.c.eased)) < 1,
+      backAgain ? `${backAgain.after} ms: ${JSON.stringify(backAgain.c.orbit)}` : 'never came back')
+
+    // ---------- Locking and unlocking with the hook key ----------
+    const lock0 = await lockedOf()
+    t = Date.now()
+    bots[D].activateItem()
+    await sleep(150)
+    bots[D].deactivateItem()
+    await sleep(600)
+    const lock1 = await lockedOf()
+    st = await status()
+    dmp = await dump()
+    const lockBar = messagesSince(bots[D], t).filter(m => m.kind === 'game_info').map(m => m.text)
+    check('right-clicking the hook key locks or unlocks the car (garage.sk matches the key by its id), and the refreshed key is still the hook (carKey builds it while the view is on)',
+      lock0 && lock1 && lock0 !== lock1 && lockBar.some(s => /Locked|Unlocked/.test(s)) && camOf(st).key === 'key-hook' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)),
+      `locked ${lock0} -> ${lock1} | bar ${lockBar.slice(-3).join(' | ')} | ${st} | ${dmp}`)
+
     // ---------- Getting out: first person again ----------
     t = Date.now()
     await cmd(`minecraft:ride ${D} dismount`)
     await sleep(800)
     let r = resetAfter(t, cam.id, cam.bodyId)
     st = await status()
-    check('getting out: the body goes, then the camera goes back to the driver\'s own entity, then the display is removed', r.ok && /none reason=not-driving/.test(st) && /none/.test(await cmd(`dphone pv ${cam.uuid}`)) && /none/.test(await cmd(`dphone pv ${cam.body}`)), `${JSON.stringify(r)} ${st} ${JSON.stringify(seen[D].filter(e => e.t >= t))}`)
+    check('getting out: the body goes, then the camera goes back to the driver\'s own entity, then the camera stand is removed', r.ok && /none reason=not-driving/.test(st) && /none/.test(await cmd(`dphone pv ${cam.uuid}`)) && /none/.test(await cmd(`dphone pv ${cam.body}`)), `${JSON.stringify(r)} ${st} ${JSON.stringify(seen[D].filter(e => e.t >= t && e.k !== 'move' && e.k !== 'sync'))}`)
     check('getting out puts back the slot from before (2): the server sends it, and the driver holds it', bots[D].quickBarSlot === 2 && / slot=2/.test(st) && since(D, t, 'held').some(e => e.slot === 2), `bot slot=${bots[D].quickBarSlot} | ${st} | held=${JSON.stringify(since(D, t, 'held'))}`)
+    dmp = await dump()
+    // (the key turns back into the map at once; garage.sk then swaps the phone back in within a second)
+    check('...and hotbar 9 is a map again (the key or already the phone, with its map_id)', /^filled map x1 \[(phone|carkey:[^\]]+)\]/.test(slot8(dmp)) && / key=(phone|key)-map keymap=\d+/.test(st), `${dmp} | ${st}`)
 
     // ---------- A slot picked during the ride is the player's: nothing is put back ----------
     await mount()
@@ -146,33 +271,39 @@ module.exports = async ({ check }) => {
     const tagged = await cmd(`execute if entity @a[name=${D},tag=donating_carcam_off]`)
     const newCams = since(D, t + 400, 'camera').filter(e => e.id !== bots[D].entity.id)
     const newBodies = since(D, t + 400, 'spawn').filter(e => mannequinType !== undefined && e.type === mannequinType)
-    check('/carcam off while driving: back to first person (the body, the reset, then the display goes), the opt-out tag set, and no new chase view or body', cam.id && r.ok && /none reason=off/.test(st) && /Test passed/.test(tagged) && newCams.length === 0 && newBodies.length === 0, `${JSON.stringify(r)} ${st} ${tagged} new=${JSON.stringify(newCams)} bodies=${JSON.stringify(newBodies)}`)
+    check('/carcam off while driving: back to first person (the body, the reset, then the camera goes), the opt-out tag set, and no new chase view or body', cam.id && r.ok && /none reason=off/.test(st) && /Test passed/.test(tagged) && newCams.length === 0 && newBodies.length === 0, `${JSON.stringify(r)} ${st} ${tagged} new=${JSON.stringify(newCams)} bodies=${JSON.stringify(newBodies)}`)
     check('...and the slot from before (2) comes back, since the driver was still on the key', bots[D].quickBarSlot === 2 && / slot=2/.test(st), `bot slot=${bots[D].quickBarSlot} | ${st}`)
+    dmp = await dump()
+    const mapId = ((await cmd(`data get entity ${D} Inventory[{Slot:8b}].components."minecraft:map_id"`)).match(/data: (\d+)/) || [])[1]
+    check('...and the car key is a map again while still driving (the phone\'s map id: the GPS view), in the driver\'s client too',
+      /^filled map x1 \[carkey:/.test(slot8(dmp)) && / key=key-map /.test(st) && mapId && st.includes(` keymap=${mapId}`) && botKey() && botKey().name === 'filled_map' && hasMapId(botKey()),
+      `${dmp} | ${st} | map_id=${mapId} | bot: ${botKey() && botKey().name}`)
     t = Date.now()
     bots[D].chat('/carcam on')
     await sleep(1200)
     st = await status()
     cam = camOf(st)
-    check('/carcam on while driving: the chase view comes back, with the key and a new body', cam.id && since(D, t, 'camera').some(e => e.id === cam.id) && cam.slot === 8 && cam.restore === 2 && cam.body && since(D, t, 'spawn').some(e => e.id === cam.bodyId), st)
+    check('/carcam on while driving: the chase view comes back, with the key (a hook again) and a new body', cam.id && since(D, t, 'camera').some(e => e.id === cam.id) && cam.slot === 8 && cam.restore === 2 && cam.body && since(D, t, 'spawn').some(e => e.id === cam.bodyId) && cam.key === 'key-hook', st)
 
     // ---------- A teleport ends it (the driver is taken out of the car) ----------
     t = Date.now()
-    await cmd(`minecraft:tp ${D} 6420.5 ${Y} 6420.5`)
+    await cmd(`minecraft:tp ${D} 6425.5 ${Y} 6405.5`)
     await sleep(800)
     r = resetAfter(t, cam.id, cam.bodyId)
-    check('a teleport while driving: back to first person, the body and the display are gone, the slot is back', r.ok && !/plate=/.test(await status()) && bots[D].quickBarSlot === 2, `${JSON.stringify(r)} slot=${bots[D].quickBarSlot} ${JSON.stringify(seen[D].filter(e => e.t >= t))}`)
+    check('a teleport while driving: back to first person, the body and the camera are gone, the slot is back', r.ok && !/plate=/.test(await status()) && bots[D].quickBarSlot === 2, `${JSON.stringify(r)} slot=${bots[D].quickBarSlot} ${JSON.stringify(seen[D].filter(e => e.t >= t && e.k !== 'move' && e.k !== 'sync'))}`)
 
     // ---------- Quitting in the car leaves nothing behind ----------
     // (the teleport took the driver out; the car still stands where it was)
-    await cmd(`zzheisttp ${D} 6408.5 ${Y} 6410.5`)
+    await cmd(`zzheisttp ${D} ${CAR[0] - 2} ${Y} ${CAR[2]}`)
     await sleep(800)
     await mount()
     cam = camOf(await status())
     await quit(bots[D])
     delete bots[D]
     await sleep(800)
-    check('quitting while driving: the camera display and the body are removed', cam.uuid && cam.body && /none/.test(await cmd(`dphone pv ${cam.uuid}`)) && /none/.test(await cmd(`dphone pv ${cam.body}`)), `${cam.uuid} ${cam.body}`)
+    check('quitting while driving: the camera and the body are removed', cam.uuid && cam.body && /none/.test(await cmd(`dphone pv ${cam.uuid}`)) && /none/.test(await cmd(`dphone pv ${cam.body}`)), `${cam.uuid} ${cam.body}`)
   } finally {
+    if (box) await rcon.cmd(`fill ${box} air`).catch(() => {})
     await rcon.cmd(`zzdata ${D} carcam none`).catch(() => {})
     await rcon.cmd(`tag ${D} remove donating_carcam_off`).catch(() => {})
     for (const name of [D, O]) {

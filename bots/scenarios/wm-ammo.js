@@ -69,7 +69,20 @@ module.exports = async ({ check }) => {
     const packs = path.join(__dirname, '..', '..', 'extras', 'packs')
     const jsonIn = (zip, name) => { try { return JSON.parse(readZip(zip).get(name).toString('utf8').replace(/^﻿/, '')) } catch (e) { return null } }
     const NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014]
-    const feather = jsonIn(path.join(packs, 'Donating-pack.zip'), 'assets/minecraft/items/feather.json')
+    // build-pack.js wraps every item definition: a display_context select whose first-person case draws the
+    // item only while the local player is the camera (view_entity; nothing under the car camera), with the
+    // item's own model as both that case's on_true and the fallback. unwrap gives that model, or null.
+    const FP = ['firstperson_righthand', 'firstperson_lefthand']
+    const unwrap = m => {
+      const c = m && /display_context$/.test(m.property) && Array.isArray(m.cases) ? m.cases[0] : null
+      const ok = !!c && m.cases.length === 1 && Array.isArray(c.when) && c.when.length === 2 && FP.every(x => c.when.includes(x)) &&
+        !!c.model && /condition$/.test(c.model.type) && /view_entity$/.test(c.model.property) && /empty$/.test((c.model.on_false || {}).type) &&
+        JSON.stringify(c.model.on_true) === JSON.stringify(m.fallback)
+      return ok ? m.fallback : null
+    }
+    const zipFile = path.join(packs, 'Donating-pack.zip')
+    const featherDef = jsonIn(zipFile, 'assets/minecraft/items/feather.json')
+    const feather = featherDef && { ...featherDef, model: unwrap(featherDef.model) }
     const entries = feather && feather.model && Array.isArray(feather.model.entries) ? feather.model.entries : []
     const modelsOf = m => !m || typeof m !== 'object' ? [] : [
       ...(/(^|:)model$/.test(m.type) && typeof m.model === 'string' ? [m.model] : []),
@@ -88,6 +101,15 @@ module.exports = async ({ check }) => {
     const kept = others.filter(e => { const x = entries.find(y => y.threshold === e.threshold); return x && JSON.stringify(x.model) === JSON.stringify(e.model) })
     check('...and keeps WeaponMechanics\' other entries (the guns we don\'t sell) and its fallback', !!wm && others.length > 0 && kept.length === others.length &&
       JSON.stringify(feather.model.fallback) === JSON.stringify(wm.model.fallback), wm ? `${kept.length}/${others.length} kept` : 'WeaponMechanics\' pack is missing')
+    // No hands under the car camera: the gun, the bag, the hands' cash and the map key are wrapped, and the
+    // tripwire hook (the key while the car camera is on) has the carkey case.
+    const wrapped = ['feather', 'leather', 'paper', 'filled_map'].filter(i => { const d = jsonIn(zipFile, `assets/minecraft/items/${i}.json`); return !!d && !!unwrap(d.model) })
+    const hook = jsonIn(zipFile, 'assets/minecraft/items/tripwire_hook.json')
+    const hookIn = hook && unwrap(hook.model)
+    const hookOk = !!hookIn && /select$/.test(hookIn.type) && /custom_model_data$/.test(hookIn.property) &&
+      hookIn.cases.some(c => c.when === 'donating:carkey' && c.model && c.model.model === 'minecraft:item/tripwire_hook')
+    check('the built pack draws no first-person items under the car camera (feather, leather, paper, filled_map wrapped) and has the tripwire-hook car key',
+      wrapped.length === 4 && hookOk, `wrapped: ${wrapped.join(' ')}; tripwire hook carkey ${hookOk}`)
   }
 
   const rcon = await rconLib.connect()

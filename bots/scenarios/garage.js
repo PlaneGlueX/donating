@@ -95,6 +95,8 @@ module.exports = async ({ check }) => {
       await cmd(`zzclear ${name}`)
       await cmd(`zzcombatend ${name}`)
       await cmd(`zzpassive ${name} off`)
+      // The map key is what this test checks: no chase camera (it turns the key into a hook: carcam.js covers that).
+      await cmd(`tag ${name} add donating_carcam_off`)
       await cmd(`dlevel reset ${name}`)
       await cmd(`eco set ${name} 100000`)
       // Leftover cars from an earlier run.
@@ -376,6 +378,7 @@ module.exports = async ({ check }) => {
     for (const p of plates) if (p) await rcon.cmd(`zzcardelete ${p}`).catch(() => {})
     for (const name of [A, B]) {
       for (const m of [...((await rcon.cmd(`dgarage info ${name}`).catch(() => '')) || '').matchAll(/([A-Z0-9-]+)=[a-z]+\(/g)]) await rcon.cmd(`dgarage take ${name} ${m[1]}`).catch(() => {})
+      await rcon.cmd(`tag ${name} remove donating_carcam_off`).catch(() => {})
       await rcon.cmd(`dlevel reset ${name}`).catch(() => {})
       await rcon.cmd(`zzclear ${name}`).catch(() => {})
       await rcon.cmd(`zzheisttp ${name} ${FAR}`).catch(() => {})

@@ -499,6 +499,11 @@ for (const [type, a] of Object.entries(AMMO)) {
     addCase('flint', 'donating:lockpick_' + tier, 'donating:item/lockpick_' + tier)
   }
 }
+// ---------- The car key as a tripwire hook ----------
+// While the car camera is on, DonatingPhone swaps the map key (filled map + map_id: the client's map path
+// would draw arms whatever the model) for a tripwire hook with the same donating:carkey string. Same model
+// as filled_map.json's carkey case, so the key looks the same either way.
+addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
 // ---------- Gear: helmets and vests (owner, 2026-09-25: tactical gear art) ----------
 // An inventory icon per piece (picked by donating:gear_<id> on the base item) and the look when worn:
 // shop.sk gives the item an equippable component with asset_id donating:<asset>, so the client draws

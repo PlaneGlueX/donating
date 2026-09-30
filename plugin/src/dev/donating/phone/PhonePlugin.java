@@ -706,7 +706,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone nametag <viewer> <target>: whether TAB hides the target's name from the viewer (behind walls)");
             sender.sendMessage("/dphone carstat <plate> [<max speed> <acceleration> <steering>]: a driven car's stats in MTVehicles (garage.sk's mods)");
             sender.sendMessage("/dphone place set <id> <base|shop|spawn|landmark|garage|quest|heist0-4> <world> <x> <z> <name...> | remove <id> | clear | list: icons on the phone's map (nav.sk)");
-            sender.sendMessage("/dphone carsmooth [off|sync|track|all] | carprobe <plate> [<ticks>]: smoother MTVehicles cars (seats synced every tick, car stands sent every tick) and a probe log");
+            sender.sendMessage("/dphone carsmooth [off|sync|track|all | together on|off] | carprobe <plate> [<ticks>]: smoother MTVehicles cars (car stands sent every tick, as far as their driver, resynced together) and a probe log");
             sender.sendMessage("/dphone cam <player> | cam tune [<key> <value>]: the chase camera in cars (carcam.sk)");
             return true;
         }
