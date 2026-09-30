@@ -150,6 +150,8 @@ module.exports = async ({ check }) => {
     let t = Date.now()
     await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} ${PIN[2] + 4} 180 0`)
     const arrived = await until(async () => !/slots=\S*pin/.test(await gps(A)), 3000)
+    // The action bar goes out in the tick the pin went, over the game connection: it can land a moment after RCON's reply.
+    if (arrived) await until(async () => /Arrived/.test(text(A, t)), 1500)
     check('arriving inside the pin\'s area: the pin is cleared ("Arrived")', arrived && /Arrived/.test(text(A, t)), `${await gps(A)} ${text(A, t)}`)
     // Passing through the area between two checks (a car at speed).
     await pin(A, PIN[0], -660.5)

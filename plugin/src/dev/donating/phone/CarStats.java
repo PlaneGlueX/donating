@@ -17,8 +17,11 @@ final class CarStats {
     private Object maxSpeed;
     private Object acceleration;
     private String error;
+    /** While CarSteer steers (2026-09-30), the steering number is its handling base and MTVehicles' own stays 0. */
+    private final CarSteer steer;
 
-    CarStats() {
+    CarStats(CarSteer steer) {
+        this.steer = steer;
         try {
             Class<?> data = Class.forName("nl.mtvehicles.core.infrastructure.vehicle.VehicleData");
             Class<?> kind = Class.forName("nl.mtvehicles.core.infrastructure.vehicle.VehicleData$DataSpeed");
@@ -41,8 +44,9 @@ final class CarStats {
     String get(String plate) {
         if (error != null) return "CARSTAT off: " + error;
         try {
+            Integer base = steer == null ? null : steer.baseOf(plate);
             return "CARSTAT " + plate + " max=" + getSpeed.invoke(null, maxSpeed, plate) + " accel=" + getSpeed.invoke(null, acceleration, plate)
-                    + " turn=" + getRotation.invoke(null, plate);
+                    + " turn=" + (base != null ? base + " (carsteer)" : getRotation.invoke(null, plate));
         } catch (ReflectiveOperationException ex) {
             return "CARSTAT failed: " + ex;
         }
@@ -55,7 +59,7 @@ final class CarStats {
         try {
             setSpeed.invoke(null, maxSpeed, plate, max);
             setSpeed.invoke(null, acceleration, plate, accel);
-            setRotation.invoke(null, plate, turn);
+            if (steer == null || !steer.takeBase(plate, turn)) setRotation.invoke(null, plate, turn);
             return get(plate);
         } catch (ReflectiveOperationException ex) {
             return "CARSTAT failed: " + ex;

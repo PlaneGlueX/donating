@@ -599,7 +599,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "cam"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "cam", "steer"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
@@ -626,6 +626,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             for (org.bukkit.World w : Bukkit.getWorlds()) options.add(w.getName());
         }
         if (args.length >= 2 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe"))) options.addAll(carSmooth.complete(args));
+        if (args.length >= 2 && args[0].equalsIgnoreCase("steer")) options.addAll(carSmooth.steer.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
         List<String> out = new ArrayList<>();
@@ -641,7 +642,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length >= 1 && args[0].equalsIgnoreCase("carstat")) {
             // carstat <plate> [<max speed> <acceleration> <steering>]: garage.sk's car mods (a driven car's stats).
-            if (carStats == null) carStats = new CarStats();
+            if (carStats == null) carStats = new CarStats(carSmooth.steer);
             if (args.length == 2) { sender.sendMessage(carStats.get(args[1].toUpperCase())); return true; }
             if (args.length != 5) { sender.sendMessage("CARSTAT usage: /dphone carstat <plate> [<max speed> <acceleration> <steering>]"); return true; }
             try {
@@ -653,6 +654,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe"))) return carSmooth.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("steer")) return carSmooth.steer.command(sender, args);
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("mark")) {
             if (args.length == 3 && args[2].equalsIgnoreCase("status")) {
