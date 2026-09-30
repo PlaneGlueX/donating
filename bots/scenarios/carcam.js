@@ -257,12 +257,50 @@ module.exports = async ({ check }) => {
     st = await status()
     check('...and back to the full distance once the wall is gone', Math.abs(camOf(st).dist - camOf(st).want) < 0.01, st)
 
-    // ---------- The mouse orbits it (like F5), and it comes back behind the car ----------
+    // ---------- The driver's head in a block (nobody suffocates in a car, so nothing else would end it): first person,
+    // where the client draws the in-wall overlay and the camera can't sit in the wall; the chase view once it's clear ----------
+    const eyeRun = `execute as ${D} at @s anchored eyes positioned ^ ^ ^ run`
+    const tw = Date.now()
+    await cmd(`${eyeRun} setblock ~ ~ ~ glowstone`) // glowstone suffocates; the first in-wall test (the type's default state) missed it
+    await sleep(400)
+    const wallIn = await status()
+    await cmd(`${eyeRun} setblock ~ ~ ~ air`)
+    await sleep(1000)
+    const wallOut = await status()
+    const wallPks = since(D, tw, 'camera')
+    const toSelf = wallPks.findIndex(e => e.id === bots[D].entity.id)
+    const backCam = wallPks.findIndex((e, i) => i > toSelf && e.id === camOf(wallOut).id)
+    check('a block at the driver\'s eye: the view goes back to first person (a camera packet for the driver\'s own player; glowstone), and to the chase camera once the head is clear',
+      /walled=true/.test(wallIn) && toSelf >= 0 && /walled=false/.test(wallOut) && / walls=1/.test(wallOut) && backCam > toSelf,
+      `camera packets ${JSON.stringify(wallPks.map(e => e.id))} self ${bots[D].entity.id} | in: ${wallIn.match(/walled=\S+ walls=\d+/)} | out: ${wallOut.match(/walled=\S+ walls=\d+/)}`)
+
+    // ---------- Locked by default (the owner, 2026-09-30: "having the person's camera locked for the car cam and the
+    // camera pans the usual way based on the cars movement"): the mouse doesn't move it ----------
     const look = async (yaw, pitch) => {
       // Mineflayer's own movement packets carry its yaw too, so its idea of the look moves with ours (radians, its own convention).
       await bots[D].look(Math.PI - yaw * Math.PI / 180, -pitch * Math.PI / 180, true)
       bots[D]._client.write('look', { yaw, pitch, flags: { onGround: false, hasHorizontalCollision: false } })
     }
+    st = await status()
+    cam = camOf(st)
+    const holdsOf = s => num(s, / holds=(\d+)/)
+    const hold = (st.match(/ hold=(-?[\d.]+),(-?[\d.]+)/) || []).slice(1).map(Number)
+    const holds0 = holdsOf(st)
+    const tuneNow = await cmd('dphone cam tune')
+    await look(cam.look[0] + 40, cam.look[1])
+    await sleep(350)
+    st = await status()
+    const locked = camOf(st)
+    // Held too (carcam.hold-look): the client's hand sway stops under a foreign camera, so a look that moves would slide
+    // the minimap across the screen; the server puts the look back where the view switched.
+    check('the camera is locked behind the car by default (carcam.orbit false): turning the mouse 40° leaves the view on the car\'s heading, and the look is put back (hold-look)',
+      / orbit=false hold-look=true /.test(tuneNow) && hold.length === 2 && holdsOf(st) > holds0 && Math.abs(locked.orbit[0]) < 0.01 && Math.abs(wrap(locked.view[0] - locked.eased)) < 0.1,
+      `look ${cam.look[0]} -> ${locked.look[0]}, hold ${hold}, holds ${holds0} -> ${holdsOf(st)} | ${st}`)
+    if (hold.length === 2) { await look(hold[0], hold[1]); await sleep(300) } // the bot's own look where the server holds it
+
+    // ---------- With carcam.orbit on, the mouse orbits it (like F5), and it comes back behind the car ----------
+    await cmd('dphone cam tune orbit true')
+    await sleep(200)
     cam = camOf(await status())
     const y0 = cam.look[0], p0 = cam.look[1]
     await look(y0 + 40, p0)
@@ -458,6 +496,7 @@ module.exports = async ({ check }) => {
     if (box) await rcon.cmd(`fill ${box} air`).catch(() => {})
     await rcon.cmd(`zzdata ${D} carcam none`).catch(() => {})
     await rcon.cmd(`dphone cam tune head auto`).catch(() => {})
+    await rcon.cmd(`dphone cam tune orbit false`).catch(() => {})
     await rcon.cmd(`effect clear ${D} minecraft:glowing`).catch(() => {})
     await rcon.cmd(`zzdata ${D} bag-tier none`).catch(() => {})
     await rcon.cmd(`tag ${D} remove donating_carcam_off`).catch(() => {})

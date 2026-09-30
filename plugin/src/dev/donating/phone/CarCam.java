@@ -167,7 +167,9 @@ final class CarCam implements Listener {
     double distance = 5.5, pitch = 18, pitchMin = -20, pitchMax = 70, yawSmooth = 0.35, yawOffset = 0, seatCameraDistance = 7;
     double clipMargin = 0.15, orbitReturn = 1.5, orbitReturnSpeed = 0.15, orbitSensitivity = 1;
     int yawDelay = 0, teleportDuration = 3;
-    boolean orbit = true, hookKey = true;
+    boolean orbit = false, hookKey = true;
+    // Locked (orbit off): the player's own look is held where it was when the view switched (see holdLook).
+    boolean holdLook = true;
     boolean minimap = true, selfInvisible = true;
     /** TAB's sidebar off while the view is on (it covers the top of the corner minimap); back on every exit. */
     boolean hideSidebar = true;
@@ -216,6 +218,12 @@ final class CarCam implements Listener {
         int age;
         int sent;          // camera packets sent (the first goes a tick after the spawn; one more a few ticks later)
         int resendAt;      // the driver's client made the camera again (it left its view and came back): send at this age
+        boolean walled;    // the driver's head is in a block: first person meanwhile (see the tick)
+        int clearTicks;    // ticks since the head was last in a block
+        int walls;         // times the view went back to first person for it
+        float holdYaw, holdPitch; // the look the client's hand bob froze at (holdLook)
+        boolean holdSet;
+        int holds;         // times the look was put back
         int exactFor;      // head packets still to correct exactly after a re-send (whatever carcam.head says)
         int prevSlot = -1; // the hotbar slot held before the view picked the key (-1: nothing to put back)
         Mannequin body;    // the driver's own body, sent to the driver only
@@ -291,7 +299,8 @@ final class CarCam implements Listener {
         hideSidebar = c.getBoolean("carcam.hide-sidebar", true);
         queueModel = c.getBoolean("carcam.queue-model", true);
         clipMargin = clamp(c.getDouble("carcam.clip-margin", 0.15), 0, 1);
-        orbit = c.getBoolean("carcam.orbit", true);
+        orbit = c.getBoolean("carcam.orbit", false);
+        holdLook = c.getBoolean("carcam.hold-look", true);
         orbitReturn = clamp(c.getDouble("carcam.orbit-return", 1.5), 0, 30);
         orbitReturnSpeed = clamp(c.getDouble("carcam.orbit-return-speed", 0.15), 0.01, 1);
         orbitSensitivity = clamp(c.getDouble("carcam.orbit-sensitivity", 1), 0, 4);
@@ -472,20 +481,37 @@ final class CarCam implements Listener {
                 }
                 c.age++;
                 // Sent at age 1 and again at 5 (in case the first beat the spawn packet): the same entity, harmless.
-                if ((c.sent == 0 && c.age >= 1) || (c.sent == 1 && c.age >= 5)) {
+                if ((c.sent == 0 && c.age >= 1) || (c.sent == 1 && c.age >= 5 && !c.walled)) {
                     if (!sendCamera(p, c.cam)) { off(p); continue; }
                     c.sent++;
                     p.setMetadata(META, new FixedMetadataValue(plugin, plate));
-                    if (c.sent == 1) { pickKey(p, c); sidebarOff(p); }
+                    if (c.sent == 1) { pickKey(p, c); sidebarOff(p); anchorLook(p, c); }
+                }
+                Location at = spot(p, main, seat, c); // also this tick's eye (c.eye), which the camera's clip starts from
+                // The driver's head in a block (MTVehicles pushed the car's seat into a wall: nobody suffocates in a car,
+                // CarSmooth.onSeatSuffocate): the camera's clip starts at the eye, so it would sit in the wall and see
+                // through it, and the client draws the in-wall overlay only in first person (the owner suffocated unwarned,
+                // 2026-09-30). First person until the head has been clear for 10 ticks.
+                boolean walled = CarSteer.inWall(c.eye != null ? c.eye : p.getEyeLocation(), p.getWidth() * 0.4);
+                c.clearTicks = walled ? 0 : c.clearTicks + 1;
+                if (c.sent > 0 && walled && !c.walled && sendCamera(p, p)) {
+                    c.walled = true;
+                    c.walls++;
+                    if (c.body != null && c.body.isValid()) p.hideEntity(plugin, c.body); // it sits round the eye
+                } else if (c.walled && c.clearTicks >= 10) {
+                    if (!sendCamera(p, c.cam)) { off(p); continue; }
+                    c.walled = false;
+                    anchorLook(p, c); // the bob ran again in first person
+                    if (c.body != null && c.body.isValid()) p.showEntity(plugin, c.body);
                 }
                 // The client drops its camera when the camera entity goes (a car teleported far: the stand left the
                 // driver's view and was sent again) and never looks through the new copy by itself.
-                if (c.resendAt > 0 && c.age >= c.resendAt) {
+                if (c.resendAt > 0 && c.age >= c.resendAt && !c.walled) {
                     c.resendAt = 0;
                     if (!sendCamera(p, c.cam)) { off(p); continue; }
                     plugin.getLogger().info("carcam " + p.getName() + ": the camera was sent to the client again, looking through it again");
+                    anchorLook(p, c);
                 }
-                Location at = spot(p, main, seat, c);
                 boolean ownHead = c.stand && c.head != Head.TRACKER;
                 if (ownHead) at.setYaw(c.fixedYaw);
                 boolean moved = c.lastAt == null || at.distanceSquared(c.lastAt) > 1e-8 || packFloor(at.getPitch()) != packFloor(c.lastAt.getPitch());
@@ -500,7 +526,8 @@ final class CarCam implements Listener {
                     // A player who picks another slot while driving keeps it: nothing to put back any more.
                     if (c.prevSlot >= 0 && p.getInventory().getHeldItemSlot() != KEY_SLOT) c.prevSlot = -1;
                     handsAndKey(p, c);
-                    body(p, c);
+                    holdLookTick(p, c);
+                    if (!c.walled) body(p, c);
                     if (tickNo % 10 == 0) sidebarTheirs(p);
                     if (c.age % 40 == 0 && flags.isOn(p)) flags.resend(p); // a flags packet that got past the handler
                 }
@@ -1014,6 +1041,29 @@ final class CarCam implements Listener {
         return null;
     }
 
+    /**
+     * The 26.3 client moves the hand's sway (LocalPlayer.applyInput: xBob and yBob chase the look) only while the player
+     * is its own camera, so under the chase view the bob stays where the view switched and the held map is turned by
+     * (look - bob) x 0.1 degrees: with the view locked, the minimap slid across the screen whenever the look moved
+     * (checked in the owner's client, 2026-09-30). So the look is held where the bob froze: the mouse does nothing then,
+     * which is what a locked view means. Taken at each switch into the chase view (the bob ran until then).
+     */
+    private void anchorLook(Player p, Cam c) {
+        Location l = p.getLocation();
+        c.holdYaw = l.getYaw();
+        c.holdPitch = l.getPitch();
+        c.holdSet = true;
+    }
+
+    private void holdLookTick(Player p, Cam c) {
+        if (!holdLook || orbit || c.walled || !c.holdSet) return;
+        Location l = p.getLocation();
+        if (Math.abs(wrap(l.getYaw() - c.holdYaw)) > 0.5f || Math.abs(l.getPitch() - c.holdPitch) > 0.5f) {
+            p.setRotation(c.holdYaw, c.holdPitch); // Entity.forceSetRotation: the player's rotation packet, still seated
+            c.holds++;
+        }
+    }
+
     /** "hook", "map", "none" or "other": what hotbar 9 holds (for /dphone cam). */
     private static String keyState(Player p) {
         ItemStack it = p.getInventory().getItem(KEY_SLOT);
@@ -1225,8 +1275,8 @@ final class CarCam implements Listener {
             String w = why(p);
             return "CARCAM " + p.getName() + " none reason=" + (w.isEmpty() ? "starting" : w) + " slot=" + held + key + (error != null ? " error=" + error : "");
         }
-        key += String.format(Locale.ROOT, " hook=%s head=%s headyaw=%.2f headbyte=%d heads=%d sentyaw=%.2f shownlag=%.2f watch=%s lead=%.2f spring=%.1f",
-                c.hook, c.head.name().toLowerCase(Locale.ROOT), wrap((float) c.headH), c.headByte, c.headSent, c.sentYaw, Double.isNaN(c.shown) ? 0 : tickNo - c.shown, watchText(p), c.lead, c.yawVel);
+        key += String.format(Locale.ROOT, " hook=%s head=%s headyaw=%.2f headbyte=%d heads=%d sentyaw=%.2f shownlag=%.2f watch=%s lead=%.2f spring=%.1f walled=%s walls=%d hold=%.1f,%.1f holds=%d",
+                c.hook, c.head.name().toLowerCase(Locale.ROOT), wrap((float) c.headH), c.headByte, c.headSent, c.sentYaw, Double.isNaN(c.shown) ? 0 : tickNo - c.shown, watchText(p), c.lead, c.yawVel, c.walled, c.walls, c.holdYaw, c.holdPitch, c.holds);
         Location l = c.cam.getLocation();
         Mannequin b = c.body != null && c.body.isValid() ? c.body : null;
         Location e = c.eye != null ? c.eye : l;
@@ -1267,6 +1317,7 @@ final class CarCam implements Listener {
                         case "yaw-delay" -> yawDelay = (int) clamp(Integer.parseInt(v), 0, 7);
                         case "clip-margin" -> clipMargin = clamp(Double.parseDouble(v), 0, 1);
                         case "orbit" -> orbit = Boolean.parseBoolean(v);
+                        case "hold-look" -> holdLook = Boolean.parseBoolean(v);
                         case "orbit-return" -> orbitReturn = clamp(Double.parseDouble(v), 0, 30);
                         case "orbit-return-speed" -> orbitReturnSpeed = clamp(Double.parseDouble(v), 0.01, 1);
                         case "orbit-sensitivity" -> orbitSensitivity = clamp(Double.parseDouble(v), 0, 4);
@@ -1313,8 +1364,8 @@ final class CarCam implements Listener {
                     return true;
                 }
             }
-            sender.sendMessage(String.format(Locale.ROOT, "CARCAM tune enabled=%s camera=%s distance=%.2f pitch=%.1f pitch-min=%.1f pitch-max=%.1f yaw-smooth=%.2f yaw-offset=%.1f yaw-delay=%d clip-margin=%.2f orbit=%s orbit-return=%.2f orbit-return-speed=%.2f orbit-sensitivity=%.2f teleport-duration=%d only-with-key=%s select-key=%s hook-key=%s minimap=%s self-invisible=%s hide-sidebar=%s head=%s yaw-follow=%s yaw-lag=%.3f look-ahead=%.3f look-ahead-max=%.1f orbit-smooth=%.3f queue-model=%s body=%s seat-camera-distance=%.1f (until /dphone reload; keep them in config.yml carcam.*)",
-                    enabled, camera, distance, pitch, pitchMin, pitchMax, yawSmooth, yawOffset, yawDelay, clipMargin, orbit, orbitReturn, orbitReturnSpeed, orbitSensitivity,
+            sender.sendMessage(String.format(Locale.ROOT, "CARCAM tune enabled=%s camera=%s distance=%.2f pitch=%.1f pitch-min=%.1f pitch-max=%.1f yaw-smooth=%.2f yaw-offset=%.1f yaw-delay=%d clip-margin=%.2f orbit=%s hold-look=%s orbit-return=%.2f orbit-return-speed=%.2f orbit-sensitivity=%.2f teleport-duration=%d only-with-key=%s select-key=%s hook-key=%s minimap=%s self-invisible=%s hide-sidebar=%s head=%s yaw-follow=%s yaw-lag=%.3f look-ahead=%.3f look-ahead-max=%.1f orbit-smooth=%.3f queue-model=%s body=%s seat-camera-distance=%.1f (until /dphone reload; keep them in config.yml carcam.*)",
+                    enabled, camera, distance, pitch, pitchMin, pitchMax, yawSmooth, yawOffset, yawDelay, clipMargin, orbit, holdLook, orbitReturn, orbitReturnSpeed, orbitSensitivity,
                     teleportDuration, onlyWithKey, selectKey, hookKey, minimap, selfInvisible, hideSidebar, head, yawFollow, yawLag, lookAhead, lookAheadMax, orbitSmooth, queueModel, body, seatCameraDistance));
             return true;
         }

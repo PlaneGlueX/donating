@@ -93,6 +93,9 @@ final class CarSmooth implements Listener {
     private boolean together = true;
     private int interval = 1;
     private int range = 128;
+    // Ticks a rider may stay with the head in a block, no suffocation, before being put out of the car (onSeatSuffocate).
+    private int wallGrace = 40;
+    private final Map<java.util.UUID, int[]> wallRun = new HashMap<>(); // rider -> {first, last} tick of suffocation hits
     private ScheduledTask task;
     private long tickNo;
     private double lastMspt;
@@ -181,12 +184,17 @@ final class CarSmooth implements Listener {
     }
     private Probe probe;
 
-    CarSmooth(JavaPlugin plugin) { this.plugin = plugin; }
+    /** Steering by speed (CarSteer): run first for every driven car each tick. */
+    final CarSteer steer;
+
+    CarSmooth(JavaPlugin plugin) { this.plugin = plugin; this.steer = new CarSteer(plugin); }
 
     /** Settings: config.yml carsmooth.*, then the live switch kept in carsmooth.yml (/dphone carsmooth). */
     void configure(FileConfiguration c) {
+        steer.configure(c);
         interval = Math.max(1, Math.min(3, c.getInt("carsmooth.update-interval", 1)));
         range = Math.max(16, Math.min(512, c.getInt("carsmooth.range", 128)));
+        wallGrace = Math.max(0, Math.min(400, c.getInt("carsmooth.wall-grace", 40)));
         Mode m = parse(c.getString("carsmooth.mode", "track"));
         boolean tog = c.getBoolean("carsmooth.together", true);
         File f = new File(plugin.getDataFolder(), "carsmooth.yml");
@@ -226,6 +234,7 @@ final class CarSmooth implements Listener {
 
     void shutdown() {
         if (task != null) { task.cancel(); task = null; }
+        steer.restoreAll(); // MTVehicles steers the cars again
         restoreIntervals();
         endProbe("stopped");
         cars.clear();
@@ -572,6 +581,14 @@ final class CarSmooth implements Listener {
         return false;
     }
 
+    /** A driver sat down: MTVehicles' enterVehicle has just set the plate's rotation value; CarSteer takes it over. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSeatMount(org.bukkit.event.entity.EntityMountEvent e) {
+        if (!(e.getEntity() instanceof Player) || !(e.getMount() instanceof ArmorStand a)) return;
+        String n = a.getName();
+        if (n.startsWith(MAINSEAT)) steer.mounted(n.substring(MAINSEAT.length()));
+    }
+
     /**
      * Takes a player out of a car's seat. Vanilla saves a player's vehicle with the player (the seat stand goes from the
      * world into their data) and puts it back at their next join: a lone copy of the seat that the car cleanup then
@@ -581,6 +598,69 @@ final class CarSmooth implements Listener {
      */
     static boolean leaveCar(Player p) {
         return p.getVehicle() instanceof ArmorStand s && s.getName().startsWith("MTVEHICLES_") && p.leaveVehicle();
+    }
+
+    /**
+     * A head in a block while seated: no suffocation for carsmooth.wall-grace ticks (40), then out of the car (vanilla's
+     * dismount finds a free spot). A seat can end up with its rider's head in a block (MTVehicles moves only MAIN against
+     * blocks and the seats sit beside it; CarSteer refuses its own turns into a wall, MTVehicles' moves it can't), and the
+     * chase view hid the in-wall overlay, so the owner died without seeing it (2026-09-30); CarCam gives a walled driver
+     * first person now. Not forever (review fix): a rider sitting in a wall could look through it with F5 for as long as
+     * they liked. The damage comes every tick while cancelled (no invulnerability ticks), so the hits' ticks time the stay.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onSeatSuffocate(org.bukkit.event.entity.EntityDamageEvent e) {
+        if (e.getCause() != org.bukkit.event.entity.EntityDamageEvent.DamageCause.SUFFOCATION) return;
+        if (!(e.getEntity().getVehicle() instanceof ArmorStand s) || !s.getName().startsWith("MTVEHICLES_")) return;
+        e.setCancelled(true);
+        if (!(e.getEntity() instanceof Player p)) return; // the chase view's body: CarCam's, never looked through
+        int now = Bukkit.getCurrentTick();
+        if (wallRun.size() > 64) wallRun.values().removeIf(r -> now - r[1] > 15);
+        int[] run = wallRun.get(p.getUniqueId());
+        if (run == null || now - run[1] > 15) wallRun.put(p.getUniqueId(), run = new int[] {now, now});
+        else run[1] = now;
+        if (now - run[0] < wallGrace) return;
+        wallRun.remove(p.getUniqueId());
+        String seat = s.getName();
+        if (leaveCar(p)) {
+            plugin.getLogger().info("carsmooth: " + p.getName() + "'s head was in a block for " + wallGrace + " ticks in " + seat + ": out of the car");
+            p.sendActionBar(net.kyori.adventure.text.Component.text("Your head was in a wall: out of the car", net.kyori.adventure.text.format.NamedTextColor.GRAY));
+            // Vanilla's dismount puts them on top of the seat, and they drop back into the block a few ticks later (seen with
+            // bots): watched for a second, moved to a free spot the tick the head is in a block (tasks run before the
+            // entity ticks, so before the suffocation check).
+            int[] left = {20};
+            Bukkit.getScheduler().runTaskTimer(plugin, task -> {
+                if (!p.isOnline() || p.isDead() || p.getVehicle() != null || --left[0] < 0) { task.cancel(); return; }
+                if (!CarSteer.inWall(p.getEyeLocation(), p.getWidth() * 0.4)) return;
+                task.cancel();
+                Location free = freeSpotNear(p.getLocation());
+                if (free != null && p.teleport(free)) plugin.getLogger().info("carsmooth: " + p.getName() + " moved out of the wall to " + free.getBlockX() + " " + free.getBlockY() + " " + free.getBlockZ());
+                else plugin.getLogger().info("carsmooth: " + p.getName() + " is in a wall and no free spot within 3 blocks");
+            }, 1L, 1L);
+        }
+    }
+
+    /**
+     * The nearest spot within 3 blocks a player can stand in with the head clear (feet and head passable, solid below):
+     * the same level first (beside the car), then a step up or down, then on top of what's there.
+     */
+    static Location freeSpotNear(Location at) {
+        org.bukkit.World w = at.getWorld();
+        int bx = at.getBlockX(), by = at.getBlockY(), bz = at.getBlockZ();
+        for (int dy : new int[] {0, 1, -1, 2})
+            for (int r = 0; r <= 3; r++)
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dz = -r; dz <= r; dz++) {
+                        if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                        org.bukkit.block.Block feet = w.getBlockAt(bx + dx, by + dy, bz + dz);
+                        if (!feet.isPassable() || !feet.getRelative(0, 1, 0).isPassable() || feet.getRelative(0, -1, 0).isPassable()) continue;
+                        Location l = feet.getLocation().add(0.5, 0, 0.5);
+                        if (CarSteer.inWall(w, l.getX(), l.getY() + 1.62, l.getZ(), 0.24)) continue;
+                        l.setYaw(at.getYaw());
+                        l.setPitch(at.getPitch());
+                        return l;
+                    }
+        return null;
     }
 
     /** A seat that came back with a player anyway (a crash, a player file from before this): out of it at once. */
@@ -680,11 +760,12 @@ final class CarSmooth implements Listener {
             String plate = driverPlate(p);
             if (plate == null || !driven.add(plate)) continue;
             try {
-                car(plate);
+                car(plate, p);
             } catch (RuntimeException ex) {
                 plugin.getLogger().warning("carsmooth " + plate + ": " + ex);
             }
         }
+        steer.forget(driven);
         cars.keySet().removeIf(k -> !driven.contains(k));
         syncs.keySet().removeIf(k -> !driven.contains(k));
         extras.entrySet().removeIf(en -> {
@@ -695,19 +776,11 @@ final class CarSmooth implements Listener {
         if (probe != null && probe.out != null && !driven.contains(probe.plate) && probe.done > 0) endProbe("car not driven");
     }
 
-    private void car(String plate) {
+    private void car(String plate, Player driver) {
         ArmorStand main = stand(plugin, MAIN + plate), skin = stand(plugin, SKIN + plate), seat = stand(plugin, MAINSEAT + plate);
         if (main == null || skin == null || seat == null) return;
         if (!main.getWorld().equals(skin.getWorld()) || !main.getWorld().equals(seat.getWorld())) return;
         CarState st = cars.computeIfAbsent(plate, k -> new CarState());
-        Location m = main.getLocation();
-        Location s0 = skin.getLocation();
-        boolean skinAtMain = close(s0, m.getX(), m.getY(), m.getZ(), 1e-4);
-        boolean mainMoved = !Double.isNaN(st.mx) && !close(m, st.mx, st.my, st.mz, 1e-4);
-        // MTVehicles' movement puts SKIN on MAIN; when it skipped this tick, SKIN still sits where MAIN was a tick ago.
-        boolean skipped = !skinAtMain && mainMoved && close(s0, st.mx, st.my, st.mz, 1e-4);
-        boolean ran = !skipped;
-        boolean reapplied = false;
 
         List<ArmorStand> seats = new ArrayList<>();
         List<double[]> offs = new ArrayList<>();
@@ -722,6 +795,17 @@ final class CarSmooth implements Listener {
             String key = SEAT + i + "_" + plate;
             offs.add(new double[] {num(fSeatx, key), num(fSeaty, key), num(fSeatz, key)});
         }
+        // Steering first: everything below (sync, the probe, the chase camera after) sees this tick's heading.
+        steer.step(plate, driver, main, skin, seats, offs, (a, x, y, z, yaw, pitch) -> snap(a, x, y, z, yaw, pitch));
+
+        Location m = main.getLocation();
+        Location s0 = skin.getLocation();
+        boolean skinAtMain = close(s0, m.getX(), m.getY(), m.getZ(), 1e-4);
+        boolean mainMoved = !Double.isNaN(st.mx) && !close(m, st.mx, st.my, st.mz, 1e-4);
+        // MTVehicles' movement puts SKIN on MAIN; when it skipped this tick, SKIN still sits where MAIN was a tick ago.
+        boolean skipped = !skinAtMain && mainMoved && close(s0, st.mx, st.my, st.mz, 1e-4);
+        boolean ran = !skipped;
+        boolean reapplied = false;
 
         if (mode.sync() && syncError == null) {
             try {

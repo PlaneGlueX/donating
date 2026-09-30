@@ -533,6 +533,26 @@ command /zzbagadd <player> <text> <number> [<text>]:
 		send "BAGADD %arg-1% %arg-2% %arg-3%"
 
 # Heist tools into hotbar slot N (0-4): /zztool <player> <drill|safe-kit> <amount> <slot>
+# Puts a shop helmet or vest on a player (shop.sk gearItem: "helmet-1".."vest-2"), e.g. to give back gear lost in a test.
+command /zzgear <player> <text>:
+	executable by: console
+	trigger:
+		set {_i} to gearItem(arg-2)
+		if {_i} is not set:
+			send "GEAR no item %arg-2%"
+			stop
+		# As shop.sk's purchase builds it: the name, the cut, the id tag.
+		set {_k} to "gear::%arg-2%::name"
+		set name of {_i} to "&f%cfg({_k})%"
+		set {_cut} to gearProtect(arg-2)
+		set lore of {_i} to "&7Guns -%{_cut}%%%"
+		set {_i} to tagItem({_i}, "gear:%arg-2%")
+		if arg-2 starts with "helmet":
+			set helmet of arg-1 to {_i}
+		else:
+			set chestplate of arg-1 to {_i}
+		send "GEAR %arg-1% %arg-2%"
+
 command /zztool <player> <text> <number> <number>:
 	executable by: console
 	trigger:
@@ -857,6 +877,10 @@ command /zzcartp <text> <number> <number> <number>:
 	trigger:
 		set {_car} to mtv vehicle with license plate arg-1
 		teleport mtv vehicle {_car} to location(arg-2, arg-3, arg-4, world "world")
+		# The parked spot moves with it, or car-cleanup's sweep takes the car for a stray copy (over 8 blocks from where
+		# garage.sk had it parked) before the test gets back in (found 2026-09-30: carsteer's Sedan vanished mid-run).
+		if {car::out::%arg-1%} is set:
+			set {car::out::%arg-1%} to location(arg-2, arg-3, arg-4, world "world")
 		send "CARTP %arg-1%"
 
 # Grants a crate reward line as if a crate rolled it: /zzcrategrant <player> <crate> <line>
@@ -1229,3 +1253,17 @@ command /zzclose <player>:
 	trigger:
 		close arg-1's inventory
 		send "CLOSED %arg-1%"
+
+# Logs every hit a player takes (cause, amount, where) to the console while on (carsteer's wall-grace check).
+command /zzdmglog <text> <text>:
+	executable by: console
+	trigger:
+		if arg-2 is "on":
+			set {-zz::dmglog::%arg-1%} to true
+		else:
+			delete {-zz::dmglog::%arg-1%}
+		send "DMGLOG %arg-1% %arg-2%"
+
+on damage of player with priority monitor:
+	{-zz::dmglog::%name of victim%} is true
+	send "DMG %name of victim% cause=%damage cause% amount=%damage% at=%location of victim%" to console

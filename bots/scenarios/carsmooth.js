@@ -39,9 +39,9 @@ const CHUNKS = `${X0} ${Z0} ${X1} ${Z1}`
 const PLATFORM = `${X0} ${Y - 1} ${Z0} ${X1} ${Y - 1} ${Z1}`
 const START = [6110.5, Y, 6140.5] // the car, facing east (yaw -90)
 const WATCH = [6147.5, Y, 6122.5] // the watcher, beside the middle of the course (41-47 blocks from the car at most)
-const FAR = [6160.5, Y, 6232.5] // SmoothF, south of the platform (84-105 blocks from the car)
-const FAR_PAD = `6158 ${Y - 1} 6230 6162 ${Y - 1} 6234` // block coordinates are whole numbers (a .5 makes fill and forceload fail)
-const FAR_CHUNKS = `6158 6230 6162 6234`
+const FAR = [6160.5, Y, 6227.5] // SmoothF, south of the platform (about 85-118 blocks from the car on CarSteer's wider circles)
+const FAR_PAD = `6158 ${Y - 1} 6225 6162 ${Y - 1} 6229` // block coordinates are whole numbers (a .5 makes fill and forceload fail)
+const FAR_CHUNKS = `6158 6225 6162 6229`
 const N = 'SmoothN' // the together drive: out of range (340 blocks off, past the view distance), then in, out and in again
 const N_PAD_SPOT = [6160.5, Y, 6480.5]
 const N_PAD = `6158 ${Y - 1} 6478 6162 ${Y - 1} 6482`
@@ -263,10 +263,10 @@ module.exports = async ({ check }) => {
     const TICKS = 260 // the course (10 s), the brake, a moment standing
     const course = async () => {
       await keys('w'); await sleep(3000) // straight, nearly up to full speed
-      await keys('wa'); await sleep(200) // slalom: 11 key changes, the heading swinging ±32° around east (8° a tick)
+      await keys('wa'); await sleep(200) // slalom: 11 key changes, the heading swinging around east (CarSteer: gentler at speed than MTVehicles' 8° a tick)
       for (let i = 0; i < 9; i++) { await keys(i % 2 === 0 ? 'wd' : 'wa'); await sleep(400) }
       await keys('wd'); await sleep(200)
-      await keys('wa'); await sleep(3000) // a tight circle (8° a tick: a radius of about 4.6 blocks at full speed)
+      await keys('wa'); await sleep(3000) // a circle (CarSteer's circle for the speed: a radius of about 13 blocks at full speed; MTVehicles' 8° a tick made it 4.6)
     }
     const drive = async mode => {
       await cmd(`dphone carsmooth ${mode}`)

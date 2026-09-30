@@ -88,11 +88,58 @@ carsmooth:
   # 26.3 client (through ViaVersion) could leave the driver's seat up to 2 blocks off the car model until the car stops.
   # /dphone carsmooth together on|off switches it live (kept in carsmooth.yml).
   together: true
+  # A rider whose head is in a block takes no suffocation damage for this many ticks, then is put out of the car (a free
+  # spot next to it). Not forever: seated in a wall, F5 would see through it.
+  wall-grace: 40
 
 # The chase camera (CarCam.java): drivers look through an invisible camera behind their car instead of first person, from
 # getting in to getting out, and it works like F5: the mouse swings it around the car. carcam.sk: /carcam on|off per
 # player, health on the action bar while it's on (the client hides the hotbar and hearts under another camera).
 # Tune live: /dphone cam tune <key> <value>.
+# Steering by speed (CarSteer.java; the owner, 2026-09-30: "reduce the turning speed by alot, it doesnt match the cars
+# speed and acceleration"). MTVehicles turned every car 8 degrees a tick (160 a second) at any speed; this turns it by
+# a circle that widens with speed: R = rmin x (1 - handling-rmin x h) + v^2 / (grip x (1 + handling-grip x h)) blocks
+# (v in blocks a second, h = the handling mods: MTVehicles' rotation value - handling-base), at min(max-rate,
+# rate-scale x v / R) degrees a second; no turning standing still; backwards the nose turns the other way (reverse:
+# real) unless reverse: arcade. Live: /dphone steer [on|off] | tune <key> <value> | profile <name> <rmin> <grip>.
+carsteer:
+  enabled: true
+  rate-scale: 1.0
+  max-rate: 100
+  # Seconds from the middle to full lock (at a crawl, at top speed) and back to the middle.
+  steer-in: 0.20
+  steer-in-top: 0.30
+  steer-out: 0.12
+  min-speed: 0.1
+  # Stuck against something with a pedal held: this many degrees a second, so the car can turn out.
+  creep-rate: 40
+  handling-base: 8
+  handling-grip: 0.10
+  handling-rmin: 0.05
+  reverse: real
+  velocity: true
+  default-profile: sedan
+  # "rmin|grip": the tightest circle at a crawl (blocks) and how fast it widens with speed (blocks a second^2).
+  profiles:
+    sedan: "4.0|18"
+    jeep: "4.5|16"
+    suv: "4.5|15"
+    sports: "4.0|22"
+    hotrod: "4.5|19"
+    cabrio: "4.5|21"
+    racecar: "4.0|30"
+    motor: "3.0|24"
+  # MTVehicles' families (vehicles.yml names) to profiles.
+  families:
+    Sedan: sedan
+    Jeep: jeep
+    SUV: suv
+    Sportief: sports
+    Hotrod: hotrod
+    SUV Cabrio: cabrio
+    Racecar: racecar
+    Motor: motor
+
 carcam:
   enabled: true
   # stand: an invisible marker armor stand, smoothed on the client exactly like the car's own stands (the car stays put in
@@ -131,10 +178,15 @@ carcam:
   queue-model: true
   # (stand) Ticks the view yaw is held back (0: with exact/filtered heads the view and the position already match).
   yaw-delay: 0
-  # The mouse orbits the camera around the car (like F5); after orbit-return seconds without mouse movement it eases back
-  # behind the car, closing orbit-return-speed of the angle left each tick. It follows the mouse about ping + 175 ms late
-  # (worked out, not measured: the round trip, a tick each way, orbit-smooth; 100 ms less than with the tracker head).
-  orbit: true
+  # false (the owner, 2026-09-30: the camera locked, panning with the car's movement): the mouse doesn't move the view.
+  # true: the mouse orbits the camera around the car (like F5); after orbit-return seconds without mouse movement it eases
+  # back behind the car, closing orbit-return-speed of the angle left each tick. It follows the mouse about ping + 175 ms
+  # late (worked out, not measured: the round trip, a tick each way, orbit-smooth; 100 ms less than with the tracker head).
+  orbit: false
+  # With orbit off: hold the player's own look where it was when the view switched. The client stops moving the hand's
+  # sway under a foreign camera, so a look that moves slides the held minimap across the screen; held, the mouse does
+  # nothing (a locked view) and the minimap stays put.
+  hold-look: true
   orbit-return: 1.5
   orbit-return-speed: 0.15
   orbit-sensitivity: 1.0
