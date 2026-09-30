@@ -110,6 +110,43 @@ module.exports = async ({ check }) => {
       hookIn.cases.some(c => c.when === 'donating:carkey' && c.model && c.model.model === 'minecraft:item/tripwire_hook')
     check('the built pack draws no first-person items under the car camera (feather, leather, paper, filled_map wrapped) and has the tripwire-hook car key',
       wrapped.length === 4 && hookOk, `wrapped: ${wrapped.join(' ')}; tripwire hook carkey ${hookOk}`)
+    // Gun noises 35% quieter (owner, 2026-09-29; build-pack.js GUN_SOUND_VOLUME). The 26.3 client plays a sound
+    // at gain min(v, 1), fading to 0 at max(v, 1) × attenuation_distance blocks, v = the server's volume × the
+    // sounds.json entry's. So every WeaponMechanics event a sold gun plays (at server volume V, from its file) must
+    // be 0.65 × as loud as with WeaponMechanics' own entry, and heard as far; every other event is untouched; the
+    // vanilla sounds in the gun files (not scalable in the pack) are at 0.65 or less.
+    const F = 0.65
+    const noComments = t => t.split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
+    const plan = new Map()
+    for (const g of GUNS) {
+      for (const m of noComments(read(g.file)).matchAll(/CustomSound\{([^}]*)\}/g)) {
+        const ev = ((m[1].match(/(?:^|,)\s*sound=([^,\s]+)/) || [])[1] || '').replace(/^minecraft:/, '')
+        const V = +((m[1].match(/(?:^|,)\s*volume=([\d.]+)/) || [])[1] || 1)
+        plan.set(ev, Math.max(plan.get(ev) || 0, V))
+      }
+    }
+    const wmSnd = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/sounds.json') || {}
+    const packSnd = jsonIn(zipFile, 'assets/minecraft/sounds.json') || {}
+    const entryOf = s => typeof s === 'string' ? { name: s, volume: 1, att: 16 } : { name: s.name, volume: s.volume ?? 1, att: s.attenuation_distance ?? 16 }
+    const heard = (V, e) => ({ gain: Math.min(V * e.volume, 1), range: Math.max(V * e.volume, 1) * e.att })
+    const quieter = [...plan].filter(([ev, V]) => {
+      const a = ((wmSnd[ev] || {}).sounds || []).map(entryOf)
+      const b = ((packSnd[ev] || {}).sounds || []).map(entryOf)
+      return a.length > 0 && a.length === b.length && a.every((x, i) => {
+        const was = heard(V, x)
+        const now = heard(V, b[i])
+        return x.name === b[i].name && Math.abs(now.gain - F * was.gain) < 0.002 && Math.abs(now.range - was.range) < 0.5
+      })
+    }).map(([ev]) => ev)
+    const otherEvents = Object.keys(wmSnd).filter(ev => !plan.has(ev))
+    const same = otherEvents.filter(ev => JSON.stringify(wmSnd[ev]) === JSON.stringify(packSnd[ev]))
+    const loudVanilla = GUNS.flatMap(g => [...noComments(read(g.file)).matchAll(/(?<!Custom)Sound\{([^}]*)\}/g)]
+      // Each vanilla line is 0.65 of what WeaponMechanics shipped (volume 1 -> 0.65, 0.5 -> 0.325): putting one back fails.
+      .filter(m => { const v = +((m[1].match(/(?:^|,)\s*volume=([\d.]+)/) || [])[1] || 1); return ![F, F * 0.5].some(x => Math.abs(v - x) < 1e-9) })
+      .map(m => `${g.w}: ${m[0]}`))
+    check('the sold guns\' sounds are 35% quieter at the same range (pack events and vanilla sounds), other WeaponMechanics sounds untouched',
+      plan.size >= 8 && quieter.length === plan.size && otherEvents.length > 0 && same.length === otherEvents.length && loudVanilla.length === 0,
+      `quieter ${quieter.length}/${plan.size} (${[...plan.keys()].filter(ev => !quieter.includes(ev)).join(' ') || 'all'}); others untouched ${same.length}/${otherEvents.length}; vanilla not at 0.65 of before: ${loudVanilla.join('; ') || 'none'}`)
   }
 
   const rcon = await rconLib.connect()

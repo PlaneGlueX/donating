@@ -155,11 +155,14 @@ module.exports = async ({ check }) => {
     // ---------- Removing ----------
     const removed = await cmd('dphone wall remove ztest')
     check('/dphone wall remove: the frames go', /removed \(4 of 4 frames/.test(removed) && await frames('tag=wall_ztest') === 0 && !/ztest/.test(await cmd('dphone wall list')), removed)
+    // Freed maps are used again (any freed ones, also an earlier run's walls: walls.yml keeps the free list), so every
+    // map the new wall gets already had its file before (a new map would be a new id with no file yet).
+    await cmd('save-all flush')
+    const mapFiles = () => new Set(fs.readdirSync(path.join(SERVER, 'world', 'data')).map(f => (f.match(/^map_(\d+)\.dat$/) || [])[1]).filter(Boolean).map(Number))
+    const before = mapFiles()
     await cmd(`dphone wall create ztest 2 1 world ${WX} ${WY} ${WZ} south`)
     const reused = await idsOf('ztest')
-    // Freed maps are used again (any freed ones, also an earlier wall's): a new map id would be above every one so far.
-    const maxKnown = Math.max(...ids, sid)
-    check('a new wall uses removed walls\' maps again (no new map files)', reused.length === 2 && reused.every(id => id <= maxKnown), `${reused} from ${ids} (max ${maxKnown})`)
+    check('a new wall uses removed walls\' maps again (no new map files)', reused.length === 2 && reused.every(id => before.has(id)), `${reused} from ${ids} (map files before: ${[...before].sort((a, b) => a - b).join(',')})`)
   } finally {
     if (poiId) await rcon.cmd(`zzconsole dpoi remove ${poiId}`).catch(() => {})
     await rcon.cmd('dphone wall remove ztest').catch(() => {})

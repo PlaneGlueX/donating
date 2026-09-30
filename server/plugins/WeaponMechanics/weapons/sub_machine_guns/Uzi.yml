@@ -21,8 +21,10 @@ Uzi:
     Weapon_Info_Display:
       Action_Bar:
         Message: "<gold>Uzi<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+    # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
+    # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=0.75, listeners=Source{}}"
+      - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75, listeners=Source{}}"
     Weapon_Equip_Delay: 20
     Cancel:
       Drop_Item: true
@@ -99,12 +101,12 @@ Uzi:
     Open:
       Time: 5
       Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.5, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.5, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
+        - "Sound{sound=block.note_block.hat, volume=0.325, noise=0.1, listeners=Source{}}"
+        - "Sound{sound=block.piston.contract, volume=0.325, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
     Close:
       Time: 5
       Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.5, noise=0.1, listeners=Source{}}"
+        - "Sound{sound=block.piston.extend, volume=0.325, noise=0.1, listeners=Source{}}"
 
   # The following options are added by WeaponMechanicsCosmetics, and you will
   # not see the changes take effect until you purchase it.
@@ -112,7 +114,7 @@ Uzi:
   Cosmetics:
     Muzzle_Flash: true
     Splash_Mechanics:
-      - "Sound{sound=entity.generic.splash, pitch=1.85, noise=0.15} @Target{}"
+      - "Sound{sound=entity.generic.splash, volume=0.65, pitch=1.85, noise=0.15} @Target{}"
       - "Particle{particle=WATER_SPLASH, count=20, noise=0.2 0.2 0.2} @Target{}"
     Bullet_Zip:
       Maximum_Distance: 4.0

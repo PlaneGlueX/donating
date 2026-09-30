@@ -3,9 +3,11 @@
 # this script owns the player's setting and the HUD. While the view is on the client hides the hotbar, hearts and food
 # (vanilla: they're only drawn when the camera is the player), so the driver's health goes on the action bar.
 # The plugin also selects hotbar 9 when the view starts (the car key) and puts the slot from before back on getting
-# out, turns the key into a hook without a map while the view is on (no hands drawn in the view: the pack hides it; the
-# map comes back on getting out; garage.sk's carKey builds the hook itself while "donating_carcam" is set), and gives
-# the driver a body in the seat that only they see (config carcam.select-key, carcam.hook-key, carcam.body).
+# out, keeps the key a map (the GPS minimap in the corner) with no arms drawn by telling only the driver's own client
+# the driver is invisible, or, for a driver with nothing in the offhand, turns it into a hook without a map while the
+# view is on (the pack hides it; garage.sk's carKey builds the hook itself while "donating_carcam_hook" is set), and
+# gives the driver a body in the seat that only they see (config carcam.select-key, carcam.minimap, carcam.hook-key,
+# carcam.body).
 # Since 2026-09-29 the camera works like F5: the mouse swings it around the car, and it eases back behind the car
 # after 1.5 s without mouse movement (config carcam.orbit).
 #

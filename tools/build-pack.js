@@ -288,6 +288,62 @@ if (merged.length) console.log(`merged JSON: ${merged.join(', ')}`)
   if (bad.length) throw new Error(`${FEATHER}: ${bad.join(', ')} aren't drawn by our models (run tools\\node\\node.exe tools\\make-item-art.js)`)
 }
 
+// ---------- The sold guns' sounds, 35% quieter (owner, 2026-09-29) ----------
+// What a player hears (26.3 client, checked in its bytecode): v = the server's volume × the sounds.json entry's
+// volume (AbstractSoundInstance.getVolume); the gain is clamp(v, 0, 1) × the category's volume
+// (SoundEngine.calculateVolume), fading linearly to 0 at max(v, 1) × attenuation_distance blocks
+// (Sound.getAttenuationDistance(float), Channel.linearAttenuation: AL_LINEAR_DISTANCE, reference 0, rolloff 1).
+// The shots play at server volume 6 (heard up to 16 × 6 = 96 blocks; the loudness is capped at 1), so a lower
+// server volume, or a sounds.json volume of 0.65 alone, would only shorten the range. So for every
+// WeaponMechanics event (CustomSound) the sold guns play at server volume V:
+//   V > 1: entry volume w × F / V and attenuation_distance a × V: v = F × w, the range stays a × V;
+//   V ≤ 1: entry volume w × F (the range, max(v, 1) × a, is unchanged).
+// Either way the loudness at every distance is F times what it was. Vanilla events a gun plays (the slide, the
+// equip click) can't be scaled here without changing them for everything: the weapon files lower those
+// (Sound{... volume=...}). bots\scenarios\wm-ammo.js checks the built zip against these rules.
+const GUN_SOUND_VOLUME = 0.65
+const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assault_rifles/AK_47.yml', 'shotguns/R9_0.yml']
+{
+  const SND = 'assets/minecraft/sounds.json'
+  const weapons = path.join(repo, 'server', 'plugins', 'WeaponMechanics', 'weapons')
+  const events = new Map() // event -> the server volumes it's played at
+  for (const f of GUN_SOUND_FILES) {
+    const text = fs.readFileSync(path.join(weapons, ...f.split('/')), 'utf8').split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
+    for (const m of text.matchAll(/CustomSound\{([^}]*)\}/g)) {
+      const ev = (m[1].match(/(?:^|,)\s*sound=([^,\s]+)/) || [])[1]
+      const vol = +((m[1].match(/(?:^|,)\s*volume=([\d.]+)/) || [])[1] || 1) // MechanicsCore's default: 1
+      if (!ev) throw new Error(`${f}: a CustomSound without a sound: ${m[0]}`)
+      const key = ev.replace(/^minecraft:/, '')
+      if (!events.has(key)) events.set(key, new Set())
+      events.get(key).add(vol)
+    }
+  }
+  if (!entries.has(SND) || !fs.existsSync(wmZip)) {
+    console.warn('WARNING: no WeaponMechanics sounds in the pack: the gun sounds are not lowered')
+  } else {
+    const all = parseJson(entries.get(SND).data)
+    const done = []
+    for (const [ev, vols] of [...events].sort((a, b) => a[0].localeCompare(b[0]))) {
+      if (!all[ev]) throw new Error(`${SND}: ${ev} (played by a sold gun) isn't in the pack`)
+      const loud = [...vols].filter(v => v > 1)
+      if (loud.length && vols.size > 1) throw new Error(`${ev} is played at volumes ${[...vols].join(' and ')}: one volume over 1 per event, or the pack can't scale it`)
+      const V = loud.length ? loud[0] : 1
+      all[ev] = {
+        ...all[ev],
+        sounds: all[ev].sounds.map(s => {
+          const o = typeof s === 'string' ? { name: s } : { ...s }
+          o.volume = +((o.volume ?? 1) * GUN_SOUND_VOLUME / V).toFixed(4)
+          if (V > 1) o.attenuation_distance = Math.round((o.attenuation_distance ?? 16) * V)
+          return o
+        })
+      }
+      done.push(`${ev}${V > 1 ? ` (V ${V})` : ''}`)
+    }
+    entries.set(SND, { data: toJson(all), from: entries.get(SND).from })
+    console.log(`gun sounds at ${GUN_SOUND_VOLUME} loudness: ${done.join(', ')}`)
+  }
+}
+
 // ---------- No hands under the car camera ----------
 // The chase camera (DonatingPhone CarCam) makes another entity the client's camera. The first-person
 // items are still drawn, with the local player as their holder, so minecraft:view_entity is false for
