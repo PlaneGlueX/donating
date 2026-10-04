@@ -424,5 +424,7 @@ end.writeUInt32LE(offset, 16)
 
 fs.mkdirSync(path.dirname(out), { recursive: true })
 const zip = Buffer.concat([...locals, central, end])
-fs.writeFileSync(out, zip)
+// Written next to it and moved into place in one step: the local pack server (serve-pack.js) never sends a half zip.
+fs.writeFileSync(out + '.tmp', zip)
+fs.renameSync(out + '.tmp', out)
 console.log(`wrote ${out} (${names.length} files, ${ours} ours, ${(zip.length / 1048576).toFixed(2)} MB)`)

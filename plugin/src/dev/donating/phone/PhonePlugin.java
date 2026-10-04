@@ -158,6 +158,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Classic chest menus draw their vanilla top panel from the title (the pack's generic_54.png is see-through there).
         getServer().getPluginManager().registerEvents(new MenuPanels(this), this);
         getServer().getPluginManager().registerEvents(carSmooth, this);
+        getServer().getPluginManager().registerEvents(carSmooth.bundle, this);
         getServer().getPluginManager().registerEvents(carCam, this);
         carSmooth.start();
         carCam.start();
@@ -599,7 +600,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "cam", "steer"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
@@ -625,7 +626,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         } else if (args.length == 5 && args[0].equalsIgnoreCase("gps") && args[2].equalsIgnoreCase("set")) {
             for (org.bukkit.World w : Bukkit.getWorlds()) options.add(w.getName());
         }
-        if (args.length >= 2 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe"))) options.addAll(carSmooth.complete(args));
+        if (args.length >= 2 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) options.addAll(carSmooth.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("steer")) options.addAll(carSmooth.steer.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
@@ -652,7 +653,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             }
             return true;
         }
-        if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe"))) return carSmooth.command(sender, args);
+        if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("steer")) return carSmooth.steer.command(sender, args);
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);
@@ -710,7 +711,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone nametag <viewer> <target>: whether TAB hides the target's name from the viewer (behind walls)");
             sender.sendMessage("/dphone carstat <plate> [<max speed> <acceleration> <steering>]: a driven car's stats in MTVehicles (garage.sk's mods)");
             sender.sendMessage("/dphone place set <id> <base|shop|spawn|landmark|garage|quest|heist0-4> <world> <x> <z> <name...> | remove <id> | clear | list: icons on the phone's map (nav.sk)");
-            sender.sendMessage("/dphone carsmooth [off|sync|track|all | together on|off] | carprobe <plate> [<ticks>]: smoother MTVehicles cars (car stands sent every tick, as far as their driver, resynced together) and a probe log");
+            sender.sendMessage("/dphone carsmooth [off|sync|track|all | together on|off | bundle on|off | via-clock on|off] | carprobe <plate> [<ticks>] | carbundle [player]: smoother MTVehicles cars (car stands sent every tick, as far as their driver, resynced together, one bundle per car and tick) and a probe log");
             sender.sendMessage("/dphone cam <player> | cam tune [<key> <value>] | cam probe <player> <ticks>: the chase camera in cars (carcam.sk; the probe logs a row a tick to camprobe.log)");
             return true;
         }

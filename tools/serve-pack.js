@@ -26,7 +26,15 @@ http.createServer((req, res) => {
     res.writeHead(404).end()
     return
   }
-  const data = fs.readFileSync(file)
+  // A read that fails (the zip being rebuilt, a OneDrive lock) answers 503 instead of ending the server.
+  let data
+  try {
+    data = fs.readFileSync(file)
+  } catch (e) {
+    console.log(`${new Date().toISOString()} read failed: ${e.message}`)
+    res.writeHead(503).end()
+    return
+  }
   res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': data.length })
   res.end(data)
 }).listen(port, '127.0.0.1')

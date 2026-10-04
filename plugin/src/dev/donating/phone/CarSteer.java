@@ -57,7 +57,7 @@ final class CarSteer {
 
     private final JavaPlugin plugin;
     boolean enabled = true, reverseReal = true, velocity = true;
-    double rateScale = 1, maxRate = 100, steerIn = 0.20, steerInTop = 0.30, steerOut = 0.12, minSpeed = 0.1, creepRate = 40;
+    double rateScale = 1, maxRate = 110, steerIn = 0.20, steerInTop = 0.30, steerOut = 0.12, minSpeed = 0.1, creepRate = 40;
     int handlingBase = 8;
     double handlingGrip = 0.10, handlingRmin = 0.05;
     String defaultProfile = "sedan";
@@ -89,7 +89,7 @@ final class CarSteer {
     void configure(FileConfiguration c) {
         enabled = c.getBoolean("carsteer.enabled", true);
         rateScale = clamp(c.getDouble("carsteer.rate-scale", 1.0), 0.05, 5);
-        maxRate = clamp(c.getDouble("carsteer.max-rate", 100), 5, 400);
+        maxRate = clamp(c.getDouble("carsteer.max-rate", 110), 5, 400);
         steerIn = clamp(c.getDouble("carsteer.steer-in", 0.20), 0, 3);
         steerInTop = clamp(c.getDouble("carsteer.steer-in-top", 0.30), 0, 3);
         steerOut = clamp(c.getDouble("carsteer.steer-out", 0.12), 0, 3);
@@ -103,14 +103,19 @@ final class CarSteer {
         defaultProfile = c.getString("carsteer.default-profile", "sedan");
         profiles.clear();
         // rmin (the tightest circle at a crawl, blocks) and grip (blocks a second^2: how fast the circle widens with speed).
+        // The higher tiers a little sharper (owner, 2026-09-30: "maybe make the handling a little better on the higher
+        // tiered cars"): full lock at top speed, degrees a second, before -> now: Sedan 55.6 (unchanged, the baseline),
+        // Jeep 49.5 -> 52.3, Sports Car 63.1 (unchanged: the sharpest dealer car, the pricier ones catch up), Hotrod
+        // 54.1 -> 64.5, SUV 48.8 -> 58.4, Viper 68.0 -> 75.0, Riviera 57.4 -> 68.9, Apex 71.4 -> 80.8. max-rate 110 (was 100)
+        // so the Viper's and the Apex's Handling II and III still differ (their peaks 108 and 107.5).
         profiles.put("sedan", new double[] {4.0, 18});
-        profiles.put("jeep", new double[] {4.5, 16});
-        profiles.put("suv", new double[] {4.5, 15});
+        profiles.put("jeep", new double[] {4.3, 17});
+        profiles.put("suv", new double[] {4.2, 19});
         profiles.put("sports", new double[] {4.0, 22});
-        profiles.put("hotrod", new double[] {4.5, 19});
-        profiles.put("cabrio", new double[] {4.5, 21});
-        profiles.put("racecar", new double[] {4.0, 30});
-        profiles.put("motor", new double[] {3.0, 24});
+        profiles.put("hotrod", new double[] {4.1, 23.5});
+        profiles.put("cabrio", new double[] {4.0, 26});
+        profiles.put("racecar", new double[] {3.8, 35});
+        profiles.put("motor", new double[] {2.9, 27});
         ConfigurationSection ps = c.getConfigurationSection("carsteer.profiles");
         if (ps != null) for (String k : ps.getKeys(false)) {
             double[] p = parsePair(ps.getString(k, ""));
