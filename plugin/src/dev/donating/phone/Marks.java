@@ -22,6 +22,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  * 40 ticks keeps the stand where it was (Citizens swaps an NPC's entity when its skin loads; Skript sends the new one).
  */
 final class Marks {
+    private static final net.kyori.adventure.key.Key TARGET_STYLE = net.kyori.adventure.key.Key.key("donating", "target");
     static final String TAG = "donating_mark";
     private final JavaPlugin plugin;
     private final Map<UUID, Mark> marks = new HashMap<>();
@@ -110,6 +111,7 @@ final class Marks {
                 m.stand = a;
                 p.showEntity(plugin, a);
                 a.setWaypointColor(m.color);
+                a.setWaypointStyle(TARGET_STYLE); // the target ring (the pack's waypoint style)
                 AttributeInstance range = a.getAttribute(Attribute.WAYPOINT_TRANSMIT_RANGE);
                 if (range != null) range.setBaseValue(6.0E7);
             } else if (m.stand.getLocation().distanceSquared(at) > 1) {

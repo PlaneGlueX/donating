@@ -138,11 +138,31 @@ function poiEnsure(id: text, l: location, color: text, on: boolean):
 	# A stand summoned before chunks were tracked: remember its chunk now.
 	if {poichunk::%{_id}%} is not set:
 		set {poichunk::%{_id}%} to "%floor(x-coordinate of {_l} / 16)%:%floor(z-coordinate of {_l} / 16)%"
-	# Every pass: the color and whether it's shown (cheap, and survives /waypoint or attribute edits).
-	if {-poi::state::%{_id}%} is not "%{_color}%:%{_range}%":
+	# Every pass: the color, the icon and whether it's shown (cheap, and survives /waypoint or attribute edits).
+	set {_style} to poiStyle({_id})
+	if {-poi::state::%{_id}%} is not "%{_color}%:%{_range}%:%{_style}%":
 		execute console command "attribute @e[tag=%{_tag}%,limit=1] minecraft:waypoint_transmit_range base set %{_range}%"
 		execute console command "waypoint modify @e[tag=%{_tag}%,limit=1] color %{_color}%"
-		set {-poi::state::%{_id}%} to "%{_color}%:%{_range}%"
+		if {_style} is "default":
+			execute console command "waypoint modify @e[tag=%{_tag}%,limit=1] style reset"
+		else:
+			execute console command "waypoint modify @e[tag=%{_tag}%,limit=1] style set %{_style}%"
+		set {-poi::state::%{_id}%} to "%{_color}%:%{_range}%:%{_style}%"
+
+# A POI's locator-bar icon (core.sk poi::<kind>::style): heists "h_<id>", quest givers "q_<n>", staff POIs by their type.
+function poiStyle(id: text) :: text:
+	set {_k} to "none"
+	if {_id} starts with "h_":
+		set {_k} to "heist"
+	else if {_id} starts with "q_":
+		set {_k} to "quest"
+	else if {poi::%{_id}%} is set:
+		set {_p::*} to {poi::%{_id}%} split at "|"
+		set {_k} to {_p::1}
+	set {_s} to "default"
+	if {-cfg::poi::%{_k}%::style} is set:
+		set {_s} to {-cfg::poi::%{_k}%::style}
+	return {_s}
 
 function poiLocation(v: text) :: location:
 	set {_p::*} to {_v} split at "|"

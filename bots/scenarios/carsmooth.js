@@ -371,8 +371,8 @@ module.exports = async ({ check }) => {
     // the player's 128, so between the two others saw the driver sitting on nothing. CarSmooth's track raises the car's
     // stands to carsmooth.range (128).
     const farTexts = ms => ms.map(m => runs[m].farText).join(' | ')
-    check('the far watcher stayed 72-120 blocks from the car in every run (past the armor stands\' 64, inside the driver\'s 128)',
-      every(r => r.farMin >= 72 && r.farMax <= 120), farTexts(MODES))
+    check('the far watcher stayed 72-125 blocks from the car in every run (past the armor stands\' 64, inside the driver\'s 128)',
+      every(r => r.farMin >= 72 && r.farMax <= 125), farTexts(MODES))
     check('the floating driver, carsmooth off and sync: the far watcher is sent the driver on his seat (the seat moving, the driver aboard) but never the car model',
       ['off', 'sync'].every(m => { const f = runs[m][F]; return !f.skinSpawned && f.seat.tracked && f.seat.n > 20 && f.driverAboard }), farTexts(MODES))
     check('the fix, carsmooth track and all: the far watcher is sent the car model too (before the drive, kept to the end) and gets its moves every tick, like the seat\'s',

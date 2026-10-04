@@ -1,0 +1,9 @@
+{
+  "near_distance": 96,
+  "far_distance": 400,
+  "sprites": [
+    "donating:base",
+    "donating:base",
+    "donating:far"
+  ]
+}
