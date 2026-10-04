@@ -186,8 +186,10 @@ final class CarSmooth implements Listener {
 
     /** Steering by speed (CarSteer): run first for every driven car each tick. */
     final CarSteer steer;
+    /** One bundle per car and tick for every player (CarBundle): the seat and the model step in the same client tick. */
+    final CarBundle bundle;
 
-    CarSmooth(JavaPlugin plugin) { this.plugin = plugin; this.steer = new CarSteer(plugin); }
+    CarSmooth(JavaPlugin plugin) { this.plugin = plugin; this.steer = new CarSteer(plugin); this.bundle = new CarBundle(plugin); }
 
     /** Settings: config.yml carsmooth.*, then the live switch kept in carsmooth.yml (/dphone carsmooth). */
     void configure(FileConfiguration c) {
@@ -197,14 +199,20 @@ final class CarSmooth implements Listener {
         wallGrace = Math.max(0, Math.min(400, c.getInt("carsmooth.wall-grace", 40)));
         Mode m = parse(c.getString("carsmooth.mode", "track"));
         boolean tog = c.getBoolean("carsmooth.together", true);
+        boolean bun = c.getBoolean("carsmooth.bundle", true);
+        boolean clk = c.getBoolean("carsmooth.via-clock", true);
         File f = new File(plugin.getDataFolder(), "carsmooth.yml");
         if (f.exists()) {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
             Mode saved = parse(y.getString("mode", ""));
             if (saved != null) m = saved;
             if (y.isBoolean("together")) tog = y.getBoolean("together");
+            if (y.isBoolean("bundle")) bun = y.getBoolean("bundle");
+            if (y.isBoolean("via-clock")) clk = y.getBoolean("via-clock");
         }
         together = tog;
+        bundle.setOn(bun);
+        bundle.setClockOn(clk);
         setMode(m == null ? Mode.TRACK : m);
     }
 
@@ -212,7 +220,9 @@ final class CarSmooth implements Listener {
         YamlConfiguration y = new YamlConfiguration();
         y.set("mode", mode.name().toLowerCase(Locale.ROOT));
         y.set("together", together);
-        y.options().setHeader(List.of("The live /dphone carsmooth switches (override config.yml carsmooth.mode and carsmooth.together). Made by the plugin."));
+        y.set("bundle", bundle.isOn());
+        y.set("via-clock", bundle.isClockOn());
+        y.options().setHeader(List.of("The live /dphone carsmooth switches (override config.yml carsmooth.mode, carsmooth.together, carsmooth.bundle and carsmooth.via-clock). Made by the plugin."));
         try { y.save(new File(plugin.getDataFolder(), "carsmooth.yml")); } catch (IOException ex) { sender.sendMessage("CARSMOOTH can't save carsmooth.yml: " + ex.getMessage()); }
     }
 
@@ -230,10 +240,12 @@ final class CarSmooth implements Listener {
         instance = this;
         if (task != null) return;
         task = Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, t -> tick(), 1L, 1L);
+        bundle.start();
     }
 
     void shutdown() {
         if (task != null) { task.cancel(); task = null; }
+        bundle.shutdown(); // whatever is held goes out, the handlers come off
         steer.restoreAll(); // MTVehicles steers the cars again
         restoreIntervals();
         endProbe("stopped");
@@ -260,6 +272,7 @@ final class CarSmooth implements Listener {
         // Into this tick's group at once (the tracker and a new tracker's event come after this).
         List<Entity> g = s.groups.get(plate);
         if (g != null && !s.groupPlate.containsKey(e.getEntityId())) { g.add(e); s.groupPlate.put(e.getEntityId(), plate); }
+        s.bundle.mark(e.getEntityId(), plate, true, true); // likeCar is only CarCam's camera
         if (s.mode.track()) s.track(e);
     }
 
@@ -846,6 +859,9 @@ final class CarSmooth implements Listener {
         }
         groups.put(plate, group);
         for (Entity e : group) groupPlate.put(e.getEntityId(), plate);
+        // Their movement goes to every player in one bundle a tick (CarBundle), MAIN's too.
+        for (Entity e : group) bundle.mark(e.getEntityId(), plate, true);
+        bundle.mark(main.getEntityId(), plate, false);
         SyncView sv = resync(plate, group);
         // Before the entity tick, MAIN's velocity is still the one MTVehicles just set (a skip tick's is ours or friction's).
         if (skinAtMain) st.vel = main.getVelocity();
@@ -942,14 +958,25 @@ final class CarSmooth implements Listener {
     boolean command(CommandSender sender, String[] a) {
         if (a[0].equalsIgnoreCase("carprobe")) return probeCommand(sender, a);
         if (a.length >= 2 && a[1].equalsIgnoreCase("input")) return inputCommand(sender, a);
-        if (a.length == 3 && a[1].equalsIgnoreCase("together")) {
+        if (a[0].equalsIgnoreCase("carbundle")) {
+            Player p = a.length >= 2 ? Bukkit.getPlayerExact(a[1]) : null;
+            if (a.length >= 2 && p == null) { sender.sendMessage("CARBUNDLE no player " + a[1]); return true; }
+            sender.sendMessage(bundle.status(p));
+            return true;
+        }
+        if (a.length == 3 && (a[1].equalsIgnoreCase("bundle") || a[1].equalsIgnoreCase("via-clock"))) {
+            String v = a[2].toLowerCase(Locale.ROOT);
+            if (!v.equals("on") && !v.equals("off")) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth " + a[1].toLowerCase(Locale.ROOT) + " on|off"); return true; }
+            if (a[1].equalsIgnoreCase("bundle")) bundle.setOn(v.equals("on")); else bundle.setClockOn(v.equals("on"));
+            saveSwitches(sender);
+        } else if (a.length == 3 && a[1].equalsIgnoreCase("together")) {
             String v = a[2].toLowerCase(Locale.ROOT);
             if (!v.equals("on") && !v.equals("off")) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth together on|off"); return true; }
             together = v.equals("on");
             saveSwitches(sender);
         } else if (a.length == 2) {
             Mode m = parse(a[1]);
-            if (m == null) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth [off|sync|track|all] | together on|off"); return true; }
+            if (m == null) { sender.sendMessage("CARSMOOTH usage: /dphone carsmooth [off|sync|track|all] | together on|off | bundle on|off | via-clock on|off"); return true; }
             setMode(m);
             saveSwitches(sender);
         }
@@ -958,7 +985,7 @@ final class CarSmooth implements Listener {
                 + " data=" + (dataError == null ? "ok" : dataError) + " sync=" + (syncError == null ? "ok" : syncError)
                 + " track=" + (trackError == null ? "ok" : trackError) + " driven=" + cars.size() + " tracked=" + changed.size() + " reapplied=" + reappliedTotal
                 + " together=" + (together ? "on" : "off") + " resync=" + (resyncError == null ? "ok" : resyncError)
-                + " forced=" + forcedTotal + " events=" + eventsTotal + " flagged=" + flaggedTotal);
+                + " forced=" + forcedTotal + " events=" + eventsTotal + " flagged=" + flaggedTotal + " bundle=" + (bundle.isOn() ? "on" : "off") + " via-clock=" + (bundle.isClockOn() ? "on" : "off"));
         return true;
     }
 
@@ -1034,10 +1061,11 @@ final class CarSmooth implements Listener {
     }
 
     /** Tab completion for /dphone carsmooth and carprobe (args as /dphone gets them). */
-    List<String> complete(String[] a) {
+    List<String> complete(String[] a, List<String> players) {
         List<String> out = new ArrayList<>();
-        if (a.length == 2 && a[0].equalsIgnoreCase("carsmooth")) out.addAll(List.of("off", "sync", "track", "all", "together"));
-        if (a.length == 3 && a[0].equalsIgnoreCase("carsmooth") && a[1].equalsIgnoreCase("together")) out.addAll(List.of("on", "off"));
+        if (a.length == 2 && a[0].equalsIgnoreCase("carsmooth")) out.addAll(List.of("off", "sync", "track", "all", "together", "bundle", "via-clock"));
+        if (a.length == 3 && a[0].equalsIgnoreCase("carsmooth") && (a[1].equalsIgnoreCase("together") || a[1].equalsIgnoreCase("bundle") || a[1].equalsIgnoreCase("via-clock"))) out.addAll(List.of("on", "off"));
+        if (a.length == 2 && a[0].equalsIgnoreCase("carbundle")) out.addAll(players);
         if (a.length == 2 && a[0].equalsIgnoreCase("carprobe")) {
             for (Player p : Bukkit.getOnlinePlayers()) { String pl = driverPlate(p); if (pl != null) out.add(pl); }
         }

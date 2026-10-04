@@ -817,7 +817,8 @@ final class CarCam implements Listener {
         // The ticks up to the last one (normally just the last): a resync if the watcher saw one, else a move if it moved.
         for (long k = Math.max(c.queueTick + 1, n - HIST); k < n; k++) {
             boolean last = k == n - 1;
-            if (last && sync) { c.queue.packet(k, true, 3); c.lastPacketTick = k; }
+            // A resync is a 3-tick step; ViaVersion times the next move from the last relative move, not from it.
+            if (last && sync) c.queue.packet(k, true, 3);
             else if (last && (c.movedPrev || movedSeen)) { c.queue.packet(k, false, viaTicks(k - c.lastPacketTick)); c.lastPacketTick = k; }
             c.queue.tick();
         }
@@ -1514,7 +1515,8 @@ final class CarCam implements Listener {
         private String error;
         private boolean tried;
         private Class<?> cData, cBundle, cSync, cTeleport, cMove;
-        private Field fMoveId;
+        private Field fMoveId, fXa, fYa, fZa;
+        private Method mHasRot;
         private Method mSyncId, mTeleportId, mHasPos;
         private Method mDataId, mItems, mDvId, mDvSer, mDvValue, mSubs, mCreate, mEntityData, mGet;
         private Constructor<?> ctorData, ctorDv, ctorBundle;
@@ -1557,6 +1559,13 @@ final class CarCam implements Listener {
                     mHasPos = cMove.getMethod("hasPosition");
                     fMoveId = cMove.getDeclaredField("entityId");
                     fMoveId.setAccessible(true);
+                    mHasRot = cMove.getMethod("hasRotation");
+                    fXa = cMove.getDeclaredField("xa");
+                    fYa = cMove.getDeclaredField("ya");
+                    fZa = cMove.getDeclaredField("za");
+                    fXa.setAccessible(true);
+                    fYa.setAccessible(true);
+                    fZa.setAccessible(true);
                 } catch (ReflectiveOperationException | LinkageError | RuntimeException ex) {
                     fail("setup (" + ex + ")");
                 }
@@ -1737,7 +1746,10 @@ final class CarCam implements Listener {
                 int w = watchId;
                 if (cMove.isInstance(pk)) {
                     if (fMoveId.getInt(pk) != w) return;
-                    if (Boolean.TRUE.equals(mHasPos.invoke(pk))) wMove.incrementAndGet();
+                    boolean pos = Boolean.TRUE.equals(mHasPos.invoke(pk));
+                    // A keepalive (a zero move): CarBundle drops it on the way to the client, so it isn't one.
+                    if (pos && CarBundle.keepaliveDrop && !Boolean.TRUE.equals(mHasRot.invoke(pk)) && fXa.getShort(pk) == 0 && fYa.getShort(pk) == 0 && fZa.getShort(pk) == 0) return;
+                    if (pos) wMove.incrementAndGet();
                     else wTurn.incrementAndGet();
                 } else if (cSync.isInstance(pk)) {
                     if ((Integer) mSyncId.invoke(pk) == w) wSync.incrementAndGet();

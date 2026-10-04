@@ -17,7 +17,7 @@ const CHUNKS = '5800 5800 5980 5980'
 const START = [5815.5, Y, 5890.5] // facing east: 165 blocks of floor ahead
 const PROBE = path.join(__dirname, '..', '..', 'server', 'plugins', 'DonatingPhone', 'carprobe.log')
 // model, color, the profile its family must map to (a family that fell back to the default would fail)
-const CARS = [['sedan', 'Red', 'sedan'], ['suv', 'Black', 'suv'], ['sports', 'White', 'sports'], ['viper', 'Black', 'motor'], ['apex', 'Black', 'racecar']]
+const CARS = [['sedan', 'Red', 'sedan'], ['suv', 'Black', 'suv'], ['sports', 'White', 'sports'], ['hotrod', 'Red', 'hotrod'], ['viper', 'Black', 'motor'], ['riviera', 'Red', 'cabrio'], ['apex', 'Black', 'racecar']]
 const wrap = a => { a %= 360; if (a >= 180) a -= 360; if (a < -180) a += 360; return a }
 
 function probeRows (plate, ticks) {

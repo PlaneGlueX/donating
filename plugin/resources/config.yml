@@ -88,6 +88,12 @@ carsmooth:
   # 26.3 client (through ViaVersion) could leave the driver's seat up to 2 blocks off the car model until the car stops.
   # /dphone carsmooth together on|off switches it live (kept in carsmooth.yml).
   together: true
+  # A driven car's movement packets go to each player as one bundle at the end of the tick (CarBundle), and for a 26.3
+  # client (through ViaVersion) every visible stand of the car that moves in them gets the same step timing (via-clock):
+  # without it, a car setting off could leave the driver a tick of travel behind the model (in the back seat) until it
+  # stopped. The clock needs the bundle. /dphone carsmooth bundle|via-clock on|off (kept in carsmooth.yml).
+  bundle: true
+  via-clock: true
   # A rider whose head is in a block takes no suffocation damage for this many ticks, then is put out of the car (a free
   # spot next to it). Not forever: seated in a wall, F5 would see through it.
   wall-grace: 40
@@ -105,7 +111,7 @@ carsmooth:
 carsteer:
   enabled: true
   rate-scale: 1.0
-  max-rate: 100
+  max-rate: 110
   # Seconds from the middle to full lock (at a crawl, at top speed) and back to the middle.
   steer-in: 0.20
   steer-in-top: 0.30
@@ -120,15 +126,16 @@ carsteer:
   velocity: true
   default-profile: sedan
   # "rmin|grip": the tightest circle at a crawl (blocks) and how fast it widens with speed (blocks a second^2).
+  # The higher tiers a little sharper (2026-10-03; CarSteer.configure has the numbers before and after).
   profiles:
     sedan: "4.0|18"
-    jeep: "4.5|16"
-    suv: "4.5|15"
+    jeep: "4.3|17"
+    suv: "4.2|19"
     sports: "4.0|22"
-    hotrod: "4.5|19"
-    cabrio: "4.5|21"
-    racecar: "4.0|30"
-    motor: "3.0|24"
+    hotrod: "4.1|23.5"
+    cabrio: "4.0|26"
+    racecar: "3.8|35"
+    motor: "2.9|27"
   # MTVehicles' families (vehicles.yml names) to profiles.
   families:
     Sedan: sedan

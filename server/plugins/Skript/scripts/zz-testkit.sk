@@ -1267,3 +1267,12 @@ command /zzdmglog <text> <text>:
 on damage of player with priority monitor:
 	{-zz::dmglog::%name of victim%} is true
 	send "DMG %name of victim% cause=%damage cause% amount=%damage% at=%location of victim%" to console
+
+# Calls a player's car out next to them the normal way (garage.sk carCall: tracked as out, so the stand sweep keeps it),
+# without the call cooldown.
+command /zzcarcall <player> <text>:
+	executable by: console
+	trigger:
+		delete {-car::callat::%uuid of arg-1%}
+		carCall(arg-1, (arg-2 in upper case))
+		send "CARCALL %arg-1% %arg-2% out=%{car::outof::%uuid of arg-1%}%"
