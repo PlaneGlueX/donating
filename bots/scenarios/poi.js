@@ -34,8 +34,11 @@ module.exports = async ({ check }) => {
     }
     const colorOf = async tag => Number(((await cmd(`data get entity @e[tag=${tag},limit=1] locator_bar_icon.color`)).match(/data: (-?\d+)/) || [])[1] || -1)
     // A track packet for exactly this stand, in this color (/waypoint's colors as red, green, blue).
-    const tracked = (uuid, rgb) => waypoints.some(w => w.operation === 'track' && w.waypoint && w.waypoint.uuid === uuid &&
-      w.waypoint.icon && w.waypoint.icon.color && w.waypoint.icon.color.red === rgb[0] && w.waypoint.icon.color.green === rgb[1] && w.waypoint.icon.color.blue === rgb[2])
+    // With a style: also that icon (core.sk poi::<kind>::style: the pack's waypoint styles).
+    const tracked = (uuid, rgb, style) => waypoints.some(w => w.operation === 'track' && w.waypoint && w.waypoint.uuid === uuid &&
+      w.waypoint.icon && w.waypoint.icon.color && w.waypoint.icon.color.red === rgb[0] && w.waypoint.icon.color.green === rgb[1] && w.waypoint.icon.color.blue === rgb[2] &&
+      (!style || String(w.waypoint.icon.style) === style))
+    const styleOf = async tag => ((await cmd(`data get entity @e[tag=${tag},limit=1] locator_bar_icon.style`)).match(/data: "([^"]+)"/) || [])[1] || ''
 
     await cmd(`dheist delete ${ID} confirm`)
     await cmd(`rg remove -w world ${REGION}`)
@@ -62,8 +65,8 @@ module.exports = async ({ check }) => {
     check('...an invisible marker stand sending a waypoint to everyone', (await range(tag)) > 1e7, `${await range(tag)}`)
     const standId = await uuidOf(tag)
     // Shops are yellow (core.sk poi::shop::color): /waypoint's yellow is 255, 255, 85.
-    const got = await until(() => tracked(standId, [255, 255, 85]), 4000)
-    check('...and the player gets that stand on their locator bar, in the shop color (a track packet with its UUID)', standId !== '' && got, `${standId} ${JSON.stringify(waypoints.slice(-2)).slice(0, 300)}`)
+    const got = await until(() => tracked(standId, [255, 255, 85], 'donating:shop'), 4000)
+    check('...and the player gets that stand on their locator bar, in the shop color with the shop icon (a track packet with its UUID and the style donating:shop)', standId !== '' && got, `${standId} ${JSON.stringify(waypoints.slice(-2)).slice(0, 300)}`)
     await cmd(`minecraft:kill @e[tag=${tag}]`)
     waypoints.length = 0
     const back = await until(async () => (await count(tag)) === 1, 22000)
@@ -82,7 +85,7 @@ module.exports = async ({ check }) => {
     await until(async () => (await count(`poi_h_${ID}`)) === 1, 12000)
     await sleep(1000)
     // Difficulty 3's color is gold (0xFFAA00 = 16755200): proof the commands ran, not just an armor stand's default range.
-    check('a disabled heist has a stand, in its difficulty\'s color, but sends no waypoint', (await count(`poi_h_${ID}`)) === 1 && (await range(`poi_h_${ID}`)) === 0 && (await colorOf(`poi_h_${ID}`)) === 16755200, `${await count(`poi_h_${ID}`)} range ${await range(`poi_h_${ID}`)} color ${await colorOf(`poi_h_${ID}`)}`)
+    check('a disabled heist has a stand, in its difficulty\'s color with the safe icon, but sends no waypoint', (await count(`poi_h_${ID}`)) === 1 && (await range(`poi_h_${ID}`)) === 0 && (await colorOf(`poi_h_${ID}`)) === 16755200 && (await styleOf(`poi_h_${ID}`)) === 'donating:heist', `style ${await styleOf(`poi_h_${ID}`)} ${await count(`poi_h_${ID}`)} range ${await range(`poi_h_${ID}`)} color ${await colorOf(`poi_h_${ID}`)}`)
     await cmd(`dheist enable ${ID}`)
     const shown = await until(async () => (await range(`poi_h_${ID}`)) > 1e7, 20000)
     check('once it opens, its waypoint shows (in the difficulty\'s color)', shown, `${await range(`poi_h_${ID}`)} ${await cmd(`zzheist ${ID}`)}`)

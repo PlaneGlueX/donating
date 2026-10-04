@@ -798,7 +798,7 @@ function loadSettings():
 	set {-cfg::poi::quest::color} to "blue"
 	# Their icons on the locator bar (the pack's waypoint styles, toolsmake-waypoint-art.js; "default" = vanilla's
 	# dot): a house, a shopping bag, a star, a diamond, a parking P, an exclamation mark, a safe (every heist, in its
-	# difficulty's color). Beyond 400 blocks every kind is a small dot in its color. Without the pack a client draws
+	# difficulty's color). Beyond 332 blocks every kind is a small dot in its color. Without the pack a client draws
 	# them as the missing texture (Minehut's pack is required).
 	set {-cfg::poi::base::style} to "donating:base"
 	set {-cfg::poi::shop::style} to "donating:shop"

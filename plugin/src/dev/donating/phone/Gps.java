@@ -636,7 +636,9 @@ final class Gps {
             if (range != null) range.setBaseValue(6.0E7);
         } else {
             if (!c.equals(n.stand.getWaypointColor())) n.stand.setWaypointColor(c);
-            if (waypointStyle != null && !waypointStyle.equals(n.stand.getWaypointStyle())) n.stand.setWaypointStyle(waypointStyle);
+            // Every pass (review fix: a reload to "default" left live dots on the old icon). Paper does nothing when it's
+            // the same style, and null is vanilla's dot.
+            n.stand.setWaypointStyle(waypointStyle);
             if (n.stand.getLocation().distanceSquared(at) > 1) n.stand.teleport(at);
         }
     }

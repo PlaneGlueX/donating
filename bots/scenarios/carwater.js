@@ -1,6 +1,7 @@
 // Out of a car that sank (DonatingPhone CarSmooth.seaRescue; PLAYTEST 172: a car driven into deep water sinks with its
-// riders in it, and the driver drowned unless they sneaked out). A bot drives a Sedan off a platform into a 4-deep
-// pool and keeps the pedal down at the bottom: once its head is under water and its air below carsmooth.water-air
+// riders in it, and the driver drowned unless they sneaked out). A bot drives a Sedan off a platform into a 5-deep
+// pool and keeps the pedal down at the bottom against its far wall (raised 2 above the water, so garage.sk's climb out
+// of the water can't lift the car over it: review fix): once its head is under water and its air below carsmooth.water-air
 // (100 of 300) it's put out of the car, alive, and the server log says why; not before (driving through water is
 // allowed: it's still in the car while its air is above that).
 const fs = require('fs')
@@ -20,11 +21,15 @@ module.exports = async ({ check }) => {
   let bot = null, plate = null
   try {
     await cmd(`forceload add ${CHUNKS}`)
-    // A platform x 7600-7624 at y 199, then a pool x 7625-7635 (stone walls and floor, water y 196-199).
+    // A platform x 7600-7624 at y 199, then a pool x 7625-7635 (stone walls and floor, water y 195-199); the far and
+    // side walls reach y 201 (sy + 2: nothing for the climb to stand on).
     await cmd(`fill ${X0} ${Y - 1} ${Z0} ${X1} ${Y + 3} ${Z1} air`)
     await cmd(`fill ${X0} ${Y - 1} ${Z0} 7624 ${Y - 1} ${Z1} gray_concrete`)
     await cmd(`fill 7624 ${Y - 6} ${Z0} 7636 ${Y - 1} ${Z1} stone`)
     await cmd(`fill 7625 ${Y - 5} ${Z0 + 1} 7635 ${Y - 1} ${Z1 - 1} water`)
+    await cmd(`fill 7636 ${Y - 6} ${Z0} 7636 ${Y + 1} ${Z1} stone`)
+    await cmd(`fill 7624 ${Y} ${Z0} 7636 ${Y + 1} ${Z0} stone`)
+    await cmd(`fill 7624 ${Y} ${Z1} 7636 ${Y + 1} ${Z1} stone`)
     bot = await join(D)
     await cmd(`gamemode survival ${D}`)
     await cmd(`zzclear ${D}`)

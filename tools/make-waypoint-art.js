@@ -5,8 +5,9 @@
 // locator_bar_dot/<id>.png in the GUI atlas (vanilla's are 9x9: a light fill with a dark 4-neighbour outline, and the
 // waypoint's color tints the light pixels). The server picks one with `waypoint modify <entity> style set donating:<id>`
 // (nav.sk for the POIs, DonatingPhone for the GPS dot and the hunter's mark). Drawn here pixel by pixel (no vanilla
-// texture copied): a light icon with the outline added around it, and a smaller one for far away (near 96 blocks, far
-// 400: the bar's own size cue, like vanilla's shrinking dots).
+// texture copied): a light icon with the outline added around it, and a small dot for far away (near 96 blocks, far 332:
+// the bar's own size cue, like vanilla's shrinking dots; past 332 the server sends a waypoint as a direction only, at
+// an infinite distance for the client, so far_distance can't be further: review fix).
 // Usage: tools\node\node.exe tools\make-waypoint-art.js   (writes into pack\; then tools\build-pack.js)
 const fs = require('fs')
 const path = require('path')
@@ -153,7 +154,7 @@ fs.mkdirSync(STYLES, { recursive: true })
 fs.writeFileSync(path.join(SPRITES, 'far.png'), draw(FAR))
 for (const [id, rows] of Object.entries(ICONS)) {
   fs.writeFileSync(path.join(SPRITES, `${id}.png`), draw(rows))
-  const style = { near_distance: 96, far_distance: 400, sprites: [`donating:${id}`, `donating:${id}`, 'donating:far'] }
+  const style = { near_distance: 96, far_distance: 332, sprites: [`donating:${id}`, `donating:${id}`, 'donating:far'] }
   fs.writeFileSync(path.join(STYLES, `${id}.json`), JSON.stringify(style, null, 2) + '\n')
 }
 console.log(`waypoint styles: ${Object.keys(ICONS).join(', ')} (+ far) -> ${path.relative(process.cwd(), OUT)}`)
