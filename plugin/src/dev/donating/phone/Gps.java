@@ -81,6 +81,7 @@ final class Gps {
     private int maxCells = 262_144;
     private double leadMin = 16, leadMax = 40, trailMin = 24, trailMax = 64, ringRange = 48, carPinRadius = 14;
     private String pausedTag = "donating_gps_paused";
+    private net.kyori.adventure.key.Key waypointStyle; // gps.style
     private final Map<String, Color> colors = new HashMap<>();
 
     // The city (from PhonePlugin) and its grid
@@ -179,6 +180,7 @@ final class Gps {
         ringRange = c.getDouble("gps.ring-range", 48);
         carPinRadius = c.getDouble("gps.car-pin-radius", 14);
         pausedTag = c.getString("gps.paused-tag", "donating_gps_paused");
+        waypointStyle = styleKey(c.getString("gps.style", "donating:gps"));
         colors.clear();
         for (String kind : List.of("pin", "quest", "loot")) colors.put(kind, color(c.getString("gps.color." + kind), kind.equals("pin") ? 0xD040E0 : kind.equals("quest") ? 0xFF5A1F : 0x30C8C0));
         cache.clear();
@@ -197,6 +199,16 @@ final class Gps {
     }
 
     Color colorOf(String kind) { return colors.getOrDefault(kind, Color.WHITE); }
+
+    /**
+     * A locator-bar icon (the pack's waypoint styles, toolsmake-waypoint-art.js), or null for vanilla's dot ("default",
+     * empty or not a key). A client without the pack draws an unknown style as the missing texture (26.3:
+     * WaypointStyleManager's MISSING): Minehut's pack is required.
+     */
+    static net.kyori.adventure.key.Key styleKey(String s) {
+        if (s == null || s.isBlank() || s.equalsIgnoreCase("default")) return null;
+        try { return net.kyori.adventure.key.Key.key(s.trim()); } catch (RuntimeException e) { return null; }
+    }
 
     /** The city changed (or the config was reloaded): the grid it needs, and roads.bin if it fits. */
     void city(World world, double x0, double z0, int imgW, int imgH, int bpp) {
@@ -619,10 +631,14 @@ final class Gps {
             // Only now a waypoint: giving it a range starts tracking at once, to whoever may see it then (the
             // color first, so the first packet already has it).
             a.setWaypointColor(c);
+            if (waypointStyle != null) a.setWaypointStyle(waypointStyle); // the pin icon on the bar
             AttributeInstance range = a.getAttribute(Attribute.WAYPOINT_TRANSMIT_RANGE);
             if (range != null) range.setBaseValue(6.0E7);
         } else {
             if (!c.equals(n.stand.getWaypointColor())) n.stand.setWaypointColor(c);
+            // Every pass (review fix: a reload to "default" left live dots on the old icon). Paper does nothing when it's
+            // the same style, and null is vanilla's dot.
+            n.stand.setWaypointStyle(waypointStyle);
             if (n.stand.getLocation().distanceSquared(at) > 1) n.stand.teleport(at);
         }
     }

@@ -1,0 +1,9 @@
+{
+  "near_distance": 96,
+  "far_distance": 332,
+  "sprites": [
+    "donating:heist",
+    "donating:heist",
+    "donating:far"
+  ]
+}

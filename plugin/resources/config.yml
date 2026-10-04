@@ -57,6 +57,9 @@ gps:
   # A pin is a bigger area for someone in a car (they cover 6 blocks between two checks).
   car-pin-radius: 14
   color: {pin: "#D040E0", quest: "#FF5A1F", loot: "#30C8C0"}
+  # The locator-bar dot's icon: a waypoint style in the resource pack (toolsmake-waypoint-art.js: a map pin), or
+  # "default" for vanilla's dot. Without the pack a client draws an unknown style as the missing texture.
+  style: "donating:gps"
   route: {pin: "#D040E0", quest: "#FF5A1F", loot: "#30C8C0"}
   # Skript sets this tag while the GPS should show nothing in the world (inside a heist).
   paused-tag: donating_gps_paused
@@ -94,6 +97,9 @@ carsmooth:
   # stopped. The clock needs the bundle. /dphone carsmooth bundle|via-clock on|off (kept in carsmooth.yml).
   bundle: true
   via-clock: true
+  # A rider whose head is under water is put out of the car once their air drops below this (of 300; 0 = never): a car
+  # driven into deep water sinks with its riders in it.
+  water-air: 100
   # A rider whose head is in a block takes no suffocation damage for this many ticks, then is put out of the car (a free
   # spot next to it). Not forever: seated in a wall, F5 would see through it.
   wall-grace: 40

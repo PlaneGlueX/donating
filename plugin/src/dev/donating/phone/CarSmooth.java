@@ -95,6 +95,8 @@ final class CarSmooth implements Listener {
     private int range = 128;
     // Ticks a rider may stay with the head in a block, no suffocation, before being put out of the car (onSeatSuffocate).
     private int wallGrace = 40;
+    // A rider under water whose air drops below this (of 300) is put out of the car (seaRescue).
+    private int waterAir = 100;
     private final Map<java.util.UUID, int[]> wallRun = new HashMap<>(); // rider -> {first, last} tick of suffocation hits
     private ScheduledTask task;
     private long tickNo;
@@ -197,6 +199,7 @@ final class CarSmooth implements Listener {
         interval = Math.max(1, Math.min(3, c.getInt("carsmooth.update-interval", 1)));
         range = Math.max(16, Math.min(512, c.getInt("carsmooth.range", 128)));
         wallGrace = Math.max(0, Math.min(400, c.getInt("carsmooth.wall-grace", 40)));
+        waterAir = Math.max(0, Math.min(300, c.getInt("carsmooth.water-air", 100)));
         Mode m = parse(c.getString("carsmooth.mode", "track"));
         boolean tog = c.getBoolean("carsmooth.together", true);
         boolean bun = c.getBoolean("carsmooth.bundle", true);
@@ -609,6 +612,26 @@ final class CarSmooth implements Listener {
      * after a server restart). A normal logout is fine (MTVehicles' LeaveListener takes a quitting driver out), but a
      * server stop disables the plugins before the players are saved: PhonePlugin.onDisable takes everyone out first.
      */
+    /**
+     * Under water in a car (PLAYTEST 172: a car driven into deep water sinks, MTVehicles keeps its riders in it, and the
+     * driver drowned unless they thought of sneaking out): a rider whose head is under water and whose air has dropped
+     * below carsmooth.water-air (100 of 300: about 10 s of breath used, 5 s left) is put out of the car to swim up
+     * ("Your car is under water: out of the car"). Not at once: driving through water to a bank the car can climb is fine.
+     * Every 5 ticks, every online rider of an MTVehicles seat (drivers and passengers).
+     */
+    private void seaRescue() {
+        if (waterAir <= 0) return;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (!(p.getVehicle() instanceof ArmorStand s) || !s.getName().startsWith("MTVEHICLES_")) continue;
+            if (!p.isUnderWater() || p.getRemainingAir() >= waterAir) continue;
+            String seat = s.getName();
+            if (leaveCar(p)) {
+                plugin.getLogger().info("carsmooth: " + p.getName() + " was under water in " + seat + " (air " + p.getRemainingAir() + "): out of the car");
+                p.sendActionBar(net.kyori.adventure.text.Component.text("Your car is under water: out of the car", net.kyori.adventure.text.format.NamedTextColor.GRAY));
+            }
+        }
+    }
+
     static boolean leaveCar(Player p) {
         return p.getVehicle() instanceof ArmorStand s && s.getName().startsWith("MTVEHICLES_") && p.leaveVehicle();
     }
@@ -764,6 +787,7 @@ final class CarSmooth implements Listener {
 
     private void tick() {
         tickNo++;
+        if (tickNo % 5 == 0) seaRescue();
         loadData(plugin);
         groups.clear();
         groupPlate.clear();

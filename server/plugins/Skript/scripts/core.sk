@@ -796,6 +796,17 @@ function loadSettings():
 	set {-cfg::poi::landmark::color} to "light_purple"
 	# Quest givers (quests.sk) get a dot of their own, not listed in /dpoi's types.
 	set {-cfg::poi::quest::color} to "blue"
+	# Their icons on the locator bar (the pack's waypoint styles, toolsmake-waypoint-art.js; "default" = vanilla's
+	# dot): a house, a shopping bag, a star, a diamond, a parking P, an exclamation mark, a safe (every heist, in its
+	# difficulty's color). Beyond 332 blocks every kind is a small dot in its color. Without the pack a client draws
+	# them as the missing texture (Minehut's pack is required).
+	set {-cfg::poi::base::style} to "donating:base"
+	set {-cfg::poi::shop::style} to "donating:shop"
+	set {-cfg::poi::spawn::style} to "donating:spawn"
+	set {-cfg::poi::landmark::style} to "donating:landmark"
+	set {-cfg::poi::garage::style} to "donating:garage"
+	set {-cfg::poi::quest::style} to "donating:quest"
+	set {-cfg::poi::heist::style} to "donating:heist"
 	set {-cfg::poi::range} to 60000000
 	set {-cfg::difficulty::0::waypoint} to "gray"
 	set {-cfg::difficulty::1::waypoint} to "green"
