@@ -1,10 +1,13 @@
 // inventory.sk: every way a player can move an item must leave the server-side inventory unchanged.
 // Server truth comes from "data get entity" over RCON, not from the bot's own (optimistic) view.
+const fs = require('fs')
+const path = require('path')
 const { Vec3 } = require('vec3')
 const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
 
 const NAME = 'InvBot'
+const LOG = path.join(__dirname, '..', '..', 'server', 'logs', 'latest.log')
 
 // Window slot numbers in the player inventory window (not Skript slot numbers).
 const W = { hotbar1: 36, hotbar2: 37, hotbar8: 43, hotbar9: 44, upper1: 9, upper2: 10, upper3: 11, offhand: 45 }
@@ -257,19 +260,51 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`setblock ${cakePos.x} ${cakePos.y} ${cakePos.z} air`)
     await rcon.cmd('minecraft:kill @e[tag=zztest]')
 
-    // Watchdog: if something moves the bag or phone anyway, it is swapped back.
+    // Watchdog: if something moves the bag or phone anyway, it is swapped back. (minecraft:item: EssentialsX's
+    // /item answers RCON with "Only in-game players", so before 2026-10-04 these moves never happened.)
     await rcon.cmd(`zztestkit ${NAME}`)
     await sleep(300)
-    await rcon.cmd(`item replace entity ${NAME} hotbar.5 from entity ${NAME} weapon.offhand`)
-    await rcon.cmd(`item replace entity ${NAME} weapon.offhand with air`)
+    await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.5 from entity ${NAME} weapon.offhand`)
+    await rcon.cmd(`minecraft:item replace entity ${NAME} weapon.offhand with air`)
     await sleep(800)
     const afterBagMove = await snapshot()
     check('watchdog puts a moved bag back in the offhand', BAG.test(afterBagMove) && !/(^|\| )5=/.test(afterBagMove), afterBagMove)
-    await rcon.cmd(`item replace entity ${NAME} inventory.11 from entity ${NAME} hotbar.8`)
-    await rcon.cmd(`item replace entity ${NAME} hotbar.8 with air`)
+    await rcon.cmd(`minecraft:item replace entity ${NAME} inventory.11 from entity ${NAME} hotbar.8`)
+    await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.8 with air`)
     await sleep(800)
     const afterPhoneMove = await snapshot()
     check('watchdog puts a moved phone back in hotbar 9', PHONE.test(afterPhoneMove) && !/(^|\| )20=filled map/.test(afterPhoneMove), afterPhoneMove)
+
+    // The same with a menu open. Paper numbers the offhand and armor slots with the open menu's layout then:
+    // with a 6-row menu an offhand change was "slot 45" and Skript's event-slot threw (a Severe Error in the
+    // log, the watchdog never ran); with a 3-row one it was "slot 27" and went unchecked.
+    const logBefore = fs.readFileSync(LOG, 'utf8').length
+    for (const [label, kind, rows] of [['a 6-row menu', 'gun', 6], ['a 3-row menu', 'gear', 3]]) {
+      await rcon.cmd(`zztestkit ${NAME}`)
+      await sleep(300)
+      const opened = new Promise(resolve => bot.once('windowOpen', resolve))
+      await rcon.cmd(`dshop open ${NAME} ${kind}`)
+      const win = await Promise.race([opened, sleep(3000)])
+      const top = win ? win.inventoryStart : 0
+      check(`${label} is open (the ${kind} shop)`, top === rows * 9, `top slots: ${top}`)
+      // A new menu's first sync reports every filled slot as changed, the phone's slot 8 too, which runs the
+      // watchdog anyway: let that pass first.
+      await sleep(500)
+      await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.5 from entity ${NAME} weapon.offhand`)
+      await rcon.cmd(`minecraft:item replace entity ${NAME} weapon.offhand with air`)
+      await sleep(800)
+      const bagBack = await snapshot()
+      check(`watchdog puts a moved bag back with ${label} open`, BAG.test(bagBack) && !/(^|\| )5=/.test(bagBack), bagBack)
+      await rcon.cmd(`minecraft:item replace entity ${NAME} inventory.11 from entity ${NAME} hotbar.8`)
+      await rcon.cmd(`minecraft:item replace entity ${NAME} hotbar.8 with air`)
+      await sleep(800)
+      const phoneBack = await snapshot()
+      check(`watchdog puts a moved phone back with ${label} open`, PHONE.test(phoneBack) && !/(^|\| )20=filled map/.test(phoneBack), phoneBack)
+      if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
+      await sleep(300)
+    }
+    const errors = fs.readFileSync(LOG, 'utf8').slice(logBefore).split('\n').filter(l => /Severe Error|bukkitSlot cannot be null|Current trigger: inventory slot change/.test(l))
+    check('no Skript errors from the slot-change watchdog with a menu open', errors.length === 0, errors.slice(0, 4).join('\n'))
 
     // Items on the ground can't be picked up.
     await rcon.cmd(`zztestkit ${NAME}`)

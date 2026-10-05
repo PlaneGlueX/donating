@@ -158,10 +158,10 @@ module.exports = async ({ check }) => {
     let r = await lane(A, 770.5)
     check('walking into a laser hurts once: 3♥ × 1.25 = 8 HP (20 -> 12), and they keep going', r.hits.length === 1 && /ztrap-1 laser dmg=8 hp=20->12 /.test(r.hits[0]) && !r.died && (await member(A)) === 'ztrap' && (await pos(A))[0] > 772, r.lines)
     check('...the hit tags them in combat as a trap', /tagged=true .*cause=trap/.test(await cmd(`zzcombat ${A}`)), await cmd(`zzcombat ${A}`))
-    await cmd(`item replace entity ${A} armor.chest with minecraft:diamond_chestplate`)
+    await cmd(`minecraft:item replace entity ${A} armor.chest with minecraft:diamond_chestplate`)
     r = await lane(A, 770.5)
     check('...a vest doesn\'t soften it (8 HP through diamond armor)', r.hits.length === 1 && /dmg=8 hp=20->12 /.test(r.hits[0]), r.lines)
-    await cmd(`item replace entity ${A} armor.chest with minecraft:air`)
+    await cmd(`minecraft:item replace entity ${A} armor.chest with minecraft:air`)
     // Standing in the beam: hurt again every second.
     await cmd(`zzhp ${A} 20`)
     setMark()

@@ -280,14 +280,28 @@ function repairLayout(p: player):
 				if offhand tool of {_p} is air:
 					applyBag({_p})
 
+# The slot number is only read in the player's own inventory view. While a menu is open, Paper (1.21.11)
+# reports the armor and offhand slots with the menu's numbering (it converts the player-inventory raw slot
+# 5-8 / 45 with the open view): with a 6-row menu an offhand change is "slot 45" and Skript's event-slot
+# throws (bukkitSlot cannot be null), with a smaller one it names some other slot. So with a menu open
+# every change is checked, once per tick.
 on inventory slot change:
-	set {_slot} to index of event-slot
-	if {_slot} is 8:
-		set {_check} to true
-	else if {_slot} is 40:
+	if type of player's current inventory is crafting table inventory:
+		set {_slot} to index of event-slot
+		if {_slot} is 8:
+			set {_check} to true
+		else if {_slot} is 40:
+			set {_check} to true
+	else:
 		set {_check} to true
 	{_check} is set
 	bypassesLock(player) is false
+	set {_last} to {-inv::watch::%player%}
+	if {_last} is set:
+		if difference between {_last} and now < 1 second:
+			stop
+	set {-inv::watch::%player%} to now
 	wait 1 tick
+	delete {-inv::watch::%player%}
 	player is online
 	repairLayout(player)
