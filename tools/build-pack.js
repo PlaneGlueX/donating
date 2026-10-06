@@ -399,6 +399,39 @@ const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assau
   console.log(`first-person hands hidden under a foreign camera: ${wrapped} item definitions wrapped` + (already ? `, ${already} already wrapped` : ''))
 }
 
+// ---------- Resource names ----------
+// The client only takes [a-z0-9_.-/] in a resource path: one bad name in an item definition makes the whole file fail
+// to parse (2026-10-06: the Old Revolver's "flashX" part took every gun in feather.json down to the missing-model cube).
+// Our files and every model, parent and texture they name must be valid; other packs' bad files only get a warning
+// (the client skips the file itself).
+{
+  const RL = /^([a-z0-9_.-]+:)?[a-z0-9_.\/-]+$/
+  const bad = []
+  const otherBad = []
+  for (const [name, e] of entries) {
+    const ours = String(e.from).includes('ours')
+    if (name.startsWith('assets/') && !/^assets\/[a-z0-9_.-]+\/[a-z0-9_.\/-]+$/.test(name)) (ours ? bad : otherBad).push(name)
+    if (!ours || !/^assets\/[^/]+\/(items|models)\/.+\.json$/.test(name)) continue
+    let json
+    try { json = JSON.parse(e.data.toString('utf8')) } catch (err) { bad.push(`${name}: not JSON`); continue }
+    const check = o => { if (typeof o === 'string' && !o.startsWith('#') && !RL.test(o)) bad.push(`${name}: "${o}"`) }
+    const walk = (o, key) => {
+      if (Array.isArray(o)) { o.forEach(x => walk(x, key)); return }
+      if (o && typeof o === 'object') {
+        for (const [k, v] of Object.entries(o)) {
+          if (k === 'textures' && name.includes('/models/') && v && typeof v === 'object' && !Array.isArray(v)) Object.values(v).forEach(check)
+          else walk(v, k)
+        }
+        return
+      }
+      if ((key === 'model' && name.includes('/items/')) || key === 'parent') check(o)
+    }
+    walk(json, '')
+  }
+  if (otherBad.length) console.warn(`note: ${otherBad.length} files of the other packs have names the client skips: ${otherBad.slice(0, 5).join(', ')}`)
+  if (bad.length) throw new Error(`invalid resource names (the client rejects them, and a whole item definition with them):\n  ${bad.slice(0, 20).join('\n  ')}`)
+}
+
 // ---------- Write ----------
 const locals = []
 const centrals = []

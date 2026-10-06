@@ -144,15 +144,15 @@ module.exports = ({ pg, aim, display }) => {
         { from: [XM - 1.7, BY - 0.5, 9.2], to: [XM - 0.6, BY + 0.5, 11.0], c: 'flash', glow: true }
       ],
       // The aimed flash: an X (the star's top spike would cross the crosshair over the sights, like the AK-48's).
-      flashX: [
+      flashads: [
         { from: [XM - 2.0, BY - 1.0, 7.0], to: [XM, BY + 1.0, 9.0], c: 'flashCore', glow: true },
         { from: [XM - 5.0, BY - 0.45, 7.55], to: [XM - 2.0, BY + 0.45, 8.45], c: 'flash', glow: true },
         { from: [XM - 1.6, BY - 0.4, 4.6], to: [XM - 0.7, BY + 0.4, 11.4], c: 'flash', glow: true, rot: { angle: 45, axis: 'x', origin: [XM - 1.15, BY, 8] } },
         { from: [XM - 1.6, BY - 3.4, 7.6], to: [XM - 0.7, BY + 3.4, 8.4], c: 'flash', glow: true, rot: { angle: 45, axis: 'x', origin: [XM - 1.15, BY, 8] } }
       ]
     },
-    hidden: ['flash', 'flashX', 'shells', 'rounds', 'loader'],
-    noFull: ['flash', 'flashX', 'shells', 'rounds', 'loader'],
+    hidden: ['flash', 'flashads', 'shells', 'rounds', 'loader'],
+    noFull: ['flash', 'flashads', 'shells', 'rounds', 'loader'],
     display: display({
       firstperson: { rotation: [0, -73, 0], translation: [-4.2, 3.6, -2.4], scale: [0.6, 0.6, 0.6] },
       thirdperson: { rotation: [0, -90, -80], translation: [0, 4.2, 2.6], scale: [0.72, 0.72, 0.72] },
@@ -259,7 +259,7 @@ module.exports = ({ pg, aim, display }) => {
     8: gun.byContext('', drawn),
     // Aimed: WeaponMechanics lets a player aim during the draw (only shooting waits for the equip delay), so while
     // the draw's clock runs (flag 2) the sights hold still; only a shot's clock plays the kick (with the X flash).
-    1008: gun.byContext('ads', gun.flag(2, gun.composite('ads'), gun.cooldown('ads', 8, shot(0.45, 'flashX')))),
+    1008: gun.byContext('ads', gun.flag(2, gun.composite('ads'), gun.cooldown('ads', 8, shot(0.45, 'flashads')))),
     2008: gun.byContext('sprint', gun.composite('sprint')),
     3008: gun.byContext('', gun.cooldown('', 40, reload))
   }
