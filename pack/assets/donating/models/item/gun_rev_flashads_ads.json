@@ -1,5 +1,5 @@
 {
-  "parent": "donating:item/gun_rev_flashX",
+  "parent": "donating:item/gun_rev_flashads",
   "display": {
     "firstperson_righthand": {
       "rotation": [

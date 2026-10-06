@@ -28548,7 +28548,7 @@
                           },
                           {
                             "type": "minecraft:model",
-                            "model": "donating:item/gun_rev_flashX_ads",
+                            "model": "donating:item/gun_rev_flashads_ads",
                             "transformation": {
                               "translation": [
                                 -0.0011,
@@ -28696,7 +28696,7 @@
                           },
                           {
                             "type": "minecraft:model",
-                            "model": "donating:item/gun_rev_flashX_ads",
+                            "model": "donating:item/gun_rev_flashads_ads",
                             "transformation": {
                               "translation": [
                                 -0.0007,

@@ -1,5 +1,5 @@
 {
-  "parent": "donating:item/gun_rev_flashX_sprint",
+  "parent": "donating:item/gun_rev_flashads_ads",
   "textures": {
     "t": "donating:item/gunskin/rev/gilded",
     "particle": "donating:item/gunskin/rev/gilded"

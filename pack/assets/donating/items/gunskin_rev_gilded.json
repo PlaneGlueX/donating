@@ -3130,7 +3130,7 @@
                           },
                           {
                             "type": "minecraft:model",
-                            "model": "donating:item/gunskin/rev/gilded/flashX_ads",
+                            "model": "donating:item/gunskin/rev/gilded/flashads_ads",
                             "transformation": {
                               "translation": [
                                 -0.0011,
@@ -3278,7 +3278,7 @@
                           },
                           {
                             "type": "minecraft:model",
-                            "model": "donating:item/gunskin/rev/gilded/flashX_ads",
+                            "model": "donating:item/gunskin/rev/gilded/flashads_ads",
                             "transformation": {
                               "translation": [
                                 -0.0007,
