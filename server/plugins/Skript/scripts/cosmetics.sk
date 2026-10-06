@@ -1,12 +1,19 @@
-# cosmetics.sk: titles, bag skins and kill effects. Built 2026-09-26 (owner: crates with bag skins, titles
-# and kill effects; car cosmetics, car upgrades and gun skins come later). They come from crates (crates.sk),
-# and bound (untradeable) ones from levels, seasons, Mara's story, job rep and hits.
+# cosmetics.sk: titles, bag skins, kill effects and gun skins. Built 2026-09-26 (owner: crates with bag skins, titles
+# and kill effects); gun skins 2026-10-06 (owner: "revamp the gun skin system to have different skin variants of specific
+# guns"). They come from crates (crates.sk), and bound (untradeable) ones from levels, seasons, Mara's story, job rep and
+# hits.
 #
 # A cosmetic is core.sk cos::<id>::type|name|rarity (optional ::retired, ::testing):
 #   title    a tag after your name in chat and the tab list ("Name «Ghost»"): /title
 #   bagskin  the bag's look, whatever tier you carry (the art is tools\make-item-art.js BAGS): /bagskin
 #            (ranks.sk; a rank's own skins stay rank-only)
 #   killfx   particles and a sound where your victim dies: /killeffect
+#   gunskin  a look of one gun (cos::<id>::gun, the WeaponMechanics title; ::model, the pack's item definition):
+#            /gunskin, /gunskins. Worn: data gunskin::<title> = the cos id (deleted = the gun's own look), one per gun.
+#            DonatingPhone's GunFx puts the model on the player's guns (/dphone gunskin, every gun of gunskin::guns at
+#            once, "default" for the rest): at join, on every change, and when a worn one stops being owned (a trade, a
+#            Legend losing the rank's retired skins). Skript never sets, deletes or resets the item model of a real gun
+#            (WeaponMechanics' pending pump, bolt and reload tasks write into the live stack); only menu icons get one.
 # Owned: data cos::<id> = true (saved per player, never taken away except by a trade: trade.sk moves it to the
 # other player and takes it off if worn). Chosen: data "title", "killfx"
 # ("bag-skin" for bags, ranks.sk). Legends also own every retired and testing cosmetic (owner,
@@ -30,13 +37,30 @@ function cosColored(id: text) :: text:
 		set {_c} to "&f"
 	return "%{_c}%%{-cfg::cos::%{_id}%::name}%"
 
-# "title" -> "title", "bagskin" -> "bag skin", "killfx" -> "kill effect".
+# "title" -> "title", "bagskin" -> "bag skin", "killfx" -> "kill effect", "gunskin" -> "gun skin".
 function cosTypeName(type: text) :: text:
 	if {_type} is "bagskin":
 		return "bag skin"
 	if {_type} is "killfx":
 		return "kill effect"
+	if {_type} is "gunskin":
+		return "gun skin"
 	return {_type}
+
+# A cosmetic as a menu icon, unnamed (the wardrobe, crates.sk, trade.sk): a title a name tag, a kill effect blaze powder,
+# a bag skin the bag in that look (a crate's or a rank's id), a gun skin the gun in that look.
+function cosIcon(id: text) :: item:
+	set {_type} to {-cfg::cos::%{_id}%::type}
+	if {_type} is "gunskin":
+		return gunSkinIcon("%{-cfg::cos::%{_id}%::gun}%", {_id})
+	if {_type} is "title":
+		set {_i} to name tag
+	else if {_type} is "killfx":
+		set {_i} to blaze powder
+	else:
+		set {_i} to leather
+		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_id}%"
+	return {_i}
 
 # Retired (no longer in crates) or testing (not released): crates skip it, Legends own it.
 function cosHidden(id: text) :: boolean:
@@ -309,6 +333,351 @@ command /killeffect [<text>]:
 			set {_t} to arg-1
 		cosPick(player, "killfx", "killfx", "killeffect", {_t})
 
+# ---------- Gun skins ----------
+# 2026-10-06 (the owner: "revamp the gun skin system to have different skin variants of specific guns"). core.sk lists the
+# skins (cos::<id>::type "gunskin", ::gun, ::look, ::model) and the wardrobe's guns ({-cfg::gunskin::guns::*}, shop order).
+# One worn per gun: data gunskin::<title> = the cos id; it counts only while the player owns it and it's that gun's
+# (gunSkinWorn), else it's taken off at the next check (join, a trade, the rank changing). GunFx (DonatingPhone) keeps the
+# looks in the player's PDC and puts them on the guns in place; gunSkinPush sends it every gun's look at once.
+
+# The cos id of the skin the player wears on a gun ("" = the gun's own look).
+function gunSkinWorn(p: offline player, w: text) :: text:
+	set {_v} to getData({_p}, "gunskin::%{_w}%")
+	if {_v} is set:
+		set {_id} to "%{_v}%"
+		if {-cfg::cos::%{_id}%::type} is "gunskin":
+			if "%{-cfg::cos::%{_id}%::gun}%" is {_w}:
+				if cosOwned({_p}, {_id}) is true:
+					return {_id}
+	return ""
+
+# Every skin of a gun the player owns (core.sk's order).
+function gunSkinsOwned(p: offline player, w: text) :: texts:
+	loop cosOwnedOf({_p}, "gunskin"):
+		if "%{-cfg::cos::%loop-value%::gun}%" is {_w}:
+			add loop-value to {_out::*}
+	return {_out::*}
+
+# Every skin a gun has (owned or not, retired and testing included).
+function gunSkinsOf(w: text) :: texts:
+	loop {-cfg::cosmetics::*}:
+		if {-cfg::cos::%loop-value%::type} is "gunskin":
+			if "%{-cfg::cos::%loop-value%::gun}%" is {_w}:
+				add loop-value to {_out::*}
+	return {_out::*}
+
+# The gun as a menu icon in a look ("" = its own): the shop's model number, plus the skin's item model. A fresh item,
+# never a player's gun (only menu icons get an item model from Skript).
+function gunSkinIcon(w: text, id: text) :: item:
+	set {_i} to wpnIcon({_w})
+	if {_id} is not "":
+		set {_m} to {-cfg::cos::%{_id}%::model}
+		# gunskin::icons false: menus draw every gun in its own look (with gunfx.skins.enabled false, for a pack without
+		# the skins; else these icons would be the missing-model cube).
+		if {_m} is set:
+			if {-cfg::gunskin::icons} is not false:
+				set item model of {_i} to "%{_m}%"
+	return {_i}
+
+# "&6Golden" (the look in its rarity's color), "&7default" for none.
+function gunSkinLookText(id: text) :: text:
+	if {_id} is "":
+		return "&7default"
+	set {_r} to {-cfg::cos::%{_id}%::rarity}
+	set {_c} to {-cfg::rarity::%{_r}%::color}
+	if {_c} is not set:
+		set {_c} to "&f"
+	return "%{_c}%%{-cfg::cos::%{_id}%::look}%"
+
+# Tells GunFx every gun's look at once (/dphone gunskin <uuid> <title>=<model|default> ...): explicit "default" for a gun
+# with no skin worn, so a look taken off (or traded away) comes off the gun too.
+function gunSkinPush(p: player):
+	loop {-cfg::gunskin::guns::*}:
+		set {_id} to gunSkinWorn({_p}, loop-value)
+		set {_m} to "default"
+		if {_id} is not "":
+			set {_m} to "%{-cfg::cos::%{_id}%::model}%"
+		add "%loop-value%=%{_m}%" to {_parts::*}
+	set {_line} to join {_parts::*} with " "
+	execute console command "dphone gunskin %uuid of {_p}% %{_line}%"
+
+# Takes off every worn skin the player doesn't own any more (or that isn't that gun's); true if one came off.
+function gunSkinCheck(p: player) :: boolean:
+	set {_changed} to false
+	loop {-cfg::gunskin::guns::*}:
+		set {_v} to getData({_p}, "gunskin::%loop-value%")
+		if {_v} is set:
+			if gunSkinWorn({_p}, loop-value) is "":
+				deleteData({_p}, "gunskin::%loop-value%")
+				cosLog("unworn-gunskin %{_p}% %uuid of {_p}% %loop-value% %{_v}% (not owned)")
+				set {_changed} to true
+	return {_changed}
+
+# Wears a skin on a gun ("" = the gun's own look) and tells GunFx; false (nothing changes) for a skin that isn't owned or
+# isn't that gun's.
+function gunSkinWear(p: player, w: text, id: text) :: boolean:
+	if {-cfg::gunskin::guns::*} does not contain {_w}:
+		return false
+	if {_id} is "":
+		deleteData({_p}, "gunskin::%{_w}%")
+	else:
+		if {-cfg::cos::%{_id}%::type} is not "gunskin":
+			return false
+		if "%{-cfg::cos::%{_id}%::gun}%" is not {_w}:
+			return false
+		if cosOwned({_p}, {_id}) is false:
+			return false
+		setData({_p}, "gunskin::%{_w}%", {_id})
+	set {_what} to {_id}
+	if {_id} is "":
+		set {_what} to "default"
+	cosLog("wear-gunskin %{_p}% %uuid of {_p}% %{_w}% %{_what}%")
+	gunSkinPush({_p})
+	return true
+
+# A typed text without spaces, "_" and "-", in lower case ("AK-48" -> "ak48", "50_GS" -> "50gs").
+function gunSkinKey(t: text) :: text:
+	set {_k} to {_t} in lower case
+	replace all " " with "" in {_k}
+	replace all "_" with "" in {_k}
+	replace all "-" with "" in {_k}
+	return {_k}
+
+# The gun a player typed: its title or its name, any case, spaces optional ("" = none).
+function gunSkinFindGun(typed: text) :: text:
+	set {_t} to gunSkinKey({_typed})
+	if {_t} is "":
+		return ""
+	loop {-cfg::gunskin::guns::*}:
+		if gunSkinKey(loop-value) is {_t}:
+			return loop-value
+		if gunSkinKey("%{-cfg::wpn::%loop-value%::name}%") is {_t}:
+			return loop-value
+	return ""
+
+# A skin a player typed: its id, look or full name, of that gun ("" = any gun); "" = none.
+function gunSkinFind(w: text, typed: text) :: text:
+	set {_t} to gunSkinKey({_typed})
+	if {_t} is "":
+		return ""
+	loop {-cfg::cosmetics::*}:
+		if {-cfg::cos::%loop-value%::type} is "gunskin":
+			set {_ok} to true
+			if {_w} is not "":
+				if "%{-cfg::cos::%loop-value%::gun}%" is not {_w}:
+					set {_ok} to false
+			if {_ok} is true:
+				if gunSkinKey(loop-value) is {_t}:
+					return loop-value
+				if gunSkinKey("%{-cfg::cos::%loop-value%::look}%") is {_t}:
+					return loop-value
+				if gunSkinKey("%{-cfg::cos::%loop-value%::name}%") is {_t}:
+					return loop-value
+	return ""
+
+# /gunskin: nothing lists your skins per gun; a gun lists that gun's; a gun and a look (or "default") wears it; a skin's
+# full name alone wears it too ("/gunskin golden ak-48").
+function gunSkinCmd(p: player, typed: text):
+	if {_typed} is "":
+		set {_any} to false
+		loop {-cfg::gunskin::guns::*}:
+			set {_w} to loop-value
+			set {_own::*} to gunSkinsOwned({_p}, {_w})
+			if size of {_own::*} > 0:
+				if {_any} is false:
+					msg({_p}, "&6Your gun skins &7(/gunskin <gun> <look>, or &fdefault&7):")
+					set {_any} to true
+				delete {_names::*}
+				loop {_own::*}:
+					add gunSkinLookText(loop-value-2) to {_names::*}
+				set {_list} to join {_names::*} with "&7, "
+				set {_now} to gunSkinLookText(gunSkinWorn({_p}, {_w}))
+				send colored "&7 » &f%{-cfg::wpn::%{_w}%::name}%&7: %{_list}% &7(now: %{_now}%&7)" to {_p}
+		if {_any} is false:
+			msg({_p}, "&7You have no gun skins yet.")
+		stop
+	# The gun is the longest run of first words that names one; the rest is the look.
+	set {_words::*} to {_typed} split at " "
+	set {_w} to ""
+	set {_rest} to ""
+	set {_acc} to ""
+	set {_c} to 0
+	set {_best} to 0
+	loop {_words::*}:
+		add 1 to {_c}
+		set {_acc} to "%{_acc}% %loop-value%"
+		set {_g} to gunSkinFindGun({_acc})
+		if {_g} is not "":
+			set {_w} to {_g}
+			set {_best} to {_c}
+	set {_c} to 0
+	loop {_words::*}:
+		add 1 to {_c}
+		if {_c} > {_best}:
+			add loop-value to {_tail::*}
+	if {_tail::*} is set:
+		set {_rest} to join {_tail::*} with " "
+	if {_w} is "":
+		# No gun named: a skin's full name (or its look, if only one gun has it).
+		set {_id} to gunSkinFind("", {_typed})
+		if {_id} is "":
+			msg({_p}, "&cThere's no gun or gun skin called %{_typed}%. &7/gunskin lists yours.")
+			stop
+		set {_w} to "%{-cfg::cos::%{_id}%::gun}%"
+		set {_rest} to {_id}
+	set {_gun} to {-cfg::wpn::%{_w}%::name}
+	if {_rest} is "":
+		set {_own::*} to gunSkinsOwned({_p}, {_w})
+		if size of {_own::*} is 0:
+			msg({_p}, "&7You have no %{_gun}% skins yet.")
+			stop
+		loop {_own::*}:
+			add gunSkinLookText(loop-value) to {_names::*}
+		set {_list} to join {_names::*} with "&7, "
+		set {_now} to gunSkinLookText(gunSkinWorn({_p}, {_w}))
+		msg({_p}, "&6Your %{_gun}% skins: %{_list}% &7(now: %{_now}%&7)")
+		stop
+	set {_lr} to {_rest} in lower case
+	if {_lr} is "default":
+		set {_lr} to "none"
+	if {_lr} is "none":
+		gunSkinWear({_p}, {_w}, "")
+		msg({_p}, "&aYour %{_gun}%: its own look.")
+		stop
+	set {_id} to gunSkinFind({_w}, {_rest})
+	if {_id} is "":
+		msg({_p}, "&cThere's no %{_gun}% skin called %{_rest}%. &7/gunskin %gunSkinKey({_gun})% lists yours.")
+		stop
+	if cosOwned({_p}, {_id}) is false:
+		msg({_p}, "&cYou don't have %cosColored({_id})%&c.")
+		stop
+	gunSkinWear({_p}, {_w}, {_id})
+	msg({_p}, "&aYour %{_gun}%: %cosColored({_id})%&a.")
+
+command /gunskin [<text>]:
+	description: Pick a gun's look: /gunskin <gun> <look|default>.
+	executable by: players
+	trigger:
+		set {_t} to ""
+		if arg-1 is set:
+			set {_t} to arg-1
+		gunSkinCmd(player, {_t})
+
+command /gunskins:
+	description: Your gun skins: pick each gun's look.
+	executable by: players
+	trigger:
+		closePhoneMap(player)
+		gunSkinMenu(player)
+
+# The wardrobe's Gun skins page (status "Gun skins"): 2 ◀ Cosmetics, one gun a tile in its worn look (the guns in shop
+# order on the screen's first slots), 49 home. A tile: the look, how many skins you have for it, and whether you have the
+# gun yet (skins can be worn before it's bought: they're on it when it comes).
+function gunSkinMenu(p: player):
+	set {_gui} to phonePage("Gun skins")
+	cosClearGui({_p})
+	set {-cos::gui::%{_p}%} to {_gui}
+	set {_slots::*} to phoneSlots()
+	set {_k} to 0
+	loop {-cfg::gunskin::guns::*}:
+		add 1 to {_k}
+		set {_w} to loop-value
+		set {_worn} to gunSkinWorn({_p}, {_w})
+		set {_i} to gunSkinIcon({_w}, {_worn})
+		set name of {_i} to colored "&f%{-cfg::wpn::%{_w}%::name}%"
+		delete {_l::*}
+		add "&7Look: %gunSkinLookText({_worn})%" to {_l::*}
+		set {_n} to size of gunSkinsOwned({_p}, {_w})
+		add "&7Skins: &f%{_n}%" to {_l::*}
+		if getData({_p}, "wpn::%{_w}%") is not true:
+			add "&7Not bought" to {_l::*}
+			set {_need} to wpnLevel({_w})
+			if levelOk({_p}, {_need}) is false:
+				add "&7Unlocks at level %{_need}%" to {_l::*}
+		set lore of {_i} to colored {_l::*}
+		if {_worn} is not "":
+			set {_i} to glint({_i})
+		cosButton({_p}, {_gui}, {_slots::%{_k}%}, {_i}, "gun:%{_w}%")
+	cosButton({_p}, {_gui}, 2, phoneBackIcon("Cosmetics"), "menu")
+	cosButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
+	open {_gui} to {_p}
+
+# A gun's page (status: its name): 2 ◀ Gun skins, 4 its own look ("Default look"), 5/6 the page arrows, the skins you own
+# for it on the screen (20 a page; the worn one glows and says so, each with its serial), 49 home. A click wears it.
+function gunSkinPage(p: player, w: text):
+	set {_name} to "%{-cfg::wpn::%{_w}%::name}%"
+	set {_gui} to phonePage({_name})
+	cosClearGui({_p})
+	set {-cos::gui::%{_p}%} to {_gui}
+	set {_worn} to gunSkinWorn({_p}, {_w})
+	set {_all::*} to gunSkinsOwned({_p}, {_w})
+	set {_count} to size of {_all::*}
+	set {_pages} to max(1, ceil({_count} / 20))
+	set {_page} to 1
+	set {_pp::*} to "%{-cos::page::%{_p}%}%" split at "|"
+	if {_pp::1} is "gun:%{_w}%":
+		set {_page} to {_pp::2} parsed as integer
+		if {_page} is not set:
+			set {_page} to 1
+	if {_page} > {_pages}:
+		set {_page} to {_pages}
+	if {_page} < 1:
+		set {_page} to 1
+	set {-cos::page::%{_p}%} to "gun:%{_w}%|%{_page}%"
+	set {_slots::*} to phoneSlots()
+	set {_first} to ({_page} - 1) * 20
+	set {_k} to 0
+	loop {_all::*}:
+		add 1 to {_k}
+		if {_k} > {_first}:
+			if {_k} <= {_first} + 20:
+				set {_id} to loop-value
+				set {_i} to gunSkinIcon({_w}, {_id})
+				set name of {_i} to colored cosColored({_id})
+				delete {_l::*}
+				set {_sl} to cosSerialLore({_p}, {_id})
+				if {_sl} is not "":
+					add {_sl} to {_l::*}
+				if {_id} is {_worn}:
+					add "&aWearing it" to {_l::*}
+					set {_i} to glint({_i})
+				if size of {_l::*} > 0:
+					set lore of {_i} to colored {_l::*}
+				set {_s} to {_k} - {_first}
+				cosButton({_p}, {_gui}, {_slots::%{_s}%}, {_i}, "wear:gunskin:%{_id}%")
+	if {_count} is 0:
+		set slot 22 of {_gui} to phoneEmptyIcon("No %{_name}% skins yet")
+	set {_d} to gunSkinIcon({_w}, "")
+	set name of {_d} to colored "&fDefault look"
+	if {_worn} is "":
+		set lore of {_d} to colored "&aWearing it"
+		set {_d} to glint({_d})
+	cosButton({_p}, {_gui}, 4, {_d}, "off:gunskin:%{_w}%")
+	cosButton({_p}, {_gui}, 2, phoneBackIcon("Gun skins"), "guns")
+	if {_page} > 1:
+		cosButton({_p}, {_gui}, 5, phonePrevIcon({_page}), "gpg:%{_w}%|%{_page} - 1%")
+	if {_page} < {_pages}:
+		cosButton({_p}, {_gui}, 6, phoneNextIcon({_page}), "gpg:%{_w}%|%{_page} + 1%")
+	cosButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
+	open {_gui} to {_p}
+
+# At join (a second in: LuckPerms' groups and DonatingPhone's join pass first): worn skins still owned, then every gun's
+# look to GunFx (the choices are in the player file too, but what's owned may have changed while they were away).
+on join:
+	wait 1 second
+	player is online
+	gunSkinCheck(player)
+	gunSkinPush(player)
+
+# What a player owns can change while they wear it: a Legend owns every retired and testing skin only while Legend, and
+# staff can take one away. Every 5 seconds a worn skin that isn't owned any more comes off (only players wearing one are
+# looked at; a few variable reads each).
+every 5 seconds:
+	loop all players:
+		if {data::%loop-player%::gunskin::*} is set:
+			if gunSkinCheck(loop-player) is true:
+				gunSkinPush(loop-player)
+
 # ---------- The wardrobe (/cosmetics, the phone's Cosmetics app) ----------
 # Owner, 2026-09-26: people can take a title off if they don't want it. /cosmetics shows the three kinds;
 # each page lists what you own (click to wear it, the worn one glows) with a "Take it off" button. Owner,
@@ -361,6 +730,13 @@ function cosList(p: player):
 			send colored "&7 » Bag skins &f/bagskin&7: %{_list}%" to {_p}
 		else:
 			send colored "&7 » Kill effects &f/killeffect&7: %{_list}%" to {_p}
+	delete {_names::*}
+	loop cosOwnedOf({_p}, "gunskin"):
+		add cosColored(loop-value) to {_names::*}
+	set {_list} to join {_names::*} with "&7, "
+	if {_list} is "":
+		set {_list} to "&7none yet"
+	send colored "&7 » Gun skins &f/gunskin&7: %{_list}%" to {_p}
 
 # What the player wears of a type ("" = nothing / the default look).
 function cosWorn(p: player, type: text) :: text:
@@ -412,6 +788,12 @@ function cosMenu(p: player):
 	set {_n} to size of cosWardrobe({_p}, "killfx")
 	set {_wk} to cosWornName({_p}, "killfx")
 	cosButton({_p}, {_gui}, 13, blaze powder named "&6Kill effects" with lore "&7Wearing: %{_wk}%" and "&7Owned: &f%{_n}%", "page:killfx")
+	# Gun skins (2026-10-06): the AK-48 in the look you wear on it; a page of guns, then each gun's skins.
+	set {_n} to size of cosOwnedOf({_p}, "gunskin")
+	set {_gi} to gunSkinIcon("AK_47", gunSkinWorn({_p}, "AK_47"))
+	set name of {_gi} to colored "&6Gun skins"
+	set lore of {_gi} to colored "&7Owned: &f%{_n}%"
+	cosButton({_p}, {_gui}, 14, {_gi}, "guns")
 	# The Cosmetics app's main page: "◀ Phone" however it was opened (phone.sk's back buttons).
 	cosButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
 	cosButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
@@ -453,13 +835,7 @@ function cosPage(p: player, type: text):
 		if {_k} > {_first}:
 			if {_k} <= {_first} + 20:
 				set {_id} to loop-value
-				if {_type} is "title":
-					set {_i} to name tag
-				else if {_type} is "killfx":
-					set {_i} to blaze powder
-				else:
-					set {_i} to leather
-					set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_id}%"
+				set {_i} to cosIcon({_id})
 				if cosExists({_id}) is true:
 					set name of {_i} to colored cosColored({_id})
 				else:
@@ -493,8 +869,15 @@ function cosPage(p: player, type: text):
 	cosButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	open {_gui} to {_p}
 
-# Wear a cosmetic (or "" = take it off / the default bag look).
+# Wear a cosmetic (or "" = take it off / the default bag look). A gun skin goes on its own gun (gunSkinWear; the
+# default look of a gun is "off:gunskin:<title>" in the menu).
 function cosWear(p: player, type: text, id: text):
+	if {_type} is "gunskin":
+		set {_w} to "%{-cfg::cos::%{_id}%::gun}%"
+		if gunSkinWear({_p}, {_w}, {_id}) is true:
+			play sound "item.armor.equip_chain" with volume 0.6 to {_p}
+		gunSkinPage({_p}, {_w})
+		stop
 	if {_type} is "bagskin":
 		if {_id} is "":
 			setData({_p}, "bag-skin", "default")
@@ -548,6 +931,22 @@ on inventory click:
 	else if {_act} starts with "wear:":
 		set {_a::*} to {_act} split at ":"
 		cosWear(player, {_a::2}, {_a::3})
+	else if {_act} is "guns":
+		delete {-cos::page::%player%}
+		gunSkinMenu(player)
+	else if {_act} starts with "gun:":
+		delete {-cos::page::%player%}
+		gunSkinPage(player, subtext of {_act} from characters 5 to (length of {_act}))
+	else if {_act} starts with "gpg:":
+		# A gun page's arrow: "gpg:<title>|<page>".
+		set {_pp::*} to (subtext of {_act} from characters 5 to (length of {_act})) split at "|"
+		set {-cos::page::%player%} to "gun:%{_pp::1}%|%{_pp::2}%"
+		gunSkinPage(player, {_pp::1})
+	else if {_act} starts with "off:gunskin:":
+		set {_w} to subtext of {_act} from characters 13 to (length of {_act})
+		if gunSkinWear(player, {_w}, "") is true:
+			play sound "item.armor.equip_chain" with volume 0.6 to player
+		gunSkinPage(player, {_w})
 	else if {_act} starts with "off:":
 		cosWear(player, subtext of {_act} from characters 5 to (length of {_act}), "")
 	else if {_act} is "menu":

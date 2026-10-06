@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_tommy_full",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -8,
+        -48,
+        18
+      ],
+      "translation": [
+        -4.2,
+        3.4,
+        -2.4
+      ],
+      "scale": [
+        0.58,
+        0.58,
+        0.58
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -8,
+        132,
+        -18
+      ],
+      "translation": [
+        -4.2,
+        3.4,
+        -2.4
+      ],
+      "scale": [
+        0.58,
+        0.58,
+        0.58
+      ]
+    }
+  }
+}

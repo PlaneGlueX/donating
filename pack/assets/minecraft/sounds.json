@@ -163,5 +163,198 @@
         "name": "donating/gun/empty"
       }
     ]
+  },
+  "donating.gun.m16.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/m16_shoot_1"
+      },
+      {
+        "name": "donating/gun/m16_shoot_2"
+      },
+      {
+        "name": "donating/gun/m16_shoot_3"
+      }
+    ]
+  },
+  "donating.gun.m16.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/m16_mag_out"
+      }
+    ]
+  },
+  "donating.gun.m16.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/m16_mag_in"
+      }
+    ]
+  },
+  "donating.gun.m16.charge": {
+    "sounds": [
+      {
+        "name": "donating/gun/m16_charge"
+      }
+    ]
+  },
+  "donating.gun.m16.assist": {
+    "sounds": [
+      {
+        "name": "donating/gun/m16_assist"
+      }
+    ]
+  },
+  "donating.gun.m16.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/m16_draw"
+      }
+    ]
+  },
+  "donating.gun.rev.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_shoot_1"
+      },
+      {
+        "name": "donating/gun/rev_shoot_2"
+      }
+    ]
+  },
+  "donating.gun.rev.cock": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_cock"
+      }
+    ]
+  },
+  "donating.gun.rev.open": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_open"
+      }
+    ]
+  },
+  "donating.gun.rev.eject": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_eject"
+      }
+    ]
+  },
+  "donating.gun.rev.load": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_load"
+      }
+    ]
+  },
+  "donating.gun.rev.close": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_close"
+      }
+    ]
+  },
+  "donating.gun.rev.spin": {
+    "sounds": [
+      {
+        "name": "donating/gun/rev_spin"
+      }
+    ]
+  },
+  "donating.gun.sniper.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_shoot_1"
+      },
+      {
+        "name": "donating/gun/sniper_shoot_2"
+      }
+    ]
+  },
+  "donating.gun.sniper.bolt_open": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_bolt_open"
+      }
+    ]
+  },
+  "donating.gun.sniper.bolt_close": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_bolt_close"
+      }
+    ]
+  },
+  "donating.gun.sniper.shell": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_shell"
+      }
+    ]
+  },
+  "donating.gun.sniper.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_mag_out"
+      }
+    ]
+  },
+  "donating.gun.sniper.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_mag_in"
+      }
+    ]
+  },
+  "donating.gun.sniper.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/sniper_draw"
+      }
+    ]
+  },
+  "donating.gun.tommy.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/tommy_shoot_1"
+      },
+      {
+        "name": "donating/gun/tommy_shoot_2"
+      },
+      {
+        "name": "donating/gun/tommy_shoot_3"
+      }
+    ]
+  },
+  "donating.gun.tommy.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/tommy_mag_out"
+      }
+    ]
+  },
+  "donating.gun.tommy.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/tommy_mag_in"
+      }
+    ]
+  },
+  "donating.gun.tommy.bolt": {
+    "sounds": [
+      {
+        "name": "donating/gun/tommy_bolt"
+      }
+    ]
+  },
+  "donating.gun.tommy.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/tommy_draw"
+      }
+    ]
   }
 }

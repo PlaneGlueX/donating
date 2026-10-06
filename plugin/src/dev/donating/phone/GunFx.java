@@ -18,9 +18,13 @@ import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponReloadEvent;
 import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponScopeEvent;
 import me.deecaad.weaponmechanics.wrappers.HandData;
 import net.kyori.adventure.key.Key;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -34,12 +38,15 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.TreeMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -68,10 +75,23 @@ import java.util.UUID;
  * works no firearm action plays only this much of the shot's frames, its kick; 0 = always the whole shot),
  * guns.<title>.fire (ticks the firing flag stays after the last shot; 0 = no flag), guns.<title>.action (ticks: a firearm
  * action WeaponMechanics works without a shot, like the shotgun's pump after a reload from empty, gets this clock and
- * custom_model_data flag 1, which the pack draws as the action alone; 0 = none).
+ * custom_model_data flag 1, which the pack draws as the action alone; 0 = none). A gun with both shot and draw clocks
+ * gets flag 2 while drawn (both read the Default state's clock; the pack picks the draw frames by the flag).
+ *
+ * Gun skins (2026-10-06; the owner: "revamp the gun skin system to have different skin variants of specific guns"): a
+ * skin is an item definition of its own (assets/donating/items/gunskin_<gun>_<look>.json: the gun's states and frames on
+ * the skin's models), put on the gun as its minecraft:item_model component. WeaponMechanics only ever writes the
+ * custom_model_data floats (the state), so a skinned gun aims, sprints, reloads and fires the same frames. The player's
+ * choices live in their PDC (donating:gunskins = "AK_47=donating:gunskin_ak47_golden;50_GS=default"), set by Skript
+ * through /dphone gunskin (cosmetics.sk owns who owns what); applied when WeaponMechanics makes a gun, when one is held,
+ * at join and when a choice changes, always in place on the live stack. No choice for a gun: the stack is left alone.
+ * Config gunfx.skins.enabled (false: every gun back to its own look as it's touched).
+ *
+ * The Sniper Rifle's scope glint (guns.<title>.glint: ticks): while its holder looks through the scope, a glint at their
+ * eye every N ticks for everyone else within 128 blocks (a forced particle), so a sniper can be spotted.
  */
 final class GunFx implements Listener {
-    private record Gun(Key group, int shot, int draw, int alone, int fire, int action) {}
+    private record Gun(Key group, int shot, int draw, int alone, int fire, int action, int glint) {}
     private record Firing(String title, int lastShot, int keep) {}
 
     private final PhonePlugin plugin;
@@ -91,6 +111,11 @@ final class GunFx implements Listener {
     private final Map<String, Gun> guns = new HashMap<>();
     private boolean enabled = true;
     private boolean swing = false;
+    private boolean skins = true;
+    private final NamespacedKey skinsKey = new NamespacedKey("donating", "gunskins");
+    private final Map<UUID, Map<String, String>> skinCache = new HashMap<>();
+    // Players looking through a glinting scope: their glint task.
+    private final Map<UUID, BukkitTask> glints = new HashMap<>();
     long started; // cooldowns started (status)
 
     GunFx(PhonePlugin plugin) { this.plugin = plugin; }
@@ -98,20 +123,22 @@ final class GunFx implements Listener {
     void configure(FileConfiguration c) {
         enabled = c.getBoolean("gunfx.enabled", true);
         swing = c.getBoolean("gunfx.swing", false);
+        skins = c.getBoolean("gunfx.skins.enabled", true);
         guns.clear();
         ConfigurationSection s = c.getConfigurationSection("gunfx.guns");
         if (s != null) for (String title : s.getKeys(false)) {
             String id = title.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             guns.put(title, new Gun(Key.key("donating", "gun/" + id), Math.max(0, s.getInt(title + ".shot", 0)), Math.max(0, s.getInt(title + ".draw", 0)),
-                Math.max(0, s.getInt(title + ".alone", 0)), Math.max(0, s.getInt(title + ".fire", 0)), Math.max(0, s.getInt(title + ".action", 0))));
+                Math.max(0, s.getInt(title + ".alone", 0)), Math.max(0, s.getInt(title + ".fire", 0)), Math.max(0, s.getInt(title + ".action", 0)),
+                Math.max(0, s.getInt(title + ".glint", 0))));
         }
         plugin.getLogger().info("gunfx: " + (enabled ? guns.size() + " guns" : "off"));
     }
 
     String status() {
-        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " started=" + started + " firing=" + firing.size() + " guns=");
+        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " guns=");
         guns.forEach((t, g) -> b.append(t).append('{').append(g.group.asString()).append(" shot=").append(g.shot).append(" draw=").append(g.draw)
-            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append('}'));
+            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "").append('}'));
         return b.toString();
     }
 
@@ -156,6 +183,7 @@ final class GunFx implements Listener {
     // sets them again.
     private static final int FIRING = 0;
     private static final int ACTION = 1;
+    private static final int DRAW = 2; // the draw of a gun that also has a shot clock (both read the Default state's clock)
 
     private static boolean flagged(ItemStack s, int index) {
         CustomModelData cmd = s == null ? null : s.getData(DataComponentTypes.CUSTOM_MODEL_DATA);
@@ -206,11 +234,14 @@ final class GunFx implements Listener {
     private void unflagAll(Player p) {
         unflag(p, null, FIRING);
         unflag(p, null, ACTION);
+        unflag(p, null, DRAW);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onGenerate(WeaponGenerateEvent e) {
-        if (enabled) prepare(e.getWeaponStack());
+        if (!enabled) return;
+        prepare(e.getWeaponStack());
+        if (e.getShooter() instanceof Player p) applySkin(p, e.getWeaponStack());
     }
 
     // WeaponMechanics 4.3.1 (ReloadHandler.startReloadWithoutTrigger, bytecode) fires the reload event before it checks
@@ -254,6 +285,37 @@ final class GunFx implements Listener {
     // Aiming during a reload: WeaponMechanics' Scope state wins over Reload, and the aimed frames of the guns with a
     // shot clock are the shot's (muzzle flash included). Their reload's clock ends when the sight comes up.
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onScopeGlint(WeaponScopeEvent e) {
+        Gun g = guns.get(e.getWeaponTitle());
+        if (g == null || g.glint <= 0 || !enabled || !(e.getShooter() instanceof Player p)) return;
+        if (e.getScopeType() == WeaponScopeEvent.ScopeType.OUT) { stopGlint(p.getUniqueId()); return; }
+        if (glints.containsKey(p.getUniqueId())) return;
+        String title = e.getWeaponTitle();
+        glints.put(p.getUniqueId(), plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (!p.isOnline() || p.isDead() || !title.equals(title(p.getInventory().getItemInMainHand())) || !zooming(p)) { stopGlint(p.getUniqueId()); return; }
+            Location eye = p.getEyeLocation();
+            Location at = eye.clone().add(eye.getDirection().multiply(0.4));
+            for (Player o : p.getWorld().getPlayers()) {
+                if (o == p || o.getLocation().distanceSquared(at) > 128 * 128) continue;
+                o.spawnParticle(Particle.END_ROD, at, 1, 0, 0, 0, 0, null, true); // forced: seen as far as 128 blocks
+            }
+        }, 1L, g.glint));
+    }
+
+    private void stopGlint(UUID u) {
+        BukkitTask t = glints.remove(u);
+        if (t != null) t.cancel();
+    }
+
+    private static boolean zooming(Player p) {
+        try {
+            return WeaponMechanics.getInstance().getPlayerWrapper(p).getMainHandData().getZoomData().isZooming();
+        } catch (RuntimeException | LinkageError ex) {
+            return false;
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onScope(WeaponScopeEvent e) {
         Gun g = guns.get(e.getWeaponTitle());
         // Only the guns whose aimed frames are their shot clock's (shot > 0: the pistol, the shotgun); the automatic guns'
@@ -261,7 +323,10 @@ final class GunFx implements Listener {
         if (e.getScopeType() != WeaponScopeEvent.ScopeType.IN || g == null || g.shot <= 0) return;
         try {
             HandData h = e.getHandData(e.isMainHand());
-            if (h != null && h.isReloading()) clock(e.getShooter(), e.getWeaponTitle(), 0);
+            // Aiming mid-draw ends the draw too: going into the sights rewrites the skin and drops flag 2 for a tick,
+            // which shows a shot's frame.
+            boolean drawing = e.getShooter() instanceof Player p && flagged(p.getInventory().getItemInMainHand(), DRAW);
+            if (h != null && h.isReloading() || drawing) clock(e.getShooter(), e.getWeaponTitle(), 0);
         } catch (RuntimeException | LinkageError ignored) {
         }
     }
@@ -290,6 +355,7 @@ final class GunFx implements Listener {
         if (g == null || !enabled || !(e.getShooter() instanceof Player p)) return;
         lastShot.computeIfAbsent(p.getUniqueId(), k -> new HashMap<>()).put(g.group, plugin.getServer().getCurrentTick());
         if (g.action > 0) flag(p.getInventory().getItemInMainHand(), ACTION, false);
+        if (g.draw > 0 && g.shot > 0) flag(p.getInventory().getItemInMainHand(), DRAW, false);
         if (g.fire > 0) markFiring(p, e.getWeaponTitle(), g);
         if (g.shot <= 0) return;
         long n = clock(p, e.getWeaponTitle(), g.shot);
@@ -327,29 +393,40 @@ final class GunFx implements Listener {
         ItemStack held = p.getInventory().getItemInMainHand();
         if (!e.getWeaponTitle().equals(title(held))) return;
         acts.put(g.group, now);
-        flag(held, ACTION, true);
-        long n = clock(p, e.getWeaponTitle(), g.action);
-        // WeaponMechanics rewrites the skin number while the action runs (and drops the flags with it), so the flag is put
-        // back every tick of the clock, then taken off; a later clock on this gun (a shot, a reload) ends this one.
-        String title = e.getWeaponTitle();
-        int[] left = { g.action };
+        flagClock(p, e.getWeaponTitle(), g, g.action, ACTION);
+    }
+
+    // A clock whose frames the pack picks by a custom_model_data flag (1 the action, 2 the draw). WeaponMechanics rewrites
+    // the skin number while a clock runs (and drops the flags with it), so the flag is put back every tick of the clock,
+    // then taken off; a later clock on this gun (a shot, a reload) ends this one and takes the flag off.
+    private void flagClock(Player p, String title, Gun g, int ticks, int index) {
+        ItemStack held = p.getInventory().getItemInMainHand();
+        if (title.equals(title(held))) flag(held, index, true);
+        long n = clock(p, title, ticks);
+        if (n == 0) return;
+        int[] left = { ticks };
         plugin.getServer().getScheduler().runTaskTimer(plugin, task -> {
             Map<Key, Long> mine = clocks.get(p.getUniqueId());
             boolean current = p.isOnline() && mine != null && Long.valueOf(n).equals(mine.get(g.group));
             if (current && --left[0] > 0) {
                 ItemStack h = p.getInventory().getItemInMainHand();
-                if (title.equals(title(h))) flag(h, ACTION, true);
+                if (title.equals(title(h))) flag(h, index, true);
                 return;
             }
             task.cancel();
-            if (p.isOnline()) unflag(p, title, ACTION);
+            if (p.isOnline()) unflag(p, title, index);
         }, 1L, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onEquip(WeaponEquipEvent e) {
         Gun g = guns.get(e.getWeaponTitle());
-        if (g != null && g.draw > 0) clock(e.getShooter(), e.getWeaponTitle(), g.draw);
+        if (g == null || g.draw <= 0) return;
+        // A gun with a shot clock too: the draw is told apart by flag 2 (both read the Default state's clock).
+        // The event's own stack first: the main hand still holds the old item in this tick, and one tick of the clock
+        // without flag 2 is a shot's first frame (a flash and a full kick) on every draw.
+        if (g.shot > 0 && e.getShooter() instanceof Player p) { flag(e.getWeaponStack(), DRAW, true); flagClock(p, e.getWeaponTitle(), g, g.draw, DRAW); }
+        else clock(e.getShooter(), e.getWeaponTitle(), g.draw);
     }
 
     // A click on a block within reach while the held gun's cooldown runs: Paper 26.1.2 (ServerPlayerGameMode.useItemOn)
@@ -372,13 +449,20 @@ final class GunFx implements Listener {
     public void onHeld(PlayerItemHeldEvent e) {
         if (!enabled) return;
         Player p = e.getPlayer();
-        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) prepare(p.getInventory().getItemInMainHand()); });
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!p.isOnline()) return;
+            ItemStack h = p.getInventory().getItemInMainHand();
+            prepare(h);
+            applySkin(p, h);
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent e) {
         UUID u = e.getPlayer().getUniqueId();
         clocks.remove(u);
+        skinCache.remove(u);
+        stopGlint(u);
         lastShot.remove(u);
         lastAction.remove(u);
         firing.remove(u);
@@ -392,6 +476,7 @@ final class GunFx implements Listener {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (!p.isOnline()) return;
             for (int i = 0; i < 9; i++) prepare(p.getInventory().getItem(i));
+            applySkins(p);
             unflagAll(p); // a flag saved by a stop mid-burst or mid-pump
         }, 5L);
     }
@@ -400,6 +485,109 @@ final class GunFx implements Listener {
     void shutdown() {
         for (Player p : plugin.getServer().getOnlinePlayers()) unflagAll(p);
         firing.clear();
+        for (BukkitTask t : glints.values()) t.cancel();
+        glints.clear();
         if (firingTask != null) { firingTask.cancel(); firingTask = null; }
+    }
+
+    // ---------- Gun skins ----------
+
+    private Map<String, String> choices(Player p) {
+        return skinCache.computeIfAbsent(p.getUniqueId(), u -> {
+            Map<String, String> m = new TreeMap<>();
+            String raw = p.getPersistentDataContainer().get(skinsKey, PersistentDataType.STRING);
+            if (raw != null) for (String part : raw.split(";")) {
+                int eq = part.indexOf('=');
+                if (eq > 0) m.put(part.substring(0, eq), part.substring(eq + 1));
+            }
+            return m;
+        });
+    }
+
+    private void saveChoices(Player p, Map<String, String> m) {
+        PersistentDataContainer pdc = p.getPersistentDataContainer();
+        if (m.isEmpty()) { pdc.remove(skinsKey); return; }
+        StringBuilder b = new StringBuilder();
+        for (Map.Entry<String, String> en : m.entrySet()) b.append(b.length() == 0 ? "" : ";").append(en.getKey()).append('=').append(en.getValue());
+        pdc.set(skinsKey, PersistentDataType.STRING, b.toString());
+    }
+
+    /** The player's chosen look on a gun stack, in place: no choice = left alone; default = the feather's own model. */
+    private void applySkin(Player p, ItemStack s) {
+        String t = title(s);
+        if (t == null || !guns.containsKey(t)) return;
+        String want = skins ? choices(p).get(t) : "default";
+        if (want == null) return;
+        if (want.equals("default")) {
+            if (s.isDataOverridden(DataComponentTypes.ITEM_MODEL)) s.resetData(DataComponentTypes.ITEM_MODEL);
+            return;
+        }
+        Key k = Key.key(want);
+        if (!k.equals(s.getData(DataComponentTypes.ITEM_MODEL))) s.setData(DataComponentTypes.ITEM_MODEL, k);
+    }
+
+    private void applySkins(Player p) {
+        for (int i = 0; i < 36; i++) applySkin(p, p.getInventory().getItem(i));
+        applySkin(p, p.getInventory().getItemInOffHand());
+    }
+
+    private static boolean skinKey(String v) {
+        if (v.equals("default")) return true;
+        if (!v.matches("donating:gunskin_[a-z0-9_]+")) return false;
+        return true;
+    }
+
+    /**
+     * /dphone gunskin <player|uuid> [clear | <title>=<donating:gunskin_*|default> ...]: set a player's looks (Skript's
+     * cosmetics.sk calls it); with nothing after the player, print their choices and the looks on their guns.
+     */
+    boolean gunskinCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) { sender.sendMessage("GUNSKIN usage: /dphone gunskin <player|uuid> [clear | <title>=<donating:gunskin_*|default> ...]"); return true; }
+        Player p = Bukkit.getPlayerExact(args[1]);
+        if (p == null) try { p = Bukkit.getPlayer(UUID.fromString(args[1])); } catch (IllegalArgumentException ignored) { }
+        if (p == null) { sender.sendMessage("GUNSKIN " + args[1] + ": not online"); return true; }
+        Map<String, String> m = choices(p);
+        if (args.length == 2) {
+            StringBuilder slots = new StringBuilder();
+            for (int i = 0; i < 36; i++) {
+                ItemStack s = p.getInventory().getItem(i);
+                String t = title(s);
+                if (t == null || !guns.containsKey(t)) continue;
+                Key k = s.isDataOverridden(DataComponentTypes.ITEM_MODEL) ? s.getData(DataComponentTypes.ITEM_MODEL) : null;
+                slots.append(slots.length() == 0 ? "" : ",").append(i).append(':').append(t).append('=').append(k == null ? "default" : k.asString());
+            }
+            sender.sendMessage("GUNSKIN " + p.getName() + " choices=" + m + " slots={" + slots + "} skins=" + (skins ? "on" : "off"));
+            return true;
+        }
+        Map<String, String> next = new LinkedHashMap<>();
+        if (args[2].equalsIgnoreCase("clear")) {
+            for (String t : m.keySet()) next.put(t, "default");
+        } else {
+            for (int i = 2; i < args.length; i++) {
+                int eq = args[i].indexOf('=');
+                String t = eq > 0 ? args[i].substring(0, eq) : "";
+                String v = eq > 0 ? args[i].substring(eq + 1).toLowerCase(Locale.ROOT) : "";
+                if (!guns.containsKey(t)) { sender.sendMessage("GUNSKIN refused: " + args[i] + " (not a gun in gunfx.guns)"); return true; }
+                if (!skinKey(v)) { sender.sendMessage("GUNSKIN refused: " + args[i] + " (a donating:gunskin_* model or default)"); return true; }
+                next.put(t, v);
+            }
+        }
+        m.putAll(next);
+        if (args[2].equalsIgnoreCase("clear")) { applySkins(p); m.clear(); }
+        saveChoices(p, m);
+        applySkins(p);
+        sender.sendMessage("GUNSKIN " + p.getName() + " set " + next);
+        return true;
+    }
+
+    /** Tab completion for /dphone gunskin. */
+    List<String> gunskinComplete(String[] args, List<String> players) {
+        List<String> out = new ArrayList<>();
+        if (args.length == 2) out.addAll(players);
+        else if (args.length >= 3) {
+            if (args.length == 3) out.add("clear");
+            for (String t : guns.keySet()) { out.add(t + "=default"); out.add(t + "=donating:gunskin_"); }
+        }
+        return out;
     }
 }

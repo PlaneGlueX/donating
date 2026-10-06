@@ -1,0 +1,4272 @@
+{
+  "hand_animation_on_swap": false,
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "entries": [
+      {
+        "threshold": 14,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:condition",
+                "property": "minecraft:custom_model_data",
+                "index": 1,
+                "on_true": {
+                  "type": "minecraft:range_dispatch",
+                  "property": "minecraft:cooldown",
+                  "entries": [
+                    {
+                      "threshold": 0.0001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.0668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.1334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0181,
+                                -0.0097,
+                                0.0631
+                              ],
+                              "left_rotation": [
+                                -0.0209,
+                                0.0206,
+                                -0.0058,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                -0.0158,
+                                -0.0097,
+                                0.063
+                              ],
+                              "left_rotation": [
+                                -0.0209,
+                                0.0206,
+                                -0.0058,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0328,
+                                -0.0186,
+                                0.1269
+                              ],
+                              "left_rotation": [
+                                -0.042,
+                                0.041,
+                                -0.0107,
+                                0.9982
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.014,
+                                -0.0198,
+                                0.1231
+                              ],
+                              "left_rotation": [
+                                -0.042,
+                                0.041,
+                                -0.0107,
+                                0.9982
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                2.0238,
+                                0.0456,
+                                0.9481
+                              ],
+                              "left_rotation": [
+                                0.355,
+                                -0.3307,
+                                -0.7062,
+                                -0.5156
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.044,
+                                -0.0269,
+                                0.1913
+                              ],
+                              "left_rotation": [
+                                -0.0633,
+                                0.061,
+                                -0.0147,
+                                0.996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0726,
+                                -0.0312,
+                                0.1773
+                              ],
+                              "left_rotation": [
+                                -0.0633,
+                                0.061,
+                                -0.0147,
+                                0.996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                2.3496,
+                                0.952,
+                                0.5762
+                              ],
+                              "left_rotation": [
+                                0.3155,
+                                -0.1449,
+                                -0.9232,
+                                -0.1646
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.3334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0516,
+                                -0.0345,
+                                0.2561
+                              ],
+                              "left_rotation": [
+                                -0.0848,
+                                0.0806,
+                                -0.0179,
+                                0.993
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.1185,
+                                -0.0429,
+                                0.229
+                              ],
+                              "left_rotation": [
+                                -0.0848,
+                                0.0806,
+                                -0.0179,
+                                0.993
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                1.738,
+                                1.7984,
+                                0.2536
+                              ],
+                              "left_rotation": [
+                                0.1719,
+                                0.0067,
+                                -0.9543,
+                                0.2443
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0528,
+                                -0.0359,
+                                0.2691
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.1258,
+                                -0.0453,
+                                0.2392
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                0.5935,
+                                1.8479,
+                                0.2197
+                              ],
+                              "left_rotation": [
+                                0.0198,
+                                0.104,
+                                -0.7733,
+                                0.6252
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0528,
+                                -0.0359,
+                                0.2691
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0979,
+                                -0.0438,
+                                0.2439
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                -0.1754,
+                                0.9762,
+                                0.3098
+                              ],
+                              "left_rotation": [
+                                -0.0791,
+                                0.1209,
+                                -0.4184,
+                                0.8967
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.5334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0394,
+                                -0.0232,
+                                0.1625
+                              ],
+                              "left_rotation": [
+                                -0.0538,
+                                0.0521,
+                                -0.0131,
+                                0.9971
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0284,
+                                -0.0254,
+                                0.1555
+                              ],
+                              "left_rotation": [
+                                -0.0538,
+                                0.0521,
+                                -0.0131,
+                                0.9971
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0166,
+                                -0.0088,
+                                0.0571
+                              ],
+                              "left_rotation": [
+                                -0.0189,
+                                0.0187,
+                                -0.0053,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                -0.013,
+                                -0.0088,
+                                0.057
+                              ],
+                              "left_rotation": [
+                                -0.0189,
+                                0.0187,
+                                -0.0053,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.7334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.9334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "fallback": {
+                    "type": "minecraft:composite",
+                    "models": [
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/body"
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/pump"
+                      }
+                    ]
+                  }
+                },
+                "on_false": {
+                  "type": "minecraft:range_dispatch",
+                  "property": "minecraft:cooldown",
+                  "entries": [
+                    {
+                      "threshold": 0.0001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.0668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.1334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0181,
+                                -0.0097,
+                                0.0631
+                              ],
+                              "left_rotation": [
+                                -0.0209,
+                                0.0206,
+                                -0.0058,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                -0.0158,
+                                -0.0097,
+                                0.063
+                              ],
+                              "left_rotation": [
+                                -0.0209,
+                                0.0206,
+                                -0.0058,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0328,
+                                -0.0186,
+                                0.1269
+                              ],
+                              "left_rotation": [
+                                -0.042,
+                                0.041,
+                                -0.0107,
+                                0.9982
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.014,
+                                -0.0198,
+                                0.1231
+                              ],
+                              "left_rotation": [
+                                -0.042,
+                                0.041,
+                                -0.0107,
+                                0.9982
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                2.0238,
+                                0.0456,
+                                0.9481
+                              ],
+                              "left_rotation": [
+                                0.355,
+                                -0.3307,
+                                -0.7062,
+                                -0.5156
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.044,
+                                -0.0269,
+                                0.1913
+                              ],
+                              "left_rotation": [
+                                -0.0633,
+                                0.061,
+                                -0.0147,
+                                0.996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0726,
+                                -0.0312,
+                                0.1773
+                              ],
+                              "left_rotation": [
+                                -0.0633,
+                                0.061,
+                                -0.0147,
+                                0.996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                2.3496,
+                                0.952,
+                                0.5762
+                              ],
+                              "left_rotation": [
+                                0.3155,
+                                -0.1449,
+                                -0.9232,
+                                -0.1646
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.3334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0516,
+                                -0.0345,
+                                0.2561
+                              ],
+                              "left_rotation": [
+                                -0.0848,
+                                0.0806,
+                                -0.0179,
+                                0.993
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.1185,
+                                -0.0429,
+                                0.229
+                              ],
+                              "left_rotation": [
+                                -0.0848,
+                                0.0806,
+                                -0.0179,
+                                0.993
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                1.738,
+                                1.7984,
+                                0.2536
+                              ],
+                              "left_rotation": [
+                                0.1719,
+                                0.0067,
+                                -0.9543,
+                                0.2443
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0528,
+                                -0.0359,
+                                0.2691
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.1258,
+                                -0.0453,
+                                0.2392
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                0.5935,
+                                1.8479,
+                                0.2197
+                              ],
+                              "left_rotation": [
+                                0.0198,
+                                0.104,
+                                -0.7733,
+                                0.6252
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0528,
+                                -0.0359,
+                                0.2691
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0979,
+                                -0.0438,
+                                0.2439
+                              ],
+                              "left_rotation": [
+                                -0.0891,
+                                0.0845,
+                                -0.0184,
+                                0.9923
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell",
+                            "transformation": {
+                              "translation": [
+                                -0.1754,
+                                0.9762,
+                                0.3098
+                              ],
+                              "left_rotation": [
+                                -0.0791,
+                                0.1209,
+                                -0.4184,
+                                0.8967
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.5334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0394,
+                                -0.0232,
+                                0.1625
+                              ],
+                              "left_rotation": [
+                                -0.0538,
+                                0.0521,
+                                -0.0131,
+                                0.9971
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0284,
+                                -0.0254,
+                                0.1555
+                              ],
+                              "left_rotation": [
+                                -0.0538,
+                                0.0521,
+                                -0.0131,
+                                0.9971
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                -0.0166,
+                                -0.0088,
+                                0.0571
+                              ],
+                              "left_rotation": [
+                                -0.0189,
+                                0.0187,
+                                -0.0053,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                -0.013,
+                                -0.0088,
+                                0.057
+                              ],
+                              "left_rotation": [
+                                -0.0189,
+                                0.0187,
+                                -0.0053,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                0.0008,
+                                0.0052,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0021,
+                                1
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0008,
+                                0.0052,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0021,
+                                1
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.7334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                0.0047,
+                                0.0285,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0116,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0047,
+                                0.0285,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0116,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                0.0128,
+                                0.0707,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0287,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0128,
+                                0.0707,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0287,
+                                0.9996
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                0.0267,
+                                0.1324,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0534,
+                                0.9986
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0267,
+                                0.1324,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0534,
+                                0.9986
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/flash",
+                            "transformation": {
+                              "translation": [
+                                0.0267,
+                                0.1324,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0534,
+                                0.9986
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.9334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body",
+                            "transformation": {
+                              "translation": [
+                                0.0491,
+                                0.2141,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0856,
+                                0.9963
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump",
+                            "transformation": {
+                              "translation": [
+                                0.0491,
+                                0.2141,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0856,
+                                0.9963
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/flash",
+                            "transformation": {
+                              "translation": [
+                                0.0491,
+                                0.2141,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0856,
+                                0.9963
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "fallback": {
+                    "type": "minecraft:composite",
+                    "models": [
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/body"
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/pump"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/r90/urban/full"
+          }
+        }
+      },
+      {
+        "threshold": 1014,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:condition",
+                "property": "minecraft:custom_model_data",
+                "index": 1,
+                "on_true": {
+                  "type": "minecraft:range_dispatch",
+                  "property": "minecraft:cooldown",
+                  "entries": [
+                    {
+                      "threshold": 0.0001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.0668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.1334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0077,
+                                -0.004,
+                                0.0251
+                              ],
+                              "left_rotation": [
+                                -0.0083,
+                                0.0083,
+                                -0.0024,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0054,
+                                -0.004,
+                                0.0251
+                              ],
+                              "left_rotation": [
+                                -0.0083,
+                                0.0083,
+                                -0.0024,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0148,
+                                -0.0078,
+                                0.0504
+                              ],
+                              "left_rotation": [
+                                -0.0167,
+                                0.0165,
+                                -0.0047,
+                                0.9997
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0322,
+                                -0.0083,
+                                0.0488
+                              ],
+                              "left_rotation": [
+                                -0.0167,
+                                0.0165,
+                                -0.0047,
+                                0.9997
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                1.8638,
+                                -0.1149,
+                                1.239
+                              ],
+                              "left_rotation": [
+                                0.361,
+                                -0.2979,
+                                -0.7085,
+                                -0.5282
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0214,
+                                -0.0115,
+                                0.0758
+                              ],
+                              "left_rotation": [
+                                -0.0251,
+                                0.0247,
+                                -0.0069,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0959,
+                                -0.0133,
+                                0.07
+                              ],
+                              "left_rotation": [
+                                -0.0251,
+                                0.0247,
+                                -0.0069,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                2.2153,
+                                0.8358,
+                                0.9233
+                              ],
+                              "left_rotation": [
+                                0.3435,
+                                -0.1009,
+                                -0.9173,
+                                -0.1744
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.3334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0274,
+                                -0.0151,
+                                0.1013
+                              ],
+                              "left_rotation": [
+                                -0.0335,
+                                0.0329,
+                                -0.0089,
+                                0.9989
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.1447,
+                                -0.0185,
+                                0.0901
+                              ],
+                              "left_rotation": [
+                                -0.0335,
+                                0.0329,
+                                -0.0089,
+                                0.9989
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                1.6367,
+                                1.7278,
+                                0.6214
+                              ],
+                              "left_rotation": [
+                                0.2298,
+                                0.0454,
+                                -0.9411,
+                                0.2438
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0285,
+                                -0.0158,
+                                0.1064
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.1523,
+                                -0.0196,
+                                0.094
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                0.5256,
+                                1.7964,
+                                0.4317
+                              ],
+                              "left_rotation": [
+                                0.0914,
+                                0.114,
+                                -0.7588,
+                                0.6347
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0285,
+                                -0.0158,
+                                0.1064
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.124,
+                                -0.019,
+                                0.096
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.2018,
+                                0.9462,
+                                0.2935
+                              ],
+                              "left_rotation": [
+                                -0.0106,
+                                0.0973,
+                                -0.4065,
+                                0.9084
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.5334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0185,
+                                -0.0099,
+                                0.0644
+                              ],
+                              "left_rotation": [
+                                -0.0213,
+                                0.0211,
+                                -0.0059,
+                                0.9995
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0496,
+                                -0.0107,
+                                0.0615
+                              ],
+                              "left_rotation": [
+                                -0.0213,
+                                0.0211,
+                                -0.0059,
+                                0.9995
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.007,
+                                -0.0036,
+                                0.0227
+                              ],
+                              "left_rotation": [
+                                -0.0075,
+                                0.0075,
+                                -0.0022,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0034,
+                                -0.0036,
+                                0.0227
+                              ],
+                              "left_rotation": [
+                                -0.0075,
+                                0.0075,
+                                -0.0022,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.7334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.9334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "fallback": {
+                    "type": "minecraft:composite",
+                    "models": [
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/body_ads"
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/pump_ads"
+                      }
+                    ]
+                  }
+                },
+                "on_false": {
+                  "type": "minecraft:range_dispatch",
+                  "property": "minecraft:cooldown",
+                  "entries": [
+                    {
+                      "threshold": 0.0001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.0668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.1334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0077,
+                                -0.004,
+                                0.0251
+                              ],
+                              "left_rotation": [
+                                -0.0083,
+                                0.0083,
+                                -0.0024,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0054,
+                                -0.004,
+                                0.0251
+                              ],
+                              "left_rotation": [
+                                -0.0083,
+                                0.0083,
+                                -0.0024,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0148,
+                                -0.0078,
+                                0.0504
+                              ],
+                              "left_rotation": [
+                                -0.0167,
+                                0.0165,
+                                -0.0047,
+                                0.9997
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0322,
+                                -0.0083,
+                                0.0488
+                              ],
+                              "left_rotation": [
+                                -0.0167,
+                                0.0165,
+                                -0.0047,
+                                0.9997
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                1.8638,
+                                -0.1149,
+                                1.239
+                              ],
+                              "left_rotation": [
+                                0.361,
+                                -0.2979,
+                                -0.7085,
+                                -0.5282
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.2668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0214,
+                                -0.0115,
+                                0.0758
+                              ],
+                              "left_rotation": [
+                                -0.0251,
+                                0.0247,
+                                -0.0069,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0959,
+                                -0.0133,
+                                0.07
+                              ],
+                              "left_rotation": [
+                                -0.0251,
+                                0.0247,
+                                -0.0069,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                2.2153,
+                                0.8358,
+                                0.9233
+                              ],
+                              "left_rotation": [
+                                0.3435,
+                                -0.1009,
+                                -0.9173,
+                                -0.1744
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.3334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0274,
+                                -0.0151,
+                                0.1013
+                              ],
+                              "left_rotation": [
+                                -0.0335,
+                                0.0329,
+                                -0.0089,
+                                0.9989
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.1447,
+                                -0.0185,
+                                0.0901
+                              ],
+                              "left_rotation": [
+                                -0.0335,
+                                0.0329,
+                                -0.0089,
+                                0.9989
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                1.6367,
+                                1.7278,
+                                0.6214
+                              ],
+                              "left_rotation": [
+                                0.2298,
+                                0.0454,
+                                -0.9411,
+                                0.2438
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0285,
+                                -0.0158,
+                                0.1064
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.1523,
+                                -0.0196,
+                                0.094
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                0.5256,
+                                1.7964,
+                                0.4317
+                              ],
+                              "left_rotation": [
+                                0.0914,
+                                0.114,
+                                -0.7588,
+                                0.6347
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.4668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0285,
+                                -0.0158,
+                                0.1064
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.124,
+                                -0.019,
+                                0.096
+                              ],
+                              "left_rotation": [
+                                -0.0352,
+                                0.0345,
+                                -0.0092,
+                                0.9987
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/shell_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.2018,
+                                0.9462,
+                                0.2935
+                              ],
+                              "left_rotation": [
+                                -0.0106,
+                                0.0973,
+                                -0.4065,
+                                0.9084
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.5334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0185,
+                                -0.0099,
+                                0.0644
+                              ],
+                              "left_rotation": [
+                                -0.0213,
+                                0.0211,
+                                -0.0059,
+                                0.9995
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0496,
+                                -0.0107,
+                                0.0615
+                              ],
+                              "left_rotation": [
+                                -0.0213,
+                                0.0211,
+                                -0.0059,
+                                0.9995
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.007,
+                                -0.0036,
+                                0.0227
+                              ],
+                              "left_rotation": [
+                                -0.0075,
+                                0.0075,
+                                -0.0022,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                -0.0034,
+                                -0.0036,
+                                0.0227
+                              ],
+                              "left_rotation": [
+                                -0.0075,
+                                0.0075,
+                                -0.0022,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.6668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0003,
+                                0.0021,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0009,
+                                1
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0003,
+                                0.0021,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0009,
+                                1
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.7334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0018,
+                                0.0114,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0047,
+                                1
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0018,
+                                0.0114,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0047,
+                                1
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8001,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0047,
+                                0.0281,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0115,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0047,
+                                0.0281,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0115,
+                                0.9999
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.8668,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0092,
+                                0.0525,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0214,
+                                0.9998
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0092,
+                                0.0525,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0214,
+                                0.9998
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/flash_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0092,
+                                0.0525,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0214,
+                                0.9998
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "threshold": 0.9334,
+                      "model": {
+                        "type": "minecraft:composite",
+                        "models": [
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/body_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0157,
+                                0.0845,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0343,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/pump_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0157,
+                                0.0845,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0343,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/gunskin/r90/urban/flash_ads",
+                            "transformation": {
+                              "translation": [
+                                0.0157,
+                                0.0845,
+                                0
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                -0.0343,
+                                0.9994
+                              ],
+                              "scale": [
+                                1,
+                                1,
+                                1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "fallback": {
+                    "type": "minecraft:composite",
+                    "models": [
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/body_ads"
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/gunskin/r90/urban/pump_ads"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/r90/urban/full_ads"
+          }
+        }
+      },
+      {
+        "threshold": 2014,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:composite",
+                "models": [
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/gunskin/r90/urban/body_sprint"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/gunskin/r90/urban/pump_sprint"
+                  }
+                ]
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/r90/urban/full_sprint"
+          }
+        }
+      },
+      {
+        "threshold": 3014,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:cooldown",
+                "entries": [
+                  {
+                    "threshold": 0.0001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/body",
+                          "transformation": {
+                            "translation": [
+                              -0.1044,
+                              0.0812,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.202,
+                              0.0967,
+                              -0.0365,
+                              0.9739
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/pump",
+                          "transformation": {
+                            "translation": [
+                              -0.1044,
+                              0.0812,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.202,
+                              0.0967,
+                              -0.0365,
+                              0.9739
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/shell",
+                          "transformation": {
+                            "translation": [
+                              -0.3846,
+                              0.0079,
+                              0.4771
+                            ],
+                            "left_rotation": [
+                              -0.2025,
+                              0.0957,
+                              -0.0416,
+                              0.9737
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.2501,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/body",
+                          "transformation": {
+                            "translation": [
+                              -0.1203,
+                              0.1183,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.2008,
+                              0.0992,
+                              -0.0487,
+                              0.9734
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/pump",
+                          "transformation": {
+                            "translation": [
+                              -0.1203,
+                              0.1183,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.2008,
+                              0.0992,
+                              -0.0487,
+                              0.9734
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/shell",
+                          "transformation": {
+                            "translation": [
+                              -0.3276,
+                              0.0793,
+                              0.4479
+                            ],
+                            "left_rotation": [
+                              -0.2061,
+                              0.0877,
+                              -0.1037,
+                              0.9691
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/body",
+                          "transformation": {
+                            "translation": [
+                              -0.1018,
+                              0.0753,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.2022,
+                              0.0963,
+                              -0.0346,
+                              0.974
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/pump",
+                          "transformation": {
+                            "translation": [
+                              -0.1018,
+                              0.0753,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.2022,
+                              0.0963,
+                              -0.0346,
+                              0.974
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/shell",
+                          "transformation": {
+                            "translation": [
+                              -0.3098,
+                              0.1011,
+                              0.4492
+                            ],
+                            "left_rotation": [
+                              -0.2117,
+                              0.0732,
+                              -0.1429,
+                              0.9641
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.7501,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/body",
+                          "transformation": {
+                            "translation": [
+                              -0.0995,
+                              0.0701,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.2024,
+                              0.096,
+                              -0.0329,
+                              0.974
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/pump",
+                          "transformation": {
+                            "translation": [
+                              -0.0995,
+                              0.0701,
+                              0.4657
+                            ],
+                            "left_rotation": [
+                              -0.2024,
+                              0.096,
+                              -0.0329,
+                              0.974
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/r90/urban/shell",
+                          "transformation": {
+                            "translation": [
+                              -0.3326,
+                              0.2474,
+                              0.4622
+                            ],
+                            "left_rotation": [
+                              -0.2179,
+                              0.0519,
+                              -0.2344,
+                              0.946
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:composite",
+                  "models": [
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/r90/urban/body",
+                      "transformation": {
+                        "translation": [
+                          -0.0995,
+                          0.0701,
+                          0.4657
+                        ],
+                        "left_rotation": [
+                          -0.2024,
+                          0.096,
+                          -0.0329,
+                          0.974
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/r90/urban/pump",
+                      "transformation": {
+                        "translation": [
+                          -0.0995,
+                          0.0701,
+                          0.4657
+                        ],
+                        "left_rotation": [
+                          -0.2024,
+                          0.096,
+                          -0.0329,
+                          0.974
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/r90/urban/full"
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "donating:item/gunskin/r90/urban/full"
+    }
+  }
+}

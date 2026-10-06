@@ -45,7 +45,7 @@ module.exports = async ({ check }) => {
 
     const status = await rcon.cmd('dphone gunfx')
     check('/dphone gunfx: the four guns, the shotgun\'s kick-only shot and the automatic guns\' firing flag',
-      /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status), status)
+      /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status) && /STG44\{donating:gun\/stg44 shot=0 draw=22 alone=0 fire=5 action=0\}/.test(status) && /AX_50\{donating:gun\/ax_50 shot=20 draw=40 alone=6 fire=0 action=16 glint=10\}/.test(status), status)
 
     // A reload with spare rounds: a clock as long as the reload (32 ticks for the Classic Pistol).
     await give('50_GS', 0, 2)
@@ -147,6 +147,35 @@ module.exports = async ({ check }) => {
     check('aiming during the AK-48\'s reload keeps its clock', !seen.some(c => c.ticks === 0), JSON.stringify(seen.map(c => [c.ticks, c.t - t])))
     bot.swingArm('right')
     await sleep(3200)
+
+    // The Sniper Rifle's scope glint (2026-10-06): while its holder looks through the scope, everyone else within 128
+    // blocks gets an end-rod glint at their eye every 10 ticks (forced: seen far away); the holder gets none.
+    {
+      const other = await join('FxBot2')
+      await sleep(800)
+      await rcon.cmd(`zzheisttp FxBot2 ${X + 0.5} ${Y} ${Z - 3.5}`)
+      await sleep(600)
+      const glints = { [NAME]: 0, FxBot2: 0 }
+      const rod = bot.registry.particlesByName.end_rod.id
+      const count = (b, n) => b._client.on('world_particles', p => { if (p.particle && (p.particle.type === 'end_rod' || p.particle.type === rod || p.particle.particleId === rod)) glints[n]++ })
+      count(bot, NAME)
+      count(other, 'FxBot2')
+      await rcon.cmd(`zzclear ${NAME}`)
+      await give('AX_50', 0, 5)
+      await sleep(1000) // the 40-tick equip delay
+      await bot.look(0, 0, true)
+      bot.swingArm('right') // the scope
+      await sleep(1600)
+      const seen2 = glints.FxBot2
+      const seen1 = glints[NAME]
+      bot.setQuickBarSlot(1) // the gun away (a second click would zoom further in: Zoom_Stacking)
+      await sleep(800)
+      const after = glints.FxBot2
+      await sleep(1000)
+      check('the Sniper Rifle\'s scope glints for others (end rod, every 10 ticks), not for the shooter, and stops when the gun is put away', seen2 >= 2 && seen1 === 0 && glints.FxBot2 === after,
+        `other ${seen2} -> ${glints.FxBot2} after unscoping; shooter ${seen1}; ${await rcon.cmd('dphone gunfx')}`.slice(0, 400))
+      await quit(other)
+    }
 
     // The firing flag: an automatic gun is marked firing (custom_model_data flag 0) while it shoots, and not after.
     await rcon.cmd(`zzclear ${NAME}`)

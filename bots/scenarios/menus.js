@@ -236,6 +236,14 @@ module.exports = async ({ check }) => {
     await backTo('your bag skins (/bagskins)', /Bag skins$/.test(title(w)) && itemName(slotOf(A, 2)) === '◀ Cosmetics' ? w : null, 2, 'your cosmetics', /Cosmetics$/)
     w = await chatOpen(A, '/killeffects')
     await backTo('your kill effects (/killeffects)', /Kill effects$/.test(title(w)) && itemName(slotOf(A, 2)) === '◀ Cosmetics' ? w : null, 2, 'your cosmetics', /Cosmetics$/)
+    // The gun skins (2026-10-06): /cosmetics' Gun skins (14) is a page of guns (◀ Cosmetics), and a gun's page has
+    // ◀ Gun skins and Home.
+    w = await chatOpen(A, '/cosmetics')
+    w = await click(A, 14)
+    await backTo('the gun skins (from /cosmetics)', /Gun skins$/.test(title(w)) && itemName(slotOf(A, 2)) === '◀ Cosmetics' && itemName(slotOf(A, 49)) === 'Home' ? w : null, 2, 'your cosmetics', /Cosmetics$/)
+    w = await chatOpen(A, '/gunskins')
+    w = await click(A, 21)
+    await backTo('a gun\'s skins (the AK-48, from /gunskins)', /AK-48$/.test(title(w)) && itemName(slotOf(A, 2)) === '◀ Gun skins' && itemName(slotOf(A, 49)) === 'Home' ? w : null, 2, 'the gun skins', /Gun skins$/)
     await closeAll(A)
     // The jobs board's swap step (near Mara; Swap at 38 on the phone page): "◀ Jobs" at 2 ends it, and the board has
     // "◀ Quests" at 2 again.

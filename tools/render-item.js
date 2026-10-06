@@ -21,7 +21,8 @@
 // Animation frames (the guns, tools\guns\pg.js): a composite's per-model "transformation" (applied after the
 // display transform, in blocks from the model's corner, like the 26.1+ client), and the clocks it reads:
 // --cooldown <v> (minecraft:cooldown, the share of the cooldown left: 1 = just started, 0 = none), --fire
-// (minecraft:keybind_down true: fire held, and custom_model_data flag 0 on: GunFx's firing flag), --time <v> (minecraft:time, 0-1). --def <file.json> draws an item
+// (minecraft:keybind_down true: fire held, and custom_model_data flag 0 on: GunFx's firing flag), --flag <n>[,<n>]
+// (those custom_model_data flags on: 1 GunFx's action clock, 2 its draw on a gun with a shot clock), --time <v> (minecraft:time, 0-1). --def <file.json> draws an item
 // model given as JSON (an item definition, or just its "model") instead of <what> (then <what> is left out).
 // Element rotations (axis/angle/origin/rescale and 26.x x/y/z), per-file lefthand fallback (a missing
 // lefthand copies the righthand one, as the client's deserializer does), per-context parent display,
@@ -196,7 +197,7 @@ const resolveItemModel = (m, ctx, out = [], local = null) => {
   else if (typeIs(m.type, 'condition')) {
     // custom_model_data: a flag (GunFx's firing flag 0 is on with --fire, like the key).
     const on = typeIs(m.property, 'view_entity') ? ctx.viewEntity !== false : typeIs(m.property, 'keybind_down') ? !!ctx.keybind
-      : typeIs(m.property, 'custom_model_data') ? (m.index || 0) === 0 && !!ctx.keybind : false
+      : typeIs(m.property, 'custom_model_data') ? ((m.index || 0) === 0 && !!ctx.keybind) || (ctx.flags || []).includes(m.index || 0) : false
     resolveItemModel(on ? m.on_true : m.on_false, ctx, out, local)
   }
   else if (typeIs(m.type, 'select')) {
@@ -587,12 +588,12 @@ const renderView = (items, view, W, H) => {
 // what: a model id, or item[@cmd]; opts.def: an item model (JSON) instead. Returns ctx -> [loaded models].
 const makeItems = (S, what, opts = {}) => {
   const L = makeLoader(S)
-  const clocks = { cooldown: opts.cooldown || 0, keybind: !!opts.fire, time: opts.time || 0 }
+  const clocks = { cooldown: opts.cooldown || 0, keybind: !!opts.fire, time: opts.time || 0, flags: opts.flags || [] }
   const cache = new Map()
   const load = r => { if (!cache.has(r.id)) cache.set(r.id, L.loadModel(r.id)); return { ...cache.get(r.id), local: r.local } }
   if (opts.def) {
     const def = opts.def.model ? opts.def.model : opts.def
-    return ctx => resolveItemModel(def, { display: ctx, floats: [], strings: [], ...clocks }).map(load)
+    return ctx => resolveItemModel(def, { display: ctx, floats: opts.cmd !== undefined ? [opts.cmd] : [], strings: [], ...clocks }).map(load)
   }
   const m = what.match(/^([a-z0-9_.:-]+?)(?:@(.+))?$/)
   const isModel = what.includes('/')
@@ -629,14 +630,16 @@ if (require.main === module) {
   const opts = {}
   const pi = args.indexOf('--pack')
   if (pi >= 0) { opts.pack = args[pi + 1]; args.splice(pi, 2) }
-  for (const k of ['cooldown', 'time']) { const i = args.indexOf('--' + k); if (i >= 0) { opts[k] = Number(args[i + 1]); args.splice(i, 2) } }
+  for (const k of ['cooldown', 'time', 'cmd']) { const i = args.indexOf('--' + k); if (i >= 0) { opts[k] = Number(args[i + 1]); args.splice(i, 2) } }
+  const gi = args.indexOf('--flag')
+  if (gi >= 0) { opts.flags = args[gi + 1].split(',').map(Number); args.splice(gi, 2) }
   const fi = args.indexOf('--fire')
   if (fi >= 0) { opts.fire = true; args.splice(fi, 1) }
   const di = args.indexOf('--def')
   if (di >= 0) { opts.def = JSON.parse(fs.readFileSync(args[di + 1], 'utf8').replace(/^\uFEFF/, '')); args.splice(di, 2); args.unshift('(def)') }
   const [what, out, view = 'fp', W, H] = args
   if (!what || !out) {
-    console.log('usage: render-item.js <model id | item[@cmd]> <out.png | prefix> [gui|fp|fpl|side|tp|all] [W H] [--pack zip] [--cooldown v] [--fire] [--time v] [--def file.json]')
+    console.log('usage: render-item.js <model id | item[@cmd]> <out.png | prefix> [gui|fp|fpl|side|tp|all] [W H] [--pack zip] [--cooldown v] [--fire] [--flag n[,n]] [--time v] [--def file.json [--cmd n]]')
     process.exit(1)
   }
   const views = view === 'all' ? ['gui', 'fp', 'fpl', 'side', 'tp'] : [view]

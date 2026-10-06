@@ -8,6 +8,10 @@
 // stream a random serial number, so the files' bytes still change from run to run: rebuild only when a sound changes).
 //
 // Usage: tools\node\node.exe tools\sounds\make-gun-sounds.js [--wav <dir>]   (--wav also writes WAV previews)
+//        tools\node\node.exe tools\sounds\make-gun-sounds.js --preview <dir> [--only <event prefix>[,...]]
+//          (WAVs of those events only; the pack is left alone)
+// More guns' sounds live in tools\sounds\guns\<gun>.js (2026-10-06): module.exports = dsp => ({ sounds, events }),
+// dsp = the helpers below; their events and sounds join these (a name used twice stops the build).
 // The encoder is wasm-media-encoders 0.7.0 (libvorbis in WASM, MIT/BSD): tools\sounds\npm install (package.json).
 const fs = require('fs')
 const path = require('path')
@@ -15,7 +19,10 @@ const { createOggEncoder } = require(path.join(__dirname, 'node_modules', 'wasm-
 
 const SR = 48000
 const OUT = path.join(__dirname, '..', '..', 'pack', 'assets', 'minecraft')
-const wavDir = process.argv.includes('--wav') ? process.argv[process.argv.indexOf('--wav') + 1] : null
+const arg = k => process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : null
+const preview = arg('--preview')
+const wavDir = preview || arg('--wav')
+const only = arg('--only') ? arg('--only').split(',') : null
 
 // ---------- DSP ----------
 const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 }
@@ -120,6 +127,16 @@ const EVENTS = {
   'ak.shoot': ['ak_shoot', 3], 'ak.mag_out': ['mag_out'], 'ak.mag_in': ['mag_in'], 'ak.bolt': ['bolt'], 'ak.draw': ['draw'],
   empty: ['empty']
 }
+// The guns added later: one module each.
+const dsp = { SR, rng, buf, add, biquad, noise, env, sweep, ring, click, reverb, softclip, master, shot }
+const modDir = path.join(__dirname, 'guns')
+if (fs.existsSync(modDir)) {
+  for (const file of fs.readdirSync(modDir).filter(n => n.endsWith('.js')).sort()) {
+    const m = require(path.join(modDir, file))(dsp)
+    for (const [k, v] of Object.entries(m.sounds || {})) { if (SOUNDS[k]) throw new Error(`${file}: sound ${k} exists`); SOUNDS[k] = v }
+    for (const [k, v] of Object.entries(m.events || {})) { if (EVENTS[k]) throw new Error(`${file}: event ${k} exists`); if (!SOUNDS[v[0]]) throw new Error(`${file}: event ${k} plays unknown sound ${v[0]}`); EVENTS[k] = v }
+  }
+}
 const hash = s => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261)
 
 const wav = b => {
@@ -142,24 +159,28 @@ const wav = b => {
     return out
   }
   const dir = path.join(OUT, 'sounds', 'donating', 'gun')
-  fs.rmSync(dir, { recursive: true, force: true })
-  fs.mkdirSync(dir, { recursive: true })
+  if (!preview) {
+    fs.rmSync(dir, { recursive: true, force: true })
+    fs.mkdirSync(dir, { recursive: true })
+  }
   if (wavDir) fs.mkdirSync(wavDir, { recursive: true })
   const json = {}
   let bytes = 0
   for (const [ev, [kind, n = 1]] of Object.entries(EVENTS)) {
+    if (only && !only.some(o => ev.startsWith(o))) continue
     const files = []
     for (let k = 1; k <= n; k++) {
       const file = `${ev.replace(/\./g, '_')}${n > 1 ? '_' + k : ''}`
       const b = SOUNDS[kind].make(rng(hash(`${ev}#${k}`)))
       const o = ogg(b)
-      fs.writeFileSync(path.join(dir, `${file}.ogg`), o)
+      if (!preview) fs.writeFileSync(path.join(dir, `${file}.ogg`), o)
       if (wavDir) fs.writeFileSync(path.join(wavDir, `${file}.wav`), wav(b))
       bytes += o.length
       files.push({ name: `donating/gun/${file}` })
     }
     json[`donating.gun.${ev}`] = { sounds: files }
   }
+  if (preview) { console.log(`previewed ${Object.keys(json).length} events in ${preview}`); return }
   fs.writeFileSync(path.join(OUT, 'sounds.json'), JSON.stringify(json, null, 2) + '\n')
   console.log(`wrote ${Object.keys(json).length} gun sound events, ${Object.values(json).reduce((a, e) => a + e.sounds.length, 0)} files, ${Math.round(bytes / 1024)} KB`)
 })().catch(e => { console.error(e); process.exit(1) })

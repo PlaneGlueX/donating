@@ -609,7 +609,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
@@ -638,6 +638,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         if (args.length >= 2 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) options.addAll(carSmooth.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("steer")) options.addAll(carSmooth.steer.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
+        if (args.length >= 2 && args[0].equalsIgnoreCase("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
         List<String> out = new ArrayList<>();
         for (String o : options) if (o.toLowerCase().startsWith(typed)) out.add(o);
@@ -664,6 +665,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status()); return true; }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("gunskin")) { if (gunFx == null) { sender.sendMessage("GUNSKIN off (no WeaponMechanics)"); return true; } return gunFx.gunskinCommand(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("steer")) return carSmooth.steer.command(sender, args);
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);

@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_m16_flash_sprint",
+  "textures": {
+    "t": "donating:item/gunskin/m16/army",
+    "particle": "donating:item/gunskin/m16/army"
+  }
+}

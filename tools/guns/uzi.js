@@ -35,7 +35,7 @@ module.exports = ({ pg, aim, display }) => {
   const BORE_Y = 8.4
   const gun = pgGun(name, {
     palette: {
-      body: [44, 49, 66], bodyLight: [107, 117, 144], bodyHi: [154, 164, 188], dark: [22, 25, 34],
+      body: [44, 49, 66], bodyLight: [107, 117, 144], bodyHi: [154, 164, 188], dark: [22, 25, 34], post: [22, 25, 34],
       grip: [35, 39, 51], stock: [30, 34, 46], mag: [94, 101, 120], magHi: [160, 168, 186], magDark: [62, 68, 84],
       red: [216, 40, 40], redHi: [255, 80, 80], steel: [120, 128, 142], bore: [10, 11, 15],
       flash: [255, 196, 64], flashCore: [255, 248, 210]
@@ -65,7 +65,7 @@ module.exports = ({ pg, aim, display }) => {
         { from: [-1.4, 10.9, 7.0], to: [0.2, 12.6, 7.45], c: 'bodyLight' },
         { from: [-1.4, 10.9, 8.55], to: [0.2, 12.6, 9.0], c: 'bodyLight' },
         { from: [-1.4, 12.6, 7.0], to: [0.2, 13.05, 9.0], c: 'bodyLight' },
-        { from: [-0.9, 10.9, 7.75], to: [-0.3, SY, 8.25], c: 'dark' }, // the post
+        { from: [-0.9, 10.9, 7.75], to: [-0.3, SY, 8.25], c: 'post' }, // the post (its own key: skins never recolor it)
         // The rear drum sight: a ring around the aperture on the sight line.
         { from: [12.8, 10.45, 7.05], to: [14.4, SY - 0.6, 8.95], c: 'body', ink: 'bodyLight' },
         { from: [12.8, SY - 0.6, 7.05], to: [14.4, SY + 0.6, 7.4], c: 'bodyLight' },

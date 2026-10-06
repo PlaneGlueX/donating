@@ -13,7 +13,7 @@ module.exports = ({ pg, aim, display }) => {
     palette: {
       chrome: [214, 224, 238], chromeDark: [150, 164, 186], frame: [52, 60, 78], frameLight: [90, 104, 128],
       leather: [176, 56, 26], leatherDark: [120, 34, 14], steel: [120, 128, 142], bore: [16, 18, 24],
-      sight: [40, 44, 54], flash: [255, 196, 64], flashCore: [255, 248, 210]
+      sight: [40, 44, 54], post: [40, 44, 54], flash: [255, 196, 64], flashCore: [255, 248, 210]
     },
     parts: {
       body: [
@@ -32,9 +32,9 @@ module.exports = ({ pg, aim, display }) => {
         { from: [11.6, 9.4, 9.25], to: [15.0, 12.4, 9.35], c: 'chrome', pat: 'serr', dirs: ['south'] }, // and right
         { from: [5.4, 11.3, 6.65], to: [8.8, 12.1, 6.75], c: 'sight', dirs: ['north'] }, // the ejection port, left
         { from: [1.9, 9.9, 7.4], to: [2.0, 11.9, 8.6], c: 'bore', dirs: ['west'], outline: false }, // the bore
-        { from: [2.6, 12.6, 7.6], to: [3.6, SY, 8.4], c: 'sight' }, // front sight
-        { from: [13.4, 12.6, 6.9], to: [14.6, SY + 0.3, 7.6], c: 'sight' }, // rear sight, two posts
-        { from: [13.4, 12.6, 8.4], to: [14.6, SY + 0.3, 9.1], c: 'sight' }
+        { from: [2.6, 12.6, 7.6], to: [3.6, SY, 8.4], c: 'post' }, // front sight (its own key: skins never recolor it)
+        { from: [13.4, 12.6, 6.9], to: [14.6, SY + 0.3, 7.6], c: 'post' }, // rear sight, two posts
+        { from: [13.4, 12.6, 8.4], to: [14.6, SY + 0.3, 9.1], c: 'post' }
       ],
       mag: [
         // In the grip (hidden inside it) until a reload drops it out.

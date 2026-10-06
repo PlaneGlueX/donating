@@ -111,6 +111,26 @@ on tab complete of "/killeffect" and "/skript:killeffect":
 on tab complete of "/bagskin" and "/skript:bagskin":
 	set tab completions for position 1 to "default" and bagSkinsOwned(player)
 
+# /gunskin <gun> <look|default> (cosmetics.sk): the guns you have skins for (their names without spaces: "ClassicPistol",
+# "AK-48"), then "default" and the looks you own (the second word can't see the first: every gun's).
+on tab complete of "/gunskin" and "/skript:gunskin":
+	loop {-cfg::gunskin::guns::*}:
+		set {_own::*} to gunSkinsOwned(player, loop-value)
+		if size of {_own::*} > 0:
+			set {_g} to "%{-cfg::wpn::%loop-value%::name}%"
+			replace all " " with "" in {_g}
+			add {_g} to {_guns::*}
+			loop {_own::*}:
+				set {_l} to "%{-cfg::cos::%loop-value-2%::look}%"
+				replace all " " with "" in {_l}
+				if {_looks::*} does not contain {_l}:
+					add {_l} to {_looks::*}
+	if {_guns::*} is not set:
+		cancel event
+		stop
+	set tab completions for position 1 to {_guns::*}
+	set tab completions for position 2 to "default" and {_looks::*}
+
 # Only for a player whose refresh is ready and who isn't in combat: the heists it would take (cooling down, their
 # level allows).
 on tab complete of "/heistrefresh" and "/skript:heistrefresh":

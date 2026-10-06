@@ -642,6 +642,8 @@ command /zzcratereset <offline player>:
 	trigger:
 		delete {data::%arg-1%::keys::*}
 		delete {data::%arg-1%::cos::*}
+		delete {data::%arg-1%::cosserial::*}
+		delete {data::%arg-1%::gunskin::*}
 		deleteData(arg-1, "daily-at")
 		deleteData(arg-1, "refresh-at")
 		deleteData(arg-1, "title")
@@ -699,6 +701,31 @@ command /zzcosgive <offline player> <text>:
 	trigger:
 		set {_new} to cosGive(arg-1, arg-2, "test")
 		send "COSGIVE %arg-1% %arg-2% new=%{_new}%"
+
+# Gun skins (cosmetics.sk), read only: each gun's saved choice and the look that counts (gunSkinWorn: "" when it isn't
+# owned any more), the gun skins owned, and their serials. Never touches a gun's item model (GunFx owns it: /dphone gunskin).
+command /zzgunskin <offline player>:
+	executable by: console
+	trigger:
+		loop {-cfg::gunskin::guns::*}:
+			set {_d} to getData(arg-1, "gunskin::%loop-value%")
+			set {_w} to gunSkinWorn(arg-1, loop-value)
+			add "%loop-value%=%{_d}%/%{_w}%" to {_o::*}
+		loop cosOwnedOf(arg-1, "gunskin"):
+			add "%loop-value%#%cosSerial(arg-1, loop-value)%" to {_own::*}
+		set {_worn} to join {_o::*} with ","
+		set {_owned} to join {_own::*} with ","
+		send "GUNSKINS %arg-1% worn=%{_worn}% owned=%{_owned}%"
+
+# A menu icon of a gun in a look (cosmetics.sk gunSkinIcon; "-" = its own): its item model and custom model data.
+command /zzgunskinicon <text> <text>:
+	executable by: console
+	trigger:
+		set {_id} to arg-2
+		if {_id} is "-":
+			set {_id} to ""
+		set {_i} to gunSkinIcon(arg-1, {_id})
+		send "GUNSKINICON %arg-1% %arg-2% model=%item model of {_i}% type=%type of {_i}%"
 
 # A heist's memory state value: /zzheistvar <id> <key> <text|none> (e.g. alarm warning)
 command /zzheistvar <text> <text> <text>:

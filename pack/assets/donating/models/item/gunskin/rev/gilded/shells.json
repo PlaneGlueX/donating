@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_rev_shells",
+  "textures": {
+    "t": "donating:item/gunskin/rev/gilded",
+    "particle": "donating:item/gunskin/rev/gilded"
+  }
+}

@@ -316,7 +316,7 @@ on quit:
 
 # ---------- Rewards past the unlocks, and members-only areas ----------
 # Owner, 2026-09-28: "think of some good rewards past 100 and 150, something new added to the map, or something that
-# unlocks". Each cfg level::rewards line "level|kind|what[|n]" is given once, at that level: title, killfx or bagskin (a
+# unlocks". Each cfg level::rewards line "level|kind|what[|n]" is given once, at that level: title, killfx, bagskin or gunskin (a
 # bound cosmetic: never traded or in crates), key|<crate>|<n>, money|<$>. A player already past a line gets it at the next
 # join (data lvlreward::<the line with - for |>). The rest past 100 is on the map: the extreme cars at the Car Dealer, a
 # heist set to level 100 (/dheist set <id> level 100 and pool), and members-only areas.
@@ -353,6 +353,8 @@ function levelRewardText(a: texts) :: text:
 		return "the %{_name}% kill effect"
 	if {_kind} is "bagskin":
 		return "the %{_name}% bag skin"
+	if {_kind} is "gunskin":
+		return "the %{_name}% gun skin"
 	return ""
 
 # Gives every reward the player's level has reached and they don't have yet; returns what was given (texts).

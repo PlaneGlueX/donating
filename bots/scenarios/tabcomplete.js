@@ -121,6 +121,15 @@ module.exports = async ({ check }) => {
     const ke = await tab(A, '/killeffect ')
     const bs = await tab(A, '/bagskin ')
     check('/lb the three boards, /gps its pages and clear/off, /title and /killeffect none, /bagskin default', has(lb, 'earners', 'heisters', 'wheelmen') && has(gps, 'quests', 'heists', 'shops', 'places', 'clear', 'off') && has(ti, 'none') && has(ke, 'none') && has(bs, 'default'), `${lb} | ${gps} | ${ti} | ${ke} | ${bs}`)
+    // /gunskin (cosmetics.sk, 2026-10-06): nothing without a gun skin; with one, its gun (by name, no spaces), then
+    // default and its look (the namespaced label too).
+    await cmd(`zzdata ${A} cos::uzi_desert none`)
+    const gs0 = await none(A, '/gunskin ')
+    await cmd(`zzcosgive ${A} uzi_desert`)
+    const gs1 = await tab(A, '/skript:gunskin ')
+    const gs2 = await tab(A, '/gunskin MachineGun ')
+    await cmd(`zzdata ${A} cos::uzi_desert none`)
+    check('/gunskin suggests nothing without a gun skin; with one, its gun, then default and the look', gs0.length === 0 && has(gs1, 'MachineGun') && !gs1.includes('AK-48') && has(gs2, 'default', 'Desert'), `${JSON.stringify(gs0)} | ${gs1} | ${gs2}`)
     const hr = await none(A, '/heistrefresh ')
     check('/heistrefresh suggests no heist without the rank', hr.length === 0, JSON.stringify(hr))
     // With Elite and a ready refresh: a heist cooling down, never a disabled one.
@@ -252,6 +261,7 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`zzpassive ${name} off`).catch(() => {})
       await rcon.cmd(`dranks give ${name} none`).catch(() => {})
       await rcon.cmd(`zzdata ${name} refresh-at none`).catch(() => {})
+      await rcon.cmd(`zzdata ${name} cos::uzi_desert none`).catch(() => {})
       await rcon.cmd(`gamemode survival ${name}`).catch(() => {})
       await rcon.cmd(`zzclear ${name}`).catch(() => {})
       await rcon.cmd(`minecraft:tp ${name} ${FAR}`).catch(() => {})

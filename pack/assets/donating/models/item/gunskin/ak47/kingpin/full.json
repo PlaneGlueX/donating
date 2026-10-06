@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_ak47_full",
+  "textures": {
+    "t": "donating:item/gunskin/ak47/kingpin",
+    "particle": "donating:item/gunskin/ak47/kingpin"
+  }
+}

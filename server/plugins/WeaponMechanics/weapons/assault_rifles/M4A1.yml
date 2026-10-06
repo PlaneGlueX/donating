@@ -2,41 +2,53 @@ M4A1:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>M4A1"
+      Name: "<gold>Combat Rifle"
+      # Donating (2026-10-06): the numbers sit under the AK-48's (66.5), which costs more: more accurate, further-reaching
+      # and lighter, less damage and a slower rate (bursts). The total is their mean.
       Lore:
-        - "<gray>Fully automatic, all-purpose battle rifle."
-        - "<gray>Control your shots, and this weapon can be very effective at range."
+        - "<gray>A scoped battle rifle with a bayonet."
+        - "<gray>Three-round bursts; it holds up at range."
         - ""
-        - "<gray>Weapon Statistics <gold>-<gray> 69.2"
-        - "<gold>➣<gray> 71 <gold>⟸ <gray>Accuracy"
-        - "<gold>➣<gray> 72 <gold>⟸ <gray>Damage"
-        - "<gold>➣<gray> 63 <gold>⟸ <gray>Range"
-        - "<gold>➣<gray> 75 <gold>⟸ <gray>Fire Rate"
-        - "<gold>➣<gray> 63 <gold>⟸ <gray>Mobility"
-        - "<gold>➣<gray> 71 <gold>⟸ <gray>Control"
+        - "<gray>Weapon Statistics <gold>-<gray> 65.3"
+        - "<gold>➣<gray> 72 <gold>⟸ <gray>Accuracy"
+        - "<gold>➣<gray> 68 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 70 <gold>⟸ <gray>Range"
+        - "<gold>➣<gray> 50 <gold>⟸ <gray>Fire Rate"
+        - "<gold>➣<gray> 64 <gold>⟸ <gray>Mobility"
+        - "<gold>➣<gray> 68 <gold>⟸ <gray>Control"
       Unbreakable: true
       Hide_Flags: true
       Attributes:
-        - "movement_speed -0.0139"
+        - "movement_speed -0.0012"
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>M4A1<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Combat Rifle<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+    # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
+    # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=0.75}"
-    Weapon_Equip_Delay: 30
+      - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75, listeners=Source{}}"
+    # Donating (2026-10-06): the draw's sounds (the pack animates the 26-tick draw: the gun rises and the T-handle is
+    # racked, pulled at tick ~16; Weapon_Get_Mechanics only plays when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.m16.draw, volume=0.5, noise=0.05, listeners=Source{}}"
+      - "CustomSound{sound=donating.gun.m16.charge, volume=0.5, noise=0.05, listeners=Source{}, delayBeforePlay=16}"
+    Weapon_Equip_Delay: 26
     Cancel:
       Drop_Item: true
+      Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-06, the Combat Rifle: a Pixel Gun 3D-style M16 with an ACOG and a bayonet): the pack draws
+  # Default 7, Scope (+1000), Sprint (+2000) and Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and
+  # Sprint, so an empty gun would drop out of the sights), and animates the draw, each round of a burst and the reload
+  # from the cooldown DonatingPhone's GunFx starts (tools\guns\m16.js; gunfx M4A1: shot 4, draw 26).
   Skin:
     Default: 7
     Scope: ADD 1000
     Sprint: ADD 2000
-    Attachments:  # attachments will only work if you have purchased WeaponMechanicsPlus
-      Reflex_Sight: ADD 100000
-      Suppressor: ADD 1000000
-  Projectile: "assault_rifle_projectile"
+    Reload: ADD 3000
+  Projectile: "donating_rifle_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"
@@ -44,90 +56,81 @@ M4A1:
       Circumstance:
         Swimming: "DENY"
         Sprinting: "DENY"
-    Projectile_Speed: 80
-    Fully_Automatic_Shots_Per_Second: 14
+    Projectile_Speed: 90
+    # Donating (2026-10-06): a 3-round burst (our own idea: PG3D's Combat Rifle is full auto). The rounds go 2 ticks
+    # apart; a held click starts a new burst every 8 ticks (7.5 rounds a second). The worst burst on a bare target,
+    # 3 x 4.9 x 1.35 = 19.85, never kills from full health.
+    Delay_Between_Shots: 2
+    Burst:
+      Shots_Per_Burst: 3
+      Ticks_Between_Each_Shot: 2
     Spread:
-      Base_Spread: 3.6
+      Base_Spread: 2.6
       Modify_Spread_When:
-        Zooming: 50%
-        Sneaking: 50%
-        In_Midair: 150%
+        Zooming: 40%
+        Sneaking: 60%
+        In_Midair: 160%
     Recoil:
-      Mean_X: 0.0
-      Mean_Y: 1.0
-      Variance_X: 0.2
-      Variance_Y: 0.2
-      Speed: 2.0
-      Damping: 0.1
+      Mean_X: 0.1
+      Mean_Y: 0.9
+      Variance_X: 0.15
+      Variance_Y: 0.15
+      Speed: 2.6
+      Damping: 0.12
       Damping_Recovery: 0.2
-      Smoothing: 0.4
-      Max_Accumulation: 10.0
+      Smoothing: 0.35
+      Max_Accumulation: 8.0
     Mechanics:
-      - "CustomSound{sound=shoot.m4a1.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.m16.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
     Magazine_Size: 30
-    Reload_Duration: 52
+    # Donating: item ammo bought at gun shops (shop.sk); without this the gun reloads for free.
+    Ammo:
+      Ammos:
+        - "Donating_Rifle"
+    Reload_Duration: 50
+    # Donating (2026-10-06): each sound where the pack's frames show it (tools\guns\m16.js reload: the magazine drops at
+    # p 0.16, the new one seats at 0.52, the T-handle is pulled at 0.68 (the sound's second click is its release), the
+    # forward assist is tapped at 0.84). Not in Finish_Mechanics: WeaponMechanics plays those at the very end of the
+    # chain. With rounds left the frames run over 50 ticks; from empty the Firearm_Action's open (6 ticks) comes first,
+    # the frames stretch to 62 and these sounds start 6 ticks later. The delays split the difference (56p - 3): every
+    # sound within about 3 ticks of its frame either way.
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.normal, volume=0.5, noise=0.1, listeners=Source{}}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.normal, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.m16.mag_out, volume=0.5, noise=0.05, delayBeforePlay=6}"
+      - "CustomSound{sound=donating.gun.m16.mag_in, volume=0.5, noise=0.05, delayBeforePlay=26}"
+      - "CustomSound{sound=donating.gun.m16.charge, volume=0.5, noise=0.05, delayBeforePlay=35}"
+      - "CustomSound{sound=donating.gun.m16.assist, volume=0.5, noise=0.05, delayBeforePlay=44}"
   Damage:
-    Base_Damage: 9.4
+    # Donating (2026-10-06): under the AK-48 up close, the flattest dropoff of the automatic guns: 4.90 / 4.60 / 4.20 /
+    # 3.70 (5 body hits bare, 13 in the best gear).
+    Base_Damage: 4.9
     Armor_Damage: 3
     Dropoff:
-      - "10 -1.74"
-      - "25 -3.48"
-      - "50 -5.22"
+      - "10 -0.3"
+      - "25 -0.7"
+      - "50 -1.2"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"
       Off_Hand: "LEFT_CLICK"
-    Zoom_Amount: 1.5
-    Shoot_Delay_After_Scope: 14
+    Zoom_Amount: 2.0
+    Shoot_Delay_After_Scope: 12
     Mechanics:
       - "CustomSound{sound=scope.in, volume=0.5, noise=0.1, listeners=Source{}}"
     Zoom_Off:
       Mechanics:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
+  # Donating (2026-10-06): silent; the T-handle is drawn and heard in every reload (Start_Mechanics above), and this only
+  # runs on an empty reload, where its sounds would play with nothing on screen.
   Firearm_Action:
     Type: "SLIDE"
     Open:
-      Time: 8
-      Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.5, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.5, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
+      Time: 6
     Close:
-      Time: 8
-      Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.5, noise=0.1, listeners=Source{}}"
-
-
-  # The following options are added by WeaponMechanicsCosmetics, and you will
-  # not see the changes take effect until you purchase it.
-
-  Cosmetics:
-    Muzzle_Flash: true
-    Splash_Mechanics:
-      - "Sound{sound=entity.generic.splash, pitch=1.85, noise=0.15} @Target{}"
-      - "Particle{particle=WATER_SPLASH, count=20, noise=0.2 0.2 0.2} @Target{}"
-    Bullet_Zip:
-      Maximum_Distance: 4.0
-      Sounds:
-        - "CustomSound{sound=fx.whiz, noise=0.02, listeners=Target{}} @Target{}"
-    Third_Person_Pose:
-      Default: NONE
-      Scope: BOW
-      Reload: BLOCK
-      Firearm_Action: CROSSBOW
-
-  Trail:
-    Distance_Between_Particles: 0.1
-    Particle_Chooser: LOOP
-    Particles:
-      - "Particle{particle=DUST_COLOR_TRANSITION, color=RED, fadeColor=YELLOW, size=0.4}"
+      Time: 6
 
   Show_Time:
     Reload:

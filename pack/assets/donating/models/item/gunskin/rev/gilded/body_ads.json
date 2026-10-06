@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_rev_body_ads",
+  "textures": {
+    "t": "donating:item/gunskin/rev/gilded",
+    "particle": "donating:item/gunskin/rev/gilded"
+  }
+}

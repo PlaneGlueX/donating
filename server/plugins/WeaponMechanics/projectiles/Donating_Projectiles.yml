@@ -111,3 +111,29 @@ donating_throwing_knife:
       Base: 0.99
       In_Water: 0.8
       When_Raining_Or_Snowing: 0.98
+
+# Sniper Rifle (2026-10-06): AX_50's default physics with a faster floor; the pack draws 7005 as a long streak
+# (tools\make-item-art.js Bullets: at 10 blocks a tick the short tracer can't be seen).
+donating_sniper_bullet:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7005 # donating:tracer_sniper
+    Minimum:
+      Speed: 160
+    Gravity: 9.8
+    Drag:
+      Base: 0.99
+      In_Water: 0.96
+      When_Raining_Or_Snowing: 0.98
+  Through:
+    Maximum_Through_Amount: 1
+    Blocks:
+      Default_Speed_Multiplier: 0.8
+      Whitelist: true
+      List:
+        - "$GLASS"
+    Entities:
+      Allow_Any: true
+      Default_Speed_Multiplier: 0.7

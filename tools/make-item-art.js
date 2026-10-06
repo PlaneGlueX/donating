@@ -1069,7 +1069,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   // Since 2026-10-05 the guns are Pixel Gun 3D recreations built with the kit in tools\guns\pg.js, with one more
   // state: Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint), and first-person frames
   // (pg.js: cooldown, fire held).
-  const GUNS = { gs50: [9, 1009, 2009, 3009], uzi: [1, 1001, 2001, 3001], ak47: [5, 1005, 2005, 3005], r90: [14, 1014, 2014, 3014], knife: [-10], stim: [-1] }
+  const GUNS = { gs50: [9, 1009, 2009, 3009], uzi: [1, 1001, 2001, 3001], ak47: [5, 1005, 2005, 3005], r90: [14, 1014, 2014, 3014], rev: [8, 1008, 2008, 3008], tommy: [15, 1015, 2015, 3015], m16: [7, 1007, 2007, 3007], sniper: [13, 1013, 2013, 3013], knife: [-10], stim: [-1] }
   // The shared palette (the melee weapons' and the Grappler's colors), [r, g, b].
   const PAL = {
     outline: K.slice(0, 3),
@@ -1180,6 +1180,26 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     for (const v of Object.values(m)) if (typeof v === 'object') Array.isArray(v) ? v.forEach(walkModels) : walkModels(v)
   }
   feather.forEach(e => walkModels(e.model))
+  // Gun skins (tools\guns\skins.js, 2026-10-06): each look repaints its gun's tiles (pg.js paintSkin) and gets an item
+  // definition of its own, donating:gunskin_<gun>_<look> (assets/donating/items/), with the gun's entries (the same
+  // states and frames) on the skin's models; DonatingPhone's GunFx puts it on a player's guns as their item_model.
+  const SKINS = require(path.join(__dirname, 'guns', 'skins.js'))
+  const seenSkins = new Set()
+  for (const sk of SKINS) {
+    if (!GUNS[sk.gun]) throw new Error(`skins.js: no gun ${sk.gun}`)
+    if (only && !only.includes(sk.gun)) continue
+    const key = `${sk.gun}_${sk.look}`
+    if (seenSkins.has(key)) throw new Error(`skins.js: ${key} twice`)
+    seenSkins.add(key)
+    const map = pg.paintSkin(`gun_${sk.gun}`, sk.look, sk.theme)
+    const remap = m => JSON.parse(JSON.stringify(m), (k, v) => k === 'model' && typeof v === 'string' ? map(v) : v)
+    const entries = GUNS[sk.gun].map(n => ({ threshold: n, model: remap(feather.find(e => e.threshold === n).model) }))
+    entries.forEach(e => walkModels(e.model))
+    write(`donating/items/gunskin_${key}.json`, {
+      hand_animation_on_swap: false,
+      model: { type: 'minecraft:range_dispatch', property: 'minecraft:custom_model_data', index: 0, entries, fallback: { type: 'minecraft:model', model: map(`donating:item/gun_${sk.gun}_full`) } }
+    })
+  }
   if (!only) {
   feather.sort((a, b) => a.threshold - b.threshold)
   write('minecraft/items/feather.json', {
@@ -1229,7 +1249,11 @@ for (const [base, def] of Object.entries(itemCases)) {
   const TRACERS = {
     light: { cmd: 7001, core: [255, 246, 200], glow: [255, 200, 80, 120], head: [200, 118, 64], tip: [150, 82, 44], nose: -16, headLen: 2.6, headW: 0.9, coreW: 0.4, glowW: 1.1, tail: 12, glowTail: 8 },
     rifle: { cmd: 7002, core: [255, 214, 150], glow: [255, 120, 40, 130], head: [184, 104, 58], tip: [132, 70, 38], nose: -16, headLen: 3.2, headW: 1.0, coreW: 0.5, glowW: 1.3, tail: 12, glowTail: 8 },
-    pellet: { cmd: 7003, core: [255, 236, 180], glow: [255, 190, 90, 100], head: [150, 150, 158], tip: [110, 110, 118], nose: -10, headLen: 1.2, headW: 0.7, coreW: 0.3, glowW: 0.8, tail: 12, glowTail: 6 }
+    pellet: { cmd: 7003, core: [255, 236, 180], glow: [255, 190, 90, 100], head: [150, 150, 158], tip: [110, 110, 118], nose: -10, headLen: 1.2, headW: 0.7, coreW: 0.3, glowW: 0.8, tail: 12, glowTail: 6 },
+    // The Sniper Rifle (2026-10-06): at 10 blocks a tick the short tracers can't be seen, so its model is stretched 3x
+    // along its flight by the item definition (a transformation about z = 12, the tail, so nothing reaches back past
+    // the shooter's eye): from 4.5 blocks ahead to the tail, a thin blue-white streak.
+    sniper: { cmd: 7005, core: [235, 245, 255], glow: [140, 200, 255, 120], head: [190, 160, 90], tip: [150, 120, 60], nose: -16, headLen: 1.4, headW: 0.7, coreW: 0.3, glowW: 0.8, tail: 12, glowTail: 10, stretch: 3 }
   }
   const entries = []
   for (const [kind, t] of Object.entries(TRACERS)) {
@@ -1259,12 +1283,16 @@ for (const [base, def] of Object.entries(itemCases)) {
         box(t.glowW, headEnd, t.glowTail, 4) // its see-through glow
       ]
     })
-    entries.push({ threshold: t.cmd, model: { type: 'minecraft:model', model: `donating:item/tracer_${kind}` } })
+    const stretch = t.stretch || 1
+    // Scale z about the tail (12/16 blocks): translation = p - S p.
+    const tf = stretch === 1 ? {} : { transformation: { translation: [0, 0, +(0.75 - stretch * 0.75).toFixed(4)], left_rotation: [0, 0, 0, 1], scale: [1, 1, stretch], right_rotation: [0, 0, 0, 1] } }
+    entries.push({ threshold: t.cmd, model: { type: 'minecraft:model', model: `donating:item/tracer_${kind}`, ...tf } })
   }
   // 7004: a thrown knife (the Throwing Knife's donating_throwing_knife, drawn in the section above). Any
   // other number (and none) is a plain iron nugget.
   entries.push({ threshold: 7004, model: { type: 'minecraft:model', model: 'donating:item/thrown_knife' } })
-  entries.push({ threshold: 7005, model: { type: 'minecraft:model', model: 'minecraft:item/iron_nugget' } })
+  entries.sort((a, b) => a.threshold - b.threshold)
+  entries.push({ threshold: 7006, model: { type: 'minecraft:model', model: 'minecraft:item/iron_nugget' } })
   const bullets = {
     type: 'minecraft:range_dispatch',
     property: 'minecraft:custom_model_data',

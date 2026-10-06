@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_r90_shell",
+  "textures": {
+    "t": "donating:item/gunskin/r90/tiger",
+    "particle": "donating:item/gunskin/r90/tiger"
+  }
+}

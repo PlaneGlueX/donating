@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_sniper_full",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        -8.96,
+        -10.88,
+        0.712
+      ],
+      "scale": [
+        0.41,
+        4,
+        4
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "translation": [
+        -8.96,
+        -10.88,
+        0.712
+      ],
+      "scale": [
+        0.41,
+        4,
+        4
+      ]
+    }
+  }
+}

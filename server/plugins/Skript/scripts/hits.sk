@@ -1026,6 +1026,12 @@ on damage with priority lowest:
 			cancel event
 			stop
 		set {_p} to attacker
+		# Only from within hit::max-range (PROPOSAL 24 blocks, 2026-10-06): the Sniper Rifle (or a rifle) from beyond the
+		# bodyguards' 16-block reach took a target down with no risk at all.
+		if distance between {_p} and victim > cfg("hit::max-range"):
+			cancel event
+			hudBar({_p}, "&7Too far: get within %cfg("hit::max-range")% blocks", 2)
+			stop
 		set {-hit::s::%{_vh}%::engaged} to now
 		if {-hit::s::%{_vh}%::noticed} is not set:
 			hitNoticed({_p})

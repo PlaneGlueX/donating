@@ -95,6 +95,59 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     check: (c, x0, y0, w, h, dir, col) => {
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if ((x + y) % 2 === 0) c.set(x0 + x, y0 + y, shade(col, 1.35))
     },
+    // ---------- skin patterns (tools\\guns\\skins.js themes) ----------
+    // Camo: blotches of the theme's camo colors over the base.
+    camo: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
+      const cols = (ctx.theme && ctx.theme.camo) || [[60, 70, 40], [110, 100, 70], [40, 40, 30]]
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const v = Math.sin((x0 + x) * 0.9 + (y0 + y) * 0.35) + Math.sin((x0 + x) * 0.27 - (y0 + y) * 1.1 + 2) + r() * 0.5
+        if (v > 0.9) c.set(x0 + x, y0 + y, rgba(cols[0])); else if (v < -0.9) c.set(x0 + x, y0 + y, rgba(cols[1])); else if (v > 0.2 && v < 0.45) c.set(x0 + x, y0 + y, rgba(cols[2]))
+      }
+    },
+    // Diagonal stripes in the theme's stripe color.
+    stripe: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
+      const sc = rgba((ctx.theme && ctx.theme.stripe) || [20, 20, 20])
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (((x0 + x) + (y0 + y)) % 6 < 2) c.set(x0 + x, y0 + y, sc)
+    },
+    // Carbon weave: a 2x2 checker of two shades.
+    carbon: (c, x0, y0, w, h, dir, col) => {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if ((Math.floor((x0 + x) / 2) + Math.floor((y0 + y) / 2)) % 2 === 0) c.set(x0 + x, y0 + y, shade(col, 1.35))
+    },
+    // Gold: a bright band and scattered sparkles.
+    gold: (c, x0, y0, w, h, dir, col, r) => {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const f = 1.15 - 0.35 * (y / Math.max(1, h - 1))
+        c.set(x0 + x, y0 + y, shade(col, f))
+        if (r() < 0.05) c.set(x0 + x, y0 + y, [255, 250, 210, 255])
+      }
+    },
+    // Falling green code (animated: the columns slide down a texel a frame).
+    code: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
+      const fr = ctx.frame || 0
+      for (let x = 0; x < w; x++) {
+        const phase = Math.floor(r() * 16)
+        for (let y = 0; y < h; y++) {
+          const k = (y - fr - phase + 64) % 8
+          if (k === 0) c.set(x0 + x, y0 + y, [190, 255, 190, 255]); else if (k < 3) c.set(x0 + x, y0 + y, [40, 200, 70, 255])
+        }
+      }
+    },
+    // Lava cracks (animated: they pulse).
+    lava: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
+      const glow = 0.6 + 0.4 * Math.sin(((ctx.frame || 0) / Math.max(1, ctx.frames || 1)) * Math.PI * 2)
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const v = Math.abs(Math.sin((x0 + x) * 0.7 + Math.sin((y0 + y) * 0.5) * 2))
+        if (v < 0.18) c.set(x0 + x, y0 + y, mix([255, 120, 20], [255, 230, 120], glow * (0.18 - v) / 0.18))
+      }
+    },
+    // Glitch (animated): bands shifted magenta and cyan, a different band each frame.
+    glitch: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
+      const fr = ctx.frame || 0
+      for (let y = 0; y < h; y++) {
+        const band = ((y0 + y) + fr * 3) % 7
+        for (let x = 0; x < w; x++) if (band === 0) c.set(x0 + x, y0 + y, [255, 40, 200, 255]); else if (band === 1) c.set(x0 + x, y0 + y, [40, 240, 255, 255])
+      }
+    },
     // A glowing part: bright core, no outline (set glow too).
     glow: (c, x0, y0, w, h, dir, col) => {
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -112,6 +165,10 @@ module.exports = ({ write, canvas, shade, display, both }) => {
   //   display: display({...}) (both hands), states: { ads: firstperson transform, sprint: ... }
   //   noFull: parts left out of the _full model (the flash)
   //   density: texels per model unit (default 2)
+  // Base tones by face (the client shades items too, more lightly: up 1, down 0.5, N/S 0.8, E/W 0.6 in the gui).
+  const TONE = { up: 1.1, down: 0.78, north: 1, south: 1, east: 0.9, west: 0.9 }
+  // What each gun was painted with (paintSkin repaints it): name -> { tiles, W, H, pal, ink, models }.
+  const made = {}
   const pgGun = (name, spec) => {
     const D = spec.density || 2
     const r = rng(hash(name))
@@ -141,7 +198,7 @@ module.exports = ({ write, canvas, shade, display, both }) => {
           const key = pick(b.c, dir)
           if (!pal[key]) throw new Error(`${name}: no palette color ${key}`)
           const [w, h] = faceSize(b, dir)
-          tiles.push({ x: 0, y: 0, w, h, dir, col: rgba(pal[key]), pat: pick(b.pat, dir) || 'flat', glow: b.glow, outline: b.outline !== false && !b.glow, ink: b.ink ? rgba(pal[b.ink]) : null })
+          tiles.push({ x: 0, y: 0, w, h, dir, key, col: rgba(pal[key]), pat: pick(b.pat, dir) || 'flat', glow: b.glow, outline: b.outline !== false && !b.glow, inkKey: b.ink || null, ink: b.ink ? rgba(pal[b.ink]) : null })
           faces[dir] = { tile: tiles.length - 1, ...(b.rotUV ? { rotation: b.rotUV } : {}) }
         }
         const e = { from: b.from, to: b.to, faces }
@@ -158,7 +215,6 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     const H = W
     const tex = canvas(W, H)
     // Base tones by face (the client shades items too, more lightly: up 1, down 0.5, N/S 0.8, E/W 0.6 in the gui).
-    const TONE = { up: 1.1, down: 0.78, north: 1, south: 1, east: 0.9, west: 0.9 }
     for (const t of tiles) {
       const base = t.glow ? t.col : shade(t.col, TONE[t.dir])
       tex.fill(t.x, t.y, t.x + t.w - 1, t.y + t.h - 1, base)
@@ -172,6 +228,11 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     const texId = `donating:item/${name}_tex`
     write(`donating/textures/item/${name}_tex.png`, tex.png())
     const uvOf = t => [round(t.x * 16 / W), round(t.y * 16 / H), round((t.x + t.w) * 16 / W), round((t.y + t.h) * 16 / H)]
+    // Every box (and a rotation's origin) inside the item model limits, -16..32 (the client rejects the model otherwise).
+    const inLimits = v => v.every(n => n >= -16 && n <= 32)
+    for (const [part, els] of Object.entries(elementsOf)) els.forEach((e, i) => {
+      if (!inLimits(e.from) || !inLimits(e.to) || (e.rotation && e.rotation.origin && !inLimits(e.rotation.origin))) throw new Error(`${name}: part ${part} box ${i} is outside -16..32 (${JSON.stringify([e.from, e.to])})`)
+    })
     const toModel = els => els.map(e => {
       const faces = {}
       for (const [dir, f] of Object.entries(e.faces)) faces[dir] = { uv: uvOf(tiles[f.tile]), texture: '#t', ...(f.rotation ? { rotation: f.rotation } : {}) }
@@ -181,16 +242,20 @@ module.exports = ({ write, canvas, shade, display, both }) => {
       return out
     })
     const id = (part, state) => `donating:item/${name}_${part}${state ? '_' + state : ''}`
+    const models = []
+    const writeModel = (rest, data) => { write(`donating/models/item/${name}_${rest}.json`, data); models.push(`donating:item/${name}_${rest}`) }
     write(`donating/models/item/${name}_base.json`, { textures: { t: texId, particle: texId }, display: spec.display })
     const parts = Object.keys(spec.parts)
-    for (const part of parts) write(`donating/models/item/${name}_${part}.json`, { parent: `donating:item/${name}_base`, elements: toModel(elementsOf[part]) })
+    for (const part of parts) writeModel(part, { parent: `donating:item/${name}_base`, elements: toModel(elementsOf[part]) })
     const fullParts = parts.filter(p => !(spec.noFull || []).includes(p))
-    write(`donating/models/item/${name}_full.json`, { parent: `donating:item/${name}_base`, elements: toModel(fullParts.flatMap(p => elementsOf[p])) })
+    writeModel('full', { parent: `donating:item/${name}_base`, elements: toModel(fullParts.flatMap(p => elementsOf[p])) })
     const states = Object.keys(spec.states || {})
     for (const st of states) {
       const fp = both('firstperson', spec.states[st])
-      for (const part of [...parts, 'full']) write(`donating/models/item/${name}_${part}_${st}.json`, { parent: `donating:item/${name}_${part}`, display: fp })
+      for (const part of [...parts, 'full']) writeModel(`${part}_${st}`, { parent: `donating:item/${name}_${part}`, display: fp })
     }
+
+    made[name] = { tiles, W, H, pal, ink, models }
 
     // ---------- frames ----------
     // A pose: { gun: rig (the whole gun), <part>: rig (on top of the gun's), hide: [parts], show: [parts] }.
@@ -245,7 +310,11 @@ module.exports = ({ write, canvas, shade, display, both }) => {
       cases: [{ when: ['firstperson_righthand', 'firstperson_lefthand'], model: fp }],
       fallback: { type: 'minecraft:model', model: id('full', state) }
     })
-    return { id, parts, composite, cooldown, firing, byContext, rig, then }
+    // A custom_model_data flag GunFx sets (DonatingPhone GunFx.java): 0 firing (the automatic guns), 1 a firearm action
+    // without a shot (a pump or bolt worked alone), 2 a draw on a gun that also has a shot clock (both read the Default
+    // state's clock). on_true while the flag is set.
+    const flag = (index, on_true, on_false) => ({ type: 'minecraft:condition', property: 'minecraft:custom_model_data', index, on_true, on_false })
+    return { id, parts, composite, cooldown, firing, byContext, rig, then, flag }
   }
   // Ease curves for frames.
   const ease = {
@@ -256,5 +325,51 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     // 0 before a, 1 after b, a smooth ramp between.
     ramp: (p, a, b) => p <= a ? 0 : p >= b ? 1 : (t => t * t * (3 - 2 * t))((p - a) / (b - a))
   }
-  return { pgGun, ease, rig, then, display }
+  // A skin (tools\\guns\\skins.js): the gun's tiles repainted with theme.palette (key -> color), theme.pat (key -> a
+  // pattern above), theme.ink (the outline), theme.frames (animated: stacked frames, theme.frametime ticks each, never
+  // interpolated). Keys aimed through (the flash, the lens, the beam, the bore) are never recolored. Writes the texture
+  // gunskin/<gun>/<look> and, for every model the gun wrote, a child that keeps its geometry and swaps the texture
+  // (donating:item/gunskin/<gun>/<look>/<rest>); returns the id map (a gun model id -> its skin's).
+  const KEEP = ['flash', 'flashCore', 'flash2', 'beam', 'lens', 'lensB', 'bore', 'scope', 'scopeT', 'scopeIn', 'glass', 'glassB', 'reticle', 'dot', 'post', 'sight', 'bead', 'beadHi']
+  const paintSkin = (name, look, theme = {}) => {
+    const g = made[name]
+    if (!g) throw new Error(`paintSkin: ${name} wasn't built`)
+    if (!/^[a-z0-9]+$/.test(look)) throw new Error(`paintSkin: look ${look} must be [a-z0-9]+`)
+    for (const k of Object.keys(theme.palette || {})) {
+      if (!g.pal[k]) throw new Error(`${name} skin ${look}: no palette key ${k}`)
+      if (KEEP.includes(k)) throw new Error(`${name} skin ${look}: ${k} is aimed through, never recolored`)
+    }
+    for (const [k, p] of Object.entries(theme.pat || {})) if (!g.pal[k] || !PATTERNS[p]) throw new Error(`${name} skin ${look}: pat ${k}=${p}`)
+    const gun = name.replace(/^gun_/, '')
+    const pal = { ...g.pal, ...(theme.palette || {}) }
+    const frames = theme.frames || 1
+    const tex = canvas(g.W, g.H * frames)
+    for (let fr = 0; fr < frames; fr++) {
+      const r = rng(hash(name)) // the gun's own seed: static patterns land where they did
+      for (const t of g.tiles) {
+        const col = rgba(pal[t.key])
+        const base = t.glow ? col : shade(col, TONE[t.dir])
+        const y0 = t.y + fr * g.H
+        tex.fill(t.x, y0, t.x + t.w - 1, y0 + t.h - 1, base)
+        const pat = (theme.pat && theme.pat[t.key]) || t.pat
+        PATTERNS[pat](tex, t.x, y0, t.w, t.h, t.dir, base, r, { frame: fr, frames, theme })
+        if (t.outline) {
+          const o = t.inkKey ? rgba(pal[t.inkKey]) : theme.ink ? rgba(theme.ink) : g.ink
+          for (let x = 0; x < t.w; x++) { tex.set(t.x + x, y0, o); tex.set(t.x + x, y0 + t.h - 1, o) }
+          for (let y = 0; y < t.h; y++) { tex.set(t.x, y0 + y, o); tex.set(t.x + t.w - 1, y0 + y, o) }
+        }
+      }
+    }
+    const texId = `donating:item/gunskin/${gun}/${look}`
+    write(`donating/textures/item/gunskin/${gun}/${look}.png`, tex.png())
+    if (frames > 1) write(`donating/textures/item/gunskin/${gun}/${look}.png.mcmeta`, { animation: { frametime: theme.frametime || 3, interpolate: false } })
+    const prefix = `donating:item/${name}_`
+    const map = id => {
+      if (!id.startsWith(prefix)) throw new Error(`${name} skin ${look}: ${id} isn't one of the gun's models`)
+      return `donating:item/gunskin/${gun}/${look}/${id.slice(prefix.length)}`
+    }
+    for (const id of g.models) write(`donating/models/item/gunskin/${gun}/${look}/${id.slice(prefix.length)}.json`, { parent: id, textures: { t: texId, particle: texId } })
+    return map
+  }
+  return { pgGun, ease, rig, then, display, paintSkin, made }
 }

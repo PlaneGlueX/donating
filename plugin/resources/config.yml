@@ -243,11 +243,19 @@ carcam:
 # custom_model_data flag 0, which the pack needs for the fire flicker) until N ticks after the last shot.
 # action: a firearm action WeaponMechanics works without a shot (the shotgun's pump after a reload from empty) gets
 # an N-tick clock and custom_model_data flag 1 (the pump alone). swing: false takes the arm swing off guns.
+# skins.enabled: gun skins (the item_model a player's chosen look puts on a gun; false: every gun back to its own look).
+# glint: a sniper's scope glint every N ticks for everyone else within 128 blocks while they look through it.
 gunfx:
   enabled: true
   swing: false
+  skins:
+    enabled: true
   guns:
     50_GS: { shot: 6, draw: 0 }
     Uzi: { shot: 0, draw: 20, fire: 5 }
     R9_0: { shot: 15, draw: 0, alone: 5, action: 15 }
     AK_47: { shot: 0, draw: 30, fire: 5 }
+    357_Magnum: { shot: 8, draw: 12 }
+    STG44: { shot: 0, draw: 22, fire: 5 }
+    M4A1: { shot: 4, draw: 26 }
+    AX_50: { shot: 20, draw: 40, alone: 6, action: 16, glint: 10 }

@@ -60,17 +60,19 @@ module.exports = async ({ check }) => {
       await cmd(`minecraft:item replace entity ${SHOOTER} hotbar.${slot} with minecraft:air`)
       await cmd(`wm give ${SHOOTER} ${w} 1 {slot:${slot}}`)
     }
-    const fire = async (slot, n, ms = 12000) => {
-      await give(slot === 0 ? 'AK_47' : 'R9_0', slot)
+    const fire = async (slot, n, ms = 12000) => fireW(slot === 0 ? 'AK_47' : 'R9_0', slot, n, ms)
+    // Any gun: a fresh one in the slot, clicks every gap ms until n hits landed (the equip delay first).
+    const fireW = async (w, slot, n, ms = 12000, gap = 450, equip = 300) => {
+      await give(w, slot)
       a.setQuickBarSlot(slot)
-      await sleep(300)
+      await sleep(equip)
       const end = Date.now() + ms
       while (drops.length < n && Date.now() < end) {
         await aim()
         a.activateItem()
         await sleep(120)
         a.deactivateItem()
-        await sleep(450)
+        await sleep(gap)
       }
       return drops.slice(0, n)
     }
@@ -107,6 +109,47 @@ module.exports = async ({ check }) => {
     const knife = drops.slice(0, 2)
     check('Combat Knife, no armor: 5 a hit, so 4 hits kill', knife.length === 2 && Math.abs(avg(knife) - 5) < 0.3, `drops ${knife.join(', ')}`)
 
+    // The PG3D guns added 2026-10-06 (the owner's rule: no non-sniper kills an unarmored player in fewer than 4 body
+    // shots, the AK-48 stays the strongest automatic; the sniper takes 2, never 1).
+    await heal()
+    const rev = await fireW('357_Magnum', 3, 3, 12000, 700, 900)
+    check('Old Revolver, no armor: 5.3 a body shot (4 shots)', rev.length === 3 && Math.abs(avg(rev) - 5.3) < 0.3 && shots(avg(rev)) === 4, `drops ${rev.join(', ')}`)
+    await heal()
+    const pat = await fireW('STG44', 4, 3, 12000, 450, 1400)
+    check('Brave Patriot, no armor: 5.1 a body shot (4 shots), under the AK-48', pat.length === 3 && Math.abs(avg(pat) - 5.1) < 0.3 && shots(avg(pat)) === 4 && avg(pat) < 5.5, `drops ${pat.join(', ')}`)
+    // One trigger pull of the Combat Rifle is a 3-round burst; a burst never kills (3 x 4.9 = 14.7 < 20).
+    await heal()
+    await give('M4A1', 5)
+    a.setQuickBarSlot(5)
+    await sleep(1600)
+    await aim()
+    a.activateItem()
+    await sleep(60)
+    a.deactivateItem()
+    await sleep(1200)
+    const burst = drops.slice()
+    const sum = burst.reduce((x, y) => x + y, 0)
+    check('Combat Rifle: one trigger pull is a 3-round burst of 4.9 a round (5 shots), and a burst never kills', burst.length >= 2 && burst.length <= 3 && burst.every(d => Math.abs(d - 4.9) < 0.3) && sum < 20 && b.health > 0, `drops ${burst.join(', ')} (sum ${sum.toFixed(1)}), health ${b.health}`)
+    await heal()
+    // The target is fed and saturated (heal()): it heals 1 HP every half second, so the second of the sniper's slow shots
+    // can read 1 lower; the first is exact.
+    const sn = await fireW('AX_50', 6, 2, 16000, 1300, 2400)
+    check('Sniper Rifle, no armor: 12 a body shot, so 2 shots kill and never 1', sn.length === 2 && Math.abs(sn[0] - 12) < 0.3 && sn[1] > 10.9 && sn[1] < 12.3 && shots(12) === 2, `drops ${sn.join(', ')}`)
+    await heal()
+    height = 1.62
+    // Through the scope (the hip spread is wide on purpose; zoomed it's 8% of it).
+    await give('AX_50', 6)
+    a.setQuickBarSlot(6)
+    await sleep(2400)
+    await aim()
+    a.swingArm('right')
+    await sleep(600)
+    const hEnd = Date.now() + 8000
+    while (drops.length < 1 && Date.now() < hEnd) { await aim(); a.activateItem(); await sleep(120); a.deactivateItem(); await sleep(1300) }
+    const snHead = drops.slice(0, 1)
+    height = 1.0
+    check('...a head shot is 13.8 (12 + 15%): still not a one-shot', snHead.length === 1 && Math.abs(snHead[0] - 13.8) < 0.4 && snHead[0] < 20, `drops ${snHead.join(', ')}`)
+
     // ---------- The strongest gear: 11 armor points ----------
     await cmd(`minecraft:item replace entity ${TARGET} armor.head with minecraft:diamond_helmet`)
     await cmd(`minecraft:item replace entity ${TARGET} armor.chest with minecraft:diamond_chestplate`)
@@ -126,6 +169,12 @@ module.exports = async ({ check }) => {
     const legs = await fire(0, 3)
     check('...leg shots through the best gear still count (1.87, 11 shots; no hit spot does nothing)', legs.length === 3 && legs.every(d => d >= 1.5 && d <= 2.0), `drops ${legs.join(', ')}`)
     height = 1.0
+    await heal()
+    const snA = await fireW('AX_50', 6, 2, 16000, 1300, 2400)
+    check('Sniper Rifle against the best gear: 4.08 a body shot (12 x 0.34: 5 shots)', snA.length === 2 && Math.abs(snA[0] - 4.08) < 0.2 && snA[1] > 2.9 && snA[1] < 4.3, `drops ${snA.join(', ')}`)
+    await heal()
+    const revA = await fireW('357_Magnum', 3, 2, 12000, 700, 900)
+    check('Old Revolver against the best gear: 1.80 a body shot (12 shots)', revA.length === 2 && revA.every(d => Math.abs(d - 1.8) < 0.15), `drops ${revA.join(', ')}`)
   } finally {
     await cmd(`minecraft:clear ${TARGET}`).catch(() => {})
     await cmd(`minecraft:clear ${SHOOTER}`).catch(() => {})

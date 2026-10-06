@@ -209,6 +209,17 @@ module.exports = async ({ check }) => {
     check('the bodyguards shoot the hunter on their own (Sentinel, no projectile)', shot, `${await hp(A)}`)
     await cmd(`zzhp ${A} 20`)
 
+    // Beyond hit::max-range (2026-10-06: a Sniper Rifle from past the bodyguards' 16-block reach was a free kill) the
+    // hunter's hit is refused; set to 1 block here, so the hunter standing next to the target is "too far".
+    await cmd('zzcfgset hit::max-range 1')
+    const hr0 = await npcHealth(tu)
+    t = Date.now()
+    await cmd(`minecraft:damage ${tu} 1 minecraft:player_attack by ${A}`)
+    await sleep(400)
+    const hr1 = await npcHealth(tu)
+    await cmd('zzcfgset hit::max-range 24')
+    check('a hit from beyond hit::max-range is refused ("Too far")', hr0 > 0 && hr1 === hr0 && /Too far/.test(text(A, t)), `${hr0} -> ${hr1} | ${text(A, t).slice(0, 200)}`)
+
     // ---------- The takedown ----------
     // A streak: last contract two weeks ago (one missed week is forgiven): +5%.
     await cmd(`zzdata ${A} hit::streak-week ${W - 2}`)

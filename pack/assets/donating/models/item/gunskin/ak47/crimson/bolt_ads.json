@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_ak47_bolt_ads",
+  "textures": {
+    "t": "donating:item/gunskin/ak47/crimson",
+    "particle": "donating:item/gunskin/ak47/crimson"
+  }
+}

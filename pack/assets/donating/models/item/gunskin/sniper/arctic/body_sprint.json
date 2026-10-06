@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_sniper_body_sprint",
+  "textures": {
+    "t": "donating:item/gunskin/sniper/arctic",
+    "particle": "donating:item/gunskin/sniper/arctic"
+  }
+}
