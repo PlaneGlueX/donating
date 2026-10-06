@@ -7,13 +7,13 @@ Uzi:
         - "<gray>A full-auto SMG with a curved magazine."
         - "<gray>Fast, steady and easy to control."
         - ""
-        - "<gray>Weapon Statistics <gold>-<gray> 66.7"
+        - "<gray>Weapon Statistics <gold>-<gray> 64.5"
         - "<gold>➣<gray> 61 <gold>⟸ <gray>Accuracy"
-        - "<gold>➣<gray> 70 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 67 <gold>⟸ <gray>Damage"
         - "<gold>➣<gray> 49 <gold>⟸ <gray>Range"
         - "<gold>➣<gray> 64 <gold>⟸ <gray>Fire Rate"
-        - "<gold>➣<gray> 78 <gold>⟸ <gray>Mobility"
-        - "<gold>➣<gray> 78 <gold>⟸ <gray>Control"
+        - "<gold>➣<gray> 74 <gold>⟸ <gray>Mobility"
+        - "<gold>➣<gray> 72 <gold>⟸ <gray>Control"
       Unbreakable: true
       Hide_Flags: true
       Attributes:

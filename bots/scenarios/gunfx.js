@@ -177,6 +177,37 @@ module.exports = async ({ check }) => {
       await quit(other)
     }
 
+    // The draw flag (2026-10-06): a gun with both a draw and a shot clock (the Combat Rifle: draw 26, shot 4) is marked
+    // drawing (flag 2) for its draw, so the pack shows the draw's frames and not a shot's; gone when the clock ends.
+    // Left-clicking mid-draw is the scope: either WeaponMechanics refuses it (the equip delay) and the draw goes on, or it
+    // aims and GunFx ends the draw (no draw frames in the sights); never the flag on with the clock ended.
+    await rcon.cmd(`zzclear ${NAME}`)
+    await rcon.cmd(`wm give ${NAME} M4A1 1 {slot:4,ammo:30}`)
+    bot.setQuickBarSlot(0)
+    await sleep(500)
+    t = Date.now()
+    bot.setQuickBarSlot(4)
+    await sleep(300)
+    const drawing = await cmd(4)
+    const drawClock = since(t, 'donating:gun/m4a1').some(c => c.ticks === 26)
+    await sleep(1400)
+    const drawn = await cmd(4)
+    check('the Combat Rifle\'s draw: its 26-tick clock and flag 2 while it lasts, gone after', drawClock && /flags: \[0b, 0b, 1b\]/.test(drawing) && !/1b\]/.test(drawn),
+      `${JSON.stringify(since(t, 'donating:gun/m4a1').map(c => [c.ticks, c.t - t]))}; during ${drawing}; after ${drawn}`)
+    bot.setQuickBarSlot(0)
+    await sleep(500)
+    t = Date.now()
+    bot.setQuickBarSlot(4)
+    await sleep(250)
+    bot.swingArm('right') // left click into the air = the scope
+    await sleep(250)
+    const midAim = await cmd(4)
+    const ended = since(t, 'donating:gun/m4a1').some(c => c.ticks === 0)
+    check('...left-clicking mid-draw: the flag and the draw\'s clock end together, or both go on (the scope refused)', /1b\]/.test(midAim) ? !ended : ended,
+      `${JSON.stringify(since(t, 'donating:gun/m4a1').map(c => [c.ticks, c.t - t]))}; ${midAim}`)
+    bot.swingArm('right')
+    await sleep(1600)
+
     // The firing flag: an automatic gun is marked firing (custom_model_data flag 0) while it shoots, and not after.
     await rcon.cmd(`zzclear ${NAME}`)
     await give('Uzi', 2, 30)

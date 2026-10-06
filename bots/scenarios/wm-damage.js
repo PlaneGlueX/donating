@@ -5,6 +5,8 @@
 // is one hit. Shots to kill = ceil(20 / drop).
 const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
+const fs = require('fs')
+const path = require('path')
 
 const SHOOTER = 'DmgShooter'
 const TARGET = 'DmgTarget'
@@ -117,19 +119,30 @@ module.exports = async ({ check }) => {
     await heal()
     const pat = await fireW('STG44', 4, 3, 12000, 450, 1400)
     check('Brave Patriot, no armor: 5.1 a body shot (4 shots), under the AK-48', pat.length === 3 && Math.abs(avg(pat) - 5.1) < 0.3 && shots(avg(pat)) === 4 && avg(pat) < 5.5, `drops ${pat.join(', ')}`)
-    // One trigger pull of the Combat Rifle is a 3-round burst; a burst never kills (3 x 4.9 = 14.7 < 20).
+    // One trigger pull of the Combat Rifle is a 3-round burst; a burst never kills (3 x 4.9 = 14.7 < 20, and its worst
+    // stack, three head shots at x1.15, is 16.9). The rounds fired are counted from the magazine (a missed round would
+    // otherwise hide a burst of 2 or 4), and all 3 must land at 4 blocks.
+    const ammoLeft = async slot => {
+      const out = await cmd(`data get entity ${SHOOTER} Inventory[{Slot:${slot}b}].components."minecraft:custom_data".PublicBukkitValues."weaponmechanics:ammo-left"`)
+      const m = out.match(/data: (-?\d+)/)
+      return m ? Number(m[1]) : NaN
+    }
     await heal()
     await give('M4A1', 5)
     a.setQuickBarSlot(5)
     await sleep(1600)
+    const before = await ammoLeft(5)
     await aim()
     a.activateItem()
     await sleep(60)
     a.deactivateItem()
     await sleep(1200)
+    const fired = before - (await ammoLeft(5))
     const burst = drops.slice()
     const sum = burst.reduce((x, y) => x + y, 0)
-    check('Combat Rifle: one trigger pull is a 3-round burst of 4.9 a round (5 shots), and a burst never kills', burst.length >= 2 && burst.length <= 3 && burst.every(d => Math.abs(d - 4.9) < 0.3) && sum < 20 && b.health > 0, `drops ${burst.join(', ')} (sum ${sum.toFixed(1)}), health ${b.health}`)
+    const yml = fs.readFileSync(path.join(__dirname, '..', '..', 'server', 'plugins', 'WeaponMechanics', 'weapons', 'assault_rifles', 'M4A1.yml'), 'utf8')
+    const base = Number((yml.match(/Base_Damage: ([\d.]+)/) || [])[1])
+    check('Combat Rifle: one trigger pull fires exactly 3 rounds, all 3 land at 4.9 (5 shots kill), and a burst never kills (even 3 head shots: 3 x base x 1.15 < 20)', fired === 3 && burst.length === 3 && burst.every(d => Math.abs(d - 4.9) < 0.3) && sum < 20 && b.health > 0 && 3 * base * 1.15 < 20, `fired ${fired} (${before} left before), drops ${burst.join(', ')} (sum ${sum.toFixed(1)}), health ${b.health}, base ${base}`)
     await heal()
     // The target is fed and saturated (heal()): it heals 1 HP every half second, so the second of the sniper's slow shots
     // can read 1 lower; the first is exact.

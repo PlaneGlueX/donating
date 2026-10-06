@@ -1,7 +1,7 @@
 // Gun skins (2026-10-06; the owner: "revamp the gun skin system to have different skin variants of specific guns"):
 // cosmetics.sk's gun skins (core.sk cos::<id>::type "gunskin", one look of one gun) and DonatingPhone's GunFx, which puts
 // the look on the player's guns as their minecraft:item_model (/dphone gunskin; Skript never sets it on a real gun).
-// Checks: the 14 skins and their pack files, the crate tables (every total 1000, each crate's cosmetics within the owner's
+// Checks: the 18 skins and their pack files, the crate tables (every total 1000, each crate's cosmetics within the owner's
 // cap, every crate skin in one crate), a crate line giving a skin with a serial and a repeat paying the dupe value, a
 // Hacked set giving only its missing gun skin, the level-100 skin (bound, once), the wardrobe (/cosmetics' Gun skins
 // button, the page of guns, a gun's page, wearing and taking off), the look on a gun WeaponMechanics makes (with the
@@ -122,8 +122,8 @@ module.exports = async ({ check }) => {
     const missing = defs.filter(d => !fs.existsSync(path.join(ITEMS, `gunskin_${d.mod}_${d.look}.json`)))
     const live = await cmd('zzcfg cos::ak_golden::model')
     const bound = await cmd('zzcfg cos::lvl_kingpin_ak::bound')
-    check('core.sk defines 14 gun skins for the four first guns, each with its pack item definition (retired and testing ones included); the level ones are bound',
-      defs.length === 14 && missing.length === 0 && /donating:gunskin_ak47_golden/.test(live) && /true/.test(bound) && defs.filter(d => d.rarity === 'level').length === 2,
+    check('core.sk defines 18 gun skins (the eight guns), each with its pack item definition (retired and testing ones included); the level ones are bound',
+      defs.length === 18 && missing.length === 0 && /donating:gunskin_ak47_golden/.test(live) && /true/.test(bound) && defs.filter(d => d.rarity === 'level').length === 2,
       `${defs.length} skins; missing ${missing.map(d => d.id).join(',')}; ${live}; ${bound}`)
     const crates = {}
     for (const m of core.matchAll(/set \{-cfg::crate::([a-z]+)::rewards::\*\} to (.+)/g)) crates[m[1]] = [...m[2].matchAll(/"([^"]+)"/g)].map(x => x[1])

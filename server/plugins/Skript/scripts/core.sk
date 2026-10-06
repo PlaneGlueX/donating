@@ -1968,8 +1968,11 @@ function loadSettings():
 	set {-cfg::hit::guard-name} to "Hired Gun"
 	set {-cfg::hit::guard-model} to 15
 	# PROPOSAL (2026-10-06): a hit NPC only takes hits from within this many blocks of its hunter (a sniper or a rifle from
-	# beyond the bodyguards' 16-block reach was a free kill).
-	set {-cfg::hit::max-range} to 24
+	# beyond the bodyguards' 16-block reach was a free kill). Keep it at or under guard-reach, and guard-range at least
+	# max-range + 12 (the bodyguards stand up to 12 blocks from the target and Sentinel looks from each one's own eye; its
+	# default range is 20).
+	set {-cfg::hit::max-range} to 16
+	set {-cfg::hit::guard-range} to 30
 	set {-cfg::hit::guard-health} to 20
 	set {-cfg::hit::guard-damage} to 2.5
 	set {-cfg::hit::guard-rate} to 1.75

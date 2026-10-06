@@ -603,6 +603,7 @@ function hitSpawnFor(p: player, l: location):
 						hitSentinel({_id}, "damage %cfg("hit::guard-damage")%")
 						hitSentinel({_id}, "attackrate %cfg("hit::guard-rate")%")
 						hitSentinel({_id}, "reach %cfg("hit::guard-reach")%")
+						hitSentinel({_id}, "range %cfg("hit::guard-range")%")
 						hitSentinel({_id}, "speed %cfg("hit::guard-speed")%")
 						hitSentinel({_id}, "guard npc:%{_tid}%")
 						hitSentinel({_id}, "guarddistance 3 12")
@@ -1026,8 +1027,8 @@ on damage with priority lowest:
 			cancel event
 			stop
 		set {_p} to attacker
-		# Only from within hit::max-range (PROPOSAL 24 blocks, 2026-10-06): the Sniper Rifle (or a rifle) from beyond the
-		# bodyguards' 16-block reach took a target down with no risk at all.
+		# Only from within hit::max-range (PROPOSAL 16 blocks, the bodyguards' reach, 2026-10-06): the Sniper Rifle (or a
+		# rifle) from beyond it took a target down with no risk at all.
 		if distance between {_p} and victim > cfg("hit::max-range"):
 			cancel event
 			hudBar({_p}, "&7Too far: get within %cfg("hit::max-range")% blocks", 2)

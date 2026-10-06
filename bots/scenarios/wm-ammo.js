@@ -125,6 +125,11 @@ module.exports = async ({ check }) => {
     })
     const pumps = [14, 1014].filter(n => all(gunEntry(n), isFlag(1)).length === 1)
     check('the automatic guns\' fire flicker needs GunFx\'s firing flag and the held key; the shotgun has the pump alone (flag 1)', gated.length === 6 && pumps.length === 2, `gated ${gated.join(' ')}; pump ${pumps.join(' ')}`)
+    // The guns with both a draw and a shot clock (Combat Rifle 7, Old Revolver 8, Sniper Rifle 13) tell the draw from a
+    // shot by GunFx's flag 2, aimed too; the Sniper Rifle draws its bolt alone under flag 1 (review 2026-10-06).
+    const draws = [7, 1007, 8, 1008, 13, 1013].filter(n => all(gunEntry(n), isFlag(2)).length === 1)
+    const bolts = [13, 1013].filter(n => all(gunEntry(n), isFlag(1)).length === 1)
+    check('the Combat Rifle, Old Revolver and Sniper Rifle draw under flag 2 (default and aimed); the Sniper Rifle\'s bolt alone is flag 1', draws.length === 6 && bolts.length === 2, `draw ${draws.join(' ')}; bolt ${bolts.join(' ')}`)
     // No No_Ammo skin (WeaponMechanics puts it over Scope and Sprint: an empty gun dropped out of the sights), and no
     // firearm-action sounds on the pistol and the AK-48 (their reload frames show no slide or bolt action of its own).
     const yamlOf = g => read(g.file).split('\n').filter(l => !l.trim().startsWith('#')).join('\n')

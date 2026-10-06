@@ -56,8 +56,10 @@ AX_50:
         Swimming: "DENY"
         Sprinting: "DENY"
     Projectile_Speed: 200
-    # 18, not 20: 20 sits on the 1000 ms boundary and slips to 24 ticks; with 18 (and the bolt's 16) a held click still
-    # fires every 20 ticks.
+    # 18, not 20: 20 sits on the 1000 ms boundary and slips to 24 ticks; with 18 (and the bolt's 16) a held click fires
+    # every 20 ticks from the hip. Scoped it's about every 25: Unscope_After_Shot takes the scope off, WeaponMechanics
+    # refuses to scope in again until this delay (900 ms) has passed, and Shoot_Delay_After_Scope adds 300 ms (review,
+    # 2026-10-06: kept on purpose; scoped kills take about 1.25 s unarmored, 5 s in the best gear).
     Delay_Between_Shots: 18
     Spread:
       Base_Spread: 7.0

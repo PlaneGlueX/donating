@@ -33,7 +33,7 @@ Everyone owns and drives cars the same way. Cars come out at garages: one at eve
 
 ### Gun skins (added 2026-10-06)
 
-A gun skin is a different look for one gun (for example the **Golden AK-48** or the **Molten Shotgun**): its colors only. A skinned gun does exactly the same damage, fires at the same rate, reloads the same and sounds the same; the sights, the scope's lens and the muzzle flash keep their own colors, so no skin is easier to aim with. Gun skins are **never sold directly**. They come from crate keys like the other cosmetics (every crate has one or two, inside its cosmetic share below; each Hacked set has one) and two are earned at robber levels 100 and 150 (those two can't be traded). Players wear one per gun from the wardrobe (/cosmetics, /gunskins); crate gun skins can be traded in person (/trade) with their serial number, like the other crate cosmetics. Legends own every retired and testing gun skin, like every other retired cosmetic. Proposal (2026-10-06): 12 crate skins and 2 level skins for the first four guns (the Classic Pistol, the Machine Gun, the Shotgun and the AK-48).
+A gun skin is a different look for one gun (for example the **Golden AK-48** or the **Molten Shotgun**): its colors only. A skinned gun does exactly the same damage, fires at the same rate, reloads the same and sounds the same; the sights, the scope's lens and the muzzle flash keep their own colors, so no skin is easier to aim with. Gun skins are **never sold directly**. They come from crate keys like the other cosmetics (every crate has one or two, inside its cosmetic share below; each Hacked set has one) and two are earned at robber levels 100 and 150 (those two can't be traded). Players wear one per gun from the wardrobe (/cosmetics, /gunskins); crate gun skins can be traded in person (/trade) with their serial number, like the other crate cosmetics. Legends own every retired and testing gun skin, like every other retired cosmetic. Proposal (2026-10-06): 16 crate skins (12 for the Classic Pistol, the Machine Gun, the Shotgun and the AK-48, and one each for the Old Revolver, the Brave Patriot, the Combat Rifle and the Sniper Rifle, the four guns added the same day; the guns themselves are bought with in-game money only, like every gun) and 2 level skins.
 
 ### What's in each crate
 
@@ -123,14 +123,15 @@ Gameplay items (money, ammo, consumables, tools): 95% of openings.
 | 3 Stims | consumable | 5% |
 | 1 Drill | heist tool | 7% |
 | 3 Safe Kits | heist tool | 5% |
-| Inside Man (title, Rare) | looks only | 0.9% |
-| Phantom (title, Rare) | looks only | 0.9% |
-| Cash Burst (kill effect, Rare) | looks only | 0.9% |
-| Souls (kill effect, Rare) | looks only | 0.9% |
+| Inside Man (title, Rare) | looks only | 0.8% |
+| Phantom (title, Rare) | looks only | 0.8% |
+| Cash Burst (kill effect, Rare) | looks only | 0.8% |
+| Souls (kill effect, Rare) | looks only | 0.8% |
 | Cash Print (bag skin, Rare) | looks only | 0.8% |
-| Crimson (bag skin, Rare) | looks only | 0.8% |
-| Woodland Camo Machine Gun (gun skin, Rare) | looks only | 0.9% |
-| Crimson AK-48 (gun skin, Rare) | looks only | 0.9% |
+| Crimson (bag skin, Rare) | looks only | 0.7% |
+| Woodland Camo Machine Gun (gun skin, Rare) | looks only | 0.8% |
+| Crimson AK-48 (gun skin, Rare) | looks only | 0.8% |
+| Army Combat Rifle (gun skin, Rare) | looks only | 0.7% |
 
 Gameplay items (money, ammo, consumables, tools): 93% of openings.
 
@@ -143,14 +144,16 @@ Gameplay items (money, ammo, consumables, tools): 93% of openings.
 | $13,500 | in-game money | 13% |
 | 1 Drill | heist tool | 12% |
 | 3 Stims | consumable | 8% |
-| Untouchable (title, Epic) | looks only | 1.3% |
-| Big Fish (title, Epic) | looks only | 1.3% |
-| Fireworks (kill effect, Epic) | looks only | 1.2% |
-| Storm Cloud (kill effect, Epic) | looks only | 1.2% |
-| Tiger (bag skin, Epic) | looks only | 1.2% |
-| Carbon (bag skin, Epic) | looks only | 1.2% |
-| Tiger Shotgun (gun skin, Epic) | looks only | 1.3% |
-| Carbon Machine Gun (gun skin, Epic) | looks only | 1.3% |
+| Untouchable (title, Epic) | looks only | 1% |
+| Big Fish (title, Epic) | looks only | 1% |
+| Fireworks (kill effect, Epic) | looks only | 1% |
+| Storm Cloud (kill effect, Epic) | looks only | 1% |
+| Tiger (bag skin, Epic) | looks only | 1% |
+| Carbon (bag skin, Epic) | looks only | 1% |
+| Tiger Shotgun (gun skin, Epic) | looks only | 1% |
+| Carbon Machine Gun (gun skin, Epic) | looks only | 1% |
+| Gilded Old Revolver (gun skin, Epic) | looks only | 1% |
+| Arctic Sniper Rifle (gun skin, Epic) | looks only | 1% |
 
 Gameplay items (money, ammo, consumables, tools): 90% of openings.
 
@@ -163,14 +166,15 @@ Gameplay items (money, ammo, consumables, tools): 90% of openings.
 | $34,000 | in-game money | 12% |
 | 1 Drill | heist tool | 10% |
 | Vandal (exclusive car) | looks only | 3% |
-| Most Wanted (title, Legendary) | looks only | 1.5% |
-| The Boss (title, Legendary) | looks only | 1.5% |
-| Dragon's Breath (kill effect, Legendary) | looks only | 1.5% |
-| Totem (kill effect, Legendary) | looks only | 1.5% |
-| Diamond (bag skin, Legendary) | looks only | 1.5% |
-| Molten (bag skin, Legendary) | looks only | 1.5% |
-| Golden AK-48 (gun skin, Legendary) | looks only | 1.5% |
-| Molten Shotgun (gun skin, Legendary) | looks only | 1.5% |
+| Most Wanted (title, Legendary) | looks only | 1.4% |
+| The Boss (title, Legendary) | looks only | 1.4% |
+| Dragon's Breath (kill effect, Legendary) | looks only | 1.3% |
+| Totem (kill effect, Legendary) | looks only | 1.3% |
+| Diamond (bag skin, Legendary) | looks only | 1.3% |
+| Molten (bag skin, Legendary) | looks only | 1.3% |
+| Golden AK-48 (gun skin, Legendary) | looks only | 1.4% |
+| Molten Shotgun (gun skin, Legendary) | looks only | 1.3% |
+| Neon Brave Patriot (gun skin, Legendary) | looks only | 1.3% |
 
 Gameplay items (money, ammo, consumables, tools): 85% of openings.
 

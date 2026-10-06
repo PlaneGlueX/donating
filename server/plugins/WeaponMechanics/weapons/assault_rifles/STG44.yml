@@ -12,8 +12,8 @@ STG44:
         - "<gold>➣<gray> 72 <gold>⟸ <gray>Damage"
         - "<gold>➣<gray> 58 <gold>⟸ <gray>Range"
         - "<gold>➣<gray> 57 <gold>⟸ <gray>Fire Rate"
-        - "<gold>➣<gray> 76 <gold>⟸ <gray>Mobility"
-        - "<gold>➣<gray> 72 <gold>⟸ <gray>Control"
+        - "<gold>➣<gray> 72 <gold>⟸ <gray>Mobility"
+        - "<gold>➣<gray> 70 <gold>⟸ <gray>Control"
       Unbreakable: true
       Hide_Flags: true
       Attributes:
