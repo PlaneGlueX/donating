@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_ak47_flash2",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        21.5,
+        -25.25,
+        0
+      ],
+      "translation": [
+        -10.6,
+        2.84,
+        1.38
+      ],
+      "scale": [
+        0.72,
+        0.72,
+        0.72
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        21.5,
+        154.75,
+        0
+      ],
+      "translation": [
+        -10.6,
+        2.84,
+        1.38
+      ],
+      "scale": [
+        0.72,
+        0.72,
+        0.72
+      ]
+    }
+  }
+}

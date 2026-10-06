@@ -112,8 +112,8 @@ function Get-Stale([string]$output, [string[]]$inputs) {
 
 # ---------- the server process ----------
 # The server's Java processes, found by their command line (java -jar paper-....jar), so a stale or missing
-# server.pid (after a reboot, or a server started another way) doesn't matter. The Oracle javapath stub and the
-# real JVM it starts both match. Only java.exe: the Minecraft client is javaw.exe, and its command line (which holds
+# server.pid (after a reboot, or a server started another way) doesn't matter. Since Paper 26.x it's one process,
+# tools\jdk25's java.exe (before, the Oracle javapath stub and the JVM it started both matched). Only java.exe: the Minecraft client is javaw.exe, and its command line (which holds
 # the login token) is never read here.
 function Get-ServerProcs {
   @(Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" -ErrorAction SilentlyContinue |
@@ -360,7 +360,7 @@ function Build-Pack {
 # didn't get it. -AfterFetch: the check after a download (no second offer to download).
 function Test-Jars([switch]$AfterFetch) {
   $paper = Get-ChildItem $serverDir -Filter 'paper-*.jar' -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $paper) { Bad 'No paper-*.jar in server\ (Paper 1.21.11 from papermc.io).'; return $false }
+  if (-not $paper) { Bad 'No paper-*.jar in server\ (Paper 26.1.2: tools\downloads.json).'; return $false }
   $manifest = Get-Content (Join-Path $PSScriptRoot 'downloads.json') -Raw | ConvertFrom-Json
   $missing = @(); $manual = @()
   foreach ($f in $manifest.files) {
@@ -409,7 +409,7 @@ function Start-All([string]$memory = '2G') {
     Bad 'server\server.properties is missing (it is local only, never in git: offline mode, RCON, the pack address).'
     return $false
   }
-  if (-not (Get-Command java -ErrorAction SilentlyContinue)) { Bad 'Java is not installed or not on PATH (the server needs Java 21).'; return $false }
+  if (-not (Test-Path (Join-Path $PSScriptRoot 'jdk25\bin\java.exe'))) { Bad 'Java 25 is missing: tools\jdk25 (Paper 26.x needs it; tools\downloads.json).'; return $false }
   $port = Get-PropInt 'server-port' 25565
   $taken = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($taken) {

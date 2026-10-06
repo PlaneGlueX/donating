@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_ak47_mag",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        -8.96,
+        3.04,
+        -13.12
+      ],
+      "scale": [
+        1.6,
+        2.4,
+        2.4
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "translation": [
+        -8.96,
+        3.04,
+        -13.12
+      ],
+      "scale": [
+        1.6,
+        2.4,
+        2.4
+      ]
+    }
+  }
+}

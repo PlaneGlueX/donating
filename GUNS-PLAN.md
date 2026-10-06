@@ -24,6 +24,23 @@ The owner: "switch over the version and get all files in order before executing 
 last thing you need to do to continue ... if you need to take control then no need to ask me even if im in the
 middle of something".
 
+## What was built (2026-10-05)
+
+- The server moved to **Paper 26.1.2** (build 74) on Java 25: the newest version every plugin has a build for
+  (WeaponMechanics 4.3.1 stops at 26.1; MTVehicles, DecentHolograms, CoreProtect and Skript stop before 26.3). Your
+  26.3 client joins through ViaVersion as before. The whole bot suite passes on it (1,453 checks).
+- The four guns, by hand with the gun kit (`tools\guns\pg.js`), same titles, prices, levels, damage and fire rates:
+  **Classic Pistol** (50_GS), **Machine Gun** (Uzi, an MP5-style SMG), **Shotgun** (R9_0, a pump gun, still two
+  shots per pump), **AK-48** (AK_47, with its scope and laser).
+- First-person animations, all drawn by the pack from a clock DonatingPhone starts (GunFx): a draw for the automatic
+  guns, a reload for every gun (magazine out and in, the bolt or the slide, the shotgun a shell at a time), the
+  slide's kick on the pistol, the kick and the pump on the shotgun (only the kick on the shot that doesn't pump),
+  a flickering muzzle flash and kick while the automatic guns fire, an empty pose (the slide locked back).
+- New sounds for every shot, reload, slide, pump, bolt and draw, synthesized (`tools\sounds\make-gun-sounds.js`),
+  timed to the frames.
+- The reload sweep stays (answer 3). Gloves wait (answer 4).
+- Left for you: how it all feels in game (PLAYTEST 179).
+
 ## The original plan (before the answers)
 
 The owner: "im thinking of revamping the gun system to use guns from pixel gun 3d ... can you come up with a way

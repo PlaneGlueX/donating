@@ -60,7 +60,7 @@ module.exports = async ({ check }) => {
     let out = await said('/level')
     check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level at T(1) = 49 XP', /Your level: 0 Pickpocket · 0 XP/.test(out) && /Next: level 1 Pickpocket at 49 XP/.test(out), out)
     out = await said('/levels', 1500)
-    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts (and the rewards)', /5\. Shoplifter - 287 XP · .*the \.50 GS.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. - 1,281 XP · .*the Uzi.*the Drill/.test(out) && /20\. Burglar - 2,078 XP/.test(out) && /100\. Mastermind - 75,514 XP · .*the «Mastermind» title/.test(out) && /150\. Kingpin - 240,190 XP · .*the SUV \(car\).*the Apex \(car\).*the «Kingpin» title/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 2500))
+    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts (and the rewards)', /5\. Shoplifter - 287 XP · .*the Classic Pistol.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. - 1,281 XP · .*the Machine Gun.*the Drill/.test(out) && /20\. Burglar - 2,078 XP/.test(out) && /100\. Mastermind - 75,514 XP · .*the «Mastermind» title/.test(out) && /150\. Kingpin - 240,190 XP · .*the SUV \(car\).*the Apex \(car\).*the «Kingpin» title/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 2500))
     check('the footer shows the level and the XP to the next one', /Pickpocket$/.test(await papi('donating_level')) && (await papi('donating_level_num')) === '0' && (await papi('donating_level_xp')) === '0/49 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
 
     // ---------- Selling earns XP ----------
@@ -90,13 +90,13 @@ module.exports = async ({ check }) => {
     await sleep(600)
     i = await info()
     check('reaching 287 XP: level 5 (Shoplifter)', i.rank === 5 && i.xp === 287, i.raw)
-    check('...with a LEVEL UP title and what it unlocks (guns, the Duffel Bag, the Safe Kit), to that player', messagesSince(bot, t).some(m => m.kind === 'title:title' && /LEVEL UP/.test(m.text)) && /Level up! You're level 5 now: Shoplifter/.test(text(t)) && /Unlocked: the \.50 GS/.test(text(t)) && /Unlocked: the Duffel Bag/.test(text(t)) && /Unlocked: the Safe Kit/.test(text(t)), text(t))
+    check('...with a LEVEL UP title and what it unlocks (guns, the Duffel Bag, the Safe Kit), to that player', messagesSince(bot, t).some(m => m.kind === 'title:title' && /LEVEL UP/.test(m.text)) && /Level up! You're level 5 now: Shoplifter/.test(text(t)) && /Unlocked: the Classic Pistol/.test(text(t)) && /Unlocked: the Duffel Bag/.test(text(t)) && /Unlocked: the Safe Kit/.test(text(t)), text(t))
     check('...and the footer follows (T(6) = 358)', /Shoplifter$/.test(await papi('donating_level')) && (await papi('donating_level_xp')) === '287/358 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
     t = Date.now()
     await cmd(`dlevel xp ${R} 3000`)
     await sleep(600)
     i = await info()
-    check('a jump over several levels lists every unlock on the way (3,287 XP: level 25 Burglar, T(25) = 3,147)', i.rank === 25 && /Burglar/.test(text(t)) && /Unlocked: the Drill/.test(text(t)) && /Unlocked: the Uzi/.test(text(t)) && /Unlocked: the Hockey Bag/.test(text(t)) && /Unlocked: the Armored Duffel/.test(text(t)), `${i.raw} ${text(t).slice(0, 600)}`)
+    check('a jump over several levels lists every unlock on the way (3,287 XP: level 25 Burglar, T(25) = 3,147)', i.rank === 25 && /Burglar/.test(text(t)) && /Unlocked: the Drill/.test(text(t)) && /Unlocked: the Machine Gun/.test(text(t)) && /Unlocked: the Hockey Bag/.test(text(t)) && /Unlocked: the Armored Duffel/.test(text(t)), `${i.raw} ${text(t).slice(0, 600)}`)
     // Each level needs more than the one before (the owner's "a little harder each time").
     const needs = []
     for (const n of [2, 10, 30, 60, 100, 150]) { await cmd(`dlevel set ${R} ${n - 1}`); const a = (await info()).xp; await cmd(`dlevel set ${R} ${n}`); needs.push((await info()).xp - a) }

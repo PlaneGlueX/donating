@@ -56,6 +56,10 @@ if (Test-Path $pidFile) {
   if ($old -and $old.ProcessName -eq 'java') { Write-Output "Already running (PID $($old.Id))"; Start-PackServer; exit 0 }
 }
 
+# Paper 26.x needs Java 25: the portable Temurin in tools\jdk25 (tools\downloads.json; unpack its folder there).
+# The PATH's java is Oracle 21, which Paper 26.x refuses.
+$java = Join-Path $PSScriptRoot 'jdk25\bin\java.exe'
+if (-not (Test-Path $java)) { throw "Java 25 is missing: $java (tools\fetch.ps1 downloads it; unpack the zip's folder to tools\jdk25)" }
 $jar = Get-ChildItem $serverDir -Filter 'paper-*.jar' | Sort-Object Name | Select-Object -Last 1
 $jvm = @(
   "-Xms$Memory", "-Xmx$Memory",
@@ -69,7 +73,7 @@ $jvm = @(
 )
 $javaArgs = $jvm + @('-jar', $jar.Name, '--nogui')
 
-$proc = Start-Process -FilePath 'java' -ArgumentList $javaArgs -WorkingDirectory $serverDir -WindowStyle Hidden `
+$proc = Start-Process -FilePath $java -ArgumentList $javaArgs -WorkingDirectory $serverDir -WindowStyle Hidden `
   -RedirectStandardOutput (Join-Path $serverDir 'console.out.log') `
   -RedirectStandardError (Join-Path $serverDir 'console.err.log') -PassThru
 Set-Content -Path $pidFile -Value $proc.Id

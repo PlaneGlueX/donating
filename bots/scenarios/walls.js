@@ -49,7 +49,7 @@ module.exports = async ({ check }) => {
     const img = new Uint8Array(W * H)
     let x0 = 0, z0 = 0
     for (let r = 0; r < grid.length; r++) for (let c = 0; c < grid[r].length; c++) {
-      const t = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', `map_${grid[r][c]}.dat`)))).parsed).data
+      const t = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${grid[r][c]}.dat`)))).parsed).data
       if (r === 0 && c === 0) { x0 = t.xCenter - 64 * (1 << (t.scale || 0)); z0 = t.zCenter - 64 * (1 << (t.scale || 0)) }
       for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) img[(r * 128 + y) * W + c * 128 + x] = t.colors[y * 128 + x] & 255
     }
@@ -158,7 +158,8 @@ module.exports = async ({ check }) => {
     // Freed maps are used again (any freed ones, also an earlier run's walls: walls.yml keeps the free list), so every
     // map the new wall gets already had its file before (a new map would be a new id with no file yet).
     await cmd('save-all flush')
-    const mapFiles = () => new Set(fs.readdirSync(path.join(SERVER, 'world', 'data')).map(f => (f.match(/^map_(\d+)\.dat$/) || [])[1]).filter(Boolean).map(Number))
+    // 26.x keeps maps as world\data\minecraft\maps\<id>.dat (last_id.dat holds the counter).
+    const mapFiles = () => new Set(fs.readdirSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps')).map(f => (f.match(/^(\d+)\.dat$/) || [])[1]).filter(Boolean).map(Number))
     const before = mapFiles()
     await cmd(`dphone wall create ztest 2 1 world ${WX} ${WY} ${WZ} south`)
     const reused = await idsOf('ztest')

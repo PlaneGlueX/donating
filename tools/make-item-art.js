@@ -1066,7 +1066,9 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   // { <number>: <item model> }. items/feather.json here holds only ours; build-pack.js merges it into
   // WeaponMechanics' feather.json by threshold (ours win) and stops unless every number below is ours.
   // Same numbers, so nothing on the server changes (shop icons, cops' and bodyguards' guns, crates).
-  const GUNS = { gs50: [9, 1009, 2009], uzi: [1, 1001, 2001], ak47: [5, 1005, 2005], r90: [14, 1014, 2014], knife: [-10], stim: [-1] }
+  // Since 2026-10-05 the guns are Pixel Gun 3D recreations built with the kit in toolsgunspg.js, with two more
+  // states: Reload (+3000) and No_Ammo (+4000), and first-person frames (pg.js: cooldown, fire held).
+  const GUNS = { gs50: [9, 1009, 2009, 3009, 4009], uzi: [1, 1001, 2001, 3001, 4001], ak47: [5, 1005, 2005, 3005, 4005], r90: [14, 1014, 2014, 3014, 4014], knife: [-10], stim: [-1] }
   // The shared palette (the melee weapons' and the Grappler's colors), [r, g, b].
   const PAL = {
     outline: K.slice(0, 3),
@@ -1148,9 +1150,14 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     translation: [-8.96, round(8.32 - scale[1] * (sightY - 8)), round(16 * (0.72 - rearDepth - scale[0] * (rearX - 8) / 16))],
     scale
   })
-  const helpers = { solid, icon, iconOr3d, art, canvas, shade, write, rgba, r, bar, diag, K, STEEL, steel, edge, PAL, HELD, HANDHELD, both, mirror, display, state, aim }
+  const pg = require(path.join(__dirname, 'guns', 'pg.js'))({ write, canvas, shade, display, both })
+  const helpers = { solid, icon, iconOr3d, art, canvas, shade, write, rgba, r, bar, diag, K, STEEL, steel, edge, PAL, HELD, HANDHELD, both, mirror, display, state, aim, pg }
   const feather = []
+  // --only <id>[,<id>]: build just these gun modules (previews while drawing one gun: tools\render-item.js on its
+  // donating:item/<name>_full); feather.json isn't written then.
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null
   for (const [id, numbers] of Object.entries(GUNS)) {
+    if (only && !only.includes(id)) continue
     const got = require(path.join(__dirname, 'guns', `${id}.js`))({ ...helpers, id })
     const keys = Object.keys(got).map(Number)
     const missing = numbers.filter(n => !keys.includes(n))
@@ -1172,6 +1179,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     for (const v of Object.values(m)) if (typeof v === 'object') Array.isArray(v) ? v.forEach(walkModels) : walkModels(v)
   }
   feather.forEach(e => walkModels(e.model))
+  if (!only) {
   feather.sort((a, b) => a.threshold - b.threshold)
   write('minecraft/items/feather.json', {
     // Every Scope or Sprint toggle rewrites the item: no re-equip dip (WeaponMechanics' file has it too).
@@ -1184,6 +1192,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
       fallback: { type: 'minecraft:model', model: 'minecraft:item/feather' }
     }
   })
+  }
 }
 for (const [base, def] of Object.entries(itemCases)) {
   write(`minecraft/items/${base}.json`, {

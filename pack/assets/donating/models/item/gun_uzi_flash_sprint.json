@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_uzi_flash",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -15,
+        -40,
+        20
+      ],
+      "translation": [
+        -4,
+        2,
+        -1.6
+      ],
+      "scale": [
+        0.52,
+        0.52,
+        0.52
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -15,
+        140,
+        -20
+      ],
+      "translation": [
+        -4,
+        2,
+        -1.6
+      ],
+      "scale": [
+        0.52,
+        0.52,
+        0.52
+      ]
+    }
+  }
+}

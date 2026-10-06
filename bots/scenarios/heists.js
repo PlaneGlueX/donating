@@ -28,7 +28,7 @@ const FAR = '0.5 68 -656.5' // solid ground near spawn
 const SERVER = path.join(__dirname, '..', '..', 'server')
 const LOG = path.join(SERVER, 'plugins', 'Skript', 'logs', 'heists.log')
 const HOLO = path.join(SERVER, 'plugins', 'DecentHolograms', 'holograms', 'donating_heist_ztest.yml')
-const NBT = path.join(SERVER, 'world', 'generated', 'donating', 'structures', 'heist', 'ztest', '1.nbt')
+const NBT = path.join(SERVER, 'world', 'generated', 'donating', 'structure', 'heist', 'ztest', '1.nbt')
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()

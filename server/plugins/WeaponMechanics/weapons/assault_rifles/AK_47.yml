@@ -2,10 +2,10 @@ AK_47:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>AK-47"
+      Name: "<gold>AK-48"
       Lore:
-        - "<gray>Very reliable automatic assault rifle chambered in 7.62mm Soviet."
-        - "<gray>Large caliber ammunition requires skill to control recoil."
+        - "<gray>A scoped rifle with a laser and an underbarrel tube."
+        - "<gray>Full-auto and the hardest hitter in town."
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 66.5"
         - "<gold>➣<gray> 68 <gold>⟸ <gray>Accuracy"
@@ -21,21 +21,29 @@ AK_47:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>AK-47<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>AK-48<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
     # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
       - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75, listeners=Source{}}"
+    # Donating (2026-10-05): the draw's sound (the pack animates the 30-tick draw; Weapon_Get_Mechanics only plays
+    # when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.ak.draw, volume=0.5, noise=0.05, listeners=Source{}}"
     Weapon_Equip_Delay: 30
     Cancel:
       Drop_Item: true
       Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) and No_Ammo (+4000), and animates the
+  # draw, the reload and fire held from the cooldown DonatingPhone's GunFx starts (tools\guns\ak47.js).
   Skin:
     Default: 5
     Scope: ADD 1000
     Sprint: ADD 2000
+    Reload: ADD 3000
+    No_Ammo: ADD 4000
     blue: ADD 10000 # blue and red will only work if you have purchased WMC
     red: ADD 20000
   Projectile: "donating_rifle_bullet"
@@ -65,7 +73,7 @@ AK_47:
       Smoothing: 0.4         # Smooth out big jolts
       Max_Accumulation: 15.0 # Caps max climb
     Mechanics:
-      - "CustomSound{sound=shoot.ak47.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.ak.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
@@ -76,10 +84,15 @@ AK_47:
       Ammos:
         - "Donating_Rifle"
     Reload_Duration: 57
+    # Donating (2026-10-05): each sound where the pack's frames show it (tools\guns\ak47.js reload): the magazine
+    # rocks out at tick 7, the new one seats at 32, the charging handle is pulled at 42 (the sound's second click is
+    # its release). Not in Finish_Mechanics: WeaponMechanics plays those at the very end of the chain. From empty the
+    # Firearm_Action's open (8 ticks) comes first and the frames stretch to 73 ticks; each sound still lands within
+    # 3 ticks of its frame.
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.normal, volume=0.5, noise=0.1}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.normal, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.ak.mag_out, volume=0.5, noise=0.05, delayBeforePlay=7}"
+      - "CustomSound{sound=donating.gun.ak.mag_in, volume=0.5, noise=0.05, delayBeforePlay=32}"
+      - "CustomSound{sound=donating.gun.ak.bolt, volume=0.5, noise=0.05, delayBeforePlay=42}"
   Damage:
     # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
     # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
