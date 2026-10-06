@@ -53,7 +53,9 @@ guns aswell."
 - **Gun skins**: 18 looks over the eight guns, colors only (the sights, lens and muzzle flash never change), worn per
   gun from the wardrobe, from crates and two level rewards, tradeable with serials. Each look is the gun's own
   texture repainted, with its own item definition; DonatingPhone puts it on the player's guns.
-- Left for you: PLAYTEST 180 and 181 (the feel, the prices, the crate odds, a level-90 LMG or not).
+- Then the stretch goal, the **Veteran** (MG34, $800,000, L90): a Bren-style LMG, 9 rounds a second from a 50-round
+  top magazine, 4.6 a body shot (5 shots), spread that grows as you hold the trigger, 22% slower walking while held.
+- Left for you: PLAYTEST 180, 181 and 182 (the feel, the prices, the crate odds, the Veteran).
 
 ## The original plan (before the answers)
 

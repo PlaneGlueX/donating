@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_lmg_full",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        -3.92,
+        1.84,
+        -24.48
+      ],
+      "scale": [
+        1.6,
+        2.4,
+        2.4
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "translation": [
+        -14,
+        1.84,
+        -24.48
+      ],
+      "scale": [
+        1.6,
+        2.4,
+        2.4
+      ]
+    }
+  }
+}

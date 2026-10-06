@@ -45,7 +45,7 @@ module.exports = async ({ check }) => {
 
     const status = await rcon.cmd('dphone gunfx')
     check('/dphone gunfx: the four guns, the shotgun\'s kick-only shot and the automatic guns\' firing flag',
-      /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status) && /STG44\{donating:gun\/stg44 shot=0 draw=22 alone=0 fire=5 action=0\}/.test(status) && /AX_50\{donating:gun\/ax_50 shot=20 draw=40 alone=6 fire=0 action=16 glint=10\}/.test(status), status)
+      /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status) && /STG44\{donating:gun\/stg44 shot=0 draw=22 alone=0 fire=5 action=0\}/.test(status) && /AX_50\{donating:gun\/ax_50 shot=20 draw=40 alone=6 fire=0 action=16 glint=10\}/.test(status) && /MG34\{donating:gun\/mg34 shot=0 draw=40 alone=0 fire=5 action=0\}/.test(status), status)
 
     // A reload with spare rounds: a clock as long as the reload (32 ticks for the Classic Pistol).
     await give('50_GS', 0, 2)

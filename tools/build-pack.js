@@ -84,7 +84,7 @@ const { mergeRangeDispatch } = require('./merge-dispatch')
 // WeaponMechanics' skin numbers of what we sell (Default, Scope +1000, Sprint +2000, Reload +3000 for the four guns; the knife, the Stim):
 // the final feather.json must draw every one of them with our model.
 const FEATHER = 'assets/minecraft/items/feather.json'
-const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 7, 8, 9, 13, 14, 15, 1001, 1005, 1007, 1008, 1009, 1013, 1014, 1015, 2001, 2005, 2007, 2008, 2009, 2013, 2014, 2015, 3001, 3005, 3007, 3008, 3009, 3013, 3014, 3015]
+const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3007, 3008, 3009, 3011, 3013, 3014, 3015]
 
 // ---------- Entries, with the merge guard ----------
 const entries = new Map() // name -> { data, from }
@@ -323,7 +323,7 @@ if (merged.length) console.log(`merged JSON: ${merged.join(', ')}`)
 // equip click) can't be scaled here without changing them for everything: the weapon files lower those
 // (Sound{... volume=...}). bots\scenarios\wm-ammo.js checks the built zip against these rules.
 const GUN_SOUND_VOLUME = 0.65
-const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assault_rifles/AK_47.yml', 'shotguns/R9_0.yml', 'pistols/357_Magnum.yml', 'assault_rifles/STG44.yml', 'assault_rifles/M4A1.yml', 'sniper_rifles/AX_50.yml']
+const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assault_rifles/AK_47.yml', 'shotguns/R9_0.yml', 'pistols/357_Magnum.yml', 'assault_rifles/STG44.yml', 'assault_rifles/M4A1.yml', 'sniper_rifles/AX_50.yml', 'light_machine_guns/MG34.yml']
 {
   const SND = 'assets/minecraft/sounds.json'
   const weapons = path.join(repo, 'server', 'plugins', 'WeaponMechanics', 'weapons')
