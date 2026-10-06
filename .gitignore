@@ -45,6 +45,7 @@
 
 # ---------- tools / bots / downloads ----------
 /tools/node/
+/tools/jdk25/
 /bots/node_modules/
 /extras/
 /plugin/build/
