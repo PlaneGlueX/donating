@@ -2,11 +2,10 @@ R9_0:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>R9-0"
+      Name: "<gold>Shotgun"
       Lore:
-        - "<gray>Pump action shotgun that can shoot twice"
-        - "<gray>before having to rechamber."
-        - "<gray>Effective at close range."
+        - "<gray>A short pump shotgun with a pistol grip."
+        - "<gray>Loads one shell at a time; deadly up close."
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 62.2"
         - "<gold>➣<gray> 55 <gold>⟸ <gray>Accuracy"
@@ -22,21 +21,27 @@ R9_0:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>R9-0 <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Shotgun <gray>«<gold><ammo_left><gray>»<gold><reload>"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
     # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
       - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75}"
+    # Donating (2026-10-05): the draw's sound (Weapon_Get_Mechanics only plays when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.shotgun.draw, volume=0.5, noise=0.05, listeners=Source{}}"
     Weapon_Equip_Delay: 20
     Cancel:
       Drop_Item: true
       Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates each shot
+  # (the kick and the pump) and each shell going in from the cooldown DonatingPhone's GunFx starts (tools\guns\r90.js).
   Skin:
     Default: 14
     Scope: ADD 1000
     Sprint: ADD 2000
+    Reload: ADD 3000
   Projectile: "donating_pellet"
   Shoot:
     Trigger:
@@ -64,7 +69,7 @@ R9_0:
       Smoothing: 0.2
       Max_Accumulation: 10.0
     Mechanics:
-      - "CustomSound{sound=shoot.r90.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.shotgun.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
@@ -77,7 +82,7 @@ R9_0:
     Ammo_Per_Reload: 1
     Reload_Duration: 4
     Finish_Mechanics:
-      - "CustomSound{sound=reload.start.shotgun, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.shotgun.shell, volume=0.5, noise=0.05}"
   Damage:
     # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
     # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
@@ -99,18 +104,20 @@ R9_0:
     Zoom_Off:
       Mechanics:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
+  # Donating (2026-10-05, the PG3D remake): still two shots per pump (the gun's pace is unchanged). The pack draws the
+  # pump in the 15-tick shot animation (tools\guns\r90.js); DonatingPhone's GunFx ends a shot that works no pump after
+  # its kick (gunfx R9_0 alone: 5). The sounds are delayed to the drawn pump: back at tick 5, forward at tick 7 + 2 = 9.
   Firearm_Action:
     Type: "PUMP"
     Firearm_Action_Frequency: 2
     Open:
       Time: 7
       Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.325, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.325, noise=0.1, listeners=Source{}, delayBeforePlay=3}"
+        - "CustomSound{sound=donating.gun.shotgun.pump_back, volume=0.5, noise=0.05, listeners=Source{}, delayBeforePlay=5}"
     Close:
       Time: 7
       Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.325, noise=0.1, listeners=Source{}}"
+        - "CustomSound{sound=donating.gun.shotgun.pump_fwd, volume=0.5, noise=0.05, listeners=Source{}, delayBeforePlay=2}"
 
   # The following options are added by WeaponMechanicsCosmetics, and you will
   # not see the changes take effect until you purchase it.

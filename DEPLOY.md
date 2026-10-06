@@ -8,14 +8,14 @@ The exact steps to move the local test server to Minehut (free plan). Local-only
 - Build the city (or at least spawn, the base, one gun shop and one heist) in the local world first: the world is uploaded as a folder.
 - Build the phone plugin: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-plugin.ps1` (makes `server\plugins\DonatingPhone.jar`; it compiles against `server\plugins\TAB-*.jar` for the nametags, so TAB must be there).
 - The pack and DonatingPhone.jar go live together (2026-09-29): the pack's generic_54.png has a see-through chest part, and DonatingPhone's MenuPanels puts every chest menu's vanilla panel back through its title; either one alone leaves chest menus see-through or doubled. Upload the jar and set the pack in the same restart.
-- Build the resource pack: `tools\node\node.exe tools\make-item-art.js`, `tools\node\node.exe tools\make-phone-art.js`, `tools\node\node.exe tools\make-phone-ui.js` (the phone-style menus: backgrounds and app icons), `tools\node\node.exe tools\make-waypoint-art.js` (the locator-bar icons), `tools\node\node.exe tools\make-car-wraps.js` (the car wraps: it also writes the wrap variants into `vehicles.yml` and `carwraps.sk`), then `tools\node\node.exe tools\build-pack.js` (makes `extras\packs\Donating-pack.zip`).
+- Build the resource pack: `tools\node\node.exe tools\make-item-art.js`, `tools\node\node.exe tools\make-phone-art.js`, `tools\node\node.exe tools\make-phone-ui.js` (the phone-style menus: backgrounds and app icons), `tools\node\node.exe tools\make-waypoint-art.js` (the locator-bar icons), `tools\node\node.exe tools\make-car-wraps.js` (the car wraps: it also writes the wrap variants into `vehicles.yml` and `carwraps.sk`), `tools\node\node.exe tools\sounds\make-gun-sounds.js` (the guns' sounds; once, `npm install` in `tools\sounds`), then `tools\node\node.exe tools\build-pack.js` (makes `extras\packs\Donating-pack.zip`). The pack is for 26.1+ clients (pack format 84): an older client can still join through ViaVersion, but the pack is the wrong format for it.
 
 ## 2. Minehut dashboard
 
-- Server type **Paper**, version **1.21.11**.
+- Server type **Paper**, version **26.1.2** (since 2026-10-05: the guns' animations need 26.1+ item models; Paper 26.1.2 build 74 is the newest version every plugin below supports, and it runs on Java 25, which Minehut picks for the version). Players join with Minecraft 26.1 to 26.3 (ViaVersion); older clients can't join, and the pack is made for 26.1+ (pack format 84).
 - **Resource pack**: Minehut takes a URL. Upload `Donating-pack.zip` somewhere with a direct download link (a public file host). It includes WeaponMechanics' official pack, which its README allows merging and hosting for your own players, but never selling or publishing as a pack, and MTVehicles' car models (merged the same way, with their credits; the file host link must not be shared as a pack download). Tick "require" so every player gets the guns, cars, bags, phone and tracers. After every pack build the file changes: upload the new one and update the URL (and hash, if the dashboard asks).
 - **MOTD** (the server list text; owner, 2026-09-28: option c): line 1 `&6&lDONATING &7| &fA city of heists`, line 2 `&aStart with nothing. &6Leave with everything.`
-- **Server properties**: `allow-nether` false (owner, 2026-09-27: the Nether and the End stay off; the End is `allow-end: false` in `bukkit.yml`, uploaded below).
+- **The Nether off** (owner, 2026-09-27: the Nether and the End stay off): Paper 26.1 no longer reads `allow-nether` in server properties. After the first start on Minehut, open Minehut's own `config/paper-global.yml` in the File Manager, set only `misc: enable-nether: false` (leave the rest of that file as Minehut made it: don't upload the local one), restart, and delete the `world_nether` folder if one was made. The End is `allow-end: false` in `bukkit.yml`, uploaded below.
 - Online mode stays on (Minehut's default). Nothing from the local `server.properties` goes up.
 
 ## 3. Upload plugins (File Manager → `plugins/`)
@@ -29,8 +29,8 @@ Every jar below is in `server\plugins\` locally (tools\fetch.ps1 re-downloads mi
 | LPC | `LPC-3.7.2.jar` |
 | Vault | `Vault-1.7.3.jar` |
 | EssentialsX + Spawn | `EssentialsX-2.22.0.jar`, `EssentialsXSpawn-2.22.0.jar` |
-| WorldEdit | `worldedit-bukkit-7.3.19.jar` |
-| WorldGuard | `worldguard-bukkit-7.0.16.jar` |
+| WorldEdit | `worldedit-bukkit-7.4.5.jar` |
+| WorldGuard | `worldguard-bukkit-7.0.18.jar` |
 | PlaceholderAPI | `PlaceholderAPI-2.12.3.jar` |
 | Skript | `Skript-2.16.2.jar` |
 | SkBee | `SkBee-3.25.4.jar` |
@@ -40,13 +40,13 @@ Every jar below is in `server\plugins\` locally (tools\fetch.ps1 re-downloads mi
 | PacketEvents | `packetevents-spigot-2.13.0.jar` |
 | TAB | `TAB-6.2.0.jar` |
 | DecentHolograms | `DecentHolograms-2.10.1.jar` |
-| CoreProtect CE | `CoreProtect-CE-23.2.jar` |
+| CoreProtect CE | `CoreProtect-CE-24.1.jar` |
 | Citizens + Sentinel (cops) | `Citizens-2.0.43-b4250.jar`, `Sentinel-2.9.4-SNAPSHOT-b534.jar` |
 | Tebex | `tebex-bukkit-2.4.6.jar` |
 | MTVehicles (cars; downloaded by hand from SpigotMC) | `MTVehicles.jar` (2.5.9) |
 | DonatingPhone (ours) | `DonatingPhone.jar` |
 
-Not spark (Paper has it built in).
+Not spark (Paper has it built in). Not ViaBackwards: it's on the local server only, so the 1.21.11 test bots can join a 26.1 server.
 
 Start the server once so every plugin makes its folders, then stop it and upload the configs.
 
@@ -61,10 +61,11 @@ Start the server once so every plugin makes its folders, then stop it and upload
 | `plugins/LPC/config.yml` | same |
 | `plugins/WeaponMechanics/config.yml` (armor: `Per_Armor_Point: -6%`) and the folders `weapons/` (the nerfed gun damage; since 2026-09-28 also `melee/Dagger.yml`, `melee/Baseball_Bat.yml`, `consumables/Throwing_Knife.yml`, `Energy_Drink.yml`, `Bandage.yml`), `ammos/`, `projectiles/` (the thrown knife) | same |
 | `plugins/WorldGuard/config.yml` | same |
+| `plugins/CoreProtect/config.yml` (`error-reporting: false`: it would send error reports to its author) | same |
 | `plugins/MTVehicles/config.yml` (no auto-update, no fuel, trunks or pickup), `vehicles.yml` (Donating's cars: the dealer colors, the extreme families Racecar, Motor and SUV Cabrio, and every car's wrap variants; never remove a variant once cars of it exist), `supersecretsettings.yml` (English messages). Never `vehicleData.yml` (local test cars) | same |
 | `bukkit.yml` (`allow-end: false`: the End stays off), `spigot.yml` | server root |
 | `plugins/Essentials/motd.txt` (empty: no join text) | same |
-| The world folder (`world/`, with `world/generated/donating/structures/` = the heist rooms, `world/data/map_*.dat` = the phone maps, wall maps and any old city maps) and `plugins/WorldGuard/worlds/world/regions.yml` (safe zones, heist regions) | server root / same |
+| The world folder (`world/`, with `world/generated/donating/structure/` = the heist rooms, `world/data/minecraft/maps/<id>.dat` = the phone maps, wall maps and any old city maps) and `plugins/WorldGuard/worlds/world/regions.yml` (safe zones, heist regions) | server root / same |
 | The phone's city and GPS roads, made together on the same server (see the city map step): `plugins/DonatingPhone/city.bin`, `city.yml`, `roads.bin`, and `walls.yml` if there are wall maps | `plugins/DonatingPhone/` |
 | `plugins/DecentHolograms/holograms/` (heist and crate stand holograms; not `gbay_*`, the garage bay labels: see Places) | same |
 

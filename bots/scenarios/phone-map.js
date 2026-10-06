@@ -48,7 +48,7 @@ module.exports = async ({ check }) => {
     const tiles = []
     for (const row of grid) {
       const r = []
-      for (const id of row) r.push({ id, ...nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', `map_${id}.dat`)))).parsed).data })
+      for (const id of row) r.push({ id, ...nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${id}.dat`)))).parsed).data })
       tiles.push(r)
     }
     const first = tiles[0] && tiles[0][0]
@@ -391,7 +391,7 @@ module.exports = async ({ check }) => {
     await clickBanner(8)
     // The phone's own map (a pool map) must not get the banner either.
     await rcon.cmd('save-all flush')
-    const phoneMap = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', `map_${mapOf[B]}.dat`)))).parsed).data
+    const phoneMap = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${mapOf[B]}.dat`)))).parsed).data
     const phoneBanners = (phoneMap.banners || []).length
     check('a phone click on a banner toggles the map and adds no label anywhere', phoneBanners === 0 && (await pois()) === 0 && (await isOpen(B)), `${phoneBanners} banners on the phone's map ${mapOf[B]}; ${await pois()} city labels; ${await zz(B)}`)
     await clickBanner(0) // also switches slots, which closes B's big map

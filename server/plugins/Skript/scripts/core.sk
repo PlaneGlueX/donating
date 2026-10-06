@@ -523,7 +523,7 @@ function loadSettings():
 	set {-cfg::story::c1_gun::label} to "Buy a gun"
 	set {-cfg::story::c1_gun::obj} to "state|gun"
 	set {-cfg::story::c1_gun::gps} to "poi:shop:Gun"
-	set {-cfg::story::c1_gun::brief} to "Level 5: the Gun Shop will sell you a .50 GS now. Time to trade up from the knife."
+	set {-cfg::story::c1_gun::brief} to "Level 5: the Gun Shop will sell you a Classic Pistol now. Time to trade up from the knife."
 	set {-cfg::story::c1_gun::done} to "Nice. Now let's put it to use."
 	set {-cfg::story::c1_rob::chapter} to 1
 	set {-cfg::story::c1_rob::label} to "Rob a store or a heist"
@@ -606,7 +606,7 @@ function loadSettings():
 	set {-cfg::story::c2_level::label} to "Reach level 20"
 	set {-cfg::story::c2_level::obj} to "state|level|20"
 	set {-cfg::story::c2_level::gps} to "heist"
-	set {-cfg::story::c2_level::brief} to "Level 15 opens the Drill and the Uzi, level 20 the hard heists. Keep at it."
+	set {-cfg::story::c2_level::brief} to "Level 15 opens the Drill and the Machine Gun, level 20 the hard heists. Keep at it."
 	set {-cfg::story::c2_end::chapter} to 2
 	set {-cfg::story::c2_end::label} to "Report to Mara"
 	set {-cfg::story::c2_end::obj} to "talk|story"
@@ -1167,28 +1167,28 @@ function loadSettings():
 	set {-cfg::wpn::Dagger::model} to 1
 	set {-cfg::wpn::Dagger::item} to amethyst shard
 	set {-cfg::wpn::Dagger::level} to 3
-	set {-cfg::wpn::50_GS::name} to ".50 GS"
+	set {-cfg::wpn::50_GS::name} to "Classic Pistol"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
 	set {-cfg::wpn::50_GS::price} to 7500
 	set {-cfg::wpn::50_GS::ammo} to "light"
 	set {-cfg::wpn::50_GS::mag} to 7
 	set {-cfg::wpn::50_GS::model} to 9
 	set {-cfg::wpn::50_GS::level} to 5
-	set {-cfg::wpn::Uzi::name} to "Uzi"
+	set {-cfg::wpn::Uzi::name} to "Machine Gun"
 	set {-cfg::wpn::Uzi::kind} to "SMG"
 	set {-cfg::wpn::Uzi::price} to 45000
 	set {-cfg::wpn::Uzi::ammo} to "light"
 	set {-cfg::wpn::Uzi::mag} to 32
 	set {-cfg::wpn::Uzi::model} to 1
 	set {-cfg::wpn::Uzi::level} to 15
-	set {-cfg::wpn::R9_0::name} to "R9-0"
+	set {-cfg::wpn::R9_0::name} to "Shotgun"
 	set {-cfg::wpn::R9_0::kind} to "Shotgun"
 	set {-cfg::wpn::R9_0::price} to 110000
 	set {-cfg::wpn::R9_0::ammo} to "shells"
 	set {-cfg::wpn::R9_0::mag} to 14
 	set {-cfg::wpn::R9_0::model} to 14
 	set {-cfg::wpn::R9_0::level} to 30
-	set {-cfg::wpn::AK_47::name} to "AK-47"
+	set {-cfg::wpn::AK_47::name} to "AK-48"
 	set {-cfg::wpn::AK_47::kind} to "Rifle"
 	set {-cfg::wpn::AK_47::price} to 225000
 	set {-cfg::wpn::AK_47::ammo} to "rifle"

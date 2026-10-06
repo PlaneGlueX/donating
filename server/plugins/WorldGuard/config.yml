@@ -148,6 +148,7 @@ dynamics:
     disable-coral-block-fade: false
     disable-copper-block-fade: false
     snow-fall-blocks: []
+    disable-lava-harden: false
 blacklist:
     use-as-whitelist: false
     logging:

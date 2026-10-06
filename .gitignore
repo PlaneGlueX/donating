@@ -45,7 +45,9 @@
 
 # ---------- tools / bots / downloads ----------
 /tools/node/
+/tools/jdk25/
 /bots/node_modules/
+/tools/sounds/node_modules/
 /extras/
 /plugin/build/
 # The phone plugin source (plugin/src, plugin/resources) is tracked; the built jar is not (*.jar below).

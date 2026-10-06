@@ -1,0 +1,167 @@
+{
+  "donating.gun.pistol.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/pistol_shoot_1"
+      },
+      {
+        "name": "donating/gun/pistol_shoot_2"
+      }
+    ]
+  },
+  "donating.gun.pistol.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/pistol_mag_out"
+      }
+    ]
+  },
+  "donating.gun.pistol.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/pistol_mag_in"
+      }
+    ]
+  },
+  "donating.gun.pistol.slide_back": {
+    "sounds": [
+      {
+        "name": "donating/gun/pistol_slide_back"
+      }
+    ]
+  },
+  "donating.gun.pistol.slide_fwd": {
+    "sounds": [
+      {
+        "name": "donating/gun/pistol_slide_fwd"
+      }
+    ]
+  },
+  "donating.gun.smg.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/smg_shoot_1"
+      },
+      {
+        "name": "donating/gun/smg_shoot_2"
+      },
+      {
+        "name": "donating/gun/smg_shoot_3"
+      }
+    ]
+  },
+  "donating.gun.smg.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/smg_mag_out"
+      }
+    ]
+  },
+  "donating.gun.smg.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/smg_mag_in"
+      }
+    ]
+  },
+  "donating.gun.smg.bolt": {
+    "sounds": [
+      {
+        "name": "donating/gun/smg_bolt"
+      }
+    ]
+  },
+  "donating.gun.smg.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/smg_draw"
+      }
+    ]
+  },
+  "donating.gun.shotgun.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/shotgun_shoot_1"
+      },
+      {
+        "name": "donating/gun/shotgun_shoot_2"
+      }
+    ]
+  },
+  "donating.gun.shotgun.shell": {
+    "sounds": [
+      {
+        "name": "donating/gun/shotgun_shell"
+      }
+    ]
+  },
+  "donating.gun.shotgun.pump_back": {
+    "sounds": [
+      {
+        "name": "donating/gun/shotgun_pump_back"
+      }
+    ]
+  },
+  "donating.gun.shotgun.pump_fwd": {
+    "sounds": [
+      {
+        "name": "donating/gun/shotgun_pump_fwd"
+      }
+    ]
+  },
+  "donating.gun.shotgun.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/shotgun_draw"
+      }
+    ]
+  },
+  "donating.gun.ak.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/ak_shoot_1"
+      },
+      {
+        "name": "donating/gun/ak_shoot_2"
+      },
+      {
+        "name": "donating/gun/ak_shoot_3"
+      }
+    ]
+  },
+  "donating.gun.ak.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/ak_mag_out"
+      }
+    ]
+  },
+  "donating.gun.ak.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/ak_mag_in"
+      }
+    ]
+  },
+  "donating.gun.ak.bolt": {
+    "sounds": [
+      {
+        "name": "donating/gun/ak_bolt"
+      }
+    ]
+  },
+  "donating.gun.ak.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/ak_draw"
+      }
+    ]
+  },
+  "donating.gun.empty": {
+    "sounds": [
+      {
+        "name": "donating/gun/empty"
+      }
+    ]
+  }
+}

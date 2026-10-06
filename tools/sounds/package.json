@@ -1,0 +1,8 @@
+{
+  "name": "donating-sounds",
+  "private": true,
+  "description": "The gun sounds synthesizer (tools/sounds/make-gun-sounds.js) and its Ogg Vorbis encoder",
+  "dependencies": {
+    "wasm-media-encoders": "0.7.0"
+  }
+}

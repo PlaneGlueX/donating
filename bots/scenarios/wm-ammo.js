@@ -68,7 +68,9 @@ module.exports = async ({ check }) => {
     const { readZip } = require('../../tools/make-car-wraps')
     const packs = path.join(__dirname, '..', '..', 'extras', 'packs')
     const jsonIn = (zip, name) => { try { return JSON.parse(readZip(zip).get(name).toString('utf8').replace(/^﻿/, '')) } catch (e) { return null } }
-    const NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014]
+    // The four guns' Default, Scope +1000, Sprint +2000, Reload +3000 (the Pixel Gun 3D recreations since
+    // 2026-10-05), the Combat Knife and the Stim.
+    const NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014, 3001, 3005, 3009, 3014]
     // build-pack.js wraps every item definition: a display_context select whose first-person case draws the
     // item only while the local player is the camera (view_entity; nothing under the car camera), with the
     // item's own model as both that case's on_true and the fallback. unwrap gives that model, or null.
@@ -94,13 +96,42 @@ module.exports = async ({ check }) => {
       return ms.length > 0 && ms.every(id => id.startsWith('donating:'))
     })
     const sorted = entries.every((e, i) => i === 0 || entries[i - 1].threshold < e.threshold)
-    check('the built pack\'s feather.json draws all 14 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
+    check('the built pack\'s feather.json draws all 18 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
       `ours: ${drawn.join(' ')}; hand_animation_on_swap ${feather && feather.hand_animation_on_swap}; sorted ${sorted}`)
     const wm = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/items/feather.json')
     const others = wm ? wm.model.entries.filter(e => !NUMBERS.includes(e.threshold)) : []
     const kept = others.filter(e => { const x = entries.find(y => y.threshold === e.threshold); return x && JSON.stringify(x.model) === JSON.stringify(e.model) })
     check('...and keeps WeaponMechanics\' other entries (the guns we don\'t sell) and its fallback', !!wm && others.length > 0 && kept.length === others.length &&
       JSON.stringify(feather.model.fallback) === JSON.stringify(wm.model.fallback), wm ? `${kept.length}/${others.length} kept` : 'WeaponMechanics\' pack is missing')
+    // The fire flicker needs GunFx's firing flag (custom_model_data flag 0: a shot really went off) as well as the held
+    // key, and the shotgun draws the pump alone under flag 1 (a pump WeaponMechanics works without a shot; review
+    // 2026-10-05: holding right-click on loot, or with an empty gun, flickered the flash).
+    const gunEntry = n => { const e = entries.filter(x => x.threshold === n); return e.length === 1 ? e[0].model : null }
+    const all = (m, pred, out = []) => {
+      if (m && typeof m === 'object') { if (pred(m)) out.push(m); for (const v of Object.values(m)) (Array.isArray(v) ? v : [v]).forEach(x => all(x, pred, out)) }
+      return out
+    }
+    const isFlag = i => m => /condition$/.test(m.type || '') && /custom_model_data$/.test(m.property || '') && (m.index || 0) === i
+    const gated = [1, 1001, 5, 1005].filter(n => {
+      const e = gunEntry(n)
+      const keys = all(e, m => /keybind_down$/.test(m.property || ''))
+      const flags = all(e, isFlag(0))
+      return keys.length > 0 && keys.every(k => flags.some(f => f.on_true === k))
+    })
+    const pumps = [14, 1014].filter(n => all(gunEntry(n), isFlag(1)).length === 1)
+    check('the automatic guns\' fire flicker needs GunFx\'s firing flag and the held key; the shotgun has the pump alone (flag 1)', gated.length === 4 && pumps.length === 2, `gated ${gated.join(' ')}; pump ${pumps.join(' ')}`)
+    // No No_Ammo skin (WeaponMechanics puts it over Scope and Sprint: an empty gun dropped out of the sights), and no
+    // firearm-action sounds on the pistol and the AK-48 (their reload frames show no slide or bolt action of its own).
+    const yamlOf = g => read(g.file).split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
+    const skins = GUNS.filter(g => {
+      const sec = (yamlOf(g).match(/\n {2}Skin:\n((?: {4}.*\n)+)/) || [])[1] || ''
+      return [...sec.matchAll(/^ {4}(\w+):/gm)].map(m => m[1]).filter(k => k !== 'blue' && k !== 'red').join(',') === 'Default,Scope,Sprint,Reload'
+    })
+    const silent = GUNS.filter(g => ['50_GS', 'AK_47'].includes(g.w)).filter(g => {
+      const fa = (yamlOf(g).match(/\n {2}Firearm_Action:\n((?: {4}.*\n)+)/) || [])[1] || ''
+      return fa.length > 0 && !/Mechanics/.test(fa)
+    })
+    check('every sold gun\'s skins are Default, Scope, Sprint and Reload (no No_Ammo); the pistol\'s and the AK-48\'s firearm action is silent', skins.length === 4 && silent.length === 2, `skins ok ${skins.map(g => g.w)}; silent ${silent.map(g => g.w)}`)
     // No hands under the car camera: the gun, the bag, the hands' cash and the map key are wrapped, and the
     // tripwire hook (the key while the car camera is on) has the carkey case.
     const wrapped = ['feather', 'leather', 'paper', 'filled_map'].filter(i => { const d = jsonIn(zipFile, `assets/minecraft/items/${i}.json`); return !!d && !!unwrap(d.model) })
@@ -126,11 +157,15 @@ module.exports = async ({ check }) => {
       }
     }
     const wmSnd = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/sounds.json') || {}
+    // Our own gun sounds (tools\sounds\make-gun-sounds.js, donating.gun.*) are measured against our source sounds.json.
+    let ourSnd = {}
+    try { ourSnd = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'pack', 'assets', 'minecraft', 'sounds.json'), 'utf8')) } catch (e) { }
+    const sourceOf = ev => ev.startsWith('donating.') ? ourSnd[ev] : wmSnd[ev]
     const packSnd = jsonIn(zipFile, 'assets/minecraft/sounds.json') || {}
     const entryOf = s => typeof s === 'string' ? { name: s, volume: 1, att: 16 } : { name: s.name, volume: s.volume ?? 1, att: s.attenuation_distance ?? 16 }
     const heard = (V, e) => ({ gain: Math.min(V * e.volume, 1), range: Math.max(V * e.volume, 1) * e.att })
     const quieter = [...plan].filter(([ev, V]) => {
-      const a = ((wmSnd[ev] || {}).sounds || []).map(entryOf)
+      const a = ((sourceOf(ev) || {}).sounds || []).map(entryOf)
       const b = ((packSnd[ev] || {}).sounds || []).map(entryOf)
       return a.length > 0 && a.length === b.length && a.every((x, i) => {
         const was = heard(V, x)

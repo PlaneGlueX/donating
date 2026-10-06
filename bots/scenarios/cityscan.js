@@ -61,7 +61,7 @@ module.exports = async ({ check }) => {
     const tiles = []
     for (const row of grid) {
       const r = []
-      for (const id of row) r.push(nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', `map_${id}.dat`)))).parsed).data)
+      for (const id of row) r.push(nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${id}.dat`)))).parsed).data)
       tiles.push(r)
     }
     const first = tiles[0][0]

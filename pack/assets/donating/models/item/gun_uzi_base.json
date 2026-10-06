@@ -1,0 +1,144 @@
+{
+  "textures": {
+    "t": "donating:item/gun_uzi_tex",
+    "particle": "donating:item/gun_uzi_tex"
+  },
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -78,
+        0
+      ],
+      "translation": [
+        -4.6,
+        3.1,
+        -0.8
+      ],
+      "scale": [
+        0.52,
+        0.52,
+        0.52
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        102,
+        0
+      ],
+      "translation": [
+        -4.6,
+        3.1,
+        -0.8
+      ],
+      "scale": [
+        0.52,
+        0.52,
+        0.52
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        -80
+      ],
+      "translation": [
+        0,
+        3,
+        3
+      ],
+      "scale": [
+        0.66,
+        0.66,
+        0.66
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        80
+      ],
+      "translation": [
+        0,
+        3,
+        3
+      ],
+      "scale": [
+        0.66,
+        0.66,
+        0.66
+      ]
+    },
+    "gui": {
+      "rotation": [
+        0,
+        180,
+        -35
+      ],
+      "translation": [
+        0.8,
+        0.6,
+        0
+      ],
+      "scale": [
+        0.64,
+        0.64,
+        0.64
+      ]
+    },
+    "ground": {
+      "rotation": [
+        0,
+        0,
+        -45
+      ],
+      "translation": [
+        0,
+        4,
+        0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        0,
+        -45
+      ],
+      "translation": [
+        0,
+        1,
+        0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "head": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        0,
+        13,
+        7
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    }
+  }
+}

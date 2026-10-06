@@ -31,7 +31,7 @@ module.exports = async ({ check }) => {
     const config = fs.readFileSync(path.join(SERVER, 'plugins', 'DonatingPhone', 'config.yml'), 'utf8')
     const grid = JSON.parse((config.match(/^city-maps:\s*(\[.*\])\s*$/m) || [])[1] || '[]')
     check('a city is set (city-maps), so the phone has a map', grid.length > 0, config.match(/^city-maps:.*$/m))
-    const first = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', `map_${grid[0][0]}.dat`)))).parsed).data
+    const first = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${grid[0][0]}.dat`)))).parsed).data
     const unit = 1 << (first.scale || 0)
     const cx = first.xCenter
     const cz = first.zCenter

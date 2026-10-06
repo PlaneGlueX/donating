@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_gs50_flash",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -25,
+        -60,
+        0
+      ],
+      "translation": [
+        -6.56,
+        2.09,
+        -1.96
+      ],
+      "scale": [
+        0.56,
+        0.56,
+        0.56
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -25,
+        120,
+        0
+      ],
+      "translation": [
+        -6.56,
+        2.09,
+        -1.96
+      ],
+      "scale": [
+        0.56,
+        0.56,
+        0.56
+      ]
+    }
+  }
+}

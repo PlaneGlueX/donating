@@ -96,6 +96,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final Marks marks = new Marks(this);
     private final CarSmooth carSmooth = new CarSmooth(this);
     private final CarCam carCam = new CarCam(this);
+    // The guns' first-person animation clock (only with WeaponMechanics: its classes load only then).
+    private GunFx gunFx;
     private Nametags nametags; // null without TAB
     /** Personal views (pv.sk): entities tagged this are invisible to everyone before they exist; Skript reveals them. */
     static final String PV_TAG = "donating_pv";
@@ -162,6 +164,11 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(carCam, this);
         carSmooth.start();
         carCam.start();
+        if (getServer().getPluginManager().isPluginEnabled("WeaponMechanics")) {
+            gunFx = new GunFx(this);
+            gunFx.configure(getConfig());
+            getServer().getPluginManager().registerEvents(gunFx, this);
+        } else getLogger().info("WeaponMechanics not found: no gun animations");
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();
         // TAB loads first (softdepend); its API is ready once the server has started.
@@ -179,6 +186,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // A server stop saves players after the plugins are disabled: out of the car seats first (CarSmooth.leaveCar).
         if (Bukkit.isStopping()) for (Player p : Bukkit.getOnlinePlayers()) if (CarSmooth.leaveCar(p)) getLogger().info("carsmooth: " + p.getName() + " out of the car seat before the stop saves them");
         carSmooth.shutdown();
+        if (gunFx != null) gunFx.shutdown(); // no gun keeps the firing flag
         gps.shutdown(); // the worker thread, a running road scan, and every GPS dot stand
         cityScan.shutdown();
         marks.shutdown();
@@ -221,6 +229,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         gps.configure(c);
         carSmooth.configure(c);
         carCam.configure(c);
+        if (gunFx != null) gunFx.configure(c);
         gps.city(hasCity() ? world : null, x0, z0, imgW, imgH, bpp);
         getLogger().info("GPS roads: " + (gps.roads() == null ? "none" : gps.roads().w + "x" + gps.roads().h + " cells"));
 
@@ -600,7 +609,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "status", "gps", "mark", "nametag" -> options.addAll(players);
@@ -654,6 +663,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status()); return true; }
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("steer")) return carSmooth.steer.command(sender, args);
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);

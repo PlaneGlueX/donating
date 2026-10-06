@@ -18,12 +18,18 @@
 // Minecraft client jar (vanilla models and textures, previews only; %APPDATA%\.minecraft\versions).
 // items/feather.json is ours merged into WeaponMechanics' like build-pack.js does (tools\merge-dispatch.js).
 // --pack <zip>: read ours and WeaponMechanics' from a built pack instead (extras\packs\Donating-pack.zip).
+// Animation frames (the guns, tools\guns\pg.js): a composite's per-model "transformation" (applied after the
+// display transform, in blocks from the model's corner, like the 26.1+ client), and the clocks it reads:
+// --cooldown <v> (minecraft:cooldown, the share of the cooldown left: 1 = just started, 0 = none), --fire
+// (minecraft:keybind_down true: fire held, and custom_model_data flag 0 on: GunFx's firing flag), --time <v> (minecraft:time, 0-1). --def <file.json> draws an item
+// model given as JSON (an item definition, or just its "model") instead of <what> (then <what> is left out).
 // Element rotations (axis/angle/origin/rescale and 26.x x/y/z), per-file lefthand fallback (a missing
 // lefthand copies the righthand one, as the client's deserializer does), per-context parent display,
 // generated (flat sprite) items extruded, textures, face shade (up 1, down 0.5, N/S 0.8, E/W 0.6),
 // light_emission, a depth buffer. Not drawn: the hand bob, the equip dip, tints, special models.
 //
 // Usage: tools\node\node.exe tools\render-item.js <model id | item[@cmd]> <out.png> [view] [W H] [--pack zip]
+//          [--cooldown v] [--fire] [--time v] [--def file.json]
 //   e.g. tools\node\node.exe tools\render-item.js feather@1009 %TEMP%\gs50-ads.png fp
 //        tools\node\node.exe tools\render-item.js breeze_rod@donating:tool_grappler %TEMP%\grappler all
 const fs = require('fs')
@@ -163,28 +169,52 @@ const openSources = (packZip) => {
 // ---------- Item definitions ----------
 const split = id => id.includes(':') ? id.split(':') : ['minecraft', id]
 const typeIs = (t, name) => t === name || t === `minecraft:${name}`
-// The models an item model draws in a display context (a composite draws several).
-const resolveItemModel = (m, ctx, out = []) => {
+// An item model's "transformation" (Transformation JSON: translation, left_rotation, scale, right_rotation; or
+// 16 floats, row-major) -> a 4x4 matrix in blocks.
+const quatM = q => {
+  if (!Array.isArray(q)) q = q && q.axis ? (a => { const n = Math.hypot(...q.axis) || 1; const s = Math.sin(a / 2); return [q.axis[0] / n * s, q.axis[1] / n * s, q.axis[2] / n * s, Math.cos(a / 2)] })(q.angle) : [0, 0, 0, 1]
+  const [x, y, z, w] = q
+  return [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]
+}
+const transformationMatrix = t => {
+  if (!t) return null
+  if (Array.isArray(t)) return t.slice(0, 16)
+  const tr = t.translation || [0, 0, 0]
+  const sc = t.scale || [1, 1, 1]
+  return chain(M4.t(tr[0], tr[1], tr[2]), M4.r3(quatM(t.left_rotation)), M4.s(sc[0], sc[1], sc[2]), M4.r3(quatM(t.right_rotation)))
+}
+// The models an item model draws in a display context (a composite draws several): [{ id, local }], local = the
+// transformation (a 4x4 in blocks) or null. ctx: display, floats, strings, cooldown, keybind, time.
+const resolveItemModel = (m, ctx, out = [], local = null) => {
   if (!m) return out
-  if (typeIs(m.type, 'model')) out.push(m.model)
-  else if (typeIs(m.type, 'composite')) (m.models || []).forEach(x => resolveItemModel(x, ctx, out))
+  const own = transformationMatrix(m.transformation)
+  if (own) local = local ? M4.mul(local, own) : own
+  if (typeIs(m.type, 'model')) out.push({ id: m.model, local })
+  else if (typeIs(m.type, 'composite')) (m.models || []).forEach(x => resolveItemModel(x, ctx, out, local))
   // view_entity: the holder is the camera (true in a preview, as in normal first person; build-pack.js hides
   // first-person items under the car camera with it); other conditions: not using, not broken...
-  else if (typeIs(m.type, 'condition')) resolveItemModel(typeIs(m.property, 'view_entity') && ctx.viewEntity !== false ? m.on_true : m.on_false, ctx, out)
+  else if (typeIs(m.type, 'condition')) {
+    // custom_model_data: a flag (GunFx's firing flag 0 is on with --fire, like the key).
+    const on = typeIs(m.property, 'view_entity') ? ctx.viewEntity !== false : typeIs(m.property, 'keybind_down') ? !!ctx.keybind
+      : typeIs(m.property, 'custom_model_data') ? (m.index || 0) === 0 && !!ctx.keybind : false
+    resolveItemModel(on ? m.on_true : m.on_false, ctx, out, local)
+  }
   else if (typeIs(m.type, 'select')) {
     let v = null
     if (typeIs(m.property, 'display_context')) v = ctx.display
     else if (typeIs(m.property, 'custom_model_data')) v = ctx.strings[m.index || 0]
     const hit = (m.cases || []).find(c => (Array.isArray(c.when) ? c.when : [c.when]).includes(v))
-    resolveItemModel(hit ? hit.model : m.fallback, ctx, out)
+    resolveItemModel(hit ? hit.model : m.fallback, ctx, out, local)
   } else if (typeIs(m.type, 'range_dispatch')) {
     let v = 0
     if (typeIs(m.property, 'custom_model_data')) v = ctx.floats[m.index || 0] || 0
+    else if (typeIs(m.property, 'cooldown')) v = ctx.cooldown || 0
+    else if (typeIs(m.property, 'time')) v = ctx.time || 0
     v *= m.scale === undefined ? 1 : m.scale
     const entries = [...(m.entries || [])].sort((a, b) => a.threshold - b.threshold)
     let hit = null
     for (const e of entries) if (e.threshold <= v) hit = e
-    resolveItemModel(hit ? hit.model : m.fallback, ctx, out)
+    resolveItemModel(hit ? hit.model : m.fallback, ctx, out, local)
   } else if (!typeIs(m.type, 'empty')) console.warn(`note: item model type ${m.type} isn't drawn`)
   return out
 }
@@ -364,7 +394,7 @@ const chain = (...ms) => ms.reduce((a, b) => M4.mul(a, b))
 // ItemTransform.apply: translate (x0.0625, clamped to ±5 blocks; -tx in the left hand), rotationXYZ (ry and
 // rz negated in the left hand), scale (clamped to ±4); then the item is moved by -0.5 (its centre). Model
 // units are 1/16 block.
-const itemMatrix = (t, left) => {
+const itemMatrix = (t, left, local = null) => {
   t = t || {}
   const tr = (t.translation || [0, 0, 0]).map(v => Math.max(-80, Math.min(80, v)) / 16)
   const ro = t.rotation || [0, 0, 0]
@@ -374,6 +404,7 @@ const itemMatrix = (t, left) => {
     M4.r3(rotXYZ([ro[0], left ? -ro[1] : ro[1], left ? -ro[2] : ro[2]])),
     M4.s(sc[0], sc[1], sc[2]),
     M4.t(-0.5, -0.5, -0.5),
+    local || M4.id(),
     M4.s(1 / 16, 1 / 16, 1 / 16)
   )
 }
@@ -407,8 +438,11 @@ const newImage = (W, H, bg) => {
   return { W, H, px, depth: new Float32Array(W * H).fill(Infinity), tris: 0 }
 }
 // Draws quads through world matrix M and a projection proj(p) -> [sx, sy, depth] | null. flat: no shade.
+// A perspective projection (proj.persp: depth = the distance along the view) is interpolated perspective-correct
+// (1/z), else a long face seen at a slant (a gun's barrel in first person) loses to a part a quarter unit behind it.
 const drawQuads = (img, quads, M, proj, flat = false) => {
   const { W, H, px, depth } = img
+  const persp = !!proj.persp
   for (const q of quads) {
     const pts = q.pts.map(p => proj(M4.app(M, p)))
     if (pts.some(p => !p)) continue
@@ -427,11 +461,16 @@ const drawQuads = (img, quads, M, proj, flat = false) => {
         for (let x = x0; x <= x1; x++) {
           const sx = x + 0.5
           const sy = y + 0.5
-          const wa = ((b[1] - c[1]) * (sx - c[0]) + (c[0] - b[0]) * (sy - c[1])) / den
-          const wb = ((c[1] - a[1]) * (sx - c[0]) + (a[0] - c[0]) * (sy - c[1])) / den
-          const wc = 1 - wa - wb
+          let wa = ((b[1] - c[1]) * (sx - c[0]) + (c[0] - b[0]) * (sy - c[1])) / den
+          let wb = ((c[1] - a[1]) * (sx - c[0]) + (a[0] - c[0]) * (sy - c[1])) / den
+          let wc = 1 - wa - wb
           if (wa < -1e-6 || wb < -1e-6 || wc < -1e-6) continue
-          const z = wa * a[2] + wb * b[2] + wc * c[2]
+          let z
+          if (persp) {
+            const iz = wa / a[2] + wb / b[2] + wc / c[2]
+            z = 1 / iz
+            wa = wa / a[2] * z; wb = wb / b[2] * z; wc = 1 - wa - wb
+          } else z = wa * a[2] + wb * b[2] + wc * c[2]
           const di = y * W + x
           if (z >= depth[di]) continue
           let col = q.color ? [...q.color, 255] : [255, 0, 255, 255] // magenta: a missing texture
@@ -472,12 +511,14 @@ const lookAt = (eye, target, fovDeg, W, H) => {
   rt = rt.map(v => v / rn)
   const u = [rt[1] * fw[2] - rt[2] * fw[1], rt[2] * fw[0] - rt[0] * fw[2], rt[0] * fw[1] - rt[1] * fw[0]]
   const k = 1 / Math.tan(fovDeg / 2 * RAD) * H / 2
-  return p => {
+  const proj = p => {
     const d = [p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]]
     const z = d[0] * fw[0] + d[1] * fw[1] + d[2] * fw[2]
     if (z < 0.05) return null
     return [W / 2 + (d[0] * rt[0] + d[1] * rt[1] + d[2] * rt[2]) / z * k, H / 2 - (d[0] * u[0] + d[1] * u[1] + d[2] * u[2]) / z * k, z]
   }
+  proj.persp = true
+  return proj
 }
 
 // ---------- Views ----------
@@ -492,7 +533,7 @@ const renderView = (items, view, W, H) => {
     const img = newImage(W, H, (x, y) => (x < 4 || y < 4 || x >= W - 4 || y >= H - 4) ? [55, 55, 55] : [139, 139, 139])
     const draw = (im, size, ox, oy) => {
       for (const m of models) {
-        const M = itemMatrix(m.display.gui, false)
+        const M = itemMatrix(m.display.gui, false, m.local)
         // 1 block = size px, looking toward -z; a generated item (or gui_light front) is lit flat.
         drawQuads(im, m.quads, M, p => [ox + size / 2 + p[0] * size, oy + size / 2 - p[1] * size, -p[2]], m.generated || m.guiLight === 'front')
       }
@@ -519,8 +560,9 @@ const renderView = (items, view, W, H) => {
     const img = newImage(W, H, SKY(W, H))
     const k = 1 / Math.tan(35 * RAD) * H / 2 // 70° vertical field of view
     const proj = p => p[2] > -0.05 ? null : [W / 2 + p[0] / -p[2] * k, H / 2 - p[1] / -p[2] * k, -p[2]]
+    proj.persp = true
     // ItemInHandRenderer.applyItemArmTransform: (±0.56, -0.52, -0.72), no swing, no equip dip.
-    for (const m of models) drawQuads(img, m.quads, chain(M4.t(left ? -0.56 : 0.56, -0.52, -0.72), itemMatrix(m.display[ctx], left)), proj)
+    for (const m of models) drawQuads(img, m.quads, chain(M4.t(left ? -0.56 : 0.56, -0.52, -0.72), itemMatrix(m.display[ctx], left, m.local)), proj)
     for (let d = -8; d <= 8; d++) {
       if (Math.abs(d) < 3) continue
       for (const [x, y] of [[W / 2 + d, H / 2], [W / 2, H / 2 + d]]) img.px.set([255, 255, 255, 255], (Math.floor(y) * W + Math.floor(x)) * 4)
@@ -538,18 +580,25 @@ const renderView = (items, view, W, H) => {
     proj = lookAt([1.35, 1.55, 2.3], [-0.15, 0.95, 0.25], 45, W, H)
   }
   for (const part of playerQuads()) drawQuads(img, part.quads, part.m, proj)
-  for (const m of models) drawQuads(img, m.quads, chain(HAND_RIGHT, itemMatrix(m.display[ctx], false)), proj)
+  for (const m of models) drawQuads(img, m.quads, chain(HAND_RIGHT, itemMatrix(m.display[ctx], false, m.local)), proj)
   return img
 }
 
-// what: a model id, or item[@cmd]. Returns ctx -> [loaded models].
-const makeItems = (S, what) => {
+// what: a model id, or item[@cmd]; opts.def: an item model (JSON) instead. Returns ctx -> [loaded models].
+const makeItems = (S, what, opts = {}) => {
   const L = makeLoader(S)
+  const clocks = { cooldown: opts.cooldown || 0, keybind: !!opts.fire, time: opts.time || 0 }
+  const cache = new Map()
+  const load = r => { if (!cache.has(r.id)) cache.set(r.id, L.loadModel(r.id)); return { ...cache.get(r.id), local: r.local } }
+  if (opts.def) {
+    const def = opts.def.model ? opts.def.model : opts.def
+    return ctx => resolveItemModel(def, { display: ctx, floats: [], strings: [], ...clocks }).map(load)
+  }
   const m = what.match(/^([a-z0-9_.:-]+?)(?:@(.+))?$/)
   const isModel = what.includes('/')
   if (isModel || !m) {
     const model = L.loadModel(what)
-    return () => [model]
+    return () => [{ ...model, local: null }]
   }
   const [ns, item] = split(m[1])
   const b = S.get(`assets/${ns}/items/${item}.json`)
@@ -558,18 +607,17 @@ const makeItems = (S, what) => {
   const cmd = m[2]
   const data = { floats: [], strings: [] }
   if (cmd !== undefined) (isNaN(Number(cmd)) ? data.strings : data.floats).push(isNaN(Number(cmd)) ? cmd : Number(cmd))
-  const cache = new Map()
   return ctx => {
     const display = ctx === 'gui' ? 'gui' : ctx
-    const ids = resolveItemModel(def.model, { display, ...data })
-    console.log(`${what} [${display}] -> ${ids.join(' + ') || 'nothing'}`)
-    return ids.map(id => { if (!cache.has(id)) cache.set(id, L.loadModel(id)); return cache.get(id) })
+    const got = resolveItemModel(def.model, { display, ...data, ...clocks })
+    console.log(`${what} [${display}] -> ${got.map(r => r.id + (r.local ? '*' : '')).join(' + ') || 'nothing'}`)
+    return got.map(load)
   }
 }
 
 const render = (what, view, W, H, opts = {}) => {
   const S = openSources(opts.pack)
-  const items = makeItems(S, what)
+  const items = makeItems(S, what, opts)
   const [dw, dh] = SIZES[view]
   const img = renderView(items, view, W || dw, H || dh)
   return { png: encode(img.W, img.H, img.px), tris: img.tris }
@@ -581,9 +629,14 @@ if (require.main === module) {
   const opts = {}
   const pi = args.indexOf('--pack')
   if (pi >= 0) { opts.pack = args[pi + 1]; args.splice(pi, 2) }
+  for (const k of ['cooldown', 'time']) { const i = args.indexOf('--' + k); if (i >= 0) { opts[k] = Number(args[i + 1]); args.splice(i, 2) } }
+  const fi = args.indexOf('--fire')
+  if (fi >= 0) { opts.fire = true; args.splice(fi, 1) }
+  const di = args.indexOf('--def')
+  if (di >= 0) { opts.def = JSON.parse(fs.readFileSync(args[di + 1], 'utf8').replace(/^\uFEFF/, '')); args.splice(di, 2); args.unshift('(def)') }
   const [what, out, view = 'fp', W, H] = args
   if (!what || !out) {
-    console.log('usage: render-item.js <model id | item[@cmd]> <out.png | prefix> [gui|fp|fpl|side|tp|all] [W H] [--pack zip]')
+    console.log('usage: render-item.js <model id | item[@cmd]> <out.png | prefix> [gui|fp|fpl|side|tp|all] [W H] [--pack zip] [--cooldown v] [--fire] [--time v] [--def file.json]')
     process.exit(1)
   }
   const views = view === 'all' ? ['gui', 'fp', 'fpl', 'side', 'tp'] : [view]

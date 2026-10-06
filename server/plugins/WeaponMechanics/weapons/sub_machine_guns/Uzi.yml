@@ -2,9 +2,10 @@ Uzi:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>Uzi"
+      Name: "<gold>Machine Gun"
       Lore:
-        - "<gray>Fully automatic open bolt submachine gun. Simple, steady, and effective."
+        - "<gray>A full-auto SMG with a curved magazine."
+        - "<gray>Fast, steady and easy to control."
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 66.7"
         - "<gold>➣<gray> 61 <gold>⟸ <gray>Accuracy"
@@ -20,20 +21,27 @@ Uzi:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>Uzi<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Machine Gun<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
     # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
       - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75, listeners=Source{}}"
+    # Donating (2026-10-05): the draw's sound (the pack animates the 20-tick draw; Weapon_Get_Mechanics only plays
+    # when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.smg.draw, volume=0.5, noise=0.05, listeners=Source{}}"
     Weapon_Equip_Delay: 20
     Cancel:
       Drop_Item: true
       Swap_Hands: true
       Arm_Swing_Animation: true
+  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates the
+  # draw, the fire (while it really fires: GunFx's firing flag) and the reload from the cooldown DonatingPhone's GunFx starts (tools\guns\uzi.js).
   Skin:
     Default: 1
     Scope: ADD 1000
     Sprint: ADD 2000
+    Reload: ADD 3000
   Projectile: "donating_smg_bullet"
   Shoot:
     Trigger:
@@ -61,7 +69,7 @@ Uzi:
       Smoothing: 0.25
       Max_Accumulation: 6.0
     Mechanics:
-      - "CustomSound{sound=shoot.uzi.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.smg.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
@@ -72,10 +80,12 @@ Uzi:
       Ammos:
         - "Donating_Light"
     Reload_Duration: 31
+    # Donating (2026-10-05): the new magazine clicks home 27 ticks after the old one comes out, where the pack seats
+    # it (tools\guns\uzi.js). Not in Finish_Mechanics: WeaponMechanics plays those at the very end of the chain, after
+    # an empty reload's Close (the charging handle's release, below), so the click came last.
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.light, volume=0.5, noise=0.1}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.light, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.smg.mag_out, volume=0.5, noise=0.05}"
+      - "CustomSound{sound=donating.gun.smg.mag_in, volume=0.5, noise=0.05, delayBeforePlay=27}"
   Damage:
     # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
     # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
@@ -98,15 +108,16 @@ Uzi:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
   Firearm_Action:
     Type: "SLIDE"
+    # Donating (2026-10-05): an empty reload pulls the charging handle back first (Open) and lets it go last (Close);
+    # tools\guns\uzi.js draws both. The bolt sound is two clicks (back and locked; slapped and home).
     Open:
       Time: 5
       Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.325, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.325, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
+        - "CustomSound{sound=donating.gun.smg.bolt, volume=0.5, noise=0.05, listeners=Source{}}"
     Close:
       Time: 5
       Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.325, noise=0.1, listeners=Source{}}"
+        - "CustomSound{sound=donating.gun.smg.bolt, volume=0.5, pitch=1.1, noise=0.05, listeners=Source{}}"
 
   # The following options are added by WeaponMechanicsCosmetics, and you will
   # not see the changes take effect until you purchase it.

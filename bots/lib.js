@@ -65,7 +65,17 @@ function join (username, { timeoutMs = 30000, pack = 'declined' } = {}) {
     bot.on('error', err => record('error', err.message))
 
     const timer = setTimeout(() => reject(new Error(`${username} did not spawn within ${timeoutMs} ms`)), timeoutMs)
-    bot.once('spawn', () => { clearTimeout(timer); resolve(bot) })
+    // An entity right-click the way the vanilla client sends it: "interact at" (the spot on the entity), then
+    // "interact". Mineflayer's activateEntity sends only the second, which reaches a 26.1 server through ViaBackwards
+    // as nothing (2026-10-05: NPC and interaction-box clicks went unseen; activateEntityAt's got through). Set at the
+    // spawn: Mineflayer loads its plugins after createBot returns, and its inventory plugin would put its own back.
+    const clickTheVanillaWay = () => {
+      bot.activateEntity = async entity => {
+        await bot.activateEntityAt(entity, entity.position.offset(0, Math.min(entity.height || 1, 1.8) / 2, 0))
+        bot._client.write('use_entity', { target: entity.id, mouse: 0, sneaking: false, hand: 0, location: { x: 0, y: 0, z: 0 } })
+      }
+    }
+    bot.once('spawn', () => { clearTimeout(timer); clickTheVanillaWay(); resolve(bot) })
     bot.once('end', reason => { clearTimeout(timer); reject(new Error(`${username} disconnected before spawn: ${reason}`)) })
   })
 }

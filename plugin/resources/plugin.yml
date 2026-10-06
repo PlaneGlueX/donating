@@ -2,8 +2,9 @@ name: DonatingPhone
 main: dev.donating.phone.PhonePlugin
 version: 1.0
 api-version: '1.21.11'
-# TAB draws the nametags; Nametags.java hides them behind walls through its API (optional).
-softdepend: [TAB]
+# TAB draws the nametags; Nametags.java hides them behind walls through its API (optional). WeaponMechanics: GunFx
+# starts the guns' animation clocks from its events (optional: without it, no gun animations).
+softdepend: [TAB, WeaponMechanics, MechanicsCore]
 description: Draws the Donating phone map. Game rules live in Skript.
 commands:
   dphone:
