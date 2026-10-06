@@ -4,7 +4,7 @@
 #
 # /trade <player> standing next to them (trade::reach blocks) asks them; the same command back opens the trade
 # for both: a 6-row window, your offer on the left, theirs on the right. Add your cars (in the garage, not out)
-# and crate cosmetics (titles, bag skins, kill effects from crates; a rank's bag skins stay with the rank) with
+# and crate cosmetics (titles, bag skins, kill effects and gun skins from crates; a rank's bag skins stay with the rank) with
 # the buttons at the bottom, and click one of yours to take it back. Both press Ready; a countdown
 # (trade::countdown seconds) runs and then the trade happens, unless anything changes first (both go back to
 # not ready). A one-sided trade is a gift. Ready is refused for a moment after any change (so a click aimed at
@@ -217,7 +217,7 @@ function tradeAddBlock(p: player, e: text) :: text:
 		if {data::%{_p}%::cos::%{_id}%} is not true:
 			return "You don't have that (a rank's looks stay with the rank)."
 		if {-cfg::cos::%{_id}%::bound} is true:
-			return "Earned titles can't be traded."
+			return "Earned cosmetics can't be traded."
 		if cosOwned({_o}, {_id}) is true:
 			return "%name of {_o}% has %cosColored({_id})%&c already."
 		return ""
@@ -247,14 +247,9 @@ function tradeIcon(owner: player, e: text, mine: boolean) :: item:
 		if {_need} > 0:
 			add "&7Drives from level %{_need}%" to {_l::*}
 	else:
+		# cosmetics.sk's icon (a gun skin is the gun in that look).
 		set {_type} to {-cfg::cos::%{_id}%::type}
-		if {_type} is "title":
-			set {_i} to name tag
-		else if {_type} is "killfx":
-			set {_i} to blaze powder
-		else:
-			set {_i} to leather
-			set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_id}%"
+		set {_i} to cosIcon({_id})
 		set {_name} to cosColored({_id})
 		set {_r} to {-cfg::cos::%{_id}%::rarity}
 		set {_tn} to "Bag skin"
@@ -262,6 +257,8 @@ function tradeIcon(owner: player, e: text, mine: boolean) :: item:
 			set {_tn} to "Title"
 		else if {_type} is "killfx":
 			set {_tn} to "Kill effect"
+		else if {_type} is "gunskin":
+			set {_tn} to "Gun skin"
 		add "&7%{_tn}% · %{-cfg::rarity::%{_r}%::color}%%{-cfg::rarity::%{_r}%::name}%" to {_l::*}
 		set {_sl} to cosSerialLore({_owner}, {_id})
 		if {_sl} is not "":
@@ -351,10 +348,23 @@ function tradePick(p: player, kind: text):
 		loop carsOf({_p}):
 			add "car:%loop-value%" to {_list::*}
 	else:
+		# Rarest first: the page shows 45 at most, so what a big collection cuts off is the commonest (2026-10-06: the gun
+		# skins came last in the list and the Golden AK-48 couldn't be offered).
+		loop reversed {-cfg::rarities::*}:
+			set {_r} to loop-value
+			loop {-cfg::cosmetics::*}:
+				set {_c} to loop-value-2
+				if {-cfg::cos::%{_c}%::rarity} is {_r}:
+					if {data::%{_p}%::cos::%{_c}%} is true:
+						if {-cfg::cos::%{_c}%::bound} is not true:
+							add "cos:%{_c}%" to {_list::*}
+		# Any other rarity after them.
 		loop {-cfg::cosmetics::*}:
-			if {data::%{_p}%::cos::%loop-value%} is true:
-				if {-cfg::cos::%loop-value%::bound} is not true:
-					add "cos:%loop-value%" to {_list::*}
+			set {_c} to loop-value
+			if {_list::*} does not contain "cos:%{_c}%":
+				if {data::%{_p}%::cos::%{_c}%} is true:
+					if {-cfg::cos::%{_c}%::bound} is not true:
+						add "cos:%{_c}%" to {_list::*}
 	loop {_list::*}:
 		{_slot} < 45
 		if {-trade::offer::%{_u}%::*} does not contain loop-value:
@@ -679,6 +689,13 @@ function tradeTake(g: player, e: text) :: text:
 	if getData({_g}, "bag-skin") is {_id}:
 		deleteData({_g}, "bag-skin")
 	bagRefresh({_g})
+	# A worn gun skin comes off the giver's gun too (cosmetics.sk: GunFx gets every gun's look again).
+	if {-cfg::cos::%{_id}%::type} is "gunskin":
+		set {_gk} to "gunskin::%{-cfg::cos::%{_id}%::gun}%"
+		if "%getData({_g}, {_gk})%" is {_id}:
+			deleteData({_g}, {_gk})
+			cosLog("unworn-gunskin %{_g}% %uuid of {_g}% %{-cfg::cos::%{_id}%::gun}% %{_id}% (traded)")
+			gunSkinPush({_g})
 	cosLog("trade-out %{_g}% %uuid of {_g}% %{_id}% serial=%{_sn}%")
 	if {_sn} > 0:
 		return "%{_sn}%"

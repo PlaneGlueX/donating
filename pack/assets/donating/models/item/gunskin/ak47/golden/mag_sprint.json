@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_ak47_mag_sprint",
+  "textures": {
+    "t": "donating:item/gunskin/ak47/golden",
+    "particle": "donating:item/gunskin/ak47/golden"
+  }
+}

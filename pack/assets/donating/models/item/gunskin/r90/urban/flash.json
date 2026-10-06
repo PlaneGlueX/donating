@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_r90_flash",
+  "textures": {
+    "t": "donating:item/gunskin/r90/urban",
+    "particle": "donating:item/gunskin/r90/urban"
+  }
+}

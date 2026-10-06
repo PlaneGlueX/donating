@@ -54,9 +54,10 @@ function showCommands(p: player):
 	helpLine({_p}, "/heistrefresh [heist]", "reopen a heist early (Elite, Legend)")
 	helpLine({_p}, "/store &7(/donate), &e/ranks", "support the server")
 	send colored "&6Looks" to {_p}
-	helpLine({_p}, "/cosmetics &7(/wardrobe)", "titles, bag skins, kill effects")
+	helpLine({_p}, "/cosmetics &7(/wardrobe)", "titles, bag skins, kill effects, gun skins")
 	helpLine({_p}, "/titles, /bagskins, /killeffects", "one page of the wardrobe")
 	helpLine({_p}, "/title, /bagskin, /killeffect <name/none>", "wear one by name")
+	helpLine({_p}, "/gunskin <gun> <look/default> &7(/gunskins)", "a gun's look; alone it lists yours")
 	send colored "&6With others" to {_p}
 	helpLine({_p}, "/trade <player> &7(or &e/trade cancel&7)", "trade cars and crate cosmetics in person")
 	helpLine({_p}, "/season, /lb [board] &7(/leaderboard)", "the season's leaderboards and prizes")

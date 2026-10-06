@@ -38,7 +38,7 @@ module.exports = async ({ check }) => {
     const title = w => (w ? JSON.stringify(w.title) : '')
     const itemText = i => (i ? JSON.stringify(i) : '')
     // An entry of an "Add a ..." list that can be added: listed, with none of trade.sk's tradeAddBlock reasons.
-    const addable = row => row !== '' && !/in the trade already|most for one trade|You don't have|garage first|No such cosmetic|Earned titles|That can't be traded|No trade open| already\./.test(row)
+    const addable = row => row !== '' && !/in the trade already|most for one trade|You don't have|garage first|No such cosmetic|Earned cosmetics|That can't be traded|No trade open| already\./.test(row)
     const slot = (name, n) => { const w = bots[name].currentWindow; return w && w.slots[n] ? w.slots[n].name : '' }
     const click = async (name, n, waitWindow = false) => {
       const o = waitWindow ? windowOpen(bots[name]) : null

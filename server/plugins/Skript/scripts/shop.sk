@@ -64,6 +64,13 @@ function wpnIcon(w: text) :: item:
 		return modelIcon({_m}, {_base})
 	return feather
 
+# A weapon's icon in the look the player wears on it (cosmetics.sk's gun skins: the hotbar mirror, the Loadout and Weapons
+# tabs); melee weapons and consumables are wpnIcon. A fresh item: Skript never sets an item model on a real gun.
+function wpnIconFor(p: player, w: text) :: item:
+	if {-cfg::gunskin::guns::*} contains {_w}:
+		return gunSkinIcon({_w}, gunSkinWorn({_p}, {_w}))
+	return wpnIcon({_w})
+
 # The robber level buying a consumable needs (0 when core.sk sets none).
 function conLevel(w: text) :: number:
 	set {_r} to {-cfg::con::%{_w}%::level}
@@ -653,7 +660,7 @@ function renderGun(p: player):
 			set {_w} to wmTitle({_i})
 			set {_id} to itemId({_i})
 			if {_w} is not "":
-				set {_icon} to wpnIcon({_w})
+				set {_icon} to wpnIconFor({_p}, {_w})
 			else if {_id} starts with "tool:":
 				set {_icon} to toolItem(subtext of {_id} from characters 6 to (length of {_id}), 1)
 			else:
@@ -700,7 +707,7 @@ function renderGun(p: player):
 			add "&eClick, then a hotbar slot above" to {_lore::*}
 			if {_at} < 0:
 				add "&eShift-click: first free slot" to {_lore::*}
-			set {_i} to wpnIcon({_w}) named "&f%{_name}%" with lore {_lore::*}
+			set {_i} to wpnIconFor({_p}, {_w}) named "&f%{_name}%" with lore {_lore::*}
 			if {-shop::sel::%{_p}%} is {_w}:
 				set {_i} to glint({_i})
 			button({_p}, {_cells::%{_k}%}, tagItem({_i}, "shopicon:wpn"), "sel:%{_w}%")
@@ -728,7 +735,12 @@ function renderGun(p: player):
 				set {_need} to wpnLevel({_w})
 				if levelOk({_p}, {_need}) is false:
 					add "&cNeeds level %{_need}%" to {_lore::*}
-			button({_p}, {_cells::%{_k}%}, tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore {_lore::*}, "shopicon:wpn"), "buy:%{_w}%")
+			# The look worn on it (cosmetics.sk's gun skins), only when it isn't the gun's own.
+			if {-cfg::gunskin::guns::*} contains {_w}:
+				set {_gsw} to gunSkinWorn({_p}, {_w})
+				if {_gsw} is not "":
+					add "&7Look: %gunSkinLookText({_gsw})%" to {_lore::*}
+			button({_p}, {_cells::%{_k}%}, tagItem(wpnIconFor({_p}, {_w}) named "&f%{_name}%" with lore {_lore::*}, "shopicon:wpn"), "buy:%{_w}%")
 			delete {_lore::*}
 			add 1 to {_k}
 	else if {_tab} is "ammo":

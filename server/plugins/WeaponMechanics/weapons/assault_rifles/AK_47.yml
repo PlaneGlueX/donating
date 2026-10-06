@@ -43,8 +43,6 @@ AK_47:
     Scope: ADD 1000
     Sprint: ADD 2000
     Reload: ADD 3000
-    blue: ADD 10000 # blue and red will only work if you have purchased WMC
-    red: ADD 20000
   Projectile: "donating_rifle_bullet"
   Shoot:
     Trigger:

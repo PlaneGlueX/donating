@@ -14,8 +14,9 @@ const CHUNKS = '680 680 690 690'
 const TAB = { loadout: 45, weapons: 47, ammo: 49, items: 51 }
 const HOT = n => 11 + n
 const CELL = [19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
-// Weapons tab, in core.sk's shop::weapons order (the Baseball Bat and the Dagger came in 2026-09-28).
-const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], Uzi: CELL[4], R9_0: CELL[5], AK_47: CELL[6] }
+// Weapons tab, in core.sk's shop::weapons order (the Baseball Bat and the Dagger came in 2026-09-28; the Old Revolver,
+// Brave Patriot, Combat Rifle and Sniper Rifle 2026-10-06, between the first guns).
+const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], '357_Magnum': CELL[4], Uzi: CELL[5], STG44: CELL[6], R9_0: CELL[7], M4A1: CELL[8], AK_47: CELL[9], AX_50: CELL[10] }
 const AMMO_ROW = { light: 19, shells: 28, rifle: 37 } // +pack = row + 2, +5 packs = row + 3, fill = row + 4
 
 module.exports = async ({ check }) => {

@@ -49,6 +49,37 @@
           "threshold": 7005,
           "model": {
             "type": "minecraft:model",
+            "model": "donating:item/tracer_sniper",
+            "transformation": {
+              "translation": [
+                0,
+                0,
+                -1.5
+              ],
+              "left_rotation": [
+                0,
+                0,
+                0,
+                1
+              ],
+              "scale": [
+                1,
+                1,
+                3
+              ],
+              "right_rotation": [
+                0,
+                0,
+                0,
+                1
+              ]
+            }
+          }
+        },
+        {
+          "threshold": 7006,
+          "model": {
+            "type": "minecraft:model",
             "model": "minecraft:item/iron_nugget"
           }
         }

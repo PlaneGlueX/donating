@@ -7,7 +7,8 @@
 # rewards are core.sk crate::<id>::rewards ("weight|kind|what|amount"); the chance of each line is its
 # weight / the crate's total, shown in the menu. Every cosmetic belongs to one crate only (owner,
 # 2026-09-26). Ammo, consumables and tools that don't fit pay cfg crate::overflow-rate (50%) of their
-# shop price in cash instead; a cosmetic you own pays its rarity's dupe value (cosmetics.sk).
+# shop price in cash instead; a cosmetic you own pays its rarity's dupe value (cosmetics.sk). Gun skins (2026-10-06) are
+# cosmetics too: a few in every crate, and each Hacked set has one (a set gives the parts you lack; its icon is the gun).
 #
 # Crates open only at crate stands, special places on the map (owner, 2026-09-26), and only in a safe
 # zone, never inside a heist, in combat or dead. Opening takes the key and rolls at once, and the roll
@@ -235,8 +236,9 @@ function crateLineIcon(line: text) :: item:
 		set {_i} to 1 of {-cfg::tool::%{_a::3}%::item}
 		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:tool_%{_a::3}%"
 	else if {_k} is "cos":
-		# A set shows its most visible part (a bag skin, else a kill effect, else the title), so a spin
-		# over sets doesn't look frozen (found in the client, 2026-09-26: both Hacked sets were name tags).
+		# A set shows its most visible part (a gun skin, else a bag skin, else a kill effect, else the title), so a
+		# spin over sets doesn't look frozen (found in the client, 2026-09-26: both Hacked sets were name tags). The
+		# icon is cosmetics.sk's cosIcon (a gun skin: the gun in that look).
 		set {_ids::*} to crateCosIds({_line})
 		set {_show} to {_ids::1}
 		loop {_ids::*}:
@@ -245,15 +247,12 @@ function crateLineIcon(line: text) :: item:
 					set {_show} to loop-value
 		loop {_ids::*}:
 			if {-cfg::cos::%loop-value%::type} is "bagskin":
+				if {-cfg::cos::%{_show}%::type} is not "gunskin":
+					set {_show} to loop-value
+		loop {_ids::*}:
+			if {-cfg::cos::%loop-value%::type} is "gunskin":
 				set {_show} to loop-value
-		set {_type} to {-cfg::cos::%{_show}%::type}
-		if {_type} is "bagskin":
-			set {_i} to leather
-			set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:bag_%{_show}%"
-		else if {_type} is "killfx":
-			set {_i} to blaze powder
-		else:
-			set {_i} to name tag
+		set {_i} to cosIcon({_show})
 	else if {_k} is "car":
 		set {_i} to carIcon({_a::3}, carFirstColor({_a::3}))
 	else if {_k} is "carroll":

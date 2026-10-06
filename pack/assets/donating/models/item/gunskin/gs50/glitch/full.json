@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_gs50_full",
+  "textures": {
+    "t": "donating:item/gunskin/gs50/glitch",
+    "particle": "donating:item/gunskin/gs50/glitch"
+  }
+}

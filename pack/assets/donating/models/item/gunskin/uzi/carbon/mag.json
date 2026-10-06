@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_uzi_mag",
+  "textures": {
+    "t": "donating:item/gunskin/uzi/carbon",
+    "particle": "donating:item/gunskin/uzi/carbon"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_ak47_full_sprint",
+  "textures": {
+    "t": "donating:item/gunskin/ak47/crimson",
+    "particle": "donating:item/gunskin/ak47/crimson"
+  }
+}

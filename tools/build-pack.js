@@ -84,7 +84,7 @@ const { mergeRangeDispatch } = require('./merge-dispatch')
 // WeaponMechanics' skin numbers of what we sell (Default, Scope +1000, Sprint +2000, Reload +3000 for the four guns; the knife, the Stim):
 // the final feather.json must draw every one of them with our model.
 const FEATHER = 'assets/minecraft/items/feather.json'
-const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014, 3001, 3005, 3009, 3014]
+const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 7, 8, 9, 13, 14, 15, 1001, 1005, 1007, 1008, 1009, 1013, 1014, 1015, 2001, 2005, 2007, 2008, 2009, 2013, 2014, 2015, 3001, 3005, 3007, 3008, 3009, 3013, 3014, 3015]
 
 // ---------- Entries, with the merge guard ----------
 const entries = new Map() // name -> { data, from }
@@ -286,6 +286,27 @@ if (merged.length) console.log(`merged JSON: ${merged.join(', ')}`)
   }
   const bad = OUR_FEATHER_NUMBERS.filter(n => !same(n))
   if (bad.length) throw new Error(`${FEATHER}: ${bad.join(', ')} aren't drawn by our models (run tools\\node\\node.exe tools\\make-item-art.js)`)
+  // Gun skins (2026-10-06): every look core.sk names (cos::<id>::model "donating:gunskin_<gun>_<look>", retired and
+  // testing ones too: Legends own those) needs its item definition, with exactly its gun's states (a missing one is a
+  // magenta cube in a player's hand).
+  const core = fs.readFileSync(path.join(__dirname, '..', 'server', 'plugins', 'Skript', 'scripts', 'core.sk'), 'utf8')
+  // core.sk lists them as "id|title|gun module|look id|Look|Full name|rarity" lines (the model is donating:gunskin_<gun module>_<look id>).
+  const looks = [...new Set([
+    ...[...core.matchAll(/"(donating:gunskin_[a-z0-9_]+)"/g)].map(m => m[1]),
+    ...[...core.matchAll(/"[a-z0-9_]+\|[A-Za-z0-9_]+\|([a-z0-9]+)\|([a-z0-9]+)\|[^"|]*\|[^"|]*\|(?:daily|common|uncommon|rare|epic|legendary|hacked|level)"/g)].map(m => `donating:gunskin_${m[1]}_${m[2]}`)
+  ])]
+  const gunStates = new Map()
+  for (const e of mine) { if (e.threshold < 0) continue; const k = e.threshold % 1000; if (!gunStates.has(k)) gunStates.set(k, []); gunStates.get(k).push(e.threshold) } // the knife and the Stim are negative
+  const missingLooks = []
+  for (const look of looks) {
+    const file = `assets/donating/items/${look.split(':')[1]}.json`
+    const def = entries.has(file) ? parseJson(entries.get(file).data) : null
+    const ths = def && def.model && Array.isArray(def.model.entries) ? def.model.entries.map(e => e.threshold) : null
+    const base = ths && ths.length ? ths[0] % 1000 : null
+    if (!def || def.hand_animation_on_swap !== false || !ths || JSON.stringify(ths) !== JSON.stringify(gunStates.get(base) || [])) missingLooks.push(look)
+  }
+  if (missingLooks.length) throw new Error(`gun skins: ${missingLooks.join(', ')} named in core.sk but missing (or not their gun's states) in the pack (tools\\guns\\skins.js, then make-item-art.js)`)
+  if (looks.length) console.log(`gun skins: ${looks.length} looks named in core.sk, each with its item definition`)
 }
 
 // ---------- The sold guns' sounds, 35% quieter (owner, 2026-09-29) ----------
@@ -302,7 +323,7 @@ if (merged.length) console.log(`merged JSON: ${merged.join(', ')}`)
 // equip click) can't be scaled here without changing them for everything: the weapon files lower those
 // (Sound{... volume=...}). bots\scenarios\wm-ammo.js checks the built zip against these rules.
 const GUN_SOUND_VOLUME = 0.65
-const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assault_rifles/AK_47.yml', 'shotguns/R9_0.yml']
+const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assault_rifles/AK_47.yml', 'shotguns/R9_0.yml', 'pistols/357_Magnum.yml', 'assault_rifles/STG44.yml', 'assault_rifles/M4A1.yml', 'sniper_rifles/AX_50.yml']
 {
   const SND = 'assets/minecraft/sounds.json'
   const weapons = path.join(repo, 'server', 'plugins', 'WeaponMechanics', 'weapons')
@@ -376,6 +397,39 @@ const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assau
     wrapped++
   }
   console.log(`first-person hands hidden under a foreign camera: ${wrapped} item definitions wrapped` + (already ? `, ${already} already wrapped` : ''))
+}
+
+// ---------- Resource names ----------
+// The client only takes [a-z0-9_.-/] in a resource path: one bad name in an item definition makes the whole file fail
+// to parse (2026-10-06: the Old Revolver's "flashX" part took every gun in feather.json down to the missing-model cube).
+// Our files and every model, parent and texture they name must be valid; other packs' bad files only get a warning
+// (the client skips the file itself).
+{
+  const RL = /^([a-z0-9_.-]+:)?[a-z0-9_.\/-]+$/
+  const bad = []
+  const otherBad = []
+  for (const [name, e] of entries) {
+    const ours = String(e.from).includes('ours')
+    if (name.startsWith('assets/') && !/^assets\/[a-z0-9_.-]+\/[a-z0-9_.\/-]+$/.test(name)) (ours ? bad : otherBad).push(name)
+    if (!ours || !/^assets\/[^/]+\/(items|models)\/.+\.json$/.test(name)) continue
+    let json
+    try { json = JSON.parse(e.data.toString('utf8')) } catch (err) { bad.push(`${name}: not JSON`); continue }
+    const check = o => { if (typeof o === 'string' && !o.startsWith('#') && !RL.test(o)) bad.push(`${name}: "${o}"`) }
+    const walk = (o, key) => {
+      if (Array.isArray(o)) { o.forEach(x => walk(x, key)); return }
+      if (o && typeof o === 'object') {
+        for (const [k, v] of Object.entries(o)) {
+          if (k === 'textures' && name.includes('/models/') && v && typeof v === 'object' && !Array.isArray(v)) Object.values(v).forEach(check)
+          else walk(v, k)
+        }
+        return
+      }
+      if ((key === 'model' && name.includes('/items/')) || key === 'parent') check(o)
+    }
+    walk(json, '')
+  }
+  if (otherBad.length) console.warn(`note: ${otherBad.length} files of the other packs have names the client skips: ${otherBad.slice(0, 5).join(', ')}`)
+  if (bad.length) throw new Error(`invalid resource names (the client rejects them, and a whole item definition with them):\n  ${bad.slice(0, 20).join('\n  ')}`)
 }
 
 // ---------- Write ----------

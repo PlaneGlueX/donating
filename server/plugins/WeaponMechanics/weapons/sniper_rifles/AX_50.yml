@@ -2,9 +2,10 @@ AX_50:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>AX-50"
+      Name: "<gold>Sniper Rifle"
       Lore:
-        - "<gray>Hard hitting, bolt action sniper rifle with .50 cal BMG ammunition."
+        - "<gray>A long wooden bolt-action rifle with a big scope."
+        - "<gray>Bolt-action; the scope zooms in twice."
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 66.3"
         - "<gold>➣<gray> 82 <gold>⟸ <gray>Accuracy"
@@ -16,23 +17,37 @@ AX_50:
       Unbreakable: true
       Hide_Flags: true
       Attributes:
-        - "movement_speed -0.033"
+        - "movement_speed -0.010"
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>AX-50<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Sniper Rifle<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+    # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
+    # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=0.5, listeners=Source{}}"
-    Weapon_Equip_Delay: 50
+      - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75, listeners=Source{}}"
+    # Donating (2026-10-06): the draw's sound (the pack animates the 40-tick draw: the rifle comes up, then the bolt is
+    # checked; the sound carries its clicks at 1.0 and 1.3 s, tools\guns\sniper.js and tools\sounds\guns\sniper.js).
+    # Weapon_Get_Mechanics only plays when the gun is given.
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.sniper.draw, volume=0.5, noise=0.05, listeners=Source{}}"
+    Weapon_Equip_Delay: 40
     Cancel:
       Drop_Item: true
+      Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-06, the PG3D Sniper Rifle): the pack draws Default, Scope (+1000), Sprint (+2000) and Reload (+3000) (no
+  # No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates the
+  # draw, each shot with its bolt, a bolt worked alone and the reload from the cooldown DonatingPhone's GunFx starts
+  # (gunfx AX_50: shot 20, draw 40, alone 6, action 16; tools\guns\sniper.js).
   Skin:
     Default: 13
     Scope: ADD 1000
     Sprint: ADD 2000
-  Projectile: "sniper_rifle_projectile"
+    Reload: ADD 3000
+  # Donating: a fake item display the pack draws as a long streak (Donating_Projectiles.yml, iron nugget 7005).
+  Projectile: "donating_sniper_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"
@@ -40,45 +55,62 @@ AX_50:
       Circumstance:
         Swimming: "DENY"
         Sprinting: "DENY"
-    Projectile_Speed: 250
-    Delay_Between_Shots: 20
+    Projectile_Speed: 200
+    # 18, not 20: 20 sits on the 1000 ms boundary and slips to 24 ticks; with 18 (and the bolt's 16) a held click fires
+    # every 20 ticks from the hip. Scoped it's about every 25: Unscope_After_Shot takes the scope off, WeaponMechanics
+    # refuses to scope in again until this delay (900 ms) has passed, and Shoot_Delay_After_Scope adds 300 ms (review,
+    # 2026-10-06: kept on purpose; scoped kills take about 1.25 s unarmored, 5 s in the best gear).
+    Delay_Between_Shots: 18
     Spread:
-      Base_Spread: 2.25
+      Base_Spread: 7.0
       Modify_Spread_When:
-        Zooming: 25%
-        Sneaking: 50%
-        In_Midair: 150%
+        Zooming: 8%
+        Sneaking: 60%
+        In_Midair: 200%
     Recoil:
       Mean_X: 0.0
-      Mean_Y: 4.0
+      Mean_Y: 4.5
       Variance_X: 0.1
-      Variance_Y: 0.2
+      Variance_Y: 0.3
       Speed: 6.0
       Damping: 0.2
       Damping_Recovery: 0.3
       Smoothing: 0.3
-      Max_Accumulation: 25.0
+      Max_Accumulation: 20.0
     Mechanics:
-      - "CustomSound{sound=shoot.ax50.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.sniper.shoot, volume=8, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
     Magazine_Size: 5
-    Reload_Duration: 78
+    # Donating: item ammo bought at gun shops (shop.sk); without this the gun reloads for free.
+    Ammo:
+      Ammos:
+        - "Donating_Rifle"
+    Reload_Duration: 60
+    # Donating (2026-10-06): the magazine's sounds where the pack's frames show them (tools\guns\sniper.js reload: the
+    # magazine drops out from p 0.18, the new one seats at p 0.6). Not in Finish_Mechanics: WeaponMechanics plays those
+    # at the very end of the chain. With rounds left the frames run over 60 ticks; from empty the bolt's Open (8 ticks)
+    # comes first, the frames stretch to 76 and these sounds start 8 ticks later: the delays split the difference
+    # (68p - 4: mag_out 8, 2.8 ticks early with rounds left and 2.3 late from empty; mag_in 37, 1 late and 0.6 early).
+    # The bolt's own sounds are the Firearm_Action's (below): WeaponMechanics only works the bolt on an empty reload,
+    # so with rounds left the drawn bolt is silent.
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.normal, volume=0.5, noise=0.1}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.normal, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.sniper.mag_out, volume=0.5, noise=0.05, delayBeforePlay=8}"
+      - "CustomSound{sound=donating.gun.sniper.mag_in, volume=0.5, noise=0.05, delayBeforePlay=37}"
   Damage:
+    # Donating (2026-10-06): 12 flat, no Dropoff: 2 body shots on an unarmored player, 5 in the best gear (11 armor
+    # points, Per_Armor_Point -6% in config.yml); the worst modifier stack (x1.35) gives 16.2, so never 1. Never add a
+    # weapon-level Damage_Modifiers, Head, Backstab or Critical_Hit here (one replaces the global list).
     Base_Damage: 12
     Armor_Damage: 4
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"
       Off_Hand: "LEFT_CLICK"
-    Zoom_Amount: 1.5
-    Shoot_Delay_After_Scope: 16
+    Zoom_Amount: 3.0
+    Shoot_Delay_After_Scope: 6
     Unscope_After_Shot: true
     Mechanics:
       - "CustomSound{sound=scope.in, volume=0.5, noise=0.1, listeners=Source{}}"
@@ -87,45 +119,28 @@ AX_50:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
     Zoom_Stacking:
       Stacks:
-        - 4
-        - 10
+        - 6
       Mechanics:
-        - "CustomSound{sound=scope.in, volume=0.5, noise=0.1}"
+        - "CustomSound{sound=scope.in, volume=0.5, noise=0.1, listeners=Source{}}"
+  # Donating (2026-10-06): the bolt after every shot with rounds left (Firearm_Action_Frequency 1; an empty gun reloads
+  # instead, and its reload opens the bolt first and closes it last). WeaponMechanics starts the Open in the shot's tick and
+  # the Close 8 ticks later. The pack draws the bolt in the shot's 20-tick clock after the kick, which ends at tick 6 (GunFx
+  # cuts the last round's clock there: gunfx AX_50 alone 6): up at ticks 6-7.6, back 7.6-9.6 (the case flips out),
+  # forward 10.4-12, down 12-13.6; the sounds are delayed to match: bolt_open at tick 6, the case landing at 15,
+  # bolt_close at 8 + 4 = 12. A bolt worked alone (after a weapon swap mid-cycle) gets GunFx's 16-tick action clock with
+  # the same frames at the same ticks.
   Firearm_Action:
     Type: "LEVER"
+    Firearm_Action_Frequency: 1
     Open:
-      Time: 10
+      Time: 8
       Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.5, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.5, noise=0.1, listeners=Source{}, delayBeforePlay=4}"
+        - "CustomSound{sound=donating.gun.sniper.bolt_open, volume=0.5, noise=0.05, listeners=Source{}, delayBeforePlay=6}"
+        - "CustomSound{sound=donating.gun.sniper.shell, volume=0.5, noise=0.05, listeners=Source{}, delayBeforePlay=15}"
     Close:
-      Time: 10
+      Time: 8
       Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.5, noise=0.1, listeners=Source{}}"
-
-  # The following options are added by WeaponMechanicsCosmetics, and you will
-  # not see the changes take effect until you purchase it.
-
-  Cosmetics:
-    Muzzle_Flash: true
-    Splash_Mechanics:
-      - "Sound{sound=entity.generic.splash, pitch=1.85, noise=0.15} @Target{}"
-      - "Particle{particle=WATER_SPLASH, count=20, noise=0.2 0.2 0.2} @Target{}"
-    Bullet_Zip:
-      Maximum_Distance: 4.0
-      Sounds:
-        - "CustomSound{sound=fx.whiz, noise=0.02} @Target{}"
-    Third_Person_Pose:
-      Default: NONE
-      Scope: BOW
-      Reload: BLOCK
-      Firearm_Action: CROSSBOW
-
-  Trail:
-    Distance_Between_Particles: 0.3
-    Particle_Chooser: LOOP
-    Particles:
-      - "Particle{particle=DUST_COLOR_TRANSITION, color=RED, fadeColor=YELLOW, size=0.4}"
+        - "CustomSound{sound=donating.gun.sniper.bolt_close, volume=0.5, noise=0.05, listeners=Source{}, delayBeforePlay=4}"
 
   Show_Time:
     Reload:
@@ -138,10 +153,8 @@ AX_50:
         Right_Color: "<red>"
         Left_Symbol: "|"
         Right_Symbol: "|"
-        Symbol_Amount: 5
+        Symbol_Amount: 10
     Weapon_Equip_Delay:
-      Item_Cooldown: true
-    Firearm_Actions:
       Item_Cooldown: true
     Shoot_Delay_After_Scope:
       Item_Cooldown: true

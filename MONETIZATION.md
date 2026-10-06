@@ -17,7 +17,7 @@ Rank prices were picked on 2026-09-26 with the owner's OK (one-time purchases, t
 | **Money booster** | For its time, every loot sale pays **1.5×** for everyone on the server; the buyer's own sales pay **2×** | **Yes:** everyone earns more while it runs; the buyer earns a bit more than others | **$1 per 5 minutes** (any quantity) | `dbooster add {username} money 1.5 5 {purchaseQuantity}` |
 | **XP booster** (added 2026-09-27) | For its time, every loot sale and car contract gives **1.5×** robber-level XP for everyone on the server; the buyer's own XP is **2×** | **Yes:** everyone reaches levels (which unlock heists, tools and cars) sooner while it runs; the buyer a bit sooner than others | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} xp 1.5 5 {purchaseQuantity}` |
 | **Heist Rush** (added 2026-09-27) | For its time, heists reopen **2× faster** for everyone: a run that ends gets half its cooldown, and heists already cooling down have their time left halved when it starts | **Yes:** more heist runs for the whole server; the buyer gets nothing extra (no head start, no bonus) | Proposal: **$1 per 5 minutes** (any quantity); the owner sets the price | `dbooster add {username} rush 2 5 {purchaseQuantity}` |
-| **Crate keys** (Common, Uncommon, Rare, Epic, Legendary) | One opening of that crate per key, at a crate stand on the map: a random reward from its list below (the odds are shown in game: /crates, click a crate) | **Yes:** crates can give in-game money, ammo, Stims and heist tools; the rest are looks only | $0.49 / $0.99 / $1.99 / $3.99 / $8.99 each (Common to Legendary), any quantity. The same keys are also bought in game with in-game money (2026-09-29, proposal: $1,500 / $4,000 / $10,000 / $25,000 / $60,000; see "Keys for in-game money") | `dcrate give {username} <crate> {purchaseQuantity}` |
+| **Crate keys** (Common, Uncommon, Rare, Epic, Legendary) | One opening of that crate per key, at a crate stand on the map: a random reward from its list below (the odds are shown in game: /crates, click a crate) | **Yes:** crates can give in-game money, ammo, Stims and heist tools; the rest (titles, bag skins, kill effects, gun skins, cars) are looks only | $0.49 / $0.99 / $1.99 / $3.99 / $8.99 each (Common to Legendary), any quantity. The same keys are also bought in game with in-game money (2026-09-29, proposal: $1,500 / $4,000 / $10,000 / $25,000 / $60,000; see "Keys for in-game money") | `dcrate give {username} <crate> {purchaseQuantity}` |
 
 A player has one rank at a time. Buying a higher rank replaces the lower one, and buying a lower rank never takes away a higher one.
 
@@ -31,13 +31,19 @@ A player has one rank at a time. Buying a higher rank replaces the lower one, an
 
 Everyone owns and drives cars the same way. Cars come out at garages: one at every respawn point, one at the Car Dealer and one at the Scrap Yard. Elite and Legend can also call their car from anywhere with /garage or the phone's Garage app, with the same limits: never inside a heist, never in combat or while wanted, one car out at a time, once every 20 seconds. It saves the walk to a garage; it gives no car, speed or protection.
 
+### Gun skins (added 2026-10-06)
+
+A gun skin is a different look for one gun (for example the **Golden AK-48** or the **Molten Shotgun**): its colors only. A skinned gun does exactly the same damage, fires at the same rate, reloads the same and sounds the same; the sights, the scope's lens and the muzzle flash keep their own colors, so no skin is easier to aim with. Gun skins are **never sold directly**. They come from crate keys like the other cosmetics (every crate has one or two, inside its cosmetic share below; each Hacked set has one) and two are earned at robber levels 100 and 150 (those two can't be traded). Players wear one per gun from the wardrobe (/cosmetics, /gunskins); crate gun skins can be traded in person (/trade) with their serial number, like the other crate cosmetics. Legends own every retired and testing gun skin, like every other retired cosmetic. Proposal (2026-10-06): 16 crate skins (12 for the Classic Pistol, the Machine Gun, the Shotgun and the AK-48, and one each for the Old Revolver, the Brave Patriot, the Combat Rifle and the Sniper Rifle, the four guns added the same day; the guns themselves are bought with in-game money only, like every gun) and 2 level skins.
+
 ### What's in each crate
 
-A crate gives exactly one reward per key, picked at random with the chances below (every crate's weights add up to 1,000, so they're exact). Crates open only at crate stands, special places on the map inside safe zones; the reward is given when the spin stops (closing the menu gives it at once, and a logout or crash mid-spin gives it at the next join). Ammo, Stims and tools that don't fit (full inventory, carry limit, a tool above the player's level) pay **half** their shop price in in-game money instead. A cosmetic the player already has pays its rarity's repeat value ($200 Daily or Common, $500 Uncommon, $1,500 Rare, $3,000 Epic, $5,000 Legendary, $7,500 Hacked). Titles, bag skins, kill effects and cars are looks only. Every cosmetic belongs to one crate only.
+A crate gives exactly one reward per key, picked at random with the chances below (every crate's weights add up to 1,000, so they're exact). Crates open only at crate stands, special places on the map inside safe zones; the reward is given when the spin stops (closing the menu gives it at once, and a logout or crash mid-spin gives it at the next join). Ammo, Stims and tools that don't fit (full inventory, carry limit, a tool above the player's level) pay **half** their shop price in in-game money instead. A cosmetic the player already has pays its rarity's repeat value ($200 Daily or Common, $500 Uncommon, $1,500 Rare, $3,000 Epic, $5,000 Legendary, $7,500 Hacked). Titles, bag skins, kill effects, gun skins and cars are looks only. Every cosmetic belongs to one crate only.
 
 **Keys for in-game money** (added 2026-09-29, owner: "allow the other common-legendary crates be able to be bought with game money as well as irl money"). Common to Legendary keys can also be bought in game with in-game money, one at a time, in the crate's page (/crates, click a crate, or at a crate stand). Proposal: **$1,500** Common, **$4,000** Uncommon, **$10,000** Rare, **$25,000** Epic, **$60,000** Legendary. Each is about 4× what a key pays back on average (its money, its items at their shop price and its repeat values: about $373 / $895 / $2,377 / $6,096 / $14,885), so buying keys with in-game money never makes money; it's a money sink that pays out mostly in cosmetics. A key is the same whichever way it was bought, so real money only saves the time it takes to earn the in-game price. A key of $1,000 or more asks for a second click to confirm; buying is refused in combat.
 
 Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more likely (60-75% of openings from Common to Legendary), cosmetics at most 1% (Daily), 3% (Common), 5% (Uncommon), 7% (Rare), 10% (Epic) and 15% (Legendary, its exclusive car included). Cars are in the game since 2026-09-26 (garage.sk): a crate car lands in the player's garage. Since 2026-09-28 a player can own several cars of a model (up to 60 cars), so a car is never a "repeat"; the repeat value is only paid when the garage is full. The Legendary and Hacked crate cars are looks only: each drives exactly like the regular car of its family (Vandal like the Sports Car, Specter like the Sedan, Overclock like the Hotrod).
+
+Changed 2026-10-06 (gun skins, proposal): every crate got a gun skin or two inside its cosmetic share, which stays at the owner's 1 / 3 / 5 / 7 / 10 / 15%, so each other cosmetic became a little rarer (for example a Common cosmetic 0.6% → 0.5%); the money, ammo, Stim and tool chances didn't change. Each Hacked set also gives its gun skin (a set gives the parts the player doesn't have yet).
 
 **Daily Crate**
 
@@ -51,9 +57,10 @@ Changed 2026-09-26 (owner): money amounts 55-60% lower than before but more like
 | 30 Rifle Rounds | ammo | 6% |
 | 1 Stim | consumable | 7% |
 | 1 Safe Kit | heist tool | 5% |
-| Rookie (title, Daily) | looks only | 0.4% |
-| Poof (kill effect, Daily) | looks only | 0.3% |
-| Denim (bag skin, Daily) | looks only | 0.3% |
+| Rookie (title, Daily) | looks only | 0.3% |
+| Poof (kill effect, Daily) | looks only | 0.2% |
+| Denim (bag skin, Daily) | looks only | 0.2% |
+| Safety Orange Classic Pistol (gun skin, Daily) | looks only | 0.3% |
 
 Gameplay items (money, ammo, consumables, tools): 99% of openings.
 
@@ -69,11 +76,12 @@ Gameplay items (money, ammo, consumables, tools): 99% of openings.
 | 60 Rifle Rounds | ammo | 7% |
 | 2 Stims | consumable | 8% |
 | 1 Safe Kit | heist tool | 5% |
-| Lookout (title, Common) | looks only | 0.6% |
-| Wheelman (title, Common) | looks only | 0.6% |
-| Hustler (title, Common) | looks only | 0.6% |
-| Smoke Bomb (kill effect, Common) | looks only | 0.6% |
-| Desert (bag skin, Common) | looks only | 0.6% |
+| Lookout (title, Common) | looks only | 0.5% |
+| Wheelman (title, Common) | looks only | 0.5% |
+| Hustler (title, Common) | looks only | 0.5% |
+| Smoke Bomb (kill effect, Common) | looks only | 0.5% |
+| Desert (bag skin, Common) | looks only | 0.5% |
+| Desert Machine Gun (gun skin, Common) | looks only | 0.5% |
 
 Gameplay items (money, ammo, consumables, tools): 97% of openings.
 
@@ -90,13 +98,15 @@ Gameplay items (money, ammo, consumables, tools): 97% of openings.
 | 120 Rifle Rounds | ammo | 6% |
 | 3 Stims | consumable | 7% |
 | 2 Safe Kits | heist tool | 6% |
-| Ghost (title, Uncommon) | looks only | 0.8% |
-| Smooth Operator (title, Uncommon) | looks only | 0.7% |
-| Night Owl (title, Uncommon) | looks only | 0.7% |
-| Flames (kill effect, Uncommon) | looks only | 0.7% |
-| Sparks (kill effect, Uncommon) | looks only | 0.7% |
-| Urban (bag skin, Uncommon) | looks only | 0.7% |
-| Cherry (bag skin, Uncommon) | looks only | 0.7% |
+| Ghost (title, Uncommon) | looks only | 0.6% |
+| Smooth Operator (title, Uncommon) | looks only | 0.6% |
+| Night Owl (title, Uncommon) | looks only | 0.5% |
+| Flames (kill effect, Uncommon) | looks only | 0.6% |
+| Sparks (kill effect, Uncommon) | looks only | 0.5% |
+| Urban (bag skin, Uncommon) | looks only | 0.6% |
+| Cherry (bag skin, Uncommon) | looks only | 0.5% |
+| Bubblegum Classic Pistol (gun skin, Uncommon) | looks only | 0.6% |
+| Urban Camo Shotgun (gun skin, Uncommon) | looks only | 0.5% |
 
 Gameplay items (money, ammo, consumables, tools): 95% of openings.
 
@@ -113,12 +123,15 @@ Gameplay items (money, ammo, consumables, tools): 95% of openings.
 | 3 Stims | consumable | 5% |
 | 1 Drill | heist tool | 7% |
 | 3 Safe Kits | heist tool | 5% |
-| Inside Man (title, Rare) | looks only | 1.2% |
-| Phantom (title, Rare) | looks only | 1.2% |
-| Cash Burst (kill effect, Rare) | looks only | 1.2% |
-| Souls (kill effect, Rare) | looks only | 1.2% |
-| Cash Print (bag skin, Rare) | looks only | 1.1% |
-| Crimson (bag skin, Rare) | looks only | 1.1% |
+| Inside Man (title, Rare) | looks only | 0.8% |
+| Phantom (title, Rare) | looks only | 0.8% |
+| Cash Burst (kill effect, Rare) | looks only | 0.8% |
+| Souls (kill effect, Rare) | looks only | 0.8% |
+| Cash Print (bag skin, Rare) | looks only | 0.8% |
+| Crimson (bag skin, Rare) | looks only | 0.7% |
+| Woodland Camo Machine Gun (gun skin, Rare) | looks only | 0.8% |
+| Crimson AK-48 (gun skin, Rare) | looks only | 0.8% |
+| Army Combat Rifle (gun skin, Rare) | looks only | 0.7% |
 
 Gameplay items (money, ammo, consumables, tools): 93% of openings.
 
@@ -131,12 +144,16 @@ Gameplay items (money, ammo, consumables, tools): 93% of openings.
 | $13,500 | in-game money | 13% |
 | 1 Drill | heist tool | 12% |
 | 3 Stims | consumable | 8% |
-| Untouchable (title, Epic) | looks only | 1.7% |
-| Big Fish (title, Epic) | looks only | 1.7% |
-| Fireworks (kill effect, Epic) | looks only | 1.7% |
-| Storm Cloud (kill effect, Epic) | looks only | 1.7% |
-| Tiger (bag skin, Epic) | looks only | 1.6% |
-| Carbon (bag skin, Epic) | looks only | 1.6% |
+| Untouchable (title, Epic) | looks only | 1% |
+| Big Fish (title, Epic) | looks only | 1% |
+| Fireworks (kill effect, Epic) | looks only | 1% |
+| Storm Cloud (kill effect, Epic) | looks only | 1% |
+| Tiger (bag skin, Epic) | looks only | 1% |
+| Carbon (bag skin, Epic) | looks only | 1% |
+| Tiger Shotgun (gun skin, Epic) | looks only | 1% |
+| Carbon Machine Gun (gun skin, Epic) | looks only | 1% |
+| Gilded Old Revolver (gun skin, Epic) | looks only | 1% |
+| Arctic Sniper Rifle (gun skin, Epic) | looks only | 1% |
 
 Gameplay items (money, ammo, consumables, tools): 90% of openings.
 
@@ -149,12 +166,15 @@ Gameplay items (money, ammo, consumables, tools): 90% of openings.
 | $34,000 | in-game money | 12% |
 | 1 Drill | heist tool | 10% |
 | Vandal (exclusive car) | looks only | 3% |
-| Most Wanted (title, Legendary) | looks only | 2% |
-| The Boss (title, Legendary) | looks only | 2% |
-| Dragon's Breath (kill effect, Legendary) | looks only | 2% |
-| Totem (kill effect, Legendary) | looks only | 2% |
-| Diamond (bag skin, Legendary) | looks only | 2% |
-| Molten (bag skin, Legendary) | looks only | 2% |
+| Most Wanted (title, Legendary) | looks only | 1.4% |
+| The Boss (title, Legendary) | looks only | 1.4% |
+| Dragon's Breath (kill effect, Legendary) | looks only | 1.3% |
+| Totem (kill effect, Legendary) | looks only | 1.3% |
+| Diamond (bag skin, Legendary) | looks only | 1.3% |
+| Molten (bag skin, Legendary) | looks only | 1.3% |
+| Golden AK-48 (gun skin, Legendary) | looks only | 1.4% |
+| Molten Shotgun (gun skin, Legendary) | looks only | 1.3% |
+| Neon Brave Patriot (gun skin, Legendary) | looks only | 1.3% |
 
 Gameplay items (money, ammo, consumables, tools): 85% of openings.
 
@@ -165,8 +185,8 @@ Gameplay items (money, ammo, consumables, tools): 85% of openings.
 | Vandal (exclusive car) | looks only | 20% |
 | Specter (exclusive car) | looks only | 20% |
 | Overclock (exclusive car) | looks only | 20% |
-| H4CK3R (title, Hacked) + Matrix (bag skin, Hacked) | looks only | 20% |
-| Zero Day (title, Hacked) + Glitch (kill effect, Hacked) | looks only | 20% |
+| H4CK3R (title, Hacked) + Matrix (bag skin, Hacked) + H4CK3R AK-48 (gun skin, Hacked) | looks only | 20% |
+| Zero Day (title, Hacked) + Glitch (kill effect, Hacked) + Glitch Classic Pistol (gun skin, Hacked) | looks only | 20% |
 
 Gameplay items (money, ammo, consumables, tools): 0% of openings.
 
@@ -211,7 +231,8 @@ Wraps: Common (Matte Black, Primer, Two-Tone, Racing Stripes, Checkered), Rare (
 - **A bigger bag also earns a bit more XP per trip** (added 2026-09-27). Robber-level XP comes mostly from loot sold (1 XP per $100 sold), so a rank's +5-25% bag means up to 5-25% more XP from each full bag. With the new level curve (about level 150 after a month of 2 hours a day) this matters a little more than before. Levels still can't be bought.
 - **No free bag, and no bag is sold** (2026-09-27). A player with no bag carries up to $1,000 of loot in their hands (the same for everyone, no rank bonus).
 - **The bag tiers are the same for everyone,** unlocked and bought with in-game money. A rank adds its percentage to whichever tier the player carries. For example, the top bag (the Vault Bag) holds $100,000, or $125,000 for a Legend.
-- **Never sold directly:** guns, helmets, vests, bags, loot, robber levels, access to heists, trap or cop protection. In-game money, ammo, Stims and heist tools only come from paid items at random, through crate keys (the chances are above and in game).
+- **Gun skins are looks only** (added 2026-10-06): a skin changes a gun's colors, never its damage, fire rate, reload, sights or sound, and it's never sold directly (only from crate keys, at random, and two from robber levels).
+- **Never sold directly:** guns, gun skins, helmets, vests, bags, loot, robber levels, access to heists, trap or cop protection. In-game money, ammo, Stims and heist tools only come from paid items at random, through crate keys (the chances are above and in game).
 - **Valet only saves a walk.** Taking a car out anywhere is blocked in heists, in combat and while wanted, like any car call.
 - **Heist Refresh helps everyone.** A refreshed heist opens for the whole server, with no head start for the player who refreshed it.
 - **Boosters are server-wide.**
@@ -341,7 +362,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > A little something for your next job.
 > - Opens one **Common Crate** at a crate stand in the city
 > - Mostly cash (**$200 to $900**), ammo (Light Rounds, Shotgun Shells or Rifle Rounds), **2 Stims** or a **Safe Kit**
-> - A 3% chance of a Common cosmetic: the titles **Lookout**, **Wheelman** or **Hustler**, the **Smoke Bomb** kill effect or the **Desert** bag skin
+> - A 3% chance of a Common cosmetic: the titles **Lookout**, **Wheelman** or **Hustler**, the **Smoke Bomb** kill effect, the **Desert** bag skin or the **Desert Machine Gun** skin
 > - Already have that cosmetic? You get $200 instead. Ammo or gear that doesn't fit pays half its shop price
 > - See every reward and its exact chance in game: /crates, then click the crate
 > - Also sold in game for **$1,500** of in-game money (/crates)
@@ -354,7 +375,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > A better cut.
 > - Opens one **Uncommon Crate** at a crate stand in the city
 > - Mostly cash (**$700 to $2,250**), more ammo, **3 Stims** or **2 Safe Kits**
-> - A 5% chance of an Uncommon cosmetic: the titles **Ghost**, **Smooth Operator** or **Night Owl**, the **Flames** or **Sparks** kill effect, or the **Urban** or **Cherry** bag skin
+> - A 5% chance of an Uncommon cosmetic: the titles **Ghost**, **Smooth Operator** or **Night Owl**, the **Flames** or **Sparks** kill effect, the **Urban** or **Cherry** bag skin, or the **Bubblegum Classic Pistol** or **Urban Camo Shotgun** skin
 > - Already have that cosmetic? You get $500 instead. Ammo or gear that doesn't fit pays half its shop price
 > - See every reward and its exact chance in game: /crates, then click the crate
 > - Also sold in game for **$4,000** of in-game money (/crates)
@@ -367,7 +388,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > Where the real tools are.
 > - Opens one **Rare Crate** at a crate stand in the city
 > - Mostly cash (**$1,800 to $5,400**), a stack of ammo, **3 Stims**, **3 Safe Kits** or a **Drill** for vault doors
-> - A 7% chance of a Rare cosmetic: the titles **Inside Man** or **Phantom**, the **Cash Burst** or **Souls** kill effect, or the **Cash Print** or **Crimson** bag skin
+> - A 7% chance of a Rare cosmetic: the titles **Inside Man** or **Phantom**, the **Cash Burst** or **Souls** kill effect, the **Cash Print** or **Crimson** bag skin, or the **Woodland Camo Machine Gun** or **Crimson AK-48** skin
 > - Already have that cosmetic? You get $1,500 instead. Gear that doesn't fit pays half its shop price
 > - See every reward and its exact chance in game: /crates, then click the crate
 > - Also sold in game for **$10,000** of in-game money (/crates)
@@ -380,7 +401,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > Big money, bigger style.
 > - Opens one **Epic Crate** at a crate stand in the city
 > - Mostly cash (**$4,500 to $13,500**), a **Drill** or **3 Stims**
-> - A 10% chance of an Epic cosmetic: the titles **Untouchable** or **Big Fish**, the **Fireworks** or **Storm Cloud** kill effect, or the **Tiger** or **Carbon** bag skin
+> - A 10% chance of an Epic cosmetic: the titles **Untouchable** or **Big Fish**, the **Fireworks** or **Storm Cloud** kill effect, the **Tiger** or **Carbon** bag skin, or the **Tiger Shotgun** or **Carbon Machine Gun** skin
 > - Already have that cosmetic? You get $3,000 instead
 > - See every reward and its exact chance in game: /crates, then click the crate
 > - Also sold in game for **$25,000** of in-game money (/crates)
@@ -393,7 +414,7 @@ Paste one into each Tebex package's description. Every claim matches what the se
 > The best crate you can open.
 > - Opens one **Legendary Crate** at a crate stand in the city
 > - Mostly cash (**$11,000 to $34,000**) or a **Drill**
-> - A 15% chance of a Legendary prize: the exclusive **Vandal** car (3%), the titles **Most Wanted** or **The Boss**, the **Dragon's Breath** or **Totem** kill effect, or the glowing **Diamond** or **Molten** bag skin
+> - A 15% chance of a Legendary prize: the exclusive **Vandal** car (3%), the titles **Most Wanted** or **The Boss**, the **Dragon's Breath** or **Totem** kill effect, the glowing **Diamond** or **Molten** bag skin, or the **Golden AK-48** or **Molten Shotgun** skin
 > - A Legendary cosmetic or car pull is announced to the whole server
 > - Already have that prize? You get $5,000 instead
 > - See every reward and its exact chance in game: /crates, then click the crate

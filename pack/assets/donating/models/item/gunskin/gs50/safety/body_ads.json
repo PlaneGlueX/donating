@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_gs50_body_ads",
+  "textures": {
+    "t": "donating:item/gunskin/gs50/safety",
+    "particle": "donating:item/gunskin/gs50/safety"
+  }
+}

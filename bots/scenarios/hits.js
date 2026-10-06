@@ -7,6 +7,8 @@
 // tier (never boosted), XP and a streak; dying or quitting takes the copy away; staff only.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
+const fs = require('fs')
+const path = require('path')
 
 const A = 'HitA'
 const B = 'HitB'
@@ -133,7 +135,15 @@ module.exports = async ({ check }) => {
     let tu = field(i, 'tuuid').toLowerCase()
     let gu = field(i, 'guuids').split(',').filter(Boolean).map(x => x.toLowerCase())
     check('the hunter\'s copy: the target and 2 bodyguards (Citizens NPCs)', /^\d+$/.test(field(i, 'target')) && guards.length === 2 && tu.length === 36 && gu.length === 2, i)
-    await sleep(2500)
+    // The bodyguards see as far as hit::guard-range (30): Sentinel's default 20, measured from each one's own eye, let a
+    // hunter inside the old 24-block gate shoot the target with no answer (review, 2026-10-06).
+    await cmd('zzconsole citizens save')
+    await sleep(1500)
+    const saves = fs.readFileSync(path.join(__dirname, '..', '..', 'server', 'plugins', 'Citizens', 'saves.yml'), 'utf8')
+    const block = id => { const m = saves.split(new RegExp(`\\n  '?${id}'?:\\n`))[1]; return m ? m.split(/\n  '?\d+'?:\n/)[0] : '' }
+    const ranges = guards.map(id => (block(id).match(/\n\s+range: ([\d.]+)/) || [])[1])
+    check('the bodyguards\' Sentinel range is hit::guard-range (30), past the 16-block gate plus their 12-block spread', guards.length === 2 && ranges.every(r => Number(r) === 30), `ranges ${ranges.join(',')}`)
+    await sleep(1000)
     const pvT = await cmd(`dphone pv ${tu}`)
     check('only the hunter\'s client ever gets them (the other player standing next to them gets no spawn packet)', seen[A].has(tu) && gu.every(u => seen[A].has(u)) && !seen[B].has(tu) && !gu.some(u => seen[B].has(u)) && /tracked=HitA( |$)/.test(pvT), `A=${seen[A].has(tu)} B=${seen[B].has(tu)} guards A=${gu.map(u => seen[A].has(u))} B=${gu.map(u => seen[B].has(u))} | ${pvT}`)
     const sb = await papi(A, '%donating_hit%')
@@ -155,6 +165,8 @@ module.exports = async ({ check }) => {
     check('a bodyguard can\'t hurt anyone but the hunter (even someone its Sentinel would shoot)', (await hp(B)) === 20, `${await hp(B)}`)
     await cmd(`zzconsole sentinel removetarget uuid:${bUuid} --id ${guards[0]}`)
     const notYet = field(await info(A), 'noticed')
+    // The hunter stands wherever the copy came up (often 16-24 blocks off): the range gate is checked on its own below.
+    await cmd('zzcfgset hit::max-range 64')
     await cmd(`minecraft:damage ${tu} 3 minecraft:player_attack by ${A}`)
     await until(async () => field(await info(A), 'noticed') === 'true', 2000)
     check('the hunter\'s hit lands and the target notices them (never seen close before)', notYet !== 'true' && (await npcHealth(tu)) < h0 && field(await info(A), 'noticed') === 'true', `${notYet} | ${await npcHealth(tu)} | ${await info(A)}`)
@@ -209,14 +221,27 @@ module.exports = async ({ check }) => {
     check('the bodyguards shoot the hunter on their own (Sentinel, no projectile)', shot, `${await hp(A)}`)
     await cmd(`zzhp ${A} 20`)
 
+    // Beyond hit::max-range (2026-10-06: a Sniper Rifle from past the bodyguards' 16-block reach was a free kill) the
+    // hunter's hit is refused; set to 1 block here, so the hunter standing next to the target is "too far".
+    await cmd('zzcfgset hit::max-range 1')
+    const hr0 = await npcHealth(tu)
+    t = Date.now()
+    await cmd(`minecraft:damage ${tu} 1 minecraft:player_attack by ${A}`)
+    await sleep(400)
+    const hr1 = await npcHealth(tu)
+    await cmd('zzcfgset hit::max-range 16')
+    check('a hit from beyond hit::max-range is refused ("Too far")', hr0 > 0 && hr1 === hr0 && /Too far/.test(text(A, t)), `${hr0} -> ${hr1} | ${text(A, t).slice(0, 200)}`)
+
     // ---------- The takedown ----------
     // A streak: last contract two weeks ago (one missed week is forgiven): +5%.
     await cmd(`zzdata ${A} hit::streak-week ${W - 2}`)
     await cmd(`zzdata ${A} hit::streak 1`)
     const before = await bal(A)
     t = Date.now()
+    await cmd('zzcfgset hit::max-range 64') // the target may have run off by now (the gate has its own check)
     await cmd(`minecraft:damage ${tu} 200 minecraft:player_attack by ${A}`)
     await until(async () => field(await info(A), 'state') === 'done', 4000)
+    await cmd('zzcfgset hit::max-range 16')
     await sleep(1500)
     i = await info(A)
     const paidA = (await bal(A)) - before
@@ -246,6 +271,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzdata ${A} bag-tier 1`)
     // Bodyguards only hurt the hunter once the target has noticed them (before that Sentinel's safeshot cancels it),
     // and Sentinel sets every hit by its NPCs to their damage setting (1 in this test): half a heart left.
+    await cmd('zzcfgset hit::max-range 64') // wherever the copy came up (the gate has its own check)
     await cmd(`minecraft:damage ${field(await info(A), 'tuuid')} 1 minecraft:player_attack by ${A}`)
     await until(async () => field(await info(A), 'noticed') === 'true', 3000)
     await cmd(`eco set ${A} 100000`) // B x p = 3,000 > the Gym Bag's 2,000: the cap binds
@@ -264,6 +290,7 @@ module.exports = async ({ check }) => {
     const loss = Number(((await cmd(`zzdata ${A} last-death-loss`)).match(/= (\d+)/) || [])[1])
     const want = Math.floor(Math.min(b0d * 0.03, 2000))
     check('dying to a bodyguard is a "hit" death costing 3% capped at the bag, the copy goes, and it isn\'t announced', /= hit$/.test(cause) && loss === want && field(await info(A), 'target') === '<none>' && !/HitA/.test(text(B, t)), `${dmg} | ${cause} loss=${loss} want=${want} | ${await info(A)} | B heard: ${text(B, t).slice(0, 200)}`)
+    await cmd('zzcfgset hit::max-range 16')
     try { bots[A].respawn() } catch (err) {}
     await sleep(4000)
     await cmd(`minecraft:tp ${A} ${AWAY[0]} ${Y} ${AWAY[2]}`)

@@ -182,10 +182,10 @@ module.exports = async ({ check }) => {
     check('the keys placeholder (crate stand holograms)', (await papi(A, 'donating_keys_hacked')) === '1', await papi(A, 'donating_keys_hacked'))
     await cmd(`dcrate take ${A} hacked 1`)
 
-    // ---------- The odds (owner, 2026-09-26: more money, cosmetics 3% in Common) ----------
+    // ---------- The odds (owner, 2026-09-26: more money, cosmetics 3% in Common; 2026-10-06: a gun skin in it, each 0.5%) ----------
     const roll = await cmd('zzcrateroll common 3000')
     const count = line => Number((roll.match(new RegExp(`${line.replace(/\|/g, '\\|')}=(\\d+)`, 'i')) || [])[1] || 0)
-    check('rolls follow the weights (Common: 28% $200, 0.6% Desert, over 3,000 rolls)', /total=1000 lines=13/.test(roll) && Math.abs(count('280|money|200') - 840) < 110 && count('6|cos|sand') > 3 && count('6|cos|sand') < 45, roll)
+    check('rolls follow the weights (Common: 28% $200, 0.5% Desert, over 3,000 rolls)', /total=1000 lines=14/.test(roll) && Math.abs(count('280|money|200') - 840) < 110 && count('5|cos|sand') > 2 && count('5|cos|sand') < 40, roll)
     const sum = async crate => {
       const r = await cmd(`zzcrateroll ${crate} 1`)
       return r
@@ -193,7 +193,7 @@ module.exports = async ({ check }) => {
     check('every crate\'s weights add up to 1000 (weight 30 = 3%), the crate cars included', /total=1000/.test(await sum('common')) && /total=1000/.test(await sum('uncommon')) && /total=1000/.test(await sum('rare')) && /total=1000/.test(await sum('epic')) && /total=1000/.test(await sum('legendary')) && /total=1000/.test(await sum('hacked')), [await sum('legendary'), await sum('hacked')].join(' '))
     await cmd('zzcfgbool cos::sand::retired true')
     const roll2 = await cmd('zzcrateroll common 2000')
-    check('a retired cosmetic is never rolled (and the odds leave it out)', /total=994 lines=12/.test(roll2) && !/sand/.test(roll2), roll2)
+    check('a retired cosmetic is never rolled (and the odds leave it out)', /total=995 lines=13/.test(roll2) && !/sand/.test(roll2), roll2)
 
     // ---------- Retired cosmetics: Legends own them ----------
     check('without Legend, a retired cosmetic isn\'t yours', !/sand/.test(await cos(A)), await cos(A))
@@ -225,7 +225,8 @@ module.exports = async ({ check }) => {
     await sleep(300)
     check('clicking a crate in /crates shows what\'s inside with each chance, and says to open it at a stand', isPreview(title(pw), 'Common') && /Chance/.test(itemText(pw && pw.slots[11])) && /100/.test(itemText(pw && pw.slots[11])) && /crate stand/.test(itemText(pw && pw.slots[4])) && !/Open one/.test(itemText(pw && pw.slots[4])), `${title(pw)} ${itemText(pw && pw.slots[4]).slice(0, 300)}`)
     // A set shows its most visible part (found in the client: both Hacked sets were name tags, so the
-    // spin looked frozen): H4CK3R + Matrix is the Matrix bag, Zero Day + Glitch the kill effect.
+    // spin looked frozen): since 2026-10-06 each Hacked set has a gun skin, its icon (the gun in that look): H4CK3R +
+    // Matrix + the H4CK3R AK-48, Zero Day + Glitch + the Glitch Classic Pistol.
     w = await menu(A)
     const hs = w ? w.slots.findIndex((i, n) => SCREEN.includes(n) && i && i.name === 'sculk_shrieker') : -1
     const hackedPage = windowOpen(bots[A])
@@ -233,7 +234,7 @@ module.exports = async ({ check }) => {
     const hw = await hackedPage
     await sleep(300)
     const hs5 = hw ? SCREEN.slice(0, 5).map(n => hw.slots[n]) : []
-    check('a cosmetic set shows its bag skin or kill effect, not the title (the Hacked spin moves); the crate cars show as cars', hs5.some(i => i && i.name === 'leather' && /bag_matrix/.test(itemText(i))) && hs5.some(i => i && i.name === 'blaze_powder') && hs5.filter(i => i && i.name === 'diamond_hoe').length === 3, hs5.map(i => i && i.name).join(' '))
+    check('a cosmetic set shows its gun skin (the gun in that look), not the title (the Hacked spin moves); the crate cars show as cars', hs5.some(i => i && i.name === 'feather' && /gunskin_ak47_h4ck3r/.test(itemText(i))) && hs5.some(i => i && i.name === 'feather' && /gunskin_gs50_glitch/.test(itemText(i))) && hs5.filter(i => i && i.name === 'diamond_hoe').length === 3, hs5.map(i => i && i.name).join(' '))
     // Hacked keys can't be bought: no Store (3), no Buy a key (5); slot 4 says where they come from.
     check('the Hacked crate has no Store and no Buy a key button; "Events only"', Boolean(hw) && !(hw.slots[3] && hw.slots[3].name === 'emerald') && !(hw.slots[5] && hw.slots[5].name === 'gold_ingot') && /Events only/.test(itemText(hw.slots[4])), `${itemText(hw && hw.slots[3]).slice(0, 80)} ${itemText(hw && hw.slots[4]).slice(0, 200)} ${itemText(hw && hw.slots[5]).slice(0, 80)}`)
     await closeAll(A)

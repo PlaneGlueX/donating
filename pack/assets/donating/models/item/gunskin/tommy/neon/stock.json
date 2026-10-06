@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_tommy_stock",
+  "textures": {
+    "t": "donating:item/gunskin/tommy/neon",
+    "particle": "donating:item/gunskin/tommy/neon"
+  }
+}

@@ -23,6 +23,8 @@ module.exports = ({ pg, aim, display }) => {
     { from: [x0, y0, zi0], to: [x1, yi0, zi1], c, ...more } // bottom
   ]
   const BLACK = { c: { all: 'recv', up: 'recvT' }, ink: 'gmD' } // black parts: a lighter top and dark gunmetal edges
+  // The scope's tube: the same black under keys of its own, which skins never recolor (aiming looks through it).
+  const SCOPE = { c: { all: 'scope', up: 'scopeT' } }
   const GRIP = { angle: 20, axis: 'z', origin: [17.6, 5.0, 8] }
   // The magazine curves forward in three steps; each step turns about the back corner of the one above it (so the
   // back stays closed and the front overlaps).
@@ -30,8 +32,8 @@ module.exports = ({ pg, aim, display }) => {
   const MAG2 = { angle: -30, axis: 'z', origin: [12.34, 0.687, 8] } // MAG1's turn of [13.0, 0.6]
   const gun = pgGun(name, {
     palette: {
-      recv: [24, 25, 30], recvT: [44, 46, 54], gm: [76, 80, 92], gmD: [46, 49, 58], gmL: [122, 128, 142], edge: [176, 182, 194],
-      red: [210, 30, 40], redB: [255, 60, 60], white: [236, 236, 236], gl: [108, 113, 124],
+      recv: [24, 25, 30], recvT: [44, 46, 54], scope: [24, 25, 30], scopeT: [44, 46, 54], gm: [76, 80, 92], gmD: [46, 49, 58], gmL: [122, 128, 142], edge: [176, 182, 194],
+      red: [210, 30, 40], redB: [255, 60, 60], dot: [255, 60, 60], white: [236, 236, 236], gl: [108, 113, 124],
       beam: [255, 32, 32], lens: [46, 120, 216], lensB: [110, 176, 248],
       magG: [154, 160, 170], magW: [232, 232, 232], magK: [42, 44, 50], gripP: [172, 175, 182],
       bore: [10, 10, 12], flash: [255, 196, 64], flashCore: [255, 248, 210]
@@ -87,12 +89,12 @@ module.exports = ({ pg, aim, display }) => {
         // The ACOG: a mount, the objective bell with the blue lens, the body, the eyepiece; the red dot and its post
         // inside (aiming looks through the tube); a red turret on top, red stripes along its sides.
         { from: [10.4, 8.75, 7.3], to: [14.2, 9.0, 8.7], c: 'gm', ink: 'recv' },
-        ...tube(9.2, 10.0, [SY - 1.45, SY + 1.45, 6.55, 9.45], [SY - 1.05, SY + 1.05, 6.95, 9.05], BLACK.c, { ink: 'gmD' }),
-        ...tube(10.0, 14.6, [SY - 1.2, SY + 1.2, 6.8, 9.2], [SY - 0.85, SY + 0.85, 7.15, 8.85], BLACK.c, { ink: 'gmD' }),
-        ...tube(14.6, 15.4, [SY - 0.95, SY + 0.95, 7.05, 8.95], [SY - 0.75, SY + 0.75, 7.25, 8.75], BLACK.c, { ink: 'gmD' }),
+        ...tube(9.2, 10.0, [SY - 1.45, SY + 1.45, 6.55, 9.45], [SY - 1.05, SY + 1.05, 6.95, 9.05], SCOPE.c, { ink: 'gmD' }),
+        ...tube(10.0, 14.6, [SY - 1.2, SY + 1.2, 6.8, 9.2], [SY - 0.85, SY + 0.85, 7.15, 8.85], SCOPE.c, { ink: 'gmD' }),
+        ...tube(14.6, 15.4, [SY - 0.95, SY + 0.95, 7.05, 8.95], [SY - 0.75, SY + 0.75, 7.25, 8.75], SCOPE.c, { ink: 'gmD' }),
         { from: [8.7, SY - 1.05, 6.95], to: [9.2, SY + 1.05, 9.05], c: 'lens', glow: true, dirs: ['west', 'north', 'south', 'up', 'down'] },
         { from: [8.62, SY + 0.25, 7.35], to: [8.66, SY + 0.7, 7.85], c: 'lensB', glow: true, dirs: ['west'] },
-        { from: [9.5, SY - 0.15, 7.85], to: [9.7, SY + 0.15, 8.15], c: 'redB', glow: true },
+        { from: [9.5, SY - 0.15, 7.85], to: [9.7, SY + 0.15, 8.15], c: 'dot', glow: true }, // the red dot (its own key: skins never recolor it)
         { from: [9.55, SY - 1.05, 7.95], to: [9.65, SY - 0.15, 8.05], c: 'bore', outline: false },
         { from: [11.6, SY + 1.2, 7.4], to: [12.8, SY + 1.8, 8.6], c: 'redB', ink: 'red' },
         { from: [11.6, SY - 0.5, 6.4], to: [12.8, SY + 0.5, 6.8], ...BLACK },

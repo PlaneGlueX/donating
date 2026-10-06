@@ -1,0 +1,7 @@
+{
+  "parent": "donating:item/gun_uzi_bolt_sprint",
+  "textures": {
+    "t": "donating:item/gunskin/uzi/woodland",
+    "particle": "donating:item/gunskin/uzi/woodland"
+  }
+}

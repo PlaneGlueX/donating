@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_rev_rounds",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -28,
+        -55,
+        12
+      ],
+      "translation": [
+        -5.2,
+        1.4,
+        -2
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -28,
+        125,
+        -12
+      ],
+      "translation": [
+        -5.2,
+        1.4,
+        -2
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "textures": {
+    "t": "donating:item/gun_sniper_tex",
+    "particle": "donating:item/gun_sniper_tex"
+  },
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -6,
+        -78,
+        0
+      ],
+      "translation": [
+        -5.4,
+        2.8,
+        -1.6
+      ],
+      "scale": [
+        0.58,
+        0.58,
+        0.58
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -6,
+        102,
+        0
+      ],
+      "translation": [
+        -5.4,
+        2.8,
+        -1.6
+      ],
+      "scale": [
+        0.58,
+        0.58,
+        0.58
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        0,
+        1.4,
+        -5.6
+      ],
+      "scale": [
+        0.66,
+        0.66,
+        0.66
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "translation": [
+        0,
+        1.4,
+        -5.6
+      ],
+      "scale": [
+        0.66,
+        0.66,
+        0.66
+      ]
+    },
+    "gui": {
+      "rotation": [
+        0,
+        180,
+        -42
+      ],
+      "translation": [
+        -0.5,
+        0.4,
+        0
+      ],
+      "scale": [
+        0.41,
+        0.41,
+        0.41
+      ]
+    },
+    "ground": {
+      "rotation": [
+        0,
+        0,
+        -45
+      ],
+      "translation": [
+        -1,
+        7,
+        0
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        0,
+        -45
+      ],
+      "translation": [
+        -0.75,
+        0.75,
+        -1
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ]
+    }
+  }
+}

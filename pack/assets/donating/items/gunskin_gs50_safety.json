@@ -1,0 +1,4136 @@
+{
+  "hand_animation_on_swap": false,
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "entries": [
+      {
+        "threshold": 9,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:cooldown",
+                "entries": [
+                  {
+                    "threshold": 0.0001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body"
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide"
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1668,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.0018,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0011,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.0018,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0011,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.0018,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0011,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3334,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0.0011,
+                              0.0129,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0077,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0.0308,
+                              0.0124,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0077,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0011,
+                              0.0129,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0077,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0.0032,
+                              0.0342,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0204,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0.0627,
+                              0.0317,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0204,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0032,
+                              0.0342,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0204,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6668,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0.0072,
+                              0.066,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0391,
+                              0.9992
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0.0962,
+                              0.059,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0391,
+                              0.9992
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0072,
+                              0.066,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0391,
+                              0.9992
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/flash",
+                          "transformation": {
+                            "translation": [
+                              0.0072,
+                              0.066,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0391,
+                              0.9992
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8334,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0.0143,
+                              0.1088,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0639,
+                              0.998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0.0917,
+                              0.0989,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0639,
+                              0.998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0143,
+                              0.1088,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0639,
+                              0.998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/flash",
+                          "transformation": {
+                            "translation": [
+                              0.0143,
+                              0.1088,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0639,
+                              0.998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:composite",
+                  "models": [
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/body"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/slide"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/mag"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/gs50/safety/full"
+          }
+        }
+      },
+      {
+        "threshold": 1009,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:cooldown",
+                "entries": [
+                  {
+                    "threshold": 0.0001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body_ads"
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide_ads"
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag_ads"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1668,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.001,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0006,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.001,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0006,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.001,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0006,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3334,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0006,
+                              0.0071,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0043,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0303,
+                              0.0068,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0043,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0006,
+                              0.0071,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0043,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0016,
+                              0.0187,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0112,
+                              0.9999
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0611,
+                              0.0174,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0112,
+                              0.9999
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0016,
+                              0.0187,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0112,
+                              0.9999
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6668,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0034,
+                              0.036,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0215,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0926,
+                              0.0322,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0215,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0034,
+                              0.036,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0215,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/flash_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0034,
+                              0.036,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0215,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8334,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0063,
+                              0.0592,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0351,
+                              0.9994
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0842,
+                              0.0537,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0351,
+                              0.9994
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0063,
+                              0.0592,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0351,
+                              0.9994
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/flash_ads",
+                          "transformation": {
+                            "translation": [
+                              0.0063,
+                              0.0592,
+                              0
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              -0.0351,
+                              0.9994
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:composite",
+                  "models": [
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/body_ads"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/slide_ads"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/mag_ads"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/gs50/safety/full_ads"
+          }
+        }
+      },
+      {
+        "threshold": 2009,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:composite",
+                "models": [
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/gunskin/gs50/safety/body_sprint"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/gunskin/gs50/safety/slide_sprint"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/gunskin/gs50/safety/mag_sprint"
+                  }
+                ]
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/gs50/safety/full_sprint"
+          }
+        }
+      },
+      {
+        "threshold": 3009,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand",
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:cooldown",
+                "entries": [
+                  {
+                    "threshold": 0.0001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0024,
+                              -0.0039
+                            ],
+                            "left_rotation": [
+                              0.0039,
+                              0,
+                              0,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0024,
+                              -0.0039
+                            ],
+                            "left_rotation": [
+                              0.0039,
+                              0,
+                              0,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0024,
+                              -0.0039
+                            ],
+                            "left_rotation": [
+                              0.0039,
+                              0,
+                              0,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.0314,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0204,
+                              -0.0305
+                            ],
+                            "left_rotation": [
+                              0.0315,
+                              0,
+                              0,
+                              0.9995
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0204,
+                              -0.0305
+                            ],
+                            "left_rotation": [
+                              0.0315,
+                              0,
+                              0,
+                              0.9995
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0204,
+                              -0.0305
+                            ],
+                            "left_rotation": [
+                              0.0315,
+                              0,
+                              0,
+                              0.9995
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.0626,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0528,
+                              -0.0706
+                            ],
+                            "left_rotation": [
+                              0.0767,
+                              0,
+                              0,
+                              0.9971
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0528,
+                              -0.0706
+                            ],
+                            "left_rotation": [
+                              0.0767,
+                              0,
+                              0,
+                              0.9971
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0528,
+                              -0.0706
+                            ],
+                            "left_rotation": [
+                              0.0767,
+                              0,
+                              0,
+                              0.9971
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.0939,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0947,
+                              -0.1113
+                            ],
+                            "left_rotation": [
+                              0.129,
+                              0,
+                              0,
+                              0.9916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0947,
+                              -0.1113
+                            ],
+                            "left_rotation": [
+                              0.129,
+                              0,
+                              0,
+                              0.9916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0947,
+                              -0.1113
+                            ],
+                            "left_rotation": [
+                              0.129,
+                              0,
+                              0,
+                              0.9916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1251,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1377,
+                              -0.1434
+                            ],
+                            "left_rotation": [
+                              0.1778,
+                              0,
+                              0,
+                              0.9841
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1377,
+                              -0.1434
+                            ],
+                            "left_rotation": [
+                              0.1778,
+                              0,
+                              0,
+                              0.9841
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1377,
+                              -0.1434
+                            ],
+                            "left_rotation": [
+                              0.1778,
+                              0,
+                              0,
+                              0.9841
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1564,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1708,
+                              -0.1628
+                            ],
+                            "left_rotation": [
+                              0.213,
+                              0,
+                              0,
+                              0.977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1708,
+                              -0.1628
+                            ],
+                            "left_rotation": [
+                              0.213,
+                              0,
+                              0,
+                              0.977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1708,
+                              -0.1628
+                            ],
+                            "left_rotation": [
+                              0.213,
+                              0,
+                              0,
+                              0.977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1876,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              -0.0007,
+                              0.1852,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              -0.0004,
+                              -0.0015,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              -0.0007,
+                              0.1852,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              -0.0004,
+                              -0.0015,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              -0.0007,
+                              0.1852,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              -0.0004,
+                              -0.0015,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.2189,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              -0.0076,
+                              0.2149,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2249,
+                              -0.0039,
+                              -0.0167,
+                              0.9742
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              -0.0076,
+                              0.2149,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2249,
+                              -0.0039,
+                              -0.0167,
+                              0.9742
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              -0.0076,
+                              0.2149,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2249,
+                              -0.0039,
+                              -0.0167,
+                              0.9742
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.2501,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              -0.014,
+                              0.2448,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2248,
+                              -0.0074,
+                              -0.0319,
+                              0.9738
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              -0.014,
+                              0.2448,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2248,
+                              -0.0074,
+                              -0.0319,
+                              0.9738
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              -0.014,
+                              0.2448,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2248,
+                              -0.0074,
+                              -0.0319,
+                              0.9738
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.2814,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              -0.0017,
+                              0.1892,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2249,
+                              -0.0008,
+                              -0.0035,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              -0.0017,
+                              0.1892,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2249,
+                              -0.0008,
+                              -0.0035,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              -0.0017,
+                              0.1892,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.2249,
+                              -0.0008,
+                              -0.0035,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3126,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0061,
+                              0.161,
+                              -0.179
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3439,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0248,
+                              0.0962,
+                              -0.2106
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3751,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0518,
+                              0.0025,
+                              -0.2563
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.4064,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0828,
+                              -0.1052,
+                              -0.3088
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.4376,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1135,
+                              -0.2119,
+                              -0.3609
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.4689,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1397,
+                              -0.3029,
+                              -0.4052
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1571,
+                              -0.3633,
+                              -0.4347
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5314,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5626,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5939,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1618,
+                              -0.3795,
+                              -0.4426
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6251,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1618,
+                              -0.3795,
+                              -0.4426
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6564,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1618,
+                              -0.3795,
+                              -0.4426
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6876,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1558,
+                              -0.3587,
+                              -0.4324
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.7189,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.1324,
+                              -0.2775,
+                              -0.3928
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.7501,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0982,
+                              -0.1587,
+                              -0.3349
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.7814,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0606,
+                              -0.0282,
+                              -0.2712
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8126,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.027,
+                              0.0885,
+                              -0.2143
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8439,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1823,
+                              -0.1686
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0.0048,
+                              0.1656,
+                              -0.1767
+                            ],
+                            "left_rotation": [
+                              0.225,
+                              0,
+                              0,
+                              0.9744
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8751,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1775,
+                              -0.1662
+                            ],
+                            "left_rotation": [
+                              0.2201,
+                              0,
+                              0,
+                              0.9755
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1775,
+                              -0.1662
+                            ],
+                            "left_rotation": [
+                              0.2201,
+                              0,
+                              0,
+                              0.9755
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1775,
+                              -0.1662
+                            ],
+                            "left_rotation": [
+                              0.2201,
+                              0,
+                              0,
+                              0.9755
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.9064,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1239,
+                              -0.134
+                            ],
+                            "left_rotation": [
+                              0.1626,
+                              0,
+                              0,
+                              0.9867
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1239,
+                              -0.134
+                            ],
+                            "left_rotation": [
+                              0.1626,
+                              0,
+                              0,
+                              0.9867
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.1239,
+                              -0.134
+                            ],
+                            "left_rotation": [
+                              0.1626,
+                              0,
+                              0,
+                              0.9867
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.9376,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0528,
+                              -0.0706
+                            ],
+                            "left_rotation": [
+                              0.0767,
+                              0,
+                              0,
+                              0.9971
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0528,
+                              -0.0706
+                            ],
+                            "left_rotation": [
+                              0.0767,
+                              0,
+                              0,
+                              0.9971
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0528,
+                              -0.0706
+                            ],
+                            "left_rotation": [
+                              0.0767,
+                              0,
+                              0,
+                              0.9971
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.9689,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/body",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0066,
+                              -0.0104
+                            ],
+                            "left_rotation": [
+                              0.0105,
+                              0,
+                              0,
+                              0.9999
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/slide",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0066,
+                              -0.0104
+                            ],
+                            "left_rotation": [
+                              0.0105,
+                              0,
+                              0,
+                              0.9999
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/gunskin/gs50/safety/mag",
+                          "transformation": {
+                            "translation": [
+                              0,
+                              0.0066,
+                              -0.0104
+                            ],
+                            "left_rotation": [
+                              0.0105,
+                              0,
+                              0,
+                              0.9999
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:composite",
+                  "models": [
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/body"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/slide"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/gunskin/gs50/safety/mag"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/gunskin/gs50/safety/full"
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "donating:item/gunskin/gs50/safety/full"
+    }
+  }
+}

@@ -81,13 +81,13 @@ function loadSettings():
 	set {-cfg::difficulty::2::cop-attack-rate} to 1.75
 	set {-cfg::difficulty::2::cop-accuracy} to 2
 	set {-cfg::difficulty::2::cop-speed} to 1.2
-	set {-cfg::difficulty::2::cop-model} to 9
+	set {-cfg::difficulty::2::cop-model} to 8
 	set {-cfg::difficulty::3::cop-health} to 26
 	set {-cfg::difficulty::3::cop-damage} to 3
 	set {-cfg::difficulty::3::cop-attack-rate} to 1.5
 	set {-cfg::difficulty::3::cop-accuracy} to 1.5
 	set {-cfg::difficulty::3::cop-speed} to 1.25
-	set {-cfg::difficulty::3::cop-model} to 1
+	set {-cfg::difficulty::3::cop-model} to 7
 	set {-cfg::difficulty::4::cop-health} to 32
 	set {-cfg::difficulty::4::cop-damage} to 4
 	set {-cfg::difficulty::4::cop-attack-rate} to 1.25
@@ -1141,7 +1141,7 @@ function loadSettings():
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
 	# files (AK-47 5.5 a body shot: 4 shots unarmored, 11 in a Tactical Helmet + Heavy Vest).
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
-	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "Uzi", "R9_0" and "AK_47"
+	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47" and "AX_50"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
 	# Owner, 2026-09-27: weapons cost more and guns need a level (melee first).
@@ -1195,6 +1195,41 @@ function loadSettings():
 	set {-cfg::wpn::AK_47::mag} to 30
 	set {-cfg::wpn::AK_47::model} to 5
 	set {-cfg::wpn::AK_47::level} to 50
+
+	# Owner, 2026-10-06: "try adding more guns from pg3d ... make sure the ones you pick fit well with the game style, and then
+	# balance it". Four more hand-made Pixel Gun 3D recreations (tools\guns), PROPOSAL prices and levels between the first
+	# four (tools\progress-sim.js); the damage rule holds (the AK-48 stays the strongest automatic; the sniper kills an
+	# unarmored player in 2 body shots, never 1). Their WeaponMechanics files: pistols\357_Magnum.yml,
+	# assault_rifles\STG44.yml, assault_rifles\M4A1.yml, sniper_rifles\AX_50.yml.
+	set {-cfg::wpn::357_Magnum::name} to "Old Revolver"
+	set {-cfg::wpn::357_Magnum::kind} to "Pistol"
+	set {-cfg::wpn::357_Magnum::price} to 20000
+	set {-cfg::wpn::357_Magnum::ammo} to "light"
+	set {-cfg::wpn::357_Magnum::mag} to 6
+	set {-cfg::wpn::357_Magnum::model} to 8
+	set {-cfg::wpn::357_Magnum::level} to 10
+	set {-cfg::wpn::STG44::name} to "Brave Patriot"
+	set {-cfg::wpn::STG44::kind} to "SMG"
+	set {-cfg::wpn::STG44::price} to 80000
+	set {-cfg::wpn::STG44::ammo} to "light"
+	set {-cfg::wpn::STG44::mag} to 50
+	set {-cfg::wpn::STG44::model} to 15
+	set {-cfg::wpn::STG44::level} to 25
+	# The Combat Rifle fires 3-round bursts (our idea: PG3D's is full auto); one burst never kills (3 x 4.9 x 1.35 < 20).
+	set {-cfg::wpn::M4A1::name} to "Combat Rifle"
+	set {-cfg::wpn::M4A1::kind} to "Rifle"
+	set {-cfg::wpn::M4A1::price} to 160000
+	set {-cfg::wpn::M4A1::ammo} to "rifle"
+	set {-cfg::wpn::M4A1::mag} to 30
+	set {-cfg::wpn::M4A1::model} to 7
+	set {-cfg::wpn::M4A1::level} to 40
+	set {-cfg::wpn::AX_50::name} to "Sniper Rifle"
+	set {-cfg::wpn::AX_50::kind} to "Sniper"
+	set {-cfg::wpn::AX_50::price} to 500000
+	set {-cfg::wpn::AX_50::ammo} to "rifle"
+	set {-cfg::wpn::AX_50::mag} to 5
+	set {-cfg::wpn::AX_50::model} to 13
+	set {-cfg::wpn::AX_50::level} to 70
 
 	# Ammo types. "wm" = the ammo's name in plugins\WeaponMechanics\ammos\Donating_Ammos.yml.
 	set {-cfg::shop::ammo::*} to "light", "shells" and "rifle"
@@ -1307,8 +1342,9 @@ function loadSettings():
 	set {-cfg::level::xp-per-haul} to 10
 	# The title of a range of levels: "from|name|color", lowest first (each starts at a big unlock).
 	# Rewards past the unlocks (owner, 2026-09-28: "good rewards past 100 and 150"), given once at that level (levels.sk):
-	# "level|kind|what[|n]": title, killfx, bagskin (a bound cosmetic below), key|<crate>|<n>, money|<$>. PROPOSAL.
-	set {-cfg::level::rewards::*} to "100|title|lvl_mastermind", "100|key|epic|2", "125|title|lvl_highroller", "125|key|legendary|1", "150|title|lvl_kingpin", "150|killfx|lvl_crown", "150|key|legendary|2", "175|title|lvl_streetking", "175|key|legendary|2", "200|title|lvl_godfather", "200|killfx|lvl_moneyrain", "200|key|legendary|3", "250|title|lvl_untouchable", "250|key|legendary|3", "300|title|lvl_myth" and "300|key|legendary|5"
+	# "level|kind|what[|n]": title, killfx, bagskin, gunskin (a bound cosmetic: below, the gun skins with the others),
+	# key|<crate>|<n>, money|<$>. PROPOSAL (the Mastermind and Kingpin gun skins: 2026-10-06).
+	set {-cfg::level::rewards::*} to "100|title|lvl_mastermind", "100|gunskin|lvl_mastermind_gs", "100|key|epic|2", "125|title|lvl_highroller", "125|key|legendary|1", "150|title|lvl_kingpin", "150|gunskin|lvl_kingpin_ak", "150|killfx|lvl_crown", "150|key|legendary|2", "175|title|lvl_streetking", "175|key|legendary|2", "200|title|lvl_godfather", "200|killfx|lvl_moneyrain", "200|key|legendary|3", "250|title|lvl_untouchable", "250|key|legendary|3", "300|title|lvl_myth" and "300|key|legendary|5"
 	set {-cfg::level::brackets::*} to "0|Pickpocket|&7", "5|Shoplifter|&f", "20|Burglar|&a", "45|Safecracker|&b", "60|Heister|&e", "100|Mastermind|&6", "150|Kingpin|&c" and "200|Godfather|&4"
 
 	# ---------- Paid ranks (ranks.sk) ----------
@@ -1467,13 +1503,16 @@ function loadSettings():
 	# 10 / 15% (daily ... legendary), every cosmetic in one crate only; Legendary has an exclusive car at
 	# 3% (inside its 15%); Hacked has 3 cars (Legendary's too) at 20% each and every Hacked prize at about
 	# the same odds, so its two cosmetic lines are sets (a title with a bag skin or a kill effect).
-	set {-cfg::crate::daily::rewards::*} to "320|money|100", "220|money|200", "110|money|400", "100|ammo|light|32", "60|ammo|shells|14", "60|ammo|rifle|30", "70|con|Stim|1", "50|tool|safe-kit|1", "4|cos|rookie", "3|cos|poof" and "3|cos|denim"
-	set {-cfg::crate::common::rewards::*} to "280|money|200", "200|money|450", "120|money|900", "100|ammo|light|64", "70|ammo|shells|28", "70|ammo|rifle|60", "80|con|Stim|2", "50|tool|safe-kit|1", "6|cos|lookout", "6|cos|wheelman", "6|cos|hustler", "6|cos|smoke" and "6|cos|sand"
-	set {-cfg::crate::uncommon::rewards::*} to "220|money|700", "170|money|900", "150|money|1350", "80|money|2250", "80|ammo|light|128", "60|ammo|shells|56", "60|ammo|rifle|120", "70|con|Stim|3", "60|tool|safe-kit|2", "8|cos|ghost", "7|cos|smooth", "7|cos|nightowl", "7|cos|flames", "7|cos|sparks", "7|cos|urban" and "7|cos|cherry"
-	set {-cfg::crate::rare::rewards::*} to "230|money|1800", "170|money|2700", "150|money|3600", "90|money|5400", "70|ammo|rifle|240", "50|ammo|shells|112", "50|con|Stim|3", "70|tool|drill|1", "50|tool|safe-kit|3", "12|cos|insideman", "12|cos|phantom", "12|cos|cashburst", "12|cos|souls", "11|cos|cashprint" and "11|cos|crimson"
-	set {-cfg::crate::epic::rewards::*} to "330|money|4500", "240|money|9000", "130|money|13500", "120|tool|drill|1", "80|con|Stim|3", "17|cos|untouchable", "17|cos|bigfish", "17|cos|fireworks", "17|cos|stormcloud", "16|cos|tiger" and "16|cos|carbon"
-	set {-cfg::crate::legendary::rewards::*} to "380|money|11000", "250|money|22500", "120|money|34000", "100|tool|drill|1", "30|car|vandal|Vandal", "20|cos|mostwanted", "20|cos|theboss", "20|cos|dragon", "20|cos|totem", "20|cos|diamond" and "20|cos|molten"
-	set {-cfg::crate::hacked::rewards::*} to "200|car|vandal|Vandal", "200|car|specter|Specter", "200|car|overclock|Overclock", "200|cos|hacker,matrix" and "200|cos|zeroday,glitch"
+	# Gun skins (2026-10-06, PROPOSAL, the realistic option: a skin in every crate): only the cosmetic weights changed, each
+	# crate's cosmetic share stays the owner's cap (1 / 3 / 5 / 7 / 10 / 15%) and every total 1000; the Hacked sets gained
+	# their gun skin (H4CK3R: the H4CK3R AK-48; Zero Day: the Glitch Classic Pistol).
+	set {-cfg::crate::daily::rewards::*} to "320|money|100", "220|money|200", "110|money|400", "100|ammo|light|32", "60|ammo|shells|14", "60|ammo|rifle|30", "70|con|Stim|1", "50|tool|safe-kit|1", "3|cos|rookie", "2|cos|poof", "2|cos|denim" and "3|cos|gs_safety"
+	set {-cfg::crate::common::rewards::*} to "280|money|200", "200|money|450", "120|money|900", "100|ammo|light|64", "70|ammo|shells|28", "70|ammo|rifle|60", "80|con|Stim|2", "50|tool|safe-kit|1", "5|cos|lookout", "5|cos|wheelman", "5|cos|hustler", "5|cos|smoke", "5|cos|sand" and "5|cos|uzi_desert"
+	set {-cfg::crate::uncommon::rewards::*} to "220|money|700", "170|money|900", "150|money|1350", "80|money|2250", "80|ammo|light|128", "60|ammo|shells|56", "60|ammo|rifle|120", "70|con|Stim|3", "60|tool|safe-kit|2", "6|cos|ghost", "6|cos|smooth", "5|cos|nightowl", "6|cos|flames", "5|cos|sparks", "6|cos|urban", "5|cos|cherry", "6|cos|gs_bubblegum" and "5|cos|r90_urban"
+	set {-cfg::crate::rare::rewards::*} to "230|money|1800", "170|money|2700", "150|money|3600", "90|money|5400", "70|ammo|rifle|240", "50|ammo|shells|112", "50|con|Stim|3", "70|tool|drill|1", "50|tool|safe-kit|3", "8|cos|insideman", "8|cos|phantom", "8|cos|cashburst", "8|cos|souls", "8|cos|cashprint", "7|cos|crimson", "8|cos|uzi_woodland", "8|cos|ak_crimson" and "7|cos|m16_army"
+	set {-cfg::crate::epic::rewards::*} to "330|money|4500", "240|money|9000", "130|money|13500", "120|tool|drill|1", "80|con|Stim|3", "10|cos|untouchable", "10|cos|bigfish", "10|cos|fireworks", "10|cos|stormcloud", "10|cos|tiger", "10|cos|carbon", "10|cos|r90_tiger", "10|cos|uzi_carbon", "10|cos|rev_gilded" and "10|cos|sniper_arctic"
+	set {-cfg::crate::legendary::rewards::*} to "380|money|11000", "250|money|22500", "120|money|34000", "100|tool|drill|1", "30|car|vandal|Vandal", "14|cos|mostwanted", "14|cos|theboss", "13|cos|dragon", "13|cos|totem", "13|cos|diamond", "13|cos|molten", "14|cos|ak_golden", "13|cos|r90_molten" and "13|cos|tommy_neon"
+	set {-cfg::crate::hacked::rewards::*} to "200|car|vandal|Vandal", "200|car|specter|Specter", "200|car|overclock|Overclock", "200|cos|hacker,matrix,ak_h4ck3r" and "200|cos|zeroday,glitch,gs_glitch"
 	# Cars in crates (garage.sk, 2026-09-26): car lines roll. False leaves them out (the other lines share
 	# their chance) and the menu shows them as "coming with cars".
 	set {-cfg::crate::cars} to true
@@ -1490,7 +1529,8 @@ function loadSettings():
 
 	# Cosmetics: type title (a tag after your name in chat and the tab list: /title), bagskin (the bag's
 	# look: /bagskin; art in tools\make-item-art.js BAGS), killfx (particles and a sound where your
-	# victim dies: /killeffect). retired = no longer in crates; testing = not released yet. Legends own
+	# victim dies: /killeffect), gunskin (a look of one gun: /gunskin; below the kill effects). retired = no longer in
+	# crates; testing = not released yet. Legends own
 	# every retired and testing cosmetic (owner, 2026-09-26). Rank bag skins (camo, arctic, gilded, neon)
 	# stay rank-only and aren't listed here.
 	set {-cfg::cosmetics::*} to "rookie", "lookout", "wheelman", "hustler", "ghost", "smooth", "nightowl", "insideman", "phantom", "untouchable", "bigfish", "mostwanted", "theboss", "hacker", "zeroday", "denim", "sand", "urban", "cherry", "cashprint", "crimson", "tiger", "carbon", "diamond", "molten", "matrix", "poof", "smoke", "flames", "sparks", "cashburst", "souls", "fireworks", "stormcloud", "dragon", "totem" and "glitch"
@@ -1605,6 +1645,30 @@ function loadSettings():
 	set {-cfg::cos::glitch::type} to "killfx"
 	set {-cfg::cos::glitch::name} to "Glitch"
 	set {-cfg::cos::glitch::rarity} to "hacked"
+
+	# Gun skins (cosmetics.sk; 2026-10-06, the owner: "revamp the gun skin system to have different skin variants of specific
+	# guns"). A gun skin is a look of one gun: cos::<id>::type "gunskin", ::gun (its WeaponMechanics title), ::look (a short
+	# label: "Golden"), ::name (the full name), ::rarity and ::model (the pack's item definition
+	# assets/donating/items/gunskin_<gun>_<look>.json, drawn by tools\guns\skins.js). DonatingPhone's GunFx puts the model on
+	# the player's guns (/dphone gunskin); Skript never sets it on a real gun. Worn: data gunskin::<title> = the cos id.
+	# Rules: a released look's id, pack file or ::model is never renamed or removed (retire it with ::retired); a skin only
+	# changes the colors, never what the gun does. PROPOSAL names and rarities. Lines: "id|title|gun module|look id|Look|Full
+	# name|rarity" (rarity "level" = earned at a level: bound, never traded or in crates).
+	# The wardrobe's guns, in shop order (the guns without skins yet show "Skins: 0").
+	set {-cfg::gunskin::guns::*} to "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47" and "AX_50"
+	# Menu icons in the worn look (false together with DonatingPhone's gunfx.skins.enabled: a pack without the skins).
+	set {-cfg::gunskin::icons} to true
+	loop "gs_safety|50_GS|gs50|safety|Safety Orange|Safety Orange Classic Pistol|daily", "gs_bubblegum|50_GS|gs50|bubblegum|Bubblegum|Bubblegum Classic Pistol|uncommon", "gs_glitch|50_GS|gs50|glitch|Glitch|Glitch Classic Pistol|hacked", "uzi_desert|Uzi|uzi|desert|Desert|Desert Machine Gun|common", "uzi_woodland|Uzi|uzi|woodland|Woodland Camo|Woodland Camo Machine Gun|rare", "uzi_carbon|Uzi|uzi|carbon|Carbon|Carbon Machine Gun|epic", "r90_urban|R9_0|r90|urban|Urban Camo|Urban Camo Shotgun|uncommon", "r90_tiger|R9_0|r90|tiger|Tiger|Tiger Shotgun|epic", "r90_molten|R9_0|r90|molten|Molten|Molten Shotgun|legendary", "ak_crimson|AK_47|ak47|crimson|Crimson|Crimson AK-48|rare", "ak_golden|AK_47|ak47|golden|Golden|Golden AK-48|legendary", "ak_h4ck3r|AK_47|ak47|h4ck3r|H4CK3R|H4CK3R AK-48|hacked", "lvl_mastermind_gs|50_GS|gs50|mastermind|Mastermind|Mastermind Classic Pistol|level", "lvl_kingpin_ak|AK_47|ak47|kingpin|Kingpin|Kingpin AK-48|level", "rev_gilded|357_Magnum|rev|gilded|Gilded|Gilded Old Revolver|epic", "m16_army|M4A1|m16|army|Army|Army Combat Rifle|rare", "tommy_neon|STG44|tommy|neon|Neon|Neon Brave Patriot|legendary" and "sniper_arctic|AX_50|sniper|arctic|Arctic|Arctic Sniper Rifle|epic":
+		set {_gs::*} to loop-value split at "|"
+		set {-cfg::cos::%{_gs::1}%::type} to "gunskin"
+		set {-cfg::cos::%{_gs::1}%::gun} to {_gs::2}
+		set {-cfg::cos::%{_gs::1}%::model} to "donating:gunskin_%{_gs::3}%_%{_gs::4}%"
+		set {-cfg::cos::%{_gs::1}%::look} to {_gs::5}
+		set {-cfg::cos::%{_gs::1}%::name} to {_gs::6}
+		set {-cfg::cos::%{_gs::1}%::rarity} to {_gs::7}
+		if {_gs::7} is "level":
+			set {-cfg::cos::%{_gs::1}%::bound} to true
+		add {_gs::1} to {-cfg::cosmetics::*}
 
 	# ---------- Boosters (boosters.sk) ----------
 	# Kinds (owner, 2026-09-27: a booster category on Tebex): money (loot sales' pay), xp (robber-level XP from
@@ -1902,7 +1966,13 @@ function loadSettings():
 	# blocks with line of sight (no projectile anyone else could see or be hit by).
 	set {-cfg::hit::guards} to 2
 	set {-cfg::hit::guard-name} to "Hired Gun"
-	set {-cfg::hit::guard-model} to 9
+	set {-cfg::hit::guard-model} to 15
+	# PROPOSAL (2026-10-06): a hit NPC only takes hits from within this many blocks of its hunter (a sniper or a rifle from
+	# beyond the bodyguards' 16-block reach was a free kill). Keep it at or under guard-reach, and guard-range at least
+	# max-range + 12 (the bodyguards stand up to 12 blocks from the target and Sentinel looks from each one's own eye; its
+	# default range is 20).
+	set {-cfg::hit::max-range} to 16
+	set {-cfg::hit::guard-range} to 30
 	set {-cfg::hit::guard-health} to 20
 	set {-cfg::hit::guard-damage} to 2.5
 	set {-cfg::hit::guard-rate} to 1.75

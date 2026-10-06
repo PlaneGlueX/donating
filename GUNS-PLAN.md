@@ -41,6 +41,20 @@ middle of something".
 - The reload sweep stays (answer 3). Gloves wait (answer 4).
 - Left for you: how it all feels in game (PLAYTEST 179).
 
+## More guns and gun skins (2026-10-06)
+
+The owner: "try adding more guns from pg3d after you are done (make sure the ones you pick fit well with the game
+style, and then balance it). See if you can revamp the gun skin system to have different skin variants of specific
+guns aswell."
+- Four more, picked for a grounded heist/cops city (no lasers or explosives) and balanced under the damage rule
+  (PROPOSAL prices and levels): the **Old Revolver** ($20,000, L10), the **Brave Patriot** ($80,000, L25, a drum-fed
+  automatic), the **Combat Rifle** ($160,000, L40, 3-round bursts) and the **Sniper Rifle** ($500,000, L70, 2 body
+  shots and never 1, a scope glint others can see). The AK-48 stays the strongest automatic.
+- **Gun skins**: 18 looks over the eight guns, colors only (the sights, lens and muzzle flash never change), worn per
+  gun from the wardrobe, from crates and two level rewards, tradeable with serials. Each look is the gun's own
+  texture repainted, with its own item definition; DonatingPhone puts it on the player's guns.
+- Left for you: PLAYTEST 180 and 181 (the feel, the prices, the crate odds, a level-90 LMG or not).
+
 ## The original plan (before the answers)
 
 The owner: "im thinking of revamping the gun system to use guns from pixel gun 3d ... can you come up with a way

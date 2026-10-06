@@ -2,40 +2,50 @@ STG44:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>STG-44"
+      Name: "<gold>Brave Patriot"
       Lore:
-        - "<gray>German assault rifle developed during World War II."
-        - "<gray>It's widely considered the first modern assault rifle"
+        - "<gray>A drum-fed tommy gun with a wooden stock."
+        - "<gray>A 50-round drum and steady full-auto."
         - ""
-        - "<gray>Weapon Statistics <gold>-<gray> 66.5"
-        - "<gold>➣<gray> 70 <gold>⟸ <gray>Accuracy"
+        - "<gray>Weapon Statistics <gold>-<gray> 65.8"
+        - "<gold>➣<gray> 66 <gold>⟸ <gray>Accuracy"
         - "<gold>➣<gray> 72 <gold>⟸ <gray>Damage"
-        - "<gold>➣<gray> 67 <gold>⟸ <gray>Range"
-        - "<gold>➣<gray> 56 <gold>⟸ <gray>Fire Rate"
-        - "<gold>➣<gray> 61 <gold>⟸ <gray>Mobility"
-        - "<gold>➣<gray> 64 <gold>⟸ <gray>Control"
+        - "<gold>➣<gray> 58 <gold>⟸ <gray>Range"
+        - "<gold>➣<gray> 57 <gold>⟸ <gray>Fire Rate"
+        - "<gold>➣<gray> 72 <gold>⟸ <gray>Mobility"
+        - "<gold>➣<gray> 70 <gold>⟸ <gray>Control"
       Unbreakable: true
       Hide_Flags: true
       Attributes:
-        - "movement_speed -0.019"
+        - "movement_speed -0.0025"
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>STG-44<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Brave Patriot<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+    # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65);
+    # ours are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=0.72, listeners=Source{}}"
-    Weapon_Equip_Delay: 30
+      - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.72, listeners=Source{}}"
+    # Donating (2026-10-06): the draw's sound (the pack animates the 22-tick draw: the gun rises, then the top knob is
+    # racked at 55-80%, which the sound's two clicks follow; Weapon_Get_Mechanics only plays when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.tommy.draw, volume=0.5, noise=0.05, listeners=Source{}}"
+    Weapon_Equip_Delay: 22
     Cancel:
       Drop_Item: true
+      Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-06, the Brave Patriot: a drum-fed tommy gun, a recreation of Pixel Gun 3D's in our style). The
+  # pack draws Default, Scope (+1000), Sprint (+2000) and Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope
+  # and Sprint, so an empty gun would drop out of the sights), and animates the draw, the fire (while it really fires:
+  # GunFx's firing flag) and the reload from the cooldown DonatingPhone's GunFx starts (tools\guns\tommy.js).
   Skin:
     Default: 15
     Scope: ADD 1000
     Sprint: ADD 2000
-    Attachments:
-      Reflex_Sight: ADD 100000
-  Projectile: "assault_rifle_projectile"
+    Reload: ADD 3000
+  Projectile: "donating_smg_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"
@@ -46,100 +56,69 @@ STG44:
     Projectile_Speed: 80
     Fully_Automatic_Shots_Per_Second: 9
     Spread:
-      Base_Spread: 3.3
+      Base_Spread: 3.2
       Modify_Spread_When:
-        Zooming: 50%
-        Sneaking: 50%
+        Zooming: 55%
+        Sneaking: 60%
         In_Midair: 150%
     Recoil:
-      Mean_X: 0.2
-      Mean_Y: 1.4
-      Variance_X: 0.3
-      Variance_Y: 0.3
-      Speed: 2.8
-      Damping: 0.1
-      Damping_Recovery: 0.15
-      Smoothing: 0.4
-      Max_Accumulation: 12.0
+      Mean_X: 0.25
+      Mean_Y: 0.9
+      Variance_X: 0.25
+      Variance_Y: 0.2
+      Speed: 2.4
+      Damping: 0.06
+      Damping_Recovery: 0.12
+      Smoothing: 0.3
+      Max_Accumulation: 7.0
     Mechanics:
-      - "CustomSound{sound=shoot.stg44.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.tommy.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
-    Magazine_Size: 30
-    Reload_Duration: 57
+    Magazine_Size: 50
+    # Donating: item ammo bought at gun shops (shop.sk); without this the gun reloads for free.
+    Ammo:
+      Ammos:
+        - "Donating_Light"
+    Reload_Duration: 50
+    # Donating (2026-10-06): each sound where the pack's frames show it (tools\guns\tommy.js reload: the drum slides out
+    # at p 0.155, the new one seats at 0.555 and is slapped home, the top knob is racked at 0.736; the bolt sound's
+    # second click is its release). Not in Finish_Mechanics: WeaponMechanics plays those at the very end of the chain.
+    # With rounds left the frames run over 50 ticks; from empty the Firearm_Action's open (5 ticks) comes first, the
+    # frames stretch to 60 and these sounds start 5 ticks later. The delays split the difference (55p - 2.5): every
+    # sound within 3 ticks of its frame either way.
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.normal, volume=0.5, noise=0.1}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.normal, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.tommy.mag_out, volume=0.5, noise=0.05, delayBeforePlay=6}"
+      - "CustomSound{sound=donating.gun.tommy.mag_in, volume=0.5, noise=0.05, delayBeforePlay=28}"
+      - "CustomSound{sound=donating.gun.tommy.bolt, volume=0.5, noise=0.05, delayBeforePlay=38}"
   Damage:
-    Base_Damage: 9.8
+    # Donating (2026-10-06): under the AK-48 in every band (5.10 / 4.50 / 3.60 / 2.70): 4 body shots unarmored, 12 in
+    # the best gear (11 armor points, Per_Armor_Point -6% in config.yml). No weapon-level Damage_Modifiers, Head,
+    # Backstab or Critical_Hit: a weapon-level Damage_Modifiers replaces the global list (and drops Per_Armor_Point).
+    Base_Damage: 5.1
     Armor_Damage: 3
     Dropoff:
-      - "10 -1.66"
-      - "25 -3.32"
-      - "50 -4.98"
+      - "10 -0.6"
+      - "25 -1.5"
+      - "50 -2.4"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"
       Off_Hand: "LEFT_CLICK"
-    Zoom_Amount: 1.5
-    Shoot_Delay_After_Scope: 15
+    Zoom_Amount: 1.3
+    Shoot_Delay_After_Scope: 10
     Mechanics:
       - "CustomSound{sound=scope.in, volume=0.5, noise=0.1, listeners=Source{}}"
     Zoom_Off:
       Mechanics:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
+  # Donating (2026-10-06): silent; it only runs on an empty reload (5 + 5 ticks around it: the clock is 60 then), and
+  # the top knob is drawn and heard in every reload (Start_Mechanics above).
   Firearm_Action:
     Type: "SLIDE"
     Open:
-      Time: 8
-      Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.5, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.5, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
+      Time: 5
     Close:
-      Time: 8
-      Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.5, noise=0.1, listeners=Source{}}"
-
-  # The following options are added by WeaponMechanicsCosmetics, and you will
-  # not see the changes take effect until you purchase it.
-
-  Cosmetics:
-    Muzzle_Flash: true
-    Splash_Mechanics:
-      - "Sound{sound=entity.generic.splash, pitch=1.85, noise=0.15} @Target{}"
-      - "Particle{particle=WATER_SPLASH, count=20, noise=0.2 0.2 0.2} @Target{}"
-    Bullet_Zip:
-      Maximum_Distance: 4.0
-      Sounds:
-        - "CustomSound{sound=fx.whiz, noise=0.02, listeners=Target{}} @Target{}"
-    Third_Person_Pose:
-      Default: NONE
-      Scope: BOW
-      Reload: BLOCK
-      Firearm_Action: CROSSBOW
-
-  Trail:
-    Distance_Between_Particles: 0.35
-    Particle_Chooser: LOOP
-    Particles:
-      - "Particle{particle=DUST_COLOR_TRANSITION, color=RED, fadeColor=YELLOW, size=0.4}"
-
-  Show_Time:
-    Reload:
-      Item_Cooldown: true
-      Exp: true
-      Action_Bar: "<gray>Reloading <bar> <gray><time>s"
-      Action_Bar_Cancelled: "<red>Reload Cancelled"
-      Bar:
-        Left_Color: "<gray>"
-        Right_Color: "<red>"
-        Left_Symbol: "|"
-        Right_Symbol: "|"
-        Symbol_Amount: 30
-    Weapon_Equip_Delay:
-      Item_Cooldown: true
-    Shoot_Delay_After_Scope:
-      Item_Cooldown: true
+      Time: 5
