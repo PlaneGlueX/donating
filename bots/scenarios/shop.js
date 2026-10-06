@@ -94,6 +94,10 @@ module.exports = async ({ check }) => {
 
     // ---------- Buying weapons ----------
     await tab('weapons')
+    // The Veteran (2026-10-06): the 12th weapon, its own cell, name, price and level gate (core.sk's $800,000 / 90).
+    const vetItem = bot.currentWindow && bot.currentWindow.slots[WPN.MG34]
+    const vetText = vetItem ? JSON.stringify(vetItem) : ''
+    check('the Veteran is on the Weapons tab: its cell, its name, $800,000 and "Needs level 90"', at(WPN.MG34) === 'feather' && /Veteran/.test(vetText) && /800,000/.test(vetText) && /Needs level 90/.test(vetText), `${at(WPN.MG34)}; ${vetText.slice(0, 400)}`)
     await click(WPN['50_GS'])
     check('buying the .50 GS ($300): charged, unlocked, in hotbar 1 with an empty magazine', (await bal()) === 200 && (await data('wpn::50_GS')) === 'true' && /(^WM |\| )0=50_GS:0x1/.test(await wm()), `${await bal()}; ${await wm()}`)
     await click(WPN['50_GS'])
