@@ -103,6 +103,35 @@ module.exports = async ({ check }) => {
     const kept = others.filter(e => { const x = entries.find(y => y.threshold === e.threshold); return x && JSON.stringify(x.model) === JSON.stringify(e.model) })
     check('...and keeps WeaponMechanics\' other entries (the guns we don\'t sell) and its fallback', !!wm && others.length > 0 && kept.length === others.length &&
       JSON.stringify(feather.model.fallback) === JSON.stringify(wm.model.fallback), wm ? `${kept.length}/${others.length} kept` : 'WeaponMechanics\' pack is missing')
+    // The fire flicker needs GunFx's firing flag (custom_model_data flag 0: a shot really went off) as well as the held
+    // key, and the shotgun draws the pump alone under flag 1 (a pump WeaponMechanics works without a shot; review
+    // 2026-10-05: holding right-click on loot, or with an empty gun, flickered the flash).
+    const gunEntry = n => { const e = entries.filter(x => x.threshold === n); return e.length === 1 ? e[0].model : null }
+    const all = (m, pred, out = []) => {
+      if (m && typeof m === 'object') { if (pred(m)) out.push(m); for (const v of Object.values(m)) (Array.isArray(v) ? v : [v]).forEach(x => all(x, pred, out)) }
+      return out
+    }
+    const isFlag = i => m => /condition$/.test(m.type || '') && /custom_model_data$/.test(m.property || '') && (m.index || 0) === i
+    const gated = [1, 1001, 5, 1005].filter(n => {
+      const e = gunEntry(n)
+      const keys = all(e, m => /keybind_down$/.test(m.property || ''))
+      const flags = all(e, isFlag(0))
+      return keys.length > 0 && keys.every(k => flags.some(f => f.on_true === k))
+    })
+    const pumps = [14, 1014].filter(n => all(gunEntry(n), isFlag(1)).length === 1)
+    check('the automatic guns\' fire flicker needs GunFx\'s firing flag and the held key; the shotgun has the pump alone (flag 1)', gated.length === 4 && pumps.length === 2, `gated ${gated.join(' ')}; pump ${pumps.join(' ')}`)
+    // No No_Ammo skin (WeaponMechanics puts it over Scope and Sprint: an empty gun dropped out of the sights), and no
+    // firearm-action sounds on the pistol and the AK-48 (their reload frames show no slide or bolt action of its own).
+    const yamlOf = g => read(g.file).split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
+    const skins = GUNS.filter(g => {
+      const sec = (yamlOf(g).match(/\n {2}Skin:\n((?: {4}.*\n)+)/) || [])[1] || ''
+      return [...sec.matchAll(/^ {4}(\w+):/gm)].map(m => m[1]).filter(k => k !== 'blue' && k !== 'red').join(',') === 'Default,Scope,Sprint,Reload'
+    })
+    const silent = GUNS.filter(g => ['50_GS', 'AK_47'].includes(g.w)).filter(g => {
+      const fa = (yamlOf(g).match(/\n {2}Firearm_Action:\n((?: {4}.*\n)+)/) || [])[1] || ''
+      return fa.length > 0 && !/Mechanics/.test(fa)
+    })
+    check('every sold gun\'s skins are Default, Scope, Sprint and Reload (no No_Ammo); the pistol\'s and the AK-48\'s firearm action is silent', skins.length === 4 && silent.length === 2, `skins ok ${skins.map(g => g.w)}; silent ${silent.map(g => g.w)}`)
     // No hands under the car camera: the gun, the bag, the hands' cash and the map key are wrapped, and the
     // tripwire hook (the key while the car camera is on) has the carkey case.
     const wrapped = ['feather', 'leather', 'paper', 'filled_map'].filter(i => { const d = jsonIn(zipFile, `assets/minecraft/items/${i}.json`); return !!d && !!unwrap(d.model) })

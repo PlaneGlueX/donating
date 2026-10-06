@@ -9,6 +9,7 @@ import me.deecaad.weaponmechanics.weapon.firearm.FirearmAction;
 import me.deecaad.weaponmechanics.weapon.firearm.FirearmState;
 import me.deecaad.weaponmechanics.weapon.reload.ammo.AmmoConfig;
 import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponEquipEvent;
+import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponFirearmEvent;
 import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponGenerateEvent;
 import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponPostShootEvent;
 import me.deecaad.weaponmechanics.weapon.weaponevents.WeaponReloadCancelEvent;
@@ -65,10 +66,12 @@ import java.util.UUID;
  *
  * Config gunfx.*: enabled, swing, guns.<title>.shot|draw (ticks; 0 = none), guns.<title>.alone (ticks: a shot that
  * works no firearm action plays only this much of the shot's frames, its kick; 0 = always the whole shot),
- * guns.<title>.fire (ticks the firing flag stays after the last shot; 0 = no flag).
+ * guns.<title>.fire (ticks the firing flag stays after the last shot; 0 = no flag), guns.<title>.action (ticks: a firearm
+ * action WeaponMechanics works without a shot, like the shotgun's pump after a reload from empty, gets this clock and
+ * custom_model_data flag 1, which the pack draws as the action alone; 0 = none).
  */
 final class GunFx implements Listener {
-    private record Gun(Key group, int shot, int draw, int alone, int fire) {}
+    private record Gun(Key group, int shot, int draw, int alone, int fire, int action) {}
     private record Firing(String title, int lastShot, int keep) {}
 
     private final PhonePlugin plugin;
@@ -80,6 +83,10 @@ final class GunFx implements Listener {
     private long clockNo;
     // Players whose automatic gun carries the firing flag, and when they last shot.
     private final Map<UUID, Firing> firing = new HashMap<>();
+    // Each player's last shot tick per gun group (a firearm action in the same tick is the shot's own).
+    private final Map<UUID, Map<Key, Integer>> lastShot = new HashMap<>();
+    // ...and the tick a firearm-action clock started (one per action).
+    private final Map<UUID, Map<Key, Integer>> lastAction = new HashMap<>();
     private BukkitTask firingTask;
     private final Map<String, Gun> guns = new HashMap<>();
     private boolean enabled = true;
@@ -96,7 +103,7 @@ final class GunFx implements Listener {
         if (s != null) for (String title : s.getKeys(false)) {
             String id = title.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             guns.put(title, new Gun(Key.key("donating", "gun/" + id), Math.max(0, s.getInt(title + ".shot", 0)), Math.max(0, s.getInt(title + ".draw", 0)),
-                Math.max(0, s.getInt(title + ".alone", 0)), Math.max(0, s.getInt(title + ".fire", 0))));
+                Math.max(0, s.getInt(title + ".alone", 0)), Math.max(0, s.getInt(title + ".fire", 0)), Math.max(0, s.getInt(title + ".action", 0))));
         }
         plugin.getLogger().info("gunfx: " + (enabled ? guns.size() + " guns" : "off"));
     }
@@ -104,7 +111,7 @@ final class GunFx implements Listener {
     String status() {
         StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " started=" + started + " firing=" + firing.size() + " guns=");
         guns.forEach((t, g) -> b.append(t).append('{').append(g.group.asString()).append(" shot=").append(g.shot).append(" draw=").append(g.draw)
-            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append('}'));
+            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append('}'));
         return b.toString();
     }
 
@@ -144,18 +151,23 @@ final class GunFx implements Listener {
         return n;
     }
 
-    // The firing flag: custom_model_data flags[0] on the gun (WeaponMechanics only writes the floats, the skin number,
-    // and drops the flags when it does: the next shot sets it again).
-    private static boolean flagged(ItemStack s) {
+    // custom_model_data flags on the gun: 0 = firing (the automatic guns' flicker), 1 = a firearm action without a shot.
+    // WeaponMechanics only writes the floats (the skin number) and drops the flags when it does: the next shot or action
+    // sets them again.
+    private static final int FIRING = 0;
+    private static final int ACTION = 1;
+
+    private static boolean flagged(ItemStack s, int index) {
         CustomModelData cmd = s == null ? null : s.getData(DataComponentTypes.CUSTOM_MODEL_DATA);
-        return cmd != null && !cmd.flags().isEmpty() && Boolean.TRUE.equals(cmd.flags().get(0));
+        return cmd != null && cmd.flags().size() > index && Boolean.TRUE.equals(cmd.flags().get(index));
     }
 
-    private static void flag(ItemStack s, boolean on) {
-        if (s == null || s.getType().isAir() || flagged(s) == on) return;
+    private static void flag(ItemStack s, int index, boolean on) {
+        if (s == null || s.getType().isAir() || flagged(s, index) == on) return;
         CustomModelData cmd = s.getData(DataComponentTypes.CUSTOM_MODEL_DATA);
         List<Boolean> flags = new ArrayList<>(cmd == null ? List.of() : cmd.flags());
-        if (flags.isEmpty()) flags.add(on); else flags.set(0, on);
+        while (flags.size() <= index) flags.add(false);
+        flags.set(index, on);
         while (!flags.isEmpty() && !flags.get(flags.size() - 1)) flags.remove(flags.size() - 1); // no trailing false
         CustomModelData.Builder b = CustomModelData.customModelData().addFlags(flags);
         if (cmd != null) b.addFloats(cmd.floats()).addStrings(cmd.strings()).addColors(cmd.colors());
@@ -163,7 +175,7 @@ final class GunFx implements Listener {
     }
 
     private void markFiring(Player p, String title, Gun g) {
-        flag(p.getInventory().getItemInMainHand(), true);
+        flag(p.getInventory().getItemInMainHand(), FIRING, true);
         firing.put(p.getUniqueId(), new Firing(title, plugin.getServer().getCurrentTick(), g.fire));
         if (firingTask == null) firingTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::firingTick, 1L, 1L);
     }
@@ -177,18 +189,23 @@ final class GunFx implements Listener {
             Firing f = en.getValue();
             if (now - f.lastShot() <= f.keep()) continue;
             Player p = plugin.getServer().getPlayer(en.getKey());
-            if (p != null) unflag(p, f.title());
+            if (p != null) unflag(p, f.title(), FIRING);
             it.remove();
         }
         if (firing.isEmpty() && firingTask != null) { firingTask.cancel(); firingTask = null; }
     }
 
-    private void unflag(Player p, String titleOrNull) {
+    private void unflag(Player p, String titleOrNull, int index) {
         for (int i = 0; i < 9; i++) {
             ItemStack s = p.getInventory().getItem(i);
             String t = title(s);
-            if (t != null && (titleOrNull == null || titleOrNull.equals(t)) && guns.containsKey(t)) flag(s, false);
+            if (t != null && (titleOrNull == null || titleOrNull.equals(t)) && guns.containsKey(t)) flag(s, index, false);
         }
+    }
+
+    private void unflagAll(Player p) {
+        unflag(p, null, FIRING);
+        unflag(p, null, ACTION);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -235,10 +252,13 @@ final class GunFx implements Listener {
     }
 
     // Aiming during a reload: WeaponMechanics' Scope state wins over Reload, and the aimed frames of the guns with a
-    // shot clock are the shot's (muzzle flash included). The reload's clock ends when the sight comes up.
+    // shot clock are the shot's (muzzle flash included). Their reload's clock ends when the sight comes up.
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onScope(WeaponScopeEvent e) {
-        if (e.getScopeType() != WeaponScopeEvent.ScopeType.IN || !guns.containsKey(e.getWeaponTitle())) return;
+        Gun g = guns.get(e.getWeaponTitle());
+        // Only the guns whose aimed frames are their shot clock's (shot > 0: the pistol, the shotgun); the automatic guns'
+        // aimed frames don't read the clock, and their reload frames go on when the sight comes down.
+        if (e.getScopeType() != WeaponScopeEvent.ScopeType.IN || g == null || g.shot <= 0) return;
         try {
             HandData h = e.getHandData(e.isMainHand());
             if (h != null && h.isReloading()) clock(e.getShooter(), e.getWeaponTitle(), 0);
@@ -268,6 +288,8 @@ final class GunFx implements Listener {
     public void onShot(WeaponPostShootEvent e) {
         Gun g = guns.get(e.getWeaponTitle());
         if (g == null || !enabled || !(e.getShooter() instanceof Player p)) return;
+        lastShot.computeIfAbsent(p.getUniqueId(), k -> new HashMap<>()).put(g.group, plugin.getServer().getCurrentTick());
+        if (g.action > 0) flag(p.getInventory().getItemInMainHand(), ACTION, false);
         if (g.fire > 0) markFiring(p, e.getWeaponTitle(), g);
         if (g.shot <= 0) return;
         long n = clock(p, e.getWeaponTitle(), g.shot);
@@ -277,6 +299,51 @@ final class GunFx implements Listener {
             Map<Key, Long> mine = clocks.get(p.getUniqueId());
             if (p.isOnline() && mine != null && Long.valueOf(n).equals(mine.get(g.group))) p.setCooldown(g.group, 0);
         }, g.alone);
+    }
+
+    // A firearm action WeaponMechanics works without a shot (WeaponMechanics 4.3.1, bytecode: a reload from empty sets a
+    // PUMP gun loading shells one by one to OPEN and never closes it, so the next click calls doShootFirearmActions instead
+    // of shooting: an OPEN event here with no shot this tick; also an interrupted action finishing). A pump right after a
+    // shot comes in the same tick as the shot and is the shot clock's own.
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onFirearm(WeaponFirearmEvent e) {
+        Gun g = guns.get(e.getWeaponTitle());
+        if (g == null || g.action <= 0 || !enabled || e.getState() != FirearmState.OPEN || !(e.getShooter() instanceof Player p)) return;
+        Map<Key, Integer> shots = lastShot.get(p.getUniqueId());
+        Integer last = shots == null ? null : shots.get(g.group);
+        int now = plugin.getServer().getCurrentTick();
+        if (last != null && last == now) return;
+        // WeaponMechanics builds the close half's event with the state it saw when the action started (bytecode:
+        // lambda$doShootFirearmActions$1), so an action that started from OPEN reports OPEN again when it closes: one
+        // clock per action.
+        Map<Key, Integer> acts = lastAction.computeIfAbsent(p.getUniqueId(), k -> new HashMap<>());
+        Integer began = acts.get(g.group);
+        if (began != null && now - began < g.action) return;
+        try {
+            HandData h = e.getHandData(e.isMainHand());
+            if (h != null && h.isReloading()) return; // a reload building its tasks, not a pump on screen
+        } catch (RuntimeException | LinkageError ignored) {
+        }
+        ItemStack held = p.getInventory().getItemInMainHand();
+        if (!e.getWeaponTitle().equals(title(held))) return;
+        acts.put(g.group, now);
+        flag(held, ACTION, true);
+        long n = clock(p, e.getWeaponTitle(), g.action);
+        // WeaponMechanics rewrites the skin number while the action runs (and drops the flags with it), so the flag is put
+        // back every tick of the clock, then taken off; a later clock on this gun (a shot, a reload) ends this one.
+        String title = e.getWeaponTitle();
+        int[] left = { g.action };
+        plugin.getServer().getScheduler().runTaskTimer(plugin, task -> {
+            Map<Key, Long> mine = clocks.get(p.getUniqueId());
+            boolean current = p.isOnline() && mine != null && Long.valueOf(n).equals(mine.get(g.group));
+            if (current && --left[0] > 0) {
+                ItemStack h = p.getInventory().getItemInMainHand();
+                if (title.equals(title(h))) flag(h, ACTION, true);
+                return;
+            }
+            task.cancel();
+            if (p.isOnline()) unflag(p, title, ACTION);
+        }, 1L, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -312,7 +379,10 @@ final class GunFx implements Listener {
     public void onQuit(PlayerQuitEvent e) {
         UUID u = e.getPlayer().getUniqueId();
         clocks.remove(u);
-        if (firing.remove(u) != null) unflag(e.getPlayer(), null); // not saved with the flag
+        lastShot.remove(u);
+        lastAction.remove(u);
+        firing.remove(u);
+        unflagAll(e.getPlayer()); // not saved with a flag
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -322,16 +392,13 @@ final class GunFx implements Listener {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (!p.isOnline()) return;
             for (int i = 0; i < 9; i++) prepare(p.getInventory().getItem(i));
-            unflag(p, null); // a flag saved by a stop mid-burst
+            unflagAll(p); // a flag saved by a stop mid-burst or mid-pump
         }, 5L);
     }
 
-    /** Plugin disable: no gun keeps the firing flag. */
+    /** Plugin disable: no gun keeps a flag. */
     void shutdown() {
-        for (UUID u : firing.keySet()) {
-            Player p = plugin.getServer().getPlayer(u);
-            if (p != null) unflag(p, null);
-        }
+        for (Player p : plugin.getServer().getOnlinePlayers()) unflagAll(p);
         firing.clear();
         if (firingTask != null) { firingTask.cancel(); firingTask = null; }
     }

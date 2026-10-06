@@ -8,8 +8,8 @@
 // checkered grip and a skeleton stock with a red stripe. Cops of difficulty 4 hold it (third person matters).
 // Frames (pg.js): drawn (GunFx's 30-tick draw cooldown) it rises from below and levels out; fire held flickers a
 // muzzle flash and kicks (and the charging handle cycles); the reload rocks the magazine out forward, a new one in,
-// then pulls the charging handle on the right (the gun rolls so it shows); empty, the handle stays back (drawn empty:
-// the same draw).
+// then pulls the charging handle on the right (the gun rolls so it shows). No empty pose (no No_Ammo state: WeaponMechanics
+// puts it over Scope and Sprint).
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is the scope's axis, y = SY.
 module.exports = ({ pg, aim, display }) => {
   const { pgGun, ease, rig } = pg
@@ -228,6 +228,5 @@ module.exports = ({ pg, aim, display }) => {
     1005: gun.byContext('ads', gun.firing('ads', FIRE(0.4, 'flash2'))),
     2005: gun.byContext('sprint', gun.composite('sprint')),
     3005: gun.byContext('', gun.cooldown('', 57, reload)),
-    // Empty: the handle stays back; drawn empty, the same draw with it back.
   }
 }

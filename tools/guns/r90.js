@@ -9,7 +9,8 @@
 // Frames (GunFx: R9_0 shot 15 ticks; each shell its own 4-tick reload clock): a shot flashes, kicks the gun back
 // and its muzzle up, then the pump is racked back (the bolt slides across the port and a red shell pops out) and
 // forward. Reloading, the gun is canted to show the loading port under the receiver and each shell (red, brass base)
-// is pushed up into it; the cant is held between shells, so a row of shells doesn't wobble. Empty: the rest pose.
+// is pushed up into it; the cant is held between shells, so a row of shells doesn't wobble. A pump WeaponMechanics works without
+// a shot (after a reload from empty) is the pump alone (flag 1, below).
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is the tops of the bead and the rear notch, y = SY.
 module.exports = ({ pg, aim, display }) => {
   const { pgGun, ease, rig } = pg
@@ -127,12 +128,13 @@ module.exports = ({ pg, aim, display }) => {
   // Firearm_Action_Frequency 2: Open 7 + Close 7 ticks inside this 15-tick clock; its sounds are delayed to match:
   // pump_back at tick 5, pump_fwd at tick 9); after the other shots GunFx ends the clock at tick 5 (gunfx alone 5),
   // where the kick is spent and the pump hasn't moved yet.
-  const shot = (k = 1) => p => {
-    const kick = Math.pow(1 - Math.min(1, p / 0.35), 2)
+  // fired false: the same pump with no kick and no flash (a pump WeaponMechanics works without a shot, below).
+  const shot = (k = 1, fired = true) => p => {
+    const kick = fired ? Math.pow(1 - Math.min(1, p / 0.35), 2) : 0
     const pump = ease.ramp(p, 0.35, 0.55) - ease.ramp(p, 0.6, 0.85)
     const rack = ease.bump(p, 0.33, 0.9, 0.5, 0.62)
     const pose = {
-      show: p < 0.15 ? ['flash'] : [],
+      show: fired && p < 0.15 ? ['flash'] : [],
       gun: rig({ t: [2.0 * k * kick + 0.4 * k * rack, 0.4 * k * kick - 0.2 * k * rack, 0], rot: [[[0, 0, 1], -12 * k * kick - 3 * k * rack], [[1, 0, 0], -10 * k * rack], [[0, 1, 0], 10 * k * rack]], pivot: GRIP }),
       pump: rig({ t: [TRAVEL * pump, 0, 0] })
     }
@@ -173,9 +175,20 @@ module.exports = ({ pg, aim, display }) => {
     }
   }
   const CANTED = { gun: canted(0) }
+  // A pump WeaponMechanics works without a shot (the first click after a reload from empty leaves the pump open; an
+  // interrupted pump): GunFx marks it with custom_model_data flag 1 and starts the same 15-tick clock (gunfx action 15;
+  // WeaponMechanics' Open 7 + Close 7 and their delayed sounds line up with the shot's pump frames), so the pump racks
+  // with no kick and no flash.
+  const worked = (state, k) => ({
+    type: 'minecraft:condition',
+    property: 'minecraft:custom_model_data',
+    index: 1,
+    on_true: gun.cooldown(state, 15, shot(k, false)),
+    on_false: gun.cooldown(state, 15, shot(k))
+  })
   return {
-    14: gun.byContext('', gun.cooldown('', 15, shot(1))),
-    1014: gun.byContext('ads', gun.cooldown('ads', 15, shot(0.4))),
+    14: gun.byContext('', worked('', 1)),
+    1014: gun.byContext('ads', worked('ads', 0.4)),
     2014: gun.byContext('sprint', gun.composite('sprint')),
     3014: gun.byContext('', gun.cooldown('', 4, reload, CANTED)),
   }

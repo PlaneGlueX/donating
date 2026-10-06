@@ -97,6 +97,8 @@ sweep for reloads).
   projectile, firearm action). Our bullet tracers stay.
 - **Poses everyone sees**: WeaponMechanics picks one model per state (Default, Scope, Sprint, Reload, No_Ammo)
   by writing a number on the item. Today's guns use Default, Scope and Sprint; the new ones add Reload and No_Ammo.
+  (As built: Reload only. No_Ammo beats Scope and Sprint in WeaponMechanics, so an empty gun dropped out of the
+  sights; it was left out after the review, 2026-10-05.)
 - **Flip-book frames only you see** (checked in the 26.3 client's bytecode, not yet in game):
   - Reload and draw: a vanilla item cooldown, started by one packet when WeaponMechanics starts a reload or a
     draw. The pack picks the frame from how far the cooldown has run. A small DonatingPhone listener sets the

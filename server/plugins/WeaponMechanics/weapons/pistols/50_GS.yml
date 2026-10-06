@@ -40,7 +40,7 @@
       Arm_Swing_Animation: true
       Break_Blocks: true
   # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates the
-  # reload, each shot and the empty pose from the cooldown DonatingPhone's GunFx starts (tools\guns\gs50.js).
+  # reload and each shot from the cooldown DonatingPhone's GunFx starts (tools\guns\gs50.js).
   Skin:
     Default: 9
     Scope: ADD 1000

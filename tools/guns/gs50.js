@@ -3,7 +3,7 @@
 // remade as PG3D's; drawn by hand from the wiki's pictures, nothing taken from the game): a chunky chrome slide with
 // serrations at the back and a stepped rear sight, a dark frame with a rail, a red leather grip raked back. Its
 // reload doesn't pull the slide (the magazine drops out of the grip and a new one goes in, like PG3D's); each shot
-// kicks the gun up and cycles the slide; empty, the slide stays back.
+// kicks the gun up and cycles the slide (no empty pose: no No_Ammo state).
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is y = SY.
 module.exports = ({ pg, aim, display }) => {
   const { pgGun, ease, rig } = pg

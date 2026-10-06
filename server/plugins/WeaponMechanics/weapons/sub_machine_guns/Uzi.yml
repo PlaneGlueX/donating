@@ -36,7 +36,7 @@ Uzi:
       Swap_Hands: true
       Arm_Swing_Animation: true
   # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates the
-  # draw, fire held, the reload and the empty pose from the cooldown DonatingPhone's GunFx starts (tools\guns\uzi.js).
+  # draw, the fire (while it really fires: GunFx's firing flag) and the reload from the cooldown DonatingPhone's GunFx starts (tools\guns\uzi.js).
   Skin:
     Default: 1
     Scope: ADD 1000
