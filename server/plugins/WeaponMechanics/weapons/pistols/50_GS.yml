@@ -39,14 +39,13 @@
       Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
-  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) and No_Ammo (+4000), and animates the
+  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates the
   # reload, each shot and the empty pose from the cooldown DonatingPhone's GunFx starts (tools\guns\gs50.js).
   Skin:
     Default: 9
     Scope: ADD 1000
     Sprint: ADD 2000
     Reload: ADD 3000
-    No_Ammo: ADD 4000
   Projectile: "donating_pistol_bullet"
   Shoot:
     Trigger:
@@ -88,12 +87,14 @@
       Ammos:
         - "Donating_Light"
     Reload_Duration: 32
-    # Donating (2026-10-05): both sounds timed to the reload's frames (tools\guns\gs50.js: the magazine drops from tick ~4,
-    # the new one is slapped home at ~23 of 32); not in Finish_Mechanics, which plays at the very end (after the slide's
-    # Close on an empty reload).
+    # Donating (2026-10-05): both sounds timed to the reload's frames (tools\guns\gs50.js: the magazine drops from p 0.12,
+    # the new one is slapped home at p 0.73); not in Finish_Mechanics, which plays at the very end (after the slide's
+    # Close on an empty reload). With rounds left the frames run over 32 ticks; from empty the slide's open (3 ticks)
+    # comes first, they stretch to 38 and these sounds start 3 ticks later: the delays split the difference
+    # (35p - 1.5), within about 2 ticks either way.
     Start_Mechanics:
-      - "CustomSound{sound=donating.gun.pistol.mag_out, volume=0.5, noise=0.05, delayBeforePlay=4}"
-      - "CustomSound{sound=donating.gun.pistol.mag_in, volume=0.5, noise=0.05, delayBeforePlay=23}"
+      - "CustomSound{sound=donating.gun.pistol.mag_out, volume=0.5, noise=0.05, delayBeforePlay=3}"
+      - "CustomSound{sound=donating.gun.pistol.mag_in, volume=0.5, noise=0.05, delayBeforePlay=24}"
   Damage:
     # Donating (owner, 2026-09-26): nerfed so the strongest gun kills an unarmored player in 4 body
     # shots and one in the best gear (11 armor points, Per_Armor_Point -6% in config.yml) in 10-12.
@@ -114,16 +115,14 @@
     Zoom_Off:
       Mechanics:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
+  # Donating (2026-10-05): silent; the reload's frames are a magazine swap with no slide pull (PG3D's), and this only
+  # runs on an empty reload, where the slide sounds played with nothing on screen.
   Firearm_Action:
     Type: "SLIDE"
     Open:
       Time: 3
-      Mechanics:
-        - "CustomSound{sound=donating.gun.pistol.slide_back, volume=0.5, noise=0.05, listeners=Source{}}"
     Close:
       Time: 3
-      Mechanics:
-        - "CustomSound{sound=donating.gun.pistol.slide_fwd, volume=0.5, noise=0.05, listeners=Source{}}"
 
 
   # The following options are added by WeaponMechanicsCosmetics, and you will

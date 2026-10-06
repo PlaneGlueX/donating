@@ -1,5 +1,5 @@
 // The rifle slot (WeaponMechanics weapons\assault_rifles\AK_47.yml, the strongest gun: full-auto 10 shots a second,
-// 30 rounds; skins Default 5, Scope +1000, Sprint +2000, Reload +3000, No_Ammo +4000). Since 2026-10-05 a recreation
+// 30 rounds; skins Default 5, Scope +1000, Sprint +2000, Reload +3000). Since 2026-10-05 a recreation
 // of Pixel Gun 3D's classic scoped AK, the "AK-48" (the owner: the sold guns remade as PG3D's; drawn by hand from the
 // wiki's picture, nothing taken from the game): a black receiver with gunmetal edges, a stepped slant compensator, a
 // handguard banded red and white, a grey grenade launcher under the barrel, a laser on the left with its red beam,
@@ -186,9 +186,10 @@ module.exports = ({ pg, aim, display }) => {
   // 8 ticks) so the charging handle on the right sticks up, the handle is pulled back and let go (a snap); the gun
   // settles back.
   // The sounds are timed to it in AK_47.yml (Start_Mechanics, delayBeforePlay in ticks after the reload starts):
-  // mag_out 7 (p 0.12, the rock out), mag_in 32 (p 0.56, the seat), bolt 42 (p 0.74, the pull; its second click
-  // 2.6 ticks later, the release at p 0.775-0.79). From empty the frames stretch to 73 ticks and the sounds start 8
-  // ticks later (after the Firearm_Action's open): each lands within 3 ticks of its frame.
+  // mag_out 4 (p 0.12, the rock out), mag_in 33 (p 0.57, the seat), bolt 43 (p 0.725, the pull; its second click
+  // 2.6 ticks later, the release at p 0.775-0.79). With rounds left the frames run over 57 ticks; from empty over 73
+  // and the sounds start 8 ticks later (after the Firearm_Action's open): the delays split the difference (65p - 4),
+  // each within about 3 ticks of its frame either way.
   const MAG_PIVOT = [10.3, 5.0, 8]
   const ROCK = -25 // degrees: the magazine's bottom forward
   const AXIS = [Math.sin(ROCK * Math.PI / 180), -Math.cos(ROCK * Math.PI / 180), 0] // down its own (rocked) axis
@@ -220,7 +221,6 @@ module.exports = ({ pg, aim, display }) => {
       hide: p > 0.32 && p < 0.4 ? ['mag'] : []
     }
   }
-  const EMPTY = { bolt: rig({ t: [2.4, 0, 0] }) }
   const drawn = gun.cooldown('', 30, draw)
   drawn.fallback = gun.firing('', FIRE(1))
   return {
@@ -229,6 +229,5 @@ module.exports = ({ pg, aim, display }) => {
     2005: gun.byContext('sprint', gun.composite('sprint')),
     3005: gun.byContext('', gun.cooldown('', 57, reload)),
     // Empty: the handle stays back; drawn empty, the same draw with it back.
-    4005: gun.byContext('', gun.cooldown('', 30, p => ({ ...draw(p), ...EMPTY }), EMPTY))
   }
 }

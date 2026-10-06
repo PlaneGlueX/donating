@@ -7,7 +7,7 @@ const { execSync } = require('child_process')
 const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
 
-const JCMD = 'C:\\Program Files\\Java\\jdk-21.0.12.1\\bin\\jcmd.exe'
+const JCMD = require('path').join(__dirname, '..', '..', 'tools', 'jdk25', 'bin', 'jcmd.exe') // the server's own JDK (2026-10-05: Java 25)
 const Y = 200
 const HID = 'zload'
 const N = 10

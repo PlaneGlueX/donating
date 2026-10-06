@@ -35,7 +35,7 @@ middle of something".
 - First-person animations, all drawn by the pack from a clock DonatingPhone starts (GunFx): a draw for the automatic
   guns, a reload for every gun (magazine out and in, the bolt or the slide, the shotgun a shell at a time), the
   slide's kick on the pistol, the kick and the pump on the shotgun (only the kick on the shot that doesn't pump),
-  a flickering muzzle flash and kick while the automatic guns fire, an empty pose (the slide locked back).
+  a flickering muzzle flash and kick while the automatic guns fire (only while a shot really goes off).
 - New sounds for every shot, reload, slide, pump, bolt and draw, synthesized (`tools\sounds\make-gun-sounds.js`),
   timed to the frames.
 - The reload sweep stays (answer 3). Gloves wait (answer 4).
@@ -183,6 +183,7 @@ clean swap before launch needs no migration of real players' guns (to confirm).
 - The client's animation tools (26.3 bytecode): `minecraft:cooldown` frames step once a tick (Cooldown.get passes
   partial tick 0), only the holder sees them, every cooldown draws the hotbar sweep; `keybind_down` for the flash;
   per-entry `transformation` (26.1+); models are boxes only; no arm with a held item.
-- An item cooldown doesn't stop WeaponMechanics shooting (bytecode: the client still sends the use packet, Paper
-  fires the interact event before its cooldown check, WeaponMechanics' trigger never reads cooldowns). To confirm
-  in game in phase 1.
+- An item cooldown doesn't stop WeaponMechanics shooting into the air (bytecode: the client still sends the use packet,
+  Paper fires the interact event before its cooldown check). It does stop a click on a block within reach (Paper marks
+  the item use DENY, which WeaponMechanics ignores: found by the review, 2026-10-05), so DonatingPhone's GunFx turns
+  that back to a normal click for a gun whose animation runs.

@@ -211,21 +211,30 @@ module.exports = ({ write, canvas, shade, display, both }) => {
       entries: Array.from({ length: n }, (_, k) => ({ threshold: round(k / n + 1e-4), model: composite(state, poseAt(1 - (k + 0.5) / n)) })),
       fallback: composite(state, rest)
     })
-    // Fire held (first person only: keybind_down reads the local key, whoever holds the item): a pose picked at
-    // random every frame from poses (a flicker), else the rest pose. wobble false: the 26.3 client's default (true)
-    // runs the random through a damped needle that holds a pose ~5 ticks and wanders; off, it's a fresh random each
-    // frame, so the poses should differ in the flash and only a little in the kick (or the gun shakes).
+    // Firing (first person only): while the gun really fires (custom_model_data flag 0: DonatingPhone's GunFx sets it
+    // on each shot and clears it a few ticks after the last) and fire is held (keybind_down reads the local key, whoever
+    // holds the item, so letting go stops it at once), a pose picked at random every frame from poses (a flicker),
+    // else the rest pose. The key alone isn't enough: holding right-click on loot, or with an empty gun, fires nothing.
+    // wobble false: the 26.3 client's default (true) runs the random through a damped needle that holds a pose ~5 ticks
+    // and wanders; off, it's a fresh random each frame, so the poses should differ in the flash and only a little in
+    // the kick (or the gun shakes).
     const firing = (state, poses, rest = {}) => ({
       type: 'minecraft:condition',
-      property: 'minecraft:keybind_down',
-      keybind: 'key.use',
+      property: 'minecraft:custom_model_data',
+      index: 0,
       on_true: {
-        type: 'minecraft:range_dispatch',
-        property: 'minecraft:time',
-        source: 'random',
-        wobble: false,
-        entries: poses.map((p, k) => ({ threshold: round(k / poses.length), model: composite(state, p) })),
-        fallback: composite(state, poses[0])
+        type: 'minecraft:condition',
+        property: 'minecraft:keybind_down',
+        keybind: 'key.use',
+        on_true: {
+          type: 'minecraft:range_dispatch',
+          property: 'minecraft:time',
+          source: 'random',
+          wobble: false,
+          entries: poses.map((p, k) => ({ threshold: round(k / poses.length), model: composite(state, p) })),
+          fallback: composite(state, poses[0])
+        },
+        on_false: composite(state, rest)
       },
       on_false: composite(state, rest)
     })

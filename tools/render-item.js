@@ -21,7 +21,7 @@
 // Animation frames (the guns, tools\guns\pg.js): a composite's per-model "transformation" (applied after the
 // display transform, in blocks from the model's corner, like the 26.1+ client), and the clocks it reads:
 // --cooldown <v> (minecraft:cooldown, the share of the cooldown left: 1 = just started, 0 = none), --fire
-// (minecraft:keybind_down true: fire held), --time <v> (minecraft:time, 0-1). --def <file.json> draws an item
+// (minecraft:keybind_down true: fire held, and custom_model_data flag 0 on: GunFx's firing flag), --time <v> (minecraft:time, 0-1). --def <file.json> draws an item
 // model given as JSON (an item definition, or just its "model") instead of <what> (then <what> is left out).
 // Element rotations (axis/angle/origin/rescale and 26.x x/y/z), per-file lefthand fallback (a missing
 // lefthand copies the righthand one, as the client's deserializer does), per-context parent display,
@@ -172,7 +172,7 @@ const typeIs = (t, name) => t === name || t === `minecraft:${name}`
 // An item model's "transformation" (Transformation JSON: translation, left_rotation, scale, right_rotation; or
 // 16 floats, row-major) -> a 4x4 matrix in blocks.
 const quatM = q => {
-  if (!Array.isArray(q)) q = q && q.axis ? (a => { const n = Math.hypot(...q.axis) || 1; const s = Math.sin(a / 2); return [q.axis[0] / n * s, q.axis[1] / n * s, q.axis[2] / n * s, Math.cos(a / 2)] })(q.angle * RAD) : [0, 0, 0, 1]
+  if (!Array.isArray(q)) q = q && q.axis ? (a => { const n = Math.hypot(...q.axis) || 1; const s = Math.sin(a / 2); return [q.axis[0] / n * s, q.axis[1] / n * s, q.axis[2] / n * s, Math.cos(a / 2)] })(q.angle) : [0, 0, 0, 1]
   const [x, y, z, w] = q
   return [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]
 }
@@ -194,7 +194,9 @@ const resolveItemModel = (m, ctx, out = [], local = null) => {
   // view_entity: the holder is the camera (true in a preview, as in normal first person; build-pack.js hides
   // first-person items under the car camera with it); other conditions: not using, not broken...
   else if (typeIs(m.type, 'condition')) {
-    const on = typeIs(m.property, 'view_entity') ? ctx.viewEntity !== false : typeIs(m.property, 'keybind_down') ? !!ctx.keybind : false
+    // custom_model_data: a flag (GunFx's firing flag 0 is on with --fire, like the key).
+    const on = typeIs(m.property, 'view_entity') ? ctx.viewEntity !== false : typeIs(m.property, 'keybind_down') ? !!ctx.keybind
+      : typeIs(m.property, 'custom_model_data') ? (m.index || 0) === 0 && !!ctx.keybind : false
     resolveItemModel(on ? m.on_true : m.on_false, ctx, out, local)
   }
   else if (typeIs(m.type, 'select')) {

@@ -1,5 +1,5 @@
 // The shotgun slot (WeaponMechanics weapons\shotguns\R9_0.yml, "Shotgun"; skins Default 14, Scope +1000, Sprint
-// +2000, Reload +3000, No_Ammo +4000). Since 2026-10-05 a recreation of Pixel Gun 3D's default pump "Shotgun" (the
+// +2000, Reload +3000). Since 2026-10-05 a recreation of Pixel Gun 3D's default pump "Shotgun" (the
 // owner: the sold guns remade as PG3D's; drawn by hand from the wiki's picture, nothing taken from the game): a short
 // pump gun with no stock, two stacked bright tubes (the barrel over the magazine tube) with open square bores, a
 // silver receiver with a big dark ejection port, a grooved dark-wood pump, a red bead at the tip, a dark trigger
@@ -178,6 +178,5 @@ module.exports = ({ pg, aim, display }) => {
     1014: gun.byContext('ads', gun.cooldown('ads', 15, shot(0.4))),
     2014: gun.byContext('sprint', gun.composite('sprint')),
     3014: gun.byContext('', gun.cooldown('', 4, reload, CANTED)),
-    4014: gun.byContext('', gun.composite(''))
   }
 }

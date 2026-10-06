@@ -1066,9 +1066,10 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   // { <number>: <item model> }. items/feather.json here holds only ours; build-pack.js merges it into
   // WeaponMechanics' feather.json by threshold (ours win) and stops unless every number below is ours.
   // Same numbers, so nothing on the server changes (shop icons, cops' and bodyguards' guns, crates).
-  // Since 2026-10-05 the guns are Pixel Gun 3D recreations built with the kit in toolsgunspg.js, with two more
-  // states: Reload (+3000) and No_Ammo (+4000), and first-person frames (pg.js: cooldown, fire held).
-  const GUNS = { gs50: [9, 1009, 2009, 3009, 4009], uzi: [1, 1001, 2001, 3001, 4001], ak47: [5, 1005, 2005, 3005, 4005], r90: [14, 1014, 2014, 3014, 4014], knife: [-10], stim: [-1] }
+  // Since 2026-10-05 the guns are Pixel Gun 3D recreations built with the kit in tools\guns\pg.js, with one more
+  // state: Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint), and first-person frames
+  // (pg.js: cooldown, fire held).
+  const GUNS = { gs50: [9, 1009, 2009, 3009], uzi: [1, 1001, 2001, 3001], ak47: [5, 1005, 2005, 3005], r90: [14, 1014, 2014, 3014], knife: [-10], stim: [-1] }
   // The shared palette (the melee weapons' and the Grappler's colors), [r, g, b].
   const PAL = {
     outline: K.slice(0, 3),

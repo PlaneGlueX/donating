@@ -68,9 +68,9 @@ module.exports = async ({ check }) => {
     const { readZip } = require('../../tools/make-car-wraps')
     const packs = path.join(__dirname, '..', '..', 'extras', 'packs')
     const jsonIn = (zip, name) => { try { return JSON.parse(readZip(zip).get(name).toString('utf8').replace(/^﻿/, '')) } catch (e) { return null } }
-    // The four guns' Default, Scope +1000, Sprint +2000, Reload +3000, No_Ammo +4000 (the Pixel Gun 3D recreations since
+    // The four guns' Default, Scope +1000, Sprint +2000, Reload +3000 (the Pixel Gun 3D recreations since
     // 2026-10-05), the Combat Knife and the Stim.
-    const NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014, 3001, 3005, 3009, 3014, 4001, 4005, 4009, 4014]
+    const NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014, 3001, 3005, 3009, 3014]
     // build-pack.js wraps every item definition: a display_context select whose first-person case draws the
     // item only while the local player is the camera (view_entity; nothing under the car camera), with the
     // item's own model as both that case's on_true and the fallback. unwrap gives that model, or null.
@@ -96,7 +96,7 @@ module.exports = async ({ check }) => {
       return ms.length > 0 && ms.every(id => id.startsWith('donating:'))
     })
     const sorted = entries.every((e, i) => i === 0 || entries[i - 1].threshold < e.threshold)
-    check('the built pack\'s feather.json draws all 22 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
+    check('the built pack\'s feather.json draws all 18 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
       `ours: ${drawn.join(' ')}; hand_animation_on_swap ${feather && feather.hand_animation_on_swap}; sorted ${sorted}`)
     const wm = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/items/feather.json')
     const others = wm ? wm.model.entries.filter(e => !NUMBERS.includes(e.threshold)) : []

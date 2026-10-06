@@ -81,10 +81,10 @@ const readZip = file => {
 const parseJson = b => JSON.parse(b.toString('utf8').replace(/^\uFEFF/, ''))
 const toJson = o => Buffer.from(JSON.stringify(o))
 const { mergeRangeDispatch } = require('./merge-dispatch')
-// WeaponMechanics' skin numbers of what we sell (Default, Scope +1000, Sprint +2000; the knife, the Stim):
+// WeaponMechanics' skin numbers of what we sell (Default, Scope +1000, Sprint +2000, Reload +3000 for the four guns; the knife, the Stim):
 // the final feather.json must draw every one of them with our model.
 const FEATHER = 'assets/minecraft/items/feather.json'
-const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014, 3001, 3005, 3009, 3014, 4001, 4005, 4009, 4014]
+const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 9, 14, 1001, 1005, 1009, 1014, 2001, 2005, 2009, 2014, 3001, 3005, 3009, 3014]
 
 // ---------- Entries, with the merge guard ----------
 const entries = new Map() // name -> { data, from }

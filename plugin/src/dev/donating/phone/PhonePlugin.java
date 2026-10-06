@@ -186,6 +186,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // A server stop saves players after the plugins are disabled: out of the car seats first (CarSmooth.leaveCar).
         if (Bukkit.isStopping()) for (Player p : Bukkit.getOnlinePlayers()) if (CarSmooth.leaveCar(p)) getLogger().info("carsmooth: " + p.getName() + " out of the car seat before the stop saves them");
         carSmooth.shutdown();
+        if (gunFx != null) gunFx.shutdown(); // no gun keeps the firing flag
         gps.shutdown(); // the worker thread, a running road scan, and every GPS dot stand
         cityScan.shutdown();
         marks.shutdown();

@@ -4,7 +4,8 @@
 // sampled. Written as mono Ogg Vorbis (the client only decodes Vorbis: 26.3 JOrbisAudioStream) into
 // pack\assets\minecraft\sounds\donating\gun\ with their events in pack\assets\minecraft\sounds.json
 // ("donating.gun.<gun>.<what>"), which build-pack.js merges with WeaponMechanics' and lowers like every gun sound
-// (GUN_SOUND_VOLUME: the weapon files play shots at volume 6). Same seed, same files.
+// (GUN_SOUND_VOLUME: the weapon files play shots at volume 6). Same seed, same samples (the encoder gives each Ogg
+// stream a random serial number, so the files' bytes still change from run to run: rebuild only when a sound changes).
 //
 // Usage: tools\node\node.exe tools\sounds\make-gun-sounds.js [--wav <dir>]   (--wav also writes WAV previews)
 // The encoder is wasm-media-encoders 0.7.0 (libvorbis in WASM, MIT/BSD): tools\sounds\npm install (package.json).

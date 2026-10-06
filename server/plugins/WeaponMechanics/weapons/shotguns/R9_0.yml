@@ -35,14 +35,13 @@ R9_0:
       Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
-  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) and No_Ammo (+4000), and animates each shot
+  # Donating (2026-10-05, the PG3D remake): the pack also draws Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and animates each shot
   # (the kick and the pump) and each shell going in from the cooldown DonatingPhone's GunFx starts (tools\guns\r90.js).
   Skin:
     Default: 14
     Scope: ADD 1000
     Sprint: ADD 2000
     Reload: ADD 3000
-    No_Ammo: ADD 4000
   Projectile: "donating_pellet"
   Shoot:
     Trigger:

@@ -1,5 +1,5 @@
 // The SMG slot (WeaponMechanics weapons\sub_machine_guns\Uzi.yml, title Uzi, shown as "Machine Gun"; skins Default 1,
-// Scope +1000, Sprint +2000, Reload +3000, No_Ammo +4000). Since 2026-10-05 a recreation of Pixel Gun 3D's default
+// Scope +1000, Sprint +2000, Reload +3000). Since 2026-10-05 a recreation of Pixel Gun 3D's default
 // primary, the "Machine Gun" (the owner: the sold guns remade as PG3D's; drawn by hand from the wiki's pictures,
 // nothing taken from the game): an MP5-style SMG with a long slate-navy receiver and a ribbed top, a thick handguard
 // with a short barrel stub, a hooded front sight and a rear drum sight, the charging handle on the left of the front
@@ -194,6 +194,5 @@ module.exports = ({ pg, aim, display }) => {
     1001: gun.byContext('ads', gun.firing('ads', fire(0.45, AIMED), AIMED)),
     2001: gun.byContext('sprint', gun.composite('sprint')),
     3001: gun.byContext('', gun.cooldown('', 41, reload)),
-    4001: gun.byContext('', gun.composite(''))
   }
 }

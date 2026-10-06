@@ -239,12 +239,14 @@ carcam:
 # vanilla item cooldown on its own group (donating:gun/<title>), started when WeaponMechanics reloads it (as long as
 # the reload), after each shot (shot: ticks; the slide or the pump) and when it's drawn (draw: ticks; the guns whose
 # firing is drawn from the held key). 0 = none. alone: a shot that works no firearm action (the shotgun pumps after
-# every second shot) plays only its first N ticks, the kick. swing: false takes the arm swing off guns.
+# every second shot) plays only its first N ticks, the kick. fire: the automatic guns are marked firing (their
+# custom_model_data flag 0, which the pack needs for the fire flicker) until N ticks after the last shot.
+# swing: false takes the arm swing off guns.
 gunfx:
   enabled: true
   swing: false
   guns:
     50_GS: { shot: 6, draw: 0 }
-    Uzi: { shot: 0, draw: 20 }
+    Uzi: { shot: 0, draw: 20, fire: 5 }
     R9_0: { shot: 15, draw: 0, alone: 5 }
-    AK_47: { shot: 0, draw: 30 }
+    AK_47: { shot: 0, draw: 30, fire: 5 }

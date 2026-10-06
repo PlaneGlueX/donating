@@ -1,5 +1,5 @@
 // The pistol slot (WeaponMechanics weapons\pistols\50_GS.yml; skins Default 9, Scope +1000, Sprint +2000, Reload
-// +3000, No_Ammo +4000). Since 2026-10-05 a recreation of Pixel Gun 3D's starting pistol (the owner: the sold guns
+// +3000). Since 2026-10-05 a recreation of Pixel Gun 3D's starting pistol (the owner: the sold guns
 // remade as PG3D's; drawn by hand from the wiki's pictures, nothing taken from the game): a chunky chrome slide with
 // serrations at the back and a stepped rear sight, a dark frame with a rail, a red leather grip raked back. Its
 // reload doesn't pull the slide (the magazine drops out of the grip and a new one goes in, like PG3D's); each shot
@@ -90,12 +90,10 @@ module.exports = ({ pg, aim, display }) => {
       hide: p > 0.4 && p < 0.46 ? ['mag'] : []
     }
   }
-  const LOCKED = { slide: rig({ t: [2.1, 0, 0] }) }
   return {
     9: gun.byContext('', gun.cooldown('', 6, shot(1))),
     1009: gun.byContext('ads', gun.cooldown('ads', 6, shot(0.55))),
     2009: gun.byContext('sprint', gun.composite('sprint')),
     3009: gun.byContext('', gun.cooldown('', 32, reload)),
-    4009: gun.byContext('', gun.composite('', LOCKED))
   }
 }
