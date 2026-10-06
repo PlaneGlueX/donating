@@ -1141,7 +1141,7 @@ function loadSettings():
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
 	# files (AK-47 5.5 a body shot: 4 shots unarmored, 11 in a Tactical Helmet + Heavy Vest).
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
-	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47" and "AX_50"
+	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47", "AX_50" and "MG34"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
 	# Owner, 2026-09-27: weapons cost more and guns need a level (melee first).
@@ -1230,6 +1230,15 @@ function loadSettings():
 	set {-cfg::wpn::AX_50::mag} to 5
 	set {-cfg::wpn::AX_50::model} to 13
 	set {-cfg::wpn::AX_50::level} to 70
+	# The Veteran (light_machine_guns\MG34.yml, 2026-10-06, the stretch goal; PROPOSAL): a Bren-style LMG, 9 rounds a second,
+	# a 50-round top magazine, 4.6 a body shot (5 shots), 22% slower walking while held.
+	set {-cfg::wpn::MG34::name} to "Veteran"
+	set {-cfg::wpn::MG34::kind} to "LMG"
+	set {-cfg::wpn::MG34::price} to 800000
+	set {-cfg::wpn::MG34::ammo} to "rifle"
+	set {-cfg::wpn::MG34::mag} to 50
+	set {-cfg::wpn::MG34::model} to 11
+	set {-cfg::wpn::MG34::level} to 90
 
 	# Ammo types. "wm" = the ammo's name in plugins\WeaponMechanics\ammos\Donating_Ammos.yml.
 	set {-cfg::shop::ammo::*} to "light", "shells" and "rifle"
@@ -1250,7 +1259,7 @@ function loadSettings():
 	set {-cfg::ammo::rifle::item} to gold nugget
 	set {-cfg::ammo::rifle::price} to 3
 	set {-cfg::ammo::rifle::pack} to 30
-	set {-cfg::ammo::rifle::max} to 240
+	set {-cfg::ammo::rifle::max} to 300
 
 	# Consumables: WeaponMechanics items with Shoot.Consume_Item_On_Shoot (no leftover item).
 	set {-cfg::shop::consumables::*} to "Stim", "Bandage", "Throwing_Knife" and "Energy_Drink"

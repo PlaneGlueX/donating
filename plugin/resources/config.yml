@@ -259,3 +259,4 @@ gunfx:
     STG44: { shot: 0, draw: 22, fire: 5 }
     M4A1: { shot: 4, draw: 26 }
     AX_50: { shot: 20, draw: 40, alone: 6, action: 16, glint: 10 }
+    MG34: { shot: 0, draw: 40, fire: 5 }

@@ -164,6 +164,47 @@
       }
     ]
   },
+  "donating.gun.lmg.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/lmg_shoot_1"
+      },
+      {
+        "name": "donating/gun/lmg_shoot_2"
+      },
+      {
+        "name": "donating/gun/lmg_shoot_3"
+      }
+    ]
+  },
+  "donating.gun.lmg.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/lmg_mag_out"
+      }
+    ]
+  },
+  "donating.gun.lmg.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/lmg_mag_in"
+      }
+    ]
+  },
+  "donating.gun.lmg.charge": {
+    "sounds": [
+      {
+        "name": "donating/gun/lmg_charge"
+      }
+    ]
+  },
+  "donating.gun.lmg.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/lmg_draw"
+      }
+    ]
+  },
   "donating.gun.m16.shoot": {
     "sounds": [
       {

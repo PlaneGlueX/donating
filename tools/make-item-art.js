@@ -1069,7 +1069,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   // Since 2026-10-05 the guns are Pixel Gun 3D recreations built with the kit in tools\guns\pg.js, with one more
   // state: Reload (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint), and first-person frames
   // (pg.js: cooldown, fire held).
-  const GUNS = { gs50: [9, 1009, 2009, 3009], uzi: [1, 1001, 2001, 3001], ak47: [5, 1005, 2005, 3005], r90: [14, 1014, 2014, 3014], rev: [8, 1008, 2008, 3008], tommy: [15, 1015, 2015, 3015], m16: [7, 1007, 2007, 3007], sniper: [13, 1013, 2013, 3013], knife: [-10], stim: [-1] }
+  const GUNS = { gs50: [9, 1009, 2009, 3009], uzi: [1, 1001, 2001, 3001], ak47: [5, 1005, 2005, 3005], r90: [14, 1014, 2014, 3014], rev: [8, 1008, 2008, 3008], tommy: [15, 1015, 2015, 3015], m16: [7, 1007, 2007, 3007], sniper: [13, 1013, 2013, 3013], lmg: [11, 1011, 2011, 3011], knife: [-10], stim: [-1] }
   // The shared palette (the melee weapons' and the Grappler's colors), [r, g, b].
   const PAL = {
     outline: K.slice(0, 3),

@@ -2,37 +2,57 @@ MG34:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>MG34"
+      Name: "<gold>Veteran"
+      # Donating (2026-10-06): under the AK-48's 66.5: the heaviest gun (the slowest to carry) and a wide, growing spread
+      # pay for the 50-round magazine and the flattest dropoff of the automatic guns. Damage sits between the Classic
+      # Pistol (4.3: 65) and the Machine Gun (4.85: 67) by its 4.6 a hit. The total is their mean.
       Lore:
-        - "<gray>Fully automatic weapon with a high rate of fire and punishing 7.92 Mauser ammunition."
+        - "<gray>A WWII light machine gun on a folded bipod."
+        - "<gray>A 50-round magazine; it holds up at range."
         - ""
-        - "<gray>Weapon Statistics <gold>-<gray> 69.4"
-        - "<gold>➣<gray> 72 <gold>⟸ <gray>Accuracy"
-        - "<gold>➣<gray> 77 <gold>⟸ <gray>Damage"
-        - "<gold>➣<gray> 78 <gold>⟸ <gray>Range"
-        - "<gold>➣<gray> 70 <gold>⟸ <gray>Fire Rate"
-        - "<gold>➣<gray> 48 <gold>⟸ <gray>Mobility"
-        - "<gold>➣<gray> 72 <gold>⟸ <gray>Control"
+        - "<gray>Weapon Statistics <gold>-<gray> 59.8"
+        - "<gold>➣<gray> 60 <gold>⟸ <gray>Accuracy"
+        - "<gold>➣<gray> 66 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 74 <gold>⟸ <gray>Range"
+        - "<gold>➣<gray> 57 <gold>⟸ <gray>Fire Rate"
+        - "<gold>➣<gray> 40 <gold>⟸ <gray>Mobility"
+        - "<gold>➣<gray> 62 <gold>⟸ <gray>Control"
       Unbreakable: true
       Hide_Flags: true
+      # Donating (2026-10-06): an item attribute (MechanicsCore 4.3.1 ItemSerializer: ADD_NUMBER, slot group ANY, so it
+      # counts while the gun is held): walking speed 0.1 - 0.022 = 0.078, 22% slower.
       Attributes:
-        - "movement_speed -0.0296"
+        - "movement_speed -0.022"
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>MG34<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Veteran<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+    # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65);
+    # ours are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=0.75, listeners=Source{}}"
+      - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.75, listeners=Source{}}"
+    # Donating (2026-10-06): the draw's sound (the pack animates the 40-tick draw: the heavy gun swings up and settles,
+    # the magazine is checked, the cocking handle is racked, which the sound follows; Weapon_Get_Mechanics only plays
+    # when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.lmg.draw, volume=0.5, noise=0.05, listeners=Source{}}"
     Weapon_Equip_Delay: 40
     Cancel:
       Drop_Item: true
+      Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-06, the Veteran: a Bren-style light machine gun, a recreation of Pixel Gun 3D's in our style). The
+  # pack draws Default 11, Scope (+1000), Sprint (+2000) and Reload (+3000) (no No_Ammo: WeaponMechanics puts it over
+  # Scope and Sprint, so an empty gun would drop out of the sights), and animates the draw, the fire (while it really
+  # fires: GunFx's firing flag) and the reload from the cooldown DonatingPhone's GunFx starts (tools\guns\lmg.js; gunfx
+  # MG34: shot 0, draw 40, fire 5).
   Skin:
     Default: 11
     Scope: ADD 1000
     Sprint: ADD 2000
-  Projectile: "light_machine_gun_projectile"
+    Reload: ADD 3000
+  Projectile: "donating_lmg_bullet"
   Shoot:
     Trigger:
       Main_Hand: "RIGHT_CLICK"
@@ -41,104 +61,88 @@ MG34:
         Swimming: "DENY"
         Sprinting: "DENY"
     Projectile_Speed: 80
-    Fully_Automatic_Shots_Per_Second: 13
+    Fully_Automatic_Shots_Per_Second: 9
     Spread:
-      Base_Spread: 3.5
+      Base_Spread: 4.0
       Modify_Spread_When:
-        Zooming: 50%
-        Sneaking: 50%
-        In_Midair: 150%
+        Zooming: 60%
+        Sneaking: 55%
+        In_Midair: 170%
+      # Donating (2026-10-06): the spread grows while the trigger is held (WeaponMechanics 4.3.1 ChangingSpread, read
+      # in the same units as Base_Spread: x 0.01): +0.2 a shot (Increase_Change_When.Always) from 0 (Starting_Amount),
+      # up to +3 (Bounds; reached at the 15th shot, 1.7 s of fire: 4.0 -> 7.0 from the hip), added after
+      # Modify_Spread_When (so aiming doesn't shrink the growth: 2.4 -> 5.4 aimed), and back to 0 once no shot has been
+      # fired for 10 ticks (Reset_Time, in ticks: x 50 ms).
+      Changing_Spread:
+        Starting_Amount: 0
+        Reset_Time: 10
+        Increase_Change_When:
+          Always: 0.2
+        Bounds:
+          Minimum: 0
+          Maximum: 3
     Recoil:
-      Mean_X: 0.4
-      Mean_Y: 2.0
-      Variance_X: 0.3
-      Variance_Y: 0.4
-      Speed: 3.5
-      Damping: 0.15
-      Damping_Recovery: 0.15
+      Mean_X: 0.25
+      Mean_Y: 1.0
+      Variance_X: 0.5
+      Variance_Y: 0.3
+      Speed: 2.6
+      Damping: 0.05
+      Damping_Recovery: 0.1
       Smoothing: 0.35
-      Max_Accumulation: 18.0
+      Max_Accumulation: 14.0
     Mechanics:
-      - "CustomSound{sound=shoot.mg34.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.lmg.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
-    Magazine_Size: 75
-    Reload_Duration: 73
+    Magazine_Size: 50
+    # Donating: item ammo bought at gun shops (shop.sk); without this the gun reloads for free.
+    Ammo:
+      Ammos:
+        - "Donating_Rifle"
+    Reload_Duration: 80
+    # Donating (2026-10-06): each sound where the pack's frames show it (tools\guns\lmg.js reload: the magazine's catch
+    # tugged at p 0.13 and the magazine tipped off at 0.16 (both in mag_out); the new one hooks its front lip at 0.555,
+    # latches at 0.6 and is slapped at 0.64 (all in mag_in); the cocking handle is pulled at 0.72 and let go at 0.81
+    # (both in charge)). Not in Finish_Mechanics: WeaponMechanics plays those at the very end of the chain. With rounds
+    # left the frames run over 80 ticks; from empty the Firearm_Action's open (8 ticks) comes first, the frames stretch
+    # to 96 and these sounds start 8 ticks later. The delays split the difference (88p - 4: 45 and 59; mag_out's 7.4 is
+    # rounded up to 8, so its catch isn't 3.4 ticks early with rounds left): every click within 3.5 ticks of its frame
+    # on either clock (the worst: mag_out's catch 2.4 ticks early with rounds left and 3.5 late from empty; the
+    # handle let go 1.8 late and 3.2 early).
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.heavy, volume=0.5, noise=0.1}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.heavy, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.lmg.mag_out, volume=0.5, noise=0.05, delayBeforePlay=8}"
+      - "CustomSound{sound=donating.gun.lmg.mag_in, volume=0.5, noise=0.05, delayBeforePlay=45}"
+      - "CustomSound{sound=donating.gun.lmg.charge, volume=0.5, noise=0.05, delayBeforePlay=59}"
   Damage:
-    Base_Damage: 10.4
+    # Donating (2026-10-06): the flattest dropoff of the automatic guns, 4.60 / 4.40 / 4.00 / 3.50 (5 body hits bare
+    # under 10 blocks, 6 past 50; 13 in the best gear (11 armor points, Per_Armor_Point -6% in config.yml), 17 past 50).
+    # No weapon-level Damage_Modifiers, Head, Backstab or Critical_Hit: a weapon-level Damage_Modifiers replaces the
+    # global list (and drops Per_Armor_Point).
+    Base_Damage: 4.6
     Armor_Damage: 3
     Dropoff:
-      - "10 -1.44"
-      - "25 -2.88"
-      - "50 -4.32"
+      - "10 -0.2"
+      - "25 -0.6"
+      - "50 -1.1"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"
       Off_Hand: "LEFT_CLICK"
-    Zoom_Amount: 1.5
-    Shoot_Delay_After_Scope: 22
+    Zoom_Amount: 1.4
+    Shoot_Delay_After_Scope: 14
     Mechanics:
       - "CustomSound{sound=scope.in, volume=0.5, noise=0.1, listeners=Source{}}"
     Zoom_Off:
       Mechanics:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
+  # Donating (2026-10-06): silent; it only runs on an empty reload (8 + 8 ticks around it: the clock is 96 then), and
+  # the cocking handle is drawn and heard in every reload (Start_Mechanics above).
   Firearm_Action:
     Type: "SLIDE"
     Open:
       Time: 8
-      Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.5, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.5, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
     Close:
       Time: 8
-      Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.5, noise=0.1, listeners=Source{}}"
-
-  # The following options are added by WeaponMechanicsCosmetics, and you will
-  # not see the changes take effect until you purchase it.
-
-  Cosmetics:
-    Muzzle_Flash: true
-    Splash_Mechanics:
-      - "Sound{sound=entity.generic.splash, pitch=1.85, noise=0.15} @Target{}"
-      - "Particle{particle=WATER_SPLASH, count=20, noise=0.2 0.2 0.2} @Target{}"
-    Bullet_Zip:
-      Maximum_Distance: 4.0
-      Sounds:
-        - "CustomSound{sound=fx.whiz, noise=0.02, listeners=Target{}} @Target{}"
-    Third_Person_Pose:
-      Default: NONE
-      Scope: BOW
-      Reload: BLOCK
-      Firearm_Action: CROSSBOW
-
-  Trail:
-    Distance_Between_Particles: 0.3
-    Particle_Chooser: LOOP
-    Particles:
-      - "Particle{particle=CRIT}"
-
-  Show_Time:
-    Reload:
-      Item_Cooldown: true
-      Exp: true
-      Action_Bar: "<gray>Reloading <bar> <gray><time>s"
-      Action_Bar_Cancelled: "<red>Reload Cancelled"
-      Bar:
-        Left_Color: "<gray>"
-        Right_Color: "<red>"
-        Left_Symbol: "|"
-        Right_Symbol: "|"
-        Symbol_Amount: 75
-    Weapon_Equip_Delay:
-      Item_Cooldown: true
-    Firearm_Actions:
-      Item_Cooldown: true
-    Shoot_Delay_After_Scope:
-      Item_Cooldown: true

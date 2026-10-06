@@ -144,6 +144,9 @@ module.exports = async ({ check }) => {
     const base = Number((yml.match(/Base_Damage: ([\d.]+)/) || [])[1])
     check('Combat Rifle: one trigger pull fires exactly 3 rounds, all 3 land at 4.9 (5 shots kill), and a burst never kills (even 3 head shots: 3 x base x 1.15 < 20)', fired === 3 && burst.length === 3 && burst.every(d => Math.abs(d - 4.9) < 0.3) && sum < 20 && b.health > 0 && 3 * base * 1.15 < 20, `fired ${fired} (${before} left before), drops ${burst.join(', ')} (sum ${sum.toFixed(1)}), health ${b.health}, base ${base}`)
     await heal()
+    const vet = await fireW('MG34', 7, 3, 12000, 600, 2400)
+    check('Veteran, no armor: 4.6 a body shot (5 shots), under the AK-48', vet.length === 3 && Math.abs(avg(vet) - 4.6) < 0.3 && shots(avg(vet)) === 5 && avg(vet) < 5.5, `drops ${vet.join(', ')}`)
+    await heal()
     // The target is fed and saturated (heal()): it heals 1 HP every half second, so the second of the sniper's slow shots
     // can read 1 lower; the first is exact.
     const sn = await fireW('AX_50', 6, 2, 16000, 1300, 2400)
@@ -188,6 +191,11 @@ module.exports = async ({ check }) => {
     await heal()
     const revA = await fireW('357_Magnum', 3, 2, 12000, 700, 900)
     check('Old Revolver against the best gear: 1.80 a body shot (12 shots)', revA.length === 2 && revA.every(d => Math.abs(d - 1.8) < 0.15), `drops ${revA.join(', ')}`)
+    // The Veteran (2026-10-06): 4.6 a body shot, 5 shots bare, 13 in the best gear. A 600 ms gap outlasts its 10-tick spread
+    // reset; 2.4 s covers the 40-tick draw.
+    await heal()
+    const vetA = await fireW('MG34', 7, 2, 12000, 600, 2400)
+    check('Veteran against the best gear: 1.56 a body shot (4.6 x 0.34: 13 shots)', vetA.length === 2 && vetA.every(d => Math.abs(d - 1.564) < 0.15), `drops ${vetA.join(', ')}`)
   } finally {
     await cmd(`minecraft:clear ${TARGET}`).catch(() => {})
     await cmd(`minecraft:clear ${SHOOTER}`).catch(() => {})

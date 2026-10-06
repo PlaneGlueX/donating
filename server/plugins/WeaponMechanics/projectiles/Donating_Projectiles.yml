@@ -137,3 +137,28 @@ donating_sniper_bullet:
     Entities:
       Allow_Any: true
       Default_Speed_Multiplier: 0.7
+# Veteran (2026-10-06): the default light_machine_gun_projectile's physics (a floor of 70; through 3 instead of 5), drawn
+# as the rifle tracer (7002). Maximum_Through_Amount counts every pass (an entity or a glass block): at most 3 in all.
+donating_lmg_bullet:
+  Projectile_Settings:
+    Type: "ITEM_DISPLAY"
+    Projectile_Item_Or_Block:
+      Type: "IRON_NUGGET"
+      Custom_Model_Data: 7002 # donating:tracer_rifle
+    Minimum:
+      Speed: 70
+    Gravity: 9.8
+    Drag:
+      Base: 0.99
+      In_Water: 0.96
+      When_Raining_Or_Snowing: 0.98
+  Through:
+    Maximum_Through_Amount: 3
+    Blocks:
+      Default_Speed_Multiplier: 0.8
+      Whitelist: true
+      List:
+        - "$GLASS"
+    Entities:
+      Allow_Any: true
+      Default_Speed_Multiplier: 0.7

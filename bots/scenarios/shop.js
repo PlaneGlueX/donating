@@ -16,7 +16,7 @@ const HOT = n => 11 + n
 const CELL = [19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
 // Weapons tab, in core.sk's shop::weapons order (the Baseball Bat and the Dagger came in 2026-09-28; the Old Revolver,
 // Brave Patriot, Combat Rifle and Sniper Rifle 2026-10-06, between the first guns).
-const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], '357_Magnum': CELL[4], Uzi: CELL[5], STG44: CELL[6], R9_0: CELL[7], M4A1: CELL[8], AK_47: CELL[9], AX_50: CELL[10] }
+const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], '357_Magnum': CELL[4], Uzi: CELL[5], STG44: CELL[6], R9_0: CELL[7], M4A1: CELL[8], AK_47: CELL[9], AX_50: CELL[10], MG34: CELL[11] }
 const AMMO_ROW = { light: 19, shells: 28, rifle: 37 } // +pack = row + 2, +5 packs = row + 3, fill = row + 4
 
 module.exports = async ({ check }) => {
