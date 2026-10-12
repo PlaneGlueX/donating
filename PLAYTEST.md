@@ -463,6 +463,36 @@ The GPS (gps.sk + the phone plugin; owner: waypoints on the minimap and from que
     - Result: untested (cloud, 2026-10-12). Checked in the cloud only: the model builds (0 coplanar faces, nothing in the spinning barrels' way, a 256x256 texture, every drawn spin ends on the rest pose, at most 24 degrees a tick in the spin-down), the gun's YAML parses, GunSpin read against WeaponMechanics 4.3.1's source. Needs this PC: the plugin jar, the sounds, the pack, then `bots\run.js wm-ammo`, `wm-damage`, `gunfx`, `shop`, `levels` (DEPLOY.md and handoff/2026-10-12/README.md list the order) and your client.
     - **Owner questions** (all numbers PROPOSAL): (1) the rifle-shaped Hand Minigun, or the M134-style Siege Minigun? (2) 16 a second at full spin (the AK-48 stays on top) or 18? (3) spin-up 1.2 s (the first round at about 0.4 s) and spin-down 1.5 s: OK? (4) rifle ammo carry 400 or 300? (5) $1,500,000 at level 125? (6) the reflex-hood sight that shows the barrels spinning, or a tall tube that hides them? (7) after a short burst the barrels coast for up to 3 s; a tap under about 0.35 s stops them at once with no wind-down sound, and the barrels snap back from a small turn: does that feel right? (8) two minigunners close together: when one lets go, the other's spin-up whine stops too (a sound stops by its name; a known limit). (9) Does the spin-up stand out enough before the first round (it starts quiet, about -26 dB)? (10) The shots are lighter than the AK-48's on purpose: heavy enough? (11) The whine fades once full spin is reached, so long bursts are shots only: right? (12) Others hear the spin sounds within 16 blocks and the shots within 96; play the spin-up at volume 2 so enemies hear it from 32?
 
+185. **Both hands in the gun animations; the bag out of the way while reloading** (your answers to 183: "redo the animation to include both hands if possible", hide the bag during the reload, a Shotgun reload like the others, skin-ready guns): gloved hands (coyote-tan tactical gloves, a navy jacket sleeve with a gold stripe) are part of every gun's first-person frames. The right hand holds the grip whenever the grip is on screen: the pistols at the hip, every gun when sprinting, drawing or reloading. The rifles' grips sit under the screen's edge at the hip, as before, so the side view you kept is unchanged. Aiming shows no hands, so the sights stay clean. The left hand does every reload:
+    - **Classic Pistol:** pulls the magazine down out of the grip and pushes the new one in, then slaps it. The gun now rolls its grip's bottom toward the middle.
+    - **Old Revolver:** swings the cylinder out, slaps the ejector, brings the speedloader, twists it off. The right hand stays still while the gun twirls in the draw.
+    - **Machine Gun:** swaps the magazine, then the HK slap on the charging handle.
+    - **Brave Patriot:** slides the drum out and the new one in, a heel slap, then racks the knob on top.
+    - **Shotgun:** lifts each shell into the port and thumbs it in (still 4 ticks a shell; the loading pose sits a bit higher).
+    - **Combat Rifle:** swaps the magazine and slaps it. The T-handle still racks by itself: a hand there filled the screen.
+    - **AK-48:** rocks the magazine out and the new one in, then racks the handle.
+    - **Sniper Rifle:** swaps the magazine (the bolt still works by itself).
+    - **Veteran:** lifts the top magazine off, rocks the new one in, slaps it, racks the cocking handle.
+    - **Hand Minigun:** cups the box out and in, then turns the barrels twice by the middle clamp.
+
+    While a gun reloads, your bag (or the cash in your hand) slides down out of view and comes back as the reload ends. Only you see this: the inventory and everyone else see the bag as normal (DonatingPhone `gunfx.bag-hide: lookalike`). Try each gun's reload at the hip and while aiming, F5 (no hands in third person), a menu opened mid-reload (the bag should stay hidden), switching slots mid-reload (the bag comes back at once), and left-handed (Options > Skin Customization > Main Hand: Left; the gloves sit on the far side of the gun).
+    - Result: untested (cloud, 2026-10-12). Checked in the cloud only:
+      - `tools/guns/dev/hands.js`: 3,084 arm placements, every sleeve's end off the screen at 4:3, 16:9 and 21:9, and no hand in the sight picture or outside first person.
+      - `tools/guns/dev/skinlint.js`: every gun texel comes from a recolorable palette key, the outline ink or a KEEP key, so future skins reach the whole gun. The hands have their own texture, so no gun skin touches them.
+      - Reload lengths, sound delays and GunFx clocks are unchanged.
+      - make-item-art.js and build-pack.js run clean on a copy.
+      - BagHide compiles against API stubs only, so it has never run.
+      - Renders of every gun's frames are in the session's scratchpad, not in git.
+      - Needs this PC: the plugin, the pack, `bots/run.js wm-ammo` and `gunskins` (new model files), a bot check that the server inventory never changes during a reload, and your client.
+    - **Owner questions:**
+      1. The hands at rest: keep the hip poses (the hands show when the gun lifts), or raise each gun so the right glove peeks in at the bottom right like PG3D?
+      2. A gloved fist holding the bag, so both hands always show?
+      3. The Shotgun: keep the cant snapping on at the first shell and off after the last, add an eased entry and a closing pump with the left hand (two new GunFx flags), or one whole-tube reload (a gameplay change)?
+      4. The Sniper Rifle: should the right hand work the bolt after each shot?
+      5. The bag: the look-alike slide (default), or a cooldown dip (`gunfx.bag-hide: cooldown`, which shows a white sweep on the offhand slot)?
+      6. The glove and sleeve colors? Charcoal gloves were tried first and disappeared into the black guns. A glove cosmetic later?
+      7. No hands while aiming: OK, or should the pistols show their grip hand in the sights?
+
 158. **Owner questions (2026-09-28):** the Energy Drink's price and carry limit, the Grappler's 15 s, the car key prices, a tuning level gate, the garage lanes.
     - Result: WAITING (owner)
 

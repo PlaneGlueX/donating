@@ -7,6 +7,8 @@ The owner's answers to PLAYTEST 183 (2026-10-12):
 
 Inputs: `research-client.md` (the 26.3 client and the bag), `research-refs.md` (PG3D's hands, a choreography per gun), `research-frames.md` (our frames, the kit, the AK-48 prototype in `prototype/frames/`).
 
+**Built (cloud, same day; untested in game):** the kit, all ten guns, the bag hide (pack and Java), the checks. The tables below say what was built; where building changed the plan, the row says so. PLAYTEST 185 has the client checks and the owner's questions.
+
 **Fixed for every decision below:**
 - No gameplay timing changes: WeaponMechanics' reload durations, every sound's `delayBeforePlay` and every GunFx clock length stay as they are.
 - The sights stay on the crosshair in both hands; the gun's own display transforms don't change.
@@ -23,9 +25,11 @@ Inputs: `research-client.md` (the 26.3 client and the bag), `research-refs.md` (
 - **First person only:** never in `_full`, so third person, the ground, item frames and the icon have no hands. They also vanish under the car camera, because build-pack.js's `view_entity` wrapper holds them too.
 - **Arms aimed every frame:** each sleeve is turned from the glove's wrist toward an elbow point off the screen's bottom edge, in camera space. The elbow is lowered until the sleeve's far end is off screen at every shape from 4:3 to 21:9, so a cut end never shows.
 - **Skins never touch the hands.** They have their own texture, and `paintSkin` passes `donating:item/hands/*` through unchanged. Future gun skins need nothing for the hands, and the gun textures don't grow.
-- **The look** (research-refs 2.1): charcoal tactical gloves with lighter knuckle pads and a stitched dark cuff; a navy work-jacket sleeve with a gold stripe at the cuff.
+- **The look** (research-refs 2.1, adjusted while building): coyote-tan tactical gloves with dark rubber knuckle pads and a stitched dark cuff; a navy work-jacket sleeve with a gold stripe near the cuff.
   - Palette keys: `glove`, `gloveK`, `stitch`, `cuff`, `sleeve`, `trim`. A future glove or jacket cosmetic would recolor exactly these; gun skins can't reach them.
-  - Readability rule: the glove sits at least two tone steps above every gun's darkest material. The prototype's tan gloves blended into each other where they met.
+  - Readability: the refs' charcoal gloves were rendered first and disappeared into the black guns, so the gloves are light (tan). The dark knuckle pads keep two touching gloves apart.
+- **Size per gun:** `scale` (and `armScale`) per hand: the shared glove fits a grip 2.25 deep and 2 wide, so thick grips get a bigger glove (the Classic Pistol 1.3, the Shotgun 1.3), and sleeves are slimmed to 0.85-0.95 where they would fill the screen.
+- **Aimed: no hands.** A sleeve from the grip to the screen's corner crossed the bottom of the sight picture (`spec.hands.aimed` turns them on per gun).
 - **Left-handed players:** one tree serves both hands' views (the prototype's `leftTree: false`). The client never mirrors geometry, so left-handers see the gloves on the far side of the gun, mostly hidden. The elbow search keeps their arms off screen too. A second tree would double the JSON; not worth it for v1.
 - **Kit helpers exported** for the gun modules: `hands.inv`, `hands.mix` (rig blend: lerp + nlerp) and `hands.place` (an absolute hand placement → `pose.<hand>`).
 
@@ -47,16 +51,16 @@ Each module's `reload(p)` keeps its gun moves and its sound beats. The left hand
 
 | Gun | Left hand | Right hand | Lift |
 |---|---|---|---|
-| Classic Pistol (gs50, 32 t) | pulls the magazine down out of the grip, brings the new one, slaps it | on the grip; lowered while the magazine passes its fist | +6 |
-| Old Revolver (rev, 40 t) | swings the cylinder out, slaps the ejector, brings the speedloader, twists, pulls it away | on the grip; the wrist flick closes the cylinder | none |
-| Machine Gun (uzi, 41 t) | racks the handle back (HK), pulls the magazine out, inserts the new one, slaps the handle down | on the grip; lowered while the magazine passes | +3 |
+| Classic Pistol (gs50, 32 t) | pulls the magazine down out of the grip, brings the new one, slaps it | on the grip (shows at the hip: the pistol's grip is on screen) | +7, 3 toward the middle, and the roll reversed (the grip's bottom toward the middle, out from behind the right sleeve) |
+| Old Revolver (rev, 40 t) | swings the cylinder out, slaps the ejector, brings the speedloader, twists, pulls it away | on the grip; the wrist flick closes the cylinder; still while the gun twirls in the draw | none |
+| Machine Gun (uzi, 41 t) | pulls the magazine out, inserts the new one, slaps the handle down (the HK slap); the first pull happens by itself (no time for the hand to get there) | on the grip | +2.8 |
 | Brave Patriot (tommy, 60 t) | tugs the drum, slides it out, brings the new one, heel slap, racks the knob | on the grip | +1 |
-| Shotgun (r90, 4 t a shell) | thumbs each shell into the port (four frames a shell) | on the grip | +2 |
-| Combat Rifle (m16, 62 t) | pulls the magazine down, brings the new one, slaps it, pulls the T-handle | on the grip (the forward-assist knock is the gun's nudge) | +2 |
-| AK-48 (ak47, 73 t) | rocks the magazine out, brings the new one, rocks it in, slaps it, racks the handle | on the grip | +3 |
-| Sniper Rifle (sniper, 76 t) | pulls the magazine out and seats the new one | on the stock's wrist (the bolt still moves by itself) | +2 |
+| Shotgun (r90, 4 t a shell) | thumbs each shell into the port (four frames a shell) | on the grip | +2.3, 0.7 toward the middle |
+| Combat Rifle (m16, 62 t) | pulls the magazine down, brings the new one, slaps it; the T-handle racks by itself (a hand at the back of the receiver, by the eye, filled the screen) | on the grip (the forward-assist knock is the gun's nudge) | none |
+| AK-48 (ak47, 73 t) | rocks the magazine out, brings the new one, rocks it in, slaps it, racks the handle (its arm hangs down there, not across the screen) | on the grip | none |
+| Sniper Rifle (sniper, 76 t) | pulls the magazine out and seats the new one | on the stock's wrist just behind the trigger, at the shared size (nearer the eye it looked huge); the bolt still moves by itself | +1.8 |
 | Veteran (lmg, 96 t) | tips the top magazine off, brings the new one, rocks it in, slaps it, racks the handle | on the grip | none |
-| Hand Minigun (minigun, 90 t) | presses the catch, pulls the box out, brings and seats the new one, slaps it, turns the cluster twice by a clamp | on the grip | already lifted |
+| Hand Minigun (minigun, 90 t) | cups the box out and in, slaps it, turns the cluster twice by the middle clamp's arm (the "+" repeats every quarter turn, so it regrips the same spot) | on the grip; no hands in its third-person spin | already lifted |
 
 **Draws, shots and pumps stay one-handed.** The Shotgun's pump between shots racks by itself, since a bag dip on every second shot would flicker. The Sniper Rifle's bolt after a shot moves by itself. The realistic option (the right hand works the bolt) is an owner question.
 
@@ -78,7 +82,7 @@ The bag (leather) or the cash stack (paper) sits in the offhand. No item propert
 
 | | Cautious: `gunfx.bag-hide: cooldown` | Realistic (default): `gunfx.bag-hide: lookalike` |
 |---|---|---|
-| How | A cooldown on `minecraft:leather` and `minecraft:paper` (the bag's and cash's own cooldown groups) for the reload's length. The pack's first-person bag and cash dip out while it runs. | At the reload's start, the holder alone gets a copy of their real offhand whose `item_model` (`donating:bag_hidden` / `donating:cash_hidden`) draws nothing in first person, sent with `Player#sendEquipmentChange`. About 3 ticks before the reload ends, a copy that draws normally (`bag_shown` / `cash_shown`); then the real item. Both copies have `hand_animation_on_swap: true`, so the client's own swap animation slides the bag down and back up. |
+| How | A cooldown on `minecraft:leather` and `minecraft:paper` (the bag's and cash's own cooldown groups) for the reload's length. The pack's first-person bag and cash dip out while it runs (rendered: lowered at 0.97, gone from 0.92 to 0.06, rising at 0.02). | At the reload's start, the holder alone gets a copy of their real offhand whose `item_model` (`donating:bag_hidden` / `donating:cash_hidden`) draws nothing in first person, sent with `Player#sendEquipmentChange`. About 3 ticks before the reload ends, a copy that draws normally (`bag_shown` / `cash_shown`); 8 ticks later the real item. Both copies have `hand_animation_on_swap: true`, so the client's own swap animation slides the bag down and back up. |
 | Cost | The offhand HUD slot shows the white cooldown sweep | Two or three equipment packets per reload; one `isSimilar` check per tick per hiding player |
 | Risk | None: the cooldown runs out by itself | A real resync while hidden (bag.sk redrawing the fill, a menu opening) pops the real bag back. BagHide re-sends the hidden copy at that tick's end. A missed restore leaves the bag invisible in first person until the next resync; the server inventory is never touched. |
 

@@ -19,6 +19,23 @@ The model's fixer was stopped before it finished.
 Specs: `specs/minigun.md` (the agreed design), `specs/STYLE.md` (the PG painting rules), one spec per remade gun.
 The prototype is in `minigun/prototype/`. The reference pictures aren't committed: `specs/fetch-refs.js` gets them from the fan wiki's API, if the cloud's network allows it.
 
+## Done by the cloud (2026-10-12, same day; pushed to `claude/minigun`, NOT merged, NOT run)
+
+All five items below are done; each commit on the branch says what it changed.
+
+| # | What | Where |
+|---|---|---|
+| 1 | The minigun model finished: the critic's MUSTs and SHOULDs. The spin-down reads the whole 30-60-tick clock, 24 degrees a tick at most. Checks: 0 coplanar pairs, nothing hits the spin sweep (0.097 clearance), a 256x256 texture (pg.js packs in a skyline when shelves don't fit; every other gun is byte-identical). | `tools/guns/minigun.js`, `tools/guns/pg.js`, GunSpin's comments, the draw whir in `tools/sounds/guns/minigun.js` (1.0-1.92 s) |
+| 2 | The small fixes: FN_FAL.yml main hand only, its comments, the sound module's comments, a CLAUDE.md section "The Hand Minigun" with the shop/levels lines, and PLAYTEST 184 (the owner's questions). | as listed |
+| 3 | GunSpin read against WeaponMechanics 4.3.1's source: no change needed. One cosmetic note (a rest frame on a quick re-press) comes with a proposed fix. | `minigun/review-gunspin.md` |
+| 4 | The hands, designed then built: the kit, all ten guns, the Shotgun's shell loop with the left hand, the bag hide (pack + BagHide.java, untested), `tools/guns/dev/hands.js` and `skinlint.js` (all pass). | `hands/PLAN.md`, CLAUDE.md "Hands in the gun frames", PLAYTEST 185 |
+| 5 | The docs: CLAUDE.md (Status, the two sections), PLAYTEST 184-185, DEPLOY.md (the release order: the jar and the pack together). | as listed |
+
+Not done in the cloud:
+- `pack/` (tracked) wasn't regenerated. make-item-art.js and build-pack.js run clean on a scratch copy, but the release order is the local session's (below).
+- The sounds weren't encoded (no npm packages; the WAV preview runs).
+- The plugin wasn't built, so BagHide compiles only against API stubs.
+
 ## What the cloud session can do (GitHub only)
 
 The cloud has no local server, no Minecraft client, no Windows tools, no bots, and no plugin jars (`papermc.io`, Modrinth and other download sites were blocked in the last cloud session).
@@ -66,7 +83,7 @@ Don't merge `claude/minigun` into `main` from the cloud: nothing on it has run o
    - `bots\run-all.js wm-ammo wm-damage gunfx shop levels menus crates tabcomplete story inventory-lock death`. The expected numbers are in `fix-data.md`. Then the full suite.
    - The client check (computer use): the spin-up, firing, reload, aim and F5.
    - A review workflow, then merge.
-3. **The hands work.** Compile GunFx's bag code. Build, then:
+3. **The hands work** (built in the cloud: CLAUDE.md "Hands in the gun frames", PLAYTEST 185). Compile BagHide (`tools\build-plugin.ps1`; fix anything javac finds: it was only checked against stubs). Build, then:
    - a bot test that the server inventory never changes during a reload;
    - the client check: the bag slides out and back, the hands look right at the hip, aimed and reloading;
    - the full suite, then merge.
