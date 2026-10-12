@@ -1,0 +1,27 @@
+﻿{
+    "title":  "PG3D Sniper Rifle (2015): left arm under the forend, right arm at the edge",
+    "out":  "C:\\Users\\matti\\AppData\\Local\\Temp\\claude\\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\\0780fadd-412f-469c-beee-bc8b53ea6313\\scratchpad\\remake\\hands\\refs\\pg3d\\f-sniper.png",
+    "in":  "C:\\Users\\matti\\AppData\\Local\\Temp\\claude\\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\\0780fadd-412f-469c-beee-bc8b53ea6313\\scratchpad\\remake\\hands\\refs\\pg3d\\sniper.png",
+    "notes":  [
+                  {
+                      "c":  "#5ad1ff",
+                      "r":  [
+                                100,
+                                260,
+                                350,
+                                100
+                            ],
+                      "t":  "Left arm: a long slab from the bottom (under the hotbar) up to the forend."
+                  },
+                  {
+                      "c":  "#ffd24a",
+                      "r":  [
+                                610,
+                                290,
+                                30,
+                                70
+                            ],
+                      "t":  "Right arm: only a sliver at the right edge (the wrist is off-screen)."
+                  }
+              ]
+}

@@ -61,6 +61,8 @@ module.exports = async ({ check }) => {
     check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level at T(1) = 49 XP', /Your level: 0 Pickpocket · 0 XP/.test(out) && /Next: level 1 Pickpocket at 49 XP/.test(out), out)
     out = await said('/levels', 1500)
     check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts (and the rewards)', /5\. Shoplifter - 287 XP · .*the Classic Pistol.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. - 1,281 XP · .*the Machine Gun.*the Drill/.test(out) && /20\. Burglar - 2,078 XP/.test(out) && /100\. Mastermind - 75,514 XP · .*the «Mastermind» title/.test(out) && /150\. Kingpin - 240,190 XP · .*the SUV \(car\).*the Apex \(car\).*the «Kingpin» title/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 2500))
+    // The Hand Minigun (2026-10-12): level 125, listed before that level's rewards.
+    check('/levels lists the Hand Minigun at level 125', /125\. - 137,877 XP · the Hand Minigun/.test(out), (out.match(/125\..*/) || [out.slice(0, 300)])[0])
     check('the footer shows the level and the XP to the next one', /Pickpocket$/.test(await papi('donating_level')) && (await papi('donating_level_num')) === '0' && (await papi('donating_level_xp')) === '0/49 XP', `${await papi('donating_level')} ${await papi('donating_level_xp')}`)
 
     // ---------- Selling earns XP ----------

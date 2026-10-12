@@ -1,0 +1,194 @@
+Compiled from "ReloadHandler.java"
+class me.deecaad.weaponmechanics.weapon.reload.ReloadHandler$3 extends me.deecaad.weaponmechanics.weapon.reload.ChainTask {
+  final boolean val$mainhand;
+
+  final me.deecaad.weaponmechanics.wrappers.EntityWrapper val$entityWrapper;
+
+  final me.deecaad.weaponmechanics.wrappers.HandData val$handData;
+
+  final java.lang.String val$weaponTitle;
+
+  final me.deecaad.weaponmechanics.weapon.firearm.FirearmAction val$firearmAction;
+
+  final org.bukkit.inventory.EquipmentSlot val$slot;
+
+  final boolean val$dualWield;
+
+  final org.bukkit.inventory.ItemStack val$weaponStack;
+
+  final me.deecaad.weaponmechanics.weapon.weaponevents.WeaponFirearmEvent val$event;
+
+  final org.bukkit.entity.LivingEntity val$shooter;
+
+  final me.deecaad.weaponmechanics.weapon.reload.ReloadHandler this$0;
+
+  me.deecaad.weaponmechanics.weapon.reload.ReloadHandler$3(me.deecaad.weaponmechanics.weapon.reload.ReloadHandler, int, boolean, me.deecaad.weaponmechanics.wrappers.EntityWrapper, me.deecaad.weaponmechanics.wrappers.HandData, java.lang.String, me.deecaad.weaponmechanics.weapon.firearm.FirearmAction, org.bukkit.inventory.EquipmentSlot, boolean, org.bukkit.inventory.ItemStack, me.deecaad.weaponmechanics.weapon.weaponevents.WeaponFirearmEvent, org.bukkit.entity.LivingEntity);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: putfield      #40                 // Field this$0:Lme/deecaad/weaponmechanics/weapon/reload/ReloadHandler;
+         5: aload_0
+         6: iload_3
+         7: putfield      #42                 // Field val$mainhand:Z
+        10: aload_0
+        11: aload         4
+        13: putfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+        16: aload_0
+        17: aload         5
+        19: putfield      #46                 // Field val$handData:Lme/deecaad/weaponmechanics/wrappers/HandData;
+        22: aload_0
+        23: aload         6
+        25: putfield      #48                 // Field val$weaponTitle:Ljava/lang/String;
+        28: aload_0
+        29: aload         7
+        31: putfield      #50                 // Field val$firearmAction:Lme/deecaad/weaponmechanics/weapon/firearm/FirearmAction;
+        34: aload_0
+        35: aload         8
+        37: putfield      #52                 // Field val$slot:Lorg/bukkit/inventory/EquipmentSlot;
+        40: aload_0
+        41: iload         9
+        43: putfield      #54                 // Field val$dualWield:Z
+        46: aload_0
+        47: aload         10
+        49: putfield      #56                 // Field val$weaponStack:Lorg/bukkit/inventory/ItemStack;
+        52: aload_0
+        53: aload         11
+        55: putfield      #58                 // Field val$event:Lme/deecaad/weaponmechanics/weapon/weaponevents/WeaponFirearmEvent;
+        58: aload_0
+        59: aload         12
+        61: putfield      #60                 // Field val$shooter:Lorg/bukkit/entity/LivingEntity;
+        64: aload_0
+        65: iload_2
+        66: invokespecial #63                 // Method me/deecaad/weaponmechanics/weapon/reload/ChainTask."<init>":(I)V
+        69: return
+
+  public void run(me.deecaad.core.lib.scheduler.TaskImplementation<java.lang.Void>);
+    Code:
+         0: aload_0
+         1: getfield      #42                 // Field val$mainhand:Z
+         4: ifeq          27
+         7: aload_0
+         8: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+        11: invokevirtual #76                 // Method me/deecaad/weaponmechanics/wrappers/EntityWrapper.getEntity:()Lorg/bukkit/entity/LivingEntity;
+        14: invokeinterface #82,  1           // InterfaceMethod org/bukkit/entity/LivingEntity.getEquipment:()Lorg/bukkit/inventory/EntityEquipment;
+        19: invokeinterface #88,  1           // InterfaceMethod org/bukkit/inventory/EntityEquipment.getItemInMainHand:()Lorg/bukkit/inventory/ItemStack;
+        24: goto          44
+        27: aload_0
+        28: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+        31: invokevirtual #76                 // Method me/deecaad/weaponmechanics/wrappers/EntityWrapper.getEntity:()Lorg/bukkit/entity/LivingEntity;
+        34: invokeinterface #82,  1           // InterfaceMethod org/bukkit/entity/LivingEntity.getEquipment:()Lorg/bukkit/inventory/EntityEquipment;
+        39: invokeinterface #91,  1           // InterfaceMethod org/bukkit/inventory/EntityEquipment.getItemInOffHand:()Lorg/bukkit/inventory/ItemStack;
+        44: astore_2
+        45: aload_2
+        46: invokevirtual #97                 // Method org/bukkit/inventory/ItemStack.hasItemMeta:()Z
+        49: ifne          60
+        52: aload_0
+        53: getfield      #46                 // Field val$handData:Lme/deecaad/weaponmechanics/wrappers/HandData;
+        56: invokevirtual #103                // Method me/deecaad/weaponmechanics/wrappers/HandData.stopReloadingTasks:()V
+        59: return
+        60: aload_0
+        61: getfield      #46                 // Field val$handData:Lme/deecaad/weaponmechanics/wrappers/HandData;
+        64: aload_0
+        65: getfield      #48                 // Field val$weaponTitle:Ljava/lang/String;
+        68: aload_2
+        69: invokevirtual #107                // Method me/deecaad/weaponmechanics/wrappers/HandData.setReloadData:(Ljava/lang/String;Lorg/bukkit/inventory/ItemStack;)V
+        72: aload_0
+        73: getfield      #50                 // Field val$firearmAction:Lme/deecaad/weaponmechanics/weapon/firearm/FirearmAction;
+        76: aload_2
+        77: getstatic     #113                // Field me/deecaad/weaponmechanics/weapon/firearm/FirearmState.READY:Lme/deecaad/weaponmechanics/weapon/firearm/FirearmState;
+        80: invokevirtual #119                // Method me/deecaad/weaponmechanics/weapon/firearm/FirearmAction.changeState:(Lorg/bukkit/inventory/ItemStack;Lme/deecaad/weaponmechanics/weapon/firearm/FirearmState;)V
+        83: aload_0
+        84: getfield      #40                 // Field this$0:Lme/deecaad/weaponmechanics/weapon/reload/ReloadHandler;
+        87: aload_0
+        88: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+        91: aload_0
+        92: getfield      #48                 // Field val$weaponTitle:Ljava/lang/String;
+        95: aload_2
+        96: aload_0
+        97: getfield      #46                 // Field val$handData:Lme/deecaad/weaponmechanics/wrappers/HandData;
+       100: aload_0
+       101: getfield      #52                 // Field val$slot:Lorg/bukkit/inventory/EquipmentSlot;
+       104: invokevirtual #123                // Method me/deecaad/weaponmechanics/weapon/reload/ReloadHandler.finishReload:(Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;Ljava/lang/String;Lorg/bukkit/inventory/ItemStack;Lme/deecaad/weaponmechanics/wrappers/HandData;Lorg/bukkit/inventory/EquipmentSlot;)V
+       107: aload_0
+       108: getfield      #40                 // Field this$0:Lme/deecaad/weaponmechanics/weapon/reload/ReloadHandler;
+       111: aload_0
+       112: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+       115: aload_0
+       116: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+       119: invokevirtual #76                 // Method me/deecaad/weaponmechanics/wrappers/EntityWrapper.getEntity:()Lorg/bukkit/entity/LivingEntity;
+       122: aload_0
+       123: getfield      #42                 // Field val$mainhand:Z
+       126: aload_0
+       127: getfield      #54                 // Field val$dualWield:Z
+       130: invokevirtual #127                // Method me/deecaad/weaponmechanics/weapon/reload/ReloadHandler.tryReloadInOtherHandIfEmpty:(Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;Lorg/bukkit/entity/LivingEntity;ZZ)V
+       133: return
+
+  public void onSchedule(me.deecaad.core.lib.scheduler.TaskImplementation<java.lang.Void>);
+    Code:
+         0: aload_0
+         1: getfield      #46                 // Field val$handData:Lme/deecaad/weaponmechanics/wrappers/HandData;
+         4: aload_1
+         5: invokevirtual #135                // Method me/deecaad/weaponmechanics/wrappers/HandData.addReloadTask:(Lme/deecaad/core/lib/scheduler/TaskImplementation;)V
+         8: aload_0
+         9: getfield      #50                 // Field val$firearmAction:Lme/deecaad/weaponmechanics/weapon/firearm/FirearmAction;
+        12: aload_0
+        13: getfield      #56                 // Field val$weaponStack:Lorg/bukkit/inventory/ItemStack;
+        16: getstatic     #138                // Field me/deecaad/weaponmechanics/weapon/firearm/FirearmState.CLOSE:Lme/deecaad/weaponmechanics/weapon/firearm/FirearmState;
+        19: invokevirtual #119                // Method me/deecaad/weaponmechanics/weapon/firearm/FirearmAction.changeState:(Lorg/bukkit/inventory/ItemStack;Lme/deecaad/weaponmechanics/weapon/firearm/FirearmState;)V
+        22: aload_0
+        23: getfield      #58                 // Field val$event:Lme/deecaad/weaponmechanics/weapon/weaponevents/WeaponFirearmEvent;
+        26: new           #140                // class me/deecaad/core/mechanics/CastData
+        29: dup
+        30: aload_0
+        31: getfield      #60                 // Field val$shooter:Lorg/bukkit/entity/LivingEntity;
+        34: aload_0
+        35: getfield      #48                 // Field val$weaponTitle:Ljava/lang/String;
+        38: aload_0
+        39: getfield      #56                 // Field val$weaponStack:Lorg/bukkit/inventory/ItemStack;
+        42: aload_0
+        43: getfield      #46                 // Field val$handData:Lme/deecaad/weaponmechanics/wrappers/HandData;
+        46: dup
+        47: invokestatic  #146                // Method java/util/Objects.requireNonNull:(Ljava/lang/Object;)Ljava/lang/Object;
+        50: pop
+        51: invokedynamic #161,  0            // InvokeDynamic #0:accept:(Lme/deecaad/weaponmechanics/wrappers/HandData;)Ljava/util/function/Consumer;
+        56: invokespecial #164                // Method me/deecaad/core/mechanics/CastData."<init>":(Lorg/bukkit/entity/LivingEntity;Ljava/lang/String;Lorg/bukkit/inventory/ItemStack;Ljava/util/function/Consumer;)V
+        59: iconst_0
+        60: invokevirtual #170                // Method me/deecaad/weaponmechanics/weapon/weaponevents/WeaponFirearmEvent.useMechanics:(Lme/deecaad/core/mechanics/CastData;Z)V
+        63: aload_0
+        64: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+        67: instanceof    #172                // class me/deecaad/weaponmechanics/wrappers/PlayerWrapper
+        70: ifeq          116
+        73: invokestatic  #178                // Method me/deecaad/weaponmechanics/WeaponMechanics.getInstance:()Lme/deecaad/weaponmechanics/WeaponMechanics;
+        76: invokevirtual #182                // Method me/deecaad/weaponmechanics/WeaponMechanics.getWeaponConfigurations:()Lme/deecaad/core/file/Configuration;
+        79: aload_0
+        80: getfield      #48                 // Field val$weaponTitle:Ljava/lang/String;
+        83: invokedynamic #194,  0            // InvokeDynamic #1:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;
+        88: ldc           #196                // class me/deecaad/weaponmechanics/weapon/info/WeaponInfoDisplay
+        90: invokevirtual #202                // Method me/deecaad/core/file/Configuration.getObject:(Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/Object;
+        93: checkcast     #196                // class me/deecaad/weaponmechanics/weapon/info/WeaponInfoDisplay
+        96: astore_2
+        97: aload_2
+        98: ifnull        116
+       101: aload_2
+       102: aload_0
+       103: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+       106: checkcast     #172                // class me/deecaad/weaponmechanics/wrappers/PlayerWrapper
+       109: aload_0
+       110: getfield      #52                 // Field val$slot:Lorg/bukkit/inventory/EquipmentSlot;
+       113: invokevirtual #206                // Method me/deecaad/weaponmechanics/weapon/info/WeaponInfoDisplay.send:(Lme/deecaad/weaponmechanics/wrappers/PlayerWrapper;Lorg/bukkit/inventory/EquipmentSlot;)V
+       116: aload_0
+       117: getfield      #40                 // Field this$0:Lme/deecaad/weaponmechanics/weapon/reload/ReloadHandler;
+       120: getfield      #210                // Field me/deecaad/weaponmechanics/weapon/reload/ReloadHandler.weaponHandler:Lme/deecaad/weaponmechanics/weapon/WeaponHandler;
+       123: invokevirtual #216                // Method me/deecaad/weaponmechanics/weapon/WeaponHandler.getSkinHandler:()Lme/deecaad/weaponmechanics/weapon/skin/SkinHandler;
+       126: aload_0
+       127: getfield      #44                 // Field val$entityWrapper:Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;
+       130: aload_0
+       131: getfield      #48                 // Field val$weaponTitle:Ljava/lang/String;
+       134: aload_0
+       135: getfield      #56                 // Field val$weaponStack:Lorg/bukkit/inventory/ItemStack;
+       138: aload_0
+       139: getfield      #52                 // Field val$slot:Lorg/bukkit/inventory/EquipmentSlot;
+       142: invokevirtual #222                // Method me/deecaad/weaponmechanics/weapon/skin/SkinHandler.tryUse:(Lme/deecaad/weaponmechanics/wrappers/EntityWrapper;Ljava/lang/String;Lorg/bukkit/inventory/ItemStack;Lorg/bukkit/inventory/EquipmentSlot;)Z
+       145: pop
+       146: return
+}

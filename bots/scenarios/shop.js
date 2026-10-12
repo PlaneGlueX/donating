@@ -16,7 +16,7 @@ const HOT = n => 11 + n
 const CELL = [19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
 // Weapons tab, in core.sk's shop::weapons order (the Baseball Bat and the Dagger came in 2026-09-28; the Old Revolver,
 // Brave Patriot, Combat Rifle and Sniper Rifle 2026-10-06, between the first guns).
-const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], '357_Magnum': CELL[4], Uzi: CELL[5], STG44: CELL[6], R9_0: CELL[7], M4A1: CELL[8], AK_47: CELL[9], AX_50: CELL[10], MG34: CELL[11] }
+const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], '357_Magnum': CELL[4], Uzi: CELL[5], STG44: CELL[6], R9_0: CELL[7], M4A1: CELL[8], AK_47: CELL[9], AX_50: CELL[10], MG34: CELL[11], FN_FAL: CELL[12] }
 const AMMO_ROW = { light: 19, shells: 28, rifle: 37 } // +pack = row + 2, +5 packs = row + 3, fill = row + 4
 
 module.exports = async ({ check }) => {
@@ -98,6 +98,12 @@ module.exports = async ({ check }) => {
     const vetItem = bot.currentWindow && bot.currentWindow.slots[WPN.MG34]
     const vetText = vetItem ? JSON.stringify(vetItem) : ''
     check('the Veteran is on the Weapons tab: its cell, its name, $800,000 and "Needs level 90"', at(WPN.MG34) === 'feather' && /Veteran/.test(vetText) && /800,000/.test(vetText) && /Needs level 90/.test(vetText), `${at(WPN.MG34)}; ${vetText.slice(0, 400)}`)
+    // The Hand Minigun (2026-10-12): the 13th weapon (core.sk's $1,500,000 / 125, PROPOSAL); its belts raised the rifle
+    // rounds a player can carry to 400.
+    const mgItem = bot.currentWindow && bot.currentWindow.slots[WPN.FN_FAL]
+    const mgText = mgItem ? JSON.stringify(mgItem) : ''
+    const rifleMax = Number(((await rcon.cmd('zzcfg ammo::rifle::max')).match(/= (\d+)/) || [])[1])
+    check('the Hand Minigun is on the Weapons tab: its cell, its name, $1,500,000 and "Needs level 125"; rifle rounds carried up to 400', at(WPN.FN_FAL) === 'feather' && /Hand Minigun/.test(mgText) && /1,500,000/.test(mgText) && /Needs level 125/.test(mgText) && rifleMax === 400, `${at(WPN.FN_FAL)}; rifle max ${rifleMax}; ${mgText.slice(0, 400)}`)
     await click(WPN['50_GS'])
     check('buying the .50 GS ($300): charged, unlocked, in hotbar 1 with an empty magazine', (await bal()) === 200 && (await data('wpn::50_GS')) === 'true' && /(^WM |\| )0=50_GS:0x1/.test(await wm()), `${await bal()}; ${await wm()}`)
     await click(WPN['50_GS'])

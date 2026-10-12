@@ -1,0 +1,231 @@
+diff --git a/pg-orig.js b/pg.js
+index 60375ae..a4cb8d5 100644
+--- a/pg-orig.js
++++ b/pg.js
+@@ -600,6 +600,62 @@ module.exports = ({ write, canvas, shade, display, both }) => {
+     }
+ 
+     made[name] = { tiles, W, H, pal, ink, models, ...(PG ? { keep: spec.keep || [] } : {}) }
++    // ---------- the hands (spec.hands) ----------
++    // spec.hands = { right: { at: rig }, left: { at: rig, shown: false } }: the shared first-person hands (buildHands)
++    // placed in this gun's space by `at` (a hand model's coordinates -> this gun's model units, at rest). A pose moves a
++    // hand with pose.<rhand|lhand> (a gun-space rig on top of the placement: the left hand following the magazine is
++    // pose.lhand = the magazine's own rig) and with pose.gun like every part. A hand with shown: false (the left, while
++    // the bag fills the left hand on screen) is drawn only by poses that list it in show; the right hides with hide.
++    // Each hand's sleeve is aimed every frame from the glove's wrist at an elbow point off the screen's bottom edge (in
++    // the camera's space: HANDS.<hand>.elbow, or the hand's own elbow), so the arm always runs out of the bottom edge,
++    // whatever the gun does and whatever the screen's shape: it never shows a cut end.
++    // Per gun only small children of the shared models that carry this gun's display (donating:item/hands/<gun>_<model>
++    // and one per state, like the parts), so the hands get the gun's first-person transforms. Only the first-person
++    // composites draw them (never the _full model: third person, the ground, frames and icons have no hands).
++    const gunKey = name.replace(/^gun_/, '')
++    const handList = spec.hands ? [['rhand', spec.hands.right], ['lhand', spec.hands.left]].filter(([, v]) => v) : []
++    const handId = (what, state) => `donating:item/hands/${gunKey}_${what}${state ? '_' + state : ''}`
++    if (handList.length) {
++      buildHands()
++      for (const k of [...handList.map(([h]) => HANDS[h].model), 'arm']) {
++        write(`donating/models/item/hands/${gunKey}_${k}.json`, { parent: `donating:item/hands_${k}`, display: spec.display })
++        for (const st of states) write(`donating/models/item/hands/${gunKey}_${k}_${st}.json`, { parent: handId(k), display: both('firstperson', spec.states[st]) })
++      }
++    }
++    const fpDisplay = (state, left) => state ? both('firstperson', spec.states[state])[left ? 'firstperson_lefthand' : 'firstperson_righthand'] : spec.display[left ? 'firstperson_lefthand' : 'firstperson_righthand']
++    // An arm's transformation toward its elbow (the right-hand context's; left: the left-hand context's, with the
++    // elbows mirrored: a left-handed player holds the gun in the left hand, so its grip hand's elbow is bottom left).
++    // The elbow is lowered step by step (HANDS.elbowTries) until the sleeve's far end is off the screen in every view
++    // that draws this tree (both hands' when they share it: spec.hands.leftTree false), at every screen shape up to 21:9.
++    const armTo = (wrist, state, cam, left, alsoOther) => {
++      let best
++      for (const off of HANDS.elbowTries) {
++        const c = cam.map((x, i) => x + off[i])
++        const elbow = handAnchor(fpDisplay(state, left), left ? [-c[0], c[1], c[2]] : c, left)
++        const q = fromTo([1, 0, 0], norm3(elbow.map((x, i) => x - wrist[i])))
++        const pv = qRot(q, HANDS.armPivot)
++        best = { t: wrist.map((x, i) => x - pv[i]), q }
++        const ends = HANDS.armEnd.map(p => qRot(q, p).map((x, i) => x + best.t[i]))
++        if ([left, ...(alsoOther ? [!left] : [])].every(lf => ends.every(p => !onScreen(handWorld(fpDisplay(state, lf), p, lf))))) break
++      }
++      return json(best)
++    }
++    const handModels = (state, pose) => handList.flatMap(([h, v]) => {
++      if (v.shown === false ? !(pose.show || []).includes(h) : (pose.hide || []).includes(h)) return []
++      const HH = HANDS[h]
++      const m = then(then(v.at, pose[h] || ID), pose.gun || ID)
++      const glove = { type: 'minecraft:model', model: handId(HH.model, state), ...(isId(m) ? {} : { transformation: json(m) }) }
++      if (v.arm === false) return [glove]
++      const wrist = qRot(m.q, HH.wrist).map((x, i) => x + m.t[i])
++      const cam = (pose.elbow && pose.elbow[h]) || v.elbow || HH.elbow
++      const shared = spec.hands.leftTree === false
++      const arm = { type: 'minecraft:model', model: handId('arm', state), transformation: armTo(wrist, state, cam, false, shared) }
++      if (!shared) leftArm.set(arm, { ...arm, transformation: armTo(wrist, state, cam, true, false) })
++      return [glove, arm]
++    })
++    // The left-hand context's copy of a first-person tree: the same, with each arm aimed for the left hand (byContext).
++    const leftArm = new WeakMap()
++    const forLeft = m => Array.isArray(m) ? m.map(forLeft) : m && typeof m === 'object' ? (leftArm.get(m) || Object.fromEntries(Object.entries(m).map(([k, v]) => [k, forLeft(v)]))) : m
+ 
+     // ---------- frames ----------
+     // A pose: { gun: rig (the whole gun), <part>: rig (on top of the gun's), hide: [parts], show: [parts] }.
+@@ -610,7 +666,7 @@ module.exports = ({ write, canvas, shade, display, both }) => {
+       models: parts.filter(p => (hidden.has(p) ? (pose.show || []).includes(p) : !(pose.hide || []).includes(p))).map(p => {
+         const m = then(pose[p] || ID, pose.gun || ID)
+         return { type: 'minecraft:model', model: id(p, state), ...(isId(m) ? {} : { transformation: json(m) }) }
+-      })
++      }).concat(handModels(state, pose))
+     })
+     // A cooldown animation over n frames: poseAt(p) for p = 0 (start) .. 1 (end); with no cooldown the rest pose.
+     // minecraft:cooldown is the share of the cooldown left: 1 at the start, 0 at the end.
+@@ -651,7 +707,7 @@ module.exports = ({ write, canvas, shade, display, both }) => {
+     const byContext = (state, fp) => ({
+       type: 'minecraft:select',
+       property: 'minecraft:display_context',
+-      cases: [{ when: ['firstperson_righthand', 'firstperson_lefthand'], model: fp }],
++      cases: handList.length && spec.hands.leftTree !== false ? [{ when: ['firstperson_righthand'], model: fp }, { when: ['firstperson_lefthand'], model: forLeft(fp) }] : [{ when: ['firstperson_righthand', 'firstperson_lefthand'], model: fp }],
+       fallback: { type: 'minecraft:model', model: id('full', state) }
+     })
+     // A custom_model_data flag GunFx sets (DonatingPhone GunFx.java): 0 firing (the automatic guns), 1 a firearm action
+@@ -660,6 +716,131 @@ module.exports = ({ write, canvas, shade, display, both }) => {
+     const flag = (index, on_true, on_false) => ({ type: 'minecraft:condition', property: 'minecraft:custom_model_data', index, on_true, on_false })
+     return { id, parts, composite, cooldown, firing, byContext, rig, then, flag }
+   }
++  // ---------- the shared first-person hands (HANDS PROTOTYPE, 2026-10-12) ----------
++  // The client draws no arm while a hand holds an item (26.3 FirstPersonHandsAndItemsRenderer.submitArmWithItem: the
++  // player's own arm only for an empty main hand; an empty offhand draws nothing), and an item model can't use the
++  // player's skin, so the hands are geometry of our own in the gun's first-person composites: tan tactical gloves and
++  // navy sleeves, PG3D-chunky. One texture and three models for every gun (donating:item/hands_tex, hands_rglove,
++  // hands_lglove, hands_arm), painted once; a gun only places them (spec.hands). Gun skins never touch them (their own
++  // texture; paintSkin passes their ids through), so a gun's future skins need nothing for the hands.
++  // The right glove is built round a pistol grip in grip coordinates g (the grip's top centre at 0, the grip running
++  // down -y, its front (the trigger side) -x, 2.25 deep and 2 wide; +z the gun's left, the side first person sees): the
++  // fingers wrap the front and their tips show on +z, the thumb lies along the top of the +z side, the trigger finger
++  // reaches forward, a wrist stub leaves the back. Model = g + OR. A gun's `at` for it: its grip's top centre and rake.
++  // The left glove is a C round an upright object in its own coordinates o (a magazine: 3 deep, 2 wide, centred at 0):
++  // the back of the hand on +z, the fingers round the front onto -z, the thumb on the back, a wrist stub down from the
++  // palm. Model = o + OL. The arm (one model, used by both hands) runs along +x from its wrist pivot: a dark elastic
++  // band, then the sleeve with a hem, 30 units long (up to the -16..32 limit); the kit turns it at the wrist toward the
++  // elbow every frame (handModels), and its far end lies past the screen's edge.
++  const HOR = [-8, 16, 8]
++  const HOL = [8, 12, 8]
++  const HAP = [0, 8, 8]
++  const hat = (o, p) => p.map((v, i) => v + o[i])
++  const HANDS = {
++    rhand: { model: 'rglove', wrist: hat(HOR, [3.25, -1.9, 0.05]), elbow: [0.42, -0.62, -0.22] },
++    lhand: { model: 'lglove', wrist: hat(HOL, [0.05, -2.8, 1.6]), elbow: [-0.4, -0.62, -0.22] },
++    armPivot: HAP,
++    armEnd: [[30, 6, 6], [30, 10, 6], [30, 6, 10], [30, 10, 10]].map(p => p.map((v, i) => v - HAP[i]).map((v, i) => v + HAP[i])),
++    // offsets tried on an elbow (blocks, camera space), lowest last
++    elbowTries: [[0, 0, 0], [0, -0.25, 0.04], [0, -0.55, 0.08], [0, -1.0, 0.1], [0.15, -1.6, 0.12]],
++    OR: HOR,
++    OL: HOL
++  }
++  const handsSpec = () => {
++    const r = (f, t, m = {}) => ({ from: hat(HOR, f), to: hat(HOR, t), ...m })
++    const l = (f, t, m = {}) => ({ from: hat(HOL, f), to: hat(HOL, t), ...m })
++    const a = (f, t, m = {}) => ({ from: hat(HAP, f), to: hat(HAP, t), ...m })
++    // a decal's corners in a face's plane, from hand coordinates (south/north [x, y], east/west [z, y], up/down [x, z])
++    const d2 = o => (u, v, face) => face === 'east' || face === 'west' ? [u + o[2], v + o[1]] : face === 'up' || face === 'down' ? [u + o[0], v + o[2]] : [u + o[0], v + o[1]]
++    const R2 = d2(HOR); const L2 = d2(HOL); const A2 = d2(HAP)
++    const G = { c: { all: 'glove', up: 'gloveL' } }
++    return {
++      style: 'pg',
++      density: 4,
++      palette: {
++        glove: [190, 152, 96], gloveL: [214, 180, 122], gloveD: [112, 84, 50], pad: [66, 58, 50],
++        cuff: [34, 35, 40], sleeve: [46, 62, 104], sleeveD: { of: 'sleeve', f: 0.7 }
++      },
++      mats: { glove: 'paint', gloveL: 'paint', gloveD: 'paint', pad: 'rubber', cuff: 'dark', sleeve: 'paint' },
++      parts: {
++        rglove: [
++          // the fist round the grip: four fingertips on +z (grooves between them), the knuckles round the front, a
++          // rubber knuckle pad on the back (-z)
++          r([-1.75, -3.9, -1.5], [1.25, -0.4, 1.6], {
++            ...G,
++            deco: [
++              { k: 'slots', face: 'south', at: R2(-1.75, -0.4), to: R2(0.25, -3.9), n: 3 },
++              { k: 'slots', face: 'west', at: R2(-1.5, -0.4, 'west'), to: R2(1.6, -3.9, 'west'), n: 3 },
++              { k: 'band', face: 'north', at: R2(-1.5, -0.6), to: R2(1.0, -1.4), c: 'pad' }
++            ]
++          }),
++          r([-3.0, -0.95, -0.35], [-1.75, -0.2, 0.55], G), // the trigger finger, forward along the guard
++          r([-1.6, -0.9, 1.1], [1.0, 0.1, 2.05], { ...G, deco: [{ k: 'band', face: 'south', at: R2(-1.5, 0.0), to: R2(-0.75, -0.8), c: 'gloveD' }] }), // the thumb (its tip darker)
++          r([1.25, -3.6, -1.35], [2.75, -0.2, 1.45], G), // the heel of the hand behind the grip
++          r([2.75, -3.2, -1.15], [4.25, -0.6, 1.25], G) // the wrist, into the arm's band
++        ],
++        lglove: [
++          // the back of the hand on +z (the palm against the magazine), a rubber pad over the knuckles
++          l([-1.6, -1.8, 1.05], [1.6, 1.5, 2.15], { ...G, deco: [{ k: 'band', face: 'south', at: L2(-1.4, 1.3), to: L2(-0.6, -1.6), c: 'pad' }] }),
++          // the fingers round the front (grooves between them) and their tips on -z
++          l([-2.45, -1.8, -1.3], [-1.55, 1.5, 2.15], { ...G, deco: [{ k: 'slots', face: 'west', at: L2(-1.3, 1.5, 'west'), to: L2(2.15, -1.8, 'west'), n: 3 }, { k: 'slots', face: 'south', at: L2(-2.45, 1.5), to: L2(-1.55, -1.8), n: 3 }] }),
++          l([-1.6, -1.7, -1.55], [-0.5, 1.4, -1.0], G),
++          l([1.5, -0.1, -0.7], [2.4, 1.4, 2.0], { ...G, deco: [{ k: 'band', face: 'east', at: L2(-0.6, 1.3, 'east'), to: L2(0.4, 0.5, 'east'), c: 'gloveD' }] }), // the thumb on the back
++          l([-1.2, -3.6, 0.95], [1.3, -1.8, 2.25], G) // the wrist, into the arm's band
++        ],
++        arm: [
++          a([-0.6, -1.75, -1.75], [0.9, 1.75, 1.75], { c: 'cuff' }), // the elastic band over the glove's wrist
++          a([0.9, -2.25, -2.25], [2.1, 2.25, 2.25], { c: 'sleeveD' }), // the hem
++          a([2.1, -2.1, -2.1], [30, 2.1, 2.1], { c: 'sleeve', split: { x: [hat(HAP, [12, 0, 0])[0], hat(HAP, [22, 0, 0])[0]] }, deco: [{ k: 'band', face: 'sides', at: A2(2.1, -1.5), to: A2(30, -1.1), c: 'sleeveD' }] })
++        ]
++      },
++      noFull: ['rglove', 'lglove', 'arm']
++    }
++  }
++  let handsBuilt = false
++  const buildHands = () => { if (!handsBuilt) { handsBuilt = true; pgGun('hands', handsSpec()) } }
++  // An elbow point in the camera's space (blocks; the client's first-person item sits at (0.56, -0.52, -0.72) from the
++  // eye before its display transform: applyItemArmTransform) -> the gun's model units under display d (its
++  // firstperson_righthand, or a state's): the inverse of render-item.js's itemMatrix (translation clamped at 80).
++  const RADH = Math.PI / 180
++  const rotXYZ3 = ([x, y, z]) => {
++    const m3 = (a, b) => a.map(row => [0, 1, 2].map(j => row[0] * b[0][j] + row[1] * b[1][j] + row[2] * b[2][j]))
++    const [a, b, c] = [x || 0, y || 0, z || 0].map(v => v * RADH)
++    return m3(m3([[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]], [[Math.cos(b), 0, Math.sin(b)], [0, 1, 0], [-Math.sin(b), 0, Math.cos(b)]]), [[Math.cos(c), -Math.sin(c), 0], [Math.sin(c), Math.cos(c), 0], [0, 0, 1]])
++  }
++  // (left: the client applies a left hand's display with (-tx, ty, tz) and (rx, -ry, -rz), its item at -0.56.)
++  const handAnchor = (d, cam, left = false) => {
++    const tr = (d.translation || [0, 0, 0]).map(v => Math.max(-80, Math.min(80, v)) / 16)
++    if (left) tr[0] = -tr[0]
++    const ro = d.rotation || [0, 0, 0]
++    const R = rotXYZ3(left ? [ro[0], -ro[1], -ro[2]] : ro); const S = d.scale || [1, 1, 1]
++    const v = [cam[0] - (left ? -0.56 : 0.56) - tr[0], cam[1] + 0.52 - tr[1], cam[2] + 0.72 - tr[2]]
++    const r = [0, 1, 2].map(i => R[0][i] * v[0] + R[1][i] * v[1] + R[2][i] * v[2]) // R^T v
++    return r.map((x, i) => (x / S[i] + 0.5) * 16)
++  }
++  // A model point (units) -> the camera's space (blocks) under display d, like the client (render-item.js itemMatrix,
++  // left: (-tx, ty, tz), (rx, -ry, -rz), the item at -0.56), and whether a camera-space point shows on a screen up to
++  // 21:9 (70 degrees high; the near plane at 0.05).
++  const handWorld = (d, p, left = false) => {
++    const tr = (d.translation || [0, 0, 0]).map(v => Math.max(-80, Math.min(80, v)) / 16)
++    if (left) tr[0] = -tr[0]
++    const ro = d.rotation || [0, 0, 0]
++    const R = rotXYZ3(left ? [ro[0], -ro[1], -ro[2]] : ro); const S = d.scale || [1, 1, 1]
++    const u = p.map((v, i) => (v / 16 - 0.5) * S[i])
++    return [0, 1, 2].map(i => R[i][0] * u[0] + R[i][1] * u[1] + R[i][2] * u[2] + tr[i] + [left ? -0.56 : 0.56, -0.52, -0.72][i])
++  }
++  const T35 = Math.tan(35 * RADH)
++  const onScreen = w => w[2] < -0.05 && Math.abs(w[1] / -w[2]) <= T35 && Math.abs(w[0] / -w[2]) <= T35 * 21 / 9
++  const norm3 = v => { const n = Math.hypot(...v) || 1; return v.map(x => x / n) }
++  // The shortest turn taking unit vector a to unit vector b.
++  const fromTo = (a, b) => {
++    const d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
++    if (d < -0.999999) return [0, 0, 1, 0] // half a turn about z (a is x here)
++    const c = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
++    const q = [c[0], c[1], c[2], 1 + d]; const n = Math.hypot(...q)
++    return q.map(x => x / n)
++  }
++
+   // Ease curves for frames.
+   const ease = {
+     out: p => 1 - (1 - p) * (1 - p),
+@@ -711,11 +892,12 @@ module.exports = ({ write, canvas, shade, display, both }) => {
+     if (frames > 1) write(`donating/textures/item/gunskin/${gun}/${look}.png.mcmeta`, { animation: { frametime: theme.frametime || 3, interpolate: false } })
+     const prefix = `donating:item/${name}_`
+     const map = id => {
++      if (id.startsWith('donating:item/hands/')) return id // the hands look the same on every skin (their own texture)
+       if (!id.startsWith(prefix)) throw new Error(`${name} skin ${look}: ${id} isn't one of the gun's models`)
+       return `donating:item/gunskin/${gun}/${look}/${id.slice(prefix.length)}`
+     }
+     for (const id of g.models) write(`donating/models/item/gunskin/${gun}/${look}/${id.slice(prefix.length)}.json`, { parent: id, textures: { t: texId, particle: texId } })
+     return map
+   }
+-  return { pgGun, ease, rig, then, display, paintSkin, made, MAT, tone, hot }
++  return { pgGun, ease, rig, then, display, paintSkin, made, MAT, tone, hot, HANDS }
+ }

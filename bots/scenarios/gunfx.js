@@ -1,7 +1,9 @@
 // DonatingPhone's GunFx (the guns' first-person animations, 2026-10-05): the clocks it starts (vanilla item cooldowns on
 // each gun's own group, seen as set_cooldown packets) and the review's fixes: no clock for a reload WeaponMechanics
 // refuses for want of ammo, the shotgun's kick-only shot when it doesn't pump, the firing flag of the automatic guns,
-// a click on a block still firing while a clock runs, and aiming during a reload ending its clock.
+// a click on a block still firing while a clock runs, and aiming during a reload ending its clock. Also the Hand Minigun's
+// spin-up (GunSpin, 2026-10-12): no round until the barrels are spun up, the spin-up and spin-down flags and clocks, a
+// burst started while they still turn firing at once, a reload or a slot change stopping them, and its slower walk.
 const { Vec3 } = require('vec3')
 const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
@@ -46,6 +48,8 @@ module.exports = async ({ check }) => {
     const status = await rcon.cmd('dphone gunfx')
     check('/dphone gunfx: the four guns, the shotgun\'s kick-only shot and the automatic guns\' firing flag',
       /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status) && /STG44\{donating:gun\/stg44 shot=0 draw=22 alone=0 fire=5 action=0\}/.test(status) && /AX_50\{donating:gun\/ax_50 shot=20 draw=40 alone=6 fire=0 action=16 glint=10\}/.test(status) && /MG34\{donating:gun\/mg34 shot=0 draw=40 alone=0 fire=5 action=0\}/.test(status), status)
+    check('/dphone gunfx: the Hand Minigun\'s clocks and its spin (up 24, down 30, fire-at 0.3, min-rate 5), the spin-up on (WeaponMechanics\' full-auto task reachable)',
+      /FN_FAL\{donating:gun\/fn_fal shot=0 draw=40 alone=0 fire=4 action=0[^}]*spin=24\/30\/0\.30?\/5[^}]*\}/.test(status) && /spinup=on/.test(status), status)
 
     // A reload with spare rounds: a clock as long as the reload (32 ticks for the Classic Pistol).
     await give('50_GS', 0, 2)
@@ -246,6 +250,148 @@ module.exports = async ({ check }) => {
     seen = since(t, 'donating:gun/50_gs')
     const skin = await cmd(0)
     check('aiming during a reload ends its clock (no muzzle flash in the sights)', seen.some(c => c.ticks === 0), `${JSON.stringify(seen.map(c => c.ticks))} skin ${skin}`)
+
+    // The Hand Minigun's spin-up (DonatingPhone GunSpin, 2026-10-12): every burst starts at 0 rounds a second while the
+    // barrels spin up (flag 3 and the spin-up clock), fires from fire-at 0.3 (about 8 ticks into a held trigger from
+    // cold) and ramps to the file's 16 a second; letting go spins them down over 1.5 s (flag 4 and the spin-down clock),
+    // and a burst started meanwhile fires at once; a reload stops them. A held trigger is one use_item every 100 ms (the
+    // client repeats it every 4 ticks; WeaponMechanics lets go 215 ms after the last). /dphone gunfx spin answers
+    // "GUNSPIN <player> s=<0-1> held=<true|false> rate=<a second now> max=<the file's>", or "none".
+    {
+      const SLOT = 3
+      const flagsOf = text => ((text.match(/flags: \[([^\]]*)\]/) || [])[1] || '').split(',').map(f => f.trim() === '1b')
+      const spinLine = async () => (await rcon.cmd(`dphone gunfx spin ${NAME}`)).trim()
+      const spinOf = line => { const m = line.match(/s=([\d.]+) held=(true|false) rate=(\d+) max=(\d+)/); return m ? { s: Number(m[1]), held: m[2] === 'true', rate: Number(m[3]), max: Number(m[4]) } : null }
+      const clocks = from => since(from, 'donating:gun/fn_fal').filter(c => c.ticks > 0).map(c => c.ticks)
+      // The spin sounds GunSpin plays on the shooter (heard by them too) and stops: { t, kind (the packet), what }.
+      const sounds = []
+      bot._client.on('packet', (data, meta) => {
+        if (!/sound/.test(meta.name)) return
+        let text = ''
+        try { text = JSON.stringify(data) } catch (e) { return }
+        const m = text.match(/minigun\.(spinup|spindown)/)
+        if (m) sounds.push({ t: Date.now(), kind: meta.name, what: m[1] })
+      })
+      const heard = (from, what, stop = false) => sounds.some(x => x.t >= from && x.what === what && (x.kind === 'stop_sound') === stop)
+      const speed = async () => Number(((await rcon.cmd(`attribute ${NAME} minecraft:movement_speed get`)).match(/is (-?[\d.]+(?:E-?\d+)?)/) || [])[1])
+      let holding = null
+      const press = () => { if (holding) return; bot.activateItem(); holding = setInterval(() => bot.activateItem(), 100) }
+      const release = () => { if (!holding) return; clearInterval(holding); holding = null; bot.deactivateItem() }
+      try {
+        await rcon.cmd(`zzclear ${NAME}`)
+        await bot.look(0, Math.PI / 4, true)
+        await rcon.cmd(`wm give ${NAME} FN_FAL 1 {slot:${SLOT},ammo:100}`)
+        bot.setQuickBarSlot(0)
+        await sleep(500)
+        // The draw: GunFx's 40-tick clock and flag 2 (a spin gun is drawn like a gun with a shot clock).
+        t = Date.now()
+        bot.setQuickBarSlot(SLOT)
+        await sleep(300)
+        const drawing = await cmd(SLOT)
+        const drawClock = since(t, 'donating:gun/fn_fal').some(c => c.ticks === 40)
+        await sleep(2000) // the 40-tick equip delay and draw
+        const drawn = await cmd(SLOT)
+        check('the Hand Minigun\'s draw: its 40-tick clock and flag 2 while it lasts, gone after', drawClock && flagsOf(drawing)[2] && !flagsOf(drawn)[2],
+          `${JSON.stringify(since(t, 'donating:gun/fn_fal').map(c => [c.ticks, c.t - t]))}; during ${drawing}; after ${drawn}`)
+        // Its item attribute (FN_FAL.yml movement_speed -0.03): walking 30% slower while it's in hand.
+        const heldSpeed = await speed()
+        check('the Hand Minigun in hand: walking speed 0.07 (0.1 - 0.03, 30% slower)', Math.abs(heldSpeed - 0.07) < 1e-4, `movement_speed ${heldSpeed}`)
+
+        // Held from cold: spinning up at once (flag 3, the 24-tick clock, the whine), nothing fired ~4 ticks in.
+        const idle = await spinLine()
+        const full = await ammo(SLOT)
+        t = Date.now()
+        press()
+        await sleep(200)
+        const early = spinOf(await spinLine())
+        const earlyAmmo = await ammo(SLOT)
+        const earlyItem = await cmd(SLOT)
+        check('a held trigger from cold: no spin state before; then held and spinning up (flag 3, its 24-tick clock, the whine) at rate 0, no round fired yet',
+          /GUNSPIN \S+ none/.test(idle) && full === 100 && earlyAmmo === 100 && !!early && early.held && early.rate === 0 && early.s > 0 && early.s < 0.3 && early.max === 16 &&
+          flagsOf(earlyItem)[3] && clocks(t).includes(24) && heard(t, 'spinup'),
+          `before ${idle}; ammo ${full} -> ${earlyAmmo}; ${JSON.stringify(early)}; ${earlyItem}; clocks ${clocks(t).join(' ')}; whine ${heard(t, 'spinup')}`)
+        await sleep(2800)
+        const spun = spinOf(await spinLine())
+        const spunItem = await cmd(SLOT)
+        const used = full - (await ammo(SLOT))
+        const heldMs = Date.now() - t
+        release()
+        // WeaponMechanics' AUTO table from cold (spec 5.3): 30 rounds by 2.5 s, 38 by 3 s, then 16 a second. The reads land
+        // 3.0-3.3 s in (each RCON command waits for a tick), so the most allowed follows the time held, with 3 to spare.
+        const most = 38 + Math.ceil(16 * Math.max(0, heldMs - 3000) / 1000) + 3
+        check('...held 3 s: fully spun up (s 1, 16 a second), firing (flag 0; flag 3 gone with its clock), about 38 rounds (30 up to 41 + 16 a second past 3 s)',
+          !!spun && spun.held && spun.s >= 0.99 && spun.rate === 16 && spun.max === 16 && flagsOf(spunItem)[0] && !flagsOf(spunItem)[3] && used >= 30 && used <= most,
+          `${JSON.stringify(spun)}; ${spunItem}; ${used} rounds in ${heldMs} ms (at most ${most})`)
+
+        // Let go: spinning down (flag 4, the 30-tick clock, s falling), the whine stopped, the wind-down heard.
+        const let0 = Date.now()
+        await sleep(450) // WeaponMechanics lets go 215 ms after the last click; GunSpin sees the task gone a tick later
+        const down1 = spinOf(await spinLine())
+        const downItem = await cmd(SLOT)
+        const warm = await ammo(SLOT) // nothing fires while they spin down
+        await sleep(150)
+        const down2 = spinOf(await spinLine())
+        check('let go: spinning down (flag 4, not 3; its 30-tick clock; s falling, nothing held), the whine stopped and the wind-down heard',
+          !!down1 && !!down2 && !down1.held && !down2.held && down1.s > 0.5 && down1.s < 1 && down2.s < down1.s &&
+          flagsOf(downItem)[4] && !flagsOf(downItem)[3] && clocks(let0).some(n => n >= 25 && n <= 30) && heard(let0, 'spinup', true) && heard(let0, 'spindown'),
+          `${JSON.stringify(down1)} -> ${JSON.stringify(down2)}; ${downItem}; clocks ${clocks(let0).join(' ')}; stop ${heard(let0, 'spinup', true)}; wind-down ${heard(let0, 'spindown')}`)
+
+        // Pressed again while they still turn (s about 0.6, past fire-at 0.3, which the spool passes about 1.1 s after
+        // they start spinning down: the press comes about 0.5 s in): it fires at once, with no spin-up clock (a short one
+        // would turn the drawn barrels faster than reads right); the spin-down's clock and flag 4 end, flag 0 draws the full
+        // spin.
+        const tWarm = Date.now()
+        press()
+        await sleep(200)
+        const warmUsed = warm - (await ammo(SLOT))
+        const warmItem = await cmd(SLOT)
+        release()
+        const warmCuts = since(tWarm, 'donating:gun/fn_fal').filter(c => c.ticks === 0).length
+        check('...pressed again while they still turn: it fires within about 4 ticks (from cold about 8); no spin-up clock, the spin-down\'s ended (flag 4 off), firing (flag 0)',
+          warmUsed >= 1 && clocks(tWarm).length === 0 && warmCuts >= 1 && !flagsOf(warmItem)[4] && !flagsOf(warmItem)[3] && flagsOf(warmItem)[0],
+          `s ${down2 && down2.s} just before; ${warmUsed} rounds in 200 ms; clocks ${clocks(tWarm).join(' ') || 'none'}, cut ${warmCuts}; ${warmItem}`)
+        await sleep(3400) // the spin-down clock: at most 60 ticks (GunSpin's downTicks), after WeaponMechanics lets go
+        const stopped = await spinLine()
+        const stoppedItem = await cmd(SLOT)
+        check('...and once they stop: no spin state, flags 3 and 4 off', /GUNSPIN \S+ none/.test(stopped) && !flagsOf(stoppedItem)[3] && !flagsOf(stoppedItem)[4], `${stopped}; ${stoppedItem}`)
+
+        // A reload stops them at once: no spin state, no spin flags; the reload's clock (90 ticks) instead.
+        await rcon.cmd(`zzammo ${NAME} rifle 200`)
+        press()
+        await sleep(1200)
+        release()
+        await sleep(350)
+        const winding = spinOf(await spinLine())
+        const tQ = Date.now()
+        dig(4) // Q
+        await sleep(400)
+        const afterQ = await spinLine()
+        const afterQItem = await cmd(SLOT)
+        check('a reload stops the barrels: no spin state, flags 3 and 4 off, the reload\'s 90-tick clock',
+          !!winding && winding.s > 0 && /GUNSPIN \S+ none/.test(afterQ) && !flagsOf(afterQItem)[3] && !flagsOf(afterQItem)[4] && clocks(tQ).some(n => n >= 90),
+          `before Q ${JSON.stringify(winding)}; after ${afterQ}; ${afterQItem}; clocks ${clocks(tQ).join(' ')}`)
+
+        // Switching to another slot mid-spin (spec 5.2) stops them at once too: no spin state, flags 3 and 4 off on the gun,
+        // its clock cut and the whine stopped; and the walking speed is back to 0.1 with the gun out of hand.
+        await sleep(4700) // the 90-tick reload
+        press()
+        await sleep(600)
+        const spinning = spinOf(await spinLine())
+        const tSw = Date.now()
+        bot.setQuickBarSlot(0)
+        release()
+        await sleep(250)
+        const sw = await spinLine()
+        const swItem = await cmd(SLOT)
+        const awaySpeed = await speed()
+        check('switching away mid-spin: no spin state, flags 3 and 4 off, its clock cut, the whine stopped; walking speed back to 0.1',
+          !!spinning && spinning.held && spinning.s > 0 && /GUNSPIN \S+ none/.test(sw) && !flagsOf(swItem)[3] && !flagsOf(swItem)[4] &&
+          since(tSw, 'donating:gun/fn_fal').some(c => c.ticks === 0) && heard(tSw, 'spinup', true) && Math.abs(awaySpeed - 0.1) < 1e-4,
+          `before ${JSON.stringify(spinning)}; after ${sw}; ${swItem}; clocks ${JSON.stringify(since(tSw, 'donating:gun/fn_fal').map(c => c.ticks))}; stop ${heard(tSw, 'spinup', true)}; movement_speed ${awaySpeed}`)
+      } finally {
+        release()
+      }
+    }
   } finally {
     await rcon.cmd(`zzclear ${NAME}`).catch(() => {})
     await quit(bot)

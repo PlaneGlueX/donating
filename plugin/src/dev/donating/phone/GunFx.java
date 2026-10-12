@@ -89,9 +89,13 @@ import java.util.UUID;
  *
  * The Sniper Rifle's scope glint (guns.<title>.glint: ticks): while its holder looks through the scope, a glint at their
  * eye every N ticks for everyone else within 128 blocks (a forced particle), so a sniper can be spotted.
+ *
+ * The Hand Minigun's spin-up (guns.<title>.spin; GunSpin.java, 2026-10-12): its spin-up and spin-down are clocks of
+ * their own with custom_model_data flags 3 and 4, and a spin gun gets flag 2 while drawn (all three read the Default
+ * state's clock). gunfx.enabled false takes only these frames away: the spin-up itself is gameplay and stays.
  */
 final class GunFx implements Listener {
-    private record Gun(Key group, int shot, int draw, int alone, int fire, int action, int glint) {}
+    record Gun(Key group, int shot, int draw, int alone, int fire, int action, int glint, GunSpin.Spin spin) {}
     private record Firing(String title, int lastShot, int keep) {}
 
     private final PhonePlugin plugin;
@@ -117,8 +121,9 @@ final class GunFx implements Listener {
     // Players looking through a glinting scope: their glint task.
     private final Map<UUID, BukkitTask> glints = new HashMap<>();
     long started; // cooldowns started (status)
+    final GunSpin spin; // the spin guns' spin-up (PhonePlugin registers it)
 
-    GunFx(PhonePlugin plugin) { this.plugin = plugin; }
+    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); }
 
     void configure(FileConfiguration c) {
         enabled = c.getBoolean("gunfx.enabled", true);
@@ -130,19 +135,25 @@ final class GunFx implements Listener {
             String id = title.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             guns.put(title, new Gun(Key.key("donating", "gun/" + id), Math.max(0, s.getInt(title + ".shot", 0)), Math.max(0, s.getInt(title + ".draw", 0)),
                 Math.max(0, s.getInt(title + ".alone", 0)), Math.max(0, s.getInt(title + ".fire", 0)), Math.max(0, s.getInt(title + ".action", 0)),
-                Math.max(0, s.getInt(title + ".glint", 0))));
+                Math.max(0, s.getInt(title + ".glint", 0)), GunSpin.Spin.read(s.getConfigurationSection(title + ".spin"))));
         }
         plugin.getLogger().info("gunfx: " + (enabled ? guns.size() + " guns" : "off"));
     }
 
     String status() {
-        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " guns=");
+        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " guns=");
         guns.forEach((t, g) -> b.append(t).append('{').append(g.group.asString()).append(" shot=").append(g.shot).append(" draw=").append(g.draw)
-            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "").append('}'));
+            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "")
+            .append(g.spin != null ? " spin=" + g.spin : "").append('}'));
         return b.toString();
     }
 
-    private String title(ItemStack s) {
+    boolean enabled() { return enabled; }
+
+    /** The gun's settings (null: not a gun in gunfx.guns). */
+    Gun gun(String title) { return title == null ? null : guns.get(title); }
+
+    String title(ItemStack s) {
         if (s == null || s.getType().isAir() || !s.hasItemMeta()) return null;
         return s.getItemMeta().getPersistentDataContainer().get(titleKey, PersistentDataType.STRING);
     }
@@ -166,7 +177,7 @@ final class GunFx implements Listener {
     }
 
     /** Starts (ticks > 0) or ends (0) the animation clock of the gun the player holds; returns its number (0: none). */
-    private long clock(LivingEntity e, String title, int ticks) {
+    long clock(LivingEntity e, String title, int ticks) {
         if (!enabled || !(e instanceof Player p)) return 0;
         Gun g = guns.get(title);
         if (g == null) return 0;
@@ -181,16 +192,18 @@ final class GunFx implements Listener {
     // custom_model_data flags on the gun: 0 = firing (the automatic guns' flicker), 1 = a firearm action without a shot.
     // WeaponMechanics only writes the floats (the skin number) and drops the flags when it does: the next shot or action
     // sets them again.
-    private static final int FIRING = 0;
-    private static final int ACTION = 1;
-    private static final int DRAW = 2; // the draw of a gun that also has a shot clock (both read the Default state's clock)
+    static final int FIRING = 0;
+    static final int ACTION = 1;
+    static final int DRAW = 2; // the draw of a gun that also has a shot clock or a spin (they read the Default state's clock)
+    static final int SPIN_UP = 3; // a spin gun's barrels speeding up (GunSpin)
+    static final int SPIN_DOWN = 4; // ...and slowing down after the trigger lets go
 
     private static boolean flagged(ItemStack s, int index) {
         CustomModelData cmd = s == null ? null : s.getData(DataComponentTypes.CUSTOM_MODEL_DATA);
         return cmd != null && cmd.flags().size() > index && Boolean.TRUE.equals(cmd.flags().get(index));
     }
 
-    private static void flag(ItemStack s, int index, boolean on) {
+    static void flag(ItemStack s, int index, boolean on) {
         if (s == null || s.getType().isAir() || flagged(s, index) == on) return;
         CustomModelData cmd = s.getData(DataComponentTypes.CUSTOM_MODEL_DATA);
         List<Boolean> flags = new ArrayList<>(cmd == null ? List.of() : cmd.flags());
@@ -223,7 +236,7 @@ final class GunFx implements Listener {
         if (firing.isEmpty() && firingTask != null) { firingTask.cancel(); firingTask = null; }
     }
 
-    private void unflag(Player p, String titleOrNull, int index) {
+    void unflag(Player p, String titleOrNull, int index) {
         for (int i = 0; i < 9; i++) {
             ItemStack s = p.getInventory().getItem(i);
             String t = title(s);
@@ -235,6 +248,8 @@ final class GunFx implements Listener {
         unflag(p, null, FIRING);
         unflag(p, null, ACTION);
         unflag(p, null, DRAW);
+        unflag(p, null, SPIN_UP);
+        unflag(p, null, SPIN_DOWN);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -248,7 +263,7 @@ final class GunFx implements Listener {
     // the ammo: with no spare rounds (and no creative bypass) the reload never starts and no complete or cancel event
     // follows, so the clock would play the state's frames for nothing (also after a shotgun's last shell, when it tries
     // the next). The same check here.
-    private boolean reloadStarts(WeaponReloadEvent e) {
+    boolean reloadStarts(WeaponReloadEvent e) {
         if (!(e.getShooter() instanceof Player p)) return false;
         try {
             WeaponMechanics wm = WeaponMechanics.getInstance();
@@ -319,14 +334,15 @@ final class GunFx implements Listener {
     public void onScope(WeaponScopeEvent e) {
         Gun g = guns.get(e.getWeaponTitle());
         // Only the guns whose aimed frames are their shot clock's (shot > 0: the pistol, the shotgun); the automatic guns'
-        // aimed frames don't read the clock, and their reload frames go on when the sight comes down.
-        if (e.getScopeType() != WeaponScopeEvent.ScopeType.IN || g == null || g.shot <= 0) return;
+        // aimed frames don't read the clock, and their reload frames go on when the sight comes down. A spin gun's aimed
+        // frames read only its spin clocks (flags 3 and 4): only a draw ends there.
+        if (e.getScopeType() != WeaponScopeEvent.ScopeType.IN || g == null || g.shot <= 0 && g.spin == null) return;
         try {
             HandData h = e.getHandData(e.isMainHand());
             // Aiming mid-draw ends the draw too: going into the sights rewrites the skin and drops flag 2 for a tick,
             // which shows a shot's frame.
             boolean drawing = e.getShooter() instanceof Player p && flagged(p.getInventory().getItemInMainHand(), DRAW);
-            if (h != null && h.isReloading() || drawing) clock(e.getShooter(), e.getWeaponTitle(), 0);
+            if (g.shot > 0 && h != null && h.isReloading() || drawing) clock(e.getShooter(), e.getWeaponTitle(), 0);
         } catch (RuntimeException | LinkageError ignored) {
         }
     }
@@ -396,10 +412,12 @@ final class GunFx implements Listener {
         flagClock(p, e.getWeaponTitle(), g, g.action, ACTION);
     }
 
-    // A clock whose frames the pack picks by a custom_model_data flag (1 the action, 2 the draw). WeaponMechanics rewrites
-    // the skin number while a clock runs (and drops the flags with it), so the flag is put back every tick of the clock,
-    // then taken off; a later clock on this gun (a shot, a reload) ends this one and takes the flag off.
-    private void flagClock(Player p, String title, Gun g, int ticks, int index) {
+    // A clock whose frames the pack picks by a custom_model_data flag (1 the action, 2 the draw, 3 and 4 a spin).
+    // WeaponMechanics rewrites the skin number while a clock runs (and drops the flags with it), so the flag is put back
+    // every tick of the clock, then taken off; a later clock on this gun (a shot, a reload) ends this one and takes the
+    // flag off.
+    void flagClock(Player p, String title, Gun g, int ticks, int index) {
+        if (!enabled) return; // else the flag goes on and no clock ever takes it off
         ItemStack held = p.getInventory().getItemInMainHand();
         if (title.equals(title(held))) flag(held, index, true);
         long n = clock(p, title, ticks);
@@ -421,11 +439,11 @@ final class GunFx implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onEquip(WeaponEquipEvent e) {
         Gun g = guns.get(e.getWeaponTitle());
-        if (g == null || g.draw <= 0) return;
-        // A gun with a shot clock too: the draw is told apart by flag 2 (both read the Default state's clock).
+        if (!enabled || g == null || g.draw <= 0) return; // (disabled: no flag 2 that no clock would take off)
+        // A gun with a shot clock or a spin too: the draw is told apart by flag 2 (they read the Default state's clock).
         // The event's own stack first: the main hand still holds the old item in this tick, and one tick of the clock
         // without flag 2 is a shot's first frame (a flash and a full kick) on every draw.
-        if (g.shot > 0 && e.getShooter() instanceof Player p) { flag(e.getWeaponStack(), DRAW, true); flagClock(p, e.getWeaponTitle(), g, g.draw, DRAW); }
+        if ((g.shot > 0 || g.spin != null) && e.getShooter() instanceof Player p) { flag(e.getWeaponStack(), DRAW, true); flagClock(p, e.getWeaponTitle(), g, g.draw, DRAW); }
         else clock(e.getShooter(), e.getWeaponTitle(), g.draw);
     }
 
@@ -483,6 +501,7 @@ final class GunFx implements Listener {
 
     /** Plugin disable: no gun keeps a flag. */
     void shutdown() {
+        spin.shutdown();
         for (Player p : plugin.getServer().getOnlinePlayers()) unflagAll(p);
         firing.clear();
         for (BukkitTask t : glints.values()) t.cancel();
