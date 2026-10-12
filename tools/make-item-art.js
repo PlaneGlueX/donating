@@ -261,17 +261,46 @@ const bagCase = t => ({
     fallback: { type: 'minecraft:model', model: `donating:item/bag_${t}_3d` }
   }
 })
+// ---------- The offhand hidden while a gun reloads (DonatingPhone BagHide, 2026-10-12; handoff/2026-10-12/hands/PLAN.md) ----------
+// The left hand works each reload, so the bag (leather) or the cash in hand (paper) gets out of its way. Two ways,
+// picked by DonatingPhone's gunfx.bag-hide (both are in the pack; each is inert without its trigger):
+//   lookalike: the holder alone is sent a copy of their offhand with item_model donating:bag_hidden / cash_hidden (the
+//     same tree with nothing in first person), then bag_shown / cash_shown (the same tree as the real one), both with
+//     hand_animation_on_swap true, so the client's own swap animation slides the bag down and back up; the real item
+//     comes back last (its own definition has the flag false: an instant, identical swap).
+//   cooldown: a cooldown on the item's own group (minecraft:leather, minecraft:paper: neither has a use_cooldown) as
+//     long as the reload: in first person the bag dips out over the cooldown's first tenth, is gone, and comes back over
+//     its last tenth (bagDip); the hotbar's offhand slot shows the white sweep meanwhile.
+// Every other context (the inventory, third person, the ground) is untouched.
+const OFFHAND_FP = ['firstperson_righthand', 'firstperson_lefthand']
+const withDrop = (m, d) => JSON.parse(JSON.stringify(m), (k, v) => v && typeof v === 'object' && v.type === 'minecraft:model' && !v.transformation
+  ? { ...v, transformation: { translation: [0, -1.6 * d, 0], left_rotation: [0, 0, 0, 1], scale: [1, 1, 1], right_rotation: [0, 0, 0, 1] } }
+  : v)
+const bagDip = tree => {
+  const steps = 4
+  const entries = []
+  for (let k = 0; k < steps; k++) entries.push({ threshold: k ? 0.1 * k / steps : 0.0001, model: withDrop(tree, (k + 0.5) / steps) }) // coming back
+  entries.push({ threshold: 0.1, model: { type: 'minecraft:empty' } })
+  for (let k = 0; k < steps; k++) entries.push({ threshold: 0.9 + 0.1 * k / steps, model: withDrop(tree, 1 - (k + 0.5) / steps) }) // going
+  return { type: 'minecraft:select', property: 'minecraft:display_context', cases: [{ when: OFFHAND_FP, model: { type: 'minecraft:range_dispatch', property: 'minecraft:cooldown', entries, fallback: tree } }], fallback: tree }
+}
+const offhandLooks = (base, tree) => {
+  write(`donating/items/${base}_hidden.json`, { hand_animation_on_swap: true, model: { type: 'minecraft:select', property: 'minecraft:display_context', cases: [{ when: OFFHAND_FP, model: { type: 'minecraft:empty' } }], fallback: tree } })
+  write(`donating/items/${base}_shown.json`, { hand_animation_on_swap: true, model: tree })
+}
+const bagTree = {
+  type: 'minecraft:select',
+  property: 'minecraft:custom_model_data',
+  index: 0,
+  cases: Object.keys(BAGS).map(bagCase),
+  fallback: { type: 'minecraft:model', model: 'minecraft:item/leather' }
+}
 write('minecraft/items/leather.json', {
   // Replacing the offhand bag when its fill changes must not play the re-equip dip (26.3 client).
   hand_animation_on_swap: false,
-  model: {
-    type: 'minecraft:select',
-    property: 'minecraft:custom_model_data',
-    index: 0,
-    cases: Object.keys(BAGS).map(bagCase),
-    fallback: { type: 'minecraft:model', model: 'minecraft:item/leather' }
-  }
+  model: bagDip(bagTree)
 })
+offhandLooks('bag', bagTree)
 
 // ---------- Ammo ----------
 // k outline, c/C/d copper tip (light/mid/dark), b/B/n brass (light/mid/dark), r/R rim, s/S/x red hull.
@@ -1216,15 +1245,21 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   }
 }
 for (const [base, def] of Object.entries(itemCases)) {
-  write(`minecraft/items/${base}.json`, {
-    model: {
-      type: 'minecraft:select',
-      property: 'minecraft:custom_model_data',
-      index: 0,
-      cases: def.cases,
-      fallback: { type: 'minecraft:model', model: def.fallback }
-    }
-  })
+  const tree = {
+    type: 'minecraft:select',
+    property: 'minecraft:custom_model_data',
+    index: 0,
+    cases: def.cases,
+    fallback: { type: 'minecraft:model', model: def.fallback }
+  }
+  // paper: the cash in hand sits in the offhand like the bag (no re-equip dip when its fill changes; hidden while a gun
+  // reloads, above); every other paper item is a menu icon.
+  if (base === 'paper') {
+    write('minecraft/items/paper.json', { hand_animation_on_swap: false, model: bagDip(tree) })
+    offhandLooks('cash', tree)
+    continue
+  }
+  write(`minecraft/items/${base}.json`, { model: tree })
 }
 
 // ---------- Bullets: what WeaponMechanics' projectiles look like in flight ----------

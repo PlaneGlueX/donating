@@ -255,6 +255,10 @@ gunfx:
   swing: false
   skins:
     enabled: true
+  # The offhand (the heist bag, the cash in hand) out of the gloved left hand's way while a gun reloads (BagHide.java,
+  # 2026-10-12, untested): lookalike (only the holder is sent a copy that slides out and back; nothing on the server
+  # changes), cooldown (a cooldown on leather and paper: the pack dips them out; the offhand slot shows the sweep), off.
+  bag-hide: lookalike
   guns:
     50_GS: { shot: 6, draw: 0 }
     Uzi: { shot: 0, draw: 20, fire: 5 }

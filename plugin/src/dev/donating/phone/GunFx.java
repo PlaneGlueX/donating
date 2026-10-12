@@ -93,6 +93,9 @@ import java.util.UUID;
  * The Hand Minigun's spin-up (guns.<title>.spin; GunSpin.java, 2026-10-12): its spin-up and spin-down are clocks of
  * their own with custom_model_data flags 3 and 4, and a spin gun gets flag 2 while drawn (all three read the Default
  * state's clock). gunfx.enabled false takes only these frames away: the spin-up itself is gameplay and stays.
+ *
+ * The bag hidden while a gun reloads (gunfx.bag-hide; BagHide.java, 2026-10-12, untested): the pack's frames draw a
+ * gloved left hand doing the reload, so the offhand's bag or cash slides out of the way for its holder only.
  */
 final class GunFx implements Listener {
     record Gun(Key group, int shot, int draw, int alone, int fire, int action, int glint, GunSpin.Spin spin) {}
@@ -122,13 +125,15 @@ final class GunFx implements Listener {
     private final Map<UUID, BukkitTask> glints = new HashMap<>();
     long started; // cooldowns started (status)
     final GunSpin spin; // the spin guns' spin-up (PhonePlugin registers it)
+    final BagHide bag; // the offhand hidden while a gun reloads (PhonePlugin registers it)
 
-    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); }
+    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); this.bag = new BagHide(plugin, this); }
 
     void configure(FileConfiguration c) {
         enabled = c.getBoolean("gunfx.enabled", true);
         swing = c.getBoolean("gunfx.swing", false);
         skins = c.getBoolean("gunfx.skins.enabled", true);
+        bag.configure(c.getString("gunfx.bag-hide", "lookalike"));
         guns.clear();
         ConfigurationSection s = c.getConfigurationSection("gunfx.guns");
         if (s != null) for (String title : s.getKeys(false)) {
@@ -141,7 +146,7 @@ final class GunFx implements Listener {
     }
 
     String status() {
-        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " guns=");
+        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " " + bag.summary() + " guns=");
         guns.forEach((t, g) -> b.append(t).append('{').append(g.group.asString()).append(" shot=").append(g.shot).append(" draw=").append(g.draw)
             .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "")
             .append(g.spin != null ? " spin=" + g.spin : "").append('}'));
@@ -502,6 +507,7 @@ final class GunFx implements Listener {
     /** Plugin disable: no gun keeps a flag. */
     void shutdown() {
         spin.shutdown();
+        bag.shutdown(); // every hidden bag back
         for (Player p : plugin.getServer().getOnlinePlayers()) unflagAll(p);
         firing.clear();
         for (BukkitTask t : glints.values()) t.cancel();
