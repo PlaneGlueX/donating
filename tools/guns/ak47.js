@@ -1,127 +1,190 @@
 // The rifle slot (WeaponMechanics weapons\assault_rifles\AK_47.yml, the strongest gun: full-auto 10 shots a second,
-// 30 rounds; skins Default 5, Scope +1000, Sprint +2000, Reload +3000). Since 2026-10-05 a recreation
-// of Pixel Gun 3D's classic scoped AK, the "AK-48" (the owner: the sold guns remade as PG3D's; drawn by hand from the
-// wiki's picture, nothing taken from the game): a black receiver with gunmetal edges, a stepped slant compensator, a
-// handguard banded red and white, a grey grenade launcher under the barrel, a laser on the left with its red beam,
-// an ACOG on top (a hollow tube: aiming looks through it at a red dot; its blue lens stands out of the front, seen
-// from the side too, with no back face, so from inside every face of it is culled), a striped banana magazine, a
-// checkered grip and a skeleton stock with a red stripe. Cops of difficulty 4 hold it (third person matters).
+// 30 rounds; skins Default 5, Scope +1000, Sprint +2000, Reload +3000). A recreation of Pixel Gun 3D's scoped AK, the
+// "AK-48" in its current look (the owner: the sold guns remade as PG3D's; 2026-10-06 at the Photon Shotgun's level of
+// detail; drawn by hand from the wiki's pictures, nothing taken from the game), painted with pg.js's PG style (density
+// 4, material ramps, bevels, seams and decals): a black receiver with a red side stripe, a vent plate and rivets; a
+// thick barrel bar striped red and steel, ending in a stepped front sight; a black handguard with steel bands and studs;
+// a big grenade launcher under it (black front cap with its bore, a grey tube banded red and white, the breech and its
+// trigger) with the laser on its top front and the red beam; an ACOG on clamps (a hollow tube: aiming looks through it
+// at a red dot; its blue lens with no back face, so from inside every face of it is culled; red side bars, a black
+// turret, a blue ocular rim); a banana magazine in four steps, black with white and grey ribs; a ribbed black grip; a
+// black slab stock with a grey inset frame and a stepped butt. Cops of difficulty 4 hold it (third person matters).
 // Frames (pg.js): drawn (GunFx's 30-tick draw cooldown) it rises from below and levels out; fire held flickers a
 // muzzle flash and kicks (and the charging handle cycles); the reload rocks the magazine out forward, a new one in,
-// then pulls the charging handle on the right (the gun rolls so it shows). No empty pose (no No_Ammo state: WeaponMechanics
-// puts it over Scope and Sprint).
-// Built along x, muzzle toward -x, centred on z = 8; the sight line is the scope's axis, y = SY.
+// then pulls the charging handle on the right (the gun rolls so it shows). No empty pose (no No_Ammo state:
+// WeaponMechanics puts it over Scope and Sprint).
+// Built along x, muzzle toward -x, centred on z = 8; the sight line is the scope's axis, y = SY. z+ is the gun's left
+// (the side first person shows), z- its right (the ejection port and the charging handle).
 module.exports = ({ pg, aim, display }) => {
   const { pgGun, ease, rig } = pg
   const name = 'gun_ak47'
   const SY = 10.2
-  // A hollow tube along x (the scope's sections): four walls around an opening, so aiming looks through it.
-  const tube = (x0, x1, [y0, y1, z0, z1], [yi0, yi1, zi0, zi1], c, more = {}) => [
-    { from: [x0, y0, zi1], to: [x1, y1, z1], c, ...more }, // left (z+), full height: one face from the side
-    { from: [x0, y0, z0], to: [x1, y1, zi0], c, ...more }, // right (z-)
+  // A hollow tube along x (the scope's sections): four walls around an opening, so aiming looks through it. deco: decals
+  // per wall (the outer face only: left 'south', right 'north').
+  const tube = (x0, x1, [y0, y1, z0, z1], [yi0, yi1, zi0, zi1], c, more = {}, deco = {}) => [
+    { from: [x0, y0, zi1], to: [x1, y1, z1], c, ...more, deco: deco.left }, // left (z+), full height: one face from the side
+    { from: [x0, y0, z0], to: [x1, y1, zi0], c, ...more, deco: deco.right }, // right (z-)
     { from: [x0, yi1, zi0], to: [x1, y1, zi1], c, ...more }, // top
     { from: [x0, y0, zi0], to: [x1, yi0, zi1], c, ...more } // bottom
   ]
-  const BLACK = { c: { all: 'recv', up: 'recvT' }, ink: 'gmD' } // black parts: a lighter top and dark gunmetal edges
+  const K = { c: { all: 'recv', up: 'recvT' } } // black parts: a lighter top
+  const ST = { c: { all: 'gm', up: 'gmL' } } // steel
   // The scope's tube: the same black under keys of its own, which skins never recolor (aiming looks through it).
   const SCOPE = { c: { all: 'scope', up: 'scopeT' } }
   const GRIP = { angle: 20, axis: 'z', origin: [17.6, 5.0, 8] }
-  // The magazine curves forward in three steps; each step turns about the back corner of the one above it (so the
-  // back stays closed and the front overlaps).
-  const MAG1 = { angle: -15, axis: 'z', origin: [13.0, 3.15, 8] }
-  const MAG2 = { angle: -30, axis: 'z', origin: [12.34, 0.687, 8] } // MAG1's turn of [13.0, 0.6]
+  // Decal helpers (model units; on north/south faces [x, y], on up/down [x, z], on east/west [z, y]).
+  // A stripe across a side (inside the outline, so its own lit top row and dark bottom row show).
+  const band = (x0, x1, y0, y1, c, face) => ({ k: 'band', at: [x0, y1], to: [x1, y0], c, ...(face ? { face } : {}) })
+  // A ring of color c around a box along x, on its sides and its top and bottom (inside the outline).
+  const ring = (b, x0, x1, c) => [band(x0, x1, b.from[1] + 0.25, b.to[1] - 0.25, c), { k: 'band', face: 'flats', at: [x0, b.from[2] + 0.25], to: [x1, b.to[2] - 0.25], c }]
+  const stud = (x, y, c = 'gmL', face) => ({ k: 'rivets', at: [x, y + 0.5], to: [x + 0.5, y], n: 1, size: 2, c, ...(face ? { face } : {}) })
+  const hole = (a0, b0, a1, b1, face) => ({ k: 'holes', at: [a0, b0], to: [a1, b1], pitch: [1, 1], ...(face ? { face } : {}) })
+  // A magazine step: black, a rib across both sides near its top (a white line over two grey rows), the front face grey
+  // (the spine); turned by angle about origin [x, y] (the back corner above it).
+  const magSeg = (x0, x1, y0, y1, angle, origin) => ({
+    from: [x0, y0, 7.0], to: [x1, y1, 9.0], c: { all: 'magK', west: 'magG' },
+    ...(origin ? { rot: { angle, axis: 'z', origin: [origin[0], origin[1], 8] } } : {}),
+    deco: [band(x0 + 0.5, x1 - 0.25, y1 - 1.0, y1 - 0.5, 'magG'), band(x0 + 1.25, x1 - 0.25, y1 - 0.5, y1 - 0.25, 'magW')]
+  })
+
+  // ---------- the boxes ----------
+  // The barrel bar: barrel and gas tube as one thick black bar, striped red and steel down each side and underneath
+  // (end to end, no gaps), two light lines along its top. Its top stays under the aim's limit (y 8.25).
+  const BAR = { from: [-4.75, 6.25, 7.0], to: [3.5, 8.25, 9.0], c: { all: 'recv', up: 'recvT' }, split: { z: [8] } }
+  const barStripes = [[2.25, 3.5, 'red'], [1.0, 2.25, 'gmL'], [-0.25, 1.0, 'red'], [-1.5, -0.25, 'gmL'], [-2.75, -1.5, 'red'], [-4.0, -2.75, 'gmL']]
+  BAR.deco = [
+    ...barStripes.map(([a, b, c]) => band(a, b, 6.75, 7.75, c)),
+    ...barStripes.map(([a, b, c]) => ({ k: 'band', face: 'down', at: [a, 7.25], to: [b, 8.75], c })),
+    { k: 'band', face: 'up', at: [-4.5, 7.25], to: [3.5, 7.5], c: 'gmL' },
+    { k: 'band', face: 'up', at: [-4.5, 8.5], to: [3.5, 8.75], c: 'gmL' }
+  ]
+  // The grenade launcher's tube: light grey, one piece (no seams; little grain), banded red, red, white, white.
+  const GLT = { from: [-0.25, 2.5, 6.75], to: [7.25, 5.25, 9.25], c: 'gl', grain: 0.05 }
+  GLT.deco = [...ring(GLT, 0.5, 1.0, 'red'), ...ring(GLT, 1.5, 2.0, 'red'), ...ring(GLT, 3.0, 3.5, 'white'), ...ring(GLT, 5.5, 6.0, 'white')]
+
   const gun = pgGun(name, {
+    style: 'pg',
+    density: 4,
     palette: {
-      recv: [24, 25, 30], recvT: [44, 46, 54], scope: [24, 25, 30], scopeT: [44, 46, 54], gm: [76, 80, 92], gmD: [46, 49, 58], gmL: [122, 128, 142], edge: [176, 182, 194],
-      red: [210, 30, 40], redB: [255, 60, 60], dot: [255, 60, 60], white: [236, 236, 236], gl: [108, 113, 124],
+      recv: [38, 39, 44], recvT: [64, 67, 74], scope: [38, 39, 44], scopeT: [64, 67, 74], gm: [86, 91, 100], gmD: [46, 49, 58], gmL: [122, 128, 138], edge: [214, 222, 230],
+      red: [226, 24, 20], redB: [255, 74, 60], dot: [255, 60, 60], white: [244, 246, 248], gl: [172, 174, 178],
       beam: [255, 32, 32], lens: [46, 120, 216], lensB: [110, 176, 248],
-      magG: [154, 160, 170], magW: [232, 232, 232], magK: [42, 44, 50], gripP: [172, 175, 182],
-      bore: [10, 10, 12], flash: [255, 196, 64], flashCore: [255, 248, 210]
+      magG: [150, 152, 156], magW: [240, 242, 244], magK: [22, 24, 28], gripP: [112, 118, 128],
+      railL: { of: 'edge', f: 0.78 }, bore: [10, 10, 12], flash: [255, 196, 64], flashCore: [255, 248, 210]
+    },
+    mats: {
+      recv: 'dark', recvT: 'dark', scope: 'dark', scopeT: 'dark', magK: 'dark',
+      gm: 'metal', gmD: 'metal', gmL: 'metal', edge: 'metal', gl: 'metal', magG: 'metal', gripP: 'metal',
+      red: 'paint', redB: 'paint', white: 'paint', magW: 'paint',
+      lens: 'glass', lensB: 'glass', dot: 'glow', beam: 'glow', flash: 'glow', flashCore: 'glow', bore: 'flat'
     },
     parts: {
+      // Ahead of the scope and above the aim's limit (the front sight, the muzzle, the handguard's top cover): shown
+      // everywhere but aimed (in the scope's view they'd sit on the dot; the scope's walls hide where they were).
+      fore: [
+        // The front sight: a stair of three steps up toward the muzzle to a tall post, a light glint panel on its back.
+        { from: [-7.0, 6.25, 7.25], to: [-6.25, 10.5, 8.75], c: { all: 'recv', up: 'recvT', east: 'gmL' } },
+        { from: [-6.25, 6.25, 7.0], to: [-5.5, 9.75, 9.0], ...K, deco: [{ k: 'slots', face: 'sides', at: [-6.25, 9.25], to: [-5.5, 8.5], n: 1 }] },
+        { from: [-5.5, 6.25, 7.0], to: [-4.75, 9.0, 9.0], ...K },
+        // The muzzle: a black lip with the square bore in its end.
+        { from: [-7.5, 6.5, 7.25], to: [-7.0, 9.0, 8.75], ...K, deco: [hole(7.75, 8.0, 8.25, 7.5, 'west')] },
+        // The handguard's top cover: steel, grooves across its top.
+        { from: [4.0, 8.75, 7.25], to: [8.75, 9.5, 8.75], ...ST, deco: [{ k: 'slots', face: 'up', at: [4.25, 7.5], to: [8.5, 8.5], dir: 'v', n: 5 }] }
+      ],
       body: [
-        // The compensator: a stepped slant (the lower lip longest; the steps light and unoutlined, so they read as
-        // steps), a port on top, the bore.
-        { from: [-6.2, 6.7, 6.9], to: [-4.4, 8.9, 9.1], c: { all: 'gm', up: 'gmL' }, pat: 'chrome' },
-        { from: [-6.8, 6.7, 7.05], to: [-6.2, 8.2, 8.95], c: 'gmL', outline: false },
-        { from: [-7.4, 6.7, 7.2], to: [-6.8, 7.45, 8.8], c: 'edge', outline: false },
-        { from: [-6.85, 7.5, 7.6], to: [-6.8, 8.0, 8.4], c: 'bore', dirs: ['west'], outline: false },
-        { from: [-5.8, 8.9, 7.55], to: [-4.8, 8.92, 8.45], c: 'bore', dirs: ['up'], outline: false },
-        { from: [-4.4, 7.35, 7.55], to: [0.6, 8.15, 8.45], c: 'gm', pat: 'chrome' }, // the barrel
-        { from: [-3.4, 6.8, 7.3], to: [-2.0, 8.6, 8.7], ...BLACK }, // the front sight base (low: aiming sees past it)
-        // The handguard: black, banded white and red, with the gas tube's cover on top; metal bands at both ends.
-        { from: [0.6, 5.6, 6.9], to: [8.6, 8.2, 9.1], ...BLACK },
-        { from: [0.6, 7.95, 9.1], to: [19.6, 8.2, 9.14], c: 'edge', outline: false, dirs: ['south'] },
-        { from: [0.6, 7.95, 6.86], to: [19.6, 8.2, 6.9], c: 'edge', outline: false, dirs: ['north'] },
-        { from: [1.2, 8.2, 7.3], to: [8.6, 8.8, 8.7], ...BLACK },
-        { from: [1.6, 5.5, 6.82], to: [3.4, 8.3, 9.18], c: 'white' },
-        { from: [3.85, 5.5, 6.82], to: [4.45, 8.3, 9.18], c: { all: 'red', up: 'redB' }, outline: false },
-        { from: [4.85, 5.5, 6.82], to: [5.45, 8.3, 9.18], c: { all: 'red', up: 'redB' }, outline: false },
-        { from: [5.8, 5.5, 6.82], to: [7.6, 8.3, 9.18], c: 'white' },
-        { from: [0.2, 5.5, 6.8], to: [0.9, 8.4, 9.2], c: 'gm', ink: 'recv' },
-        { from: [8.4, 5.4, 6.8], to: [9.2, 8.6, 9.2], c: 'gm', ink: 'recv' },
-        // The grenade launcher under the barrel: a grey tube with white bands, its bore, the mount and the breech.
-        { from: [-2.6, 3.5, 7.0], to: [6.2, 5.4, 9.0], c: 'gl', pat: 'chrome' },
-        { from: [-1.6, 3.4, 6.95], to: [-1.0, 5.5, 9.05], c: 'white', outline: false },
-        { from: [3.8, 3.4, 6.95], to: [4.4, 5.5, 9.05], c: 'white', outline: false },
-        { from: [-2.65, 3.9, 7.4], to: [-2.6, 5.0, 8.6], c: 'bore', dirs: ['west'], outline: false },
-        { from: [-0.6, 5.4, 7.5], to: [4.6, 5.6, 8.5], c: 'gm' },
-        { from: [6.2, 3.3, 7.2], to: [7.6, 5.5, 8.8], c: 'gm', ink: 'recv' },
-        // The laser on the left of the handguard's front, its emitter and the beam (always on).
-        { from: [-0.6, 6.0, 9.1], to: [1.8, 7.3, 10.1], ...BLACK },
-        { from: [-0.65, 6.35, 9.35], to: [-0.6, 6.95, 9.85], c: 'redB', glow: true, dirs: ['west'] },
-        { from: [-12.6, 6.55, 9.5], to: [-0.65, 6.75, 9.7], c: 'beam', glow: true },
-        // The receiver: black with light top edges, a gunmetal dust cover, a side plate on the left, the ejection
-        // port and the selector lever on the right.
-        { from: [9.2, 5.0, 6.9], to: [19.6, 8.2, 9.1], ...BLACK },
-        { from: [9.4, 8.2, 7.15], to: [19.4, 8.75, 8.85], c: { all: 'gm', up: 'gmL' }, pat: 'chrome', ink: 'recv' },
-        { from: [11.0, 5.8, 9.1], to: [18.0, 7.6, 9.22], c: 'gm', ink: 'edge' },
-        { from: [12.4, 6.6, 6.84], to: [16.2, 7.7, 6.9], c: 'bore', ink: 'gm', dirs: ['north'] },
-        { from: [11.4, 5.6, 6.76], to: [17.6, 6.2, 6.9], c: 'gmL', ink: 'edge' },
-        // The trigger guard, the trigger, the grip raked back with checkered panels.
-        { from: [13.0, 4.2, 7.6], to: [17.0, 4.6, 8.4], ...BLACK },
-        { from: [13.0, 4.6, 7.6], to: [13.5, 5.0, 8.4], ...BLACK },
-        { from: [14.6, 4.4, 7.75], to: [15.1, 5.0, 8.25], c: 'gmL' },
-        { from: [16.4, 0.4, 7.0], to: [18.8, 5.2, 9.0], ...BLACK, rot: GRIP },
-        { from: [16.3, -0.1, 6.9], to: [18.9, 0.4, 9.1], c: 'gm', ink: 'recv', rot: GRIP },
-        { from: [16.8, 1.0, 9.0], to: [18.4, 4.4, 9.12], c: 'gripP', pat: 'check', rot: GRIP },
-        { from: [16.8, 1.0, 6.88], to: [18.4, 4.4, 7.0], c: 'gripP', pat: 'check', rot: GRIP },
-        // The ACOG: a mount, the objective bell with the blue lens, the body, the eyepiece; the red dot and its post
-        // inside (aiming looks through the tube); a red turret on top, red stripes along its sides.
-        { from: [10.4, 8.75, 7.3], to: [14.2, 9.0, 8.7], c: 'gm', ink: 'recv' },
-        ...tube(9.2, 10.0, [SY - 1.45, SY + 1.45, 6.55, 9.45], [SY - 1.05, SY + 1.05, 6.95, 9.05], SCOPE.c, { ink: 'gmD' }),
-        ...tube(10.0, 14.6, [SY - 1.2, SY + 1.2, 6.8, 9.2], [SY - 0.85, SY + 0.85, 7.15, 8.85], SCOPE.c, { ink: 'gmD' }),
-        ...tube(14.6, 15.4, [SY - 0.95, SY + 0.95, 7.05, 8.95], [SY - 0.75, SY + 0.75, 7.25, 8.75], SCOPE.c, { ink: 'gmD' }),
+        BAR,
+        // The handguard: black, studs in two rows of three on each side, steel bands at both ends.
+        { from: [4.0, 5.25, 6.75], to: [8.75, 8.75, 9.25], ...K, deco: [{ k: 'rivets', at: [4.5, 7.75], to: [8.25, 7.25], n: 3, size: 2, c: 'gm' }, { k: 'rivets', at: [4.5, 6.5], to: [8.25, 6.0], n: 3, size: 2, c: 'gm' }, { k: 'slots', face: 'up', at: [4.25, 7.0], to: [8.5, 9.0], n: 2 }] },
+        { from: [3.5, 5.0, 6.5], to: [4.0, 8.75, 9.5], ...ST, outline: false, deco: [{ k: 'rivets', face: 'ends', at: [6.75, 8.5], to: [9.25, 8.0], n: 2, size: 2, c: 'gmL' }, { k: 'slots', face: 'ends', at: [6.75, 6.75], to: [9.25, 5.25], n: 2 }] },
+        { from: [8.75, 5.0, 6.5], to: [9.25, 8.75, 9.5], ...ST, outline: false, deco: [{ k: 'rivets', face: 'ends', at: [6.75, 8.5], to: [9.25, 8.0], n: 2, size: 2, c: 'gmL' }, { k: 'slots', face: 'ends', at: [6.75, 6.75], to: [9.25, 5.25], n: 2 }] },
+        // The grenade launcher: the black front cap (its bore in a steel frame), the tube, the breech with a latch,
+        // the trigger housing with its guard and trigger, and the mount up to the barrel (two screws).
+        { from: [-2.5, 2.25, 6.5], to: [-0.25, 5.5, 9.5], ...K, split: { x: [-1.25] }, deco: [{ k: 'slots', face: 'east', at: [7.0, 4.75], to: [9.0, 3.0], n: 2 },{ k: 'inset', face: 'west', at: [7.0, 5.0], to: [9.0, 2.75], c: 'gm' }, hole(7.5, 4.5, 8.5, 3.25, 'west'), { k: 'rivets', at: [-2.25, 3.0], to: [-0.5, 2.5], n: 2, c: 'gm' }] },
+        GLT,
+        { from: [7.25, 2.75, 6.75], to: [8.75, 5.5, 9.25], ...ST, deco: [stud(7.75, 4.25, 'gmL', 'south')] },
+        { from: [8.75, 3.5, 7.25], to: [11.25, 5.0, 8.75], c: 'gl', deco: [{ k: 'slots', at: [9.0, 4.75], to: [11.0, 3.75], n: 1 }] },
+        { from: [9.0, 2.75, 7.5], to: [11.0, 3.0, 8.5], c: 'gm', outline: false },
+        { from: [9.0, 3.0, 7.5], to: [9.25, 3.5, 8.5], c: 'gm', outline: false },
+        { from: [10.0, 3.0, 7.75], to: [10.5, 3.5, 8.25], c: 'gmL', outline: false },
+        { from: [0.0, 5.25, 7.25], to: [3.5, 6.25, 8.75], ...ST, deco: [stud(0.5, 6.0), stud(2.5, 6.0)] },
+        // The laser on the launcher's top front (left), its emitter and the beam (always on).
+        { from: [-2.0, 5.5, 8.5], to: [0.0, 6.5, 9.5], ...K, deco: [band(-1.0, -0.5, 5.5, 6.5, 'gm'), { k: 'band', face: 'up', at: [-1.0, 8.5], to: [-0.5, 9.5], c: 'gm' }] },
+        { from: [-2.05, 5.75, 8.75], to: [-2.0, 6.25, 9.25], c: 'redB', mat: 'glow', glow: true, dirs: ['west'] },
+        { from: [-12.6, 5.875, 8.875], to: [-2.05, 6.125, 9.125], c: 'beam', glow: true },
+        // The receiver: black and chunky; a steel rail on top (two light lines, a step dimmer than the glints: they sit
+        // under the eyepiece in the scope's view; no outline, so the 0.5-tall rail stays steel, not ink) ending at a
+        // rear latch with a glint; on the left a grey vent plate (four dark vents), the red stripe and two chunky glint
+        // blocks above it; studs at the corners; on the right a grey vent plate (two vents) at the front, the red stripe
+        // behind it, the ejection port above the stripe (the charging handle at its front), a glint block behind the
+        // port and the selector lever under the stripe.
+        {
+          from: [9.25, 5.0, 6.5], to: [19.5, 8.25, 9.5], ...K, split: { x: [12.75, 16.5], z: [8] },
+          deco: [
+            { k: 'inset', face: 'south', at: [9.5, 8.0], to: [12.5, 5.25], c: 'gm' }, { k: 'inset', face: 'north', at: [9.5, 8.0], to: [12.25, 6.0], c: 'gm' }, hole(10.0, 7.5, 10.75, 6.75, 'north'), hole(11.0, 7.5, 11.75, 6.75, 'north'),
+            hole(10.0, 7.5, 10.75, 6.75, 'south'), hole(11.25, 7.5, 12.0, 6.75, 'south'), hole(10.0, 6.5, 10.75, 5.75, 'south'), hole(11.25, 6.5, 12.0, 5.75, 'south'),
+            // the red stripe behind the vent plate on both sides (on the right under the ejection port)
+            band(13.0, 19.25, 6.75, 7.5, 'red', 'south'), band(12.5, 19.25, 6.25, 7.0, 'red', 'north'),
+            // the white glint blocks under the rail (the right one behind the port)
+            band(13.0, 15.25, 7.75, 8.0, 'edge', 'south'), band(15.5, 18.5, 7.5, 8.0, 'edge', 'south'), band(16.5, 19.0, 7.25, 8.0, 'edge', 'north'),
+            stud(13.0, 5.5, 'gmL', 'south'), stud(18.75, 5.5), stud(18.75, 7.75 - 0.25, 'gmL', 'south'),
+            { k: 'inset', face: 'north', at: [12.5, 8.0], to: [16.25, 7.25], c: 'gm' },
+            { k: 'slots', face: 'down', at: [9.5, 7.0], to: [12.5, 9.0], dir: 'v', n: 3 },
+            { k: 'slots', face: 'ends', at: [6.75, 7.75], to: [9.25, 5.5], n: 2 }
+          ]
+        },
+        { from: [9.5, 8.25, 7.0], to: [18.0, 8.75, 9.0], c: { all: 'gmL', up: 'gm' }, outline: false, deco: [{ k: 'band', face: 'up', at: [9.5, 7.25], to: [18.0, 7.5], c: 'railL' }, { k: 'band', face: 'up', at: [9.5, 8.5], to: [18.0, 8.75], c: 'railL' }] },
+        { from: [18.0, 8.25, 7.25], to: [19.5, 9.0, 8.75], ...K, deco: [{ k: 'band', face: 'up', at: [18.5, 7.75], to: [19.25, 8.25], c: 'gmL' }] },
+        { from: [11.5, 5.5, 6.25], to: [17.5, 6.25, 6.5], c: 'gmL', dirs: ['north', 'up', 'down', 'east', 'west'] }, // the selector lever (right)
+        // The trigger and its guard, between the magazine and the grip.
+        { from: [15.75, 4.25, 7.75], to: [16.25, 5.0, 8.25], c: 'gmL', outline: false },
+        { from: [15.5, 3.75, 7.5], to: [16.75, 4.0, 8.5], c: 'recv', outline: false },
+        // The grip, raked back: four grey ribs a side, palm steps on its back, a steel cap.
+        { from: [16.5, 0.5, 7.0], to: [18.75, 5.25, 9.0], ...K, rot: GRIP, deco: [1.25, 2.25, 3.25, 4.25].map(y => band(16.75, 18.5, y, y + 0.5, 'gripP')) },
+        ...[1.0, 2.25, 3.5].map(y => ({ from: [18.75, y, 7.25], to: [19.0, y + 0.5, 8.75], c: 'recv', outline: false, rot: GRIP })),
+        { from: [16.25, 0.0, 6.75], to: [19.0, 0.5, 9.25], ...ST, rot: GRIP },
+        // The ACOG: clamps on the rail, the objective bell with the blue lens, the body, the eyepiece (its rear rim blue);
+        // the red dot and its post inside (aiming looks through the tube); red bars along its sides, a black turret on
+        // top with a red cap (the red bars run unbroken along both sides, like the reference).
+        { from: [10.5, 8.25, 6.75], to: [11.5, 9.0, 9.25], ...ST, deco: [{ k: 'rivets', at: [10.75, 8.75], to: [11.25, 8.5], n: 1, c: 'gmL' }] },
+        { from: [13.0, 8.25, 6.75], to: [14.0, 9.0, 9.25], ...ST, deco: [{ k: 'rivets', at: [13.25, 8.75], to: [13.75, 8.5], n: 1, c: 'gmL' }] },
+        ...tube(9.2, 10.0, [SY - 1.45, SY + 1.45, 6.55, 9.45], [SY - 1.05, SY + 1.05, 6.95, 9.05], SCOPE.c),
+        ...tube(10.0, 14.6, [SY - 1.2, SY + 1.2, 6.8, 9.2], [SY - 0.85, SY + 0.85, 7.15, 8.85], SCOPE.c, {}, {
+          left: [{ ...band(10.5, 14.25, 10.0, 10.75, 'red'), face: 'south' }, { k: 'slots', face: 'south', at: [10.5, 9.75], to: [14.25, 9.25], n: 1 }],
+          right: [{ ...band(10.5, 14.25, 10.0, 10.75, 'red'), face: 'north' }]
+        }),
+        ...tube(14.6, 15.4, [SY - 0.95, SY + 0.95, 7.05, 8.95], [SY - 0.75, SY + 0.75, 7.25, 8.75], SCOPE.c),
+        // the blue ocular: a rim on the eyepiece's rear faces, round the opening (0.02 proud; the hole stays open)
+        ...[[SY - 0.95, SY + 0.95, 8.75, 8.95], [SY - 0.95, SY + 0.95, 7.05, 7.25], [SY + 0.75, SY + 0.95, 7.25, 8.75], [SY - 0.95, SY - 0.75, 7.25, 8.75]].map(([y0, y1, z0, z1]) =>
+          ({ from: [15.4, y0, z0], to: [15.42, y1, z1], c: 'lens', glow: true, pat: 'flat', dirs: ['east'] })),
         { from: [8.7, SY - 1.05, 6.95], to: [9.2, SY + 1.05, 9.05], c: 'lens', glow: true, dirs: ['west', 'north', 'south', 'up', 'down'] },
         { from: [8.62, SY + 0.25, 7.35], to: [8.66, SY + 0.7, 7.85], c: 'lensB', glow: true, dirs: ['west'] },
         { from: [9.5, SY - 0.15, 7.85], to: [9.7, SY + 0.15, 8.15], c: 'dot', glow: true }, // the red dot (its own key: skins never recolor it)
         { from: [9.55, SY - 1.05, 7.95], to: [9.65, SY - 0.15, 8.05], c: 'bore', outline: false },
-        { from: [11.6, SY + 1.2, 7.4], to: [12.8, SY + 1.8, 8.6], c: 'redB', ink: 'red' },
-        { from: [11.6, SY - 0.5, 6.4], to: [12.8, SY + 0.5, 6.8], ...BLACK },
-        { from: [10.2, SY + 0.5, 9.2], to: [14.4, SY + 0.75, 9.26], c: 'red', outline: false },
-        { from: [10.2, SY + 0.5, 6.74], to: [14.4, SY + 0.75, 6.8], c: 'red', outline: false },
-        // The skeleton stock: a hinge block, the top bar (a red stripe each side), the bottom bar slanting down to the
-        // butt plate (its pad gunmetal).
-        { from: [19.6, 4.8, 7.2], to: [20.6, 8.4, 8.8], ...BLACK },
-        { from: [20.6, 7.2, 7.4], to: [26.4, 8.2, 8.6], ...BLACK },
-        { from: [21.0, 7.45, 8.6], to: [26.0, 7.95, 8.66], c: 'red', outline: false },
-        { from: [21.0, 7.45, 7.34], to: [26.0, 7.95, 7.4], c: 'red', outline: false },
-        { from: [20.6, 4.9, 7.4], to: [26.9, 5.8, 8.6], ...BLACK, rot: { angle: -17, axis: 'z', origin: [20.6, 5.35, 8] } },
-        { from: [26.4, 3.0, 7.0], to: [27.6, 8.6, 9.0], c: { all: 'recv', up: 'recvT', east: 'gm' }, ink: 'gmD' }
+        { from: [11.5, 11.25, 7.5], to: [12.75, 12.0, 8.5], c: { all: 'recv', up: 'redB' } },
+        // The stock: a hinge block (a steel pin), a black slab (a grey inset frame round a dark window), the bottom rail
+        // slanting down to the butt (a stepped top, a grooved steel pad).
+        { from: [19.5, 4.5, 7.0], to: [20.5, 8.5, 9.0], ...K, deco: [stud(19.75, 6.25)] },
+        { from: [20.5, 5.0, 7.0], to: [26.5, 8.25, 9.0], ...K, split: { x: [23.5] }, deco: [{ k: 'inset', at: [21.0, 7.75], to: [26.0, 5.5], c: 'gm' }, { k: 'inset', at: [22.0, 7.0], to: [25.0, 6.25], c: 'recv' }] },
+        // (the lower part: one turned block from the hinge down to the butt, a step narrower than the slab, under it)
+        { from: [20.5, 4.5, 7.25], to: [27.0, 7.0, 8.75], ...K, rot: { angle: -17, axis: 'z', origin: [20.5, 5.0, 8] }, deco: [band(21.0, 26.5, 4.75, 5.0, 'gmD')] },
+        { from: [26.5, 2.75, 7.0], to: [27.5, 7.5, 9.0], c: { all: 'recv', up: 'recvT', east: 'gm' }, split: { y: [5.0] }, deco: [{ k: 'slots', face: 'east', at: [7.25, 7.25], to: [8.75, 3.0], n: 4 }] },
+        { from: [26.5, 7.5, 7.0], to: [27.25, 8.5, 9.0], ...K }
       ],
       // The charging handle on the right, at the front of the ejection port (pulled back +x along it).
       bolt: [
-        { from: [12.7, 7.2, 6.0], to: [13.5, 7.7, 6.9], c: 'gmL' },
-        { from: [12.6, 7.0, 5.5], to: [13.6, 7.9, 6.0], c: 'gm', ink: 'edge' }
+        { from: [12.75, 7.25, 6.0], to: [13.25, 7.75, 6.75], c: 'gmL' },
+        { from: [12.5, 7.0, 5.25], to: [13.75, 8.25, 6.0], c: { all: 'gm', up: 'gmL', west: 'gmL' }, deco: [{ k: 'slots', face: 'north', at: [12.75, 8.0], to: [13.5, 7.25], dir: 'v', n: 2 }] }
       ],
-      // The banana magazine: grey, white and grey steps with black bands between, a black floor plate.
+      // The banana magazine: four black steps curving forward (0, -6, -12, -18 degrees), each with a rib across its
+      // sides (a grey band, a white line over its rear part, then black), a grey spine down the front face, a wider
+      // floor plate. Each step turns about the back corner of the one above it (snapped to the grid, inside it); the
+      // curve clears the launcher's trigger housing by 0.3 through the whole reload (rock and drop).
       mag: [
-        { from: [10.2, 3.5, 7.3], to: [13.0, 5.3, 8.7], c: 'magG' },
-        { from: [10.15, 3.15, 7.25], to: [13.05, 3.5, 8.75], c: 'magK' },
-        { from: [10.2, 0.95, 7.3], to: [13.0, 3.15, 8.7], c: 'magW', rot: MAG1 },
-        { from: [10.15, 0.6, 7.25], to: [13.05, 0.95, 8.75], c: 'magK', rot: MAG1 },
-        { from: [9.54, -1.213, 7.3], to: [12.34, 0.687, 8.7], c: 'magG', rot: MAG2 },
-        { from: [9.39, -1.643, 7.2], to: [12.49, -1.213, 8.8], c: 'magK', ink: 'gm', rot: MAG2 }
+        magSeg(12.5, 15.5, 3.25, 5.0, 0, null),
+        magSeg(12.5, 15.5, 1.25, 3.25, -6, [15.5, 3.25]),
+        magSeg(12.25, 15.25, -0.75, 1.25, -12, [15.25, 1.25]),
+        magSeg(11.75, 14.75, -2.75, -0.75, -18, [14.75, -0.75]),
+        { from: [11.25, -3.25, 6.75], to: [15.0, -2.75, 9.25], c: 'magK', ink: 'gm', rot: { angle: -18, axis: 'z', origin: [14.75, -0.75, 8] }, deco: [{ k: 'slots', face: 'down', at: [11.5, 7.25], to: [14.75, 8.75], n: 1 }] }
       ],
       flash: [
         { from: [-9.4, 6.6, 6.8], to: [-7, 8.9, 9.2], c: 'flashCore', glow: true },
@@ -159,19 +222,20 @@ module.exports = ({ pg, aim, display }) => {
   // Fire held (no cooldown: a full-auto gun's shots come every 2 ticks, so the frames flicker at random each tick):
   // a flash (one of two shapes, or none for a tick), the gun pushed back with its muzzle up and a little yaw, the
   // handle cycling. k scales the kick (the aim's is smaller); aiming the handle stays put (it's in view there, beside
-  // the scope, and would flicker) and shows only the X flash (the star's top spike would cross the dot). A bit more
-  // than the SMG's (its push 0.2-0.55 at a smaller scale): the shoulder pivot is far behind the muzzle, so the same
-  // angles already lift the muzzle about twice as far.
+  // the scope, and would flicker), the front sight and muzzle are hidden (in the scope's view) and only the X flash
+  // shows (the star's top spike would cross the dot). A bit more than the SMG's (its push 0.2-0.55 at a smaller
+  // scale): the shoulder pivot is far behind the muzzle, so the same angles already lift the muzzle about twice as far.
   const FIRE = (k, big = 'flash') => {
     const cycle = v => k < 1 ? {} : { bolt: rig({ t: [v, 0, 0] }) }
+    const hide = k < 1 ? { hide: ['fore'] } : {}
     // A pose is picked afresh every frame (pg.js firing: wobble off), so they share one kick (0.7 back, 2.8 degrees
     // up) with a small jitter; the flash is what flickers.
     const kick = (dx, up, yaw) => rig({ t: [(0.7 + dx) * k, 0.14 * k, 0], rot: [[[0, 0, 1], -(2.8 + up) * k], [[0, 1, 0], yaw * k]], pivot: SHOULDER })
     return [
-      { show: [big], gun: kick(0.08, 0.4, 0.3), ...cycle(2.6) },
-      { show: ['flash2'], gun: kick(-0.06, -0.3, -0.4), ...cycle(1.4) },
-      { show: [big], gun: kick(0.1, 0.6, -0.2), ...cycle(2.8) },
-      { gun: kick(-0.12, -0.5, 0.1), ...cycle(0.6) }
+      { show: [big], gun: kick(0.08, 0.4, 0.3), ...cycle(2.6), ...hide },
+      { show: ['flash2'], gun: kick(-0.06, -0.3, -0.4), ...cycle(1.4), ...hide },
+      { show: [big], gun: kick(0.1, 0.6, -0.2), ...cycle(2.8), ...hide },
+      { gun: kick(-0.12, -0.5, 0.1), ...cycle(0.6), ...hide }
     ]
   }
   // The draw (GunFx: a 30-tick cooldown on equip): the gun comes up fast from below, muzzle down and rolled out,
@@ -192,13 +256,15 @@ module.exports = ({ pg, aim, display }) => {
   // 2.6 ticks later, the release at p 0.775-0.79). With rounds left the frames run over 57 ticks; from empty over 73
   // and the sounds start 8 ticks later (after the Firearm_Action's open): the delays split the difference (65p - 4),
   // each within about 3 ticks of its frame either way.
-  const MAG_PIVOT = [10.3, 5.0, 8]
+  const MAG_PIVOT = [12.5, 5.0, 8] // the magazine's front top
   const ROCK = -25 // degrees: the magazine's bottom forward
   const AXIS = [Math.sin(ROCK * Math.PI / 180), -Math.cos(ROCK * Math.PI / 180), 0] // down its own (rocked) axis
   // The two poses: t (model units), then turns about x (the roll first, about the barrel: top toward you +), y (muzzle
-  // inward +) and z (muzzle down +). In the handle pose the gun also turns across the screen (y 25), so its length
-  // reads (seen end-on behind the scope it was a black pipe), and its top rolls toward you so the handle sticks up.
-  const MAGPOSE = { t: [0, 2.5, 2.5], y: 10, x: -30, z: -6 }
+  // inward +) and z (muzzle down +). The magazine pose lifts the gun higher and rolls it further (the magazine sits
+  // under the grip's front, low on the screen: lower, its rock and drop would happen below the screen's edge). In the
+  // handle pose the gun also turns across the screen (y 25), so its length reads (seen end-on behind the scope it was
+  // a black pipe), and its top rolls toward you so the handle sticks up.
+  const MAGPOSE = { t: [0, 4.5, 2.5], y: 10, x: -40, z: -6 }
   const BOLTPOSE = { t: [0, 0.5, 1], y: 25, x: 45, z: -2 }
   const reload = p => {
     const a = ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.58, 0.72)) // the magazine pose
@@ -227,7 +293,7 @@ module.exports = ({ pg, aim, display }) => {
   drawn.fallback = gun.firing('', FIRE(1))
   return {
     5: gun.byContext('', drawn),
-    1005: gun.byContext('ads', gun.firing('ads', FIRE(0.4, 'flash2'))),
+    1005: gun.byContext('ads', gun.firing('ads', FIRE(0.4, 'flash2'), { hide: ['fore'] })),
     2005: gun.byContext('sprint', gun.composite('sprint')),
     3005: gun.byContext('', gun.cooldown('', 57, reload)),
   }

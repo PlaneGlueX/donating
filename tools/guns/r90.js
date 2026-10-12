@@ -1,105 +1,189 @@
 // The shotgun slot (WeaponMechanics weapons\shotguns\R9_0.yml, "Shotgun"; skins Default 14, Scope +1000, Sprint
-// +2000, Reload +3000). Since 2026-10-05 a recreation of Pixel Gun 3D's default pump "Shotgun" (the
-// owner: the sold guns remade as PG3D's; drawn by hand from the wiki's picture, nothing taken from the game): a short
-// pump gun with no stock, two stacked bright tubes (the barrel over the magazine tube) with open square bores, a
-// silver receiver with a big dark ejection port, a grooved dark-wood pump, a red bead at the tip, a dark trigger
-// guard and a curved wooden pistol grip raked back. The port is on both sides: with the muzzle toward -x the gun's
-// right is -z (the side the inventory icon, the side view and the ground show), while first person and the front-left
-// third-person view see +z; PG3D's port is the clearest tell of the gun, so every view gets one.
-// Frames (GunFx: R9_0 shot 15 ticks; each shell its own 4-tick reload clock): a shot flashes, kicks the gun back
-// and its muzzle up, then the pump is racked back (the bolt slides across the port and a red shell pops out) and
-// forward. Reloading, the gun is canted to show the loading port under the receiver and each shell (red, brass base)
-// is pushed up into it; the cant is held between shells, so a row of shells doesn't wobble. A pump WeaponMechanics works without
-// a shot (after a reload from empty) is the pump alone (flag 1, below).
+// +2000, Reload +3000). A recreation of Pixel Gun 3D's default pump "Shotgun" in its current look (the owner,
+// 2026-10-05: the sold guns remade as PG3D's; 2026-10-06: at the Photon Shotgun's level of detail), drawn by hand from
+// the wiki's picture (nothing taken from the game): a short pump gun with no stock, a gunmetal barrel stacked over a
+// gunmetal magazine tube, each with a chrome stripe and dim reflections, a black muzzle block (taller than the barrel,
+// vent slots, the bore a lit square in a black frame) with a red fiber-optic bead, a silver clamp where the tubes
+// meet, a ribbed walnut pump just ahead of the receiver, a dark receiver frame with a bright silver side plate (a
+// black-framed ejection port with the silver bolt inside, two pins, a roll mark), a stepped rear into the grip, a
+// chunky black trigger guard and a raked black grip (two walnut strips on each side, dark blotches) with a black butt.
+// The port is on both sides: with the muzzle toward -x the gun's right is -z (the inventory icon, the side view and
+// the ground), first person and the front-left third-person view see +z.
+// PG style (tools\guns\pg.js style 'pg', density 4): every face has its material's tones, bevels and grain; the
+// details are decals (deco) and seams (split) on the faces, so most of them cost no elements.
+// Frames (GunFx: R9_0 shot 15 ticks, alone 5, action 15 with flag 1; each shell its own 4-tick reload clock): a shot
+// flashes, kicks the gun back and its muzzle up, then the pump is racked back (the bolt slides across the port under
+// the plate and a red shell pops out) and forward. Reloading, the gun is canted to show the loading port under the
+// receiver and each shell (red, brass base) is pushed up into it; the cant is held between shells, so a row of shells
+// doesn't wobble. A pump WeaponMechanics works without a shot (after a reload from empty) is the pump alone (flag 1).
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is the tops of the bead and the rear notch, y = SY.
+// Every outlined box sits on the 0.25 grid (one texel).
 module.exports = ({ pg, aim, display }) => {
   const { pgGun, ease, rig } = pg
   const name = 'gun_r90'
-  const SY = 11.9
-  // The pistol grip: two segments and a butt cap, each turned about its top (raked back: +angle about z), so the
-  // grip bends back as it goes down. P0 = where it meets the receiver; d = (sin a, -cos a).
+  const SY = 12
+  // The pistol grip: segments turned about their top (raked back: +angle about z), so the grip bends back as it goes
+  // down. P0 = where it meets the receiver; the joints are kept on the 0.25 grid (J1 ~3.25 down the first segment at
+  // 22 degrees, J2 ~2.75 down the second at 34).
   const seg = (top, len, half, a, z0, z1) => ({ from: [top[0] - half, top[1] - len, z0], to: [top[0] + half, top[1], z1], rot: { angle: a, axis: 'z', origin: [top[0], top[1], 8] } })
-  const along = (p, a, l) => [p[0] + l * Math.sin(a * Math.PI / 180), p[1] - l * Math.cos(a * Math.PI / 180)]
-  const P0 = [17.6, 7.4]
-  const J1 = along(P0, 18, 3.0) // the bend
-  const J2 = along(J1, 30, 2.8) // the butt
+  const P0 = [17.5, 7]
+  const J1 = [18.75, 4]
+  const J2 = [20.25, 1.75]
+  // A thin side detail on both sides: the +z copy (faces dirsS) and its mirror about z = 8 (faces dirsN).
+  const sides = (x0, y0, x1, y1, zOut, th, props, dirsS = ['south'], dirsN = ['north']) => [
+    { from: [x0, y0, zOut], to: [x1, y1, zOut + th], dirs: dirsS, ...props },
+    { from: [x0, y0, 16 - zOut - th], to: [x1, y1, 16 - zOut], dirs: dirsN, ...props }
+  ]
+  const EDGES_S = ['south', 'up', 'down', 'east', 'west']
+  const EDGES_N = ['north', 'up', 'down', 'east', 'west']
+  // The silver side plate (0.5 proud of the frame: z 9.5..10 and mirrored) in pieces round the ejection port window
+  // (x 13.25..17, y 8.75..10.5), so the bolt can slide under it; no outline and no bevel of its own (the receiver's dark
+  // frame shows round it; the pieces read as one plate): a lit top band, a black ring round the window with a lit lip
+  // under it, a darker bottom row, two pins (screw heads) and a roll mark (lines only, never letters).
+  const plate = (x0, y0, x1, y1, props) => sides(x0, y0, x1, y1, 9.5, 0.5, { c: 'silver', mat: 'metal', outline: false, bevel: 0, bands: false, grain: 0.04, ...props }, EDGES_S, EDGES_N)
+  const PLATE = [
+    ...plate(11.75, 10.5, 18, 11, { pat: 'chrome2', deco: [{ k: 'band', at: [13, 10.75], to: [17.25, 10.5], c: 'port' }] }),
+    ...plate(11.75, 7, 18.75, 8.75, {
+      deco: [
+        { k: 'band', at: [13, 8.75], to: [17.25, 8.5], c: 'port' },
+        { k: 'band', at: [13.25, 8.5], to: [17, 8.25], c: 'silverHi' },
+        { k: 'band', at: [11.75, 7.25], to: [18.75, 7], c: 'silverMid' },
+        { k: 'rivets', at: [15.25, 8], to: [18.25, 7.5], n: 2, size: 2, c: 'gmDark' },
+        { k: 'band', at: [12.5, 8.25], to: [14.5, 8], c: 'silverDark' }, { k: 'band', at: [12.5, 7.75], to: [13.75, 7.5], c: 'silverDark' }
+      ]
+    }),
+    ...plate(11.75, 8.75, 13.25, 10.5, { deco: [{ k: 'band', at: [13, 10.5], to: [13.25, 8.75], c: 'port' }, { k: 'band', at: [11.75, 10.5], to: [12, 8.75], c: 'silverHi' }] }),
+    // the rear one reaches back to the frame's end (18.75): a racked bolt hides under it
+    ...plate(17, 8.75, 18.75, 10.5, { deco: [{ k: 'band', at: [17, 10.5], to: [17.25, 8.75], c: 'port' }, { k: 'band', at: [18.5, 10.5], to: [18.75, 8.75], c: 'silverMid' }] })
+  ]
   const gun = pgGun(name, {
+    style: 'pg',
+    density: 4,
     palette: {
-      silverHi: [250, 250, 250], silver: [220, 223, 228], silverMid: [169, 174, 182], silverDark: [110, 115, 124],
-      port: [58, 61, 68], portEdge: [138, 142, 150], bore: [20, 22, 28],
-      wood: [138, 74, 32], woodLight: [184, 102, 46], woodDark: [90, 46, 18],
-      grip: [154, 82, 38], gripDark: [106, 52, 22],
-      guard: [58, 58, 64], steel: [120, 128, 142], bead: [232, 56, 40], beadHi: [255, 120, 96],
+      // silver: the side plate, the chrome stripes and lines, the clamp, the bolt (every skin themes these)
+      silverHi: [242, 244, 247], silver: [204, 208, 215], silverMid: [160, 165, 174], silverDark: [104, 109, 118],
+      // gunmetal: the receiver frame, the tubes, the muzzle block, the guard, the butt (tones derive from gm)
+      gm: [44, 47, 54], gmHi: { of: 'gm', k: 1 }, gmMid: { of: 'gm', f: 0.82 }, gmDark: { of: 'gm', k: -1 },
+      port: [16, 17, 21],
+      // walnut: the pump and the grip
+      wood: [122, 76, 46], woodLight: [156, 104, 66], woodDark: [86, 52, 31], woodDeep: { of: 'wood', k: -2 },
+      grip: [104, 64, 40], gripDark: [66, 38, 22],
+      // aimed through or fixed (never recolored by a skin): the rear notch, the bore, the bead
+      post: [40, 42, 48], bore: [14, 15, 19], bead: [232, 56, 40], beadHi: [255, 120, 96],
+      steel: [150, 156, 166],
       hull: [204, 44, 36], hullDark: [140, 26, 22], brass: [226, 182, 76], brassDark: [168, 124, 44],
       flash: [255, 196, 64], flashCore: [255, 248, 210]
     },
+    mats: {
+      silverHi: 'chrome', silver: 'chrome', silverMid: 'metal', silverDark: 'metal',
+      gm: 'metal', port: 'flat',
+      wood: 'wood', woodLight: 'wood', woodDark: 'wood', grip: 'wood', gripDark: 'wood',
+      post: 'flat', bore: 'flat', bead: 'glow', beadHi: 'glow', steel: 'metal',
+      hull: 'paint', hullDark: 'paint', brass: 'metal', brassDark: 'metal', flash: 'glow', flashCore: 'glow'
+    },
     parts: {
       body: [
-        // The barrel and the magazine tube under it (no end face: the muzzle faces below are the open bores).
-        { from: [-3, 9.2, 7.0], to: [11.5, 11.2, 9.0], c: { all: 'silver', down: 'silverDark' }, pat: 'chrome', dirs: ['north', 'south', 'up', 'down'] },
-        { from: [-3, 7.7, 7.25], to: [11.5, 9.2, 8.75], c: { all: 'silverMid', down: 'silverDark' }, pat: 'chrome', dirs: ['north', 'south', 'up', 'down'] },
-        // The open square bores: a dark hole with a metal rim (the outline drawn in silver).
-        { from: [-3.0, 9.2, 7.0], to: [-2.98, 11.2, 9.0], c: 'bore', ink: 'silverHi', dirs: ['west'] },
-        { from: [-3.0, 7.7, 7.25], to: [-2.98, 9.2, 8.75], c: 'bore', ink: 'silverMid', dirs: ['west'] },
-        // The band holding the two tubes together, and the bead (red, no outline: at 2 texels a side an outlined
-        // bead would be all ink, a black dot between the rear posts when aiming).
-        { from: [-1.5, 7.5, 6.8], to: [-0.6, 11.4, 9.2], c: { all: 'silverMid', up: 'silver' } },
-        { from: [-2.7, 11.2, 7.55], to: [-1.8, SY, 8.45], c: { all: 'bead', up: 'beadHi', east: 'beadHi' }, outline: false },
-        // The receiver.
-        { from: [11.5, 7.0, 6.6], to: [19.4, 11.4, 9.4], c: { all: 'silver', down: 'silverMid', east: 'silverMid' }, pat: 'chrome' },
-        // The ejection port, both sides (+z for first person, -z for the icon): a light edge around a dark recess.
-        { from: [12.9, 8.7, 9.4], to: [17.0, 10.9, 9.45], c: 'portEdge', dirs: ['south', 'up', 'down', 'east', 'west'] },
-        { from: [13.15, 8.95, 9.45], to: [16.75, 10.65, 9.47], c: 'port', outline: false, dirs: ['south'] },
-        { from: [12.9, 8.7, 6.55], to: [17.0, 10.9, 6.6], c: 'portEdge', dirs: ['north', 'up', 'down', 'east', 'west'] },
-        { from: [13.15, 8.95, 6.53], to: [16.75, 10.65, 6.55], c: 'port', outline: false, dirs: ['north'] },
-        // The loading port under the receiver.
-        { from: [11.9, 6.95, 7.15], to: [14.5, 7.0, 8.85], c: 'port', ink: 'portEdge', dirs: ['down'] },
-        // Pins (trigger group) on both sides.
-        { from: [17.7, 8.1, 9.4], to: [18.3, 8.7, 9.5], c: 'silverDark', dirs: ['south', 'up', 'down', 'east', 'west'] },
-        { from: [17.7, 8.1, 6.5], to: [18.3, 8.7, 6.6], c: 'silverDark', dirs: ['north', 'up', 'down', 'east', 'west'] },
-        { from: [13.2, 8.1, 6.5], to: [13.8, 8.7, 6.6], c: 'silverDark', dirs: ['north', 'up', 'down', 'east', 'west'] },
-        // The rear notch: two posts at the back of the receiver (the bead shows between them).
-        { from: [18.0, 11.4, 7.15], to: [18.8, SY, 7.7], c: 'guard' },
-        { from: [18.0, 11.4, 8.3], to: [18.8, SY, 8.85], c: 'guard' },
-        // The tang at the back of the receiver (what the eye sees under the notch when aiming).
-        { from: [19.4, 8.4, 7.4], to: [19.9, 10.9, 8.6], c: 'guard' },
-        // The trigger housing under the receiver, the trigger guard and the trigger.
-        { from: [14.4, 6.6, 7.1], to: [19.0, 7.0, 8.9], c: 'guard' },
-        { from: [14.6, 5.0, 7.45], to: [17.1, 5.5, 8.55], c: 'guard' },
-        { from: [14.6, 5.5, 7.45], to: [15.1, 7.0, 8.55], c: 'guard' },
-        { from: [15.85, 5.75, 7.75], to: [16.35, 7.0, 8.25], c: 'steel', rot: { angle: 12, axis: 'z', origin: [16.1, 7.0, 8] } },
-        // The pistol grip: wood, bending back, with a dark butt cap.
-        { ...seg(P0, 3.4, 1.45, 18, 6.9, 9.1), c: 'grip', pat: 'grain' },
-        { ...seg(J1, 3.0, 1.4, 30, 6.85, 9.15), c: 'grip', pat: 'grain' },
-        { ...seg(J2, 0.8, 1.6, 36, 6.75, 9.25), c: 'gripDark' }
+        // ---------- the receiver: a dark frame (the plate covers most of its sides) ----------
+        {
+          from: [11.5, 6.5, 6.5], to: [18.75, 11.5, 9.5], c: { all: 'gm', north: 'gmDark', south: 'gmDark', down: 'gmMid' },
+          split: { y: [8.75] }, // the window's lower edge (and a seam on the ends)
+          deco: [
+            // on top: chrome edge lines and a rib groove down the middle (texture only: the sight corridor stays clear)
+            { k: 'band', face: 'up', at: [11.75, 6.75], to: [17.75, 7], c: 'silverMid' },
+            { k: 'band', face: 'up', at: [11.75, 9], to: [17.75, 9.25], c: 'silverMid' },
+            { k: 'slots', face: 'up', at: [12, 7.75], to: [17.5, 8.25], n: 1 },
+            // the rear face's serrations above the step (the aim view)
+            { k: 'slots', face: 'east', at: [9, 11.25], to: [7, 10.75], n: 2 },
+            { k: 'rivets', face: 'west', at: [9.25, 7.5], to: [6.75, 7], n: 2, size: 2, c: 'gmHi' },
+            // underneath: the loading port (the reload frames push shells into it)
+            { k: 'inset', face: 'down', at: [11.75, 7.25], to: [14.5, 8.75], c: 'gm' }
+          ]
+        },
+        // the rear steps down into the grip (a staircase); its rear faces (what aiming sees): an inset, grooves, a tang screw
+        { from: [18.75, 8.25, 6.75], to: [19.25, 10.75, 9.25], c: { all: 'gm', up: 'gmHi', east: 'gmHi' }, deco: [{ k: 'inset', face: 'east', at: [9, 10.5], to: [7, 8.5], c: 'gm' }, { k: 'slots', face: 'east', at: [8.75, 10], to: [7.25, 9], n: 2 }] },
+        { from: [19.25, 7, 7], to: [19.75, 9, 9], c: { all: 'gm', up: 'gmHi', east: 'gmHi' }, deco: [{ k: 'rivets', face: 'east', at: [8.5, 8.5], to: [7.5, 7.5], n: 1, size: 2, c: 'silverMid' }] },
+        // the barrel nut ring (a step where the barrel enters)
+        { from: [11, 8.75, 6.5], to: [11.5, 11.25, 9.5], c: { all: 'gm', up: 'gmHi' } },
+        // the rear notch (KEEP 'post')
+        { from: [18, 11.5, 7.25], to: [18.75, SY, 7.75], c: 'post' },
+        { from: [18, 11.5, 8.25], to: [18.75, SY, 8.75], c: 'post' },
+        ...PLATE,
+        // ---------- the trigger group: housing, a chunky black guard, a steel trigger ----------
+        { from: [14.5, 6, 7], to: [18.75, 6.5, 9], c: 'gmMid' },
+        { from: [14.75, 4.25, 7.25], to: [17.5, 5, 8.75], c: { all: 'gm', up: 'gmHi' } },
+        { from: [14.75, 5, 7.25], to: [15.5, 6, 8.75], c: { all: 'gm', west: 'gmHi' } },
+        { from: [15.75, 5, 7.75], to: [16.25, 6, 8.25], c: 'steel', rot: { angle: 12, axis: 'z', origin: [16, 6, 8] } },
+        // ---------- the grip: black, two walnut strips a side (a black line between, dark blotches), a screw, a black butt ----------
+        // (the lower segment is a texel thinner each side, so where they overlap the upper one's faces win)
+        { ...seg(P0, 3.75, 1.5, 22, 6.75, 9.25), c: { all: 'gm', north: 'grip', south: 'grip' }, deco: [{ k: 'band', at: [17.25, 7], to: [17.75, 3.25], c: 'port' }, { k: 'stamp', at: [16.5, 5.5], to: [17, 5], rows: ['dd', 'd'], keys: { d: 'gripDark' } }, { k: 'stamp', at: [18.25, 4.75], to: [18.5, 4.25], rows: ['d', 'd'], keys: { d: 'gripDark' } }, { k: 'rivets', at: [16.5, 6.5], to: [17, 6], n: 1, size: 2, c: 'silverMid' }] },
+        { ...seg(J1, 3, 1.5, 34, 7, 9), c: { all: 'gm', north: 'grip', south: 'grip' }, deco: [{ k: 'band', at: [18.5, 4], to: [19, 1], c: 'port' }, { k: 'stamp', at: [19.25, 2.75], to: [19.5, 2.25], rows: ['dd', 'd'], keys: { d: 'gripDark' } }] },
+        { ...seg(J2, 0.75, 1.75, 40, 6.5, 9.5), c: { all: 'gm', down: 'gmDark' }, split: { x: [20.25] }, deco: [{ k: 'rivets', face: 'flats', at: [19, 7.75], to: [19.5, 8.25], n: 1, size: 2, c: 'gmHi' }, { k: 'rivets', face: 'flats', at: [21, 7.75], to: [21.5, 8.25], n: 1, size: 2, c: 'gmHi' }] },
+        // ---------- the barrel: gunmetal, a chrome line on top toward the bead, a chrome stripe, dim reflections ----------
+        {
+          from: [-0.5, 8.75, 6.75], to: [11, 11, 9.25], c: { all: 'gm', down: 'gmMid' }, dirs: ['north', 'south', 'up', 'down'],
+          deco: [
+            { k: 'band', face: 'up', at: [-0.25, 7.75], to: [10.75, 8.25], c: 'silver' },
+            { k: 'band', at: [-0.25, 10.75], to: [10.75, 10], c: 'silver' },
+            { k: 'band', at: [0.25, 9.25], to: [2.75, 9], c: 'gmHi' },
+            { k: 'band', at: [5.25, 9.25], to: [7.5, 9], c: 'gmHi' },
+            { k: 'band', face: 'down', at: [0, 7.25], to: [2.5, 7.5], c: 'gmHi' }
+          ]
+        },
+        // the silver clamp where the tubes meet (the barrel's top chrome line runs on over it), a screw each side
+        { from: [3, 7.5, 6.5], to: [4, 10, 9.5], c: { all: 'silver', down: 'silverMid' }, deco: [{ k: 'rivets', at: [3.25, 9], to: [3.75, 8.5], n: 1, size: 2, c: 'silverDark' }] },
+        // ---------- the magazine tube: gunmetal, a chrome stripe, ends short of the muzzle with a cap ----------
+        {
+          from: [-1, 6.75, 7], to: [11.5, 8.75, 9], c: { all: 'gm', down: 'gmMid' }, dirs: ['north', 'south', 'down'],
+          deco: [
+            { k: 'band', at: [-0.75, 8.5], to: [3, 7.75], c: 'silver' },
+            { k: 'band', at: [-0.75, 8.5], to: [0.25, 7.75], c: 'silverHi' },
+            { k: 'band', at: [9, 8.5], to: [11.25, 7.75], c: 'silverMid' },
+            { k: 'band', at: [0.5, 7.25], to: [2.5, 7], c: 'gmHi' },
+            { k: 'band', face: 'down', at: [-0.5, 7.75], to: [2.75, 8.25], c: 'gmHi' }
+          ]
+        },
+        { from: [-1.5, 6.5, 6.75], to: [-1, 8.75, 9.25], c: { all: 'gm', up: 'gmHi', west: 'gmMid' }, deco: [{ k: 'inset', face: 'west', at: [7.25, 8.25], to: [8.75, 7], c: 'silverMid' }] },
+        // ---------- the muzzle block: taller than the barrel, vent slots, the bore, the bead ----------
+        {
+          from: [-3, 8.5, 6.75], to: [-0.5, 11.25, 9.25], c: { all: 'gm', up: 'gmHi', down: 'gmMid' },
+          deco: [
+            { k: 'slots', at: [-2.5, 10.75], to: [-1, 9.75], n: 2 },
+            { k: 'inset', face: 'west', at: [7.25, 10.75], to: [8.75, 9], c: 'silverMid' },
+            { k: 'stamp', face: 'west', at: [7.75, 10.25], to: [8.25, 9.75], rows: ['bb', 'bb'], keys: { b: 'bore' } }
+          ]
+        },
+        { from: [-2.75, 11.25, 7.625], to: [-1.75, SY, 8.375], c: { all: 'bead', up: 'beadHi', east: 'beadHi' }, glow: true }
       ],
       pump: [
-        // The wooden pump around the magazine tube, with its grooves, darker end rings, the action bars into the
-        // receiver and the bolt that shows in the ejection port (they all ride back with the pump).
-        { from: [1.6, 6.8, 6.7], to: [7.4, 9.2, 9.3], c: { all: 'wood', up: 'woodLight' }, pat: { all: 'groove', east: 'flat', west: 'flat' } },
-        { from: [1.8, 7.85, 9.3], to: [7.2, 8.15, 9.33], c: 'woodDark', outline: false, dirs: ['south'] },
-        { from: [1.8, 7.85, 6.67], to: [7.2, 8.15, 6.7], c: 'woodDark', outline: false, dirs: ['north'] },
-        { from: [1.2, 6.65, 6.55], to: [1.8, 9.2, 9.45], c: 'woodDark' },
-        { from: [7.2, 6.65, 6.55], to: [7.8, 9.2, 9.45], c: 'woodDark' },
-        { from: [7.8, 7.75, 6.95], to: [12.2, 8.3, 7.25], c: 'guard' },
-        { from: [7.8, 7.75, 8.75], to: [12.2, 8.3, 9.05], c: 'guard' },
-        { from: [13.15, 9.1, 9.47], to: [13.95, 10.5, 9.55], c: 'silver', ink: 'silverMid', dirs: ['south', 'up', 'down', 'east', 'west'] },
-        { from: [13.15, 9.1, 6.45], to: [13.95, 10.5, 6.53], c: 'silver', ink: 'silverMid', dirs: ['north', 'up', 'down', 'east', 'west'] }
+        // the walnut pump: five ribs (a lengthwise groove low down, ribbed on top too), dark brown grooves and edges; the action
+        // bars into the receiver; the bolt on the receiver's side under the plate (it closes the front of the window
+        // at rest, racked +2.4 it shows at the window's rear and the rest slides under the plate)
+        {
+          from: [4.5, 6, 6.5], to: [8.75, 8.75, 9.5], c: { all: 'wood', up: 'woodLight', down: 'woodDark' }, ink: 'woodDeep',
+          deco: [
+            { k: 'ribs', at: [4.75, 8.5], to: [8.5, 6.25], c: 'wood', fin: 2 },
+            { k: 'band', at: [4.75, 7], to: [8.5, 6.75], c: 'woodDeep' },
+            { k: 'ribs', face: 'up', at: [4.75, 6.75], to: [8.5, 9.25], c: 'woodLight', fin: 2 }
+          ]
+        },
+        { from: [8.75, 7.25, 6.75], to: [12.25, 8, 7], c: 'gmDark' },
+        { from: [8.75, 7.25, 9], to: [12.25, 8, 9.25], c: 'gmDark' },
+        ...sides(13.25, 9, 16.25, 10.25, 9.5, 0.25, { c: { all: 'silver', up: 'silverHi' }, ink: 'silverDark', deco: [{ k: 'band', at: [13.25, 9.5], to: [13.5, 9.25], c: 'port' }] }, EDGES_S, EDGES_N)
       ],
       shell: [
-        // A spent (or a new) shell: red hull, brass base with its rim. Shown only by the frames.
-        { from: [13.4, 9.3, 8.7], to: [15.4, 10.3, 9.7], c: { all: 'hull', down: 'hullDark' }, ink: 'hullDark' },
-        { from: [15.4, 9.22, 8.62], to: [16.0, 10.38, 9.78], c: { all: 'brass', down: 'brassDark' }, ink: 'brassDark' }
+        // A spent (or a new) shell: red hull, brass base, a primer. Shown only by the frames.
+        { from: [13.5, 9.25, 8.5], to: [15.25, 10.5, 9.75], c: { all: 'hull', down: 'hullDark' }, ink: 'hullDark' },
+        { from: [15.25, 9.25, 8.5], to: [16, 10.5, 9.75], c: { all: 'brass', down: 'brassDark' }, ink: 'brassDark', deco: [{ k: 'rivets', face: 'east', at: [8.75, 10.25], to: [9.5, 9.5], n: 1, size: 2, c: 'silverMid' }] }
       ],
       flash: [
-        { from: [-4.8, 9.0, 6.8], to: [-3.0, 11.4, 9.2], c: 'flashCore', glow: true },
-        { from: [-8.6, 9.6, 7.4], to: [-4.8, 10.8, 8.6], c: 'flash', glow: true },
-        { from: [-5.6, 11.4, 7.4], to: [-4.2, 13.6, 8.6], c: 'flash', glow: true },
-        { from: [-5.6, 6.8, 7.4], to: [-4.2, 9.0, 8.6], c: 'flash', glow: true },
-        { from: [-5.6, 9.6, 4.6], to: [-4.2, 10.8, 6.8], c: 'flash', glow: true },
-        { from: [-5.6, 9.6, 9.2], to: [-4.2, 10.8, 11.4], c: 'flash', glow: true },
-        { from: [-5.4, 9.7, 5.4], to: [-4.4, 10.7, 10.6], c: 'flash', glow: true, rot: { angle: 45, axis: 'x', origin: [-4.9, 10.2, 8] } },
-        { from: [-5.4, 9.7, 5.4], to: [-4.4, 10.7, 10.6], c: 'flash', glow: true, rot: { angle: -45, axis: 'x', origin: [-4.9, 10.2, 8] } }
+        { from: [-4.75, 8.625, 6.75], to: [-3, 11.125, 9.25], c: 'flashCore', glow: true },
+        { from: [-8.5, 9.375, 7.5], to: [-4.75, 10.375, 8.5], c: 'flash', glow: true },
+        { from: [-5.5, 11.125, 7.5], to: [-4.25, 13.375, 8.5], c: 'flash', glow: true },
+        { from: [-5.5, 6.375, 7.5], to: [-4.25, 8.625, 8.5], c: 'flash', glow: true },
+        { from: [-5.5, 9.375, 4.5], to: [-4.25, 10.375, 6.75], c: 'flash', glow: true },
+        { from: [-5.5, 9.375, 9.25], to: [-4.25, 10.375, 11.5], c: 'flash', glow: true },
+        { from: [-5.5, 9.375, 5.5], to: [-4.5, 10.375, 10.5], c: 'flash', glow: true, rot: { angle: 45, axis: 'x', origin: [-5, 9.875, 8] } },
+        { from: [-5.5, 9.375, 5.5], to: [-4.5, 10.375, 10.5], c: 'flash', glow: true, rot: { angle: -45, axis: 'x', origin: [-5, 9.875, 8] } }
       ]
     },
     hidden: ['flash', 'shell'],
@@ -113,14 +197,14 @@ module.exports = ({ pg, aim, display }) => {
       head: { rotation: [0, -90, 0], translation: [0, 13, 7], scale: [1, 1, 1] }
     }),
     states: {
-      ads: aim({ sightY: SY, rearX: 18.8, rearDepth: 1.3, scale: [1.6, 2.4, 2.4] }),
+      ads: aim({ sightY: SY, rearX: 18.75, rearDepth: 1.3, scale: [1.6, 2.4, 2.4] }),
       sprint: { rotation: [19.88, -26.19, 4.92], translation: [-6.28, 4.19, 2.95], scale: [0.72, 0.72, 0.72] }
     }
   })
   const GRIP = [17.6, 6.5, 8] // the hand
   const AXIS = [12, 9.4, 8] // the bore line through the receiver (the cant turns about it)
   const SHELL = [14.7, 9.8, 9.2] // the shell's centre
-  const TRAVEL = 2.9 // how far the pump racks back (model units)
+  const TRAVEL = 2.4 // how far the pump racks back (model units): its rear (8.75) stops short of the receiver (11.5)
   // A shot (GunFx: 15 ticks): the flash for the first ~15%, a big kick (back and muzzle up) gone by ~35%, the pump
   // racked back (35-55%) and forward (60-85%) with a small cant toward the eye, and a spent shell thrown out of the
   // +z port while it's back, arcing up and back over the receiver (not across the barrel toward the sight). k scales
@@ -159,9 +243,11 @@ module.exports = ({ pg, aim, display }) => {
   // bottom edge). GunFx gives a shell exactly WeaponMechanics' 4-tick reload task (getReloadTime: for a pump gun loading
   // one shell at a time WeaponMechanics never chains the Open/Close times its reload event reports into the reload).
   const canted = (nod = 0) => rig({ t: [0, 2.2 + 0.35 * nod, 0.8], rot: [[[1, 0, 0], -24], [[0, 1, 0], 10], [[0, 0, 1], -6 - 2 * nod]], pivot: AXIS })
-  const LOAD_START = [-1.2, -4.4, 0.4] // under the loading port (from the shell's own spot at the ejection port)
-  const LOAD_PORT = [-1.55, -2.6, -1.2] // half into the port
-  const LOAD_IN = [-4.4, -1.35, -1.2] // pushed forward into the magazine tube (hidden in it)
+  // From the shell's own spot at the ejection port: under the loading port, half into it, pushed forward into the
+  // magazine tube (hidden in it). The receiver's bottom (the port) and the tube sit 0.5 lower than before the remake.
+  const LOAD_START = [-1.45, -4.9, 0.4]
+  const LOAD_PORT = [-1.8, -3.1, -1.2]
+  const LOAD_IN = [-4.4, -1.85, -1.2]
   const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t)
   const reload = p => {
     const up = ease.ramp(p, 0.05, 0.55)

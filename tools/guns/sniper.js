@@ -1,10 +1,15 @@
 // The sniper slot (WeaponMechanics weapons\sniper_rifles\AX_50.yml, title AX_50, shown as "Sniper Rifle"; skins
-// Default 13, Scope +1000, Sprint +2000, Reload +3000). 2026-10-06: a recreation of Pixel Gun 3D's default "Sniper
-// Rifle" (drawn by hand from the wiki's description and pictures, nothing taken from the game): a long wooden
-// M40-style rifle, almost all brown wood (a forend with a dark tip, a sporting stock with a pistol grip, a raised
-// cheek rest, a white spacer and a black rubber butt pad), a dark metal barrel with chrome bands, a big black scope
-// with chrome rings, turrets and a cyan lens, and the bolt on the LEFT (+z: the side first person sees; PG3D's rifle
-// is a left-handed bolt action), a box magazine and a brass case that only shows when it flies out.
+// Default 13, Scope +1000, Sprint +2000, Reload +3000). 2026-10-06, remade the same day at the Photon level of detail
+// (the kit's PG painter: style 'pg', density 4): a recreation of Pixel Gun 3D's default "Sniper Rifle" as its wiki
+// Appearance shows it today (drawn by hand from the wiki's pictures, nothing taken from the game): a long wooden
+// M40-style rifle in saturated orange wood (a tall forend whose underside steps up toward a dark end-grain tip, a
+// routed slot and dark grain dashes, a straight wrist and a belly stepping down to a tall butt with a raised comb, a
+// light steel spacer and a dark ribbed pad), a heavy square blue-steel barrel with one long glint and a muzzle block
+// with a hollow square face and a front-sight post, a blue-steel receiver with panel seams and screws, a big blue-steel
+// scope (a black-rimmed objective bell around a recessed blue lens, dark rings with clamp screws on top, a ribbed
+// turret, a steel eyepiece with a black rubber eye cup and a checkered blue glass), a big blue-steel box magazine with a
+// light band, and the bolt on the LEFT (+z: the side first person sees; PG3D's rifle is a left-handed bolt action): an
+// L-shaped silver handle with a square knob. A brass case only shows when it flies out.
 // Frames (DonatingPhone GunFx: AX_50 shot 20, draw 40, alone 6, action 16; WeaponMechanics' LEVER action after every
 // shot with rounds left: Open 8 ticks, then Close 8, its sounds at ticks 6 and 12):
 //   - a shot: the flash (2 ticks), a big kick (3 back, 14 degrees muzzle up) spent by tick 6, then the bolt in ticks
@@ -19,61 +24,93 @@
 //     the gun cants its belly toward the eye, the bolt opens (a case flips out), the magazine drops out along its own
 //     axis, a new one rises and seats with a jolt, the bolt closes, the gun rolls back.
 //   - Scope: aim() on the scope's axis, a long hollow tube (scale [0.41, 4, 4]): a black eyepiece rim, an octagonal
-//     black funnel, a thin cyan ring at the objective and a window about 55% of the screen's height with duplex
-//     posts (thick outside, thin toward the crosshair; the centre left open). No overlay: the world shows through the
-//     window and at the screen's sides, with or without the FOV-effects slider (the first-person item is drawn at a
-//     fixed 70 degrees; zoom never scales it). The lens has no face toward the eye (culled from inside), and the part
-//     noads (the eyepiece's glass, which faces the eye, and the right-hand windage turret, which stuck into the view
-//     at the right edge on 16:10 and wider screens) is hidden while aiming. The Scope state never draws the bolt: the
-//     kick only (translations: the state's scale is 10x deeper than wide, so a turn would be amplified), and nothing
-//     for the draw or action clocks.
+//     black funnel, a thin blue ring at the objective and a window about 55% of the screen's height with duplex posts
+//     (thick outside, thin toward the crosshair; the centre left open) and three ranging ticks on the lower thin post.
+//     No overlay: the world shows through the window and at the screen's sides, with or without the FOV-effects
+//     slider (the first-person item is drawn at a fixed 70 degrees; zoom never scales it). The lens has no face toward
+//     the eye (culled from inside), and the part noads (the eyepiece's glass, which faces the eye, and the right-hand
+//     windage turret, which stuck into the view at the right edge on 16:10 and wider screens) is hidden while aiming.
+//     Every face seen through the scope (the funnel's insides, the corner slabs, the bell's insides, the lens) is flat:
+//     no bands, bevels or glints in the view. The Scope state never draws the bolt: the kick only (translations: the
+//     state's scale is 10x deeper than wide, so a turn would be amplified), and nothing for the draw or action clocks.
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is the scope's axis, y = SY. Every box stays
 // within the client's element bounds, -16..32 on each axis (a model with one box outside fails to load: the missing-
 // model cube): the rifle is exactly 48 units long, muzzle face at x = -16, butt pad at 32, and the muzzle flash is
-// drawn 9 units back inside the bounds and moved out to the muzzle by its frame's transformation.
+// drawn 9 units back inside the bounds and moved out to the muzzle by its frame's transformation. Boxes sit on the
+// 1/4 grid (density 4: square texels, seams that line up) except the scope's, which are measured from its axis
+// (SY, HI: the aimed view depends on them).
+// ADS limits (d(x) = 0.45 + 0.0256 (16.8 - x) blocks from the eye): in front of the lens nothing rises above the
+// window's lower edge y = SY - 1.476 d (10.90 at x -16: the front-sight blade stops at 10.75); in front of the
+// eyepiece nothing within |y - SY| < 2.8 d reaches |z - 8| > 3.9 d (the side edges of 16:9 and wider screens: the
+// ring screws sit on top, the windage turret is in noads); behind the eyepiece nothing rises above SY - 2.8 d (11.96
+// at x 22.6: the comb stops at 11.5).
 module.exports = ({ pg, aim, display }) => {
   const { pgGun, ease, rig, then } = pg
   const name = 'gun_sniper'
-  const SY = 12.8 // the scope's axis
-  const HI = 1.2 // the scope's inner half-size (the view through it)
-  const BORE = 8.6
+  const SY = 12.8 // the scope's axis (aim(), the posts, the ADS window)
+  const HI = 1.2 // the scope's inner half-size (the view through it: a window ~55% of the screen's height)
+  const BORE = 8.5 // the barrel's axis (the flash is drawn around it)
   // The colour of a box's faces: c (a key or { all, up, ... }), with the face toward the scope's axis set to inner.
   const faces = (c, face, inner) => {
     const base = typeof c === 'string' ? { all: c } : { ...c }
     if (inner) base[face] = inner
     return base
   }
-  // A hollow square tube along x around the scope's axis: walls from the inner half-size hi to the outer ho.
+  // A hollow square tube along x around the scope's axis: walls from the inner half-size hi to the outer ho. The face
+  // toward the axis is always flat (material and pattern): it's what the eye sees through the scope. more.top: decals
+  // on the top wall only; more.pat / more.mat: a key or { all, ... } for the outward faces; more.ink, more.grain: on
+  // every wall; more.deco: the side walls' outward faces only.
+  const INNER = ['north', 'south', 'down', 'up']
   const tube = (x0, x1, ho, hi, c, inner, more = {}) => [
-    { from: [x0, SY - ho, 8 + hi], to: [x1, SY + ho, 8 + ho], c: faces(c, 'north', inner), ...more }, // left (+z)
-    { from: [x0, SY - ho, 8 - ho], to: [x1, SY + ho, 8 - hi], c: faces(c, 'south', inner), ...more }, // right (-z)
-    { from: [x0, SY + hi, 8 - hi], to: [x1, SY + ho, 8 + hi], c: faces(c, 'down', inner), ...more }, // top
-    { from: [x0, SY - ho, 8 - hi], to: [x1, SY - hi, 8 + hi], c: faces(c, 'up', inner), ...more } // bottom
-  ]
+    { from: [x0, SY - ho, 8 + hi], to: [x1, SY + ho, 8 + ho], c: faces(c, 'north', inner) }, // left (+z)
+    { from: [x0, SY - ho, 8 - ho], to: [x1, SY + ho, 8 - hi], c: faces(c, 'south', inner) }, // right (-z)
+    { from: [x0, SY + hi, 8 - hi], to: [x1, SY + ho, 8 + hi], c: faces(c, 'down', inner), ...(more.top ? { deco: more.top } : {}) }, // top
+    { from: [x0, SY - ho, 8 - hi], to: [x1, SY - hi, 8 + hi], c: faces(c, 'up', inner) } // bottom
+  ].map((b, i) => {
+    const o = { ...b, ...(more.ink ? { ink: more.ink } : {}), ...(more.grain != null ? { grain: more.grain } : {}) }
+    const per = v => typeof v === 'string' ? { all: v } : { ...v }
+    if (more.mat) o.mat = { ...per(more.mat), [INNER[i]]: 'flat' }
+    if (more.pat) o.pat = { ...per(more.pat), [INNER[i]]: 'flat' }
+    if (inner && !more.mat) o.mat = { all: undefined, [INNER[i]]: 'flat' }
+    if (inner && !more.pat) o.pat = { [INNER[i]]: 'flat' }
+    if (more.deco && i < 2) o.deco = more.deco.map(d => ({ ...d, face: i === 0 ? 'south' : 'north' })) // the side walls' outward faces only
+    return o
+  })
   // The corners of the opening cut off (an octagon, rounder through the scope): a slab at the inner half-size,
-  // turned 45 degrees about the axis, in each corner.
+  // turned 45 degrees about the axis, in each corner. Flat, no outline (seen through the scope).
   const W8 = HI * Math.tan(Math.PI / 8) + 0.03
   const T8 = HI * (Math.SQRT2 - 1) + 0.08
   const corners = (x0, x1, inner) => [45, -45].flatMap(angle => [
-    { from: [x0, SY + HI, 8 - W8], to: [x1, SY + HI + T8, 8 + W8], c: { all: 'scopeIn', down: inner }, outline: false, rot: { angle, axis: 'x', origin: [x0, SY, 8] } },
-    { from: [x0, SY - HI - T8, 8 - W8], to: [x1, SY - HI, 8 + W8], c: { all: 'scopeIn', up: inner }, outline: false, rot: { angle, axis: 'x', origin: [x0, SY, 8] } }
+    { from: [x0, SY + HI, 8 - W8], to: [x1, SY + HI + T8, 8 + W8], c: { all: 'scopeIn', down: inner }, mat: 'flat', outline: false, rot: { angle, axis: 'x', origin: [x0, SY, 8] } },
+    { from: [x0, SY - HI - T8, 8 - W8], to: [x1, SY - HI, 8 + W8], c: { all: 'scopeIn', up: inner }, mat: 'flat', outline: false, rot: { angle, axis: 'x', origin: [x0, SY, 8] } }
   ])
   // Duplex posts at the objective's inner end (facing the eye only): thick from the wall to 0.45 of the opening,
-  // thin from there to 0.12 (the crosshair's gap).
+  // thin from there to 0.12 (the crosshair's gap); three ranging ticks across the lower thin post (PG3D's ladder).
   const XP = [2.75, 2.85]
-  const post = (y0, y1, z0, z1) => ({ from: [XP[0], y0, z0], to: [XP[1], y1, z1], c: 'reticle', outline: false, dirs: ['east'] })
+  const post = (y0, y1, z0, z1) => ({ from: [XP[0], y0, z0], to: [XP[1], y1, z1], c: 'reticle', mat: 'flat', outline: false, dirs: ['east'] })
   const TK = 0.035; const TN = 0.013 // half-thicknesses
   const R1 = 0.45 * HI; const R0 = 0.12 * HI
   const posts = [
     post(SY + R1, SY + HI, 8 - TK, 8 + TK), post(SY - HI, SY - R1, 8 - TK, 8 + TK),
     post(SY - TK, SY + TK, 8 + R1, 8 + HI), post(SY - TK, SY + TK, 8 - HI, 8 - R1),
     post(SY + R0, SY + R1, 8 - TN, 8 + TN), post(SY - R1, SY - R0, 8 - TN, 8 + TN),
-    post(SY - TN, SY + TN, 8 + R0, 8 + R1), post(SY - TN, SY + TN, 8 - R1, 8 - R0)
+    post(SY - TN, SY + TN, 8 + R0, 8 + R1), post(SY - TN, SY + TN, 8 - R1, 8 - R0),
+    ...[0.24, 0.34, 0.44].map(k => post(SY - k * HI - TN, SY - k * HI + TN, 8 - 0.06, 8 + 0.06))
   ]
-  const SCOPE = { all: 'scope', up: 'scopeT' }
-  // The bolt handle droops a little (turned 22.5 degrees down about the bolt's axis).
-  const HANDLE = { angle: 22.5, axis: 'x', origin: [15.6, 9.2, 8] }
+  const SCOPE = { all: 'scope', up: 'scopeT' } // KEEP keys only: the scope stays steel-blue under every skin
+  const BELL = { all: 'scope', up: 'scopeT', west: 'scopeIn' } // the objective's thick black front rim
   const FLASH_BACK = 9 // the flash is drawn this far back (+x) inside the bounds and moved out by its frame
+  const W = { all: 'wood', up: 'woodL', down: 'woodD' } // a wood box: lit top, dark underside
+  const WI = { ink: 'woodDD' } // wood outlines in dark brown (softer seams between the stepped boxes)
+  // Dark grain dashes (PG3D's wood: short blocky marks along the grain): pixel art from the rect's corner, on both
+  // sides (mirrored on the right). d = the darkest wood, - = the face's lo tone.
+  const DASH = [
+    ['dd--......', '.......-dd', '...d......'],
+    ['-dd....', '...--dd', '.......'],
+    ['..dd-.....-d', 'd.......dd..'],
+    ['d-......', '..--dd..', '.....-..']
+  ]
+  const dash = (x, y, i) => ({ k: 'stamp', face: 'sides', at: [x, y], to: [x + 3, y - 0.75], keys: { d: 'woodDD' }, rows: DASH[i % DASH.length] })
   // The client's element bounds: every from, to and rotation origin within -16..32 (CuboidModelElement's
   // deserializer throws outside it, and the whole model file fails to load). Checked before anything is written.
   const inBounds = spec => {
@@ -87,110 +124,132 @@ module.exports = ({ pg, aim, display }) => {
     return spec
   }
   const gun = pgGun(name, inBounds({
+    style: 'pg',
+    density: 4,
     palette: {
-      wood: [150, 84, 38], woodL: [192, 118, 58], woodD: [104, 54, 22], woodDD: [70, 36, 14],
-      gun: [70, 74, 86], gunL: [112, 118, 132], gunD: [40, 42, 50],
-      chrome: [214, 222, 234], chromeD: [150, 160, 176],
-      scope: [30, 32, 38], scopeT: [56, 60, 70], scopeIn: [12, 13, 16], rubber: [22, 22, 26],
-      lens: [64, 220, 236], lensB: [200, 252, 255], glass: [22, 70, 86], glassB: [110, 214, 232],
-      pad: [34, 32, 34], spacer: [232, 228, 216],
+      wood: [196, 104, 34], woodL: [226, 134, 52], woodD: [128, 62, 20], woodDD: [70, 36, 14], woodC: { of: 'wood', f: 0.84 },
+      gun: [92, 118, 142], gunL: [150, 180, 204], gunD: [40, 52, 66],
+      chrome: [184, 204, 220], chromeD: [120, 142, 164],
+      scope: [62, 90, 122], scopeT: [108, 144, 180], scopeIn: [10, 12, 16], rubber: [26, 30, 36],
+      lens: [84, 140, 196], lensB: [200, 230, 250], glass: [20, 76, 124], glassB: [100, 160, 200],
+      pad: [44, 30, 22], spacer: [176, 196, 212],
       brass: [228, 184, 78], brassD: [168, 124, 44],
-      bore: [12, 12, 14], reticle: [6, 6, 8],
+      bore: [8, 8, 10], reticle: [6, 6, 8],
       flash: [255, 196, 64], flashCore: [255, 248, 210]
     },
+    mats: { wood: 'wood', woodL: 'wood', woodD: 'wood', woodDD: 'wood', woodC: 'wood', gun: 'metal', gunL: 'metal', gunD: 'dark', chrome: 'chrome', chromeD: 'chrome', scope: 'metal', scopeT: 'metal', scopeIn: 'flat', rubber: 'rubber', lens: 'glass', lensB: 'flat', glass: 'glass', glassB: 'flat', pad: 'rubber', spacer: 'chrome', brass: 'metal', brassD: 'metal', bore: 'flat', reticle: 'flat', flash: 'glow', flashCore: 'glow' },
     parts: {
       body: [
-        // The barrel: dark metal, a muzzle cap with the bore (its face at x = -16, the bounds' edge), three chrome
-        // bands.
-        { from: [-14.8, BORE - 0.7, 7.3], to: [6.4, BORE + 0.7, 8.7], c: { all: 'gun', up: 'gunL' }, pat: 'chrome' },
-        { from: [-15.98, BORE - 0.85, 7.15], to: [-14.58, BORE + 0.85, 8.85], c: { all: 'gunD', up: 'gun' } },
-        { from: [-16.0, BORE - 0.4, 7.6], to: [-15.98, BORE + 0.4, 8.4], c: 'bore', dirs: ['west'], outline: false },
-        { from: [-13.8, BORE - 0.85, 7.15], to: [-13.0, BORE + 0.85, 8.85], c: 'chrome', pat: 'chrome', ink: 'chromeD' },
-        { from: [-9.0, BORE - 0.85, 7.15], to: [-8.2, BORE + 0.85, 8.85], c: 'chrome', pat: 'chrome', ink: 'chromeD' },
-        { from: [-4.4, BORE - 0.85, 7.15], to: [-3.6, BORE + 0.85, 8.85], c: 'chrome', pat: 'chrome', ink: 'chromeD' },
-        // The stock: a dark forend tip, the forend (the barrel half sunk in it), the bedding under the action, the
-        // wrist, a pistol grip raked back, the butt with a lower heel, the cheek rest, a white spacer, the rubber pad.
-        { from: [-3.4, 6.5, 6.95], to: [-2.2, 8.5, 9.05], c: 'woodDD', ink: 'woodDD' },
-        { from: [-2.2, 6.1, 6.85], to: [6.6, 8.5, 9.15], c: { all: 'wood', up: 'woodL' }, pat: 'grain', ink: 'woodDD' },
-        { from: [6.6, 5.6, 6.8], to: [17.0, 8.3, 9.2], c: { all: 'wood', up: 'woodL' }, pat: 'grain', ink: 'woodDD' },
-        { from: [17.0, 5.4, 6.85], to: [21.6, 9.3, 9.15], c: { all: 'wood', up: 'woodL' }, pat: 'grain', ink: 'woodDD' },
-        { from: [17.6, 2.6, 6.95], to: [20.6, 5.8, 9.05], c: 'wood', pat: 'grain', ink: 'woodDD', rot: { angle: 22.5, axis: 'z', origin: [19.1, 5.6, 8] } },
-        { from: [17.2, 2.5, 6.9], to: [20.9, 3.1, 9.1], c: 'woodDD', ink: 'woodDD', rot: { angle: 22.5, axis: 'z', origin: [19.1, 5.6, 8] } },
-        { from: [21.6, 4.4, 6.8], to: [31.0, 9.7, 9.2], c: { all: 'wood', up: 'woodL' }, pat: 'grain', ink: 'woodDD' },
-        { from: [23.6, 3.4, 6.85], to: [31.0, 4.4, 9.15], c: 'wood', pat: 'grain', ink: 'woodDD' },
-        { from: [22.6, 9.7, 7.05], to: [29.6, 10.6, 8.95], c: { all: 'woodL', up: 'woodL' }, pat: 'grain', ink: 'woodD' },
-        { from: [30.85, 3.3, 6.75], to: [31.15, 10.0, 9.25], c: 'spacer', outline: false },
-        { from: [31.15, 3.1, 6.65], to: [32.0, 10.2, 9.35], c: 'pad', pat: 'speck' },
-        // Sling studs under the forend and the butt.
-        { from: [0.4, 5.6, 7.6], to: [1.2, 6.1, 8.4], c: 'chrome', ink: 'chromeD' },
-        { from: [27.6, 2.9, 7.6], to: [28.4, 3.4, 8.4], c: 'chrome', ink: 'chromeD' },
-        // The receiver: gunmetal, the front ring, the ejection port and the bolt's track on the left (+z), the
-        // bolt shroud at the back.
-        { from: [6.4, 8.3, 7.05], to: [16.6, 10.4, 8.95], c: { all: 'gun', up: 'gunL' }, pat: 'chrome' },
-        { from: [6.0, 8.1, 6.95], to: [6.9, 10.6, 9.05], c: 'gunD', ink: 'gun' },
-        { from: [10.0, 8.85, 8.95], to: [14.0, 9.95, 9.0], c: 'bore', ink: 'gunD', dirs: ['south'] },
-        { from: [14.0, 9.1, 8.95], to: [17.4, 9.4, 9.0], c: 'bore', outline: false, dirs: ['south'] },
-        { from: [16.6, 8.6, 7.35], to: [17.6, 9.9, 8.65], c: 'gunD', ink: 'gun' },
-        // The trigger guard (gunmetal), the trigger.
-        { from: [13.0, 4.5, 7.5], to: [17.2, 5.0, 8.5], c: 'gunD', ink: 'gun' },
-        { from: [13.0, 5.0, 7.5], to: [13.5, 5.6, 8.5], c: 'gunD', ink: 'gun' },
-        { from: [14.8, 5.0, 7.75], to: [15.3, 5.6, 8.25], c: 'chrome', ink: 'chromeD', rot: { angle: 22.5, axis: 'z', origin: [15.05, 5.6, 8] } },
-        // The scope: two mounts and chrome rings, the objective bell (its inside faintly cyan: a glass rim seen
-        // through the scope), a step, the main tube, the rubber eyepiece; turrets on top and on the right; the cyan
-        // lens standing out in front (outward faces only: the view through the scope never sees it); inside an
-        // octagonal black funnel and the duplex posts.
-        { from: [7.2, 10.4, 7.45], to: [8.2, SY - 1.45, 8.55], c: 'gunD', ink: 'gun' },
-        { from: [12.4, 10.4, 7.45], to: [13.4, SY - 1.45, 8.55], c: 'gunD', ink: 'gun' },
-        ...tube(7.0, 8.4, 1.75, 1.5, 'chrome', null, { pat: 'chrome', ink: 'chromeD' }),
-        ...tube(12.2, 13.6, 1.75, 1.5, 'chrome', null, { pat: 'chrome', ink: 'chromeD' }),
-        ...tube(2.6, 5.0, 1.95, HI, SCOPE, 'lens', { pat: 'chrome' }),
-        ...tube(5.0, 5.8, 1.75, HI, SCOPE, 'scopeIn', { pat: 'chrome' }),
-        ...tube(5.8, 14.2, 1.5, HI, SCOPE, 'scopeIn', { pat: 'chrome' }),
-        ...tube(14.2, 16.8, 1.7, HI, 'rubber', 'scopeIn'),
-        ...corners(2.6, 5.0, 'lens'),
+        // ---- the barrel: a heavy square barrel (2.0) in lit steel (gunL: the Appearance's brightest part), one long
+        // glint (no bands), a step collar, the muzzle block (bigger, dark) with a hollow square face (ink frame, a grey
+        // ring, the black bore), a front-sight post on top (a 3-texel light blade with no outline, so it doesn't read
+        // as an ink blob; under the ADS window's lower edge: 10.90 there).
+        { from: [-14.25, BORE - 1.0, 7.0], to: [6.0, BORE + 1.0, 9.0], c: { all: 'gunL', down: 'gunD' }, pat: 'chrome2', mat: 'chrome' },
+        { from: [-14.75, BORE - 1.25, 6.75], to: [-14.25, BORE + 1.25, 9.25], c: { all: 'gunD', up: 'gun' } },
+        { from: [-15.98, BORE - 1.5, 6.5], to: [-14.75, BORE + 1.5, 9.5], c: { all: 'gunD', up: 'gun' }, deco: [{ k: 'inset', face: 'west', at: [6.75, BORE + 1.25], to: [9.25, BORE - 1.25], c: 'gun' }, { k: 'slots', face: 'sides', n: 1, at: [-15.75, BORE + 0.75], to: [-15.0, BORE - 0.75], dir: 'v' }] },
+        { from: [-16.0, BORE - 0.5, 7.5], to: [-15.98, BORE + 0.5, 8.5], c: 'bore', dirs: ['west'], outline: false },
+        { from: [-15.5, BORE + 1.5, 7.5], to: [-14.75, BORE + 1.75, 8.5], c: 'gunD' },
+        { from: [-15.5, BORE + 1.75, 7.625], to: [-14.75, BORE + 2.25, 8.375], c: { all: 'gunL', up: 'chrome' }, outline: false },
+        // ---- the forend: the barrel enclosed (top 10), the underside stepping up toward the tip (two dark-seamed
+        // steps), a dark end-grain tip cap, a routed slot near the top of each side, grain dashes.
+        { from: [-2.0, 7.0, 6.75], to: [6.5, 10.0, 9.25], c: W, ...WI, deco: [{ k: 'inset', at: [1.0, 9.5], to: [6.0, 8.75], c: 'woodD' }, dash(-1.5, 8.25, 0), dash(2.5, 8.0, 1)] },
+        { from: [1.0, 6.5, 6.75], to: [6.5, 7.0, 9.25], c: W, ink: 'woodD' },
+        { from: [3.75, 6.0, 6.75], to: [6.5, 6.5, 9.25], c: W, ink: 'woodD' },
+        { from: [-3.25, 7.25, 7.0], to: [-2.0, 9.75, 9.0], c: { all: 'woodDD', west: 'woodD' }, ...WI, pat: 'grain', deco: [{ k: 'stamp', face: 'west', at: [7.0, 9.75], to: [9.0, 7.25], keys: { d: 'woodDD', l: 'woodD' }, rows: ['........', '.l..dd..', '.ll.d.l.', '..l...l.', '.dd..ll.', '.d...l..', '..ll..d.', '...l.dd.', '.d......', '.dd.l...'] }] },
+        // ---- the bed under the action (top 8.5: the port above it stays visible), dashes in front of the magazine
+        { from: [6.5, 5.5, 6.75], to: [18.5, 8.5, 9.25], c: W, ...WI, deco: [dash(7.0, 7.25, 2), dash(7.5, 6.5, 3)] },
+        // ---- the wrist (straight: PG3D's rifle has no pistol grip) with low-contrast checkering, the belly stepping
+        // down to a tall butt with a routed slot, the comb on top
+        { from: [18.5, 5.5, 6.75], to: [21.25, 9.25, 9.25], c: W, ...WI, deco: [{ k: 'stamp', face: 'sides', at: [18.75, 8.75], to: [21.0, 6.0], keys: { d: 'woodC' }, rows: ['d.d.d.d.d', '.d.d.d.d.', 'd.d.d.d.d', '.d.d.d.d.', 'd.d.d.d.d', '.d.d.d.d.', 'd.d.d.d.d', '.d.d.d.d.', 'd.d.d.d.d', '.d.d.d.d.', 'd.d.d.d.d'] }] },
+        { from: [21.25, 5.0, 6.75], to: [30.75, 10.5, 9.25], c: W, ...WI, deco: [{ k: 'inset', at: [25.5, 10.0], to: [30.25, 9.25], c: 'woodD' }, dash(22.0, 7.5, 0), dash(26.5, 6.75, 2), dash(23.5, 9.25, 3)] },
+        { from: [24.5, 4.25, 6.75], to: [30.75, 5.0, 9.25], c: W, ink: 'woodD' },
+        { from: [27.75, 3.5, 6.75], to: [30.75, 4.25, 9.25], c: W, ink: 'woodD' },
+        { from: [22.5, 10.5, 7.0], to: [29.5, 11.5, 9.0], c: W, ...WI, deco: [{ k: 'stamp', face: 'sides', at: [23.0, 11.25], to: [28.5, 10.75], keys: { d: 'woodDD' }, rows: ['', '.-dd.......--d'] }] },
+        // ---- the butt: a light steel spacer line and a dark ribbed rubber pad
+        { from: [30.75, 3.5, 6.75], to: [31.0, 10.5, 9.25], c: 'spacer', outline: false },
+        { from: [31.0, 3.25, 6.5], to: [32.0, 10.75, 9.5], c: 'pad', deco: [{ k: 'slots', face: 'east', n: 7, at: [6.75, 10.5], to: [9.25, 3.5] }, { k: 'slots', face: 'sides', n: 1, dir: 'v', at: [31.25, 10.5], to: [31.75, 3.5] }] },
+        // ---- sling studs (silver, dark ink: light ink made the small silver bits float as grey smudges)
+        { from: [0.0, 6.25, 7.5], to: [0.75, 7.0, 8.5], c: 'chrome', ink: 'gunD' },
+        { from: [28.25, 2.75, 7.5], to: [29.0, 3.5, 8.5], c: 'chrome', ink: 'gunD' },
+        // ---- the receiver (blue steel, a panel seam each side of the port, action screws), the chunky recoil-lug block
+        // in front (it hides the step from the forend's top down to the bed), the ejection port and the bolt's track on
+        // the left, the ribbed bolt shroud at the back.
+        { from: [6.5, 8.25, 7.0], to: [17.5, 10.5, 9.0], c: { all: 'gun', up: 'gunL', down: 'gunD' }, grain: 0.07, split: { x: [10.0, 14.0] }, deco: [{ k: 'rivets', face: 'sides', n: 1, size: 2, at: [7.25, 9.75], to: [8.25, 8.75] }, { k: 'rivets', face: 'sides', n: 1, size: 2, at: [15.0, 10.5], to: [16.0, 9.75] }, { k: 'slots', face: 'up', n: 1, at: [10.25, 7.25], to: [13.75, 8.75] }] },
+        { from: [5.5, 8.0, 6.75], to: [6.75, 11.0, 9.25], c: { all: 'gunD', up: 'gun' }, deco: [{ k: 'rivets', face: 'sides', n: 2, size: 1, at: [5.75, 10.75], to: [6.5, 8.25] }] },
+        { from: [10.0, 8.75, 9.0], to: [14.0, 10.0, 9.02], c: 'bore', ink: 'gunD', dirs: ['south'] },
+        { from: [14.0, 9.0, 9.0], to: [17.5, 9.25, 9.02], c: 'bore', outline: false, dirs: ['south'] },
+        { from: [17.5, 8.5, 7.25], to: [18.5, 10.0, 8.75], c: 'gunD', deco: [{ k: 'ribs', face: 'sides', at: [17.5, 10.0], to: [18.5, 8.5], c: 'gun' }] },
+        // ---- the trigger guard (a dark loop just behind the magazine) and a silver trigger
+        { from: [14.75, 4.25, 7.5], to: [18.5, 4.75, 8.5], c: 'gunD' },
+        { from: [14.75, 4.75, 7.5], to: [15.25, 5.5, 8.5], c: 'gunD' },
+        { from: [18.0, 4.75, 7.5], to: [18.5, 5.5, 8.5], c: 'gunD' },
+        { from: [16.25, 4.75, 7.75], to: [16.75, 5.5, 8.25], c: 'chrome', ink: 'gunD', rot: { angle: 22.5, axis: 'z', origin: [16.5, 5.5, 8] } },
+        // ---- the scope: ring bases on the receiver, dark rings with clamp screws on top (never on the sides: the
+        // side-edge rule), the big objective bell (a thick black front rim around the recessed blue lens, a seam), a lit
+        // ring and a step down to the main tube, the elevation turret (ribbed cap), a steel collar, the steel eyepiece
+        // with a seam and a black rubber eye cup; inside the octagonal funnel and the posts (seen through in ADS).
+        { from: [7.0, 10.5, 7.25], to: [8.5, 11.25, 8.75], c: 'gunD' },
+        { from: [12.25, 10.5, 7.25], to: [13.75, 11.25, 8.75], c: 'gunD' },
+        ...tube(7.0, 8.5, 1.75, 1.5, { all: 'gunD', up: 'gun' }, null, { grain: 0.06, top: [{ k: 'rivets', face: 'up', n: 2, size: 2, at: [7.25, 6.75], to: [8.25, 9.25] }] }),
+        ...tube(12.25, 13.75, 1.75, 1.5, { all: 'gunD', up: 'gun' }, null, { grain: 0.06, top: [{ k: 'rivets', face: 'up', n: 2, size: 2, at: [12.5, 6.75], to: [13.5, 9.25] }] }),
+        ...tube(2.0, 5.0, 2.25, HI, BELL, 'lens', { pat: { all: 'chrome2', west: 'flat' }, mat: { all: 'chrome', west: 'dark' }, deco: [{ k: 'slots', face: 'sides', n: 1, dir: 'v', at: [3.75, SY + 2.25], to: [4.25, SY - 2.25] }] }),
+        ...tube(5.0, 5.5, 2.0, HI, { all: 'scopeT', down: 'scope' }, 'scopeIn'),
+        ...tube(5.5, 5.75, 1.75, HI, SCOPE, 'scopeIn'),
+        ...tube(5.75, 14.25, 1.5, HI, SCOPE, 'scopeIn', { pat: 'chrome2', mat: 'chrome' }),
+        ...tube(14.25, 15.0, 1.75, HI, { all: 'gunD', up: 'gun' }, 'scopeIn'),
+        ...tube(15.0, 16.25, 1.8, HI, SCOPE, 'scopeIn', { pat: 'chrome2', mat: 'chrome' }),
+        ...tube(16.25, 16.8, 1.8, HI, 'rubber', 'scopeIn', { pat: 'flat' }),
+        ...corners(2.0, 5.0, 'lens'),
         ...corners(5.0, 16.8, 'scopeIn'),
-        { from: [9.2, SY + 1.5, 7.3], to: [10.6, SY + 2.0, 8.7], c: 'gunD', ink: 'gun' },
-        { from: [9.0, SY + 2.0, 7.1], to: [10.8, SY + 2.6, 8.9], c: 'chrome', pat: 'chrome', ink: 'chromeD' },
-        { from: [1.8, SY - HI - 0.15, 8 - HI - 0.15], to: [2.6, SY + HI + 0.15, 8 + HI + 0.15], c: 'lens', glow: true, dirs: ['west', 'north', 'south', 'up', 'down'] },
-        { from: [1.78, SY + 0.25, 8 + 0.2], to: [1.8, SY + 0.75, 8 + 0.7], c: 'lensB', glow: true, dirs: ['west'] },
+        { from: [9.25, SY + 1.5, 7.25], to: [10.5, SY + 2.0, 8.75], c: 'gunD' },
+        { from: [9.0, SY + 2.0, 7.0], to: [10.75, SY + 2.75, 9.0], c: { all: 'gunD', up: 'gun' }, deco: [{ k: 'ribs', face: 'sides', at: [9.0, SY + 2.5], to: [10.75, SY + 2.25], c: 'gun' }, { k: 'ribs', face: 'ends', at: [7.0, SY + 2.5], to: [9.0, SY + 2.25], c: 'gun' }, { k: 'stamp', face: 'up', at: [9.75, 7.75], to: [10.0, 8.25], keys: { w: 'chrome' }, rows: ['w', 'w'] }] },
+        // the lens (glows; the glass pattern: darker lower right, a glint top left), recessed in the bell (its sides
+        // hidden in the walls; the octagon corners round its face from the front), and an extra glint chip in front
+        { from: [2.25, SY - HI - 0.15, 8 - HI - 0.15], to: [2.5, SY + HI + 0.15, 8 + HI + 0.15], c: 'lens', glow: true, mat: 'glass', dirs: ['west', 'north', 'south', 'up', 'down'] },
+        { from: [2.23, SY + 0.25, 8 + 0.2], to: [2.25, SY + 0.75, 8 + 0.7], c: 'lensB', glow: true, dirs: ['west'] },
         ...posts
       ],
-      // Hidden while aiming: the eyepiece's glass (dark teal with a glint: it faces the eye) and the windage turret
-      // on the right (-z; through the scope it stood at the right edge of 16:10 and wider screens).
+      // Hidden while aiming: the eyepiece's glass (PG3D's dark blue 3x3 checker in an ink rim, a glint: it faces the
+      // eye) and the windage turret on the right (-z; through the scope it stood at the right edge of 16:10 and wider
+      // screens).
       noads: [
-        { from: [16.75, SY - HI, 8 - HI], to: [16.8, SY + HI, 8 + HI], c: 'glass', ink: 'scopeIn', dirs: ['east'] },
+        { from: [16.75, SY - HI, 8 - HI], to: [16.8, SY + HI, 8 + HI], c: 'glass', ink: 'scopeIn', dirs: ['east'], deco: [{ k: 'stamp', face: 'east', at: [8 + HI, SY + HI], to: [8 - HI, SY - HI], keys: { a: 'glass', b: 'glassB' }, rows: ['..........', '.aaabbbaaa', '.aaabbbaaa', '.aaabbbaaa', '.bbbaaabbb', '.bbbaaabbb', '.bbbaaabbb', '.aaabbbaaa', '.aaabbbaaa', '.aaabbbaaa'] }] },
         { from: [16.8, SY + 0.2, 8 + 0.15], to: [16.82, SY + 0.7, 8 + 0.65], c: 'glassB', outline: false, dirs: ['east'] },
-        { from: [9.2, SY - 0.7, 6.0], to: [10.6, SY + 0.7, 6.5], c: 'gunD', ink: 'gun' },
-        { from: [9.0, SY - 0.9, 5.4], to: [10.8, SY + 0.9, 6.0], c: 'chrome', pat: 'chrome', ink: 'chromeD' }
+        { from: [9.25, SY - 0.75, 6.0], to: [10.5, SY + 0.75, 6.5], c: 'gunD' },
+        { from: [9.0, SY - 1.0, 5.25], to: [10.75, SY + 1.0, 6.0], c: { all: 'gunD', north: 'gun' }, deco: [{ k: 'ribs', face: 'ends', at: [5.25, SY + 0.75], to: [6.0, SY - 0.75], c: 'gun' }, { k: 'ribs', face: 'flats', at: [9.0, 5.25], to: [10.75, 6.0], c: 'gun' }] }
       ],
-      // The bolt: its body (chrome, seen in the port), the handle out to the left (+z), hanging back a little, and
-      // its chrome knob. Lifted about the bolt's axis, pulled back +x.
+      // The bolt: its chrome body (seen in the port), a PG3D L-shaped handle (out of the receiver's left side, then
+      // straight down over the wood, a square knob) with no droop: turned 62 degrees about BOLT it stays under the
+      // eyepiece (boltcheck), and at rest the knob stands just outside the wood's side. Lifted about the bolt's axis,
+      // pulled back +x.
       bolt: [
-        { from: [10.3, 9.05, 8.98], to: [13.7, 9.75, 9.03], c: 'chrome', ink: 'chromeD', dirs: ['south', 'east', 'west', 'up', 'down'] },
-        { from: [15.2, 8.95, 8.6], to: [16.0, 9.45, 11.0], c: 'chrome', pat: 'chrome', ink: 'chromeD', rot: HANDLE },
-        { from: [14.85, 8.5, 10.6], to: [16.35, 9.9, 12.1], c: 'chrome', pat: 'chrome', ink: 'chromeD', rot: HANDLE }
+        { from: [10.25, 9.0, 9.0], to: [13.75, 9.75, 9.04], c: 'chrome', ink: 'chromeD', dirs: ['south', 'east', 'west', 'up', 'down'] },
+        { from: [15.25, 8.75, 8.75], to: [16.0, 9.25, 9.75], c: 'chrome', ink: 'chromeD' },
+        { from: [15.25, 7.25, 9.25], to: [16.0, 9.25, 9.75], c: 'chrome', ink: 'chromeD' },
+        { from: [15.0, 6.25, 9.25], to: [16.25, 7.25, 10.5], c: 'chrome', ink: 'chromeD', deco: [{ k: 'slots', face: 'sides', n: 1, at: [15.0, 6.75], to: [16.25, 6.5] }] }
       ],
-      // The box magazine (its top hidden in the stock), a chrome floor plate.
+      // The box magazine (big, blue steel, a light band and a seam; its top hidden in the stock), a silver floor plate.
       mag: [
-        { from: [9.4, 3.9, 7.25], to: [12.4, 7.8, 8.75], c: 'gunD', ink: 'gun' },
-        { from: [9.2, 3.5, 7.15], to: [12.6, 3.9, 8.85], c: 'chrome', ink: 'chromeD' }
+        { from: [11.0, 3.75, 7.0], to: [14.5, 7.75, 9.0], c: { all: 'gun', down: 'gunD' }, deco: [{ k: 'band', face: 'sides', at: [11.0, 5.5], to: [14.5, 5.0], c: 'gunL' }, { k: 'slots', face: 'sides', n: 1, at: [11.0, 4.5], to: [14.5, 4.0] }] },
+        { from: [10.75, 3.0, 6.75], to: [14.75, 3.75, 9.25], c: 'chrome', ink: 'gunD' }
       ],
       // A spent case (brass, a darker neck), in the chamber: shown only while it flies out.
       case: [
-        { from: [11.0, 8.95, 7.65], to: [13.4, 9.7, 8.35], c: { all: 'brass', down: 'brassD' }, ink: 'brassD' },
-        { from: [10.3, 9.1, 7.8], to: [11.0, 9.55, 8.2], c: 'brassD', ink: 'brassD' }
+        { from: [11.0, 9.0, 7.75], to: [13.5, 9.75, 8.25], c: { all: 'brass', down: 'brassD' }, ink: 'brassD' },
+        { from: [10.25, 9.25, 7.75], to: [11.0, 9.5, 8.25], c: 'brassD', ink: 'brassD' }
       ],
       // The muzzle flash, drawn FLASH_BACK units back from where it shows (the bounds stop at x = -16; the frame's
-      // transformation moves it out to the muzzle): a core on the muzzle face, a long tongue, a star of short rays.
+      // transformation moves it out to the muzzle): a core on the muzzle face (bigger than the
+      // muzzle block, 3.0 square, so it shows round it from behind), a long tongue, a star of short rays.
       flash: [
-        { from: [-18.8, BORE - 1.3, 6.7], to: [-16.0, BORE + 1.3, 9.3], c: 'flashCore', glow: true },
-        { from: [-24.4, BORE - 0.5, 7.5], to: [-18.8, BORE + 0.5, 8.5], c: 'flash', glow: true },
-        { from: [-18.2, BORE + 1.3, 7.5], to: [-16.8, BORE + 4.0, 8.5], c: 'flash', glow: true },
-        { from: [-18.2, BORE - 4.0, 7.5], to: [-16.8, BORE - 1.3, 8.5], c: 'flash', glow: true },
-        { from: [-18.2, BORE - 0.5, 4.0], to: [-16.8, BORE + 0.5, 6.7], c: 'flash', glow: true },
-        { from: [-18.2, BORE - 0.5, 9.3], to: [-16.8, BORE + 0.5, 12.0], c: 'flash', glow: true },
-        { from: [-18.0, BORE - 0.45, 4.8], to: [-17.0, BORE + 0.45, 11.2], c: 'flash', glow: true, rot: { angle: 45, axis: 'x', origin: [-17.5, BORE, 8] } },
-        { from: [-18.0, BORE - 0.45, 4.8], to: [-17.0, BORE + 0.45, 11.2], c: 'flash', glow: true, rot: { angle: -45, axis: 'x', origin: [-17.5, BORE, 8] } }
+        { from: [-18.8, BORE - 1.95, 6.05], to: [-16.0, BORE + 1.95, 9.95], c: 'flashCore', glow: true },
+        { from: [-24.4, BORE - 0.6, 7.4], to: [-18.8, BORE + 0.6, 8.6], c: 'flash', glow: true },
+        { from: [-18.2, BORE + 1.95, 7.5], to: [-16.8, BORE + 4.4, 8.5], c: 'flash', glow: true },
+        { from: [-18.2, BORE - 4.4, 7.5], to: [-16.8, BORE - 1.95, 8.5], c: 'flash', glow: true },
+        { from: [-18.2, BORE - 0.5, 3.6], to: [-16.8, BORE + 0.5, 6.05], c: 'flash', glow: true },
+        { from: [-18.2, BORE - 0.5, 9.95], to: [-16.8, BORE + 0.5, 12.4], c: 'flash', glow: true },
+        { from: [-18.0, BORE - 0.45, 3.9], to: [-17.0, BORE + 0.45, 12.1], c: 'flash', glow: true, rot: { angle: 45, axis: 'x', origin: [-17.5, BORE, 8] } },
+        { from: [-18.0, BORE - 0.45, 3.9], to: [-17.0, BORE + 0.45, 12.1], c: 'flash', glow: true, rot: { angle: -45, axis: 'x', origin: [-17.5, BORE, 8] } }
       ].map(b => ({ ...b, from: [b.from[0] + FLASH_BACK, b.from[1], b.from[2]], to: [b.to[0] + FLASH_BACK, b.to[1], b.to[2]], ...(b.rot ? { rot: { ...b.rot, origin: [b.rot.origin[0] + FLASH_BACK, b.rot.origin[1], b.rot.origin[2]] } } : {}) }))
     },
     hidden: ['flash', 'case'],
@@ -208,9 +267,10 @@ module.exports = ({ pg, aim, display }) => {
     }
   }))
 
-  const SHOULDER = [20, 7.0, 8] // the grip's top: kicks turn the muzzle up about it
+  const SHOULDER = [20, 7.0, 8] // the wrist's top: kicks turn the muzzle up about it
   const BOLT = [15.6, 9.2, 8] // the bolt's axis
   const CANT = [12, 9, 8]
+  const MAGP = [12.75, 5.5, 8] // the magazine's centre where it enters the stock
   const TRAVEL = 3.2 // how far the bolt comes back (units)
   const LIFT = 62 // how far the handle turns up (degrees)
   // The bolt by ticks after WeaponMechanics starts the action (Open at tick 0, its sound at 6; Close at 8, its sound
@@ -290,7 +350,7 @@ module.exports = ({ pg, aim, display }) => {
         pivot: CANT
       }),
       bolt: boltRig({ lift, back }),
-      mag: rig({ t: [0.6 * drop, -12 * drop, 0], rot: [[[0, 0, 1], 8 * drop]], pivot: [10.9, 5.6, 8] }),
+      mag: rig({ t: [0.6 * drop, -12 * drop, 0], rot: [[[0, 0, 1], 8 * drop]], pivot: MAGP }),
       hide: p > 0.32 && p < 0.44 ? ['mag'] : []
     }
     // The case flies out while the bolt comes back (0.12-0.2), landing with the shell sound WeaponMechanics' Open plays
