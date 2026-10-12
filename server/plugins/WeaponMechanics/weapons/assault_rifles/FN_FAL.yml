@@ -33,7 +33,7 @@ FN_FAL:
     Weapon_Get_Mechanics:
       - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.7, listeners=Source{}}"
     # Donating (2026-10-12): the draw's sound (the pack animates the 40-tick draw: the heavy gun swings up from below,
-    # settles, turns its side to you and test-spins the barrels at 60-92%, the sound's whir at 1.2-1.85 s;
+    # settles, turns its side to you and test-spins the barrels a full turn at 50-96%, the sound's whir at 1.0-1.92 s;
     # Weapon_Get_Mechanics only plays when the gun is given).
     Weapon_Equip_Mechanics:
       - "CustomSound{sound=donating.gun.minigun.draw, volume=0.5, noise=0.05, listeners=Source{}}"
@@ -48,7 +48,8 @@ FN_FAL:
   # (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and
   # animates the draw, the spin-up, the spin-down, the fire (while it really fires: GunFx's firing flag) and the reload
   # from the cooldown and flags DonatingPhone's GunFx and GunSpin set (tools\guns\minigun.js; gunfx FN_FAL: shot 0,
-  # draw 40, fire 4, spin up 24 / down 30). Other players see the barrels turn from the flags alone.
+  # draw 40, fire 4, spin up 24 / down 30: the barrels' coast is 30-60 ticks, 30 / s). Other players see the barrels
+  # turn from the flags alone.
   Skin:
     Default: 6
     Scope: ADD 1000
@@ -56,9 +57,10 @@ FN_FAL:
     Reload: ADD 3000
   Projectile: "donating_rifle_bullet"
   Shoot:
+    # Donating (2026-10-12): main hand only. GunSpin only spins up the main hand's full-auto task, so an off-hand
+    # minigun would fire 16 a second at once (only bypass staff can put a gun there: the bag owns the off hand).
     Trigger:
       Main_Hand: "RIGHT_CLICK"
-      Off_Hand: "RIGHT_CLICK"
       Circumstance:
         Swimming: "DENY"
         Sprinting: "DENY"
@@ -66,9 +68,9 @@ FN_FAL:
     # Donating (2026-10-12): the rate at full spin. WeaponMechanics 4.3.1 has no spin-up; DonatingPhone's GunSpin starts
     # every burst at 0 rounds a second (the trigger held, nothing fired, no ammo used) and ramps the full-auto task's
     # rate to this over 1.2 s (from cold the first round comes about 0.4 s into a held trigger). After letting go the
-    # barrels wind down over 1.5 s; a burst started in the first second of that fires at once (the spool still past
-    # fire-at 0.3), later it spins up again first. Never Selective_Fire or a Delay_Between_Shots here: GunSpin drives the
-    # full-auto task.
+    # spool winds down over 1.5 s (the pack's barrels coast 1.5-3 s); a burst started while it is still at fire-at 0.3
+    # or more fires at once (up to about 1.05 s after letting go from full spin, less after a shorter burst), later it
+    # spins up again first. Never Selective_Fire or a Delay_Between_Shots here: GunSpin drives the full-auto task.
     Fully_Automatic_Shots_Per_Second: 16
     Spread:
       Base_Spread: 4.6
@@ -111,7 +113,8 @@ FN_FAL:
     Reload_Duration: 90
     # Donating (2026-10-12): each sound where the pack's frames show it (tools\guns\minigun.js reload: the box's catch
     # tugged and the box dropped out at p 0.14 (mag_out), the new box seated at 0.6 and slapped at 0.64 (mag_in), the
-    # barrels ratcheted a quarter turn by hand at 0.74 and 0.82 (ratchet, twice)). No Firearm_Action, so the frames run
+    # barrels ratcheted a quarter turn by hand at 0.74 and 0.82 (ratchet, twice), then left to coast a half turn as the
+    # gun levels: a whole turn, so they end on the rest pose). No Firearm_Action, so the frames run
     # over 90 ticks with rounds left and from empty alike. Not in Finish_Mechanics: WeaponMechanics plays those at the
     # very end of the chain.
     Start_Mechanics:

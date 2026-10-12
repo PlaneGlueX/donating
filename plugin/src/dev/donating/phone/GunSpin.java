@@ -187,7 +187,8 @@ final class GunSpin implements Listener {
         // Spinning fast enough to fire already (pressed again soon after letting go): no spin-up clock, the spin-down's
         // ends; the rounds go out in the next tick and their firing flag draws the full spin. The pack's spin-up turns the
         // barrels 360 p^2 degrees over the clock, so a short one ends too fast: from s 0.67 (8 ticks) 90 degrees a tick,
-        // which reads as turning backwards (below fire-at the clock is 17 ticks or more: at most 42). No whine either: it
+        // which reads as turning backwards (below fire-at the clock is 17 ticks or more, and the pack draws only its
+        // slow part, p < 0.55: 23 degrees a tick at most). No whine either: it
         // rises from a standstill over 1.2 s, and tapping the trigger restarted it on every tap.
         else fx.clock(p, st.title, 0);
     }
