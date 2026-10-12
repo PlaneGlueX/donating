@@ -137,11 +137,12 @@ final class GunSpin implements Listener {
     /** The spin-up clock from spool s (ticks to full spin; only started under fire-at). */
     static int upTicks(double s, int up) { return (int) Math.max(1, Math.round((1 - s) * up)); }
 
-    // The spin-down clock is the barrels' coast, not the spool's: the pack turns them a fixed 450 (2p - p^2) degrees
-    // over it, so it starts at 900 / L degrees a tick, while a spin-up from cold leaves them turning 30 s (720 / 24 x s).
-    // L = down / s keeps that speed (s 1: 30 ticks at 30 degrees; s 0.67: 45 at 20), at most 2 x down (60 ticks at 15
-    // degrees from s 0.5 down to fire-at); s x down started a short tap at 60-90 degrees a tick, past the 45 at which a
-    // cluster that repeats every 90 degrees reads as turning backwards. So it outlasts the spool from under s 1.
+    // The spin-down clock is the barrels' coast, not the spool's: the pack turns them a fixed 360 (2p - p^2) degrees
+    // over it (a whole turn: the model's light is painted from above, so only that ends on the rest pose), reading only
+    // the cooldown's fraction, so it starts at 720 / L degrees a tick. L = down / s makes that 24 s (s 1: 30 ticks at 24
+    // degrees; s 0.67: 45 at 16), near the 30 s a spin-up leaves them at (720 / 24 x s), and at most 2 x down (60 ticks
+    // at 12 degrees from s 0.5 down to fire-at); s x down would start a short tap at 48-80 degrees a tick, past the 45 at
+    // which a cluster that repeats every 90 degrees reads as turning backwards. So it outlasts the spool from under s 1.
     static int downTicks(double s, int down) { return (int) Math.min(2L * down, Math.max(1, Math.round(down / Math.max(s, 1e-3)))); }
 
     // The sounds' pitch (tools\sounds\guns\minigun.js): the whine is made for 0.85 from cold, and the spin-down starts on
@@ -261,8 +262,9 @@ final class GunSpin implements Listener {
     private void release(Player p, State st, GunFx.Gun g) {
         stopNear(p, g.spin(), SOUND_UP);
         GunFx.flag(p.getInventory().getItemInMainHand(), GunFx.SPIN_UP, false);
-        // Under fire-at the barrels turn 9 degrees a tick or less: they just stop (the spin-down coasts a fixed 450
-        // degrees, far too much after a tap); the spool still falls, so pressing again soon picks up where it was.
+        // Under fire-at the barrels turn 9 degrees a tick or less: they just stop (the spin-down coasts a fixed 360
+        // degrees, far too much after a tap: the model snaps back to rest from about 31 degrees at most); the spool
+        // still falls, so pressing again soon picks up where it was.
         if (st.s < g.spin().fireAt()) { fx.clock(p, st.title, 0); return; }
         p.getWorld().playSound(p, SOUND_DOWN, SoundCategory.PLAYERS, (float) st.s, (float) downPitch(st.s));
         fx.flagClock(p, st.title, g, downTicks(st.s, g.spin().down()), GunFx.SPIN_DOWN);

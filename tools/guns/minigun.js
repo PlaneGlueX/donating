@@ -11,17 +11,20 @@
 // under the barrels with a cyan toothed comb on its top and red lights at its front; a blue-grey box magazine (an ammo
 // can) with a framed X on each side and ribs on its ends; a mauve pistol grip, raked back; a short black stock with
 // cyan strips and a mauve butt pad.
-// Frames (DonatingPhone GunFx and GunSpin: FN_FAL draw 40, fire 4, spin up 24, down 30; custom_model_data flags 0
+// Frames (DonatingPhone GunFx and GunSpin: FN_FAL draw 40, fire 4, spin up 24, down 30-60; custom_model_data flags 0
 // firing, 2 the draw, 3 spinning up, 4 spinning down):
 //   - first person (minecraft:cooldown, keybind_down and the flags): flag 2 the draw (40 ticks: up from below, a sag,
-//     a turn across the screen and a half-turn test spin of the barrels); flag 3 the spin-up (24 ticks), flag 4 the
-//     spin-down (30); else, while rounds go out (flag 0), a full spin.
-//   - the spin-up turns the cluster 360 p^2 degrees (p = the share of the clock gone: 30 degrees a tick at its end) and
-//     the spin-down 450 (2p - p^2) (30 degrees a tick down to 0); both end on the rest pose (the "+" repeats every 90
-//     degrees). A 90-degree-symmetric cluster turned 45 degrees or more a tick seems to turn backward, and GunSpin
-//     starts a shorter clock when the barrels still turn (a re-press mid spin-down: ticks = (1 - s) x 24, released mid
-//     spin-up: s x 30), which the model can't see: so only the slow part of each curve is drawn as angles (the spin-up
-//     up to p 0.55, the spin-down from p 0.5), the fast part is the full spin's blur.
+//     a turn across the screen and a full-turn test spin of the barrels); flag 3 the spin-up (17-24 ticks), flag 4 the
+//     spin-down (30-60); else, while rounds go out (flag 0), a full spin.
+//   - the spin-up turns the cluster 360 p^2 degrees (p = the share of the clock gone) and the spin-down 360 (2p - p^2)
+//     (720 / L degrees a tick down to 0). The light is painted from above, so only a whole turn looks like the rest
+//     pose: every spin the model draws ends on one (a quarter turn would pop). A cluster turned 45 degrees or more a
+//     tick seems to turn backward. GunSpin (GunSpin.java) starts the spin-up only from under fire-at (s < 0.3: L =
+//     (1 - s) x 24, 17 ticks at least) and the spin-down only from s >= 0.3 (L = 30 / s, at most 60: 24 degrees a tick
+//     at most), and the model reads only the cooldown's fraction, never L: so the spin-up draws only its slow part as
+//     angles (p < 0.55: 23 degrees a tick at most at L 17), the fast part is the full spin's blur, and the spin-down
+//     draws the whole clock. After a tap under fire-at GunSpin just turns flag 3 off (no spin-down): the cluster snaps
+//     back to rest from at most about 31 degrees.
 //   - the full spin: a fresh pose every frame (pg.js: time random, wobble off), the cluster at one of six angles (0 to
 //     75 degrees: all different), the flash big, small or none, a small steady kick while fire is held; with the key up
 //     (flag 0 lasts a few ticks after the last round) the cluster still turns, with no flash.
@@ -29,10 +32,10 @@
 //     there) the flags alone: 0, 3 or 4 turn the cluster at a random angle each frame, else it stands still; the icon is
 //     the still full model.
 //   - Reload (90 ticks): the gun comes up, muzzle up, its belly toward you (the box on the screen), the box drops out, a
-//     new one comes up, seats and is slapped home; it turns across the screen and the cluster is ratcheted a quarter
-//     turn twice by hand. The sounds
-//     are timed to it in FN_FAL.yml (Start_Mechanics, delayBeforePlay ticks): mag_out 13, mag_in 54 (its slap 4 later),
-//     ratchet 67 and 74.
+//     new one comes up, seats and is slapped home; it turns across the screen, the cluster is ratcheted a quarter
+//     turn twice by hand and coasts on a half turn as the gun levels (a whole turn in all). The sounds are timed to it
+//     in FN_FAL.yml (Start_Mechanics, delayBeforePlay ticks): mag_out 13, mag_in 54 (its slap 4 later), ratchet 67
+//     and 74.
 //   - Scope: aim() on the reflex hood (its lens has only a front face: from inside it's culled; a cyan rim round its
 //     window), the stock hidden, the small flash only; the dot sits over the barrels, and the spinning cluster shows
 //     under it with the flash's arms either side.
@@ -84,8 +87,8 @@ module.exports = ({ pg, aim, display }) => {
   const ring = (x0, x1, r, w, c, key, bolt, extra = {}) => {
     const ends = more => ({ deco: [...(extra.deco || []), ...more.map(d => ({ k: 'rivets', n: 2, size: 2, c: bolt, face: 'ends', ...d }))] })
     return [
-      { from: [x0, AY - r, AZ - w], to: [x1, AY + r, AZ + w], c: key, ...extra, ...ends([{ at: [AZ - 0.25, AY + r - 0.25], to: [AZ + 0.25, AY - r + 0.25] }]) },
-      { from: [x0, AY - w, AZ - r], to: [x1, AY + w, AZ + r], c: key, ...extra, ...ends([{ at: [AZ - r + 0.25, AY + 0.25], to: [AZ + r - 0.25, AY - 0.25] }]) },
+      { from: [x0 + 0.02, AY - r, AZ - w], to: [x1 - 0.02, AY + r, AZ + w], c: key, ...extra, ...ends([{ at: [AZ - 0.25, AY + r - 0.25], to: [AZ + 0.25, AY - r + 0.25] }]) },
+      { from: [x0 + 0.04, AY - w, AZ - r], to: [x1 - 0.04, AY + w, AZ + r], c: key, ...extra, ...ends([{ at: [AZ - r + 0.25, AY + 0.25], to: [AZ + r - 0.25, AY - 0.25] }]) },
       { from: [x0, AY - c, AZ - c], to: [x1, AY + c, AZ + c], c: key, ...extra, ...ends([{ at: [AZ - c + 0.25, AY + c - 0.25], to: [AZ + c - 0.25, AY + c - 0.75] }, { at: [AZ - c + 0.25, AY - c + 0.75], to: [AZ + c - 0.25, AY - c + 0.25] }]) }
     ]
   }
@@ -98,7 +101,7 @@ module.exports = ({ pg, aim, display }) => {
   // its outer edge (the reference's grey lines between the black barrels).
   const barrel = (dy, dz) => {
     const y0 = AY + dy - H; const y1 = AY + dy + H; const z0 = AZ + dz - H; const z1 = AZ + dz + H
-    return { from: [BX0, y0, z0], to: [BX1, y1, z1], c: 'barrel', grain: 0.07, split: { x: [-1.0, 6.0] },
+    const inner = dy > 0 ? 'down' : dy < 0 ? 'up' : dz > 0 ? 'north' : 'south'; return { dirs: ['north', 'south', 'up', 'down'].filter(d => d !== inner), from: [BX0, y0, z0], to: [BX1, y1, z1], c: 'barrel', grain: 0.07, split: { x: [-1.0, 6.0] },
       deco: [{ k: 'band', face: 'sides', at: [BX0, y1 - 0.25], to: [BX1, y1 - 0.75], c: 'groove' }, { k: 'band', face: 'flats', at: [BX0, z1 - 0.75], to: [BX1, z1 - 0.25], c: 'groove' }] }
   }
   // Decal helpers (model units; north/south faces [x, y], up/down [x, z], east/west [z, y]).
@@ -142,18 +145,19 @@ module.exports = ({ pg, aim, display }) => {
             { k: 'rivets', face: 'ends', at: [5.0, 6.0], to: [11.0, 5.5], n: 2, size: 2, c: 'steel' }, { k: 'slots', face: 'east', at: [5.0, 11.75], to: [11.0, 11.5], n: 1 }
           ] },
         // ---- the receiver: black and chunky, plates (seams), a cyan fin vent at its front bottom, the orange counter
-        // window at its rear top (lit), slots, rivets along the bottom, holes on its top front ----
+        // window (lit: a flat bar on its top row just in front of the hood, like the reference's), slots, rivets along
+        // the bottom, holes on its top front ----
         { from: [12.75, 4.75, 5.75], to: [23.25, 11.5, 10.25], c: { all: 'recv', up: 'recvT' }, split: { x: [16.0, 19.75], y: [8.5] },
           deco: [
             { k: 'vent', at: [13.0, 8.25], to: [15.75, 5.25], c: 'cyan', zig: true },
-            { k: 'glow', at: [20.0, 11.25], to: [22.75, 8.75], c: 'org', emit: true },
+            { k: 'glow', at: [16.75, 11.25], to: [19.0, 10.0], c: 'org', emit: true },
             { k: 'rivets', at: [16.25, 5.5], to: [22.75, 5.0], n: 5, c: 'steel' },
             { k: 'holes', face: 'up', at: [13.0, 6.25], to: [15.5, 9.75], pitch: [2, 2] },
             { k: 'slots', face: 'up', at: [21.0, 6.25], to: [23.0, 9.75], n: 3 },
             { k: 'inset', face: 'east', at: [6.5, 11.0], to: [9.5, 9.0], c: 'recv' }
           ] },
         // the camo plates on both sides: the upper front plate (to the window), the lower rear plate (from the vent)
-        ...both(13.0, 19.5, 9.25, 11.25, 5.75, 10.25, [stud(18.75, 10.5, 'steel')]),
+        ...both(13.0, 16.5, 9.25, 11.25, 5.75, 10.25, [stud(15.75, 10.5, 'steel')]),
         ...both(16.25, 23.0, 6.25, 8.25, 5.75, 10.25),
         // ---- the rail on top (steel teeth on its sides only: a bright top would glare in the hood), the hood's mount
         // (wider, so the side isn't a chimney) ----
@@ -167,8 +171,8 @@ module.exports = ({ pg, aim, display }) => {
         { from: [HOOD[0], 14.25, 6.5], to: [HOOD[1], 14.75, 9.5], c: { all: 'recv', up: 'recvT' } },
         ...[[12.25, 14.5, 9.0, 9.25], [12.25, 14.5, 6.75, 7.0], [14.25, 14.5, 7.0, 9.0]].map(([y0, y1, z0, z1]) => ({ from: [HOOD[1], y0, z0], to: [HOOD[1] + 0.02, y1, z1], c: 'cyan', dirs: ['east'], outline: false })),
         { from: [HOOD[0] - 0.02, 12.25, 7.0], to: [HOOD[0], 14.25, 9.0], c: 'lens', dirs: ['west'], outline: false },
-        { from: [19.25, SY - 0.125, 7.875], to: [19.5, SY + 0.125, 8.125], c: 'dot', glow: true },
-        { from: [19.325, 12.25, 7.95], to: [19.425, SY - 0.125, 8.05], c: 'post', outline: false },
+        { from: [19.25, SY - 0.075, 7.925], to: [19.4, SY + 0.075, 8.075], c: 'dot', glow: true },
+        { from: [19.3, 12.25, 7.975], to: [19.35, SY - 0.075, 8.025], c: 'post', outline: false },
         { from: [HOOD[0], 14.75, 7.5], to: [19.5, 15.0, 8.5], c: 'red', glow: true },
         { from: [20.0, 14.75, 7.5], to: [HOOD[1], 15.0, 8.5], c: 'red', glow: true },
         // ---- the handguard under the barrels (its top under the clamps' sweep: AY - 3.35), a cyan band, a slot, red
@@ -189,13 +193,12 @@ module.exports = ({ pg, aim, display }) => {
       ],
       // ---------- the spinning cluster (everything here turns about the axis) ----------
       spin: [
-        { from: [BX0, AY - 0.75, AZ - 0.75], to: [BX1, AY + 0.75, AZ + 0.75], c: 'bore' },
         ...AROUND.map(([dy, dz]) => barrel(dy, dz)),
         // the clamps: rear, middle (the big one, a seam round it), a thin third, front
-        ...ring(8.25, 9.75, 2.75, 1.25, 2.25, CLAMP, 'recv', { deco: [{ k: 'rivets', at: [8.5, AY + 0.25], to: [9.5, AY - 0.25], n: 2, c: 'recv' }, { k: 'rivets', face: 'flats', at: [8.5, AZ - 0.25], to: [9.5, AZ + 0.25], n: 2, c: 'recv' }] }),
-        ...ring(0.5, 2.75, 3.0, 1.5, 2.25, CLAMP, 'recv', { split: { x: [1.75] } }),
+        ...ring(8.25, 9.75, 2.75, 1.25, 2.3, CLAMP, 'recv', { deco: [{ k: 'rivets', at: [8.5, AY + 0.25], to: [9.5, AY - 0.25], n: 2, c: 'recv' }, { k: 'rivets', face: 'flats', at: [8.5, AZ - 0.25], to: [9.5, AZ + 0.25], n: 2, c: 'recv' }] }),
+        ...ring(0.5, 2.75, 3.0, 1.5, 2.3, CLAMP, 'recv', { split: { x: [1.75] } }),
         ...ring(-5.5, -4.5, 2.75, 1.25, 2.0, CLAMP, 'recv'),
-        ...ring(-11.0, -9.25, 3.0, 1.25, 2.25, CLAMP, 'recv'),
+        ...ring(-11.0, -9.25, 3.0, 1.25, 2.3, CLAMP, 'recv'),
         // the stepped black muzzle cap (dark vents on its faces), a smaller front plate, the four bores and the hub
         ...ring(-14.5, -11.0, 3.25, 1.5, 2.5, { all: 'recv', up: 'recvT' }, 'steel', { deco: [{ k: 'inset', at: [-14.0, AY + 0.75], to: [-12.75, AY - 0.75], c: 'recv' }, { k: 'inset', face: 'flats', at: [-14.0, AZ - 0.75], to: [-12.75, AZ + 0.75], c: 'recv' }, { k: 'slots', at: [-12.5, AY + 1.0], to: [-11.25, AY - 1.0], dir: 'v', n: 2 }, { k: 'slots', face: 'flats', at: [-12.5, AZ - 1.0], to: [-11.25, AZ + 1.0], dir: 'v', n: 2 }] }),
         ...ring(MUZ, -14.5, 2.5, 1.25, 2.0, 'recv', 'steel'),
@@ -288,8 +291,9 @@ module.exports = ({ pg, aim, display }) => {
   const spinning = (state, k, also, idle) => gun.flag(0, key(random(state, shots(k, also)), random(state, spins(also))), idle)
   // At one angle of the spin-up's slow part: the shots there while rounds go out (past fire-at) and fire is held.
   const at = (state, k, also, a) => { const still = gun.composite(state, { ...also, spin: turn(a) }); return gun.flag(0, key(random(state, shots(k, also, a)), still), still) }
-  // The spin-up (flag 3, 24 ticks): 360 p^2 degrees while it's slow (p < 0.55: under 17 degrees a tick from cold), then
-  // the blur (one entry for the whole fast part: the cooldown's share left under 0.45, and 0 when the clock is out).
+  // The spin-up (flag 3, 17-24 ticks): 360 p^2 degrees while it's slow (p < 0.55: under 17 degrees a tick from cold, 23
+  // at the shortest clock), then the blur (one entry for the whole fast part: the cooldown's share left under 0.45, and
+  // 0 when the clock is out).
   const spinUp = (state, k, also) => ({
     type: 'minecraft:range_dispatch',
     property: 'minecraft:cooldown',
@@ -299,35 +303,42 @@ module.exports = ({ pg, aim, display }) => {
     ],
     fallback: { type: 'minecraft:model', model: gun.id('full', state) }
   })
-  // The spin-down (flag 4, 30 ticks): the blur while it's fast (p < 0.5: the share left over 0.5, one entry), then
-  // 450 (2p - p^2) degrees (15 a tick down to 0, ending on the rest pose); no flash (the trigger is up).
+  // The spin-down (flag 4): 360 (2p - p^2) degrees over the whole clock (p = the share of it gone), read from the
+  // cooldown's fraction, so one drawing fits every clock GunSpin starts (L = 30 / s ticks, 30-60: it starts only from
+  // s >= fire-at 0.3). It starts at 720 / L degrees a tick (24 at most, 12 at L 60) and slows to 0, ending a whole turn
+  // round (the light is painted from above: only a whole turn looks like the rest pose). Drawn in steps of at most 15
+  // degrees and 1/30 of the clock (34 steps), each at its middle (the last ones round to the rest pose); no flash (the
+  // trigger is up). The cooldown runs 1 -> 0: the step from p0 to p1 is the entry at 1 - p1.
+  const DOWN = (() => {
+    const cut = [0]
+    for (let p = 0; p < 1 - 1e-9;) { const a = 360 * (2 * p - p * p); p = Math.min(1, p + 1 / 30, 1 - Math.sqrt(Math.max(0, 1 - (a + 15) / 360))); cut.push(p) }
+    return cut.slice(1).map((p1, i) => { const p = (cut[i] + p1) / 2; const a = 360 * (2 * p - p * p); return { threshold: r4(1 - p1), angle: 360 - a < 1 ? 0 : r4(a) } }).reverse()
+  })()
   const spinDown = (state, also) => ({
     type: 'minecraft:range_dispatch',
     property: 'minecraft:cooldown',
-    entries: [
-      ...Array.from({ length: 15 }, (_, i) => { const p = 1 - (i + 0.5) / 30; return { threshold: r4(i / 30 + 1e-4), model: gun.composite(state, { ...also, spin: turn(450 * (2 * p - p * p)) }) } }),
-      { threshold: 0.5, model: random(state, spins(also)) }
-    ],
+    entries: DOWN.map(d => ({ threshold: d.threshold, model: gun.composite(state, d.angle ? { ...also, spin: turn(d.angle) } : also) })),
     fallback: gun.composite(state, also)
   })
   // The draw (flag 2, 40 ticks; FN_FAL.yml Weapon_Equip_Delay 40): the heavy gun swings up from below, muzzle down and
   // rolled out, arrives at p 0.4 and sags under its weight (0.38-0.54); it turns across the screen (0.52-0.62, like the
-  // reload's ratchet pose) and the barrels are given a half-turn test spin (0.58-0.92: 26 degrees a tick at most; the
-  // draw sound's whir 1.2-1.85 s); level by 0.96.
+  // reload's ratchet pose) and the barrels are given a full-turn test spin (0.5-0.96: 29 degrees a tick at most, ending
+  // on the rest pose; the draw sound's whir 1.0-1.92 s); level by 0.96.
   const draw = p => {
     const e = 1 - ease.out(Math.min(1, p / 0.4))
     const sag = ease.bump(p, 0.38, 0.54, 0.44)
     const side = ease.ramp(p, 0.52, 0.62) * (1 - ease.ramp(p, 0.84, 0.96))
     return {
       gun: rig({ t: [2.4 * e, -12 * e - 0.7 * sag + 2.0 * side, 1.8 * side], rot: [[[1, 0, 0], -18 * e + 4 * side], [[0, 1, 0], 20 * side], [[0, 0, 1], 32 * e - 1.8 * sag - 4 * side]], pivot: SHOULDER }),
-      spin: turn(180 * ease.out(Math.max(0, Math.min(1, (p - 0.58) / 0.34))))
+      spin: turn(360 * ease.ramp(p, 0.5, 0.96))
     }
   }
   // The reload (90 ticks): the gun comes up, muzzle up, its belly toward you (0-0.1), so the box is on the screen; the
   // catch is pressed (a tug, 0.1-0.15) and the box drops out down and toward you (0.15-0.32); gone (0.32-0.46); a new one
   // comes up (0.46-0.6), seats (a jolt at 0.6) and is slapped home (0.64); the gun turns across the screen (0.64-0.74)
   // and the cluster is ratcheted a quarter turn twice by hand (0.744-0.8 and 0.822-0.878, with the ratchet
-  // sounds: 27 degrees a tick at most); level by 0.97.
+  // sounds: 27 degrees a tick at most), then coasts on a half turn as the gun levels (0.87-0.98: a whole turn in all,
+  // so it ends on the rest pose); level by 0.97.
   const MAG_TOP = [15.5, 4.75, 8] // the box's top middle
   // The two poses: t (model units), then turns about x (the roll: + top toward you), y (+ muzzle across the screen) and
   // z (- muzzle up), about the receiver's middle. The box pose lifts the gun high, muzzle up and rolled, its belly to the
@@ -347,7 +358,7 @@ module.exports = ({ pg, aim, display }) => {
     return {
       gun: rig({ t: [MP.t[0] * a + 0.3 * tug, MP.t[1] * a - 0.3 * seat + 0.3 * slap + BP.t[1] * b, MP.t[2] * a + BP.t[2] * b], rot: [[[1, 0, 0], MP.x * a + BP.x * b], [[0, 1, 0], MP.y * a + BP.y * b], [[0, 0, 1], MP.z * a + BP.z * b - 1.5 * seat + 1.5 * slap - 1.2 * (r1 + r2)]], pivot: [17, 7, 8] }),
       mag: rig({ t: [MD.t[0] * out, MD.t[1] * out, MD.t[2] * out], rot: [[[1, 0, 0], MD.x * out], [[0, 0, 1], MD.z * out]], pivot: MAG_TOP }),
-      spin: turn(90 * ease.ramp(p, 0.744, 0.8) + 90 * ease.ramp(p, 0.822, 0.878)),
+      spin: turn(90 * ease.ramp(p, 0.744, 0.8) + 90 * ease.ramp(p, 0.822, 0.878) + 180 * ease.ramp(p, 0.87, 0.98)),
       hide: p > 0.32 && p < 0.46 ? ['mag'] : []
     }
   }

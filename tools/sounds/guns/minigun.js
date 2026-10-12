@@ -4,28 +4,31 @@
 // sampled. Everything that turns (the spin-up, the spin-down, the draw's test whir, the reload's ratchet) comes from one
 // rotation: its angle is the integral of the speed, so the gear clicks and the barrels' whoosh speed up and slow down
 // with the barrels, on the frames' own curves (spin-up: the speed rises linearly, 360 p^2; spin-down: it falls
-// linearly, 450 (2p - p^2)).
+// linearly, 360 (2p - p^2)).
 //   shoot     3 variants, 90 ms: a short punchy "dut", lighter than the AK-48's (a small thump, a tight crack) with a
 //             thin metallic tail; at 16 a second WeaponMechanics fires four rounds a tick (50 ms) apart, then skips a
 //             tick, so each has died ~17 dB by the next
-//   spinup    (GunSpin at each burst's start, volume 1, pitch 0.85 + 0.3 s: 0.85 from cold; stopped on release)
+//   spinup    (GunSpin at each burst's start from under fire-at (s < 0.3), volume 1, pitch 0.85 + 0.3 s: 0.85 from
+//             cold; stopped on release)
 //             1.3 s: the motor engaging (a clunk), its whine rising from 0.4 to the top, the gear clatter speeding up
 //             into a buzz and the barrels' whoosh beating faster; timed for pitch 0.85, where it plays 1.18 times as
 //             long: the speed rises linearly like GunSpin's spin s (1/24 a tick) to the top at 1.2 s heard (the
 //             24-tick clock), so the whine at spin s is 442 (0.4 + 0.6 s) Hz; it recedes from there, as the shots
 //             take over
-//   spindown  (GunSpin on release, volume s; played at pitch 0.4 + 0.6 s it starts on the spin-up's whine at s) 1.5 s:
+//   spindown  (GunSpin on release from s >= fire-at 0.3 only, volume s; played at pitch 0.4 + 0.6 s it starts on the
+//             spin-up's whine at s) 1.5 s:
 //             the whine falling and fading from the spin-up's top as heard from cold (442 Hz at pitch 1), the clicks
 //             slowing down to a stop, the barrels settling with a soft knock at 1.38 s
 //   draw      (on equip, 40 ticks = 2.0 s) the heavy gun lifted (0-0.3 s: a cloth and sling whoosh), its weight
 //             settling at 0.8 s (a dull thunk, the belt's rounds), turned to its side at 1.05 s (a light click), the
-//             test whir 1.16-1.84 s (p 0.58-0.92: the motor kicks, the barrels given a half-turn test spin easing out,
-//             a clack as they stop)
+//             test whir 1.0-1.92 s (p 0.5-0.96: the motor's relay clicks, the barrels given a full-turn test spin that
+//             speeds up and eases out like the frames' (a smoothstep), a clack as they stop)
 //   mag_out   (reload tick 13, p 0.144) the catch clicks, the box slides down out of the well, comes free at 0.13 s (a
 //             clunk, the hollow box rings) and the belt's rounds rattle as it drops away
 //   mag_in    (reload tick 54, p 0.6) the box's front hooks in and latches at once (a light clack, then a solid clack
 //             and a thump: the seat's jolt), the palm slap 0.18 s later (p 0.64), the rounds settle
-//   ratchet   (reload ticks 67 and 74: two quarter turns by hand, p 0.744-0.8 and 0.822-0.878) a heavy click, the
+//   ratchet   (reload ticks 67 and 74: two quarter turns by hand, p 0.744-0.8 and 0.822-0.878; the frames then let
+//             the cluster coast a half turn as the gun levels, p 0.87-0.98, with no sound of its own) a heavy click, the
 //             cluster swung a quarter turn (a short whir and the pawl's clicks over 0.24 s, the frames' 5 ticks), the
 //             detent's clack as it lands
 // The spin sounds are played by GunSpin, not WeaponMechanics, so build-pack.js doesn't lower them: they are set here to
@@ -158,24 +161,24 @@ module.exports = ({ SR, buf, add, biquad, noise, env, sweep, ring, click, reverb
       }
     },
     minigun_draw: {
-      len: 2.0,
+      len: 2.2,
       make: r => {
-        const b = buf(2.0)
+        const b = buf(2.2)
         add(b, env(biquad(noise(0.45, r), 'bandpass', t => 450 + 2400 * Math.min(1, t / 0.4), 0.8), 0.12, 0.06), 0, 0.7) // lifted
         add(b, click(r, 2, 2800), 0.26, 0.3) // a sling swivel
         knock(b, r, 0.8, 0.85) // the weight settles
         rattle(b, r, 0.81, 0.95, 5, 0.3, 1800) // the belt's rounds
         add(b, click(r, 2, 2400), 1.05, 0.45) // turned to its side
         add(b, env(ring(0.12, [1900, 3900], 0.02, r), 0.025), 1.05, 0.15)
-        // the test whir (p 0.58-0.92): the motor kicks at 1.16 s, the barrels' half-turn test spin eases out and stops
-        // at 1.84 s
-        const L = 0.68
-        const v = t => t < 0.05 ? t / 0.05 * 0.6 : 0.6 * Math.pow(Math.max(0, 1 - (t - 0.05) / (L - 0.07)), 1.6)
+        // the test whir (p 0.5-0.96): the motor's relay clicks at 1.0 s, the barrels' full-turn test spin speeds up and
+        // eases out (the frames' smoothstep: its speed is a bell, 6u (1 - u)) and stops at 1.92 s
+        const L = 0.92
+        const v = t => { const u = Math.min(1, Math.max(0, t / L)); return 0.6 * 4 * u * (1 - u) }
         const w = t => 0.3 + 0.8 * v(t)
         const g = t => Math.min(1, t / 0.01) * Math.min(1, Math.max(0, (L - t) / 0.03))
-        add(b, spin(r, L, v, w, g, { whine: 0.6, clat: 1.2, air: 0.8 }), 1.16, 0.9)
-        add(b, click(r, 2, 1500), 1.16, 0.5) // the motor's relay
-        clack(b, r, 1.84, 0.5, 1500, [1100, 2400, 3900]) // the barrels stop
+        add(b, spin(r, L, v, w, g, { whine: 0.6, clat: 1.2, air: 0.8 }), 1.0, 0.9)
+        add(b, click(r, 2, 1500), 1.0, 0.5) // the motor's relay
+        clack(b, r, 1.92, 0.5, 1500, [1100, 2400, 3900]) // the barrels stop
         return master(reverb(b, 0.45, 0.5, 0.12), -4)
       }
     },

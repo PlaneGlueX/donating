@@ -550,10 +550,38 @@ module.exports = ({ write, canvas, shade, display, both }) => {
         return e
       })
     }
+    // Shelves first; when they don't fit a size, a skyline (each tile at the lowest spot along the top edge of what's
+    // placed: it fills the gaps under short tiles) before doubling it. Every gun shelves fit kept its layout; the
+    // minigun's 57K texels fit 256 only this way (shelves need 272 rows).
+    const skyline = (list, W) => {
+      let line = [{ x: 0, y: 0, w: W }]
+      for (const t of list) {
+        let best = null
+        for (let i = 0; i < line.length && line[i].x + t.w <= W; i++) {
+          let y = 0; let left = t.w
+          for (let j = i; left > 0; j++) { y = Math.max(y, line[j].y); left -= line[j].w }
+          if (!best || y + t.h < best.top) best = { x: line[i].x, y, top: y + t.h }
+        }
+        if (!best) return false;
+        [t.x, t.y] = [best.x, best.y]
+        const a = best.x; const b = best.x + t.w; const next = []
+        for (const s of line) {
+          if (s.x + s.w <= a || s.x >= b) { next.push(s); continue }
+          if (s.x < a) next.push({ x: s.x, y: s.y, w: a - s.x })
+          if (s.x + s.w > b) next.push({ x: b, y: s.y, w: s.x + s.w - b })
+        }
+        next.push({ x: a, y: best.top, w: t.w }); next.sort((u, v) => u.x - v.x)
+        line = []
+        for (const s of next) { const l = line[line.length - 1]; if (l && l.y === s.y) l.w += s.w; else line.push({ ...s }) }
+      }
+      return Math.max(...line.map(s => s.y)) <= W
+    }
     for (W = 64; ; W *= 2) {
       sx = 0; sy = 0; shelf = 0
-      for (const t of (PG ? [...tiles].sort((a, b) => b.h - a.h || b.w - a.w) : tiles)) [t.x, t.y] = place(t.w, t.h)
+      const order = PG ? [...tiles].sort((a, b) => b.h - a.h || b.w - a.w) : tiles
+      for (const t of order) [t.x, t.y] = place(t.w, t.h)
       if (sy + shelf <= W) break
+      if (PG && skyline(order, W)) break
     }
     const H = W
     const tex = canvas(W, H)

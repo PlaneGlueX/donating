@@ -40,7 +40,7 @@ if (full.elements.length > 160) issues.push(`${full.elements.length} elements in
 // 4. the inventory icon's ink share
 zipDir(out, out + '.zip')
 const png = path.join(__dirname, `lint-${id}-gui.png`)
-execFileSync(path.join(REPO, 'tools', 'node', 'node.exe'), [path.join(REPO, 'tools', 'render-item.js'), `donating:item/${name}_full`, png, 'gui', 512, 512, '--pack', out + '.zip'])
+execFileSync(fs.existsSync(path.join(REPO, 'tools', 'node', 'node.exe')) ? path.join(REPO, 'tools', 'node', 'node.exe') : process.execPath, [path.join(REPO, 'tools', 'render-item.js'), `donating:item/${name}_full`, png, 'gui', 512, 512, '--pack', out + '.zip'])
 const l = require('./lib.js'); const img = l.load(png); const bg = l.get(img, 10, 10)
 let n = 0; let ink = 0; let deep = 0
 for (let y = 0; y < img.h * 0.85; y++) for (let x = 0; x < img.w; x++) { const p = l.get(img, x, y); if (Math.abs(p[0] - bg[0]) + Math.abs(p[1] - bg[1]) + Math.abs(p[2] - bg[2]) < 6) continue; n++; const L = l.lum(p); if (L < 22) ink++; else if (L < 50) deep++ }
