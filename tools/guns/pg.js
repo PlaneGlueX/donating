@@ -99,15 +99,18 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     // Camo: blotches of the theme's camo colors over the base.
     camo: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
       const cols = (ctx.theme && ctx.theme.camo) || [[60, 70, 40], [110, 100, 70], [40, 40, 30]]
+      const s = ctx.scale || 1
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const v = Math.sin((x0 + x) * 0.9 + (y0 + y) * 0.35) + Math.sin((x0 + x) * 0.27 - (y0 + y) * 1.1 + 2) + r() * 0.5
+        const X = (x0 + x) / s; const Y = (y0 + y) / s
+        const v = Math.sin(X * 0.9 + Y * 0.35) + Math.sin(X * 0.27 - Y * 1.1 + 2) + r() * 0.5
         if (v > 0.9) c.set(x0 + x, y0 + y, rgba(cols[0])); else if (v < -0.9) c.set(x0 + x, y0 + y, rgba(cols[1])); else if (v > 0.2 && v < 0.45) c.set(x0 + x, y0 + y, rgba(cols[2]))
       }
     },
     // Diagonal stripes in the theme's stripe color.
     stripe: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
       const sc = rgba((ctx.theme && ctx.theme.stripe) || [20, 20, 20])
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (((x0 + x) + (y0 + y)) % 6 < 2) c.set(x0 + x, y0 + y, sc)
+      const s = ctx.scale || 1
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (Math.floor(((x0 + x) + (y0 + y)) / s) % 6 < 2) c.set(x0 + x, y0 + y, sc)
     },
     // Carbon weave: a 2x2 checker of two shades.
     carbon: (c, x0, y0, w, h, dir, col) => {
@@ -135,8 +138,9 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     // Lava cracks (animated: they pulse).
     lava: (c, x0, y0, w, h, dir, col, r, ctx = {}) => {
       const glow = 0.6 + 0.4 * Math.sin(((ctx.frame || 0) / Math.max(1, ctx.frames || 1)) * Math.PI * 2)
+      const s = ctx.scale || 1
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const v = Math.abs(Math.sin((x0 + x) * 0.7 + Math.sin((y0 + y) * 0.5) * 2))
+        const v = Math.abs(Math.sin((x0 + x) / s * 0.7 + Math.sin((y0 + y) / s * 0.5) * 2))
         if (v < 0.18) c.set(x0 + x, y0 + y, mix([255, 120, 20], [255, 230, 120], glow * (0.18 - v) / 0.18))
       }
     },
@@ -253,11 +257,14 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     // PG3D chrome (the Classic Pistol's slide, the Old Revolver's barrel): quantised bands, cool white on top. Side
     // faces: 25% glint (40% toward a blue-white), 25% hi (x1.25), 30% base, 20% lo (x0.7); up faces hi with a glint row
     // at their far edge; down faces lo.
+    // Lighter tones mix toward a cool white instead of multiplying (x1.3 clipped green and blue at 255 on a pale
+    // chrome: a near-white cyan band; gs50's fixer, 2026-10-06), and two rows at x0.8 sit above the bottom band.
     chrome2: (c, x0, y0, w, h, dir, col) => {
-      const glint = mixc(shade(col, 1.3), [236, 246, 255], 0.45); const hi = mixc(shade(col, 1.2), [200, 220, 245], 0.12); const lo = shade(col, 0.7)
+      const glint = mixc(col, [236, 246, 255], 0.6); const hi = mixc(col, [236, 244, 252], 0.3); const mid = shade(col, 0.8); const lo = shade(col, 0.7)
+      const loRows = Math.max(1, Math.round(h * 0.2))
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const f = y / Math.max(1, h)
-        const t = dir === 'up' ? (y === 1 ? glint : hi) : dir === 'down' ? lo : f < 0.25 ? glint : f < 0.5 ? hi : f < 0.8 ? rgba(col) : lo
+        const t = dir === 'up' ? (y === 1 ? glint : hi) : dir === 'down' ? lo : f < 0.25 ? glint : f < 0.5 ? hi : y >= h - loRows ? lo : y >= h - loRows - 2 ? mid : rgba(col)
         c.set(x0 + x, y0 + y, t)
       }
     },
@@ -313,15 +320,19 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     tex.fill(X, Y, X + w - 1, Y + h - 1, base)
     // 2. bands: side faces lit from above (measured: the top rows hi, the bottom rows lo on a 13-row body)
     const ih = h - 2 * iw
-    const pat = (ctx.theme && ctx.theme.pat && ctx.theme.pat[t.key]) || t.pat
+    // A skin's pattern on a key also covers the tones derived from it ({ of: key }), as its color does.
+    let pat = t.pat
+    if (ctx.theme && ctx.theme.pat) {
+      for (let k = t.key, n = 0; k && n < 8; k = pal[k] && pal[k].of, n++) if (ctx.theme.pat[k]) { pat = ctx.theme.pat[k]; break }
+    }
     const bands = t.bands !== undefined ? t.bands : m.bands
     if (bands && side && ih >= 5 && !['chrome', 'chrome2', 'gold', 'rings', 'lens', 'cells', 'code', 'glitch', 'neon', 'led'].includes(pat)) {
       const bt = Math.max(1, Math.round(ih * 0.16)); const bb = Math.max(1, Math.round(ih * 0.2))
       for (let y = iw; y < iw + bt; y++) for (let x = 0; x < w; x++) set(x, y, tone(base, 1, m))
       for (let y = h - iw - bb; y < h - iw; y++) for (let x = 0; x < w; x++) set(x, y, tone(base, -1, m))
     }
-    // 3. the pattern
-    PATTERNS[pat](tex, X, Y, w, h, t.dir, base, r, ctx)
+    // 3. the pattern (the skin patterns' sizes are in texels at density 2: scaled so they keep their size in units)
+    PATTERNS[pat](tex, X, Y, w, h, t.dir, base, r, { ...ctx, scale: (t.d || 2) / 2 })
     // 4. grain: blocky voxel jitter (metals: cells 1x1 55%, 2x1 30%, 1x2 10%, 2x2 5%; the rest 1x1)
     const p = t.grain !== undefined ? t.grain : m.grain
     if (p > 0) {
@@ -487,7 +498,7 @@ module.exports = ({ write, canvas, shade, display, both }) => {
       const mat = b.pgPatch ? 'glow' : pick(b.mat, dir) || mats[key] || (pal[key].of && mats[pal[key].of]) || guessMat(key, legacyPat, !!b.glow, resolveCol(pal, key, mats))
       const M = MAT[mat]
       const { cols, rows } = splitsFor(b, dir, w, h)
-      return { pg: true, mat, mats, patSet: !!(b.pgPatch || legacyPat), pat: b.pgPatch || legacyPat || M.pat, inkOn: b.outline !== false && !b.glow && M.ink, inkW: b.inkW || spec.inkW || 1, inkCol: b.ink ? resolveCol(pal, b.ink, mats) : null, bands: b.bands, bevel: b.bevel, grain: b.grain, ao: b.ao, cols, rows, decals: b.pgPatch ? [] : decalsFor(b, dir, w, h), seed: hash(name + '#' + idx) }
+      return { pg: true, d: D, mat, mats, patSet: !!(b.pgPatch || legacyPat), pat: b.pgPatch || legacyPat || M.pat, inkOn: b.outline !== false && !b.glow && M.ink, inkW: b.inkW || spec.inkW || 1, inkCol: b.ink ? resolveCol(pal, b.ink, mats) : null, bands: b.bands, bevel: b.bevel, grain: b.grain, ao: b.ao, cols, rows, decals: b.pgPatch ? [] : decalsFor(b, dir, w, h), seed: hash(name + '#' + idx) }
     }
     // PG: emissive decals (emit: true) get a glowing patch 0.02 in front of their face (light is per element).
     const ALL6 = ['north', 'south', 'east', 'west', 'up', 'down']

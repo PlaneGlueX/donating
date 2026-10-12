@@ -4685,8 +4685,8 @@
                           "transformation": {
                             "translation": [
                               -0.0432,
-                              -0.0905,
-                              0.288
+                              -0.0908,
+                              0.2881
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -4804,9 +4804,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.044,
-                              -0.1162,
-                              0.2986
+                              -0.0435,
+                              -0.1189,
+                              0.2996
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -4924,9 +4924,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0454,
-                              -0.1634,
-                              0.3181
+                              -0.0441,
+                              -0.1704,
+                              0.3208
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5044,9 +5044,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0473,
-                              -0.227,
-                              0.3444
+                              -0.0449,
+                              -0.2399,
+                              0.3493
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5164,9 +5164,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0496,
-                              -0.3019,
-                              0.3754
+                              -0.0458,
+                              -0.3217,
+                              0.383
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5284,9 +5284,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.052,
-                              -0.3832,
-                              0.4091
+                              -0.0468,
+                              -0.4106,
+                              0.4195
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5404,9 +5404,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0545,
-                              -0.4658,
-                              0.4433
+                              -0.0478,
+                              -0.5008,
+                              0.4565
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5524,9 +5524,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0569,
-                              -0.5447,
-                              0.4759
+                              -0.0488,
+                              -0.587,
+                              0.4919
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5644,9 +5644,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.059,
-                              -0.6149,
-                              0.5049
+                              -0.0496,
+                              -0.6636,
+                              0.5234
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5764,9 +5764,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0607,
-                              -0.6712,
-                              0.5283
+                              -0.0503,
+                              -0.7251,
+                              0.5487
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -5884,9 +5884,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0618,
-                              -0.7087,
-                              0.5438
+                              -0.0508,
+                              -0.7661,
+                              0.5655
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -6004,9 +6004,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0622,
-                              -0.7223,
-                              0.5494
+                              -0.051,
+                              -0.781,
+                              0.5716
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -6860,9 +6860,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0616,
-                              -0.7015,
-                              0.5408
+                              -0.0507,
+                              -0.7583,
+                              0.5623
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -6980,9 +6980,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0593,
-                              -0.6274,
-                              0.5101
+                              -0.0498,
+                              -0.6773,
+                              0.529
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -7100,9 +7100,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.056,
-                              -0.5174,
-                              0.4646
+                              -0.0484,
+                              -0.5572,
+                              0.4797
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -7220,9 +7220,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0522,
-                              -0.3906,
-                              0.4121
+                              -0.0469,
+                              -0.4186,
+                              0.4228
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -7340,9 +7340,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0485,
-                              -0.2658,
-                              0.3605
+                              -0.0453,
+                              -0.2823,
+                              0.3668
                             ],
                             "left_rotation": [
                               -0.1902,
@@ -7460,9 +7460,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0494,
-                              -0.1621,
-                              0.3358
+                              -0.048,
+                              -0.169,
+                              0.3384
                             ],
                             "left_rotation": [
                               -0.19,
@@ -7580,9 +7580,9 @@
                           "model": "donating:item/gunskin/uzi/carbon/mag",
                           "transformation": {
                             "translation": [
-                              -0.0564,
-                              -0.0984,
-                              0.3485
+                              -0.0561,
+                              -0.0995,
+                              0.3488
                             ],
                             "left_rotation": [
                               -0.1896,
