@@ -72,7 +72,18 @@ module.exports = ({ pg, aim, display }) => {
   const escutcheon = (x, y) => ({ k: 'stamp', face: 'sides', at: [x - 0.25, y + 0.375], to: [x + 0.25, y - 0.375], rows: ['hs', 'ss', 'sl'], keys: { h: 'screwHi', s: 'screw', l: 'screwLo' } })
   // The silver is polished: clean chrome bands, no grain (the reference's barrel and frame have none).
   const CLEAN = { grain: 0 }
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the target stock (its top centre, 2 deep and 2.5 wide: 1.1 times the shared glove), still
+  // while the gun twirls about its trigger finger in the draw; the left hand (only in the reload) swings the cylinder
+  // out from below, slaps the ejector rod, fetches the speedloader from below, pushes it in, twists it and lets it
+  // drop. The wrist flick that shuts the cylinder is the right hand's.
+  const { hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [13.2 - OR[0], 6.9 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 6]], pivot: OR })
+  // under the cylinder, palm up (the glove's C turned to lie along the cylinder's axis)
+  const LH = rig({ t: [8.9 - OL[0], 10.0 - 2.2 - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], 90]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.1, armScale: 0.85 }, left: { at: LH, shown: false, armScale: 0.85 }, leftTree: false },
     style: 'pg',
     density: 4,
     ink: [8, 8, 10],
@@ -266,7 +277,10 @@ module.exports = ({ pg, aim, display }) => {
     const rise = 1 - ease.out(Math.min(1, p / 0.5))
     const out = ease.bump(p, 0, 0.72, 0.3, 0.38)
     const settle = ease.bump(p, 0.67, 1, 0.78)
-    return { gun: rig({ t: [-10 * out, -6 * rise - 4 * out - 0.4 * settle, -2 * out], rot: [[[0, 0, 1], 360 * spin + 3 * settle]], pivot: FINGER }) }
+    const t = [-10 * out, -6 * rise - 4 * out - 0.4 * settle, -2 * out]
+    const g = rig({ t, rot: [[[0, 0, 1], 360 * spin + 3 * settle]], pivot: FINGER })
+    // the right hand follows the rise only (the gun turns in it): its placement undoes the gun's turn
+    return { gun: g, rhand: hands.pose(RH, then(then(RH, rig({ t })), hands.inv(g))) }
   }
   // The reload (GunFx: 40 ticks, full or empty: no Firearm_Action; frames at p = (k + 0.5) / 40). The gun comes up
   // toward the middle of the screen, rolled so its left side (the cylinder's side) faces up; the cylinder swings out
@@ -283,6 +297,19 @@ module.exports = ({ pg, aim, display }) => {
   const LOADER_BEHIND = [1.4, 0, 0] // lined up behind the open cylinder
   const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t)
   const move = t => rig({ t })
+  // The left hand's places: below the screen (where the bag was), under the cylinder (it swings out with the crane),
+  // in front of the open cylinder on the ejector rod's tip, round the speedloader's knob from behind (the C along x).
+  const BELOW = then(LH, rig({ t: [4, -14, 6], rot: [[[1, 0, 0], -20]], pivot: [8.9, 7.8, 8] }))
+  const ROD = rig({ t: [-0.6 - OL[0], 9.0 - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], 90]], pivot: OL })
+  const KNOB = rig({ t: [13.6 - OL[0], CY - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], -90]], pivot: OL })
+  const loaderAt = (p, C) => {
+    const come = ease.ramp(p, 0.44, 0.55)
+    const seat = ease.ramp(p, 0.55, 0.59)
+    const at = come < 1 ? lerp(LOADER_FROM, LOADER_BEHIND, ease.out(come)) : lerp(LOADER_BEHIND, [0, 0, 0], seat)
+    const twist = ease.ramp(p, 0.59, 0.63)
+    const off = ease.ramp(p, 0.63, 0.71)
+    return then(then(turn(40 * twist), C), move([at[0] + 3.5 * off, at[1] - 5 * off * off, at[2] + 1.5 * off]))
+  }
   const reload = p => {
     const lift = ease.ramp(p, 0, 0.12) * (1 - ease.ramp(p, 0.8, 0.96))
     const open = ease.ramp(p, 0.1, 0.19) * (1 - ease.ramp(p, 0.72, 0.76))
@@ -319,11 +346,23 @@ module.exports = ({ pg, aim, display }) => {
       pose.rounds = then(C, move(at))
       if (p < 0.71) {
         pose.show.push('loader')
-        const twist = ease.ramp(p, 0.59, 0.63)
-        const off = ease.ramp(p, 0.63, 0.71)
-        pose.loader = then(then(turn(40 * twist), C), move([at[0] + 3.5 * off, at[1] - 5 * off * off, at[2] + 1.5 * off]))
+        pose.loader = loaderAt(p, C)
       }
     }
+    // The left hand: up under the cylinder (0.03-0.12), swings it out with the crane (0.1-0.19), to the ejector rod's
+    // tip in front (0.19-0.27), the palm pushes it (0.27-0.31), down to the speedloader below (0.31-0.44), brings it up,
+    // pushes it in and twists it (0.44-0.63), lets it drop with the loader (0.63-0.71), away (0.71-0.8).
+    const atRod = then(then(ROD, move([1.7 * push, 0, 0])), C)
+    let place
+    if (p < 0.12) place = hands.mix(BELOW, then(LH, C), ease.ramp(p, 0.03, 0.12))
+    else if (p < 0.19) place = then(LH, C)
+    else if (p < 0.27) place = hands.mix(then(LH, C), atRod, ease.ramp(p, 0.19, 0.27))
+    else if (p < 0.31) place = atRod
+    else if (p < 0.44) place = hands.mix(atRod, then(KNOB, loaderAt(0.44, C)), ease.ramp(p, 0.31, 0.44))
+    else if (p < 0.71) place = then(KNOB, loaderAt(p, C))
+    else { const last = then(KNOB, loaderAt(0.71, C)); place = hands.mix(last, then(last, rig({ t: [2, -14, 3] })), ease.ramp(p, 0.71, 0.8)) }
+    pose.lhand = hands.pose(LH, place)
+    if (p > 0.02 && p < 0.81) pose.show.push('lhand')
     return pose
   }
   const drawn = gun.flag(2, gun.cooldown('', 12, draw), gun.cooldown('', 8, shot(1)))

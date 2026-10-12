@@ -56,7 +56,16 @@ module.exports = ({ pg, aim, display }) => {
     // the rear one reaches back to the frame's end (18.75): a racked bolt hides under it
     ...plate(17, 8.75, 18.75, 10.5, { deco: [{ k: 'band', at: [17, 10.5], to: [17.25, 8.75], c: 'port' }, { k: 'band', at: [18.5, 10.5], to: [18.75, 8.75], c: 'silverMid' }] })
   ]
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip (its top where it meets the receiver, raked 22 degrees; 3 deep and 2.5 wide: 1.3 times
+  // the shared glove); the left hand (only while shells load) under the shell, its C turned along it, the thumb behind
+  // the brass: it lifts each shell into the loading port and thumbs it forward into the tube.
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [P0[0] - OR[0], P0[1] - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 22]], pivot: OR })
+  const LH = rig({ t: [14.9 - OL[0], 9.8 - 1.3 - OL[1], 9.2 - OL[2]], rot: [[[0, 0, 1], 90]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.3, armScale: 0.9 }, left: { at: LH, shown: false, armScale: 0.9 }, leftTree: false },
     style: 'pg',
     density: 4,
     palette: {
@@ -238,29 +247,40 @@ module.exports = ({ pg, aim, display }) => {
   // eye), the shell comes from below, nose up, into the loading port and is pushed forward into the tube while the gun
   // nods with the push. Between shells (no clock) the same pose, so consecutive shells don't wobble. Every shell's
   // clock is the same, so the pose snaps on at the first shell and off after the last: the cant stays moderate (24°,
-  // 10° yaw; at 30° the port was still edge-on from the first-person camera) and the lift (2.2 up, 0.8 toward the
-  // middle) is what brings the loading port into view (with 18° and no lift the shell never showed above the screen's
+  // 10° yaw; at 30° the port was still edge-on from the first-person camera) and the lift (4.5 up, 1.5 toward the
+  // middle; 2.2 and 0.8 before the left hand: its thumb on the shell sat under the screen's edge) is what brings the loading port into view (with 18° and no lift the shell never showed above the screen's
   // bottom edge). GunFx gives a shell exactly WeaponMechanics' 4-tick reload task (getReloadTime: for a pump gun loading
   // one shell at a time WeaponMechanics never chains the Open/Close times its reload event reports into the reload).
-  const canted = (nod = 0) => rig({ t: [0, 2.2 + 0.35 * nod, 0.8], rot: [[[1, 0, 0], -24], [[0, 1, 0], 10], [[0, 0, 1], -6 - 2 * nod]], pivot: AXIS })
+  // The left hand (2026-10-12) brings each shell up from below and thumbs it in: four frames a shell, the same loop
+  // for every shell (the timing is WeaponMechanics': 4 ticks a shell).
+  const canted = (nod = 0) => rig({ t: [0, 4.5 + 0.35 * nod, 1.5], rot: [[[1, 0, 0], -24], [[0, 1, 0], 10], [[0, 0, 1], -6 - 2 * nod]], pivot: AXIS })
   // From the shell's own spot at the ejection port: under the loading port, half into it, pushed forward into the
   // magazine tube (hidden in it). The receiver's bottom (the port) and the tube sit 0.5 lower than before the remake.
   const LOAD_START = [-1.45, -4.9, 0.4]
   const LOAD_PORT = [-1.8, -3.1, -1.2]
   const LOAD_IN = [-4.4, -1.85, -1.2]
   const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t)
-  const reload = p => {
+  // The left hand holds the shell from below (its rig is the shell's) and thumbs it in; on the last frame (the shell in
+  // the tube) it slides off and drops a little for the next one, which is where it waits between shells.
+  const shellRig = p => {
     const up = ease.ramp(p, 0.05, 0.55)
     const push = ease.ramp(p, 0.5, 0.95)
     const at = p < 0.5 ? lerp(LOAD_START, LOAD_PORT, up) : lerp(LOAD_PORT, LOAD_IN, push)
     const tilt = -25 * (1 - up) - 8 * (1 - push) * up
+    return rig({ t: at, rot: [[[0, 0, 1], tilt]], pivot: SHELL })
+  }
+  const WAIT = then(then(LH, shellRig(0)), rig({ t: [0.5, -1.5, 0] }))
+  const reload = p => {
+    const off = ease.ramp(p, 0.8, 1) // the thumb slides off the pushed shell
+    const place = then(then(LH, shellRig(p)), rig({ t: [1.2 * off, -1.0 * off, 0] }))
     return {
-      show: p < 0.95 ? ['shell'] : [],
+      show: p < 0.95 ? ['shell', 'lhand'] : ['lhand'],
       gun: canted(ease.bump(p, 0.35, 0.95, 0.6)),
-      shell: rig({ t: at, rot: [[[0, 0, 1], tilt]], pivot: SHELL })
+      shell: shellRig(p),
+      lhand: hands.pose(LH, place)
     }
   }
-  const CANTED = { gun: canted(0) }
+  const CANTED = { gun: canted(0), lhand: hands.pose(LH, WAIT), show: ['lhand'] }
   // A pump WeaponMechanics works without a shot (the first click after a reload from empty leaves the pump open; an
   // interrupted pump): GunFx marks it with custom_model_data flag 1 and starts the same 15-tick clock (gunfx action 15;
   // WeaponMechanics' Open 7 + Close 7 and their delayed sounds line up with the shot's pump frames), so the pump racks

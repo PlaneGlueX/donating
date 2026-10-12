@@ -108,7 +108,17 @@ module.exports = ({ pg, aim, display }) => {
   const stud = (x, y, c = 'steel', face) => ({ k: 'rivets', at: [x, y + 0.5], to: [x + 0.5, y], n: 1, size: 2, c, ...(face ? { face } : {}) })
   // The magazine's emblem: a chunky X in a frame (11 x 11 texels, light steel).
   const XMARK = ['LLLLLLLLLLL', 'L.........L', 'L.LL...LL.L', 'L..LL.LL..L', 'L...LLL...L', 'L....L....L', 'L...LLL...L', 'L..LL.LL..L', 'L.LL...LL.L', 'L.........L', 'LLLLLLLLLLL']
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the mauve grip (its top centre, raked 15 degrees; 2.5 deep and wide: 1.15 times the shared
+  // glove); the left hand (only in the reload) palm up under the box, cupping it (the glove's C turned across the box,
+  // 1.3 times the shared one): it pulls the box down and away, brings the new one up and slaps it home, then turns the
+  // cluster a quarter turn twice by the middle clamp's arm.
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [21.3 - OR[0], 4.7 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 15]], pivot: OR })
+  const LH = rig({ t: [15.6 - OL[0], -1.1 - OL[1], 8 - OL[2]], rot: [[[1, 0, 0], 90]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.15, armScale: 0.95 }, left: { at: LH, shown: false, scale: 1.3, armScale: 0.95 }, leftTree: false },
     style: 'pg',
     density: 4,
     palette: {
@@ -347,6 +357,11 @@ module.exports = ({ pg, aim, display }) => {
   const MP = { t: [0, 8, 4], x: -30, y: 15, z: -18 }
   const BP = { t: [0, 3, 2.5], x: 5, y: 25, z: -6 }
   const MD = { t: [0.5, -9, 3], x: -18, z: 8 }
+  // The left hand: below the screen (where the bag was), under the box, on the middle clamp's arm that faces you (the
+  // "+" repeats every quarter turn, so after each turn the next arm is where the first one was).
+  const boxRig = out => rig({ t: [MD.t[0] * out, MD.t[1] * out, MD.t[2] * out], rot: [[[1, 0, 0], MD.x * out], [[0, 0, 1], MD.z * out]], pivot: MAG_TOP })
+  const BELOW = then(LH, rig({ t: [3, -13, 7], rot: [[[1, 0, 0], -20]], pivot: [15.6, -1.1, 8] }))
+  const CLAMP_ARM = rig({ t: [1.6 - OL[0], AY - OL[1], AZ + 3.3 - OL[2]], pivot: OL })
   const reload = p => {
     const a = ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.62, 0.72)) // belly toward you: the box changed
     const b = ease.ramp(p, 0.64, 0.74) * (1 - ease.ramp(p, 0.88, 0.97)) // its left side toward you: the ratchet
@@ -355,17 +370,31 @@ module.exports = ({ pg, aim, display }) => {
     const slap = ease.bump(p, 0.62, 0.68, 0.64)
     const out = p < 0.4 ? ease.ramp(p, 0.15, 0.32) : 1 - ease.ramp(p, 0.46, 0.6)
     const r1 = ease.bump(p, 0.744, 0.8, 0.76); const r2 = ease.bump(p, 0.822, 0.878, 0.84)
+    // the left hand: up under the box (0.02-0.1), its thumb on the catch (the tug), with the box down and away and the
+    // new one up, the slap's push (0.62-0.68), forward to the clamp (0.66-0.744), the first quarter turn riding the arm
+    // (0.744-0.8), back to the next arm (0.8-0.822), the second (0.822-0.878), away (0.88-0.95) as the cluster coasts
+    let place
+    const onArm = q => then(CLAMP_ARM, turn(90 * q))
+    if (p < 0.1) place = hands.mix(BELOW, LH, ease.ramp(p, 0.02, 0.1))
+    else if (p < 0.66) place = then(then(LH, boxRig(out)), rig({ t: [0, 0.8 * slap, 0] }))
+    else if (p < 0.744) place = hands.mix(LH, onArm(0), ease.ramp(p, 0.66, 0.744))
+    else if (p < 0.8) place = onArm(ease.ramp(p, 0.744, 0.8))
+    else if (p < 0.822) place = hands.mix(onArm(1), onArm(0), ease.ramp(p, 0.8, 0.822))
+    else if (p < 0.88) place = onArm(ease.ramp(p, 0.822, 0.878))
+    else place = hands.mix(onArm(1), then(onArm(1), rig({ t: [3, -14, 5] })), ease.ramp(p, 0.88, 0.95))
     return {
       gun: rig({ t: [MP.t[0] * a + 0.3 * tug, MP.t[1] * a - 0.3 * seat + 0.3 * slap + BP.t[1] * b, MP.t[2] * a + BP.t[2] * b], rot: [[[1, 0, 0], MP.x * a + BP.x * b], [[0, 1, 0], MP.y * a + BP.y * b], [[0, 0, 1], MP.z * a + BP.z * b - 1.5 * seat + 1.5 * slap - 1.2 * (r1 + r2)]], pivot: [17, 7, 8] }),
-      mag: rig({ t: [MD.t[0] * out, MD.t[1] * out, MD.t[2] * out], rot: [[[1, 0, 0], MD.x * out], [[0, 0, 1], MD.z * out]], pivot: MAG_TOP }),
+      mag: boxRig(out),
       spin: turn(90 * ease.ramp(p, 0.744, 0.8) + 90 * ease.ramp(p, 0.822, 0.878) + 180 * ease.ramp(p, 0.87, 0.98)),
+      lhand: hands.pose(LH, place),
+      show: p > 0.015 && p < 0.95 ? ['lhand'] : [],
       hide: p > 0.32 && p < 0.46 ? ['mag'] : []
     }
   }
   const AIMED = { hide: ['stock'] }
   // Elsewhere (third person, the ground, item frames): the flags alone (the cooldown and the key are the viewer's own);
   // the icon still.
-  const tpSpin = random('', spins({}, [0, 30, 60]))
+  const tpSpin = random('', spins({ hide: ['rhand'] }, [0, 30, 60])) // (no hands outside first person)
   const still = { type: 'minecraft:model', model: gun.id('full', '') }
   const elsewhere = gun.flag(0, tpSpin, gun.flag(3, tpSpin, gun.flag(4, tpSpin, still)))
   const ctx = fp => ({ type: 'minecraft:select', property: 'minecraft:display_context', cases: [{ when: ['firstperson_righthand', 'firstperson_lefthand'], model: fp }, { when: ['gui'], model: still }], fallback: elsewhere })
