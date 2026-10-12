@@ -656,30 +656,48 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     // elbows mirrored: a left-handed player holds the gun in the left hand, so its grip hand's elbow is bottom left).
     // The elbow is lowered step by step (HANDS.elbowTries) until the sleeve's far end is off the screen in every view
     // that draws this tree (both hands' when they share it: spec.hands.leftTree false), at every screen shape up to 21:9.
-    const armTo = (wrist, state, cam, left, alsoOther) => {
+    const armTo = (wrist, state, cam, left, alsoOther, sc = 1) => {
       let best
+      // the arm scaled by sc about its wrist pivot: point p -> q (HAP + sc (p - HAP)) + t, with HAP -> the wrist
+      const at = (q, t, p) => qRot(q, HANDS.armPivot.map((v, i) => v + sc * (p[i] - v))).map((x, i) => x + t[i])
       for (const off of HANDS.elbowTries) {
         const c = cam.map((x, i) => x + off[i])
         const elbow = handAnchor(fpDisplay(state, left), left ? [-c[0], c[1], c[2]] : c, left)
         const q = fromTo([1, 0, 0], norm3(elbow.map((x, i) => x - wrist[i])))
         const pv = qRot(q, HANDS.armPivot)
         best = { t: wrist.map((x, i) => x - pv[i]), q }
-        const ends = HANDS.armEnd.map(p => qRot(q, p).map((x, i) => x + best.t[i]))
+        const ends = HANDS.armEnd.map(p => at(q, best.t, p))
         if ([left, ...(alsoOther ? [!left] : [])].every(lf => ends.every(p => !onScreen(handWorld(fpDisplay(state, lf), p, lf))))) break
       }
-      return json(best)
+      return scaled(best, HANDS.armPivot, sc)
     }
+    // A placement m (about the model's corner, like every part's) for a model scaled by sc about point o of its own
+    // (a glove about its grip or magazine point, an arm about its wrist): the transformation's scale applies before
+    // its turn, so the translation takes the difference.
+    const scaled = (m, o, sc) => {
+      if (sc === 1) return json(m)
+      const d = qRot(m.q, o.map(v => v * (1 - sc)))
+      return { ...json({ t: m.t.map((v, i) => v + d[i]), q: m.q }), scale: [sc, sc, sc].map(round) }
+    }
+    // spec.hands.<right|left>.scale: the glove's size against the grip or magazine it holds (the shared gloves fit a
+    // grip 2.25 deep and 2 wide, a magazine 3 deep and 2 wide); its arm takes armScale, else the same.
+    // Aimed (the Scope state) no hands unless spec.hands.aimed: the sight picture stays clean (a sleeve from the grip to
+    // the screen's corner crosses its bottom).
     const handModels = (state, pose) => handList.flatMap(([h, v]) => {
+      if (state === 'ads' && !spec.hands.aimed) return []
       if (v.shown === false ? !(pose.show || []).includes(h) : (pose.hide || []).includes(h)) return []
       const HH = HANDS[h]
+      const sc = v.scale || 1
+      const O = h === 'rhand' ? HANDS.OR : HANDS.OL
       const m = then(then(v.at, pose[h] || ID), pose.gun || ID)
-      const glove = { type: 'minecraft:model', model: handId(HH.model, state), ...(isId(m) ? {} : { transformation: json(m) }) }
+      const glove = { type: 'minecraft:model', model: handId(HH.model, state), ...(isId(m) && sc === 1 ? {} : { transformation: scaled(m, O, sc) }) }
       if (v.arm === false) return [glove]
-      const wrist = qRot(m.q, HH.wrist).map((x, i) => x + m.t[i])
+      const wrist = qRot(m.q, O.map((o, i) => o + sc * (HH.wrist[i] - o))).map((x, i) => x + m.t[i])
       const cam = (pose.elbow && pose.elbow[h]) || v.elbow || HH.elbow
       const shared = spec.hands.leftTree === false
-      const arm = { type: 'minecraft:model', model: handId('arm', state), transformation: armTo(wrist, state, cam, false, shared) }
-      if (!shared) leftArm.set(arm, { ...arm, transformation: armTo(wrist, state, cam, true, false) })
+      const asc = v.armScale || sc
+      const arm = { type: 'minecraft:model', model: handId('arm', state), transformation: armTo(wrist, state, cam, false, shared, asc) }
+      if (!shared) leftArm.set(arm, { ...arm, transformation: armTo(wrist, state, cam, true, false, asc) })
       return [glove, arm]
     })
     // The left-hand context's copy of a first-person tree: the same, with each arm aimed for the left hand (byContext).

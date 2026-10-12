@@ -92,7 +92,17 @@ module.exports = ({ pg, aim, display }) => {
       }
     })
   }
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip (its top centre, raked 15 degrees; the grip is 2.5 deep and its swell 3.5, so the glove
+  // is 1.15 times the shared one); the left hand (only in the reload) round the magazine's middle segment, tilted with
+  // its curve: it pulls the magazine out, carries it away, brings the new one, slaps it home and knocks the charging
+  // handle down out of its notch (the HK slap).
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [12.0 - OR[0], 6.2 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 15]], pivot: OR })
+  const LH = rig({ t: [6.7 - OL[0], 2.9 - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], -9]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.15, armScale: 0.9 }, left: { at: LH, shown: false, armScale: 0.9 }, leftTree: false },
     style: 'pg',
     density: 4,
     ink: [8, 9, 13],
@@ -295,8 +305,15 @@ module.exports = ({ pg, aim, display }) => {
   // the player) and turns to the handle, which is pulled back and held; the curved magazine slides out along its own
   // axis, a new one slides in and is slapped home, the handle is let go (a jolt), the gun comes back level by p = 0.96
   // (the last frame is sampled at 0.99). With rounds left the same moves run in 31 ticks: mag_out at 0, the click 3
-  // ticks after the seat, the handle silent.
+  // ticks after the seat, the handle silent. The gun lifts 4 more units in the cant, so the left hand's work with the
+  // long magazine shows above the screen's bottom edge.
   const MAG_DIR = (a => [Math.sin(a), -Math.cos(a)])(-4 * Math.PI / 180) // the well's axis (the top segment's): down, a bit forward
+  // The left hand: below the screen (where the bag was), on the magazine, on the charging handle's knob (from the left
+  // side, the palm on it), away.
+  const magRig = d => rig({ t: [d * MAG_DIR[0], d * MAG_DIR[1], 0] })
+  const BELOW = then(LH, rig({ t: [3, -13, 6], rot: [[[1, 0, 0], -20]], pivot: [6.7, 2.9, 8] }))
+  const KNOB = [-1.4, 9.9, 11.6]
+  const onKnob = pull => rig({ t: [KNOB[0] + 3.8 * pull - OL[0], KNOB[1] - OL[1], KNOB[2] + 1.2 - OL[2]], rot: [[[1, 0, 0], -90]], pivot: OL })
   const reload = p => {
     const cant = ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.86, 0.96))
     const pull = ease.ramp(p, 0.01, 0.07) * (1 - ease.ramp(p, 0.88, 0.92))
@@ -307,10 +324,20 @@ module.exports = ({ pg, aim, display }) => {
     const slap = ease.bump(p, 0.78, 0.85, 0.8)
     const kick = ease.bump(p, 0.89, 0.95, 0.905)
     const d = p < 0.5 ? 12 * out : 12 * (1 - back) // 12: the longer magazine clears the well
+    // the left hand: up to the magazine (0.03-0.12), with it out and back in, the slap's push (0.78-0.85), over to the
+    // handle (0.85-0.885), knocks it down with the release (0.885-0.92), away (0.92-0.99)
+    let place
+    if (p < 0.12) place = hands.mix(BELOW, LH, ease.ramp(p, 0.03, 0.12))
+    else if (p < 0.85) place = then(then(LH, magRig(d)), rig({ t: [0, 0.6 * slap, 0] }))
+    else if (p < 0.885) place = hands.mix(LH, onKnob(1), ease.ramp(p, 0.85, 0.885))
+    else if (p < 0.92) place = onKnob(pull)
+    else place = hands.mix(onKnob(0), then(onKnob(0), rig({ t: [3, -14, 4] })), ease.ramp(p, 0.92, 0.99))
     return {
-      gun: rig({ t: [0.4 * tug + 0.6 * kick, 1.2 * cant + 0.5 * slap, 0], rot: [[[1, 0, 0], -22 * cant], [[0, 1, 0], 9 * cant + 8 * look], [[0, 0, 1], -3 * slap - 2.5 * kick + 1.5 * tug]], pivot: GRIP }),
-      mag: rig({ t: [d * MAG_DIR[0], d * MAG_DIR[1], 0] }),
+      gun: rig({ t: [0.4 * tug + 0.6 * kick, 4 * cant + 0.5 * slap, 0], rot: [[[1, 0, 0], -22 * cant], [[0, 1, 0], 9 * cant + 8 * look], [[0, 0, 1], -3 * slap - 2.5 * kick + 1.5 * tug]], pivot: GRIP }),
+      mag: magRig(d),
       bolt: rig({ t: [3.8 * pull, 0, 0] }),
+      lhand: hands.pose(LH, place),
+      show: p > 0.02 && p < 0.985 ? ['lhand'] : [],
       hide: p > 0.3 && p < 0.5 ? ['mag'] : []
     }
   }

@@ -37,7 +37,7 @@ const mul3 = (a, b) => a.map(r => [0, 1, 2].map(j => r[0] * b[0][j] + r[1] * b[1
 const app3 = (m, v) => m.map(r => r[0] * v[0] + r[1] * v[1] + r[2] * v[2])
 const qRot = (q, v) => { const [x, y, z, w] = q; const ix = w * v[0] + y * v[2] - z * v[1]; const iy = w * v[1] + z * v[0] - x * v[2]; const iz = w * v[2] + x * v[1] - y * v[0]; const iw = -x * v[0] - y * v[1] - z * v[2]; return [ix * w + iw * -x + iy * -z - iz * -y, iy * w + iw * -y + iz * -x - ix * -z, iz * w + iw * -z + ix * -y - iy * -x] }
 const toWorld = (d, p, local, left) => {
-  if (local) p = qRot(local.q, p).map((v, i) => v + local.t[i])
+  if (local) p = qRot(local.q, p.map((v, i) => v * local.s[i])).map((v, i) => v + local.t[i]) // a transformation: scale, turn, move
   const tr = (d.translation || [0, 0, 0]).map(v => Math.max(-80, Math.min(80, v)) / 16)
   const ro = d.rotation || [0, 0, 0]; const sc = d.scale || [1, 1, 1]
   const R = mul3(mul3(rx3(ro[0]), ry3(left ? -ro[1] : ro[1])), rz3(left ? -ro[2] : ro[2]))
@@ -75,7 +75,7 @@ for (const g of want) {
         if (!/^donating:item\/hands\//.test(m.model)) continue
         hasHands = true
         if (ctxs.includes('elsewhere')) { fails.push(`${n}: ${m.model} outside first person`); continue }
-        const local = m.transformation ? { t: m.transformation.translation.map(v => v * 16), q: m.transformation.left_rotation } : null
+        const local = m.transformation ? { t: m.transformation.translation.map(v => v * 16), q: m.transformation.left_rotation, s: m.transformation.scale || [1, 1, 1] } : null
         for (const ctx of ctxs) {
           const left = ctx === 'firstperson_lefthand'
           const d = displayOf(m.model, ctx)
