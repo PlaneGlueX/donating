@@ -184,9 +184,30 @@ module.exports = async ({ check }) => {
         const pumpCopies = nums.filter(x => x.t >= t && x.n === 20014 && x.flags[1])
         const r2 = runs(t)
         check('from empty: 14 shells, the first on its own 4-tick clock, then the pump (15 ticks) drawn 20014 with flag 1, then 14',
-          (await ammo(1)) === 14 && seen[0] === 4 && seen.filter(n => n === 4).length === 14 && seen[seen.length - 1] === 15 && pumpCopies.length > 0 &&
+          (await ammo(1)) === 14 && seen[0] === 4 && seen.filter(n => n === 4).length === 14 && seen.indexOf(15) === seen.length - 1 && pumpCopies.length > 0 &&
+          !nums.some(x => x.t >= t && (x.n === 13014 || x.n === 3014) && x.flags[1]) && // the pump tasks WeaponMechanics builds and won't run: no clock, no flag
           r2[r2.length - 1] === 14 && !nums[nums.length - 1].flags[1],
           `ammo ${await ammo(1)}; clocks ${JSON.stringify(seen)}; ${JSON.stringify(r2)}`)
+
+        // From empty with 5 spare shells: the pump stays open after the last one, and a click during the exit works it
+        // (no shot): drawn 20014 with flag 1 for the whole pump (the left hand from the pose), never the plain 14 pump.
+        await rcon.cmd(`zzclear ${NAME}`)
+        await give('R9_0', 1, 0)
+        await rcon.cmd(`zzammo ${NAME} shells 5`)
+        await sleep(300)
+        t = Date.now()
+        dig(4)
+        while (Date.now() - t < 3000 && !nums.some(x => x.t >= t && x.n === 20014)) await sleep(10)
+        const clickAt = Date.now()
+        bot.activateItem(); await sleep(60); bot.deactivateItem()
+        await sleep(1200)
+        seen = since(clickAt, 'donating:gun/r9_0').filter(c => c.ticks > 0).map(c => c.ticks)
+        const afterClick = nums.filter(x => x.t >= clickAt)
+        const until = afterClick.findIndex(x => x.n === 14 && !x.flags[1])
+        check('a pump clicked during the exit (spare shells ran out): no shot, the 15-tick pump drawn 20014 with flag 1 to its end, then 14',
+          (await ammo(1)) === 5 && seen[seen.length - 1] === 15 && afterClick.some(x => x.n === 20014 && x.flags[1]) &&
+          !afterClick.some(x => x.n === 14 && x.flags[1]) && until >= 0 && afterClick.slice(until).every(x => x.n === 14 && !x.flags[1]),
+          `ammo ${await ammo(1)}; clocks ${JSON.stringify(seen)}; ${JSON.stringify(afterClick.map(x => [x.n, x.flags.map(Number).join(''), x.t - clickAt]))}`)
 
         // A shot mid-reload: WeaponMechanics stops loading and fires; the gun is back to its normal state (14), not left in
         // the Reload state (WeaponMechanics picked the click's state before it stopped the reload: GunFx refreshes it).

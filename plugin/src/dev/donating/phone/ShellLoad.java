@@ -50,6 +50,7 @@ final class ShellLoad implements Listener {
         boolean in; // ...and it's the chain's first
         int outUntil; // Shell_Out until this tick (0: off)
         int lastDone = Integer.MIN_VALUE; // the tick the last load completed (the next load in that tick is chained)
+        boolean pumped; // the exit became the pump
         St(String title) { this.title = title; }
     }
 
@@ -90,6 +91,7 @@ final class ShellLoad implements Listener {
         st.loadUntil = now() + e.getReloadTime() + 10;
         st.in = !chained;
         st.outUntil = 0;
+        st.pumped = false;
         if (st.in) ins++;
         startTask();
     }
@@ -101,6 +103,10 @@ final class ShellLoad implements Listener {
         if (!e.isMainHand() || !(e.getShooter() instanceof Player p)) return;
         St st = mine(p, e.getWeaponTitle());
         GunFx.Gun g = fx.gun(e.getWeaponTitle());
+        // Aiming during a load: the next load's start zooms out with no scope event and no skin update (ReloadHandler
+        // 4.3.1, ifZoomingForceZoomOut), so after the last load the gun stayed drawn aimed. Its own update a tick later.
+        if (g != null && g.exit() > 0 && GunFx.zooming(p))
+            plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline() && !GunFx.zooming(p) && fx.refreshSkin(p)) refreshes++; });
         if (st == null || g == null) return;
         st.loadUntil = 0;
         st.in = false;
@@ -110,15 +116,16 @@ final class ShellLoad implements Listener {
         fx.clock(p, st.title, g.exit());
     }
 
-    // The pump after a reload from empty (WeaponMechanics opens it in the tick of the last load): Shell_Out for the
-    // whole pump, so it starts from the pose (GunFx draws it with its action clock and flag 1).
+    // The pump after a reload from empty: WeaponMechanics opens it in the tick of the last load, or (the spare shells ran
+    // out first) the player's click does during the exit. Shell_Out for the whole pump, so it starts from the pose
+    // (GunFx draws it with its action clock and flag 1). WeaponMechanics reports OPEN again when the pump closes.
     @EventHandler(priority = EventPriority.MONITOR)
     public void onFirearm(WeaponFirearmEvent e) {
         if (!e.isMainHand() || e.getState() != FirearmState.OPEN || !(e.getShooter() instanceof Player p)) return;
         St st = mine(p, e.getWeaponTitle());
         GunFx.Gun g = fx.gun(e.getWeaponTitle());
-        // Only the pump that opens in the tick of the last load (WeaponMechanics reports OPEN again when that pump closes).
-        if (st == null || g == null || st.lastDone != now() || st.outUntil <= now() || g.action() <= 0) return;
+        if (st == null || g == null || st.pumped || st.outUntil <= now() || g.action() <= 0) return;
+        st.pumped = true;
         st.outUntil = now() + g.action();
         pumps++;
     }
@@ -142,10 +149,18 @@ final class ShellLoad implements Listener {
     public void onShot(WeaponPostShootEvent e) { if (e.isMainHand() && e.getShooter() instanceof Player p && mine(p, e.getWeaponTitle()) != null) end(p); }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onScope(WeaponScopeEvent e) { if (e.isMainHand() && e.getShooter() instanceof Player p && mine(p, e.getWeaponTitle()) != null) end(p); }
+    public void onScope(WeaponScopeEvent e) { if (e.isMainHand() && e.getShooter() instanceof Player p && mine(p, e.getWeaponTitle()) != null) leave(p); }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onHeld(PlayerItemHeldEvent e) { end(e.getPlayer()); }
+    public void onHeld(PlayerItemHeldEvent e) { leave(e.getPlayer()); }
+
+    // Aiming or a slot change during the exit: its clock goes too, or the aimed or resting frames would read it as a
+    // shot's (a pump's action clock stays: WeaponMechanics still works the pump).
+    private void leave(Player p) {
+        St st = states.get(p.getUniqueId());
+        if (st != null && st.loadUntil <= now() && st.outUntil > now() && !st.pumped) fx.clock(p, st.title, 0);
+        end(p);
+    }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent e) { states.remove(e.getPlayer().getUniqueId()); recheck.remove(e.getPlayer().getUniqueId()); }

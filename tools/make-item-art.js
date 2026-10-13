@@ -464,45 +464,7 @@ for (const [type, a] of Object.entries(AMMO)) {
     '................'
   ], { W: [255, 255, 255, 255], w: [255, 236, 150, 255] }))
   addCase('gold_nugget', 'donating:marker', 'donating:item/marker')
-  sprite('tool_drill', art([
-    '................',
-    '................',
-    '................',
-    '.kkkkkkkkkk.....',
-    '.kYYYYYYYYYkkkk.',
-    '.kYyyyyyyyYkGGkS',
-    '.kYyyyyyyyYkGgkS',
-    '.kkkkyyykkkkkkk.',
-    '....kyyyk.......',
-    '....kyyyk.......',
-    '....kDDDk.......',
-    '....kDDDk.......',
-    '...kkkkkkk......',
-    '...kBBBBBk......',
-    '...kkkkkkk......',
-    '................'
-  ], { Y: [250, 200, 40, 255], y: [220, 160, 20, 255], G: [150, 154, 160, 255], g: [110, 114, 120, 255], S: [210, 214, 220, 255], D: [40, 40, 44, 255], B: [70, 70, 76, 255] }))
-  addCase('iron_ingot', 'donating:tool_drill', 'donating:item/tool_drill')
-  sprite('tool_safe_kit', art([
-    '................',
-    '................',
-    '................',
-    '......kkkk......',
-    '......k..k......',
-    '..kkkkkkkkkkkk..',
-    '..kDDDDDDDDDDk..',
-    '..kDDDkkkkDDDk..',
-    '..kDDkWWWWkDDk..',
-    '..kDDkWkWWkDDk..',
-    '..kDDkWWWWkDDk..',
-    '..kDDDkkkkDDDk..',
-    '..kDDDDDDDDDDk..',
-    '..kkkkkkkkkkkk..',
-    '................',
-    '................'
-  ], { D: [64, 68, 76, 255], W: [236, 236, 228, 255] }))
-  // The tool id is "safe-kit" (shop.sk's toolItem writes donating:tool_<id>).
-  addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
+  // The heist tools (the Drill, the Safe Kit) are 3D models: see "The heist tools" after the Grappler.
   // Lockpicks for car-theft contracts (contracts.sk's lockpickItem writes donating:lockpick_<tier>): a steel
   // pick with a hook, the handle in the tier's color (basic bronze, pro blue, master gold).
   const PICKS = { basic: [[196, 124, 64], [140, 86, 40]], pro: [[96, 156, 226], [58, 104, 172]], master: [[252, 204, 44], [206, 150, 20]] }
@@ -1053,6 +1015,76 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   addCase('breeze_rod', 'donating:tool_grappler', iconOr3d('tool_grappler'))
   addCase('breeze_rod', 'donating:grapple_hook', 'donating:item/grapple_hook')
   addCase('breeze_rod', 'donating:grapple_rope', 'donating:item/grapple_rope')
+
+  // The client mirrors a left-hand transform (it negates x and the y and z turns), so the right hand's values give the
+  // mirrored pose.
+  // The heist tools (owner, 2026-10-13: "make models for the case and drill in the shop"): 3D everywhere, the shop
+  // and the hotbar too. The Drill is a yellow cordless drill held like a pistol, its bit toward -z: loot.sk mounts
+  // the same item on a vault door in an item display (no display transform, scale 0.8, facing the door), where
+  // the bit's tip (z 2) touches the door 0.3 blocks in front of the display.
+  solid('tool_drill', [
+    [252, 212, 64], [236, 176, 28], [196, 132, 16], [40, 40, 44], // 0-3 yellow light, yellow, yellow dark, rubber
+    [66, 66, 72], [216, 220, 228], [160, 166, 176], [104, 110, 120], // 4-7 rubber light, steel light, steel, steel dark
+    [74, 74, 80], [200, 52, 40], [22, 22, 26] // 8-10 battery, trigger, vent
+  ], [
+    { from: [6.2, 8.2, 7], to: [9.8, 12, 14], c: { all: 1, up: 0, down: 2 } }, // motor housing
+    { from: [6.15, 8.15, 10.6], to: [9.85, 12.05, 11.3], c: 3 }, // its rubber band
+    { from: [6.7, 8.7, 14], to: [9.3, 11.5, 14.4], c: { all: 4, south: 10 } }, // rear vent cap
+    { from: [6.6, 8.6, 5.8], to: [9.4, 11.6, 7], c: { all: 4, north: 3 } }, // chuck collar
+    { from: [7, 9, 4.4], to: [9, 11, 5.8], c: { all: 6, up: 5, down: 7 } }, // chuck
+    { from: [7.6, 9.6, 2], to: [8.4, 10.4, 4.4], c: { all: 5, down: 7 } }, // bit and its flutes
+    { from: [7.5, 9.5, 2.6], to: [8.5, 10.5, 2.9], c: 7 },
+    { from: [7.5, 9.5, 3.5], to: [8.5, 10.5, 3.8], c: 7 },
+    { from: [6.9, 3.4, 10.2], to: [9.1, 8.2, 12.6], c: { all: 3, up: 4 }, rot: { angle: -22.5, axis: 'x', origin: [8, 8.2, 11.4] } }, // grip, raked back
+    { from: [7.6, 6.4, 9.1], to: [8.4, 7.6, 9.9], c: 9 }, // trigger
+    { from: [6.3, 1.4, 10.4], to: [9.7, 3.4, 15.4], c: { all: 8, up: 4, down: 3 } }, // battery
+    { from: [6.25, 2.6, 10.35], to: [9.75, 3, 15.45], c: 1 } // its stripe
+  ], {
+    thirdperson_righthand: { translation: [0, 2.5, -1], scale: [0.7, 0.7, 0.7] },
+    thirdperson_lefthand: { translation: [0, 2.5, -1], scale: [0.7, 0.7, 0.7] },
+    firstperson_righthand: { rotation: [4, 28, 0], translation: [-1, 4.5, -1], scale: [0.75, 0.75, 0.75] },
+    firstperson_lefthand: { rotation: [4, 28, 0], translation: [-1, 4.5, -1], scale: [0.75, 0.75, 0.75] },
+    gui: { rotation: [20, -135, 0], translation: [0.5, 1, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { rotation: [0, 90, 0], scale: [0.8, 0.8, 0.8] }
+  })
+  addCase('iron_ingot', 'donating:tool_drill', 'donating:item/tool_drill')
+
+  // The Safe Kit: a dark hard case carried by its handle, a code dial on the front and steel latches and corners.
+  // The tool id is "safe-kit" (shop.sk's toolItem writes donating:tool_<id>).
+  solid('tool_safe_kit', [
+    [76, 80, 90], [58, 62, 70], [40, 43, 50], [28, 28, 32], // 0-3 case light, case, case dark, handle
+    [214, 218, 226], [150, 156, 166], [236, 236, 228], [196, 52, 44], // 4-7 steel light, steel, panel, dial mark
+    [32, 34, 40] // 8 dial
+  ], [
+    { from: [2, 2, 6.4], to: [14, 11, 9.6], c: { all: 1, up: 0, down: 2 } }, // the case
+    { from: [1.9, 6.3, 6.3], to: [14.1, 6.7, 9.7], c: 2 }, // the lid's seam
+    { from: [5.6, 11, 7.4], to: [6.4, 12.6, 8.6], c: 5 }, // handle posts and grip
+    { from: [9.6, 11, 7.4], to: [10.4, 12.6, 8.6], c: 5 },
+    { from: [5.4, 12.6, 7.2], to: [10.6, 13.4, 8.8], c: { all: 3, up: 0 } },
+    { from: [5.8, 3.4, 9.6], to: [10.2, 9.8, 9.75], c: 6 }, // the keypad panel and its dial
+    { from: [6.9, 5.4, 9.75], to: [9.1, 7.6, 9.95], c: 8 },
+    { from: [7.8, 7, 9.95], to: [8.2, 7.6, 10], c: 7 },
+    { from: [6.6, 4, 9.75], to: [7.2, 4.6, 9.85], c: 2 }, // two keys under it
+    { from: [8.8, 4, 9.75], to: [9.4, 4.6, 9.85], c: 2 },
+    { from: [3, 9.2, 9.6], to: [4.4, 10.4, 9.8], c: { all: 5, up: 4 } }, // latches, front and back
+    { from: [11.6, 9.2, 9.6], to: [13, 10.4, 9.8], c: { all: 5, up: 4 } },
+    { from: [3, 9.2, 6.2], to: [4.4, 10.4, 6.4], c: { all: 5, up: 4 } },
+    { from: [11.6, 9.2, 6.2], to: [13, 10.4, 6.4], c: { all: 5, up: 4 } },
+    { from: [1.8, 1.8, 6.2], to: [2.6, 2.6, 9.8], c: 4 }, // steel corners
+    { from: [13.4, 1.8, 6.2], to: [14.2, 2.6, 9.8], c: 4 },
+    { from: [1.8, 10.4, 6.2], to: [2.6, 11.2, 9.8], c: 4 },
+    { from: [13.4, 10.4, 6.2], to: [14.2, 11.2, 9.8], c: 4 }
+  ], {
+    thirdperson_righthand: { rotation: [-90, 90, 0], translation: [0, 0.5, 3], scale: [0.6, 0.6, 0.6] },
+    thirdperson_lefthand: { rotation: [-90, 90, 0], translation: [0, 0.5, 3], scale: [0.6, 0.6, 0.6] },
+    firstperson_righthand: { rotation: [10, -70, 0], translation: [1.5, 4.5, -1], scale: [0.6, 0.6, 0.6] },
+    firstperson_lefthand: { rotation: [10, -70, 0], translation: [1.5, 4.5, -1], scale: [0.6, 0.6, 0.6] },
+    gui: { rotation: [20, -25, 0], translation: [0, -0.5, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { scale: [0.8, 0.8, 0.8] }
+  })
+  addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 
   // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard.
   const SHARD = [['dagger', 1], ['bat', 2], ['throwing_knife', 3], ['energy_drink', 4], ['bandage', 5]]

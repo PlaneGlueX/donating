@@ -27,6 +27,7 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   let bot = null
   let other = null
+  const cds = [] // the clocks the holder's client gets: { t, group, ticks }
   const views = [] // the holder's own offhand as their client is told: { t, src, k, raw }
   const seen = [] // the watcher's equipment packets for the holder's offhand: { t, k }
   const since = t => views.filter(v => v.t >= t)
@@ -67,6 +68,7 @@ module.exports = async ({ check }) => {
     bot._client.on('set_slot', p => { if (p.windowId === 0 && p.slot === 45) views.push({ t: Date.now(), src: 'set_slot', k: kind(p.item), raw: p.item }) })
     bot._client.on('window_items', p => { if (p.windowId === 0 && p.items && p.items.length > 45) views.push({ t: Date.now(), src: 'window_items', k: kind(p.items[45]), raw: p.items[45] }) })
     bot._client.on('set_player_inventory', p => { if (p.slotId === 40) views.push({ t: Date.now(), src: 'set_player_inventory', k: kind(p.contents), raw: p.contents }) })
+    bot._client.on('set_cooldown', p => cds.push({ t: Date.now(), group: p.cooldownGroup, ticks: p.cooldownTicks })) // the guns' clocks (GunFx)
     other._client.on('entity_equipment', p => {
       const e = other.players[NAME] && other.players[NAME].entity
       if (!e || p.entityId !== e.id) return
@@ -178,6 +180,8 @@ module.exports = async ({ check }) => {
     // for the whole chain and the pose easing out after it (DonatingPhone ShellLoad: Shell_Out, 6 ticks), and from empty
     // also through the closing pump the left hand works (15 ticks); only then does it come back.
     const firstAt = (list, k) => { const v = list.find(x => x.k === k); return v ? v.t : -1 }
+    // The last clock of a kind the client got since t (the Shotgun's group): the shown copy is timed against it, not Q.
+    const lastClock = (t, ticks) => { const c = cds.filter(x => x.t >= t && x.group === 'donating:gun/r9_0' && x.ticks === ticks); return c.length ? c[c.length - 1].t : -1 }
     await give('R9_0', 1, 2)
     await rcon.cmd(`zzammo ${NAME} shells 20`)
     await sleep(300)
@@ -187,23 +191,26 @@ module.exports = async ({ check }) => {
     await sleep(1200)
     const midChain = await status()
     await sleep(2400)
-    let shownMs = firstAt(since(t), 'shown') - t
+    // The exit clock (6 ticks) starts as the last shell goes in; the bag counts as idle from 3 ticks before its end and is
+    // shown after 3 idle ticks: about 6 ticks (300 ms) after the exit clock, never right after the last shell (~150 ms).
+    let shownMs = firstAt(since(t), 'shown') - lastClock(t, 6)
     check('the Shotgun with rounds left (12 shells, 2.4 s): hidden for the whole chain and its exit, then shown and the real bag',
       (await ammo(1)) === 14 && midChain.hidden === 1 && (await status()).hides === sh0.hides + 1 && looks(t).indexOf('hidden') <= 1 &&
-      JSON.stringify(looks(t).slice(looks(t).indexOf('hidden'))) === '["hidden","shown","real"]' && shownMs >= 2400 && (await status()).hidden === 0,
-      `ammo ${await ammo(1)}; shown at ${shownMs} ms; ${JSON.stringify(since(t).map(v => [v.src, v.k, v.t - t]))}`)
+      JSON.stringify(looks(t).slice(looks(t).indexOf('hidden'))) === '["hidden","shown","real"]' && lastClock(t, 6) > 0 && shownMs >= 220 && (await status()).hidden === 0,
+      `ammo ${await ammo(1)}; shown ${shownMs} ms after the exit clock; ${JSON.stringify(since(t).map(v => [v.src, v.k, v.t - t]))}`)
     await give('R9_0', 1, 0)
     await rcon.cmd(`zzammo ${NAME} shells 20`)
     sh0 = await status()
     t = Date.now()
     dig(4)
     await sleep(4600)
-    shownMs = firstAt(since(t), 'shown') - t
+    // The closing pump's clock (15 ticks) starts as the last shell goes in: shown about 15 ticks (750 ms) after it.
+    shownMs = firstAt(since(t), 'shown') - lastClock(t, 15)
     check('...from empty (14 shells, 2.8 s, then the pump): hidden through the pump too, then shown and the real bag',
       // (the real offhand may be resent in the tick the reload starts, before the hide: from the first hidden on)
       (await ammo(1)) === 14 && (await status()).hides === sh0.hides + 1 && looks(t).indexOf('hidden') <= 1 &&
-      JSON.stringify(looks(t).slice(looks(t).indexOf('hidden'))) === '["hidden","shown","real"]' && shownMs >= 3300 && (await status()).hidden === 0,
-      `ammo ${await ammo(1)}; shown at ${shownMs} ms; ${JSON.stringify(since(t).map(v => [v.src, v.k, v.t - t]))}`)
+      JSON.stringify(looks(t).slice(looks(t).indexOf('hidden'))) === '["hidden","shown","real"]' && lastClock(t, 15) > 0 && shownMs >= 600 && (await status()).hidden === 0,
+      `ammo ${await ammo(1)}; shown ${shownMs} ms after the pump's clock; ${JSON.stringify(since(t).map(v => [v.src, v.k, v.t - t]))}`)
 
     // No spare rounds: WeaponMechanics refuses the reload, so nothing is hidden.
     await rcon.cmd(`zzclear ${NAME}`)

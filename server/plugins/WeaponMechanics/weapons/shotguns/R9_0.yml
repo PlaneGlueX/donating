@@ -81,7 +81,7 @@ R9_0:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
     Magazine_Size: 14
-    # One shell per 4-tick reload (2.8 s from empty, then the pump; a shot stops it). Above Ammo on purpose (2026-10-13):
+    # One shell per 4-tick reload (2.8 s from empty, then the pump; a click stops it, from empty it racks the pump first). Above Ammo on purpose (2026-10-13):
     # MechanicsCore 4.3.1's FileReader skips every key that starts with the text of a serialized key before it
     # ("R9_0.Reload.Ammo_Per_Reload" starts with "R9_0.Reload.Ammo"), so below Ammo this was dropped and the gun loaded
     # its whole tube in one 4-tick reload.

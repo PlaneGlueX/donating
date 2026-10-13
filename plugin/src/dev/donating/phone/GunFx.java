@@ -51,6 +51,7 @@ import java.util.TreeMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -316,7 +317,11 @@ final class GunFx implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onReloadCancel(WeaponReloadCancelEvent e) {
         clock(e.getShooter(), e.getWeaponTitle(), 0);
-        if (enabled && e.isMainHand() && e.getShooter() instanceof Player p && e.getWeaponTitle().equals(title(p.getInventory().getItemInMainHand()))) refreshSkin(p);
+        // A click that stops a load can work the pump in that same tick (WeaponMechanics cancels, then pumps): a real pump.
+        Gun g = e.getWeaponTitle() == null ? null : guns.get(e.getWeaponTitle());
+        Map<Key, Integer> r = lastReload.get(e.getShooter().getUniqueId());
+        if (g != null && r != null) r.remove(g.group);
+        if (enabled && e.isMainHand() && e.getShooter() instanceof Player p && Objects.equals(title(p.getInventory().getItemInMainHand()), e.getWeaponTitle()) && e.getWeaponTitle() != null) refreshSkin(p);
     }
 
     /** WeaponMechanics' own skin update on the held gun (the state it would pick now; it drops the flags, which the clocks put back). */
@@ -364,7 +369,7 @@ final class GunFx implements Listener {
         if (t != null) t.cancel();
     }
 
-    private static boolean zooming(Player p) {
+    static boolean zooming(Player p) {
         try {
             return WeaponMechanics.getInstance().getPlayerWrapper(p).getMainHandData().getZoomData().isZooming();
         } catch (RuntimeException | LinkageError ex) {

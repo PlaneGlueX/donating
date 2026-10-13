@@ -15,7 +15,9 @@
 // flashes, kicks the gun back and its muzzle up, then the pump is racked back (the bolt slides across the port under
 // the plate and a red shell pops out) and forward. Reloading, the gun is canted to show the loading port under the
 // receiver and each shell (red, brass base) is pushed up into it; the cant is held between shells, so a row of shells
-// doesn't wobble. A pump WeaponMechanics works without a shot (after a reload from empty) is the pump alone (flag 1).
+// doesn't wobble. The first shell eases into the pose and after the last it eases out (WeaponMechanics' named skins
+// Shell_In and Shell_Out: DonatingPhone ShellLoad); after a reload from empty the left hand works the pump. A pump
+// WeaponMechanics works without a shot otherwise (an interrupted one) is the pump alone (flag 1).
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is the tops of the bead and the rear notch, y = SY.
 // Every outlined box sits on the 0.25 grid (one texel).
 module.exports = ({ pg, aim, display }) => {
@@ -246,7 +248,7 @@ module.exports = ({ pg, aim, display }) => {
   // 3/8, 5/8, 7/8: the gun is lifted toward the middle of the screen and canted a little (the loading port toward the
   // eye), the shell comes from below, nose up, into the loading port and is pushed forward into the tube while the gun
   // nods with the push. Between shells (no clock) the same pose, so consecutive shells don't wobble. Every shell's
-  // clock is the same, so the pose snaps on at the first shell and off after the last: the cant stays moderate (24°,
+  // clock is the same; the first shell and the exit are drawn from WeaponMechanics' named skins (below). The cant stays moderate (24°,
   // 10° yaw; at 30° the port was still edge-on from the first-person camera) and the lift (4.5 up, 1.5 toward the
   // middle; 2.2 and 0.8 before the left hand: its thumb on the shell sat under the screen's edge) is what brings the loading port into view (with 18° and no lift the shell never showed above the screen's
   // bottom edge). GunFx gives a shell exactly WeaponMechanics' 4-tick reload task (getReloadTime: for a pump gun loading
@@ -338,15 +340,16 @@ module.exports = ({ pg, aim, display }) => {
     2014: gun.byContext('sprint', gun.composite('sprint')),
     3014: gun.byContext('', gun.cooldown('', 4, reload, CANTED))
   }
+  const out = gun.byContext('', gun.flag(1, gun.cooldown('', 15, pumpOut), gun.cooldown('', 6, reloadOut)))
   return {
     ...states,
     10014: states[14],
     11014: states[1014],
     12014: states[2014],
     13014: gun.byContext('', gun.cooldown('', 4, reloadIn, CANTED)),
-    20014: gun.byContext('', gun.flag(1, gun.cooldown('', 15, pumpOut), gun.cooldown('', 6, reloadOut))),
+    20014: out,
     21014: states[1014],
-    22014: states[2014],
+    22014: out, // sprinting into the exit: the pose still eases out (the plain sprint follows)
     23014: states[3014]
   }
 }
