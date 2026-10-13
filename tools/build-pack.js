@@ -84,7 +84,7 @@ const { mergeRangeDispatch } = require('./merge-dispatch')
 // WeaponMechanics' skin numbers of what we sell (Default, Scope +1000, Sprint +2000, Reload +3000 for the four guns; the knife, the Stim):
 // the final feather.json must draw every one of them with our model.
 const FEATHER = 'assets/minecraft/items/feather.json'
-const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 6, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1006, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2006, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3006, 3007, 3008, 3009, 3011, 3013, 3014, 3015]
+const OUR_FEATHER_NUMBERS = [-10, -1, 1, 5, 6, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1006, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2006, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3006, 3007, 3008, 3009, 3011, 3013, 3014, 3015, 10014, 11014, 12014, 13014, 20014, 21014, 22014, 23014]
 
 // ---------- Entries, with the merge guard ----------
 const entries = new Map() // name -> { data, from }

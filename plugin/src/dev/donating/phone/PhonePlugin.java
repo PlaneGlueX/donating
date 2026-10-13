@@ -170,6 +170,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             getServer().getPluginManager().registerEvents(gunFx, this);
             getServer().getPluginManager().registerEvents(gunFx.spin, this); // the spin guns' spin-up (GunSpin)
             getServer().getPluginManager().registerEvents(gunFx.bag, this); // the offhand hidden while a gun reloads (BagHide)
+            getServer().getPluginManager().registerEvents(gunFx.shells, this); // the ends of a shell-by-shell reload (ShellLoad), after GunFx
         } else getLogger().info("WeaponMechanics not found: no gun animations");
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();

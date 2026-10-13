@@ -59,9 +59,9 @@ import java.util.UUID;
  * off: nothing.
  *
  * When: a WeaponMechanics reload that really starts (GunFx.reloadStarts) of a gun in gunfx.guns, in the main hand,
- * and lasts MIN_TICKS or more (the Shotgun with rounds left reloads in 4 ticks: the bag stays). A gun that loads a few
- * rounds per reload (none sold now) would chain them: the first load hides, later ones keep it hidden, and it shows once
- * WeaponMechanics has not been reloading for IDLE ticks in a row, or a tick after the chain is cancelled. Aiming mid-reload
+ * and lasts MIN_TICKS or more. A gun that loads a few rounds per reload (the Shotgun, a shell each) chains them: the
+ * first load hides, later ones keep it hidden, and it shows once WeaponMechanics has not been reloading, and the pose
+ * isn't easing out or pumping (ShellLoad.busy), for IDLE ticks in a row, or a tick after the chain is cancelled. Aiming mid-reload
  * doesn't end WeaponMechanics' reload, so the bag stays hidden. A slot change, death, a world change and the plugin's
  * disable show it at once; a quit just forgets it (the client is gone). gunfx.enabled false (no frames, no hands) turns
  * it off too.
@@ -78,8 +78,8 @@ final class BagHide implements Listener {
     // Ticks in a row WeaponMechanics isn't reloading before the bag comes back (a gun that loads a few rounds a reload
     // chains them: a tick's gap between two must not bob it).
     static final int IDLE = 3;
-    // A reload shorter than this keeps the bag: it would slide down and straight back up (the Shotgun with rounds left
-    // loads every shell in one 4-tick reload: WeaponMechanics 4.3.1 reports it as ammo-per-reload -1, all at once).
+    // A single reload shorter than this keeps the bag: it would slide down and straight back up (none sold now; the
+    // Shotgun's 4-tick loads chain, and its chain hides the bag until the pose has eased out: ShellLoad.busy).
     static final int MIN_TICKS = 10;
 
     private static final Key LEATHER = Key.key("minecraft", "leather");
@@ -269,7 +269,7 @@ final class BagHide implements Listener {
             }
             if (kind(off) == null) { it.remove(); continue; } // the offhand emptied (the bag sold, lost): nothing to hide
             resend.add(en.getKey()); // whatever resent the real one this tick (see the class comment)
-            h.idle = reloading(p) ? 0 : h.idle + 1;
+            h.idle = reloading(p) || fx.shells.busy(p, IDLE) ? 0 : h.idle + 1; // a shell reload's pose easing out, or its closing pump, counts
             boolean due = h.end >= 0 && t >= h.end - SHOW_EARLY;
             if (due || h.idle >= IDLE || t - h.start >= MAX_HIDDEN) {
                 h.shownAt = t;

@@ -15,7 +15,9 @@
 // flashes, kicks the gun back and its muzzle up, then the pump is racked back (the bolt slides across the port under
 // the plate and a red shell pops out) and forward. Reloading, the gun is canted to show the loading port under the
 // receiver and each shell (red, brass base) is pushed up into it; the cant is held between shells, so a row of shells
-// doesn't wobble. A pump WeaponMechanics works without a shot (after a reload from empty) is the pump alone (flag 1).
+// doesn't wobble. The first shell eases into the pose and after the last it eases out (WeaponMechanics' named skins
+// Shell_In and Shell_Out: DonatingPhone ShellLoad); after a reload from empty the left hand works the pump. A pump
+// WeaponMechanics works without a shot otherwise (an interrupted one) is the pump alone (flag 1).
 // Built along x, muzzle toward -x, centred on z = 8; the sight line is the tops of the bead and the rear notch, y = SY.
 // Every outlined box sits on the 0.25 grid (one texel).
 module.exports = ({ pg, aim, display }) => {
@@ -246,14 +248,15 @@ module.exports = ({ pg, aim, display }) => {
   // 3/8, 5/8, 7/8: the gun is lifted toward the middle of the screen and canted a little (the loading port toward the
   // eye), the shell comes from below, nose up, into the loading port and is pushed forward into the tube while the gun
   // nods with the push. Between shells (no clock) the same pose, so consecutive shells don't wobble. Every shell's
-  // clock is the same, so the pose snaps on at the first shell and off after the last: the cant stays moderate (24°,
+  // clock is the same; the first shell and the exit are drawn from WeaponMechanics' named skins (below). The cant stays moderate (24°,
   // 10° yaw; at 30° the port was still edge-on from the first-person camera) and the lift (4.5 up, 1.5 toward the
   // middle; 2.2 and 0.8 before the left hand: its thumb on the shell sat under the screen's edge) is what brings the loading port into view (with 18° and no lift the shell never showed above the screen's
   // bottom edge). GunFx gives a shell exactly WeaponMechanics' 4-tick reload task (getReloadTime: for a pump gun loading
   // one shell at a time WeaponMechanics never chains the Open/Close times its reload event reports into the reload).
   // The left hand (2026-10-12) brings each shell up from below and thumbs it in: four frames a shell, the same loop
   // for every shell (the timing is WeaponMechanics': 4 ticks a shell).
-  const canted = (nod = 0) => rig({ t: [0, 4.5 + 0.35 * nod, 1.5], rot: [[[1, 0, 0], -24], [[0, 1, 0], 10], [[0, 0, 1], -6 - 2 * nod]], pivot: AXIS })
+  // c: how far into the pose (0 at rest, 1 in it): the first shell eases in, the exit eases out (ShellLoad, below).
+  const canted = (nod = 0, c = 1) => rig({ t: [0, (4.5 + 0.35 * nod) * c, 1.5 * c], rot: [[[1, 0, 0], -24 * c], [[0, 1, 0], 10 * c], [[0, 0, 1], (-6 - 2 * nod) * c]], pivot: AXIS })
   // From the shell's own spot at the ejection port: under the loading port, half into it, pushed forward into the
   // magazine tube (hidden in it). The receiver's bottom (the port) and the tube sit 0.5 lower than before the remake.
   const LOAD_START = [-1.45, -4.9, 0.4]
@@ -281,6 +284,44 @@ module.exports = ({ pg, aim, display }) => {
     }
   }
   const CANTED = { gun: canted(0), lhand: hands.pose(LH, WAIT), show: ['lhand'] }
+  // The ends of the chain (DonatingPhone ShellLoad, 2026-10-13; the owner: "a reload animation like the other guns'").
+  // WeaponMechanics times every shell alike, so the ends are its named skins: Shell_In (+10000) on the chain's first
+  // shell, Shell_Out (+20000) for GunFx's 6-tick exit clock after the last (gunfx R9_0 exit 6), and through the pump
+  // WeaponMechanics works right after a reload from empty (the 15-tick action clock, flag 1).
+  // The first shell: the same shell, while the gun eases into the pose and the hand comes up from under the screen.
+  const DOWN = (d, x = 0.5) => rig({ t: [x * d, -9 * d, 0] }) // the left hand dropped away under the screen's edge
+  const reloadIn = p => {
+    const r = reload(p)
+    const rise = DOWN(1 - ease.ramp(p, 0, 0.45), 0)
+    const off = ease.ramp(p, 0.8, 1)
+    return {
+      ...r,
+      gun: canted(ease.bump(p, 0.35, 0.95, 0.6), ease.ramp(p, -0.1, 0.55)),
+      shell: then(shellRig(p), rise),
+      lhand: hands.pose(LH, then(then(then(LH, shellRig(p)), rig({ t: [1.2 * off, -1.0 * off, 0] })), rise))
+    }
+  }
+  // After the last shell (6 ticks): the hand drops away and the gun rolls back to rest.
+  const reloadOut = p => {
+    const d = ease.ramp(p, 0, 0.6)
+    return { gun: canted(0, 1 - ease.ramp(p, 0.05, 0.85)), lhand: hands.pose(LH, then(WAIT, DOWN(d))), show: p < 0.75 ? ['lhand'] : [] }
+  }
+  // After a reload from empty (15 ticks, WeaponMechanics' Open 7 + Close 7 and their sounds at ticks 5 and 9, like a
+  // shot's pump): the gun rolls back while the left hand slides forward onto the pump, racks it back and forward, and
+  // drops away (the tube was empty, so nothing is thrown out). LP: the hand under the pump (its C round the walnut, the thumb on the near side).
+  const LP = rig({ t: [6.6 - OL[0], 6.0 - 0.9 - OL[1], 8.6 - OL[2]], rot: [[[0, 0, 1], 90]], pivot: OL })
+  const pumpOut = p => {
+    const s = shot(1, false)(p)
+    const pump = ease.ramp(p, 0.35, 0.55) - ease.ramp(p, 0.6, 0.85)
+    const onto = hands.mix(then(WAIT, DOWN(0.25)), then(LP, rig({ t: [0, -0.4, 0] })), ease.ramp(p, 0.04, 0.3))
+    const held = then(then(LP, rig({ t: [TRAVEL * pump, 0, 0] })), DOWN(ease.ramp(p, 0.86, 0.98)))
+    return {
+      ...s,
+      gun: then(s.gun, canted(0, 1 - ease.ramp(p, 0, 0.33))),
+      lhand: hands.pose(LH, p < 0.32 ? onto : held),
+      show: [...s.show.filter(x => x !== 'shell'), 'lhand'] // nothing spent in the chamber: no shell flies out
+    }
+  }
   // A pump WeaponMechanics works without a shot (the first click after a reload from empty leaves the pump open; an
   // interrupted pump): GunFx marks it with custom_model_data flag 1 and starts the same 15-tick clock (gunfx action 15;
   // WeaponMechanics' Open 7 + Close 7 and their delayed sounds line up with the shot's pump frames), so the pump racks
@@ -292,10 +333,23 @@ module.exports = ({ pg, aim, display }) => {
     on_true: gun.cooldown(state, 15, shot(k, false)),
     on_false: gun.cooldown(state, 15, shot(k))
   })
-  return {
+  // The named skins with WeaponMechanics' other states (Scope +1000, Sprint +2000, Reload +3000) draw those states.
+  const states = {
     14: gun.byContext('', worked('', 1)),
     1014: gun.byContext('ads', worked('ads', 0.4)),
     2014: gun.byContext('sprint', gun.composite('sprint')),
-    3014: gun.byContext('', gun.cooldown('', 4, reload, CANTED)),
+    3014: gun.byContext('', gun.cooldown('', 4, reload, CANTED))
+  }
+  const out = gun.byContext('', gun.flag(1, gun.cooldown('', 15, pumpOut), gun.cooldown('', 6, reloadOut)))
+  return {
+    ...states,
+    10014: states[14],
+    11014: states[1014],
+    12014: states[2014],
+    13014: gun.byContext('', gun.cooldown('', 4, reloadIn, CANTED)),
+    20014: out,
+    21014: states[1014],
+    22014: out, // sprinting into the exit: the pose still eases out (the plain sprint follows)
+    23014: states[3014]
   }
 }

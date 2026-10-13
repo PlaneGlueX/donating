@@ -42,6 +42,12 @@ R9_0:
     Scope: ADD 1000
     Sprint: ADD 2000
     Reload: ADD 3000
+    # Donating (2026-10-13): the ends of a shell-by-shell reload, picked by DonatingPhone (GunFx ShellLoad, through
+    # WeaponSkinEvent): Shell_In on the first shell (the loading pose eases in), Shell_Out for a few ticks after the
+    # last (the pose eases out, or the pump after a reload from empty starts from it). WeaponMechanics writes these
+    # numbers itself, so they aren't lost when it rewrites the item (a custom_model_data flag would be).
+    Shell_In: ADD 10000
+    Shell_Out: ADD 20000
   Projectile: "donating_pellet"
   Shoot:
     Trigger:
@@ -75,11 +81,15 @@ R9_0:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
     Magazine_Size: 14
+    # One shell per 4-tick reload (2.8 s from empty, then the pump; a click stops it, from empty it racks the pump first). Above Ammo on purpose (2026-10-13):
+    # MechanicsCore 4.3.1's FileReader skips every key that starts with the text of a serialized key before it
+    # ("R9_0.Reload.Ammo_Per_Reload" starts with "R9_0.Reload.Ammo"), so below Ammo this was dropped and the gun loaded
+    # its whole tube in one 4-tick reload.
+    Ammo_Per_Reload: 1
     # Donating: item ammo bought at gun shops (shop.sk); without this the gun reloads for free.
     Ammo:
       Ammos:
         - "Donating_Shells"
-    Ammo_Per_Reload: 1
     Reload_Duration: 4
     Finish_Mechanics:
       - "CustomSound{sound=donating.gun.shotgun.shell, volume=0.5, noise=0.05}"
