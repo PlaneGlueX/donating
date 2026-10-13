@@ -78,7 +78,7 @@ module.exports = async ({ check }) => {
     const jsonIn = (zip, name) => { try { return JSON.parse(readZip(zip).get(name).toString('utf8').replace(/^﻿/, '')) } catch (e) { return null } }
     // The four guns' Default, Scope +1000, Sprint +2000, Reload +3000 (the Pixel Gun 3D recreations since
     // 2026-10-05), the Combat Knife and the Stim.
-    const NUMBERS = [-10, -1, 1, 5, 6, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1006, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2006, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3006, 3007, 3008, 3009, 3011, 3013, 3014, 3015]
+    const NUMBERS = [-10, -1, 1, 5, 6, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1006, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2006, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3006, 3007, 3008, 3009, 3011, 3013, 3014, 3015, 10014, 11014, 12014, 13014, 20014, 21014, 22014, 23014]
     // build-pack.js wraps every item definition: a display_context select whose first-person case draws the
     // item only while the local player is the camera (view_entity; nothing under the car camera), with the
     // item's own model as both that case's on_true and the fallback. unwrap gives that model, or null.
@@ -104,7 +104,7 @@ module.exports = async ({ check }) => {
       return ms.length > 0 && ms.every(id => id.startsWith('donating:'))
     })
     const sorted = entries.every((e, i) => i === 0 || entries[i - 1].threshold < e.threshold)
-    check('the built pack\'s feather.json draws all 42 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
+    check(`the built pack's feather.json draws all ${NUMBERS.length} sold numbers with our models, no re-equip dip, sorted`, !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
       `ours: ${drawn.join(' ')}; hand_animation_on_swap ${feather && feather.hand_animation_on_swap}; sorted ${sorted}`)
     const wm = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/items/feather.json')
     const others = wm ? wm.model.entries.filter(e => !NUMBERS.includes(e.threshold)) : []
@@ -229,18 +229,19 @@ module.exports = async ({ check }) => {
       mgAds.length >= 5 && mgAdsOk.length === mgAds.length && Math.abs(ads0.translation[0] + 8.96) < 1e-6 && dots.length >= 1 && sightY > AY + rMax &&
       spinEls.length > 0 && statics.length >= 2 && hits.length === 0,
       `aimed ${mgAdsOk.length}/${mgAds.length} (tx ${ads0.translation[0]}); sight y ${sightY.toFixed(2)}, dot ${dots.join(', ') || 'none'}; spin boxes ${spinEls.length} about y ${AY.toFixed(2)} z ${AZ.toFixed(2)}, reach ${rMax.toFixed(2)}; static parts ${statics.join(' ')}; housed ${housed}; in the way: ${hits.slice(0, 6).join('; ') || 'none'}`)
-    // No No_Ammo skin (WeaponMechanics puts it over Scope and Sprint: an empty gun dropped out of the sights), and no
+    // No No_Ammo skin (WeaponMechanics puts it over Scope and Sprint: an empty gun dropped out of the sights; the Shotgun's
+    // named skins Shell_In and Shell_Out mark its shell-by-shell reload's ends: DonatingPhone ShellLoad), and no
     // firearm-action sounds on the pistol and the AK-48 (their reload frames show no slide or bolt action of its own).
     const yamlOf = g => read(g.file).split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
     const skins = GUNS.filter(g => {
       const sec = (yamlOf(g).match(/\n {2}Skin:\n((?: {4}.*\n)+)/) || [])[1] || ''
-      return [...sec.matchAll(/^ {4}(\w+):/gm)].map(m => m[1]).filter(k => k !== 'blue' && k !== 'red').join(',') === 'Default,Scope,Sprint,Reload'
+      return [...sec.matchAll(/^ {4}(\w+):/gm)].map(m => m[1]).filter(k => k !== 'blue' && k !== 'red').join(',') === (g.w === 'R9_0' ? 'Default,Scope,Sprint,Reload,Shell_In,Shell_Out' : 'Default,Scope,Sprint,Reload')
     })
     const silent = GUNS.filter(g => ['50_GS', 'AK_47', 'STG44', 'M4A1', 'MG34'].includes(g.w)).filter(g => {
       const fa = (yamlOf(g).match(/\n {2}Firearm_Action:\n((?: {4}.*\n)+)/) || [])[1] || ''
       return fa.length > 0 && !/Mechanics/.test(fa)
     })
-    check('every sold gun\'s skins are Default, Scope, Sprint and Reload (no No_Ammo); the firearm action is silent where the reload frames show none of its own (Classic Pistol, AK-48, Brave Patriot, Combat Rifle, Veteran)', skins.length === GUNS.length && silent.length === 5, `skins ok ${skins.map(g => g.w)}; silent ${silent.map(g => g.w)}`)
+    check('every sold gun\'s skins are Default, Scope, Sprint and Reload (no No_Ammo; the Shotgun also Shell_In and Shell_Out); the firearm action is silent where the reload frames show none of its own (Classic Pistol, AK-48, Brave Patriot, Combat Rifle, Veteran)', skins.length === GUNS.length && silent.length === 5, `skins ok ${skins.map(g => g.w)}; silent ${silent.map(g => g.w)}`)
     // No hands under the car camera: the gun, the bag, the hands' cash and the map key are wrapped, and the
     // tripwire hook (the key while the car camera is on) has the carkey case.
     const wrapped = ['feather', 'leather', 'paper', 'filled_map'].filter(i => { const d = jsonIn(zipFile, `assets/minecraft/items/${i}.json`); return !!d && !!unwrap(d.model) })

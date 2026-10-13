@@ -269,7 +269,7 @@ final class BagHide implements Listener {
             }
             if (kind(off) == null) { it.remove(); continue; } // the offhand emptied (the bag sold, lost): nothing to hide
             resend.add(en.getKey()); // whatever resent the real one this tick (see the class comment)
-            h.idle = reloading(p) ? 0 : h.idle + 1;
+            h.idle = reloading(p) || fx.shells.busy(p, IDLE) ? 0 : h.idle + 1; // a shell reload's pose easing out, or its closing pump, counts
             boolean due = h.end >= 0 && t >= h.end - SHOW_EARLY;
             if (due || h.idle >= IDLE || t - h.start >= MAX_HIDDEN) {
                 h.shownAt = t;

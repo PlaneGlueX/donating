@@ -245,6 +245,8 @@ carcam:
 # an N-tick clock and custom_model_data flag 1 (the pump alone). swing: false takes the arm swing off guns.
 # skins.enabled: gun skins (the item_model a player's chosen look puts on a gun; false: every gun back to its own look).
 # glint: a sniper's scope glint every N ticks for everyone else within 128 blocks while they look through it.
+# exit (ShellLoad.java, the shotgun loading a shell at a time): its first shell eases into the loading pose and, for N
+# ticks after the last, the pose eases out (WeaponMechanics' named skins Shell_In and Shell_Out in the weapon file).
 # spin (GunSpin.java, the Hand Minigun): every burst starts at 0 rounds a second; the spool climbs from still to full
 # spin in up ticks while the trigger is held and falls back in down ticks after it lets go; rounds go out from fire-at
 # (0-1) at min-rate rounds a second, up to the weapon file's rate at full spin. Its spin-up and spin-down are clocks with
@@ -262,7 +264,7 @@ gunfx:
   guns:
     50_GS: { shot: 6, draw: 0 }
     Uzi: { shot: 0, draw: 20, fire: 5 }
-    R9_0: { shot: 15, draw: 0, alone: 5, action: 15 }
+    R9_0: { shot: 15, draw: 0, alone: 5, action: 15, exit: 6 }
     AK_47: { shot: 0, draw: 30, fire: 5 }
     357_Magnum: { shot: 8, draw: 12 }
     STG44: { shot: 0, draw: 22, fire: 5 }

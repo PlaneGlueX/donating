@@ -37,6 +37,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -94,11 +95,15 @@ import java.util.UUID;
  * their own with custom_model_data flags 3 and 4, and a spin gun gets flag 2 while drawn (all three read the Default
  * state's clock). gunfx.enabled false takes only these frames away: the spin-up itself is gameplay and stays.
  *
- * The bag hidden while a gun reloads (gunfx.bag-hide; BagHide.java, 2026-10-12, untested): the pack's frames draw a
- * gloved left hand doing the reload, so the offhand's bag or cash slides out of the way for its holder only.
+ * The bag hidden while a gun reloads (gunfx.bag-hide; BagHide.java, 2026-10-12): the pack's frames draw a gloved left
+ * hand doing the reload, so the offhand's bag or cash slides out of the way for its holder only.
+ *
+ * A gun that loads a shell at a time (guns.<title>.exit: ticks; ShellLoad.java, 2026-10-13): its first shell eases into
+ * the loading pose and, for exit ticks after the last, the pose eases out (WeaponMechanics' named skins Shell_In and
+ * Shell_Out, picked through its skin event); 0 = none.
  */
 final class GunFx implements Listener {
-    record Gun(Key group, int shot, int draw, int alone, int fire, int action, int glint, GunSpin.Spin spin) {}
+    record Gun(Key group, int shot, int draw, int alone, int fire, int action, int glint, int exit, GunSpin.Spin spin) {}
     private record Firing(String title, int lastShot, int keep) {}
 
     private final PhonePlugin plugin;
@@ -114,6 +119,9 @@ final class GunFx implements Listener {
     private final Map<UUID, Map<Key, Integer>> lastShot = new HashMap<>();
     // ...and the tick a firearm-action clock started (one per action).
     private final Map<UUID, Map<Key, Integer>> lastAction = new HashMap<>();
+    // The tick of the last reload clock per gun: WeaponMechanics builds a pump's Open and Close tasks (firing their
+    // events) at a reload from empty even when it won't run them (ReloadHandler 4.3.1: a gun loading shells one by one).
+    private final Map<UUID, Map<Key, Integer>> lastReload = new HashMap<>();
     private BukkitTask firingTask;
     private final Map<String, Gun> guns = new HashMap<>();
     private boolean enabled = true;
@@ -126,8 +134,9 @@ final class GunFx implements Listener {
     long started; // cooldowns started (status)
     final GunSpin spin; // the spin guns' spin-up (PhonePlugin registers it)
     final BagHide bag; // the offhand hidden while a gun reloads (PhonePlugin registers it)
+    final ShellLoad shells; // the ends of a shell-by-shell reload (PhonePlugin registers it)
 
-    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); this.bag = new BagHide(plugin, this); }
+    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); this.bag = new BagHide(plugin, this); this.shells = new ShellLoad(plugin, this); }
 
     void configure(FileConfiguration c) {
         enabled = c.getBoolean("gunfx.enabled", true);
@@ -140,15 +149,15 @@ final class GunFx implements Listener {
             String id = title.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             guns.put(title, new Gun(Key.key("donating", "gun/" + id), Math.max(0, s.getInt(title + ".shot", 0)), Math.max(0, s.getInt(title + ".draw", 0)),
                 Math.max(0, s.getInt(title + ".alone", 0)), Math.max(0, s.getInt(title + ".fire", 0)), Math.max(0, s.getInt(title + ".action", 0)),
-                Math.max(0, s.getInt(title + ".glint", 0)), GunSpin.Spin.read(s.getConfigurationSection(title + ".spin"))));
+                Math.max(0, s.getInt(title + ".glint", 0)), Math.max(0, s.getInt(title + ".exit", 0)), GunSpin.Spin.read(s.getConfigurationSection(title + ".spin"))));
         }
         plugin.getLogger().info("gunfx: " + (enabled ? guns.size() + " guns" : "off"));
     }
 
     String status() {
-        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " " + bag.summary() + " guns=");
+        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " " + bag.summary() + " " + shells.summary() + " guns=");
         guns.forEach((t, g) -> b.append(t).append('{').append(g.group.asString()).append(" shot=").append(g.shot).append(" draw=").append(g.draw)
-            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "")
+            .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "").append(g.exit > 0 ? " exit=" + g.exit : "")
             .append(g.spin != null ? " spin=" + g.spin : "").append('}'));
         return b.toString();
     }
@@ -296,12 +305,33 @@ final class GunFx implements Listener {
     public void onReload(WeaponReloadEvent e) {
         if (!guns.containsKey(e.getWeaponTitle()) || !reloadStarts(e)) return;
         int ticks = e.getAmmoPerReload() > 0 ? e.getReloadTime() : Math.max(e.getReloadCompleteTime(), e.getReloadTime());
-        clock(e.getShooter(), e.getWeaponTitle(), ticks);
+        if (clock(e.getShooter(), e.getWeaponTitle(), ticks) != 0)
+            lastReload.computeIfAbsent(e.getShooter().getUniqueId(), k -> new HashMap<>()).put(guns.get(e.getWeaponTitle()).group, plugin.getServer().getCurrentTick());
     }
 
+    // A shot that stops a reload (the Shotgun's shell by shell, or any gun with rounds left): WeaponMechanics picks the
+    // skin for that click before it stops the reload (4.3.1: the skin update runs ahead of the shot), so the gun kept its
+    // Reload state (+3000) until its next skin update and the shot's frames played on the reload's. Its own skin update
+    // now, while the same gun is in hand (not after a slot change: the new gun's draw flag would be wiped).
     @EventHandler(priority = EventPriority.MONITOR)
     public void onReloadCancel(WeaponReloadCancelEvent e) {
         clock(e.getShooter(), e.getWeaponTitle(), 0);
+        if (enabled && e.isMainHand() && e.getShooter() instanceof Player p && e.getWeaponTitle().equals(title(p.getInventory().getItemInMainHand()))) refreshSkin(p);
+    }
+
+    /** WeaponMechanics' own skin update on the held gun (the state it would pick now; it drops the flags, which the clocks put back). */
+    boolean refreshSkin(Player p) {
+        ItemStack held = p.getInventory().getItemInMainHand();
+        String t = title(held);
+        if (t == null) return false;
+        try {
+            WeaponMechanics wm = WeaponMechanics.getInstance();
+            wm.getWeaponHandler().getSkinHandler().tryUse(wm.getPlayerWrapper(p), t, held, EquipmentSlot.HAND);
+            return true;
+        } catch (RuntimeException | LinkageError ex) {
+            plugin.getLogger().warning("gunfx: skin refresh failed: " + ex);
+            return false;
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -410,6 +440,9 @@ final class GunFx implements Listener {
         Integer last = shots == null ? null : shots.get(g.group);
         int now = plugin.getServer().getCurrentTick();
         if (last != null && last == now) return;
+        Map<Key, Integer> reloads = lastReload.get(p.getUniqueId());
+        Integer reloaded = reloads == null ? null : reloads.get(g.group);
+        if (reloaded != null && reloaded == now) return; // a reload building (not running) its pump's tasks
         // WeaponMechanics builds the close half's event with the state it saw when the action started (bytecode:
         // lambda$doShootFirearmActions$1), so an action that started from OPEN reports OPEN again when it closes: one
         // clock per action.
@@ -498,6 +531,7 @@ final class GunFx implements Listener {
         stopGlint(u);
         lastShot.remove(u);
         lastAction.remove(u);
+        lastReload.remove(u);
         firing.remove(u);
         unflagAll(e.getPlayer()); // not saved with a flag
     }

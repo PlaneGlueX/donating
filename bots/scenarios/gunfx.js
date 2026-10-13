@@ -4,6 +4,9 @@
 // a click on a block still firing while a clock runs, and aiming during a reload ending its clock. Also the Hand Minigun's
 // spin-up (GunSpin, 2026-10-12): no round until the barrels are spun up, the spin-up and spin-down flags and clocks, a
 // burst started while they still turn firing at once, a reload or a slot change stopping them, and its slower walk.
+// And the Shotgun's shell-by-shell reload (ShellLoad, 2026-10-13): a shell per 4-tick reload, the chain's ends drawn by
+// WeaponMechanics' named skins (Shell_In on the first shell, Shell_Out with an exit clock after the last and through the
+// closing pump after a reload from empty), and a shot mid-reload firing with the gun back in its normal state.
 const { Vec3 } = require('vec3')
 const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
@@ -47,7 +50,7 @@ module.exports = async ({ check }) => {
 
     const status = await rcon.cmd('dphone gunfx')
     check('/dphone gunfx: the four guns, the shotgun\'s kick-only shot and the automatic guns\' firing flag',
-      /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status) && /STG44\{donating:gun\/stg44 shot=0 draw=22 alone=0 fire=5 action=0\}/.test(status) && /AX_50\{donating:gun\/ax_50 shot=20 draw=40 alone=6 fire=0 action=16 glint=10\}/.test(status) && /MG34\{donating:gun\/mg34 shot=0 draw=40 alone=0 fire=5 action=0\}/.test(status), status)
+      /R9_0\{donating:gun\/r9_0 shot=15 draw=0 alone=5 fire=0 action=15 exit=6\}/.test(status) && /Uzi\{donating:gun\/uzi shot=0 draw=20 alone=0 fire=5 action=0\}/.test(status) && /AK_47\{[^}]*fire=5 action=0\}/.test(status) && /STG44\{donating:gun\/stg44 shot=0 draw=22 alone=0 fire=5 action=0\}/.test(status) && /AX_50\{donating:gun\/ax_50 shot=20 draw=40 alone=6 fire=0 action=16 glint=10\}/.test(status) && /MG34\{donating:gun\/mg34 shot=0 draw=40 alone=0 fire=5 action=0\}/.test(status), status)
     check('/dphone gunfx: the Hand Minigun\'s clocks and its spin (up 24, down 30, fire-at 0.3, min-rate 5), the spin-up on (WeaponMechanics\' full-auto task reachable)',
       /FN_FAL\{donating:gun\/fn_fal shot=0 draw=40 alone=0 fire=4 action=0[^}]*spin=24\/30\/0\.30?\/5[^}]*\}/.test(status) && /spinup=on/.test(status), status)
 
@@ -136,6 +139,76 @@ module.exports = async ({ check }) => {
       `${JSON.stringify(seen.map(c => [c.ticks, c.t - t]))}; ${pumpFlag}; ammo ${await ammo(1)}`)
     await sleep(600)
     check('...and flag 1 is gone once the pump is done', !/1b]/.test(await cmd(1)), await cmd(1))
+
+    // The Shotgun's shells (R9_0.yml: Ammo_Per_Reload above Ammo; below it MechanicsCore 4.3.1's loader dropped it and the
+    // tube filled in one 4-tick reload). The gun as its client is sent it: the skin number goes 13014 (the first shell,
+    // Shell_In) -> 3014 (the next ones) -> 20014 (Shell_Out, the 6-tick exit clock) -> 14.
+    {
+      const nums = [] // { t, n, flags }
+      const onSlot = p => {
+        if (p.windowId !== 0 || p.slot !== 37 || !p.item || !p.item.itemCount) return
+        const c = (p.item.components || []).find(x => x.type === 'custom_model_data')
+        nums.push({ t: Date.now(), n: c && c.data && c.data.floats ? c.data.floats[0] : null, flags: c && c.data && c.data.flags ? c.data.flags.map(Boolean) : [] })
+      }
+      const runs = from => nums.filter(x => x.t >= from).map(x => x.n).filter((n, i, a) => i === 0 || a[i - 1] !== n)
+      bot._client.on('set_slot', onSlot)
+      try {
+        await rcon.cmd(`zzclear ${NAME}`)
+        await give('R9_0', 1, 10)
+        await rcon.cmd(`zzammo ${NAME} shells 3`)
+        await sleep(300)
+        t = Date.now()
+        dig(4)
+        const rounds = new Set()
+        while (Date.now() - t < 1500) rounds.add(await ammo(1))
+        seen = since(t, 'donating:gun/r9_0').filter(c => c.ticks > 0).map(c => c.ticks)
+        check('the Shotgun loads a shell at a time (10 -> 11 -> 12 -> 13), a 4-tick clock each, then the 6-tick exit clock',
+          [10, 11, 12, 13].every(n => rounds.has(n)) && (await ammo(1)) === 13 && JSON.stringify(seen.filter((n, i) => n === 4 || i === seen.length - 1)) === '[4,4,4,6]',
+          `rounds ${JSON.stringify([...rounds])}; clocks ${JSON.stringify(seen)}`)
+        const r = runs(t)
+        check('...drawn 13014 (the first shell eases in), then 3014, then 20014 (the pose eases out), then 14',
+          JSON.stringify(r.slice(r.indexOf(13014))) === '[13014,3014,20014,14]',
+          JSON.stringify(nums.filter(x => x.t >= t).map(x => [x.n, x.t - t])))
+
+        // From empty: 14 shells, then WeaponMechanics' pump (Shell_Out kept through it: the left hand works it). The first
+        // shell's clock is its own 4 ticks (WeaponMechanics announces a pump's Open and Close tasks it builds and won't run:
+        // GunFx no longer reads that as a pump).
+        await rcon.cmd(`zzclear ${NAME}`)
+        await give('R9_0', 1, 0)
+        await rcon.cmd(`zzammo ${NAME} shells 20`)
+        await sleep(300)
+        t = Date.now()
+        dig(4)
+        await sleep(4300)
+        seen = since(t, 'donating:gun/r9_0').filter(c => c.ticks > 0).map(c => c.ticks)
+        const pumpCopies = nums.filter(x => x.t >= t && x.n === 20014 && x.flags[1])
+        const r2 = runs(t)
+        check('from empty: 14 shells, the first on its own 4-tick clock, then the pump (15 ticks) drawn 20014 with flag 1, then 14',
+          (await ammo(1)) === 14 && seen[0] === 4 && seen.filter(n => n === 4).length === 14 && seen[seen.length - 1] === 15 && pumpCopies.length > 0 &&
+          r2[r2.length - 1] === 14 && !nums[nums.length - 1].flags[1],
+          `ammo ${await ammo(1)}; clocks ${JSON.stringify(seen)}; ${JSON.stringify(r2)}`)
+
+        // A shot mid-reload: WeaponMechanics stops loading and fires; the gun is back to its normal state (14), not left in
+        // the Reload state (WeaponMechanics picked the click's state before it stopped the reload: GunFx refreshes it).
+        await rcon.cmd(`zzclear ${NAME}`)
+        await give('R9_0', 1, 5)
+        await rcon.cmd(`zzammo ${NAME} shells 10`)
+        await sleep(300)
+        t = Date.now()
+        dig(4)
+        await sleep(500)
+        const before = await ammo(1)
+        bot.activateItem(); await sleep(60); bot.deactivateItem()
+        await sleep(700)
+        const after = await ammo(1)
+        const now = await cmd(1)
+        check('a shot mid-reload fires (one round gone, no more shells loaded) and the gun is drawn 14 again',
+          before > 5 && before < 10 && after === before - 1 && nums[nums.length - 1].n === 14 && /floats: \[14\.0f\]/.test(now),
+          `${before} -> ${after}; last copy ${JSON.stringify(nums[nums.length - 1])}; ${now}`)
+      } finally {
+        bot._client.removeListener('set_slot', onSlot)
+      }
+    }
 
     // Aiming during the AK-48's reload doesn't end its clock (its aimed frames don't read the clock; the reload's frames
     // go on when the sight comes down).
