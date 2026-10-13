@@ -2,156 +2,149 @@ FN_FAL:
   Info:
     Weapon_Item:
       Type: "FEATHER"
-      Name: "<gold>FN FAL"
+      Name: "<gold>Hand Minigun"
+      # Donating (2026-10-12, PROPOSAL): the lowest sheet of the automatic guns, as its hits are the lightest (3.4: the
+      # Classic Pistol's 4.3 is 65) and it's the heaviest to carry; the fire rate (16 a second once spun) rates highest.
+      # The total is their mean.
       Lore:
-        - "<gray>Semi-automatic battle rifle with a high rate of fire for faster follow up shots."
+        - "<gray>Four spinning barrels on a rifle frame."
+        - "<gray>Spins up before it fires; a 100-round belt."
         - ""
-        - "<gray>Weapon Statistics <gold>-<gray> 68.3"
-        - "<gold>➣<gray> 74 <gold>⟸ <gray>Accuracy"
-        - "<gold>➣<gray> 79 <gold>⟸ <gray>Damage"
-        - "<gold>➣<gray> 70 <gold>⟸ <gray>Range"
-        - "<gold>➣<gray> 59 <gold>⟸ <gray>Fire Rate"
-        - "<gold>➣<gray> 60 <gold>⟸ <gray>Mobility"
-        - "<gold>➣<gray> 68 <gold>⟸ <gray>Control"
+        - "<gray>Weapon Statistics <gold>-<gray> 52.2"
+        - "<gold>➣<gray> 50 <gold>⟸ <gray>Accuracy"
+        - "<gold>➣<gray> 50 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 44 <gold>⟸ <gray>Range"
+        - "<gold>➣<gray> 79 <gold>⟸ <gray>Fire Rate"
+        - "<gold>➣<gray> 30 <gold>⟸ <gray>Mobility"
+        - "<gold>➣<gray> 60 <gold>⟸ <gray>Control"
       Unbreakable: true
       Hide_Flags: true
+      # Donating (2026-10-12): an item attribute (MechanicsCore 4.3.1 ItemSerializer: ADD_NUMBER, slot group ANY, so it
+      # counts while the gun is held): walking speed 0.1 - 0.03 = 0.07, 30% slower (the Veteran: 22%). Sprinting about
+      # 3.9 blocks a second, under the fastest cop's 5.0.
       Attributes:
-        - "movement_speed -0.017"
+        - "movement_speed -0.03"
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>FN FAL<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload> <gray>[<gold><selective_fire_state><gray>]"
+        Message: "<gold>Hand Minigun<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+    # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65);
+    # ours are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=0.75, listeners=Source{}}"
-    Weapon_Equip_Delay: 30
+      - "Sound{sound=item.armor.equip_chain, volume=0.65, pitch=0.7, listeners=Source{}}"
+    # Donating (2026-10-12): the draw's sound (the pack animates the 40-tick draw: the heavy gun swings up from below,
+    # settles, turns its side to you and test-spins the barrels a full turn at 50-96%, the sound's whir at 1.0-1.92 s;
+    # Weapon_Get_Mechanics only plays when the gun is given).
+    Weapon_Equip_Mechanics:
+      - "CustomSound{sound=donating.gun.minigun.draw, volume=0.5, noise=0.05, listeners=Source{}}"
+    Weapon_Equip_Delay: 40
     Cancel:
       Drop_Item: true
+      Swap_Hands: true
       Arm_Swing_Animation: true
       Break_Blocks: true
+  # Donating (2026-10-12, the Hand Minigun: a rifle-shaped four-barrel microgun, a recreation of Pixel Gun 3D's in our
+  # style; the unsold FN FAL's title, reworked). The pack draws Default 6, Scope (+1000), Sprint (+2000) and Reload
+  # (+3000) (no No_Ammo: WeaponMechanics puts it over Scope and Sprint, so an empty gun would drop out of the sights), and
+  # animates the draw, the spin-up, the spin-down, the fire (while it really fires: GunFx's firing flag) and the reload
+  # from the cooldown and flags DonatingPhone's GunFx and GunSpin set (tools\guns\minigun.js; gunfx FN_FAL: shot 0,
+  # draw 40, fire 4, spin up 24 / down 30: the barrels' coast is 30-60 ticks, 30 / s). Other players see the barrels
+  # turn from the flags alone.
   Skin:
     Default: 6
     Scope: ADD 1000
     Sprint: ADD 2000
-  Projectile: "assault_rifle_projectile"
+    Reload: ADD 3000
+  Projectile: "donating_rifle_bullet"
   Shoot:
+    # Donating (2026-10-12): main hand only. GunSpin only spins up the main hand's full-auto task, so an off-hand
+    # minigun would fire 16 a second at once (only bypass staff can put a gun there: the bag owns the off hand).
     Trigger:
       Main_Hand: "RIGHT_CLICK"
-      Off_Hand: "RIGHT_CLICK"
       Circumstance:
         Swimming: "DENY"
         Sprinting: "DENY"
     Projectile_Speed: 80
-    Selective_Fire:
-      Trigger:
-        Main_Hand: "DOUBLE_SNEAK"
-        Off_Hand: "DOUBLE_SNEAK"
-      Mechanics:
-        - "Sound{sound=block.note_block.hat, pitch=2.0, listeners=Source{}}"
-    Delay_Between_Shots: 5
-    Fully_Automatic_Shots_Per_Second: 9
+    # Donating (2026-10-12): the rate at full spin. WeaponMechanics 4.3.1 has no spin-up; DonatingPhone's GunSpin starts
+    # every burst at 0 rounds a second (the trigger held, nothing fired, no ammo used) and ramps the full-auto task's
+    # rate to this over 1.2 s (from cold the first round comes about 0.4 s into a held trigger). After letting go the
+    # spool winds down over 1.5 s (the pack's barrels coast 1.5-3 s); a burst started while it is still at fire-at 0.3
+    # or more fires at once (up to about 1.05 s after letting go from full spin, less after a shorter burst), later it
+    # spins up again first. Never Selective_Fire or a Delay_Between_Shots here: GunSpin drives the full-auto task.
+    Fully_Automatic_Shots_Per_Second: 16
     Spread:
-      Base_Spread: 3.2
+      Base_Spread: 4.6
       Modify_Spread_When:
-        Zooming: 50%
-        Sneaking: 50%
-        In_Midair: 150%
+        Zooming: 70%
+        Sneaking: 60%
+        In_Midair: 200%
+      # Donating (2026-10-12): the spread grows while the trigger is held (WeaponMechanics 4.3.1 ChangingSpread, in the
+      # same units as Base_Spread): +0.12 a shot from 0, up to +2.4 (reached at the 20th shot, about 1.3 s at full spin:
+      # 4.6 -> 7.0 from the hip), and back to 0 once no shot has been fired for 10 ticks.
+      Changing_Spread:
+        Starting_Amount: 0
+        Reset_Time: 10
+        Increase_Change_When:
+          Always: 0.12
+        Bounds:
+          Minimum: 0
+          Maximum: 2.4
     Recoil:
-      Mean_X: 0.0
-      Mean_Y: 1.2
-      Variance_X: 0.2
-      Variance_Y: 0.3
-      Speed: 2.5
-      Damping: 0.08
-      Damping_Recovery: 0.2
-      Smoothing: 0.35
-      Max_Accumulation: 12.0
+      Mean_X: 0.15
+      Mean_Y: 0.45
+      Variance_X: 0.35
+      Variance_Y: 0.2
+      Speed: 3.0
+      Damping: 0.06
+      Damping_Recovery: 0.12
+      Smoothing: 0.4
+      Max_Accumulation: 10.0
     Mechanics:
-      - "CustomSound{sound=shoot.fnfal.loud, volume=6, noise=0.1}"
+      - "CustomSound{sound=donating.gun.minigun.shoot, volume=6, noise=0.05}"
   Reload:
     Trigger:
       Main_Hand: "DROP_ITEM"
       Off_Hand: "DROP_ITEM"
-      Circumstance:
-        Swimming: "DENY"
-    Magazine_Size: 20
-    Reload_Duration: 56
+    Magazine_Size: 100
+    # Donating: item ammo bought at gun shops (shop.sk); without this the gun reloads for free.
+    Ammo:
+      Ammos:
+        - "Donating_Rifle"
+    Reload_Duration: 90
+    # Donating (2026-10-12): each sound where the pack's frames show it (tools\guns\minigun.js reload: the box's catch
+    # tugged and the box dropped out at p 0.14 (mag_out), the new box seated at 0.6 and slapped at 0.64 (mag_in), the
+    # barrels ratcheted a quarter turn by hand at 0.74 and 0.82 (ratchet, twice), then left to coast a half turn as the
+    # gun levels: a whole turn, so they end on the rest pose). No Firearm_Action, so the frames run
+    # over 90 ticks with rounds left and from empty alike. Not in Finish_Mechanics: WeaponMechanics plays those at the
+    # very end of the chain.
     Start_Mechanics:
-      - "CustomSound{sound=reload.start.normal, volume=0.5, noise=0.1}"
-    Finish_Mechanics:
-      - "CustomSound{sound=reload.end.normal, volume=0.5, noise=0.1}"
+      - "CustomSound{sound=donating.gun.minigun.mag_out, volume=0.5, noise=0.05, delayBeforePlay=13}"
+      - "CustomSound{sound=donating.gun.minigun.mag_in, volume=0.5, noise=0.05, delayBeforePlay=54}"
+      - "CustomSound{sound=donating.gun.minigun.ratchet, volume=0.5, noise=0.05, delayBeforePlay=67}"
+      - "CustomSound{sound=donating.gun.minigun.ratchet, volume=0.5, noise=0.05, delayBeforePlay=74}"
   Damage:
-    Base_Damage: 10.8
-    Armor_Damage: 4
+    # Donating (2026-10-12, PROPOSAL): the lightest hits and the steepest dropoff of the automatic guns, 3.40 / 2.80 /
+    # 2.20 / 1.50 (6 body hits bare under 10 blocks, 8 to 25, 10 to 50, 14 past; 18 / 22 / 27 / 40 in the best gear:
+    # 11 armor points, Per_Armor_Point -6% in config.yml). At full spin it ties the AK-48 bare under 25 blocks (7 and 9
+    # ticks from the first shot, both) and is slower everywhere else (WeaponMechanics' AUTO table: 16 against 10 a
+    # second).
+    # No weapon-level Damage_Modifiers, Head, Backstab or Critical_Hit: a weapon-level Damage_Modifiers replaces the
+    # global list (and drops Per_Armor_Point). Armor_Damage 2 (not 3): 16 hits a second would wear gear 60% faster than
+    # the AK-48.
+    Base_Damage: 3.4
+    Armor_Damage: 2
     Dropoff:
-      - "10 -1.6"
-      - "25 -3.2"
-      - "50 -4.8"
+      - "10 -0.6"
+      - "25 -1.2"
+      - "50 -1.9"
   Scope:
     Trigger:
       Main_Hand: "LEFT_CLICK"
       Off_Hand: "LEFT_CLICK"
-      Circumstance:
-        Swimming: "DENY"
-    Zoom_Amount: 1.5
-    Shoot_Delay_After_Scope: 14
+    Zoom_Amount: 1.25
+    Shoot_Delay_After_Scope: 10
     Mechanics:
       - "CustomSound{sound=scope.in, volume=0.5, noise=0.1, listeners=Source{}}"
     Zoom_Off:
       Mechanics:
         - "CustomSound{sound=scope.out, volume=0.5, noise=0.1, listeners=Source{}}"
-  Firearm_Action:
-    Type: "SLIDE"
-    Open:
-      Time: 8
-      Mechanics:
-        - "Sound{sound=block.note_block.hat, volume=0.5, noise=0.1, listeners=Source{}}"
-        - "Sound{sound=block.piston.contract, volume=0.5, noise=0.1, listeners=Source{}, delayBeforePlay=2}"
-    Close:
-      Time: 8
-      Mechanics:
-        - "Sound{sound=block.piston.extend, volume=0.5, noise=0.1, listeners=Source{}}"
-
-  # The following options are added by WeaponMechanicsCosmetics, and you will
-  # not see the changes take effect until you purchase it.
-
-  Cosmetics:
-    Muzzle_Flash: true
-    Splash_Mechanics:
-      - "Sound{sound=entity.generic.splash, pitch=1.85, noise=0.15} @Target{}"
-      - "Particle{particle=WATER_SPLASH, count=20, noise=0.2 0.2 0.2} @Target{}"
-    Bullet_Zip:
-      Maximum_Distance: 4.0
-      Sounds:
-        - "CustomSound{sound=fx.whiz, noise=0.02, listeners=Target{}} @Target{}"
-    Third_Person_Pose:
-      Default: NONE
-      Scope: BOW
-      Reload: BLOCK
-      Firearm_Action: CROSSBOW
-
-  Trail:
-    Distance_Between_Particles: 0.3
-    Particle_Chooser: LOOP
-    Particles:
-      - "Particle{particle=CRIT}"
-      - "Particle{particle=CRIT}"
-      - "Particle{particle=WATER_BUBBLE}"
-
-  Show_Time:
-    Reload:
-      Item_Cooldown: true
-      Exp: true
-      Action_Bar: "<gray>Reloading <bar> <gray><time>s"
-      Action_Bar_Cancelled: "<red>Reload Cancelled"
-      Bar:
-        Left_Color: "<gray>"
-        Right_Color: "<red>"
-        Left_Symbol: "|"
-        Right_Symbol: "|"
-        Symbol_Amount: 20
-    Weapon_Equip_Delay:
-      Item_Cooldown: true
-    Firearm_Actions:
-      Item_Cooldown: true
-    Shoot_Delay_After_Scope:
-      Item_Cooldown: true

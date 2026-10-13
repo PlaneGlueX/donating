@@ -245,11 +245,20 @@ carcam:
 # an N-tick clock and custom_model_data flag 1 (the pump alone). swing: false takes the arm swing off guns.
 # skins.enabled: gun skins (the item_model a player's chosen look puts on a gun; false: every gun back to its own look).
 # glint: a sniper's scope glint every N ticks for everyone else within 128 blocks while they look through it.
+# spin (GunSpin.java, the Hand Minigun): every burst starts at 0 rounds a second; the spool climbs from still to full
+# spin in up ticks while the trigger is held and falls back in down ticks after it lets go; rounds go out from fire-at
+# (0-1) at min-rate rounds a second, up to the weapon file's rate at full spin. Its spin-up and spin-down are clocks with
+# custom_model_data flags 3 and 4; the spin-up whine stops on letting go for everyone within sound-range blocks.
+# enabled: false only takes the frames away (the clocks and flags); the spin-up is gameplay and stays.
 gunfx:
   enabled: true
   swing: false
   skins:
     enabled: true
+  # The offhand (the heist bag, the cash in hand) out of the gloved left hand's way while a gun reloads (BagHide.java,
+  # 2026-10-12, untested): lookalike (only the holder is sent a copy that slides out and back; nothing on the server
+  # changes), cooldown (a cooldown on leather and paper: the pack dips them out; the offhand slot shows the sweep), off.
+  bag-hide: lookalike
   guns:
     50_GS: { shot: 6, draw: 0 }
     Uzi: { shot: 0, draw: 20, fire: 5 }
@@ -260,3 +269,4 @@ gunfx:
     M4A1: { shot: 4, draw: 26 }
     AX_50: { shot: 20, draw: 40, alone: 6, action: 16, glint: 10 }
     MG34: { shot: 0, draw: 40, fire: 5 }
+    FN_FAL: { shot: 0, draw: 40, fire: 4, spin: { up: 24, down: 30, fire-at: 0.3, min-rate: 5, sound-range: 32 } }

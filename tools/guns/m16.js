@@ -75,7 +75,17 @@ module.exports = ({ pg, aim, display }) => {
   const NAVY = { c: { all: 'recv', up: 'recvT' }, grain: 0.08 }
   const FURN = { c: { all: 'furn', up: 'furnT' }, grain: 0.08 }
   const GRIP = { angle: 20, axis: 'z', origin: [18.4, 5.4, 8] }
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip (its top centre, raked 20 degrees; 2.25 deep and 2.5 wide); the left hand (only in the
+  // reload) round the magazine's lower half: it pulls the magazine down out of the well, carries it away, brings the
+  // new one up and slaps its base. The T-handle racks by itself, and the forward assist on the far side is the right
+  // hand's (the gun's nudge carries it).
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [18.35 - OR[0], 5.45 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 20]], pivot: OR })
+  const LH = rig({ t: [13.0 - OL[0], 0.7 - OL[1], 8 - OL[2]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.05, armScale: 0.9 }, left: { at: LH, shown: false, armScale: 0.9 }, leftTree: false },
     style: 'pg',
     density: 4,
     ink: [4, 6, 14],
@@ -316,6 +326,9 @@ module.exports = ({ pg, aim, display }) => {
   // frames run over 62 ticks, so the delays split the difference, d = 56p - 3: mag_out 6 (p 0.16), mag_in 26 (0.52),
   // charge 35 (0.68; its release click 2.5 ticks later), assist 44 (0.84); each within about 3 ticks of its frame.
   const MAG_AXIS = [0, -1, 0]
+  // The left hand: below the screen (where the bag was), on the magazine.
+  const magRig = d => rig({ t: [MAG_AXIS[0] * d, MAG_AXIS[1] * d, 0] })
+  const BELOW = then(LH, rig({ t: [3, -13, 6], rot: [[[1, 0, 0], -20]], pivot: [13, 0.7, 8] }))
   const reload = p => {
     const w = {
       mag: ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.57, 0.64)),
@@ -332,14 +345,23 @@ module.exports = ({ pg, aim, display }) => {
     const pull = p < 0.725 ? ease.ramp(p, 0.68, 0.7) : 1 - ease.ramp(p, 0.725, 0.74)
     const snap = ease.bump(p, 0.735, 0.8, 0.75)
     const tap = ease.bump(p, 0.82, 0.86, 0.835)
+    // the left hand: up to the magazine (0.02-0.12), with it out and back in, the slap's push (0.53-0.6), then away
+    // (0.6-0.7). The T-handle racks by itself: it sits at the back of the receiver, right by the eye, where a hand and
+    // its sleeve filled the screen.
+    let place
+    if (p < 0.12) place = hands.mix(BELOW, LH, ease.ramp(p, 0.02, 0.12))
+    else if (p < 0.6) place = then(then(LH, magRig(d)), rig({ t: [0, 0.8 * slap, 0] }))
+    else place = hands.mix(LH, BELOW, ease.ramp(p, 0.6, 0.7))
     return {
       gun: rig({
         t: [0, 1, 2].map(i => sumT(i) + [0.4 * snap - 0.2 * tap, 0.4 * seat + 0.6 * slap + 0.2 * tap, 0.6 * tap][i]),
         rot: [[[1, 0, 0], sum('x') + 3 * tap], [[0, 1, 0], sum('y')], [[0, 0, 1], sum('z') - 2 * seat - 3 * slap + 2 * snap]],
         pivot: POSE_PIVOT
       }),
-      mag: rig({ t: [MAG_AXIS[0] * d, MAG_AXIS[1] * d, 0] }),
+      mag: magRig(d),
       charge: rig({ t: [2.6 * pull, 0, 0] }),
+      lhand: hands.pose(LH, place),
+      show: p > 0.015 && p < 0.71 ? ['lhand'] : [],
       hide: p > 0.3 && p < 0.4 ? ['mag'] : []
     }
   }

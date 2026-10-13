@@ -1141,7 +1141,7 @@ function loadSettings():
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
 	# files (AK-47 5.5 a body shot: 4 shots unarmored, 11 in a Tactical Helmet + Heavy Vest).
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
-	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47", "AX_50" and "MG34"
+	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47", "AX_50", "MG34" and "FN_FAL"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
 	# Owner, 2026-09-27: weapons cost more and guns need a level (melee first).
@@ -1239,6 +1239,17 @@ function loadSettings():
 	set {-cfg::wpn::MG34::mag} to 50
 	set {-cfg::wpn::MG34::model} to 11
 	set {-cfg::wpn::MG34::level} to 90
+	# The Hand Minigun (assault_rifles\FN_FAL.yml, 2026-10-12; owner: "a spin-up minigun at level 125"; PROPOSAL): four
+	# barrels on a rifle frame that spin up before it fires (DonatingPhone's GunSpin: the first round about 0.4 s into a
+	# held trigger, 16 a second at full spin after 1.2 s), a 100-round belt, 3.4 a body shot (6 shots), 30% slower walking
+	# while held. Between the Viper ($1.25M, level 110) and the Riviera ($2M, level 130). Never in cops' or NPCs' hands.
+	set {-cfg::wpn::FN_FAL::name} to "Hand Minigun"
+	set {-cfg::wpn::FN_FAL::kind} to "Minigun"
+	set {-cfg::wpn::FN_FAL::price} to 1500000
+	set {-cfg::wpn::FN_FAL::ammo} to "rifle"
+	set {-cfg::wpn::FN_FAL::mag} to 100
+	set {-cfg::wpn::FN_FAL::model} to 6
+	set {-cfg::wpn::FN_FAL::level} to 125
 
 	# Ammo types. "wm" = the ammo's name in plugins\WeaponMechanics\ammos\Donating_Ammos.yml.
 	set {-cfg::shop::ammo::*} to "light", "shells" and "rifle"
@@ -1259,7 +1270,8 @@ function loadSettings():
 	set {-cfg::ammo::rifle::item} to gold nugget
 	set {-cfg::ammo::rifle::price} to 3
 	set {-cfg::ammo::rifle::pack} to 30
-	set {-cfg::ammo::rifle::max} to 300
+	# 400 since the Hand Minigun (2026-10-12, PROPOSAL; 300 before): four spare 100-round belts (7 of the 27 ammo slots).
+	set {-cfg::ammo::rifle::max} to 400
 
 	# Consumables: WeaponMechanics items with Shoot.Consume_Item_On_Shoot (no leftover item).
 	set {-cfg::shop::consumables::*} to "Stim", "Bandage", "Throwing_Knife" and "Energy_Drink"

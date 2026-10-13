@@ -170,7 +170,17 @@ module.exports = ({ pg, aim, display }) => {
     }
     return spec
   }
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip (its top centre, raked 13 degrees like the stepped grip's middle; 2.5 deep and wide:
+  // 1.1 times the shared glove); the left hand (only in the reload) round the drum's lower front rim: it tugs the drum,
+  // slides it out toward you and lets it drop away, brings the new one, slides it in, slaps it home with the heel and
+  // racks the knob on top.
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [14.0 - OR[0], 5.5 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 13]], pivot: OR })
+  const LH = rig({ t: [DX - 2.6 - OL[0], DY - 2.0 - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], -40]], pivot: OL })
   const gun = pgGun(name, tune({
+    hands: { right: { at: RH, scale: 1.1, armScale: 0.9 }, left: { at: LH, shown: false, scale: 1.15, armScale: 0.9 }, leftTree: false },
     style: 'pg',
     density: 4,
     palette: {
@@ -364,6 +374,11 @@ module.exports = ({ pg, aim, display }) => {
   // the gun rolls its top toward you (0.6-0.7) and the knob is racked: back 0.70-0.736, held, let go 0.77-0.785 (a
   // snap); the gun settles back level by 0.96.
   const SLIDE = 6.5 // how far the drum slides out along the rail before it drops
+  // The left hand: below the screen (where the bag was), on the drum, on the knob from above (the palm down), away.
+  const magRig = (side, drop, tug, slap) => rig({ t: [0, -12 * drop - 0.3 * tug, SLIDE * side - 0.25 * slap] })
+  const BELOW = then(LH, rig({ t: [3, -12, 7], rot: [[[1, 0, 0], -20]], pivot: [DX, DY, 8] }))
+  const KNOB = [5.6, 10.6, 8]
+  const onKnob = pull => rig({ t: [KNOB[0] + 3.4 * pull - OL[0], KNOB[1] + 1.0 - OL[1], KNOB[2] - OL[2]], rot: [[[1, 0, 0], -90]], pivot: OL })
   const reload = p => {
     const a = ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.6, 0.7)) // the drum pose
     const b = ease.ramp(p, 0.6, 0.7) * (1 - ease.ramp(p, 0.86, 0.96)) // the knob pose
@@ -374,14 +389,24 @@ module.exports = ({ pg, aim, display }) => {
     if (p < 0.4) { side = ease.ramp(p, 0.155, 0.23); drop = ease.ramp(p, 0.22, 0.32) } else { drop = 1 - ease.ramp(p, 0.4, 0.47); side = 1 - ease.ramp(p, 0.46, 0.545) }
     const pull = p < 0.77 ? ease.ramp(p, 0.70, 0.736) : 1 - ease.ramp(p, 0.77, 0.785)
     const snap = ease.bump(p, 0.78, 0.86, 0.8)
+    // the left hand: up to the drum (0.02-0.1), with it out and back in, the heel's push on the slap (0.555-0.63), over
+    // the top to the knob (0.62-0.7), racks it (0.7-0.736), lets go (0.77-0.785), away (0.8-0.92)
+    let place
+    if (p < 0.1) place = hands.mix(BELOW, LH, ease.ramp(p, 0.02, 0.1))
+    else if (p < 0.62) place = then(then(LH, magRig(side, drop, tug, slap)), rig({ t: [0, 0, -0.5 * slap] }))
+    else if (p < 0.7) place = hands.mix(then(LH, magRig(0, 0, 0, 0)), onKnob(0), ease.ramp(p, 0.62, 0.7))
+    else if (p < 0.785) place = onKnob(pull)
+    else place = hands.mix(onKnob(0), then(onKnob(0), rig({ t: [3, -14, 5] })), ease.ramp(p, 0.8, 0.92))
     return {
       gun: rig({
-        t: [0.3 * tug + 0.4 * snap, 1.2 * a + 1.0 * b + 0.3 * slap, 1.6 * a + 0.8 * b - 0.4 * slap],
+        t: [0.3 * tug + 0.4 * snap, 2.2 * a + 1.0 * b + 0.3 * slap, 1.6 * a + 0.8 * b - 0.4 * slap],
         rot: [[[1, 0, 0], -26 * a + 30 * b + 4 * slap], [[0, 1, 0], 12 * a + 14 * b], [[0, 0, 1], 3 * a - 2 * b - 2 * slap + 1.5 * snap]],
         pivot: [9, 6, 8]
       }),
-      mag: rig({ t: [0, -12 * drop - 0.3 * tug, SLIDE * side - 0.25 * slap] }),
+      mag: magRig(side, drop, tug, slap),
       bolt: rig({ t: [3.4 * pull, 0, 0] }),
+      lhand: hands.pose(LH, place),
+      show: p > 0.015 && p < 0.93 ? ['lhand'] : [],
       hide: p > 0.32 && p < 0.4 ? ['mag'] : []
     }
   }

@@ -1,0 +1,11 @@
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-rest.png|Combat Rifle: rest
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-aimed.png|Combat Rifle: aimed
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-sprint.png|Combat Rifle: sprint
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.12.png|Combat Rifle: reload p0.12
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.22.png|Combat Rifle: reload p0.22
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.45.png|Combat Rifle: reload p0.45
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.53.png|Combat Rifle: reload p0.53
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.62.png|Combat Rifle: reload p0.62
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.7.png|Combat Rifle: reload p0.7
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.8.png|Combat Rifle: reload p0.8
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-m16-reload_p0.84.png|Combat Rifle: reload p0.84

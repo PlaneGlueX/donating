@@ -76,7 +76,16 @@ module.exports = ({ pg, aim, display, write, mirror }) => {
   const MAG = { z0: 7.0, z1: 9.0 }
   // The star on the stock's sides (cream on the orange wood), 11 x 10 texels.
   const STAR = ['.....w.....', '....www....', '....www....', 'wwwwwwwwwww', '.wwwwwwwww.', '..wwwwwww..', '..wwwwwww..', '.wwww.wwww.', '.www...www.', 'ww.......ww']
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip (its top centre, raked 15 degrees; 2.75 deep and 2.5 wide: 1.15 times the shared
+  // glove); the left hand (only in the reload) round the top magazine's rear half: it lifts the magazine off and away,
+  // brings the new one, rocks it in, slaps it down and racks the cocking handle on the left.
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [14.35 - OR[0], 5.0 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 15]], pivot: OR })
+  const LH = rig({ t: [8.6 - OL[0], 13.2 - OL[1], 8 - OL[2]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.15, armScale: 0.9 }, left: { at: LH, shown: false, scale: 1.2, armScale: 0.9 }, leftTree: false },
     style: 'pg',
     density: 4,
     ink: [8, 8, 10],
@@ -297,6 +306,10 @@ module.exports = ({ pg, aim, display, write, mirror }) => {
   // one comes back the same way tipped forward (0.44-0.55), hooks its front lip and rocks back into the well (0.55-0.6,
   // a jolt), slapped down (0.62-0.68); the gun turns its left side to you (0.64-0.72) and the cocking handle is racked:
   // back 0.72-0.77, held, let go 0.80-0.815 (a snap); level again by 0.96.
+  // The left hand: below the screen (where the bag was), on the magazine, on the cocking handle from its left side.
+  const magRig = (up, tip, tug, slap) => rig({ t: [-3 * up, 9 * up - 0.15 * slap, 7 * up], rot: [[[0, 0, 1], 24 * tip - 4 * tug], [[1, 0, 0], 30 * up]], pivot: MAG_LIP })
+  const BELOW = then(LH, rig({ t: [3, -20, 6], rot: [[[1, 0, 0], -20]], pivot: [8.6, 13.2, 8] }))
+  const onHandle = pull => rig({ t: [4.1 + 4.4 * pull - OL[0], 7.4 - OL[1], 10.25 + 1.4 - OL[2]], rot: [[[1, 0, 0], -90]], pivot: OL })
   const reload = p => {
     const a = ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.62, 0.68)) // its top toward you: the magazine changed
     const b = ease.ramp(p, 0.64, 0.72) * (1 - ease.ramp(p, 0.86, 0.96)) // its left side toward you: the handle racked
@@ -308,14 +321,24 @@ module.exports = ({ pg, aim, display, write, mirror }) => {
     if (p < 0.4) { tip = ease.ramp(p, 0.16, 0.24); up = ease.ramp(p, 0.2, 0.34) } else { up = 1 - ease.ramp(p, 0.44, 0.55); tip = 1 - ease.ramp(p, 0.54, 0.6) }
     const pull = p < 0.8 ? ease.ramp(p, 0.72, 0.77) : 1 - ease.ramp(p, 0.8, 0.815)
     const snap = ease.bump(p, 0.81, 0.9, 0.83)
+    // the left hand: up to the magazine (0.02-0.1), with it off and back on, slaps it down (0.62-0.68), down the left
+    // side to the cocking handle (0.66-0.72), racks it (0.72-0.815), away (0.82-0.94)
+    let place
+    if (p < 0.1) place = hands.mix(BELOW, LH, ease.ramp(p, 0.02, 0.1))
+    else if (p < 0.66) place = then(then(LH, magRig(up, tip, tug, slap)), rig({ t: [0, -0.8 * slap, 0] }))
+    else if (p < 0.72) place = hands.mix(LH, onHandle(0), ease.ramp(p, 0.66, 0.72))
+    else if (p < 0.82) place = onHandle(pull)
+    else place = hands.mix(onHandle(0), then(onHandle(0), rig({ t: [3, -15, 4] })), ease.ramp(p, 0.82, 0.94))
     return {
       gun: rig({
         t: [0.3 * tug + 0.4 * snap, -0.8 * a + 0.8 * b - 0.4 * seat - 0.3 * slap, 1.4 * a + 0.6 * b],
         rot: [[[1, 0, 0], 20 * a - 16 * b - 2 * slap], [[0, 1, 0], 10 * a + 12 * b], [[0, 0, 1], -6 * a - 2 * b - 1.5 * seat - 1 * slap + 1.5 * snap]],
         pivot: [9, 6, 8]
       }),
-      mag: rig({ t: [-3 * up, 9 * up - 0.15 * slap, 7 * up], rot: [[[0, 0, 1], 24 * tip - 4 * tug], [[1, 0, 0], 30 * up]], pivot: MAG_LIP }),
+      mag: magRig(up, tip, tug, slap),
       bolt: rig({ t: [4.4 * pull, 0, 0] }),
+      lhand: hands.pose(LH, place),
+      show: p > 0.015 && p < 0.95 ? ['lhand'] : [],
       hide: p > 0.34 && p < 0.44 ? ['mag'] : []
     }
   }

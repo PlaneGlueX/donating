@@ -1,0 +1,11 @@
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-rest.png|Shotgun: rest
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-aimed.png|Shotgun: aimed
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-sprint.png|Shotgun: sprint
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-reload_p0.125.png|Shotgun: reload p0.125
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-reload_p0.375.png|Shotgun: reload p0.375
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-reload_p0.625.png|Shotgun: reload p0.625
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-reload_p0.875.png|Shotgun: reload p0.875
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-shot_p0.1.png|Shotgun: shot p0.1
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-shot_p0.4.png|Shotgun: shot p0.4
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-shot_p0.5.png|Shotgun: shot p0.5
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-r90-shot_p0.7.png|Shotgun: shot p0.7
