@@ -62,7 +62,15 @@ module.exports = ({ pg, aim, display }) => {
   const GLT = { from: [-0.25, 2.5, 6.75], to: [7.25, 5.25, 9.25], c: 'gl', grain: 0.05 }
   GLT.deco = [...ring(GLT, 0.5, 1.0, 'red'), ...ring(GLT, 1.5, 2.0, 'red'), ...ring(GLT, 3.0, 3.5, 'white'), ...ring(GLT, 5.5, 6.0, 'white')]
 
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip: the shared hand's grip frame (top centre, raked like the grip: 20 degrees) at the
+  // grip's top centre. The left hand (shown only by the reload's frames): round the magazine's second step.
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [17.54 - OR[0], 5.24 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 20]], pivot: OR })
+  const LH = then(rig({ t: [14 - OL[0], 2.25 - OL[1], 8 - OL[2]] }), rig({ rot: [[[0, 0, 1], -6]], pivot: [15.5, 3.25, 8] }))
   const gun = pgGun(name, {
+    hands: { right: { at: RH }, left: { at: LH, shown: false }, leftTree: false },
     style: 'pg',
     density: 4,
     palette: {
@@ -266,27 +274,62 @@ module.exports = ({ pg, aim, display }) => {
   // a black pipe), and its top rolls toward you so the handle sticks up.
   const MAGPOSE = { t: [0, 4.5, 2.5], y: 10, x: -40, z: -6 }
   const BOLTPOSE = { t: [0, 0.5, 1], y: 25, x: 45, z: -2 }
+  // ---------- the reload with the left hand ----------
+  // The same gun moves and the same sound ticks (mag_out 0.12, mag_in 0.57, bolt 0.725) as before; now the left hand
+  // does the work. It rises from below the screen to the magazine (0.03-0.12; the bag has dropped out of view by then:
+  // GunFx's bag clock), rocks it out and pulls it down out of view (0.12-0.30), comes back with a fresh one (0.34-0.50),
+  // rocks it in and slaps it home (0.50-0.62), lets go, reaches over the top to the charging handle as the gun rolls
+  // (0.62-0.72), pulls it back (0.725-0.755), lets it snap forward (0.775-0.79) and drops out of view (0.80-0.92).
+  // A hand's pose is an absolute placement (hand model -> gun model units) turned into pose.lhand (applied on top of
+  // the hand's at): pose.lhand = place o at^-1.
+  const mixRig = hands.mix
+  const asPose = place => hands.pose(LH, place)
+  const magRig = (rock, d) => rig({ t: [AXIS[0] * d, AXIS[1] * d, 0], rot: [[[0, 0, 1], ROCK * rock]], pivot: MAG_PIVOT })
+  const onMag = (rock, d) => then(LH, magRig(rock, d))
+  // below the screen (the hand's start and end): down along the magazine and toward the camera
+  const BELOW = then(LH, rig({ t: [1.0, -13, 5], rot: [[[1, 0, 0], -25]], pivot: [14, 2.25, 8] }))
+  // round the charging handle's knob (13.1, 7.6, 5.6) from above: the C's axis along the handle (-z), the back of the
+  // hand up, the wrist toward the camera (+z); pull: the knob's travel back (+x)
+  const KNOB = [13.1, 7.35, 5.3]
+  const onKnob = pull => rig({ t: [KNOB[0] - OL[0] + 2.8 * pull, KNOB[1] - OL[1], KNOB[2] - OL[2]], rot: [[[1, 0, 0], -90]], pivot: OL })
+  // off the knob after the snap: back and up a little, then down out of view
+  const OFFKNOB = then(onKnob(1), rig({ t: [0.8, 1.0, -0.5] }))
+  const AWAY = then(onKnob(1), rig({ t: [2, -15, 3] }))
   const reload = p => {
     const a = ease.ramp(p, 0, 0.1) * (1 - ease.ramp(p, 0.58, 0.72)) // the magazine pose
     const b = ease.ramp(p, 0.58, 0.72) * (1 - ease.ramp(p, 0.86, 0.98)) // the handle pose
     const seat = ease.bump(p, 0.56, 0.62, 0.58)
-    // The magazine: rock out 0.12-0.17, drop 0.17-0.32, gone 0.32-0.4, rise 0.4-0.5, rock in 0.5-0.56.
+    // The magazine: rock out 0.12-0.17, drop 0.17-0.30, gone 0.30-0.34 (the new one), rise 0.34-0.45, held 0.45-0.50, rock in 0.50-0.56.
     let rock = 0
     let drop = 0
-    if (p < 0.32) { rock = ease.ramp(p, 0.12, 0.17); drop = ease.ramp(p, 0.17, 0.32) } else if (p < 0.5) { rock = 1; drop = 1 - ease.ramp(p, 0.4, 0.5) } else rock = 1 - ease.ramp(p, 0.5, 0.56)
-    const d = 15 * drop
+    if (p < 0.3) { rock = ease.ramp(p, 0.12, 0.17); drop = ease.ramp(p, 0.17, 0.3) } else if (p < 0.5) { rock = 1; drop = 1 - ease.ramp(p, 0.34, 0.45) } else rock = 1 - ease.ramp(p, 0.5, 0.56)
+    const d = 17 * drop
     // The handle: back 0.725-0.755, held, let go 0.775-0.79 (it snaps).
     const pull = p < 0.775 ? ease.ramp(p, 0.725, 0.755) : 1 - ease.ramp(p, 0.775, 0.79)
     const snap = ease.bump(p, 0.785, 0.86, 0.8)
+    // the left hand's placement
+    let place
+    if (p < 0.12) place = mixRig(BELOW, onMag(0, 0), ease.ramp(p, 0.02, 0.12))
+    else if (p < 0.6) place = then(onMag(rock, d), rig({ t: [0, 0.8 * ease.bump(p, 0.55, 0.62, 0.57), 0] })) // the slap: the palm pushes up
+    else if (p < 0.725) {
+      const off = then(onMag(0, 0), rig({ t: [0.5, -2.5, 3.5] }))
+      place = p < 0.65 ? mixRig(onMag(0, 0), off, ease.ramp(p, 0.6, 0.65)) : mixRig(off, onKnob(0), ease.ramp(p, 0.65, 0.72))
+    } else if (p < 0.775) place = onKnob(pull)
+    else if (p < 0.8) place = mixRig(onKnob(1), OFFKNOB, ease.ramp(p, 0.775, 0.8))
+    else place = mixRig(OFFKNOB, AWAY, ease.ramp(p, 0.8, 0.9))
+    const showL = p > 0.02 && p < 0.92
     return {
       gun: rig({
         t: [0, 1, 2].map(i => MAGPOSE.t[i] * a + BOLTPOSE.t[i] * b + [0.5 * snap, 0.5 * seat, 0][i]),
         rot: [[[1, 0, 0], MAGPOSE.x * a + BOLTPOSE.x * b], [[0, 1, 0], MAGPOSE.y * a + BOLTPOSE.y * b], [[0, 0, 1], MAGPOSE.z * a + BOLTPOSE.z * b - 3 * seat + 2 * snap]],
         pivot: [12, 6, 8]
       }),
-      mag: rig({ t: [AXIS[0] * d, AXIS[1] * d, 0], rot: [[[0, 0, 1], ROCK * rock]], pivot: MAG_PIVOT }),
+      mag: magRig(rock, d),
+      lhand: asPose(place),
+      ...(p >= 0.62 ? { elbow: { lhand: [0.15, -0.85, -0.05] } } : {}), // at the handle: the arm hangs down, not across the screen
+      show: showL ? ['lhand'] : [],
       bolt: rig({ t: [2.8 * pull, 0, 0] }),
-      hide: p > 0.32 && p < 0.4 ? ['mag'] : []
+      hide: p > 0.3 && p < 0.34 ? ['mag'] : []
     }
   }
   const drawn = gun.cooldown('', 30, draw)

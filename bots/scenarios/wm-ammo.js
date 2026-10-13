@@ -30,7 +30,9 @@ const GUNS = [
   { w: 'STG44', file: 'weapons/assault_rifles/STG44.yml', type: 'light', mag: 50, wrong: 'shells', tracer: 'light', cmd: 7001 },
   { w: 'M4A1', file: 'weapons/assault_rifles/M4A1.yml', type: 'rifle', mag: 30, wrong: 'light', tracer: 'rifle', cmd: 7002 },
   { w: 'AX_50', file: 'weapons/sniper_rifles/AX_50.yml', type: 'rifle', mag: 5, wrong: 'shells', tracer: 'sniper', cmd: 7005 },
-  { w: 'MG34', file: 'weapons/light_machine_guns/MG34.yml', type: 'rifle', mag: 50, wrong: 'light', tracer: 'rifle', cmd: 7002 }
+  { w: 'MG34', file: 'weapons/light_machine_guns/MG34.yml', type: 'rifle', mag: 50, wrong: 'light', tracer: 'rifle', cmd: 7002 },
+  // The Hand Minigun (2026-10-12): it spins up before it fires (DonatingPhone's GunSpin), so it's fired with the trigger held.
+  { w: 'FN_FAL', file: 'weapons/assault_rifles/FN_FAL.yml', type: 'rifle', mag: 100, wrong: 'light', tracer: 'rifle', cmd: 7002, spin: true }
 ]
 
 module.exports = async ({ check }) => {
@@ -76,7 +78,7 @@ module.exports = async ({ check }) => {
     const jsonIn = (zip, name) => { try { return JSON.parse(readZip(zip).get(name).toString('utf8').replace(/^﻿/, '')) } catch (e) { return null } }
     // The four guns' Default, Scope +1000, Sprint +2000, Reload +3000 (the Pixel Gun 3D recreations since
     // 2026-10-05), the Combat Knife and the Stim.
-    const NUMBERS = [-10, -1, 1, 5, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3007, 3008, 3009, 3011, 3013, 3014, 3015]
+    const NUMBERS = [-10, -1, 1, 5, 6, 7, 8, 9, 11, 13, 14, 15, 1001, 1005, 1006, 1007, 1008, 1009, 1011, 1013, 1014, 1015, 2001, 2005, 2006, 2007, 2008, 2009, 2011, 2013, 2014, 2015, 3001, 3005, 3006, 3007, 3008, 3009, 3011, 3013, 3014, 3015]
     // build-pack.js wraps every item definition: a display_context select whose first-person case draws the
     // item only while the local player is the camera (view_entity; nothing under the car camera), with the
     // item's own model as both that case's on_true and the fallback. unwrap gives that model, or null.
@@ -102,7 +104,7 @@ module.exports = async ({ check }) => {
       return ms.length > 0 && ms.every(id => id.startsWith('donating:'))
     })
     const sorted = entries.every((e, i) => i === 0 || entries[i - 1].threshold < e.threshold)
-    check('the built pack\'s feather.json draws all 38 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
+    check('the built pack\'s feather.json draws all 42 sold numbers with our models, no re-equip dip, sorted', !!feather && feather.hand_animation_on_swap === false && sorted && drawn.length === NUMBERS.length,
       `ours: ${drawn.join(' ')}; hand_animation_on_swap ${feather && feather.hand_animation_on_swap}; sorted ${sorted}`)
     const wm = jsonIn(path.join(packs, 'wm', 'WeaponMechanicsResourcePack-3.0.0.zip'), 'assets/minecraft/items/feather.json')
     const others = wm ? wm.model.entries.filter(e => !NUMBERS.includes(e.threshold)) : []
@@ -118,14 +120,14 @@ module.exports = async ({ check }) => {
       return out
     }
     const isFlag = i => m => /condition$/.test(m.type || '') && /custom_model_data$/.test(m.property || '') && (m.index || 0) === i
-    const gated = [1, 1001, 5, 1005, 15, 1015, 11, 1011].filter(n => {
+    const gated = [1, 1001, 5, 1005, 15, 1015, 11, 1011, 6, 1006].filter(n => {
       const e = gunEntry(n)
       const keys = all(e, m => /keybind_down$/.test(m.property || ''))
       const flags = all(e, isFlag(0))
       return keys.length > 0 && keys.every(k => flags.some(f => f.on_true === k))
     })
     const pumps = [14, 1014].filter(n => all(gunEntry(n), isFlag(1)).length === 1)
-    check('the automatic guns\' fire flicker needs GunFx\'s firing flag and the held key; the shotgun has the pump alone (flag 1)', gated.length === 8 && pumps.length === 2, `gated ${gated.join(' ')}; pump ${pumps.join(' ')}`)
+    check('the automatic guns\' fire flicker needs GunFx\'s firing flag and the held key; the shotgun has the pump alone (flag 1)', gated.length === 10 && pumps.length === 2, `gated ${gated.join(' ')}; pump ${pumps.join(' ')}`)
     // The guns with both a draw and a shot clock (Combat Rifle 7, Old Revolver 8, Sniper Rifle 13) tell the draw from a
     // shot by GunFx's flag 2, aimed too; the Sniper Rifle draws its bolt alone under flag 1 (review 2026-10-06).
     const draws = [7, 1007, 8, 1008, 13, 1013].filter(n => all(gunEntry(n), isFlag(2)).length === 1)
@@ -139,6 +141,94 @@ module.exports = async ({ check }) => {
       j.display.firstperson_lefthand.translation[1] === j.display.firstperson_righthand.translation[1] &&
       j.display.firstperson_lefthand.translation[2] === j.display.firstperson_righthand.translation[2])
     check('the Veteran\'s offset sights land on the crosshair in both hands (left aim x = right x - 10.08)', adsOk.length === 7, `${adsOk.length}/7`)
+    // The Hand Minigun (2026-10-12): the barrels turn on GunFx's and GunSpin's flags. In first person (either hand) the
+    // spin-up (flag 3) and the spin-down (flag 4) run on the gun's clock (minecraft:cooldown), default and aimed, the
+    // sprint keeps the spin-down and the draw is flag 2; everywhere else (third person in either hand, the ground, item
+    // frames) only the flags 0, 3 and 4 turn them, never the clock or the held key (the viewer's own, not the holder's:
+    // other players would see their own cooldown); the inventory icon stands still.
+    let mgPack = new Map()
+    try { mgPack = readZip(zipFile) } catch (e) { }
+    const mgJson = name => { try { return JSON.parse(mgPack.get(name).toString('utf8').replace(/^\uFEFF/, '')) } catch (e) { return null } }
+    const ctxOf = (m, ctx) => {
+      if (!m || !/select$/.test(m.type || '') || !/display_context$/.test(m.property || '')) return m
+      const c = (m.cases || []).find(x => [].concat(x.when).includes(ctx))
+      return c ? c.model : m.fallback
+    }
+    const onClock = m => /range_dispatch$/.test(m.type || '') && /cooldown$/.test(m.property || '')
+    const hand = h => h.endsWith('lefthand') ? 'L' : 'R'
+    const flagOnClock = (n, i, h) => all(ctxOf(gunEntry(n), h), isFlag(i)).some(f => all(f.on_true, onClock).length > 0)
+    const fpSpin = FP.flatMap(h => [[6, 3], [6, 4], [1006, 3], [1006, 4], [6, 2]].filter(([n, i]) => flagOnClock(n, i, h)).map(([n, i]) => `${hand(h)}${n}:${i}`))
+    const sprintDown = FP.filter(h => all(ctxOf(gunEntry(2006), h), isFlag(4)).length > 0).map(hand)
+    const ELSEWHERE = ['thirdperson_righthand', 'thirdperson_lefthand', 'ground', 'fixed', 'head']
+    const viewers = [6, 1006, 2006, 3006].flatMap(n => ELSEWHERE.flatMap(c => all(ctxOf(gunEntry(n), c), m => /cooldown$|keybind_down$/.test(m.property || '')).map(() => `${n}/${c}`)))
+    const tpFlags = ELSEWHERE.slice(0, 2).flatMap(h => [6, 1006, 2006].filter(n => [0, 3, 4].every(i => all(ctxOf(gunEntry(n), h), isFlag(i)).length > 0)).map(n => `${hand(h)}${n}`))
+    const stillIcon = [6, 1006, 2006, 3006].filter(n => { const g = ctxOf(gunEntry(n), 'gui'); return !!g && all(g, m => /condition$|range_dispatch$|select$/.test(m.type || '')).length === 0 })
+    check('the Hand Minigun\'s barrels: spin-up (flag 3) and spin-down (flag 4) on the clock in first person (default and aimed, both hands), the sprint\'s spin-down, the draw (flag 2); elsewhere the flags alone (0, 3, 4), never the clock or the held key; a still icon',
+      fpSpin.length === 10 && sprintDown.length === 2 && viewers.length === 0 && tpFlags.length === 6 && stillIcon.length === 4,
+      `first person ${fpSpin.join(' ')}; sprint flag 4 ${sprintDown.join(' ') || 'none'}; viewer-only elsewhere: ${viewers.join(' ') || 'none'}; third person flags ${tpFlags.join(' ')}; still icons ${stillIcon.join(' ')}`)
+    // Nothing static stands in the spinning cluster's way (spec 3.3): the spin part turns about the x axis through the
+    // middle of its own y/z extent, so each of its boxes sweeps a disc as wide as its farthest corner; a box of a static
+    // part over the same x must stay outside it, unless it holds that whole disc (the housing the barrels end in). A
+    // rotated box counts with both turns' corners. The flash is hidden until its frames move it out.
+    const corners = e => {
+      const out = []
+      for (const x of [e.from[0], e.to[0]]) for (const y of [e.from[1], e.to[1]]) for (const z of [e.from[2], e.to[2]]) {
+        const p = [x, y, z]
+        const r = e.rotation
+        if (!r || !r.angle) { out.push(p); continue }
+        const [i, j] = { x: [1, 2], y: [2, 0], z: [0, 1] }[r.axis]
+        for (const sg of [1, -1]) {
+          const a = sg * r.angle * Math.PI / 180
+          const q = [...p]
+          q[i] = r.origin[i] + (p[i] - r.origin[i]) * Math.cos(a) - (p[j] - r.origin[j]) * Math.sin(a)
+          q[j] = r.origin[j] + (p[i] - r.origin[i]) * Math.sin(a) + (p[j] - r.origin[j]) * Math.cos(a)
+          out.push(q)
+        }
+      }
+      return out
+    }
+    const box = e => { const c = corners(e); const lo = k => Math.min(...c.map(p => p[k])); const hi = k => Math.max(...c.map(p => p[k])); return { x0: lo(0), x1: hi(0), y0: lo(1), y1: hi(1), z0: lo(2), z1: hi(2), c } }
+    const partEls = p => ((mgJson(`assets/donating/models/item/gun_minigun_${p}.json`) || {}).elements || []).map(box)
+    const spinEls = partEls('spin')
+    const statics = [...mgPack.keys()].map(k => (k.match(/^assets\/donating\/models\/item\/gun_minigun_([a-z0-9]+)\.json$/) || [])[1])
+      .filter(p => p && !/^(base|full|spin|flash\d*)$/.test(p))
+    const span = k => spinEls.flatMap(b => b.c.map(p => p[k]))
+    const AY = (Math.min(...span(1)) + Math.max(...span(1))) / 2
+    const AZ = (Math.min(...span(2)) + Math.max(...span(2))) / 2
+    const hits = []
+    let housed = 0
+    let rMax = 0
+    for (const s of spinEls) rMax = Math.max(rMax, ...s.c.map(q => Math.hypot(q[1] - AY, q[2] - AZ)))
+    for (const p of statics) {
+      for (const st of partEls(p)) {
+        const d = Math.hypot(Math.max(st.y0 - AY, 0, AY - st.y1), Math.max(st.z0 - AZ, 0, AZ - st.z1))
+        for (const s of spinEls) {
+          if (st.x0 >= s.x1 || st.x1 <= s.x0) continue
+          const r = Math.max(...s.c.map(q => Math.hypot(q[1] - AY, q[2] - AZ)))
+          if (st.y0 <= AY - r + 1e-3 && st.y1 >= AY + r - 1e-3 && st.z0 <= AZ - r + 1e-3 && st.z1 >= AZ + r - 1e-3) { housed++; continue }
+          if (d < r - 1e-3) hits.push(`${p} [${st.x0.toFixed(2)}..${st.x1.toFixed(2)}] ${d.toFixed(2)} < ${r.toFixed(2)}`)
+        }
+      }
+    }
+    // Its sights sit on z = 8 (over the barrels' axis), so the aimed models are the plain mirror: the same display in
+    // both hands, the same in every part (the Veteran's sit 2.1 to the side and need an offset). make-item-art.js's aim()
+    // puts the sight line on the crosshair at tx -8.96 (z = 8) and ty = 8.32 - scale.y × (sightY - 8): the red dot (a
+    // glowing box of a static part) must sit on that line, above the spinning cluster.
+    const mgAds = [...mgPack.keys()].filter(k => /^assets\/donating\/models\/item\/gun_minigun_[a-z0-9]+_ads\.json$/.test(k)).map(k => mgJson(k))
+    const fpAds = mgAds.map(j => j && j.display && j.display.firstperson_righthand)
+    const mgAdsOk = mgAds.filter(j => j && j.display && j.display.firstperson_righthand && j.display.firstperson_lefthand &&
+      JSON.stringify(j.display.firstperson_lefthand.translation) === JSON.stringify(j.display.firstperson_righthand.translation) &&
+      JSON.stringify(j.display.firstperson_righthand) === JSON.stringify(fpAds[0]))
+    const ads0 = fpAds[0] || { translation: [NaN, NaN, NaN], scale: [NaN, NaN, NaN] }
+    const sightY = 8 + (8.32 - ads0.translation[1]) / ads0.scale[1]
+    const mid = (e, k) => (e.from[k] + e.to[k]) / 2
+    const dots = statics.flatMap(p => ((mgJson(`assets/donating/models/item/gun_minigun_${p}.json`) || {}).elements || [])
+      .filter(e => (e.light_emission || 0) > 0 && Math.abs(mid(e, 1) - sightY) < 0.05 && Math.abs(mid(e, 2) - 8) < 0.05)
+      .map(e => `${p} x ${mid(e, 0).toFixed(2)}`))
+    check('the Hand Minigun\'s sights land on the crosshair in both hands (the aimed models are the plain mirror, at the dot\'s height and on z = 8, over the spinning barrels), and nothing static stands in the spinning cluster\'s way',
+      mgAds.length >= 5 && mgAdsOk.length === mgAds.length && Math.abs(ads0.translation[0] + 8.96) < 1e-6 && dots.length >= 1 && sightY > AY + rMax &&
+      spinEls.length > 0 && statics.length >= 2 && hits.length === 0,
+      `aimed ${mgAdsOk.length}/${mgAds.length} (tx ${ads0.translation[0]}); sight y ${sightY.toFixed(2)}, dot ${dots.join(', ') || 'none'}; spin boxes ${spinEls.length} about y ${AY.toFixed(2)} z ${AZ.toFixed(2)}, reach ${rMax.toFixed(2)}; static parts ${statics.join(' ')}; housed ${housed}; in the way: ${hits.slice(0, 6).join('; ') || 'none'}`)
     // No No_Ammo skin (WeaponMechanics puts it over Scope and Sprint: an empty gun dropped out of the sights), and no
     // firearm-action sounds on the pistol and the AK-48 (their reload frames show no slide or bolt action of its own).
     const yamlOf = g => read(g.file).split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
@@ -318,7 +408,15 @@ module.exports = async ({ check }) => {
       fakes.clear()
       // Aim level and a little to the side, so the bullets fly across open air.
       await bot.look(0.7, 0, true)
-      for (let i = 0; i < 4; i++) { bot.activateItem(); await sleep(200); bot.deactivateItem(); await sleep(400) }
+      if (g.spin) {
+        // One use_item every 100 ms for 1.5 s, as a held key repeats it: the barrels spin up (the first round about 8
+        // ticks in) and it fires at up to 16 a second.
+        const end = Date.now() + 1500
+        while (Date.now() < end) { bot.activateItem(); await sleep(100) }
+        bot.deactivateItem()
+      } else {
+        for (let i = 0; i < 4; i++) { bot.activateItem(); await sleep(200); bot.deactivateItem(); await sleep(400) }
+      }
       await sleep(600)
       const after = await loaded(0)
       const off = (await rcon.cmd(`zzdump ${NAME}`)).trim()

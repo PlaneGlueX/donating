@@ -13,8 +13,37 @@ const TARGET = 'DmgTarget'
 const Y = 200
 const PLATFORM = `700 ${Y - 1} 698 704 ${Y - 1} 708`
 const CHUNKS = '700 698 704 708'
+// Where the target stands for a hit from 12 blocks (the Hand Minigun's 10-25 band), in the same chunks.
+const FAR = `700 ${Y - 1} 711 704 ${Y - 1} 714`
+
+// The Hand Minigun's dropoff bands, from the files (2026-10-12): a body hit under 10, 10-25, 25-50 and past 50 blocks is
+// Base_Damage plus that band's Dropoff entry. WeaponMechanics 4.3.1 FullAutoTask's AUTO table decides which of every 20
+// ticks fire (rows 10 and 16: the AK-48, and the minigun at full spin; the first round on the task's first tick).
+const WEAPONS = path.join(__dirname, '..', '..', 'server', 'plugins', 'WeaponMechanics', 'weapons')
+const AUTO = { 10: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], 16: [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0] }
+const bandsOf = file => {
+  const t = fs.readFileSync(path.join(WEAPONS, file), 'utf8').split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
+  const base = Number((t.match(/Base_Damage: ([\d.]+)/) || [])[1])
+  const drop = Object.fromEntries([...t.matchAll(/- "(\d+) (-?[\d.]+)"/g)].map(m => [m[1], Number(m[2])]))
+  return [base, base + (drop[10] || 0), base + (drop[25] || drop[10] || 0), base + (drop[50] || drop[25] || drop[10] || 0)].map(d => +d.toFixed(3))
+}
+const ticksFor = (rate, n) => { let got = 0; for (let t = 0; t < 400; t++) { got += AUTO[rate][t % 20]; if (got >= n) return t + 1 } return Infinity }
 
 module.exports = async ({ check }) => {
+  {
+    const hitsTo = d => Math.ceil(20 / d - 1e-9)
+    const BEST = 1 - 0.06 * 11 // Tactical Helmet + Heavy Vest, Per_Armor_Point -6%
+    const mg = bandsOf('assault_rifles/FN_FAL.yml')
+    const ak = bandsOf('assault_rifles/AK_47.yml')
+    const mgHits = [...mg.map(hitsTo), ...mg.map(d => hitsTo(d * BEST))]
+    const akHits = [...ak.map(hitsTo), ...ak.map(d => hitsTo(d * BEST))]
+    const mgTicks = mgHits.map(n => ticksFor(16, n))
+    const akTicks = akHits.map(n => ticksFor(10, n))
+    check('Hand Minigun, from its file: 3.4 / 2.8 / 2.2 / 1.5 by band (6 / 8 / 10 / 14 hits bare, 18 / 22 / 27 / 40 in the best gear; never under 4 bare, a head shot too), lighter than the AK-48 in every band, and at full spin (16 a second) never faster to a kill than the AK-48 (10 a second)',
+      JSON.stringify(mg) === '[3.4,2.8,2.2,1.5]' && JSON.stringify(mgHits) === '[6,8,10,14,18,22,27,40]' && hitsTo(mg[0] * 1.15) >= 4 &&
+      mg.every((d, i) => d < ak[i]) && akTicks.every((t, i) => t <= mgTicks[i]),
+      `minigun ${mg.join('/')} hits ${mgHits.join(' ')} ticks ${mgTicks.join(' ')}; AK-48 ${ak.join('/')} hits ${akHits.join(' ')} ticks ${akTicks.join(' ')}`)
+  }
   const rcon = await rconLib.connect()
   const cmd = c => rcon.cmd(c)
   let a = null
@@ -78,8 +107,27 @@ module.exports = async ({ check }) => {
       }
       return drops.slice(0, n)
     }
+    // The Hand Minigun fires only from a held trigger (it spins up first: DonatingPhone's GunSpin, the first round about
+    // 8 ticks in): one use_item every 100 ms, aiming each time (the client repeats it every 4 ticks; WeaponMechanics lets
+    // go 215 ms after the last), until n hits landed.
+    const holdW = async (w, slot, n, ms = 12000, equip = 2400) => {
+      await give(w, slot)
+      a.setQuickBarSlot(slot)
+      await sleep(equip)
+      const end = Date.now() + ms
+      while (drops.length < n && Date.now() < end) {
+        await aim()
+        a.activateItem()
+        await sleep(100)
+      }
+      a.deactivateItem()
+      return drops.slice(0, n)
+    }
     const shots = d => Math.ceil(20 / d)
     const avg = l => l.reduce((s, x) => s + x, 0) / (l.length || 1)
+    // At 16 a second a hit lands nearly every tick, so the fed target's regeneration (1 HP every half second) sometimes
+    // falls in a hit's tick and that drop reads 1 lower: the minigun's checks take the median of 5.
+    const median = l => { const s = [...l].sort((x, y) => x - y); return s.length ? s[(s.length - 1) >> 1] : NaN }
 
     await cmd(`wm give ${SHOOTER} AK_47 1 {slot:0}`)
     await cmd(`wm give ${SHOOTER} R9_0 1 {slot:1}`)
@@ -146,6 +194,24 @@ module.exports = async ({ check }) => {
     await heal()
     const vet = await fireW('MG34', 7, 3, 12000, 600, 2400)
     check('Veteran, no armor: 4.6 a body shot (5 shots), under the AK-48', vet.length === 3 && Math.abs(avg(vet) - 4.6) < 0.3 && shots(avg(vet)) === 5 && avg(vet) < 5.5, `drops ${vet.join(', ')}`)
+    // The Hand Minigun (2026-10-12): 3.4 a body shot under 10 blocks (6 shots), under the AK-48.
+    await heal()
+    const mgB = await holdW('FN_FAL', 4, 5)
+    check('Hand Minigun, no armor: 3.4 a body shot (6 shots, never under 4), under the AK-48', mgB.length === 5 && Math.abs(median(mgB) - 3.4) < 0.15 && mgB.every(d => d > 2.25 && d < 3.55) && shots(median(mgB)) === 6 && median(mgB) < 5.5, `drops ${mgB.join(', ')}`)
+    // ...and 2.8 from 12 blocks (the 10-25 band, Dropoff "10 -0.6"; a head hit 3.22): the target stands on a second
+    // platform there, then comes back. Aimed lower (0.8: body and legs, both 0%): WeaponMechanics' spread is up to
+    // ±(4.6 + 2.4) / 100 per axis, about ±0.8 blocks at 12, so aimed at 1.0 enough hits reached the head (+15%) to move
+    // the median about 1 time in 18 (a Monte Carlo of this check; at 0.8 about 1 in 100).
+    await cmd(`fill ${FAR} glass`)
+    await cmd(`minecraft:tp ${TARGET} 702.5 ${Y} 712.5 180 0`)
+    await sleep(5200)
+    await cmd(`zzshieldoff ${TARGET}`)
+    await heal()
+    height = 0.8
+    let mgFar
+    try { mgFar = await holdW('FN_FAL', 4, 5, 15000) } finally { height = 1.0 }
+    check('...from 12 blocks: 2.8 a body shot (8 shots), the 10-25 band', mgFar.length === 5 && Math.abs(median(mgFar) - 2.8) < 0.15 && mgFar.every(d => d < 3.3) && shots(median(mgFar)) === 8, `drops ${mgFar.join(', ')}`)
+    await place()
     await heal()
     // The target is fed and saturated (heal()): it heals 1 HP every half second, so the second of the sniper's slow shots
     // can read 1 lower; the first is exact.
@@ -196,6 +262,10 @@ module.exports = async ({ check }) => {
     await heal()
     const vetA = await fireW('MG34', 7, 2, 12000, 600, 2400)
     check('Veteran against the best gear: 1.56 a body shot (4.6 x 0.34: 13 shots)', vetA.length === 2 && vetA.every(d => Math.abs(d - 1.564) < 0.15), `drops ${vetA.join(', ')}`)
+    // The Hand Minigun against the best gear: 3.4 x 0.34 = 1.156 (18 shots).
+    await heal()
+    const mgA = await holdW('FN_FAL', 4, 5)
+    check('Hand Minigun against the best gear: 1.16 a body shot (3.4 x 0.34: 18 shots)', mgA.length === 5 && Math.abs(median(mgA) - 1.156) < 0.12 && mgA.every(d => d < 1.3) && shots(median(mgA)) === 18, `drops ${mgA.join(', ')}`)
   } finally {
     await cmd(`minecraft:clear ${TARGET}`).catch(() => {})
     await cmd(`minecraft:clear ${SHOOTER}`).catch(() => {})
@@ -203,6 +273,7 @@ module.exports = async ({ check }) => {
     if (a) await quit(a)
     if (b) await quit(b)
     await cmd(`fill ${PLATFORM} air`).catch(() => {})
+    await cmd(`fill ${FAR} air`).catch(() => {})
     rcon.close()
   }
 }

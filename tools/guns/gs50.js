@@ -155,7 +155,16 @@ module.exports = ({ pg, aim, display }) => {
     deco: [{ k: 'rivets', face: 'sides', at: [10.75, 0.75], to: [14.0, 0.25], n: 2, size: 2, c: 'frameLight' },
       { k: 'slots', face: 'flats', at: [10.5, 7.0], to: [14.25, 9.0], n: 3, dir: 'v' }] }
 
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // The right glove on the grip (its top centre under the frame, raked 15 degrees like the grip; the grip is 3.75 deep
+  // and 2.5 wide, so the glove is 1.3 times the shared one); the left hand (only in the reload) under the magazine's
+  // base plate: it pulls the magazine out, carries it away, brings the new one and slaps it home.
+  const { then, hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [12.15 - OR[0], 7.45 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 15]], pivot: OR })
+  const LH = rig({ t: [12.0 - OL[0], -1.4 - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], 15]], pivot: OL })
   const gun = pgGun(name, {
+    hands: { right: { at: RH, scale: 1.3, armScale: 0.85 }, left: { at: LH, shown: false, armScale: 0.85 }, leftTree: false },
     style: 'pg',
     density: D,
     ink: [22, 22, 26],
@@ -244,17 +253,29 @@ module.exports = ({ pg, aim, display }) => {
       slide: rig({ t: [1.8 * ease.bump(p, 0, 0.75, 0.12), 0, 0] })
     }
   }
-  // The reload (GunFx: a cooldown as long as WeaponMechanics' reload): the gun rolls to show its side and dips,
-  // the magazine drops out of the grip, a new one rises in, a palm slap, the gun rolls back. No slide pull.
+  // The reload (GunFx: a cooldown as long as WeaponMechanics' reload): the gun lifts toward the middle and rolls its
+  // grip's bottom toward you (out from behind the right arm), the left hand comes up under the grip (0.03-0.12), pulls the magazine
+  // down out of it (0.12-0.32) and carries it away, brings a new one (gone 0.4-0.46) and pushes it up in (0.46-0.7),
+  // a palm slap (0.7-0.8), the hand drops away (0.8-0.92) and the gun rolls back. No slide pull. The sounds
+  // (50_GS.yml): mag_out at tick 3, mag_in at 24.
+  const magRig = drop => rig({ t: [-drop * Math.sin(15 * Math.PI / 180), drop, 0] })
+  const BELOW = then(LH, rig({ t: [2, -12, 6], rot: [[[1, 0, 0], -20]], pivot: [12, -1.4, 8] })) // off the bottom edge
   const reload = p => {
     const roll = ease.ramp(p, 0, 0.12) * (1 - ease.ramp(p, 0.8, 1))
     const out = ease.ramp(p, 0.12, 0.32)
     const back = ease.ramp(p, 0.46, 0.7)
     const slap = ease.bump(p, 0.7, 0.8, 0.73)
     const drop = p < 0.46 ? -10 * out : -10 * (1 - back)
+    // the left hand: up to the base plate, with the magazine, the slap's push, away
+    let place
+    if (p < 0.12) place = hands.mix(BELOW, LH, ease.ramp(p, 0.03, 0.12))
+    else if (p < 0.8) place = then(then(LH, magRig(drop)), rig({ t: [0, 0.6 * slap, 0] }))
+    else place = hands.mix(LH, BELOW, ease.ramp(p, 0.8, 0.92))
     return {
-      gun: rig({ t: [0, -1.4 * roll + 0.5 * slap, 0], rot: [[[1, 0, 0], 26 * roll], [[0, 0, 1], -4 * slap]], pivot: [8, 8, 8] }),
-      mag: rig({ t: [-drop * Math.sin(15 * Math.PI / 180), drop, 0] }),
+      gun: rig({ t: [0, 7 * roll + 0.5 * slap, 3 * roll], rot: [[[1, 0, 0], -35 * roll], [[0, 0, 1], -4 * slap]], pivot: [8, 8, 8] }),
+      mag: magRig(drop),
+      lhand: hands.pose(LH, place),
+      show: p > 0.02 && p < 0.93 ? ['lhand'] : [],
       hide: p > 0.4 && p < 0.46 ? ['mag'] : []
     }
   }

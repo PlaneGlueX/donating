@@ -1,0 +1,11 @@
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-rest.png|AK-48: rest
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-aimed.png|AK-48: aimed
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-sprint.png|AK-48: sprint
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.14.png|AK-48: reload p0.14
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.25.png|AK-48: reload p0.25
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.36.png|AK-48: reload p0.36
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.45.png|AK-48: reload p0.45
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.57.png|AK-48: reload p0.57
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.74.png|AK-48: reload p0.74
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.8.png|AK-48: reload p0.8
+C:\Users\matti\AppData\Local\Temp\claude\C--Users-matti-OneDrive-Desktop-Donating-Test-Server\0780fadd-412f-469c-beee-bc8b53ea6313\scratchpad\remake\hands\refs\render\fp-ak47-reload_p0.92.png|AK-48: reload p0.92

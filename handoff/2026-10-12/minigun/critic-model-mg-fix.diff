@@ -1,0 +1,78 @@
+--- "/c/Users/matti/OneDrive/Desktop/Donating Test Server/tools/guns/minigun.js"	2026-10-12 03:17:27.605858300 -0700
++++ mg-fix.js	2026-10-12 03:44:04.223134000 -0700
+@@ -84,8 +84,8 @@
+   const ring = (x0, x1, r, w, c, key, bolt, extra = {}) => {
+     const ends = more => ({ deco: [...(extra.deco || []), ...more.map(d => ({ k: 'rivets', n: 2, size: 2, c: bolt, face: 'ends', ...d }))] })
+     return [
+-      { from: [x0, AY - r, AZ - w], to: [x1, AY + r, AZ + w], c: key, ...extra, ...ends([{ at: [AZ - 0.25, AY + r - 0.25], to: [AZ + 0.25, AY - r + 0.25] }]) },
+-      { from: [x0, AY - w, AZ - r], to: [x1, AY + w, AZ + r], c: key, ...extra, ...ends([{ at: [AZ - r + 0.25, AY + 0.25], to: [AZ + r - 0.25, AY - 0.25] }]) },
++      { from: [x0 + 0.02, AY - r, AZ - w], to: [x1 - 0.02, AY + r, AZ + w], c: key, ...extra, ...ends([{ at: [AZ - 0.25, AY + r - 0.25], to: [AZ + 0.25, AY - r + 0.25] }]) },
++      { from: [x0 + 0.04, AY - w, AZ - r], to: [x1 - 0.04, AY + w, AZ + r], c: key, ...extra, ...ends([{ at: [AZ - r + 0.25, AY + 0.25], to: [AZ + r - 0.25, AY - 0.25] }]) },
+       { from: [x0, AY - c, AZ - c], to: [x1, AY + c, AZ + c], c: key, ...extra, ...ends([{ at: [AZ - c + 0.25, AY + c - 0.25], to: [AZ + c - 0.25, AY + c - 0.75] }, { at: [AZ - c + 0.25, AY - c + 0.75], to: [AZ + c - 0.25, AY - c + 0.25] }]) }
+     ]
+   }
+@@ -98,7 +98,7 @@
+   // its outer edge (the reference's grey lines between the black barrels).
+   const barrel = (dy, dz) => {
+     const y0 = AY + dy - H; const y1 = AY + dy + H; const z0 = AZ + dz - H; const z1 = AZ + dz + H
+-    return { from: [BX0, y0, z0], to: [BX1, y1, z1], c: 'barrel', grain: 0.07, split: { x: [-1.0, 6.0] },
++    const inner = dy > 0 ? 'down' : dy < 0 ? 'up' : dz > 0 ? 'north' : 'south'; return { dirs: ['north', 'south', 'up', 'down'].filter(d => d !== inner), from: [BX0, y0, z0], to: [BX1, y1, z1], c: 'barrel', grain: 0.07, split: { x: [-1.0, 6.0] },
+       deco: [{ k: 'band', face: 'sides', at: [BX0, y1 - 0.25], to: [BX1, y1 - 0.75], c: 'groove' }, { k: 'band', face: 'flats', at: [BX0, z1 - 0.75], to: [BX1, z1 - 0.25], c: 'groove' }] }
+   }
+   // Decal helpers (model units; north/south faces [x, y], up/down [x, z], east/west [z, y]).
+@@ -167,8 +167,8 @@
+         { from: [HOOD[0], 14.25, 6.5], to: [HOOD[1], 14.75, 9.5], c: { all: 'recv', up: 'recvT' } },
+         ...[[12.25, 14.5, 9.0, 9.25], [12.25, 14.5, 6.75, 7.0], [14.25, 14.5, 7.0, 9.0]].map(([y0, y1, z0, z1]) => ({ from: [HOOD[1], y0, z0], to: [HOOD[1] + 0.02, y1, z1], c: 'cyan', dirs: ['east'], outline: false })),
+         { from: [HOOD[0] - 0.02, 12.25, 7.0], to: [HOOD[0], 14.25, 9.0], c: 'lens', dirs: ['west'], outline: false },
+-        { from: [19.25, SY - 0.125, 7.875], to: [19.5, SY + 0.125, 8.125], c: 'dot', glow: true },
+-        { from: [19.325, 12.25, 7.95], to: [19.425, SY - 0.125, 8.05], c: 'post', outline: false },
++        { from: [19.25, SY - 0.075, 7.925], to: [19.4, SY + 0.075, 8.075], c: 'dot', glow: true },
++        { from: [19.3, 12.25, 7.975], to: [19.35, SY - 0.075, 8.025], c: 'post', outline: false },
+         { from: [HOOD[0], 14.75, 7.5], to: [19.5, 15.0, 8.5], c: 'red', glow: true },
+         { from: [20.0, 14.75, 7.5], to: [HOOD[1], 15.0, 8.5], c: 'red', glow: true },
+         // ---- the handguard under the barrels (its top under the clamps' sweep: AY - 3.35), a cyan band, a slot, red
+@@ -189,13 +189,13 @@
+       ],
+       // ---------- the spinning cluster (everything here turns about the axis) ----------
+       spin: [
+-        { from: [BX0, AY - 0.75, AZ - 0.75], to: [BX1, AY + 0.75, AZ + 0.75], c: 'bore' },
++        
+         ...AROUND.map(([dy, dz]) => barrel(dy, dz)),
+         // the clamps: rear, middle (the big one, a seam round it), a thin third, front
+-        ...ring(8.25, 9.75, 2.75, 1.25, 2.25, CLAMP, 'recv', { deco: [{ k: 'rivets', at: [8.5, AY + 0.25], to: [9.5, AY - 0.25], n: 2, c: 'recv' }, { k: 'rivets', face: 'flats', at: [8.5, AZ - 0.25], to: [9.5, AZ + 0.25], n: 2, c: 'recv' }] }),
+-        ...ring(0.5, 2.75, 3.0, 1.5, 2.25, CLAMP, 'recv', { split: { x: [1.75] } }),
++        ...ring(8.25, 9.75, 2.75, 1.25, 2.3, CLAMP, 'recv', { deco: [{ k: 'rivets', at: [8.5, AY + 0.25], to: [9.5, AY - 0.25], n: 2, c: 'recv' }, { k: 'rivets', face: 'flats', at: [8.5, AZ - 0.25], to: [9.5, AZ + 0.25], n: 2, c: 'recv' }] }),
++        ...ring(0.5, 2.75, 3.0, 1.5, 2.3, CLAMP, 'recv', { split: { x: [1.75] } }),
+         ...ring(-5.5, -4.5, 2.75, 1.25, 2.0, CLAMP, 'recv'),
+-        ...ring(-11.0, -9.25, 3.0, 1.25, 2.25, CLAMP, 'recv'),
++        ...ring(-11.0, -9.25, 3.0, 1.25, 2.3, CLAMP, 'recv'),
+         // the stepped black muzzle cap (dark vents on its faces), a smaller front plate, the four bores and the hub
+         ...ring(-14.5, -11.0, 3.25, 1.5, 2.5, { all: 'recv', up: 'recvT' }, 'steel', { deco: [{ k: 'inset', at: [-14.0, AY + 0.75], to: [-12.75, AY - 0.75], c: 'recv' }, { k: 'inset', face: 'flats', at: [-14.0, AZ - 0.75], to: [-12.75, AZ + 0.75], c: 'recv' }, { k: 'slots', at: [-12.5, AY + 1.0], to: [-11.25, AY - 1.0], dir: 'v', n: 2 }, { k: 'slots', face: 'flats', at: [-12.5, AZ - 1.0], to: [-11.25, AZ + 1.0], dir: 'v', n: 2 }] }),
+         ...ring(MUZ, -14.5, 2.5, 1.25, 2.0, 'recv', 'steel'),
+@@ -305,7 +305,7 @@
+     type: 'minecraft:range_dispatch',
+     property: 'minecraft:cooldown',
+     entries: [
+-      ...Array.from({ length: 15 }, (_, i) => { const p = 1 - (i + 0.5) / 30; return { threshold: r4(i / 30 + 1e-4), model: gun.composite(state, { ...also, spin: turn(450 * (2 * p - p * p)) }) } }),
++      ...Array.from({ length: 15 }, (_, i) => { const p = 1 - (i + 0.5) / 30; return { threshold: r4(i / 30 + 1e-4), model: gun.composite(state, { ...also, spin: turn(360 * (2 * p - p * p)) }) } }),
+       { threshold: 0.5, model: random(state, spins(also)) }
+     ],
+     fallback: gun.composite(state, also)
+@@ -320,7 +320,7 @@
+     const side = ease.ramp(p, 0.52, 0.62) * (1 - ease.ramp(p, 0.84, 0.96))
+     return {
+       gun: rig({ t: [2.4 * e, -12 * e - 0.7 * sag + 2.0 * side, 1.8 * side], rot: [[[1, 0, 0], -18 * e + 4 * side], [[0, 1, 0], 20 * side], [[0, 0, 1], 32 * e - 1.8 * sag - 4 * side]], pivot: SHOULDER }),
+-      spin: turn(180 * ease.out(Math.max(0, Math.min(1, (p - 0.58) / 0.34))))
++      spin: turn(360 * ease.ramp(p, 0.5, 0.96))
+     }
+   }
+   // The reload (90 ticks): the gun comes up, muzzle up, its belly toward you (0-0.1), so the box is on the screen; the
+@@ -347,7 +347,7 @@
+     return {
+       gun: rig({ t: [MP.t[0] * a + 0.3 * tug, MP.t[1] * a - 0.3 * seat + 0.3 * slap + BP.t[1] * b, MP.t[2] * a + BP.t[2] * b], rot: [[[1, 0, 0], MP.x * a + BP.x * b], [[0, 1, 0], MP.y * a + BP.y * b], [[0, 0, 1], MP.z * a + BP.z * b - 1.5 * seat + 1.5 * slap - 1.2 * (r1 + r2)]], pivot: [17, 7, 8] }),
+       mag: rig({ t: [MD.t[0] * out, MD.t[1] * out, MD.t[2] * out], rot: [[[1, 0, 0], MD.x * out], [[0, 0, 1], MD.z * out]], pivot: MAG_TOP }),
+-      spin: turn(90 * ease.ramp(p, 0.744, 0.8) + 90 * ease.ramp(p, 0.822, 0.878)),
++      spin: turn(90 * ease.ramp(p, 0.744, 0.8) + 90 * ease.ramp(p, 0.822, 0.878) + 180 * ease.ramp(p, 0.87, 0.98)),
+       hide: p > 0.32 && p < 0.46 ? ['mag'] : []
+     }
+   }

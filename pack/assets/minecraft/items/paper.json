@@ -1,20 +1,615 @@
 {
+  "hand_animation_on_swap": false,
   "model": {
     "type": "minecraft:select",
-    "property": "minecraft:custom_model_data",
-    "index": 0,
+    "property": "minecraft:display_context",
     "cases": [
       {
-        "when": "donating:loot_cash",
+        "when": [
+          "firstperson_righthand",
+          "firstperson_lefthand"
+        ],
         "model": {
-          "type": "minecraft:model",
-          "model": "donating:item/loot_cash"
+          "type": "minecraft:range_dispatch",
+          "property": "minecraft:cooldown",
+          "entries": [
+            {
+              "threshold": 0.0001,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -0.2,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -0.2,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.025,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -0.6000000000000001,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -0.6000000000000001,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.05,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -1,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -1,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.07500000000000001,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -1.4000000000000001,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -1.4000000000000001,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.1,
+              "model": {
+                "type": "minecraft:empty"
+              }
+            },
+            {
+              "threshold": 0.9,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -1.4000000000000001,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -1.4000000000000001,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.925,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -1,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -1,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.9500000000000001,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -0.6000000000000001,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -0.6000000000000001,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "threshold": 0.9750000000000001,
+              "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "cases": [
+                  {
+                    "when": "donating:loot_cash",
+                    "model": {
+                      "type": "minecraft:model",
+                      "model": "donating:item/loot_cash",
+                      "transformation": {
+                        "translation": [
+                          0,
+                          -0.2,
+                          0
+                        ],
+                        "left_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:model",
+                  "model": "minecraft:item/paper",
+                  "transformation": {
+                    "translation": [
+                      0,
+                      -0.2,
+                      0
+                    ],
+                    "left_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "scale": [
+                      1,
+                      1,
+                      1
+                    ],
+                    "right_rotation": [
+                      0,
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:select",
+            "property": "minecraft:custom_model_data",
+            "index": 0,
+            "cases": [
+              {
+                "when": "donating:loot_cash",
+                "model": {
+                  "type": "minecraft:model",
+                  "model": "donating:item/loot_cash"
+                }
+              }
+            ],
+            "fallback": {
+              "type": "minecraft:model",
+              "model": "minecraft:item/paper"
+            }
+          }
         }
       }
     ],
     "fallback": {
-      "type": "minecraft:model",
-      "model": "minecraft:item/paper"
+      "type": "minecraft:select",
+      "property": "minecraft:custom_model_data",
+      "index": 0,
+      "cases": [
+        {
+          "when": "donating:loot_cash",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/loot_cash"
+          }
+        }
+      ],
+      "fallback": {
+        "type": "minecraft:model",
+        "model": "minecraft:item/paper"
+      }
     }
   }
 }

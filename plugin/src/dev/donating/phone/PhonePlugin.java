@@ -168,6 +168,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             gunFx = new GunFx(this);
             gunFx.configure(getConfig());
             getServer().getPluginManager().registerEvents(gunFx, this);
+            getServer().getPluginManager().registerEvents(gunFx.spin, this); // the spin guns' spin-up (GunSpin)
+            getServer().getPluginManager().registerEvents(gunFx.bag, this); // the offhand hidden while a gun reloads (BagHide)
         } else getLogger().info("WeaponMechanics not found: no gun animations");
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();
@@ -639,6 +641,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         if (args.length >= 2 && args[0].equalsIgnoreCase("steer")) options.addAll(carSmooth.steer.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
+        if (args.length == 2 && args[0].equalsIgnoreCase("gunfx")) options.add("spin");
+        if (args.length == 3 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) options.addAll(players);
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
         List<String> out = new ArrayList<>();
         for (String o : options) if (o.toLowerCase().startsWith(typed)) out.add(o);
@@ -664,6 +668,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
+        if (args.length >= 2 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) { if (gunFx == null) { sender.sendMessage("GUNSPIN off (no WeaponMechanics)"); return true; } return gunFx.spin.command(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status()); return true; }
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunskin")) { if (gunFx == null) { sender.sendMessage("GUNSKIN off (no WeaponMechanics)"); return true; } return gunFx.gunskinCommand(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);

@@ -123,7 +123,17 @@ module.exports = ({ pg, aim, display }) => {
     }
     return spec
   }
+  // ---------- the hands (pg.js spec.hands; handoff/2026-10-12/hands/PLAN.md) ----------
+  // No pistol grip: the right glove wraps the stock's straight wrist, turned 55 degrees so the fingers go under it and
+  // the thumb over, just behind the trigger guard (the shared glove's size: nearer the eye it looked huge); the bolt still works by itself.
+  // The left hand (only in the reload) round the magazine's lower half: it pulls the magazine down out of the stock,
+  // carries it away, brings the new one up and seats it.
+  const { hands } = pg
+  const { OR, OL } = hands
+  const RH = rig({ t: [19.1 - OR[0], 8.2 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 55]], pivot: OR })
+  const LH = rig({ t: [12.75 - OL[0], 4.9 - OL[1], 8 - OL[2]], pivot: OL })
   const gun = pgGun(name, inBounds({
+    hands: { right: { at: RH, scale: 1.0, armScale: 0.85 }, left: { at: LH, shown: false, scale: 1.15, armScale: 0.9 }, leftTree: false },
     style: 'pg',
     density: 4,
     palette: {
@@ -332,8 +342,12 @@ module.exports = ({ pg, aim, display }) => {
   // sound comes at tick 6 of 76) and a case flips out, the magazine drops out (0.18-0.32), is gone, a new one rises
   // (0.44-0.58) and seats with a jolt (0.6), the bolt closes (forward 0.885-0.94, down 0.94-0.97; from empty the close
   // sound comes at tick 72 of 76 = 0.947), the gun rolls back (0.93-1). The magazine sounds (AX_50.yml Start_Mechanics:
-  // ticks after the reload starts, 8 later from empty) split the two lengths: delay = 68p - 4.
-  const MAGPOSE = { t: [0.0, 3.2, 0.8], x: -34, y: 20, z: -8 }
+  // ticks after the reload starts, 8 later from empty) split the two lengths: delay = 68p - 4. The left hand takes the
+  // magazine out and puts the new one in (the pose lifts the gun 1.8 more than before the hands, so its work shows).
+  const MAGPOSE = { t: [0.0, 5.0, 1.2], x: -34, y: 20, z: -8 }
+  // The left hand: below the screen (where the bag was), on the magazine.
+  const magRig = drop => rig({ t: [0.6 * drop, -12 * drop, 0], rot: [[[0, 0, 1], 8 * drop]], pivot: MAGP })
+  const BELOW = then(LH, rig({ t: [3, -13, 6], rot: [[[1, 0, 0], -20]], pivot: [12.75, 4.9, 8] }))
   const reload = p => {
     const a = ease.ramp(p, 0, 0.07) * (1 - ease.ramp(p, 0.9, 1))
     const seat = ease.bump(p, 0.57, 0.66, 0.6)
@@ -350,9 +364,17 @@ module.exports = ({ pg, aim, display }) => {
         pivot: CANT
       }),
       bolt: boltRig({ lift, back }),
-      mag: rig({ t: [0.6 * drop, -12 * drop, 0], rot: [[[0, 0, 1], 8 * drop]], pivot: MAGP }),
+      mag: magRig(drop),
       hide: p > 0.32 && p < 0.44 ? ['mag'] : []
     }
+    // The left hand: up to the magazine (0.08-0.18), with it out and back up, the seat's push (0.57-0.66), away
+    // (0.64-0.74).
+    let place
+    if (p < 0.18) place = hands.mix(BELOW, LH, ease.ramp(p, 0.08, 0.18))
+    else if (p < 0.64) place = then(then(LH, magRig(drop)), rig({ t: [0, 0.6 * seat, 0] }))
+    else place = hands.mix(LH, BELOW, ease.ramp(p, 0.64, 0.74))
+    pose.lhand = hands.pose(LH, place)
+    if (p > 0.07 && p < 0.75) pose.show.push('lhand')
     // The case flies out while the bolt comes back (0.12-0.2), landing with the shell sound WeaponMechanics' Open plays
     // from empty (tick 15 of 76 = 0.197).
     if (p > 0.12 && p < 0.2) {

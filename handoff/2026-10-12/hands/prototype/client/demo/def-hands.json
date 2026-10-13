@@ -1,0 +1,83 @@
+{
+ "model": {
+  "type": "minecraft:select",
+  "property": "minecraft:display_context",
+  "cases": [
+   {
+    "when": [
+     "firstperson_righthand",
+     "firstperson_lefthand"
+    ],
+    "model": {
+     "type": "minecraft:composite",
+     "models": [
+      {
+       "type": "minecraft:model",
+       "model": "donating:item/gun_ak47_full"
+      },
+      {
+       "type": "minecraft:model",
+       "model": "donating:item/demo_arm_left",
+       "transformation": {
+        "translation": [
+         0.125,
+         0.2875,
+         0.5
+        ],
+        "left_rotation": [
+         0,
+         -0.29327502776481923,
+         -0.20321099787880273,
+         0.9341814858102497
+        ],
+        "scale": [
+         1,
+         1,
+         1
+        ],
+        "right_rotation": [
+         0,
+         0,
+         0,
+         1
+        ]
+       }
+      },
+      {
+       "type": "minecraft:model",
+       "model": "donating:item/demo_arm_right",
+       "transformation": {
+        "translation": [
+         1.21875,
+         0.09375,
+         0.5
+        ],
+        "left_rotation": [
+         0,
+         0.2258051097147111,
+         -0.7154902464108965,
+         0.6611246173888867
+        ],
+        "scale": [
+         1,
+         1,
+         1
+        ],
+        "right_rotation": [
+         0,
+         0,
+         0,
+         1
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ],
+  "fallback": {
+   "type": "minecraft:model",
+   "model": "donating:item/gun_ak47_full"
+  }
+ }
+}

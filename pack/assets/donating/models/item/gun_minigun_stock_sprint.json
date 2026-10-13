@@ -1,0 +1,39 @@
+{
+  "parent": "donating:item/gun_minigun_stock",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        -12,
+        -44,
+        18
+      ],
+      "translation": [
+        -3.6,
+        2.4,
+        -2.2
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -12,
+        136,
+        -18
+      ],
+      "translation": [
+        -3.6,
+        2.4,
+        -2.2
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    }
+  }
+}

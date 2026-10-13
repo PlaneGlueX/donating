@@ -253,6 +253,61 @@
       }
     ]
   },
+  "donating.gun.minigun.shoot": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_shoot_1"
+      },
+      {
+        "name": "donating/gun/minigun_shoot_2"
+      },
+      {
+        "name": "donating/gun/minigun_shoot_3"
+      }
+    ]
+  },
+  "donating.gun.minigun.spinup": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_spinup"
+      }
+    ]
+  },
+  "donating.gun.minigun.spindown": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_spindown"
+      }
+    ]
+  },
+  "donating.gun.minigun.draw": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_draw"
+      }
+    ]
+  },
+  "donating.gun.minigun.mag_out": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_mag_out"
+      }
+    ]
+  },
+  "donating.gun.minigun.mag_in": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_mag_in"
+      }
+    ]
+  },
+  "donating.gun.minigun.ratchet": {
+    "sounds": [
+      {
+        "name": "donating/gun/minigun_ratchet"
+      }
+    ]
+  },
   "donating.gun.rev.shoot": {
     "sounds": [
       {

@@ -36,6 +36,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -52,6 +108,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -108,6 +220,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1514,
+                                -0.5669,
+                                -0.1542
+                              ],
+                              "left_rotation": [
+                                -0.0166,
+                                0.0243,
+                                0.185,
+                                0.9823
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8702,
+                                0.6228,
+                                0.2348
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2164,
+                                -0.7716,
+                                0.5982
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -208,6 +376,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1209,
+                                -0.6077,
+                                -0.1543
+                              ],
+                              "left_rotation": [
+                                -0.0334,
+                                0.0483,
+                                0.1799,
+                                0.9819
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.888,
+                                0.6217,
+                                0.2036
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1955,
+                                -0.7841,
+                                0.589
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -292,6 +516,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0924,
+                                -0.6464,
+                                -0.1505
+                              ],
+                              "left_rotation": [
+                                -0.0505,
+                                0.072,
+                                0.1756,
+                                0.9805
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9061,
+                                0.6185,
+                                0.1717
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1736,
+                                -0.796,
+                                0.5799
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -392,6 +672,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0661,
+                                -0.6831,
+                                -0.1431
+                              ],
+                              "left_rotation": [
+                                -0.0678,
+                                0.0953,
+                                0.1719,
+                                0.9781
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9244,
+                                0.6131,
+                                0.1394
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1506,
+                                -0.8069,
+                                0.5711
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -476,6 +812,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0611,
+                                -0.6902,
+                                -0.1412
+                              ],
+                              "left_rotation": [
+                                -0.0713,
+                                0.1,
+                                0.1713,
+                                0.9775
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9281,
+                                0.6117,
+                                0.1329
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1459,
+                                -0.809,
+                                0.5694
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -576,6 +968,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0611,
+                                -0.6902,
+                                -0.1412
+                              ],
+                              "left_rotation": [
+                                -0.0713,
+                                0.1,
+                                0.1713,
+                                0.9775
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9281,
+                                0.6117,
+                                0.1329
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1459,
+                                -0.809,
+                                0.5694
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -632,6 +1080,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1049,
+                                -0.6294,
+                                -0.1527
+                              ],
+                              "left_rotation": [
+                                -0.0429,
+                                0.0614,
+                                0.1774,
+                                0.9813
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.898,
+                                0.6202,
+                                0.186
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1835,
+                                -0.7908,
+                                0.584
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -704,6 +1208,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1544,
+                                -0.563,
+                                -0.154
+                              ],
+                              "left_rotation": [
+                                -0.015,
+                                0.022,
+                                0.1855,
+                                0.9823
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8686,
+                                0.6228,
+                                0.2377
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2183,
+                                -0.7703,
+                                0.5991
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -720,6 +1280,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -736,6 +1352,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -752,6 +1424,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -768,6 +1496,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -784,6 +1568,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -799,6 +1639,62 @@
                       {
                         "type": "minecraft:model",
                         "model": "donating:item/gunskin/r90/molten/pump"
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/hands/r90_rglove",
+                        "transformation": {
+                          "translation": [
+                            2.1834,
+                            -0.5243,
+                            -0.15
+                          ],
+                          "left_rotation": [
+                            0,
+                            0,
+                            0.1908,
+                            0.9816
+                          ],
+                          "scale": [
+                            1.3,
+                            1.3,
+                            1.3
+                          ],
+                          "right_rotation": [
+                            0,
+                            0,
+                            0,
+                            1
+                          ]
+                        }
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/hands/r90_arm",
+                        "transformation": {
+                          "translation": [
+                            0.8526,
+                            0.6219,
+                            0.2652
+                          ],
+                          "left_rotation": [
+                            0,
+                            0.236,
+                            -0.7583,
+                            0.6077
+                          ],
+                          "scale": [
+                            0.9,
+                            0.9,
+                            0.9
+                          ],
+                          "right_rotation": [
+                            0,
+                            0,
+                            0,
+                            1
+                          ]
+                        }
                       }
                     ]
                   }
@@ -819,6 +1715,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -835,6 +1787,62 @@
                           {
                             "type": "minecraft:model",
                             "model": "donating:item/gunskin/r90/molten/pump"
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1834,
+                                -0.5243,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1908,
+                                0.9816
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8526,
+                                0.6219,
+                                0.2652
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.236,
+                                -0.7583,
+                                0.6077
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -891,6 +1899,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1514,
+                                -0.5669,
+                                -0.1542
+                              ],
+                              "left_rotation": [
+                                -0.0166,
+                                0.0243,
+                                0.185,
+                                0.9823
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8702,
+                                0.6228,
+                                0.2348
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2164,
+                                -0.7716,
+                                0.5982
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -991,6 +2055,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1209,
+                                -0.6077,
+                                -0.1543
+                              ],
+                              "left_rotation": [
+                                -0.0334,
+                                0.0483,
+                                0.1799,
+                                0.9819
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.888,
+                                0.6217,
+                                0.2036
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1955,
+                                -0.7841,
+                                0.589
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1075,6 +2195,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0924,
+                                -0.6464,
+                                -0.1505
+                              ],
+                              "left_rotation": [
+                                -0.0505,
+                                0.072,
+                                0.1756,
+                                0.9805
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9061,
+                                0.6185,
+                                0.1717
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1736,
+                                -0.796,
+                                0.5799
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -1175,6 +2351,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0661,
+                                -0.6831,
+                                -0.1431
+                              ],
+                              "left_rotation": [
+                                -0.0678,
+                                0.0953,
+                                0.1719,
+                                0.9781
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9244,
+                                0.6131,
+                                0.1394
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1506,
+                                -0.8069,
+                                0.5711
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1259,6 +2491,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0611,
+                                -0.6902,
+                                -0.1412
+                              ],
+                              "left_rotation": [
+                                -0.0713,
+                                0.1,
+                                0.1713,
+                                0.9775
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9281,
+                                0.6117,
+                                0.1329
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1459,
+                                -0.809,
+                                0.5694
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -1359,6 +2647,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.0611,
+                                -0.6902,
+                                -0.1412
+                              ],
+                              "left_rotation": [
+                                -0.0713,
+                                0.1,
+                                0.1713,
+                                0.9775
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9281,
+                                0.6117,
+                                0.1329
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1459,
+                                -0.809,
+                                0.5694
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1415,6 +2759,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1049,
+                                -0.6294,
+                                -0.1527
+                              ],
+                              "left_rotation": [
+                                -0.0429,
+                                0.0614,
+                                0.1774,
+                                0.9813
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.898,
+                                0.6202,
+                                0.186
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.1835,
+                                -0.7908,
+                                0.584
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -1487,6 +2887,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1544,
+                                -0.563,
+                                -0.154
+                              ],
+                              "left_rotation": [
+                                -0.015,
+                                0.022,
+                                0.1855,
+                                0.9823
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8686,
+                                0.6228,
+                                0.2377
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2183,
+                                -0.7703,
+                                0.5991
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1543,6 +2999,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.182,
+                                -0.5285,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1887,
+                                0.982
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8561,
+                                0.6251,
+                                0.267
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2372,
+                                -0.7603,
+                                0.6047
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -1615,6 +3127,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1753,
+                                -0.5465,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1794,
+                                0.9838
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.8715,
+                                0.6393,
+                                0.2748
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2424,
+                                -0.7691,
+                                0.5914
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1671,6 +3239,62 @@
                                 1,
                                 1,
                                 1
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1625,
+                                -0.5782,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1625,
+                                0.9867
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9005,
+                                0.664,
+                                0.289
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.252,
+                                -0.7839,
+                                0.5674
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
                               ],
                               "right_rotation": [
                                 0,
@@ -1771,6 +3395,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1418,
+                                -0.6218,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1381,
+                                0.9904
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                0.9443,
+                                0.6972,
+                                0.3096
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2656,
+                                -0.8033,
+                                0.5331
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1863,6 +3543,62 @@
                                 1
                               ]
                             }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_rglove",
+                            "transformation": {
+                              "translation": [
+                                2.1111,
+                                -0.6751,
+                                -0.15
+                              ],
+                              "left_rotation": [
+                                0,
+                                0,
+                                0.1061,
+                                0.9944
+                              ],
+                              "scale": [
+                                1.3,
+                                1.3,
+                                1.3
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
+                          },
+                          {
+                            "type": "minecraft:model",
+                            "model": "donating:item/hands/r90_arm",
+                            "transformation": {
+                              "translation": [
+                                1.004,
+                                0.7357,
+                                0.3365
+                              ],
+                              "left_rotation": [
+                                0,
+                                0.2832,
+                                -0.8247,
+                                0.4896
+                              ],
+                              "scale": [
+                                0.9,
+                                0.9,
+                                0.9
+                              ],
+                              "right_rotation": [
+                                0,
+                                0,
+                                0,
+                                1
+                              ]
+                            }
                           }
                         ]
                       }
@@ -1878,6 +3614,62 @@
                       {
                         "type": "minecraft:model",
                         "model": "donating:item/gunskin/r90/molten/pump"
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/hands/r90_rglove",
+                        "transformation": {
+                          "translation": [
+                            2.1834,
+                            -0.5243,
+                            -0.15
+                          ],
+                          "left_rotation": [
+                            0,
+                            0,
+                            0.1908,
+                            0.9816
+                          ],
+                          "scale": [
+                            1.3,
+                            1.3,
+                            1.3
+                          ],
+                          "right_rotation": [
+                            0,
+                            0,
+                            0,
+                            1
+                          ]
+                        }
+                      },
+                      {
+                        "type": "minecraft:model",
+                        "model": "donating:item/hands/r90_arm",
+                        "transformation": {
+                          "translation": [
+                            0.8526,
+                            0.6219,
+                            0.2652
+                          ],
+                          "left_rotation": [
+                            0,
+                            0.236,
+                            -0.7583,
+                            0.6077
+                          ],
+                          "scale": [
+                            0.9,
+                            0.9,
+                            0.9
+                          ],
+                          "right_rotation": [
+                            0,
+                            0,
+                            0,
+                            1
+                          ]
+                        }
                       }
                     ]
                   }
@@ -3798,6 +5590,62 @@
                   {
                     "type": "minecraft:model",
                     "model": "donating:item/gunskin/r90/molten/pump_sprint"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/hands/r90_rglove_sprint",
+                    "transformation": {
+                      "translation": [
+                        2.1834,
+                        -0.5243,
+                        -0.15
+                      ],
+                      "left_rotation": [
+                        0,
+                        0,
+                        0.1908,
+                        0.9816
+                      ],
+                      "scale": [
+                        1.3,
+                        1.3,
+                        1.3
+                      ],
+                      "right_rotation": [
+                        0,
+                        0,
+                        0,
+                        1
+                      ]
+                    }
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/hands/r90_arm_sprint",
+                    "transformation": {
+                      "translation": [
+                        1.2975,
+                        0.0424,
+                        -0.0176
+                      ],
+                      "left_rotation": [
+                        0,
+                        -0.4554,
+                        -0.6302,
+                        0.6288
+                      ],
+                      "scale": [
+                        0.9,
+                        0.9,
+                        0.9
+                      ],
+                      "right_rotation": [
+                        0,
+                        0,
+                        0,
+                        1
+                      ]
+                    }
                   }
                 ]
               }
@@ -3835,8 +5683,8 @@
                           "transformation": {
                             "translation": [
                               -0.1044,
-                              0.0812,
-                              0.4657
+                              0.2249,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.202,
@@ -3863,8 +5711,8 @@
                           "transformation": {
                             "translation": [
                               -0.1044,
-                              0.0812,
-                              0.4657
+                              0.2249,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.202,
@@ -3891,8 +5739,8 @@
                           "transformation": {
                             "translation": [
                               -0.3867,
-                              -0.0205,
-                              0.4898
+                              0.1232,
+                              0.5336
                             ],
                             "left_rotation": [
                               -0.2025,
@@ -3904,6 +5752,118 @@
                               1,
                               1,
                               1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_rglove",
+                          "transformation": {
+                            "translation": [
+                              1.985,
+                              -0.5539,
+                              0.2054
+                            ],
+                            "left_rotation": [
+                              -0.1798,
+                              0.1335,
+                              0.15,
+                              0.963
+                            ],
+                            "scale": [
+                              1.3,
+                              1.3,
+                              1.3
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              0.8248,
+                              0.7768,
+                              0.2852
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.2065,
+                              -0.7204,
+                              0.6621
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_lglove",
+                          "transformation": {
+                            "translation": [
+                              1.2971,
+                              -0.0413,
+                              0.3073
+                            ],
+                            "left_rotation": [
+                              -0.0755,
+                              0.2109,
+                              0.6591,
+                              0.7179
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              0.941,
+                              0.2399,
+                              0.3287
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.4631,
+                              -0.3755,
+                              0.8028
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
                             ],
                             "right_rotation": [
                               0,
@@ -3927,8 +5887,8 @@
                           "transformation": {
                             "translation": [
                               -0.1203,
-                              0.1183,
-                              0.4657
+                              0.2621,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.2008,
@@ -3955,8 +5915,8 @@
                           "transformation": {
                             "translation": [
                               -0.1203,
-                              0.1183,
-                              0.4657
+                              0.2621,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.2008,
@@ -3983,8 +5943,8 @@
                           "transformation": {
                             "translation": [
                               -0.3416,
-                              0.0524,
-                              0.4626
+                              0.1961,
+                              0.5064
                             ],
                             "left_rotation": [
                               -0.2061,
@@ -3996,6 +5956,118 @@
                               1,
                               1,
                               1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_rglove",
+                          "transformation": {
+                            "translation": [
+                              1.949,
+                              -0.5686,
+                              0.2054
+                            ],
+                            "left_rotation": [
+                              -0.1782,
+                              0.1357,
+                              0.1379,
+                              0.9648
+                            ],
+                            "scale": [
+                              1.3,
+                              1.3,
+                              1.3
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              0.8178,
+                              0.7711,
+                              0.2835
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.2055,
+                              -0.7169,
+                              0.6662
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_lglove",
+                          "transformation": {
+                            "translation": [
+                              1.2987,
+                              -0.1461,
+                              0.3469
+                            ],
+                            "left_rotation": [
+                              -0.0837,
+                              0.2078,
+                              0.6119,
+                              0.7586
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              1.0416,
+                              0.1775,
+                              0.3542
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.496,
+                              -0.3739,
+                              0.7837
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
                             ],
                             "right_rotation": [
                               0,
@@ -4019,8 +6091,8 @@
                           "transformation": {
                             "translation": [
                               -0.1018,
-                              0.0753,
-                              0.4657
+                              0.219,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.2022,
@@ -4047,8 +6119,8 @@
                           "transformation": {
                             "translation": [
                               -0.1018,
-                              0.0753,
-                              0.4657
+                              0.219,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.2022,
@@ -4075,8 +6147,8 @@
                           "transformation": {
                             "translation": [
                               -0.326,
-                              0.0742,
-                              0.4644
+                              0.2179,
+                              0.5082
                             ],
                             "left_rotation": [
                               -0.2117,
@@ -4088,6 +6160,118 @@
                               1,
                               1,
                               1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_rglove",
+                          "transformation": {
+                            "translation": [
+                              1.9907,
+                              -0.5515,
+                              0.2054
+                            ],
+                            "left_rotation": [
+                              -0.1801,
+                              0.1331,
+                              0.1519,
+                              0.9627
+                            ],
+                            "scale": [
+                              1.3,
+                              1.3,
+                              1.3
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              0.8259,
+                              0.7777,
+                              0.2855
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.2067,
+                              -0.7209,
+                              0.6615
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_lglove",
+                          "transformation": {
+                            "translation": [
+                              1.2914,
+                              -0.2411,
+                              0.4266
+                            ],
+                            "left_rotation": [
+                              -0.0979,
+                              0.2014,
+                              0.5807,
+                              0.7827
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              1.0915,
+                              0.1073,
+                              0.4135
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.5106,
+                              -0.3656,
+                              0.7783
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
                             ],
                             "right_rotation": [
                               0,
@@ -4111,8 +6295,8 @@
                           "transformation": {
                             "translation": [
                               -0.0995,
-                              0.0701,
-                              0.4657
+                              0.2139,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.2024,
@@ -4139,8 +6323,8 @@
                           "transformation": {
                             "translation": [
                               -0.0995,
-                              0.0701,
-                              0.4657
+                              0.2139,
+                              0.5095
                             ],
                             "left_rotation": [
                               -0.2024,
@@ -4167,8 +6351,8 @@
                           "transformation": {
                             "translation": [
                               -0.3487,
-                              0.2204,
-                              0.4775
+                              0.3641,
+                              0.5212
                             ],
                             "left_rotation": [
                               -0.2179,
@@ -4180,6 +6364,118 @@
                               1,
                               1,
                               1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_rglove",
+                          "transformation": {
+                            "translation": [
+                              1.9956,
+                              -0.5493,
+                              0.2054
+                            ],
+                            "left_rotation": [
+                              -0.1803,
+                              0.1328,
+                              0.1536,
+                              0.9624
+                            ],
+                            "scale": [
+                              1.3,
+                              1.3,
+                              1.3
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              0.8269,
+                              0.7785,
+                              0.2857
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.2068,
+                              -0.7214,
+                              0.661
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_lglove",
+                          "transformation": {
+                            "translation": [
+                              1.1669,
+                              -0.3656,
+                              0.5818
+                            ],
+                            "left_rotation": [
+                              -0.1174,
+                              0.1907,
+                              0.5031,
+                              0.8347
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/hands/r90_arm",
+                          "transformation": {
+                            "translation": [
+                              1.0885,
+                              0.0402,
+                              0.5119
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.4989,
+                              -0.3602,
+                              0.7883
+                            ],
+                            "scale": [
+                              0.9,
+                              0.9,
+                              0.9
                             ],
                             "right_rotation": [
                               0,
@@ -4202,8 +6498,8 @@
                       "transformation": {
                         "translation": [
                           -0.0995,
-                          0.0701,
-                          0.4657
+                          0.2139,
+                          0.5095
                         ],
                         "left_rotation": [
                           -0.2024,
@@ -4230,8 +6526,8 @@
                       "transformation": {
                         "translation": [
                           -0.0995,
-                          0.0701,
-                          0.4657
+                          0.2139,
+                          0.5095
                         ],
                         "left_rotation": [
                           -0.2024,
@@ -4243,6 +6539,118 @@
                           1,
                           1,
                           1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/hands/r90_rglove",
+                      "transformation": {
+                        "translation": [
+                          1.9956,
+                          -0.5493,
+                          0.2054
+                        ],
+                        "left_rotation": [
+                          -0.1803,
+                          0.1328,
+                          0.1536,
+                          0.9624
+                        ],
+                        "scale": [
+                          1.3,
+                          1.3,
+                          1.3
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/hands/r90_arm",
+                      "transformation": {
+                        "translation": [
+                          0.8269,
+                          0.7785,
+                          0.2857
+                        ],
+                        "left_rotation": [
+                          0,
+                          0.2068,
+                          -0.7214,
+                          0.661
+                        ],
+                        "scale": [
+                          0.9,
+                          0.9,
+                          0.9
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/hands/r90_lglove",
+                      "transformation": {
+                        "translation": [
+                          1.1823,
+                          -0.4647,
+                          0.6278
+                        ],
+                        "left_rotation": [
+                          -0.1191,
+                          0.1897,
+                          0.4956,
+                          0.8392
+                        ],
+                        "scale": [
+                          1,
+                          1,
+                          1
+                        ],
+                        "right_rotation": [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      }
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/hands/r90_arm",
+                      "transformation": {
+                        "translation": [
+                          1.1624,
+                          -0.0693,
+                          0.5882
+                        ],
+                        "left_rotation": [
+                          0,
+                          -0.5274,
+                          -0.3232,
+                          0.7858
+                        ],
+                        "scale": [
+                          0.9,
+                          0.9,
+                          0.9
                         ],
                         "right_rotation": [
                           0,

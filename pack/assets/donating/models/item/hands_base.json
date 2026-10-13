@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "t": "donating:item/hands_tex",
+    "particle": "donating:item/hands_tex"
+  }
+}

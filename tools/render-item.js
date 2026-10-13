@@ -445,7 +445,28 @@ const drawQuads = (img, quads, M, proj, flat = false) => {
   const { W, H, px, depth } = img
   const persp = !!proj.persp
   for (const q of quads) {
-    const pts = q.pts.map(p => proj(M4.app(M, p)))
+    // A face crossing the near plane (proj.near: first person's 0.05) is clipped there and drawn in pieces, as the
+    // client draws it (a hand's sleeve passing the camera); before, any face with a corner behind it was dropped.
+    const wp = q.world ? q.pts : q.pts.map(p => M4.app(M, p))
+    if (!q.world && proj.near !== undefined && wp.some(p => p[2] > proj.near)) {
+      const inside = p => p[2] <= proj.near
+      const np = []; const nu = []
+      for (let i = 0; i < wp.length; i++) {
+        const a = wp[i]; const b = wp[(i + 1) % wp.length]
+        const ua = q.uvs && q.uvs[i]; const ub = q.uvs && q.uvs[(i + 1) % wp.length]
+        if (inside(a)) { np.push(a); if (q.uvs) nu.push(ua) }
+        if (inside(a) !== inside(b)) {
+          const t = (proj.near - a[2]) / (b[2] - a[2])
+          const c = a.map((v, k) => v + (b[k] - v) * t); c[2] = proj.near
+          np.push(c)
+          if (q.uvs) nu.push(ua.map((v, k) => v + (ub[k] - v) * t))
+        }
+      }
+      // the clipped polygon as a fan of quads (the last corner doubled where needed), already in world space
+      for (let k = 1; k + 1 < np.length; k++) drawQuads(img, [{ ...q, pts: [np[0], np[k], np[k + 1], np[k + 1]], uvs: q.uvs ? [nu[0], nu[k], nu[k + 1], nu[k + 1]] : null, world: true }], M4.id(), proj, flat)
+      continue
+    }
+    const pts = wp.map(p => proj(p))
     if (pts.some(p => !p)) continue
     const sh = flat || q.glow ? 1 : SHADE[q.dir]
     for (const tri of [[0, 1, 2], [0, 2, 3]]) {
@@ -562,6 +583,7 @@ const renderView = (items, view, W, H) => {
     const k = 1 / Math.tan(35 * RAD) * H / 2 // 70° vertical field of view
     const proj = p => p[2] > -0.05 ? null : [W / 2 + p[0] / -p[2] * k, H / 2 - p[1] / -p[2] * k, -p[2]]
     proj.persp = true
+    proj.near = -0.0501
     // ItemInHandRenderer.applyItemArmTransform: (±0.56, -0.52, -0.72), no swing, no equip dip.
     for (const m of models) drawQuads(img, m.quads, chain(M4.t(left ? -0.56 : 0.56, -0.52, -0.72), itemMatrix(m.display[ctx], left, m.local)), proj)
     for (let d = -8; d <= 8; d++) {
