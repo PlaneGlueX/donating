@@ -7,7 +7,7 @@
 //   - no hand model outside the first-person contexts (third person, the ground, item frames, the icon);
 //   - DEPTH (the long melee weapons, 2026-10-13): their far points stay at least a set distance in front of the camera
 //     in every first-person frame and at rest, under the client's whack at p 0, 0.25, 0.5 and 0.75 (p 0 is no client
-//     swing: the nunchucks' case, MeleeFx swing none; the katana whacks) (a twirling chain or a long blade must never
+//     swing: MeleeFx swing none, the nunchucks' and the katana's case) (a twirling chain or a long blade must never
 //     pass through the camera).
 // node tools/guns/dev/hands.js [gun,...] [--kit pg.js] [--mod <gun>=<module.js>]   (default: every gun with hands)
 // Exit code 1 when anything fails.
@@ -116,7 +116,7 @@ for (const g of want) {
 const rotZ = (deg, o) => p => { const c = Math.cos(deg * RAD); const sn = Math.sin(deg * RAD); const x = p[0] - o[0]; const y = p[1] - o[1]; return [o[0] + x * c - y * sn, o[1] + x * sn + y * c, p[2]] }
 const DEPTH = {
   nunchucks: { part: 'flail', pre: rotZ(-45, [8, 9.6, 8]), pts: [[8, -3.3, 8], [8, 1.2, 8]], min: 0.6 }, // the far end, the free middle
-  katana: { part: 'sword', pts: [[8.55, 25.2, 8], [8, 2.2, 8]], min: 0.55 } // the tip, the guard
+  katana: { part: 'sword', pts: [[8.55, 25.2, 8], [8, 2.2, 8]], min: 0.55, whack: [0] } // the tip, the guard (no client swing: its frames)
 }
 for (const [g, dd] of Object.entries(DEPTH)) {
   if (!want.includes(g) || !results[g]) continue
@@ -131,7 +131,7 @@ for (const [g, dd] of Object.entries(DEPTH)) {
         for (const ctx of ctxs.filter(x => FP.includes(x))) {
           const left = ctx === 'firstperson_lefthand'
           const d = displayOf(m.model, ctx)
-          for (const p of [0, 0.25, 0.5, 0.75]) {
+          for (const p of dd.whack || [0, 0.25, 0.5, 0.75]) {
             for (const pt of dd.pts) {
               checked++
               const w = toWorld(d, dd.pre ? dd.pre(pt) : pt, local, left, whack(p, left ? -1 : 1))

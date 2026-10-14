@@ -290,4 +290,4 @@ meleefx:
     Baseball_Bat: { swing: whack, ticks: 14 }
     Brass_Knuckles: { swing: none, chain: 6 }
     Gold_Nunchucks: { swing: none, chain: 12 } # none: a whack drops the item below the screen and hides the twirl
-    Dagger: { swing: whack, ticks: 10 }
+    Dagger: { swing: none, chain: 10 } # the Katana's slash frames (a whack only tipped the blade aside)

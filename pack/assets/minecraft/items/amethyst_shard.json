@@ -9,8 +9,886 @@
       {
         "threshold": 1,
         "model": {
-          "type": "minecraft:model",
-          "model": "donating:item/melee_katana_full"
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_righthand"
+              ],
+              "model": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:cooldown",
+                "entries": [
+                  {
+                    "threshold": 0.0001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.0005,
+                              -0.0001
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.1603,
+                              0.0072,
+                              0.2735
+                            ],
+                            "left_rotation": [
+                              0.0469,
+                              0.1765,
+                              0.0348,
+                              0.9826
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.2001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.2659,
+                              -0.0716,
+                              0.8492
+                            ],
+                            "left_rotation": [
+                              0.1566,
+                              0.409,
+                              0.1763,
+                              0.8815
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.2569,
+                              -0.0776,
+                              1.3094
+                            ],
+                            "left_rotation": [
+                              0.3199,
+                              0.4407,
+                              0.3807,
+                              0.7473
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.4001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.297,
+                              0.245,
+                              1.6141
+                            ],
+                            "left_rotation": [
+                              0.4889,
+                              0.3359,
+                              0.5159,
+                              0.618
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.341,
+                              0.5496,
+                              1.8567
+                            ],
+                            "left_rotation": [
+                              0.5685,
+                              0.3324,
+                              0.5436,
+                              0.5205
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.3168,
+                              0.4865,
+                              1.8239
+                            ],
+                            "left_rotation": [
+                              0.5177,
+                              0.3974,
+                              0.5624,
+                              0.5077
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.7001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.2729,
+                              0.3628,
+                              1.5398
+                            ],
+                            "left_rotation": [
+                              0.4424,
+                              0.502,
+                              0.5399,
+                              0.5106
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_streak",
+                          "transformation": {
+                            "translation": [
+                              -0.2729,
+                              0.3628,
+                              1.5398
+                            ],
+                            "left_rotation": [
+                              0.4424,
+                              0.502,
+                              0.5399,
+                              0.5106
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.281,
+                              0.528,
+                              1.087
+                            ],
+                            "left_rotation": [
+                              0.2423,
+                              0.6546,
+                              0.3214,
+                              0.6399
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_streak",
+                          "transformation": {
+                            "translation": [
+                              -0.281,
+                              0.528,
+                              1.087
+                            ],
+                            "left_rotation": [
+                              0.2423,
+                              0.6546,
+                              0.3214,
+                              0.6399
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.9001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              -0.2762,
+                              0.9608,
+                              0.5623
+                            ],
+                            "left_rotation": [
+                              -0.1532,
+                              0.6271,
+                              -0.2233,
+                              0.7304
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:composite",
+                  "models": [
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/melee_katana_sword"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "when": [
+                "firstperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:cooldown",
+                "entries": [
+                  {
+                    "threshold": 0.0001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.0001,
+                              0.0005,
+                              0.0001
+                            ],
+                            "left_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.1001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.1898,
+                              -0.0727,
+                              -0.2068
+                            ],
+                            "left_rotation": [
+                              -0.0469,
+                              -0.1765,
+                              0.0348,
+                              0.9826
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.2001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.5104,
+                              -0.2035,
+                              -0.4656
+                            ],
+                            "left_rotation": [
+                              -0.1566,
+                              -0.409,
+                              0.1763,
+                              0.8815
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.3001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.6453,
+                              -0.2202,
+                              -0.7163
+                            ],
+                            "left_rotation": [
+                              -0.3199,
+                              -0.4407,
+                              0.3807,
+                              0.7473
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.4001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.6226,
+                              -0.0127,
+                              -0.9105
+                            ],
+                            "left_rotation": [
+                              -0.4889,
+                              -0.3359,
+                              0.5159,
+                              0.618
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.5001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.623,
+                              0.3192,
+                              -0.9894
+                            ],
+                            "left_rotation": [
+                              -0.5685,
+                              -0.3324,
+                              0.5436,
+                              0.5205
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.6001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.669,
+                              0.4077,
+                              -0.972
+                            ],
+                            "left_rotation": [
+                              -0.5177,
+                              -0.3974,
+                              0.5624,
+                              0.5077
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.7001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.7176,
+                              0.4531,
+                              -0.6442
+                            ],
+                            "left_rotation": [
+                              -0.4424,
+                              -0.502,
+                              0.5399,
+                              0.5106
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_streak",
+                          "transformation": {
+                            "translation": [
+                              0.7176,
+                              0.4531,
+                              -0.6442
+                            ],
+                            "left_rotation": [
+                              -0.4424,
+                              -0.502,
+                              0.5399,
+                              0.5106
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.8001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.7125,
+                              0.6388,
+                              -0.1125
+                            ],
+                            "left_rotation": [
+                              -0.2423,
+                              -0.6546,
+                              0.3214,
+                              0.6399
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_streak",
+                          "transformation": {
+                            "translation": [
+                              0.7125,
+                              0.6388,
+                              -0.1125
+                            ],
+                            "left_rotation": [
+                              -0.2423,
+                              -0.6546,
+                              0.3214,
+                              0.6399
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "threshold": 0.9001,
+                    "model": {
+                      "type": "minecraft:composite",
+                      "models": [
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_katana_sword",
+                          "transformation": {
+                            "translation": [
+                              0.7082,
+                              0.9045,
+                              0.2711
+                            ],
+                            "left_rotation": [
+                              0.1532,
+                              -0.6271,
+                              -0.2233,
+                              0.7304
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "fallback": {
+                  "type": "minecraft:composite",
+                  "models": [
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/melee_katana_sword"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "donating:item/melee_katana_full"
+          }
         }
       },
       {
@@ -63,6 +941,62 @@
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_knuckles_duster",
+                          "transformation": {
+                            "translation": [
+                              -0.0842,
+                              0.0176,
+                              0.0927
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.0671,
+                              0,
+                              0.9977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              -0.0842,
+                              0.0176,
+                              0.0927
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.0671,
+                              0,
+                              0.9977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
                           "transformation": {
                             "translation": [
                               -0.0842,
@@ -182,6 +1116,62 @@
                         },
                         {
                           "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              -0.2247,
+                              0.0529,
+                              0.3007
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.2,
+                              0,
+                              0.9798
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
+                          "transformation": {
+                            "translation": [
+                              -0.2247,
+                              0.0529,
+                              0.3007
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.2,
+                              0,
+                              0.9798
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
                           "model": "donating:item/hands/melee_knuckles_rglove",
                           "transformation": {
                             "translation": [
@@ -247,6 +1237,62 @@
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_knuckles_duster",
+                          "transformation": {
+                            "translation": [
+                              -0.3222,
+                              0.0881,
+                              0.5295
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.3294,
+                              0,
+                              0.9442
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              -0.3222,
+                              0.0881,
+                              0.5295
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.3294,
+                              0,
+                              0.9442
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
                           "transformation": {
                             "translation": [
                               -0.3222,
@@ -366,6 +1412,62 @@
                         },
                         {
                           "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              -0.3727,
+                              0.1234,
+                              0.7671
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.4528,
+                              0,
+                              0.8916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
+                          "transformation": {
+                            "translation": [
+                              -0.3727,
+                              0.1234,
+                              0.7671
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.4528,
+                              0,
+                              0.8916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
                           "model": "donating:item/hands/melee_knuckles_rglove",
                           "transformation": {
                             "translation": [
@@ -431,6 +1533,62 @@
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_knuckles_duster",
+                          "transformation": {
+                            "translation": [
+                              -0.3795,
+                              0.1375,
+                              0.8617
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.5,
+                              0,
+                              0.866
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              -0.3795,
+                              0.1375,
+                              0.8617
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.5,
+                              0,
+                              0.866
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
                           "transformation": {
                             "translation": [
                               -0.3795,
@@ -550,6 +1708,62 @@
                         },
                         {
                           "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              -0.1999,
+                              0.0458,
+                              0.2571
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.1736,
+                              0,
+                              0.9848
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
+                          "transformation": {
+                            "translation": [
+                              -0.1999,
+                              0.0458,
+                              0.2571
+                            ],
+                            "left_rotation": [
+                              0,
+                              0.1736,
+                              0,
+                              0.9848
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
                           "model": "donating:item/hands/melee_knuckles_rglove",
                           "transformation": {
                             "translation": [
@@ -614,6 +1828,14 @@
                     {
                       "type": "minecraft:model",
                       "model": "donating:item/melee_knuckles_duster"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/melee_knuckles_bar"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/melee_knuckles_horn"
                     },
                     {
                       "type": "minecraft:model",
@@ -691,6 +1913,62 @@
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_knuckles_duster",
+                          "transformation": {
+                            "translation": [
+                              0.0496,
+                              0.0176,
+                              -0.0837
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.0671,
+                              0,
+                              0.9977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              0.0496,
+                              0.0176,
+                              -0.0837
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.0671,
+                              0,
+                              0.9977
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
                           "transformation": {
                             "translation": [
                               0.0496,
@@ -810,6 +2088,62 @@
                         },
                         {
                           "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              0.1673,
+                              0.0529,
+                              -0.2207
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.2,
+                              0,
+                              0.9798
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
+                          "transformation": {
+                            "translation": [
+                              0.1673,
+                              0.0529,
+                              -0.2207
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.2,
+                              0,
+                              0.9798
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
                           "model": "donating:item/hands/melee_knuckles_rglove",
                           "transformation": {
                             "translation": [
@@ -875,6 +2209,62 @@
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_knuckles_duster",
+                          "transformation": {
+                            "translation": [
+                              0.2998,
+                              0.0881,
+                              -0.3125
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.3294,
+                              0,
+                              0.9442
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              0.2998,
+                              0.0881,
+                              -0.3125
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.3294,
+                              0,
+                              0.9442
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
                           "transformation": {
                             "translation": [
                               0.2998,
@@ -994,6 +2384,62 @@
                         },
                         {
                           "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              0.4348,
+                              0.1234,
+                              -0.357
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.4528,
+                              0,
+                              0.8916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
+                          "transformation": {
+                            "translation": [
+                              0.4348,
+                              0.1234,
+                              -0.357
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.4528,
+                              0,
+                              0.8916
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
                           "model": "donating:item/hands/melee_knuckles_rglove",
                           "transformation": {
                             "translation": [
@@ -1059,6 +2505,62 @@
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_knuckles_duster",
+                          "transformation": {
+                            "translation": [
+                              0.4866,
+                              0.1375,
+                              -0.3617
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.5,
+                              0,
+                              0.866
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              0.4866,
+                              0.1375,
+                              -0.3617
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.5,
+                              0,
+                              0.866
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
                           "transformation": {
                             "translation": [
                               0.4866,
@@ -1178,6 +2680,62 @@
                         },
                         {
                           "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_bar",
+                          "transformation": {
+                            "translation": [
+                              0.1422,
+                              0.0458,
+                              -0.1968
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.1736,
+                              0,
+                              0.9848
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
+                          "model": "donating:item/melee_knuckles_horn",
+                          "transformation": {
+                            "translation": [
+                              0.1422,
+                              0.0458,
+                              -0.1968
+                            ],
+                            "left_rotation": [
+                              0,
+                              -0.1736,
+                              0,
+                              0.9848
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
+                        },
+                        {
+                          "type": "minecraft:model",
                           "model": "donating:item/hands/melee_knuckles_rglove",
                           "transformation": {
                             "translation": [
@@ -1245,6 +2803,14 @@
                     },
                     {
                       "type": "minecraft:model",
+                      "model": "donating:item/melee_knuckles_bar"
+                    },
+                    {
+                      "type": "minecraft:model",
+                      "model": "donating:item/melee_knuckles_horn"
+                    },
+                    {
+                      "type": "minecraft:model",
                       "model": "donating:item/hands/melee_knuckles_rglove",
                       "transformation": {
                         "translation": [
@@ -1302,6 +2868,46 @@
                   ]
                 }
               }
+            },
+            {
+              "when": [
+                "thirdperson_righthand"
+              ],
+              "model": {
+                "type": "minecraft:composite",
+                "models": [
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_knuckles_duster"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_knuckles_horn"
+                  }
+                ]
+              }
+            },
+            {
+              "when": [
+                "thirdperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:composite",
+                "models": [
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_knuckles_duster"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_knuckles_horn"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_knuckles_ring1"
+                  }
+                ]
+              }
             }
           ],
           "fallback": {
@@ -1335,31 +2941,7 @@
                         },
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_flail",
-                          "transformation": {
-                            "translation": [
-                              0,
-                              0.0034,
-                              -0.0041
-                            ],
-                            "left_rotation": [
-                              -0.0034,
-                              0,
-                              0,
-                              -1
-                            ],
-                            "scale": [
-                              1,
-                              1,
-                              1
-                            ],
-                            "right_rotation": [
-                              0,
-                              0,
-                              0,
-                              1
-                            ]
-                          }
+                          "model": "donating:item/melee_nunchucks_flail"
                         }
                       ]
                     }
@@ -1378,15 +2960,15 @@
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.0281,
-                              -0.032
+                              -0.0017,
+                              -0.0062,
+                              0.0093
                             ],
                             "left_rotation": [
-                              -0.0273,
-                              0,
-                              0,
-                              -0.9996
+                              0.0084,
+                              0.0009,
+                              0.0021,
+                              -1
                             ],
                             "scale": [
                               1,
@@ -1418,15 +3000,15 @@
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.0706,
-                              -0.0743
+                              -0.0034,
+                              -0.0123,
+                              0.0186
                             ],
                             "left_rotation": [
-                              -0.0656,
-                              0,
-                              0,
-                              -0.9978
+                              0.0168,
+                              0.0018,
+                              0.0042,
+                              -0.9998
                             ],
                             "scale": [
                               1,
@@ -1451,22 +3033,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0025,
+                              0.0125,
+                              0.0047
+                            ],
+                            "left_rotation": [
+                              0.0168,
+                              0.0018,
+                              0.0042,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.1222,
-                              -0.1178
+                              -0.0025,
+                              0.0125,
+                              0.0047
                             ],
                             "left_rotation": [
-                              -0.1087,
-                              0,
-                              0,
-                              -0.9941
+                              -0.0168,
+                              -0.0018,
+                              -0.0042,
+                              -0.9998
                             ],
                             "scale": [
                               1,
@@ -1491,22 +3097,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0057,
+                              0.0293,
+                              0.0189
+                            ],
+                            "left_rotation": [
+                              0.0632,
+                              0.0054,
+                              0.0338,
+                              0.9974
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.171,
-                              -0.1526
+                              -0.0276,
+                              0.0497,
+                              0.0173
                             ],
                             "left_rotation": [
-                              -0.1467,
-                              0,
-                              0,
-                              -0.9892
+                              -0.0673,
+                              -0.0071,
+                              -0.0169,
+                              -0.9976
                             ],
                             "scale": [
                               1,
@@ -1531,22 +3161,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0273,
+                              0.0611,
+                              0.0584
+                            ],
+                            "left_rotation": [
+                              0.1412,
+                              0.008,
+                              0.0796,
+                              0.9867
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.2026,
-                              -0.1723
+                              -0.0457,
+                              0.0218,
+                              0.104
                             ],
                             "left_rotation": [
-                              -0.1703,
-                              0,
-                              0,
-                              -0.9854
+                              -0.1064,
+                              -0.0185,
+                              -0.0712,
+                              -0.9916
                             ],
                             "scale": [
                               1,
@@ -1571,22 +3225,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0483,
+                              0.1004,
+                              0.1089
+                            ],
+                            "left_rotation": [
+                              0.2329,
+                              0.0041,
+                              0.136,
+                              0.9629
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.1765,
-                              -0.1563
+                              -0.1066,
+                              -0.1038,
+                              0.3106
                             ],
                             "left_rotation": [
-                              -0.1509,
-                              0,
-                              0,
-                              -0.9885
+                              -0.0492,
+                              -0.0205,
+                              -0.0829,
+                              -0.9951
                             ],
                             "scale": [
                               1,
@@ -1611,22 +3289,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0731,
+                              0.1238,
+                              0.1292
+                            ],
+                            "left_rotation": [
+                              0.2597,
+                              -0.0034,
+                              0.1673,
+                              0.9511
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.0314,
-                              0.0403
+                              -0.2885,
+                              -0.2355,
+                              0.9552
                             ],
                             "left_rotation": [
-                              0.0327,
-                              0,
-                              0,
-                              -0.9995
+                              0.3667,
+                              -0.015,
+                              0.0194,
+                              -0.93
                             ],
                             "scale": [
                               1,
@@ -1651,22 +3353,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0673,
+                              0.1,
+                              0.0906
+                            ],
+                            "left_rotation": [
+                              0.1898,
+                              -0.0076,
+                              0.1692,
+                              0.9671
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.1765,
-                              0.5839
+                              -0.5204,
+                              0.3878,
+                              1.3136
                             ],
                             "left_rotation": [
-                              0.3905,
-                              0,
-                              0,
-                              -0.9206
+                              0.7877,
+                              0.0414,
+                              0.1815,
+                              -0.5872
                             ],
                             "scale": [
                               1,
@@ -1691,22 +3417,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0553,
+                              0.1149,
+                              0.0693
+                            ],
+                            "left_rotation": [
+                              0.1184,
+                              0.0027,
+                              0.1006,
+                              0.9879
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.3265,
-                              1.2316
+                              -0.1053,
+                              1.4803,
+                              0.5955
                             ],
                             "left_rotation": [
-                              0.8157,
-                              0,
-                              0,
-                              -0.5785
+                              0.9142,
+                              -0.1365,
+                              0.3427,
+                              0.1677
                             ],
                             "scale": [
                               1,
@@ -1731,22 +3481,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0212,
+                              0.1324,
+                              0.0239
+                            ],
+                            "left_rotation": [
+                              0.0042,
+                              0.0004,
+                              -0.0169,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              1.3016,
-                              0.8431
+                              0.2369,
+                              0.5667,
+                              -0.3493
                             ],
                             "left_rotation": [
-                              0.9928,
-                              0,
-                              0,
-                              0.1197
+                              0.4387,
+                              0.0057,
+                              0.283,
+                              0.8529
                             ],
                             "scale": [
                               1,
@@ -1771,22 +3545,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              0.0041,
+                              0.0358,
+                              0.018
+                            ],
+                            "left_rotation": [
+                              -0.1822,
+                              -0.0337,
+                              -0.1164,
+                              0.9758
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.7423,
-                              -0.2679
+                              0.2578,
+                              -0.1516,
+                              0.61
                             ],
                             "left_rotation": [
-                              0.5052,
-                              0,
-                              0,
-                              0.863
+                              -0.4221,
+                              0.1199,
+                              0.1054,
+                              0.8924
                             ],
                             "scale": [
                               1,
@@ -1839,31 +3637,7 @@
                         },
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_flail",
-                          "transformation": {
-                            "translation": [
-                              0,
-                              -0.0034,
-                              0.0041
-                            ],
-                            "left_rotation": [
-                              0.0034,
-                              0,
-                              0,
-                              -1
-                            ],
-                            "scale": [
-                              1,
-                              1,
-                              1
-                            ],
-                            "right_rotation": [
-                              0,
-                              0,
-                              0,
-                              1
-                            ]
-                          }
+                          "model": "donating:item/melee_nunchucks_flail"
                         }
                       ]
                     }
@@ -1882,15 +3656,15 @@
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.0264,
-                              0.0335
+                              -0.0034,
+                              0.0106,
+                              -0.0091
                             ],
                             "left_rotation": [
-                              0.0273,
-                              0,
-                              0,
-                              -0.9996
+                              -0.0084,
+                              -0.0009,
+                              0.0021,
+                              -1
                             ],
                             "scale": [
                               1,
@@ -1922,15 +3696,15 @@
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.0603,
-                              0.0829
+                              -0.0068,
+                              0.0214,
+                              -0.0181
                             ],
                             "left_rotation": [
-                              0.0656,
-                              0,
-                              0,
-                              -0.9978
+                              -0.0168,
+                              -0.0018,
+                              0.0042,
+                              -0.9998
                             ],
                             "scale": [
                               1,
@@ -1955,22 +3729,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              0.0012,
+                              -0.0212,
+                              -0.0041
+                            ],
+                            "left_rotation": [
+                              -0.0168,
+                              -0.0018,
+                              0.0042,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.0939,
-                              0.1414
+                              0.0012,
+                              -0.0212,
+                              -0.0041
                             ],
                             "left_rotation": [
-                              0.1087,
-                              0,
-                              0,
-                              -0.9941
+                              0.0168,
+                              0.0018,
+                              -0.0042,
+                              -0.9998
                             ],
                             "scale": [
                               1,
@@ -1995,22 +3793,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              0.0094,
+                              -0.0965,
+                              -0.0108
+                            ],
+                            "left_rotation": [
+                              -0.0632,
+                              -0.0054,
+                              0.0338,
+                              0.9974
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.1193,
-                              0.1957
+                              -0.0112,
+                              -0.0843,
+                              -0.0081
                             ],
                             "left_rotation": [
-                              0.1467,
-                              0,
-                              0,
-                              -0.9892
+                              0.0673,
+                              0.0071,
+                              -0.0169,
+                              -0.9976
                             ],
                             "scale": [
                               1,
@@ -2035,22 +3857,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              0.0109,
+                              -0.2162,
+                              -0.0184
+                            ],
+                            "left_rotation": [
+                              -0.1412,
+                              -0.008,
+                              0.0796,
+                              0.9867
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.133,
-                              0.2303
+                              0.0061,
+                              -0.1865,
+                              -0.0806
                             ],
                             "left_rotation": [
-                              0.1703,
-                              0,
-                              0,
-                              -0.9854
+                              0.1064,
+                              0.0185,
+                              -0.0712,
+                              -0.9916
                             ],
                             "scale": [
                               1,
@@ -2075,22 +3921,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              0.0229,
+                              -0.347,
+                              -0.0004
+                            ],
+                            "left_rotation": [
+                              -0.2329,
+                              -0.0041,
+                              0.136,
+                              0.9629
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.1219,
-                              0.2018
+                              -0.0576,
+                              -0.1983,
+                              -0.3049
                             ],
                             "left_rotation": [
-                              0.1509,
-                              0,
-                              0,
-                              -0.9885
+                              0.0492,
+                              0.0205,
+                              -0.0829,
+                              -0.9951
                             ],
                             "scale": [
                               1,
@@ -2115,22 +3985,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              0.0073,
+                              -0.3714,
+                              0.0058
+                            ],
+                            "left_rotation": [
+                              -0.2597,
+                              0.0034,
+                              0.1673,
+                              0.9511
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.034,
-                              -0.0382
+                              -0.2464,
+                              0.4459,
+                              -0.6859
                             ],
                             "left_rotation": [
-                              -0.0327,
-                              0,
-                              0,
-                              -0.9995
+                              -0.3667,
+                              0.015,
+                              0.0194,
+                              -0.93
                             ],
                             "scale": [
                               1,
@@ -2155,22 +4049,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0178,
+                              -0.2696,
+                              -0.0184
+                            ],
+                            "left_rotation": [
+                              -0.1898,
+                              0.0076,
+                              0.1692,
+                              0.9671
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              0.5425,
-                              -0.2789
+                              -0.2831,
+                              1.328,
+                              -0.0692
                             ],
                             "left_rotation": [
-                              -0.3905,
-                              0,
-                              0,
-                              -0.9206
+                              -0.7877,
+                              -0.0414,
+                              0.1815,
+                              -0.5872
                             ],
                             "scale": [
                               1,
@@ -2195,22 +4113,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0262,
+                              -0.1184,
+                              -0.0412
+                            ],
+                            "left_rotation": [
+                              -0.1184,
+                              -0.0027,
+                              0.1006,
+                              0.9879
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              1.2702,
-                              0.099
+                              0.4755,
+                              1.0801,
+                              1.1133
                             ],
                             "left_rotation": [
-                              -0.8157,
-                              0,
-                              0,
-                              -0.5785
+                              -0.9142,
+                              0.1365,
+                              0.3427,
+                              0.1677
                             ],
                             "scale": [
                               1,
@@ -2235,22 +4177,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0205,
+                              0.124,
+                              -0.0239
+                            ],
+                            "left_rotation": [
+                              -0.0042,
+                              -0.0004,
+                              -0.0169,
+                              0.9998
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              1.064,
-                              1.1283
+                              0.495,
+                              -0.1784,
+                              0.7343
                             ],
                             "left_rotation": [
-                              -0.9928,
-                              0,
-                              0,
-                              0.1197
+                              -0.4387,
+                              -0.0057,
+                              0.283,
+                              0.8529
                             ],
                             "scale": [
                               1,
@@ -2275,22 +4241,46 @@
                       "models": [
                         {
                           "type": "minecraft:model",
-                          "model": "donating:item/melee_nunchucks_held"
+                          "model": "donating:item/melee_nunchucks_held",
+                          "transformation": {
+                            "translation": [
+                              -0.0194,
+                              0.3992,
+                              0.0507
+                            ],
+                            "left_rotation": [
+                              0.1822,
+                              0.0337,
+                              -0.1164,
+                              0.9758
+                            ],
+                            "scale": [
+                              1,
+                              1,
+                              1
+                            ],
+                            "right_rotation": [
+                              0,
+                              0,
+                              0,
+                              1
+                            ]
+                          }
                         },
                         {
                           "type": "minecraft:model",
                           "model": "donating:item/melee_nunchucks_flail",
                           "transformation": {
                             "translation": [
-                              0,
-                              -0.1297,
-                              0.7785
+                              0.3829,
+                              0.6269,
+                              -0.2249
                             ],
                             "left_rotation": [
-                              -0.5052,
-                              0,
-                              0,
-                              0.863
+                              0.4221,
+                              -0.1199,
+                              0.1054,
+                              0.8924
                             ],
                             "scale": [
                               1,
@@ -2322,6 +4312,49 @@
                     }
                   ]
                 }
+              }
+            },
+            {
+              "when": [
+                "thirdperson_righthand",
+                "thirdperson_lefthand"
+              ],
+              "model": {
+                "type": "minecraft:composite",
+                "models": [
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_nunchucks_held"
+                  },
+                  {
+                    "type": "minecraft:model",
+                    "model": "donating:item/melee_nunchucks_flail",
+                    "transformation": {
+                      "translation": [
+                        -0.2801,
+                        0.6382,
+                        0
+                      ],
+                      "left_rotation": [
+                        0,
+                        0,
+                        -0.4462,
+                        0.8949
+                      ],
+                      "scale": [
+                        1,
+                        1,
+                        1
+                      ],
+                      "right_rotation": [
+                        0,
+                        0,
+                        0,
+                        1
+                      ]
+                    }
+                  }
+                ]
               }
             }
           ],
