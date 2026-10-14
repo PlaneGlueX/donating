@@ -7,12 +7,12 @@ Combat_Knife:
       Type: "FEATHER"
       Name: "<gold>Combat Knife"
       Lore:
-        - "<gray>Standard military issue, employed for fast, quiet, and deadly wetwork."
+        - "<gray>Short, quick and simple: the street's starter blade."
         - ""
-        - "<gray>Weapon Statistics <gold>-<gray> 29.2"
-        - "<gold>➣<gray> 90 <gold>⟸ <gray>Damage"
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 5 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 1 <gold>⟸ <gray>Hits per second"
         - "<gold>➣<gray> 4 <gold>⟸ <gray>Range in blocks"
-        - "<gold>➣<gray> 80 <gold>⟸ <gray>Mobility"
       Unbreakable: true
       Hide_Flags: true
       Attributes:
@@ -21,27 +21,25 @@ Combat_Knife:
       Deny_Use_In_Crafting: true
     Weapon_Get_Mechanics:
       - "Sound{sound=item.armor.equip_chain, pitch=0.75, listeners=Source{}}"
+    Weapon_Equip_Mechanics:
+      - "Sound{sound=item.armor.equip_chain, volume=0.6, pitch=0.75, listeners=Source{}}"
   Skin:
     Default:
       Custom_Model_Data: -10  # negative numbers work fine for Custom Model Data
   Damage:
     # Donating (owner, 2026-09-26): 4 hits unarmored, 12 in the best gear, like the strongest gun (head
-    # and backstab bonuses 0: the global hit-spot modifiers already count).
+    # and backstab bonuses 0: the global hit-spot modifiers already count). The rule for every melee
+    # (2026-10-13): Base_Damage + any bonus <= 5.0, always under the AK-48's 5.5. The hit sound is in
+    # Mechanics: WeaponMechanics 4.3.1 never reads Damage.Victim_Mechanics, so the knife's hits were silent.
     Base_Damage: 5
     Armor_Damage: 4
-    Victim_Mechanics:
-      Sounds:
-        - "Sound{sound=entity.arrow.shoot} @Target{}"
-        - "Sound{sound=entity.slime.jump} @Target{}"
+    Mechanics:
+      - "Sound{sound=entity.player.attack.sweep, pitch=1.2, volume=0.6} @Target{}"
     Head:
       # Donating: no bonus on top of the global Head modifier (it stacked into 2-hit kills).
       Bonus_Damage: 0
-      Victim_Mechanics:
-        - "Firework{effects=[(shape=BALL, color=RED, flicker=true, trail=true)]} @Source{offset=0 2 0}"
     Backstab:
       Bonus_Damage: 0
-      Victim_Mechanics:
-        - "Firework{effects=[(shape=BURST, color=BLACK, flicker=true, trail=true)]} @Source{offset=0 2 0}"
   Melee:
     Enable_Melee: true
     Melee_Range: 4
@@ -50,14 +48,3 @@ Combat_Knife:
       Mechanics:
         - "Sound{sound=block.anvil.hit, noise=0.1}"
       Melee_Miss_Delay: 20
-
-  # The following options are added by WeaponMechanicsCosmetics, and you will
-  # not see the changes take effect until you purchase it.
-
-  Show_Time:
-    Melee_Miss_Delay:
-      Item_Cooldown: true
-      Exp: true
-    Melee_Hit_Delay:
-      Item_Cooldown: true
-      Exp: true

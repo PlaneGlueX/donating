@@ -1,12 +1,17 @@
-// New melee weapons and consumables (owner, 2026-09-28: "more melee weapons/consumables (dagger,
-// throwable knife, grappler ..., energy drink (15 seconds speed 3, test this one out to balance it)").
-// The damage rule (owner, 2026-09-26): the strongest gun (AK-47, 5.5 a body shot) kills an unarmored
+// Melee weapons and consumables (owner, 2026-09-28: "more melee weapons/consumables (dagger,
+// throwable knife, grappler ..., energy drink (15 seconds speed 3, test this one out to balance it)"; 2026-10-13:
+// "get some melee ideas from pg3d and replace some of the melees we have now").
+// The damage rule (owner, 2026-09-26): the strongest gun (AK-48, 5.5 a body shot) kills an unarmored
 // player in 4 hits and one in the best gear (Tactical Helmet 3 + Heavy Vest 8 = 11 armor points: -66%
-// at Per_Armor_Point -6%) in 10-12, and nothing is stronger. An attacker bot hits a target bot 3 blocks
-// away (each health drop is one hit): the Dagger 4 (5.78 from behind: the AK-47's 5.5 + config.yml's
-// Back +5%), the Baseball Bat 5 with knockback, a Throwing Knife 5 (one used per throw, flying as an
-// item display with custom model data 7004), then the same through the best gear. The Energy Drink
-// gives Speed II for 3 s (owner, 2026-09-28, after Speed III for 15 s was tested), the Bandage heals 6 over 4 s, and both are used up with nothing left behind.
+// at Per_Armor_Point -6%) in 10-12, and nothing is stronger; every melee does base + bonus <= 5.0 (2026-10-13).
+// An attacker bot hits a target bot 3 blocks away (each health drop is one hit): the Karambit (title Dagger) 4,
+// 5.25 from behind (4 + its backstab 1.0, + config.yml's Back +5%), a hit every 12 ticks; the Pipe Wrench (title
+// Baseball_Bat) 5 with knockback, a hit every 28 ticks, 5.75 at the eyes (the Head +15%), landing past 3 blocks on a
+// swing alone (WeaponMechanics' own 4-block reach), and never shoving a passive player, an NPC or anyone toward a
+// heist; a Throwing Knife 5 (one used per throw, flying as an item display with custom model data 7004), then the
+// same through the best gear. The pack draws the melees and consumables 3D in the shop too (no 2D icons). The Energy
+// Drink gives Speed II for 3 s (owner, 2026-09-28, after Speed III for 15 s was tested), the Bandage heals 6 over 4 s,
+// and both are used up with nothing left behind.
 // Balance numbers for the drink: sprint speed over 60 blocks with and without Speed III (and sprint
 // jumping), a Citizens NPC walking at the cops' 1.3 speed, and what those mean for a collapsing floor
 // and a chase (printed in the check details).
@@ -27,13 +32,16 @@ const CHUNKS = `${X0} ${Z0} ${X0 + 100} ${Z0 + 8}`
 const WM = path.join(__dirname, '..', '..', 'server', 'plugins', 'WeaponMechanics')
 const PACK = path.join(__dirname, '..', '..', 'pack', 'assets')
 const LOG = path.join(__dirname, '..', '..', 'server', 'logs', 'latest.log')
+// model = the pack's donating:item/<model> that draws it (3D everywhere, the shop and hotbar too).
 const ITEMS = [
-  { w: 'Dagger', file: 'weapons/melee/Dagger.yml', cmd: 1 },
-  { w: 'Baseball_Bat', file: 'weapons/melee/Baseball_Bat.yml', cmd: 2 },
-  { w: 'Throwing_Knife', file: 'weapons/consumables/Throwing_Knife.yml', cmd: 3, consumable: true },
-  { w: 'Energy_Drink', file: 'weapons/consumables/Energy_Drink.yml', cmd: 4, consumable: true },
-  { w: 'Bandage', file: 'weapons/consumables/Bandage.yml', cmd: 5, consumable: true }
+  { w: 'Dagger', file: 'weapons/melee/Dagger.yml', cmd: 1, model: 'karambit' },
+  { w: 'Baseball_Bat', file: 'weapons/melee/Baseball_Bat.yml', cmd: 2, model: 'pipe_wrench' },
+  { w: 'Throwing_Knife', file: 'weapons/consumables/Throwing_Knife.yml', cmd: 3, model: 'throwing_knife', consumable: true },
+  { w: 'Energy_Drink', file: 'weapons/consumables/Energy_Drink.yml', cmd: 4, model: 'energy_drink', consumable: true },
+  { w: 'Bandage', file: 'weapons/consumables/Bandage.yml', cmd: 5, model: 'bandage', consumable: true }
 ]
+const HEIST = 'zshove' // a disabled heist 2 blocks behind the wrench's target (never shoved toward it)
+const WALL = `${X0 + 13} ${Y} ${Z0 + 3} ${X0 + 13} ${Y + 2} ${Z0 + 6}` // glass right behind the target
 
 module.exports = async ({ check, args = [] }) => {
   const want = s => args.length === 0 || args.includes(s)
@@ -48,11 +56,31 @@ module.exports = async ({ check, args = [] }) => {
         (it.consumable && !/Consume_Item_On_Shoot: true/.test(t))
     })
     check('each new item cancels Q and F, never crafts, has no Dual_Wielding rule, is an amethyst shard with its model number, and consumables are used up', bad.length === 0, bad.map(i => i.w).join(', '))
+    // The melee rule (2026-10-13): Base_Damage + any bonus <= 5.0 (the AK-48 does 5.5), and no keys WeaponMechanics
+    // 4.3.1 never reads (Damage.Victim_Mechanics left the knife's hits silent; Show_Time is the paid Cosmetics add-on's).
+    const melee = ['Combat_Knife', 'Baseball_Bat', 'Dagger'].map(w => {
+      const t = read(`weapons/melee/${w}.yml`).split('\n').filter(l => !l.trim().startsWith('#')).join('\n')
+      const bonus = [...t.matchAll(/Bonus_Damage: ([\d.]+)/g)].reduce((s, x) => s + Number(x[1]), 0) // WeaponMechanics adds them together
+      return { w, top: Number((t.match(/Base_Damage: ([\d.]+)/) || [])[1]) + bonus, dead: /Victim_Mechanics|Show_Time/.test(t) }
+    })
+    check('every melee does at most 5.0 a hit with its bonuses, and keeps no keys WeaponMechanics never reads', melee.every(x => x.top <= 5 && !x.dead), melee.map(x => `${x.w} ${x.top}${x.dead ? ' (dead keys)' : ''}`).join(', '))
     const shard = JSON.parse(fs.readFileSync(path.join(PACK, 'minecraft', 'items', 'amethyst_shard.json'), 'utf8'))
     const entries = (shard.model && shard.model.entries) || []
-    const drawn = ITEMS.filter(it => entries.some(e => e.threshold === it.cmd && JSON.stringify(e.model).includes('donating:item/')))
+    // A 3D model that sets its own shop and hotbar view (display.gui), like the Drill and the Safe Kit.
+    const has3dGui = name => {
+      try {
+        const m = JSON.parse(fs.readFileSync(path.join(PACK, 'donating', 'models', 'item', `${name}.json`), 'utf8'))
+        return Array.isArray(m.elements) && m.elements.length > 0 && !!(m.display && m.display.gui)
+      } catch (err) { return false }
+    }
+    // Each entry is a plain model (no 2D icon for the gui).
+    const drawn = ITEMS.filter(it => {
+      const e = entries.find(x => x.threshold === it.cmd)
+      return !!e && /(^|:)model$/.test(e.model.type) && e.model.model === `donating:item/${it.model}` && has3dGui(it.model)
+    })
     const after = entries.find(e => e.threshold === ITEMS.length + 1)
-    check('...and the pack draws each one by its number (a 2D icon in inventories, a 3D model in hand), a plain shard otherwise', drawn.length === ITEMS.length && after && /minecraft:item\/amethyst_shard/.test(JSON.stringify(after.model)) && shard.hand_animation_on_swap === false, drawn.map(i => i.w).join(' '))
+    check('...and the pack draws each one by its number as its 3D model, 3D everywhere, the shop too (a plain model with its own display.gui), a plain shard otherwise', drawn.length === ITEMS.length && after && /minecraft:item\/amethyst_shard/.test(JSON.stringify(after.model)) && shard.hand_animation_on_swap === false,
+      `3D: ${drawn.map(i => i.model).join(' ')}; not: ${ITEMS.filter(i => !drawn.includes(i)).map(i => i.model).join(' ') || 'none'}`)
     const nugget = fs.readFileSync(path.join(PACK, 'minecraft', 'items', 'iron_nugget.json'), 'utf8')
     const proj = read('projectiles/Donating_Projectiles.yml').split(/^(?=\S)/m).find(p => p.startsWith('donating_throwing_knife:')) || ''
     const knife = JSON.parse(fs.readFileSync(path.join(PACK, 'donating', 'models', 'item', 'thrown_knife.json'), 'utf8'))
@@ -60,8 +88,11 @@ module.exports = async ({ check, args = [] }) => {
     check('the thrown knife is an item display (iron nugget, custom model data 7004) and the pack draws it point first, nothing behind the eye', /Type: "ITEM_DISPLAY"/.test(proj) && /Custom_Model_Data: 7004/.test(proj) && /Gravity: 9\.8/.test(proj) &&
       /"threshold": 7004,\s*"model": \{\s*"type": "minecraft:model",\s*"model": "donating:item\/thrown_knife"/.test(nugget) && knifeOk)
     const breeze = fs.readFileSync(path.join(PACK, 'minecraft', 'items', 'breeze_rod.json'), 'utf8')
-    check('the grappler, its hook and its rope have models (breeze_rod: donating:tool_grappler, donating:grapple_hook, donating:grapple_rope)',
-      ['tool_grappler', 'grapple_hook', 'grapple_rope'].every(n => breeze.includes(`"when": "donating:${n}"`) && fs.existsSync(path.join(PACK, 'donating', 'models', 'item', `${n}.json`))))
+    const grappler = ((JSON.parse(breeze).model || {}).cases || []).find(c => c.when === 'donating:tool_grappler')
+    const grappler3d = !!grappler && !/_icon"/.test(JSON.stringify(grappler.model)) && has3dGui('tool_grappler')
+    check('the grappler, its hook and its rope have models (breeze_rod: donating:tool_grappler, donating:grapple_hook, donating:grapple_rope), the grappler 3D in the shop too',
+      ['tool_grappler', 'grapple_hook', 'grapple_rope'].every(n => breeze.includes(`"when": "donating:${n}"`) && fs.existsSync(path.join(PACK, 'donating', 'models', 'item', `${n}.json`))) && grappler3d,
+      `grappler ${grappler ? JSON.stringify(grappler.model) : 'missing'}`)
   }
   if (!['melee', 'throw', 'drink', 'bandage', 'speed', 'cop'].some(want)) return
 
@@ -70,6 +101,7 @@ module.exports = async ({ check, args = [] }) => {
   let a = null
   let b = null
   let npc = null
+  let shoveNpc = null
   try {
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} glass`)
@@ -77,12 +109,16 @@ module.exports = async ({ check, args = [] }) => {
     b = await join(B)
     await cmd(`zzclear ${A}`)
     await cmd(`zzclear ${B}`)
+    await cmd(`zzpassive ${B} off`) // a hard-killed run can leave it on
+    // No natural regeneration: a heal in a hit's tick halved a drop (1.36 - 1), and it padded the Bandage's heal.
+    await cmd('minecraft:gamerule natural_regeneration false')
     await sleep(6500) // a new player can't be hurt until its client says it has loaded (bots never do)
     // Every health drop of the target, in order.
     let drops = []
+    let dropAt = [] // when each drop arrived (ms)
     let last = null
     b.on('health', () => {
-      if (last !== null && b.health < last - 0.01) drops.push(+(last - b.health).toFixed(2))
+      if (last !== null && b.health < last - 0.01) { drops.push(+(last - b.health).toFixed(2)); dropAt.push(Date.now()) }
       last = b.health
     })
     // Mineflayer 4.39 reads the 1.21.9+ velocity packet (already in blocks per tick) as the old 1/8000
@@ -104,13 +140,15 @@ module.exports = async ({ check, args = [] }) => {
       await sleep(600)
       await cmd(`minecraft:effect give ${B} minecraft:health_boost 600 4 true`)
       await cmd(`minecraft:effect give ${B} minecraft:instant_health 1 10 true`)
-      await cmd(`minecraft:effect give ${B} minecraft:saturation 1 10 true`)
+      await cmd(`zzhp ${B} 40`)
       await sleep(400)
       last = b.health
       drops = []
+      dropAt = []
     }
     const target = () => a.players[B] && a.players[B].entity
-    const aim = async (h = 1.0) => { const t = target(); if (t) await a.lookAt(t.position.offset(0, h, 0), true) }
+    // h = the height aimed at above the feet (1.0 the body; 1.6 the eyes, a head hit); who = the entity hit.
+    const aim = async (h = 1.0, who = target) => { const t = who(); if (t) await a.lookAt(t.position.offset(0, h, 0), true) }
     const give = async (w, n, slot) => {
       await cmd(`minecraft:item replace entity ${A} hotbar.${slot} with minecraft:air`)
       await cmd(`wm give ${A} ${w} ${n} {slot:${slot}}`)
@@ -121,17 +159,17 @@ module.exports = async ({ check, args = [] }) => {
     // A new weapon in hand gets 1.5 s before its first swing (a swing right after switching sometimes
     // doesn't land for bots), and the look is sent before the attack.
     let held = -1
-    const hold = async slot => {
+    const hold = async (slot, h = 1.0, who = target) => {
       if (held !== slot) { a.setQuickBarSlot(slot); held = slot; await sleep(1500) }
-      await aim()
+      await aim(h, who)
       await sleep(150)
     }
-    // Swings `gap` ms apart until n hits landed (or ms ran out); returns the drops.
-    const hitsOf = async (slot, n, gap, ms = 8000) => {
-      await hold(slot)
-      const end = Date.now() + ms
+    // Swings `gap` ms apart until n hits landed (or 8 s ran out); returns the drops.
+    const hitsOf = async (slot, n, gap, h = 1.0) => {
+      await hold(slot, h)
+      const end = Date.now() + 8000
       while (drops.length < n && Date.now() < end) {
-        await aim()
+        await aim(h)
         const t = target()
         if (t) a.attack(t)
         await sleep(gap)
@@ -139,18 +177,29 @@ module.exports = async ({ check, args = [] }) => {
       await sleep(300)
       return drops.slice(0, n)
     }
-    // Exactly n swings `gap` ms apart; returns every drop.
-    const swing = async (slot, n, gap) => {
-      await hold(slot)
+    // Exactly n swings `gap` ms apart at who (the target bot by default); returns every drop of the target bot.
+    const swing = async (slot, n, gap, h = 1.0, who = target) => {
+      await hold(slot, h, who)
       for (let i = 0; i < n; i++) {
-        await aim()
-        const t = target()
+        await aim(h, who)
+        const t = who()
         if (t) a.attack(t)
         await sleep(gap)
       }
       await sleep(400)
       return drops.slice()
     }
+    // Past 3 blocks a real client sends no attack packet, only the swing: Paper's LEFT_CLICK_AIR, where
+    // WeaponMechanics traces its own Melee_Range. One swing at the target `dist` blocks away (centre to centre).
+    const swingOnly = async (slot, dist) => {
+      await place(dist)
+      await heal()
+      await hold(slot)
+      a.swingArm()
+      await sleep(900)
+      return drops.slice()
+    }
+    const flat = (p, q) => Math.hypot(p.x - q.x, p.z - q.z)
     const near = (l, v, tol = 0.06) => l.length > 0 && l.every(d => Math.abs(d - v) <= tol)
     const shots = d => Math.ceil(20 / d)
     const armor = async on => {
@@ -198,33 +247,101 @@ module.exports = async ({ check, args = [] }) => {
         await armor(armored)
         await place()
         await heal()
-        const dag = await hitsOf(0, 3, 600)
-        check(`Dagger, ${tag}: ${(4 * m).toFixed(2)} a hit (${shots(4 * m)} hits), a hit every 10 ticks`, dag.length === 3 && near(dag, 4 * m), `drops ${dag.join(', ')}`)
+        // 700 ms apart: the 12-tick limit is 600 ms.
+        const kar = await hitsOf(0, 3, 700)
+        check(`Karambit, ${tag}: ${(4 * m).toFixed(2)} a hit (${shots(4 * m)} hits), a hit every 12 ticks`, kar.length === 3 && near(kar, 4 * m), `drops ${kar.join(', ')}`)
         if (!armored) {
           await heal()
-          const fast = await swing(0, 4, 230)
-          check('...hits faster than 10 ticks apart don\'t land (2 of 4 swings 230 ms apart)', fast.length === 2 && near(fast, 4), `drops ${fast.join(', ')}`)
+          // Swings every 250 ms (5 ticks): a 12-tick pace lands every 3rd (~750 ms apart), a 10-tick one every 2nd (~500).
+          const fast = await swing(0, 8, 250)
+          const gaps = dropAt.slice(1).map((t, i) => t - dropAt[i])
+          check('...a hit every 12 ticks: of 8 swings 250 ms apart exactly 3 land, 580-900 ms apart', fast.length === 3 && near(fast, 4) && gaps.length === 2 && gaps.every(g => g >= 580 && g <= 900), `drops ${fast.join(', ')}; gaps ${gaps.join(', ')} ms`)
         }
         await place(3, true)
         await heal()
-        const back = await hitsOf(0, 2, 600)
-        check(`...from behind ${(5.5 * mb).toFixed(2)} (${shots(5.5 * mb)} hits): an AK-47 shot in the back, never more`, back.length === 2 && near(back, 5.5 * mb), `drops ${back.join(', ')}`)
+        const back = await hitsOf(0, 2, 700)
+        check(`...from behind ${(5 * mb).toFixed(2)} (${shots(5 * mb)} hits): never more than an AK-48 shot in the back (5.78)`, back.length === 2 && near(back, 5 * mb), `drops ${back.join(', ')}`)
         await place()
         await heal()
         const before = b.entity.position.clone()
-        const bat = await hitsOf(1, 1, 1600)
+        const wr = await hitsOf(1, 1, 1600)
         const moved = b.entity.position.minus(before)
         const push = Math.sqrt(moved.x * moved.x + moved.z * moved.z)
-        check(`Baseball Bat, ${tag}: ${(5 * m).toFixed(2)} a hit (${shots(5 * m)} hits), knocked back 2.5-6 blocks`, bat.length === 1 && near(bat, 5 * m) && push >= 2.5 && push <= 6 && moved.x > 0, `drops ${bat.join(', ')}; pushed ${push.toFixed(2)} blocks (dx ${moved.x.toFixed(2)}, dy ${moved.y.toFixed(2)})`)
+        check(`Pipe Wrench, ${tag}: ${(5 * m).toFixed(2)} a hit (${shots(5 * m)} hits), knocked back 2.5-6 blocks`, wr.length === 1 && near(wr, 5 * m) && push >= 2.5 && push <= 6 && moved.x > 0, `drops ${wr.join(', ')}; pushed ${push.toFixed(2)} blocks (dx ${moved.x.toFixed(2)}, dy ${moved.y.toFixed(2)})`)
         if (!armored) {
           // A glass wall right behind the target keeps it in reach after the knockback.
-          const wall = `${X0 + 13} ${Y} ${Z0 + 3} ${X0 + 13} ${Y + 2} ${Z0 + 6}`
-          await cmd(`fill ${wall} glass`)
+          await cmd(`fill ${WALL} glass`)
           await place(2)
           await heal()
           const slow = await swing(1, 3, 800)
-          await cmd(`fill ${wall} air`)
+          await cmd(`fill ${WALL} air`)
           check('...one hit per 28 ticks (3 swings 800 ms apart: the 1st and the 3rd land)', slow.length === 2 && near(slow, 5), `drops ${slow.join(', ')}`)
+
+          // A level swing usually lands at eye height: the head (config.yml's Head +15%).
+          await place()
+          await heal()
+          const head = await hitsOf(1, 1, 1600, 1.6)
+          check('...aimed at the eyes it\'s a head hit: 5.75 (still 4 hits)', head.length === 1 && near(head, 5.75), `drops ${head.join(', ')}`)
+
+          // Reach on a swing alone (each swingOnly places the pair again: the miss delay, 28 ticks, is long over).
+          const reach = await swingOnly(1, 3.6)
+          check('...a swing alone (no attack packet, as a real client sends past 3 blocks) lands at 3.6 blocks: 5', reach.length === 1 && near(reach, 5), `drops ${reach.join(', ')}`)
+          const far = await swingOnly(1, 4.5)
+          check('...and nothing lands at 4.5 blocks (its range is 4)', far.length === 0, `drops ${far.join(', ')}`)
+
+          // A passive player: no hit (pvp.sk cancels it), so no shove (items.sk only sees hits that land).
+          await cmd(`zzpassive ${B} on`)
+          await place()
+          await heal()
+          const p0 = b.entity.position.clone()
+          const pas = await swing(1, 1, 1600)
+          const pMoved = flat(b.entity.position, p0)
+          await cmd(`zzpassive ${B} off`)
+          check('...a passive player takes no hit and no shove', pas.length === 0 && pMoved < 0.3, `drops ${pas.join(', ')}; moved ${pMoved.toFixed(2)} blocks`)
+
+          // A heist 2 blocks behind the target, along the shove (disabled: heistAt still sees its region).
+          await cmd(`dheist delete ${HEIST} confirm`)
+          await cmd(`zzregion heist_${HEIST} ${X0 + 15} ${Y - 1} ${Z0 + 2} ${X0 + 20} ${Y + 5} ${Z0 + 7}`)
+          const made = await cmd(`dheist create ${HEIST} 1`)
+          await place()
+          await heal()
+          const h0 = b.entity.position.clone()
+          const hs = await hitsOf(1, 1, 1600)
+          const hMoved = flat(b.entity.position, h0)
+          await cmd(`dheist delete ${HEIST} confirm`)
+          await cmd(`rg remove -w world heist_${HEIST}`)
+          check('...never shoves anyone toward a heist: the hit lands (5) but no push with a heist 2 blocks behind the target', /created/.test(made) && hs.length === 1 && near(hs, 5) && hMoved < 0.3, `${made.trim()}; drops ${hs.join(', ')}; moved ${hMoved.toFixed(2)} blocks`)
+
+          // A Citizens NPC (a cop or a hit target is one) in the target's spot: hit, never shoved.
+          await cmd(`minecraft:tp ${B} ${X0 + 40.5} ${Y} ${Z0 + 0.5}`)
+          const spot = new Vec3(AX + 3, Y, Z)
+          const mark = fs.readFileSync(LOG, 'utf8').length
+          await cmd(`zzconsole npc create ItmShove --at ${spot.x},${Y},${Z},world --type PLAYER`)
+          await sleep(1500)
+          const npcMade = fs.readFileSync(LOG, 'utf8').slice(mark).match(/ItmShove[^\n]*?ID (\d+)|ID (\d+)[^\n]*ItmShove/)
+          shoveNpc = npcMade ? (npcMade[1] || npcMade[2]) : (((await cmd('zznpcs')).match(/id=(\d+) ItmShove /) || [])[1] || null)
+          let nHp0 = NaN
+          let nHp1 = NaN
+          let nMoved = null
+          if (shoveNpc) {
+            await cmd(`zzconsole npc vulnerable --id ${shoveNpc}`)
+            await cmd(`minecraft:tp ${A} ${AX} ${Y} ${Z} -90 0`)
+            await sleep(3600) // pvp.sk's teleport immunity (3 s)
+            await cmd(`zzshieldoff ${A}`)
+            // Health in hearts (zznpcs). The hit takes 2.5 from a full 10; a fed NPC heals every 10 ticks (5/6, 4/6,
+            // 3/6 ... HP) before the read, so the check asks for 1 heart: any drop at all means the hit landed.
+            const npcHp = async () => Number(((await cmd('zznpcs')).match(new RegExp(`id=${shoveNpc} [^|]*hp=([\\d.]+)`)) || [])[1])
+            const npcAt = () => Object.values(a.entities).find(e => e.type === 'player' && e.username !== A && e.username !== B && e.position.distanceTo(spot) < 8)
+            const n0 = npcAt() ? npcAt().position.clone() : null
+            nHp0 = await npcHp()
+            await swing(1, 1, 300, 1.0, npcAt)
+            nHp1 = await npcHp()
+            const n1 = npcAt()
+            nMoved = n0 && n1 ? flat(n1.position, n0) : null
+            await cmd(`zzconsole npc remove ${shoveNpc}`)
+            shoveNpc = null
+          }
+          check('...and never shoves a cop or another NPC: the hit lands on a Citizens NPC, which stays put', nHp0 - nHp1 >= 1.0 && nMoved !== null && nMoved < 0.3, `hp ${nHp0} -> ${nHp1} hearts (the hit 2.5, less up to ~1 of regeneration); moved ${nMoved === null ? '?' : nMoved.toFixed(2)} blocks`)
         }
       }
       if (want('throw')) {
@@ -269,7 +386,7 @@ module.exports = async ({ check, args = [] }) => {
     if (want('bandage')) {
       await cmd(`minecraft:effect clear ${A}`)
       await give('Bandage', 2, 4)
-      await cmd(`zzhp ${A} 8`) // 8 health, food 10: no natural regeneration
+      await cmd(`zzhp ${A} 8`) // 8 health (natural regeneration is off for this scenario)
       await sleep(500)
       const hp0 = a.health
       await drink(4)
@@ -369,7 +486,16 @@ module.exports = async ({ check, args = [] }) => {
         `NPC ${npc || 'not made'}: ${pace ? pace.toFixed(2) : '?'} b/s; 3 s of Speed II sprinting gains ${gap(speeds.sprint3)} blocks on it (plain sprinting ${gap(speeds.sprint)}; sprint-jumping ${gap(speeds.jump)}, with Speed II ${gap(speeds.jump3)})`)
     }
   } finally {
+    await cmd('minecraft:gamerule natural_regeneration true').catch(() => {})
     if (npc) await cmd(`zzconsole npc remove ${npc}`).catch(() => {})
+    if (shoveNpc) await cmd(`zzconsole npc remove ${shoveNpc}`).catch(() => {})
+    // By name too: an NPC whose id was never found (Citizens spawns it late) is saved and would outlive the test.
+    if (want('melee')) await cmd('zzconsole npc remove ItmShove').catch(() => {})
+    if (want('cop')) await cmd('zzconsole npc remove ItmPace').catch(() => {})
+    await cmd(`zzpassive ${B} off`).catch(() => {})
+    await cmd(`dheist delete ${HEIST} confirm`).catch(() => {})
+    await cmd(`rg remove -w world heist_${HEIST}`).catch(() => {})
+    await cmd(`fill ${WALL} air`).catch(() => {})
     await cmd(`minecraft:clear ${A}`).catch(() => {})
     await cmd(`minecraft:clear ${B}`).catch(() => {})
     await cmd(`minecraft:effect clear ${A}`).catch(() => {})

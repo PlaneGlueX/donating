@@ -8,111 +8,36 @@
       {
         "threshold": 1,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/dagger_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/dagger"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/karambit"
         }
       },
       {
         "threshold": 2,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/bat_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/bat"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/pipe_wrench"
         }
       },
       {
         "threshold": 3,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/throwing_knife_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/throwing_knife"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/throwing_knife"
         }
       },
       {
         "threshold": 4,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/energy_drink_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/energy_drink"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/energy_drink"
         }
       },
       {
         "threshold": 5,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/bandage_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/bandage"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/bandage"
         }
       },
       {

@@ -2,31 +2,10 @@
 // with custom model data -1). Our auto-injector (2026-09-29): a fat glass vial of lime stim between steel
 // collars, a white grip with a black band and a pocket clip, a big red push button on top and an orange
 // needle shroud with the needle below. Next to the Energy Drink (black and lime) and the Bandage (white
-// and red). Held upright like any item (vanilla's generated display, HELD, like the Energy Drink).
-module.exports = ({ solid, icon, iconOr3d, display, art, bar, HELD }) => {
+// and red). Held upright like any item (vanilla's generated display, HELD, like the Energy Drink); 3D in the shop
+// and the hotbar too (its gui transform; no 2D icon since 2026-10-13).
+module.exports = ({ solid, display, bar, HELD }) => {
   const name = 'stim'
-  icon(name, art([
-    '..............k.',
-    '.............kNk',
-    '...........kkNk.',
-    '..........kOOk..',
-    '.........kOOok..',
-    '........kSSSDk..',
-    '.......kMLLlk...',
-    '......kMLLlk....',
-    '.....kMLLlk.....',
-    '....kSSSDk......',
-    '...kWWWwk.......',
-    '..kBBBBk........',
-    '.kRRrkk.........',
-    'kRRrk...........',
-    '.kkk............',
-    '................'
-  ], {
-    N: [236, 240, 246, 255], O: [236, 124, 36, 255], o: [180, 84, 20, 255], S: [182, 188, 200, 255], D: [112, 118, 132, 255],
-    M: [200, 255, 160, 255], L: [124, 252, 60, 255], l: [72, 176, 30, 255], W: [236, 238, 240, 255], w: [190, 196, 206, 255],
-    B: [36, 36, 40, 255], R: [214, 48, 52, 255], r: [150, 30, 34, 255]
-  }))
   // Swatches: 0-1 white grip, its shade; 2-3 red button, dark; 4-6 steel light, mid, dark; 7-9 lime, dark,
   // light; 10-11 orange, dark; 12 glass; 13 black band.
   const colors = [
@@ -60,7 +39,10 @@ module.exports = ({ solid, icon, iconOr3d, display, art, bar, HELD }) => {
     // Third person: the needle forward (a stab), a bit bigger than a plain item so it reads.
     thirdperson: { rotation: [180, 0, 0], translation: [0, 1, 1], scale: [0.65, 0.65, 0.65] },
     ground: HELD.ground,
+    // On the slot's diagonal, needle upper right and the red button lower left: spun 35° about its length so the
+    // dose marks and the clip show, then laid over (z 135) and tipped 15° so the button's top shows.
+    gui: { rotation: [11, 24, 129], translation: [0.15, 0.1, 0], scale: [1.2, 1.2, 1.2] },
     fixed: HELD.fixed
   }, true)) // plain mirror: an injector has no front
-  return { '-1': iconOr3d(name) }
+  return { '-1': { type: 'minecraft:model', model: `donating:item/${name}` } }
 }

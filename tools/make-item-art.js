@@ -4,8 +4,8 @@
 //   - ammo icons: light (pistol/SMG rounds), shells (shotgun), rifle
 //   - the XP bar as a brass ammo belt (the XP bar shows the held gun's ammo, hud.sk)
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
-//   - melee weapons and consumables (dagger, bat, throwing knife, energy drink, bandage) and the Grappler:
-//     icons and 3D models, and the thrown knife in flight
+//   - melee weapons and consumables (karambit, pipe wrench, throwing knife, energy drink, bandage) and the
+//     Grappler: 3D models (in menus too), and the thrown knife in flight
 //   - the sold WeaponMechanics guns (.50 GS, Uzi, AK-47, R9-0), the Combat Knife and the Stim, each in its
 //     own module in tools\guns\ (items/feather.json; preview with tools\render-item.js)
 // and the JSON that wires them up. Items are picked by their first custom_model_data string
@@ -606,17 +606,19 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
 // Throwing_Knife.yml, Energy_Drink.yml and Bandage.yml) are amethyst shards, not feathers (feather.json's
 // numbers are WeaponMechanics' own guns: we only redraw the sold ones, see "The sold guns" at the end of
 // this section): their Skin.Default.Custom_Model_Data 1-5 is the custom_model_data float
-// amethyst_shard.json dispatches on, a 16x16 icon in inventories and a 3D model everywhere else. The
-// Grappler (grapple.sk, a heist tool like the Drill) is a breeze rod picked by the string
-// donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its hook (donating:grapple_hook)
-// and a rope (donating:grapple_rope) are breeze rods too, for item displays. A thrown knife in flight is
-// the bullets' iron nugget with custom model data 7004 (see Bullets).
-// Models are boxes (1 unit = 1/16 block). The dagger, the bat and the knife are built upright and turned
+// amethyst_shard.json dispatches on. Since 2026-10-13 (the owner: melees from PG3D, and the consumables in
+// the 3D style of the Drill and the Safe Kit) the title Dagger draws the Karambit and Baseball_Bat the Pipe
+// Wrench (titles kept, like the guns'), and every one of them is its 3D model everywhere, the shop and the
+// hotbar too (a gui transform each, no 2D icons). The Grappler (grapple.sk, a heist tool like the Drill) is
+// a breeze rod picked by the string donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its
+// hook (donating:grapple_hook) and a rope (donating:grapple_rope) are breeze rods too, for item displays.
+// A thrown knife in flight is the bullets' iron nugget with custom model data 7004 (see Bullets).
+// Models are boxes (1 unit = 1/16 block). The wrench and the throwing knife are built upright and turned
 // 45° to lie where a sword sprite does, with vanilla's handheld display, so they sit in the hand like a
-// sword; the can and the bandage are held like any item (vanilla's generated display).
+// sword; the karambit (like the Combat Knife, tools\guns\knife.js) has a display of its own, so its cord
+// wraps keep their own turn; the can and the bandage are held like any item (vanilla's generated display).
 {
   const K = [28, 24, 20, 255]
-  const art = (rows, colors) => { const c = canvas(16, 16); c.draw(rows, { k: K, ...colors }); return c.png() }
   const rgba = c => c.length === 4 ? c : [...c, 255]
   const r = n => Math.round(n * 1000) / 1000
   // A box model: each part is a box with one swatch on every face (or { all, up, ... } per face, or its
@@ -664,106 +666,100 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
     fixed: { rotation: [0, 180, 0] }
   }
-  // The icon in inventories (donating:item/<name>_icon), the 3D model (donating:item/<name>) elsewhere.
-  const icon = (name, png) => {
-    write(`donating/textures/item/${name}_icon.png`, png)
-    write(`donating/models/item/${name}_icon.json`, { parent: 'minecraft:item/generated', textures: { layer0: `donating:item/${name}_icon` } })
-  }
-  // model: the 3D model to show outside inventories (default: the model of the same name).
-  const iconOr3d = (name, model = name) => ({
-    type: 'minecraft:select',
-    property: 'minecraft:display_context',
-    cases: [{ when: ['gui'], model: { type: 'minecraft:model', model: `donating:item/${name}_icon` } }],
-    fallback: { type: 'minecraft:model', model: `donating:item/${model}` }
-  })
-  const STEEL = { W: [236, 240, 246, 255], S: [182, 188, 200, 255], D: [112, 118, 132, 255] }
   const steel = [[236, 240, 246], [182, 188, 200], [112, 118, 132]] // swatches 0-2: light, mid, dark
   const edge = { all: 1, east: 0, west: 2 } // a blade: light cutting edge, darker back
 
-  // Dagger: a short double-edged blade with a brass guard and a leather grip.
-  icon('dagger', art([
-    '................',
-    '................',
-    '................',
-    '............kkk.',
-    '...........kWWDk',
-    '..........kWSWDk',
-    '.........kWSWDk.',
-    '........kWSWDk..',
-    '...kk..kWSWDk...',
-    '...kYkkWSWDk....',
-    '....kYkSWDk.....',
-    '....kkYyDk......',
-    '...kGgkYyk......',
-    '..kGgkkkYk......',
-    '.kPGk...kk......',
-    '.kkk............'
-  ], { ...STEEL, Y: [226, 182, 76, 255], y: [160, 118, 40, 255], G: [96, 60, 34, 255], g: [140, 94, 56, 255], P: [150, 156, 168, 255] }))
-  solid('dagger', [...steel, [140, 146, 160], [214, 170, 70], [160, 118, 40], [96, 60, 34], [140, 94, 56], [150, 156, 168]], diag([
-    bar(0.8, 0.8, -3.2, -2, 8), // pommel
-    bar(0.6, 0.6, -2, 2.4, 6), // grip
-    bar(0.68, 0.68, -1.2, -0.7, 7), // grip wraps
-    bar(0.68, 0.68, 0.6, 1.1, 7),
-    bar(2.2, 0.9, 2.4, 3.2, { all: 4, up: 5, down: 5 }), // guard
-    bar(1.2, 0.25, 3.2, 9.5, edge), // blade, narrowing to the tip
-    bar(0.85, 0.25, 9.5, 11.4, edge),
-    bar(0.45, 0.2, 11.4, 12.6, edge),
-    bar(0.15, 0.3, 3.5, 9.2, 3) // the fuller down the middle
-  ]), HANDHELD)
+  // Pipe Wrench (title Baseball_Bat, shard 2; from PG3D's Huge Wrench, hand-made): an orange I-beam handle with a
+  // knurled black grip and a hang hole in the butt, a steel-blue heel jaw and a gunmetal hook jaw over an open mouth,
+  // the adjusting nut sticking out of both flats. Built upright (grip around y 0, the jaws opening toward -x: after
+  // diag() up-left in a slot, toward the crosshair in first person). Lit faces are east and up. Overlapping boxes of
+  // different colors never share a face plane (bands, collar, web, nut, ribs and teeth sit 0.05-0.4 proud).
+  solid('pipe_wrench', [
+    [236, 104, 58], [204, 72, 40], [148, 48, 28], // 0-2 orange light, orange, orange dark
+    [40, 40, 46], [62, 62, 70], [96, 96, 106], // 3-5 grip, grip lit, knurl
+    [196, 214, 230], [146, 166, 188], [98, 114, 134], // 6-8 steel-blue light, mid, dark
+    [126, 132, 144], [80, 84, 94], [52, 55, 62], // 9-11 gunmetal light, mid, dark
+    [196, 200, 208], [100, 104, 112], [22, 22, 26] // 12-14 nut light, nut rib, black
+  ], diag([
+    { from: [6.5, -3.6, 6.9], to: [9.5, -2.0, 9.1], c: { all: 1, up: 0, east: 0, down: 2, west: 2 } }, // butt block
+    { from: [7.4, -3.2, 6.85], to: [8.6, -2.4, 9.15], c: 14, dirs: ['north', 'south'] }, // its hang hole
+    { from: [6.8, -2.0, 7.0], to: [9.2, 4.6, 9.0], c: { all: 3, east: 4, up: 4 } }, // grip
+    ...[-1.2, 0.4, 2.0, 3.6].map(y => ({ from: [6.7, y, 6.9], to: [9.3, y + 0.45, 9.1], c: 5 })), // knurl bands
+    { from: [6.6, 4.6, 6.85], to: [9.4, 5.3, 9.15], c: { all: 7, up: 6, down: 8 } }, // collar
+    { from: [7.0, 5.3, 7.2], to: [9.0, 11.0, 8.8], c: { all: 1, east: 0, west: 2 } }, // handle beam
+    { from: [7.6, 5.6, 7.15], to: [8.4, 10.7, 8.85], c: 0, dirs: ['north', 'south'] }, // its I-beam web
+    { from: [6.2, 11.0, 7.0], to: [9.8, 14.4, 9.0], c: { all: 1, up: 0, east: 0, down: 2, west: 2 } }, // frame
+    { from: [7.5, 11.6, 6.6], to: [9.7, 13.2, 9.4], c: { all: 12, down: 13 } }, // adjusting nut
+    ...[11.95, 12.5].map(y => ({ from: [7.45, y, 6.55], to: [9.75, y + 0.25, 9.45], c: 13 })), // its ribs
+    { from: [2.6, 12.6, 7.2], to: [6.2, 14.4, 8.8], c: { all: 7, up: 6, down: 8, west: 6 } }, // heel (lower) jaw
+    ...[2.9, 3.9, 4.9].map(x => ({ from: [x, 14.4, 7.35], to: [x + 0.5, 14.6, 8.65], c: 14 })), // its teeth
+    { from: [7.8, 14.4, 7.3], to: [9.4, 16.6, 8.7], c: { all: 10, east: 9, west: 11 } }, // hook jaw's shank
+    { from: [2.2, 16.6, 7.15], to: [9.4, 18.2, 8.85], c: { all: 10, up: 9, down: 11, east: 9 } }, // hook bar over the mouth
+    { from: [2.2, 16.0, 7.15], to: [3.0, 16.6, 8.85], c: { all: 10, down: 11 } }, // hook lip
+    ...[3.5, 4.5, 5.5].map(x => ({ from: [x, 16.4, 7.3], to: [x + 0.5, 16.6, 8.7], c: 14 })) // its teeth
+  ]), {
+    ...HANDHELD,
+    // Lower, smaller and further in than a sword, so the whole head shows in the lower right (also on 4:3) with the
+    // jaw toward the crosshair, in line with the Karambit and the Combat Knife.
+    firstperson_righthand: { rotation: [0, -90, 25], translation: [-2.5, 1.2, 0.5], scale: [0.6, 0.6, 0.6] },
+    firstperson_lefthand: { rotation: [0, 90, -25], translation: [-2.5, 1.2, 0.5], scale: [0.6, 0.6, 0.6] },
+    // On the slot's diagonal, butt lower left and the L-jaw upper right opening up-left, rolled 30° about its own
+    // length (Rz(45)·Rx(-30)·Rz(-45)): the flats tip toward the client's 3D-item light (facing the camera flat they
+    // get about half of it) and the edge shows, while the jaws' faces stay edge-on, so the mouth stays open (a tilt
+    // about x fills it).
+    gui: { rotation: [-22.2, -20.7, -4.1], translation: [0.42, -0.57, 0], scale: [0.73, 0.73, 0.73] },
+    fixed: { rotation: [0, 180, 0], translation: [-0.4, -0.7, 0], scale: [0.73, 0.73, 0.73] }
+  })
 
-  // Baseball bat: ash wood, black grip tape, a red band.
-  icon('bat', art([
-    '...........kkk..',
-    '..........kLLWk.',
-    '.........kLLWWDk',
-    '........kLLWWDDk',
-    '.......kLLWWDDk.',
-    '......kLLWWDDk..',
-    '......kLWWDDk...',
-    '.....kLRRDDk....',
-    '....kLRRDk......',
-    '...kLWDk........',
-    '...kLDk.........',
-    '..kTtk..........',
-    '.kTtk...........',
-    'kTtk............',
-    'kkTk............',
-    '.kk.............'
-  ], { L: [236, 206, 150, 255], W: [210, 170, 110, 255], D: [160, 118, 70, 255], R: [170, 36, 40, 255], T: [44, 44, 50, 255], t: [80, 80, 90, 255] }))
-  const wood = { all: 1, east: 0, west: 2 }
-  solid('bat', [[232, 198, 140], [206, 166, 106], [166, 126, 76], [186, 146, 92], [40, 40, 46], [72, 72, 82], [170, 36, 40]], diag([
-    bar(1.1, 1.1, -3.6, -2.8, 4), // knob
-    bar(0.7, 0.7, -2.8, 2.2, 4), // grip tape
-    bar(0.75, 0.75, -2, -1.6, 5),
-    bar(0.75, 0.75, -0.4, 0, 5),
-    bar(0.75, 0.75, 1.2, 1.6, 5),
-    bar(0.7, 0.7, 2.2, 5, wood), // handle, widening to the barrel
-    bar(0.95, 0.95, 5, 8.5, wood),
-    bar(1.25, 1.25, 8.5, 11.5, wood),
-    bar(1.6, 1.6, 11.5, 16.8, wood),
-    bar(1.3, 1.3, 16.8, 17.3, 3), // end grain
-    bar(1.65, 1.65, 13.2, 14.2, 6) // band
-  ]), HANDHELD)
+  // Karambit (title Dagger, shard 1; from PG3D's Tactical Knife, hand-made): a finger ring, a black grip with
+  // diagonal cord wraps and a bright steel claw curling over toward -x into a downward hook, the sharp inner
+  // (concave) edge bright, the convex spine dark with two jimping notches. Built upright, ring at the bottom; not
+  // run through diag() (the wraps keep their own 22.5° turn), so it has a display of its own with both hands
+  // written out (the client mirrors a left-hand transform: (-tx, ty, tz), (rx, -ry, -rz)). The blade's steps are
+  // staggered 0.02 in z so overlapping flats never share a plane. The model's middle is off (6.6, 3.8): the gui,
+  // ground and frame translations centre it.
+  solid('karambit', [
+    [228, 236, 248], [176, 184, 198], [112, 120, 134], // 0-2 steel light (inner edge), steel, spine dark
+    [36, 36, 42], [60, 60, 68], [104, 108, 120], // 3-5 grip, grip lit, cord band
+    [154, 160, 172], [204, 210, 220], [72, 76, 86], // 6-8 ring, ring light, bolster
+    [46, 49, 56], // 9 jimping
+    [238, 244, 252] // 10 edge highlight
+  ], [
+    { from: [6.0, -3.6, 7.5], to: [10.0, -2.6, 8.5], c: { all: 6, down: 8 } }, // the finger ring around a 2x2 hole
+    { from: [6.0, -0.6, 7.5], to: [10.0, 0.4, 8.5], c: { all: 6, up: 7 } },
+    { from: [6.0, -2.6, 7.5], to: [7.0, -0.6, 8.5], c: { all: 6, west: 7 } },
+    { from: [9.0, -2.6, 7.5], to: [10.0, -0.6, 8.5], c: { all: 6, east: 7 } },
+    { from: [7.0, 0.4, 7.3], to: [9.0, 5.6, 8.7], c: { all: 3, east: 4 } }, // grip
+    ...[1.0, 2.3, 3.6, 4.9].map(y => ({ from: [6.9, y, 7.2], to: [9.1, y + 0.45, 8.8], c: 5, rot: { angle: 22.5, axis: 'z', origin: [8, y + 0.225, 8] } })), // cord wraps
+    { from: [6.8, 5.6, 7.35], to: [9.2, 6.2, 8.65], c: 8 }, // bolster
+    { from: [7.4, 6.2, 7.6], to: [9.0, 8.4, 8.4], c: { all: 1, east: 2, west: 0 } }, // the claw, stepping over to the hook
+    { from: [6.6, 8.2, 7.62], to: [8.6, 9.8, 8.38], c: { all: 1, east: 2, up: 2, west: 0, down: 0 } },
+    { from: [5.6, 9.6, 7.64], to: [7.8, 10.8, 8.36], c: { all: 1, east: 2, up: 2, west: 0, down: 0 } },
+    { from: [4.6, 10.2, 7.66], to: [6.4, 11.2, 8.34], c: { all: 1, up: 2, down: 0 } },
+    { from: [3.6, 9.4, 7.7], to: [4.8, 10.8, 8.3], c: { all: 1, up: 2, west: 2, east: 0, down: 0 } }, // hook
+    { from: [3.2, 8.6, 7.75], to: [4.2, 9.4, 8.25], c: 0 }, // point
+    ...[6.7, 7.5].map(y => ({ from: [9.0, y, 7.7], to: [9.3, y + 0.4, 8.3], c: 9 })), // jimping on the spine
+    // The bright cutting edge on the flats along the inner curve, 0.05 proud of its step. Flats only: their other
+    // faces lie on their step's own faces (which would z-fight).
+    { from: [7.4, 6.6, 7.55], to: [8.0, 8.4, 8.45], c: 10, dirs: ['north', 'south'] },
+    { from: [6.6, 8.4, 7.57], to: [7.2, 9.8, 8.43], c: 10, dirs: ['north', 'south'] },
+    { from: [5.6, 9.6, 7.59], to: [6.8, 10.1, 8.41], c: 10, dirs: ['north', 'south'] },
+    { from: [4.8, 10.2, 7.61], to: [5.6, 10.65, 8.39], c: 10, dirs: ['north', 'south'] },
+    { from: [4.3, 9.4, 7.65], to: [4.8, 10.2, 8.35], c: 10, dirs: ['north', 'south'] }
+  ], {
+    // Held forward, the ring behind the fist and the claw hooking down in front.
+    thirdperson_righthand: { rotation: [0, -90, 0], translation: [0, 0.5, 1], scale: [0.95, 0.95, 0.95] },
+    thirdperson_lefthand: { rotation: [0, 90, 0], translation: [0, 0.5, 1], scale: [0.95, 0.95, 0.95] },
+    // Blade up in the lower right, the claw curling toward the crosshair (the mirror image in the left hand).
+    firstperson_righthand: { rotation: [0, -70, -10], translation: [-2.5, 6.8, -0.5], scale: [0.85, 0.85, 0.85] },
+    firstperson_lefthand: { rotation: [0, 110, 10], translation: [-2.5, 6.8, -0.5], scale: [0.85, 0.85, 0.85] },
+    // Diagonal: ring lower left with its hole showing, the claw upper right hooking over.
+    gui: { rotation: [10, -25, -40], translation: [3.4, 2.4, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { rotation: [0, 0, -45], translation: [2.4, 3.2, 0], scale: [0.6, 0.6, 0.6] },
+    fixed: { rotation: [0, 180, -45], translation: [-3.2, 1.6, 0], scale: [0.8, 0.8, 0.8] }
+  })
 
   // Throwing knife: slim, no guard, a cord-wrapped handle and a ring at the end.
-  icon('throwing_knife', art([
-    '................',
-    '.............kk.',
-    '............kWDk',
-    '...........kWSDk',
-    '..........kWSDk.',
-    '.........kWSDk..',
-    '........kWSDk...',
-    '.......kWSDk....',
-    '......kkSDk.....',
-    '.....kBBkk......',
-    '....kBbBk.......',
-    '...kBbBk........',
-    '..kkSkk.........',
-    '.kSk.kSk........',
-    '..kSkSk.........',
-    '...kkk..........'
-  ], { ...STEEL, B: [40, 40, 46, 255], b: [170, 40, 44, 255] }))
   const knifeColors = [...steel, [40, 40, 46], [170, 40, 44], [150, 156, 168]]
   solid('throwing_knife', knifeColors, diag([
     bar(1, 0.3, -3.4, -2.9, 5), // the ring
@@ -775,7 +771,12 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     bar(0.8, 0.2, 2.6, 7.5, edge), // blade
     bar(0.55, 0.2, 7.5, 9.2, edge),
     bar(0.25, 0.15, 9.2, 10.2, edge)
-  ]), HANDHELD)
+  ]), {
+    ...HANDHELD,
+    // On the slot's diagonal (ring lower left, point upper right), turned 210° about its own length so the bright
+    // edge shows along the top like the old sprite's; the model's middle is off (4.5, 4.5), hence the translation.
+    gui: { rotation: [-158, -21, -86], translation: [4.75, 4.75, 0], scale: [1.35, 1.35, 1.35] }
+  })
 
   // Energy drink: a black can with a lime bolt. The label and lid are drawn on their own 32x32 texture
   // (2 texels per unit): the side at uv 0,0-6,11 (12x22), the lid at 6,0-12,6 (12x12). The side is shaded
@@ -825,24 +826,6 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     ], { S: [214, 220, 228, 255], s: [176, 182, 192, 255], d: [140, 146, 156, 255], m: [192, 198, 208, 255], K: [40, 40, 44, 255] }, 12, 0)
     write('donating/textures/item/energy_drink_label.png', c.png())
   }
-  icon('energy_drink', art([
-    '................',
-    '.....kkkkkk.....',
-    '....kSWSSSDk....',
-    '....kkkkkkkk....',
-    '....kBBBBBBk....',
-    '....kBBBBLLk....',
-    '....kBBBLLBk....',
-    '....kBBLLBBk....',
-    '....kBLLLLBk....',
-    '....kBBLLBBk....',
-    '....kBLLBBBk....',
-    '....kBLBBBBk....',
-    '....kBBBBBBk....',
-    '....kkkkkkkk....',
-    '....kSWSSSDk....',
-    '.....kkkkkk.....'
-  ], { S: [178, 184, 194, 255], W: [236, 240, 246, 255], D: [120, 126, 138, 255], B: [26, 30, 28, 255], L: [124, 252, 60, 255] }))
   {
     const side = { uv: [0, 0, 6, 11], texture: '#l' }
     solid('energy_drink', [[196, 202, 210], [150, 156, 166], [226, 230, 236]], [
@@ -853,7 +836,11 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
       { from: [5, 11.5, 5.4], to: [5.4, 11.9, 10.6], c: 0 },
       { from: [10.6, 11.5, 5.4], to: [11, 11.9, 10.6], c: 0 },
       { from: [7, 11.5, 6.2], to: [9, 11.7, 8.6], c: 2 } // pull tab
-    ], HELD, { l: 'donating:item/energy_drink_label' })
+    ], {
+      ...HELD,
+      // Upright, the bolt side to the front, turned and tipped a little so a second side and the lid show.
+      gui: { rotation: [20, -30, 0], translation: [0, 1.9, 0], scale: [1.05, 1.05, 1.05] }
+    }, { l: 'donating:item/energy_drink_label' })
   }
 
   // Bandage: a roll of white gauze with red edge stripes and a loose end held by a clip. The roll's axis
@@ -876,24 +863,6 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     }
     write('donating/textures/item/bandage_end.png', c.png())
   }
-  icon('bandage', art([
-    '................',
-    '................',
-    '................',
-    '.....kkkkkk.....',
-    '....kWWWWWWk....',
-    '...kWWggggWWk...',
-    '..kWWgWWWWgWWk..',
-    '..kWgWWggWWgWk..',
-    '..kWgWgWWgWgWk..',
-    '..kWgWWgWWWgWk..',
-    '..kWWgWWWWgWWkk.',
-    '...kWWggggWWkWk.',
-    '....kWWWWWWkWWk.',
-    '.....kkkkkkkWWk.',
-    '...........kRRk.',
-    '...........kkkk.'
-  ], { W: [244, 244, 240, 255], g: [196, 196, 190, 255], R: [214, 48, 52, 255] }))
   {
     // The roll: centre (8, 6.5), radius 3.5, z 5.5-10.5. Each box's end faces show its part of the spiral
     // (south as seen from the front, north mirrored); the three are nested a little in z so their end
@@ -915,29 +884,17 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     }
     parts.push({ from: [11.4, 1.6, 5.8], to: [11.9, 6.5, 10.2], c: { all: 0, east: 1 } }) // the loose end
     parts.push({ from: [11.25, 1.4, 7], to: [12.05, 2.2, 9], c: 3 }) // its clip
-    solid('bandage', [[244, 244, 238], [220, 220, 212], [206, 44, 48], [176, 182, 192]], parts, HELD, { e: 'donating:item/bandage_end' })
+    solid('bandage', [[244, 244, 238], [220, 220, 212], [206, 44, 48], [176, 182, 192]], parts, {
+      ...HELD,
+      // The spiral to the front-left (toward the client's 3D-item light: facing the camera it gets about half of it
+      // and sinks into the slot grey), turned so the loose end and its clip show on the right and the red stripes on
+      // top; about the Drill's and the Safe Kit's size.
+      gui: { rotation: [20, -55, 0], translation: [0, 2.93, 0], scale: [1.25, 1.25, 1.25] }
+    }, { e: 'donating:item/bandage_end' })
   }
 
   // The Grappler: a pistol-grip launcher, an orange launch tube with the hook in its muzzle and a rope drum
   // under it. Built and held like WeaponMechanics' .50 GS (the muzzle toward -x, its display).
-  icon('tool_grappler', art([
-    '................',
-    '................',
-    '.kkkk...........',
-    'kHHHHk..........',
-    'kHkkk.....kkkkk.',
-    'kHk.kkkkkkkGGGGk',
-    'kHHkOOOOOOoGGGGk',
-    'kHHkOOOOOOoGggGk',
-    'kHk.kkkkkkkGGGGk',
-    'kHkkk.kRRRkkGGk.',
-    'kHHHHkkRRRk.kKKk',
-    '.kkkk..kkk.kkKKk',
-    '...........kKKk.',
-    '...........kKKk.',
-    '...........kkkk.',
-    '................'
-  ], { H: [200, 204, 212, 255], O: [236, 124, 36, 255], o: [180, 84, 20, 255], G: [70, 74, 84, 255], g: [110, 114, 124, 255], K: [36, 36, 40, 255], R: [206, 176, 118, 255] }))
   solid('tool_grappler', [
     [70, 74, 84], [104, 110, 122], [46, 49, 56], [36, 36, 40], // 0-3 frame, frame light, frame dark, grip
     [58, 58, 64], [236, 124, 36], [180, 84, 20], [190, 196, 206], // 4-7 grip light, tube, tube dark, steel
@@ -972,7 +929,9 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     firstperson_righthand: { rotation: [0, -90, 0], translation: [-5.75, 5.75, -2.25], scale: [0.7, 0.7, 0.7] },
     firstperson_lefthand: { rotation: [0, 90, 0], translation: [-5.75, 5.75, -2.25], scale: [0.7, 0.7, 0.7] },
     ground: { rotation: [0, 0, -45], translation: [0, 4, 0], scale: [0.7, 0.7, 0.7] },
-    fixed: { rotation: [0, 0, -45], translation: [0.25, 1.75, -0.25], scale: [0.7, 0.7, 0.7] }
+    fixed: { rotation: [0, 0, -45], translation: [0.25, 1.75, -0.25], scale: [0.7, 0.7, 0.7] },
+    // The muzzle to the right and a little toward you, seen from above: the hook, the orange tube and the grip.
+    gui: { rotation: [20, 145, 0], translation: [-1.1, 2.35, 0], scale: [0.8, 0.8, 0.8] }
   })
 
   // The grapple hook, for an item display where the rope holds (no display transform: the model sits
@@ -1012,7 +971,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     { from: [7.6, 7.6, 6 - 2 * i], to: [8.4, 8.4, 8 - 2 * i], c: i % 2, dirs: ['east', 'west', 'up', 'down'] }
   )), {})
 
-  addCase('breeze_rod', 'donating:tool_grappler', iconOr3d('tool_grappler'))
+  addCase('breeze_rod', 'donating:tool_grappler', 'donating:item/tool_grappler')
   addCase('breeze_rod', 'donating:grapple_hook', 'donating:item/grapple_hook')
   addCase('breeze_rod', 'donating:grapple_rope', 'donating:item/grapple_rope')
 
@@ -1087,7 +1046,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 
   // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard.
-  const SHARD = [['dagger', 1], ['bat', 2], ['throwing_knife', 3], ['energy_drink', 4], ['bandage', 5]]
+  const SHARD = [['karambit', 1], ['pipe_wrench', 2], ['throwing_knife', 3], ['energy_drink', 4], ['bandage', 5]]
   write('minecraft/items/amethyst_shard.json', {
     // A drink or a throw lowers the stack: no re-equip dip (like WeaponMechanics' feather.json).
     hand_animation_on_swap: false,
@@ -1096,7 +1055,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
       property: 'minecraft:custom_model_data',
       index: 0,
       entries: [
-        ...SHARD.map(([name, n]) => ({ threshold: n, model: iconOr3d(name) })),
+        ...SHARD.map(([name, n]) => ({ threshold: n, model: { type: 'minecraft:model', model: `donating:item/${name}` } })),
         { threshold: SHARD.length + 1, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
       ],
       fallback: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' }
@@ -1214,7 +1173,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     scale
   })
   const pg = require(path.join(__dirname, 'guns', 'pg.js'))({ write, canvas, shade, display, both })
-  const helpers = { solid, icon, iconOr3d, art, canvas, shade, write, rgba, r, bar, diag, K, STEEL, steel, edge, PAL, HELD, HANDHELD, both, mirror, display, state, aim, pg }
+  const helpers = { solid, canvas, shade, write, rgba, r, bar, diag, K, steel, edge, PAL, HELD, HANDHELD, both, mirror, display, state, aim, pg }
   const feather = []
   // --only <id>[,<id>]: build just these gun modules (previews while drawing one gun: tools\render-item.js on its
   // donating:item/<name>_full); feather.json isn't written then.
