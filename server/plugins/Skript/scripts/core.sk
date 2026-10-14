@@ -1153,15 +1153,17 @@ function loadSettings():
 	set {-cfg::wpn::Combat_Knife::level} to 0
 	# Owner, 2026-09-28: "more melee weapons/consumables (dagger, throwable knife, grappler, energy drink ...)". PROPOSAL
 	# prices and levels. item = the base item WeaponMechanics gives it (a feather when not set): the pack draws these on an
-	# amethyst shard by their model number (tools\make-item-art.js). Damage in their WeaponMechanics files: the bat 5 with
-	# a push, the dagger 4 twice as fast (5.78 from behind, like an AK-47 back shot).
-	set {-cfg::wpn::Baseball_Bat::name} to "Baseball Bat"
+	# amethyst shard by their model number (tools\make-item-art.js). Baseball_Bat = the Pipe Wrench, Dagger = the Karambit
+	# since 2026-10-13 (PG3D-inspired, hand-made; titles kept like the guns'). Every melee: base + bonus <= 5.0. Damage in
+	# their WeaponMechanics files: the wrench 5 with a push (a hit every 28 ticks), the karambit 4 every 12 ticks (5.25 from
+	# behind).
+	set {-cfg::wpn::Baseball_Bat::name} to "Pipe Wrench"
 	set {-cfg::wpn::Baseball_Bat::kind} to "Melee"
 	set {-cfg::wpn::Baseball_Bat::price} to 1000
 	set {-cfg::wpn::Baseball_Bat::model} to 2
 	set {-cfg::wpn::Baseball_Bat::item} to amethyst shard
 	set {-cfg::wpn::Baseball_Bat::level} to 0
-	set {-cfg::wpn::Dagger::name} to "Dagger"
+	set {-cfg::wpn::Dagger::name} to "Karambit"
 	set {-cfg::wpn::Dagger::kind} to "Melee"
 	set {-cfg::wpn::Dagger::price} to 2500
 	set {-cfg::wpn::Dagger::model} to 1
@@ -1329,7 +1331,8 @@ function loadSettings():
 	set {-cfg::tool::grappler::item} to breeze rod
 	set {-cfg::tool::grappler::about} to "Right-click: pull yourself where you aim"
 	set {-cfg::tool::grappler::level} to 30
-	# The Baseball Bat's knockback (items.sk; it was MechanicsCore's Push): blocks a tick along the hit, and up.
+	# The Pipe Wrench's knockback (title Baseball_Bat; items.sk; it was MechanicsCore's Push): blocks a tick along the
+	# hit, and up.
 	set {-cfg::bat::knockback} to 0.75
 	set {-cfg::bat::lift} to 0.3
 	set {-cfg::grapple::range} to 24

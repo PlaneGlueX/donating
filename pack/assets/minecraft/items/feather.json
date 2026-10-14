@@ -8,45 +8,15 @@
       {
         "threshold": -10,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/combat_knife_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/combat_knife"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/combat_knife"
         }
       },
       {
         "threshold": -1,
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/stim_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/stim"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/stim"
         }
       },
       {

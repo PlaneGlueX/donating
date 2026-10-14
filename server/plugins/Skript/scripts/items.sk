@@ -4,9 +4,10 @@
 # Energy Drink (WeaponMechanics consumable Energy_Drink: Speed II for 3 s since the owner's test, 2026-09-28):
 #   - never inside a heist: drinking there is refused, and entering one takes Speed off (heists.sk's heistOnEnter
 #     calls itemsOnEnter). Speed crossed collapsing floors built to be uncrossable, and camera cones.
-# Baseball Bat: its knockback lives here (it was MechanicsCore's Push in Baseball_Bat.yml). Only hits that land
-# (priority monitor), and never when the victim is in a heist or would be shoved into one (outsiders pushed robbers
-# into armor-ignoring traps, and bystanders into a heist whose alarm then hunted them).
+# Pipe Wrench (WeaponMechanics title Baseball_Bat; the Baseball Bat until 2026-10-13): its knockback lives here (it
+# was MechanicsCore's Push in Baseball_Bat.yml). Only hits that land (priority monitor), never on a cop or another NPC
+# (2026-10-13), and never when the victim is in a heist or would be shoved into one (outsiders pushed robbers into
+# armor-ignoring traps, and bystanders into a heist whose alarm then hunted them).
 
 # ---------- Energy Drink ----------
 
@@ -21,13 +22,16 @@ function itemsOnEnter(p: player, h: text):
 	remove speed from {_p}
 	hudBar({_p}, "&7Your energy drink wore off at the door.", 1)
 
-# ---------- Baseball Bat ----------
+# ---------- Pipe Wrench (WeaponMechanics title Baseball_Bat) ----------
 
 on damage of player with priority monitor:
 	attacker is a player
 	attacker is not victim
 	isNpc(attacker) is false
+	isNpc(victim) is false
 	wmTitle(attacker's tool) is "Baseball_Bat"
+	# A melee hit only: a bullet or thrown knife that lands after switching to the wrench is "projectile".
+	damage cause is attack
 	heistOf(victim) is ""
 	set {_ax} to x-coordinate of attacker
 	set {_az} to z-coordinate of attacker

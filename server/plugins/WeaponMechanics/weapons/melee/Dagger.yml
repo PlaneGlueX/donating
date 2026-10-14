@@ -1,3 +1,6 @@
+# Donating (2026-10-13): this title draws the Karambit (from PG3D's Tactical Knife, hand-made); the title kept, like the
+# guns' (50_GS = the Classic Pistol). The rule for every melee: Base_Damage + any bonus <= 5.0 (4 hits unarmored even at
+# x1.30), always under the AK-48's 5.5.
 Dagger:
   Info:
     Cancel:
@@ -7,47 +10,49 @@ Dagger:
       # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
       # draws it by its custom model data (tools\make-item-art.js, Melee weapons and consumables).
       Type: "AMETHYST_SHARD"
-      Name: "<gold>Dagger"
+      Name: "<gold>Karambit"
       Lore:
-        - "<gray>Short, light and quick: twice the pace of a combat knife,"
-        - "<gray>a little less per cut, and nasty from behind."
+        - "<gray>A hooked claw: the quickest cuts, the shortest reach,"
+        - "<gray>and nasty from behind."
         - ""
         - "<gray>Weapon Statistics"
-        - "<gold>➣<gray> 4 <gold>⟸ <gray>Damage (5.8 from behind)"
-        - "<gold>➣<gray> 2 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 4 <gold>⟸ <gray>Damage (5.25 from behind)"
+        - "<gold>➣<gray> 1.7 <gold>⟸ <gray>Hits per second"
         - "<gold>➣<gray> 3.5 <gold>⟸ <gray>Range in blocks"
       Unbreakable: true
       Hide_Flags: true
       Attributes:
         - "movement_speed 0.004"
-        - "attack_speed -2"
+        - "attack_speed -2.33"
       Deny_Use_In_Crafting: true
     Weapon_Get_Mechanics:
-      - "Sound{sound=item.armor.equip_chain, pitch=1.1, listeners=Source{}}"
+      - "Sound{sound=item.armor.equip_chain, pitch=1.4, listeners=Source{}}"
+    Weapon_Equip_Mechanics:
+      - "Sound{sound=item.armor.equip_chain, volume=0.6, pitch=1.4, listeners=Source{}}"
   Skin:
     Default:
       Custom_Model_Data: 1
   Damage:
-    # Donating (owner, 2026-09-28): a quick knife. 4 a hit (5 hits unarmored, 15 in the best gear), a hit
-    # every 10 ticks. From behind 4 + 1.5 = 5.5, the AK-47's base damage, and config.yml's Back +5% makes
-    # it 5.78: exactly an AK-47 shot in the back (4 hits unarmored, 10 in the best gear), so a backstab
-    # is never stronger than the strongest gun (with +2 it would be 6.3: 9 hits through the best gear).
+    # Donating: a quick claw. 4 a hit (5 hits unarmored, 15 in the best gear). From behind 4 + 1.0 = 5.0, and
+    # config.yml's Back +5% makes it 5.25 (4 hits unarmored, 11 in the best gear): never 3 hits, even a back-of-the-head
+    # stab on a sprinting, jumping target (x1.30: 6.5, 19.5 after 3). The Dagger's 1.5 made that 7.15, a 3-hit kill.
+    # A hit every 12 ticks (was 10), so it never out-kills the Classic Pistol (only a 0.1 s tie in the best gear).
     Base_Damage: 4
     Armor_Damage: 3
     Mechanics:
-      - "Sound{sound=entity.player.attack.sweep, pitch=1.6, volume=0.6} @Target{}"
+      - "Sound{sound=entity.player.attack.sweep, pitch=1.7, volume=0.6} @Target{}"
     Head:
       # Donating: no bonus on top of the global Head modifier (like the Combat Knife).
       Bonus_Damage: 0
     Backstab:
-      Bonus_Damage: 1.5
+      Bonus_Damage: 1.0
       Mechanics:
         - "Sound{sound=entity.player.attack.crit, pitch=0.8} @Target{}"
   Melee:
     Enable_Melee: true
     Melee_Range: 3.5
-    Melee_Hit_Delay: 10
+    Melee_Hit_Delay: 12
     Melee_Miss:
       Mechanics:
-        - "Sound{sound=entity.player.attack.nodamage, pitch=1.4, noise=0.1}"
-      Melee_Miss_Delay: 10
+        - "Sound{sound=entity.player.attack.nodamage, pitch=1.5, noise=0.1}"
+      Melee_Miss_Delay: 12

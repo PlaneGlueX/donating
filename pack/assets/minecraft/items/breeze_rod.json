@@ -7,23 +7,8 @@
       {
         "when": "donating:tool_grappler",
         "model": {
-          "type": "minecraft:select",
-          "property": "minecraft:display_context",
-          "cases": [
-            {
-              "when": [
-                "gui"
-              ],
-              "model": {
-                "type": "minecraft:model",
-                "model": "donating:item/tool_grappler_icon"
-              }
-            }
-          ],
-          "fallback": {
-            "type": "minecraft:model",
-            "model": "donating:item/tool_grappler"
-          }
+          "type": "minecraft:model",
+          "model": "donating:item/tool_grappler"
         }
       },
       {

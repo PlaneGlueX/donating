@@ -258,7 +258,8 @@ function storyNeed(id: text) :: number:
 	return 1
 
 function storyOwnsGun(p: player) :: boolean:
-	# A gun, not a melee weapon (the Bat and the Dagger completed "buy a gun" before 2026-10-06).
+	# A gun, not a melee weapon (the Pipe Wrench and the Karambit (titles Baseball_Bat, Dagger) completed "buy a gun"
+	# before 2026-10-06).
 	loop {-cfg::shop::weapons::*}:
 		if {-cfg::wpn::%loop-value%::kind} is not "Melee":
 			if getData({_p}, "wpn::%loop-value%") is true:
