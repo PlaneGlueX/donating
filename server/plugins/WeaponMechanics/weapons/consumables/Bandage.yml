@@ -8,7 +8,7 @@ Bandage:
       Lore:
         - "<gray>Patches you up, slowly."
         - ""
-        - "<gray>Weapon Statistics"
+        - "<gray>Effect"
         - "<gold>➣ <red>♥♥♥ <gold>⟸ <gray>Heal over 4 seconds"
       Unbreakable: true
       Hide_Flags: true

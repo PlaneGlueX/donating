@@ -21,7 +21,8 @@ const png = rel => decodePng(fs.readFileSync(path.join(out, 'assets', 'donating'
 const shift = (c, d) => c.map(v => (v + d) % 256)
 let failed = 0
 for (const g of want) {
-  const name = `gun_${g}`
+  // a gun (gun_<id>) or a pg-kit melee weapon (melee_<id>: katana, knuckles, nunchucks)
+  const name = pg.made[`gun_${g}`] ? `gun_${g}` : `melee_${g}`
   const made = pg.made[name]
   if (!made) { console.log(`${g}: not built`); continue }
   const kept = new Set([...KEEP, ...(made.keep || [])])
@@ -33,7 +34,7 @@ for (const g of want) {
   const theme = d => ({ palette: Object.fromEntries(keys.map(k => [k, shift(made.pal[k], d)])), ink: shift([10, 10, 12], d) })
   pg.paintSkin(name, 'linta', theme(128))
   pg.paintSkin(name, 'lintb', theme(64))
-  const base = png(`${name}_tex.png`); const A = png(`gunskin/${g}/linta.png`); const B = png(`gunskin/${g}/lintb.png`)
+  const base = png(`${name}_tex.png`); const A = png(`gunskin/${name.replace(/^gun_/, '')}/linta.png`); const B = png(`gunskin/${name.replace(/^gun_/, '')}/lintb.png`)
   const at = (im, x, y) => im.px.readUInt32BE((y * im.w + x) * 4)
   // a texel's tile (the tiles never overlap)
   const tileAt = new Map()

@@ -1,8 +1,8 @@
 // Combat Knife (WeaponMechanics weapons\melee\Combat_Knife.yml, Skin Default -10; no Scope or Sprint).
 // Our tactical knife (2026-09-29): a black-coated clip-point blade with a bright ground edge, a sawback
 // spine (diamond teeth), a gunmetal guard with a finger stop, a ribbed black grip and a steel glass
-// breaker on the pommel, and PG3D's two white rivets on the grip (2026-10-13). Apart from the Karambit (bright grey
-// claw, finger ring) at a glance.
+// breaker on the pommel, and PG3D's two white rivets on the grip (2026-10-13). Apart from the Katana (a long bright
+// blade, navy guard, red hilt: tools\guns\katana.js) at a glance.
 // Built blade up along +y (the edge toward -x, the flats facing ±z) and held blade up like WeaponMechanics'
 // knife: in first person the whole knife stands in the lower right, turned a little so the flat shows. 3D in the
 // shop and the hotbar too (its gui transform; no 2D icon since 2026-10-13).

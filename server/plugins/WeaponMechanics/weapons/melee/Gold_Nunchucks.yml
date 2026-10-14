@@ -1,0 +1,56 @@
+# Donating (2026-10-13): the Gold Nunchucks (from PG3D's Double Cashback; one hand: the offhand holds the bag; no chain
+# damage or slow; hand-made). The rule for every melee: Base_Damage + any bonus <= 5.0 (4 hits unarmored even at
+# x1.30), always under the AK-48's 5.5.
+Gold_Nunchucks:
+  Info:
+    Cancel:
+      Drop_Item: true
+      Swap_Hands: true
+    Weapon_Item:
+      # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
+      # draws it by its custom model data (tools\guns\nunchucks.js).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Gold Nunchucks"
+      Lore:
+        - "<gray>Gold-plated and paid for with heist cash."
+        - "<gray>Every hit rings the till."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 3 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 2.2 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 3.5 <gold>⟸ <gray>Range in blocks"
+      Unbreakable: true
+      Hide_Flags: true
+      Attributes:
+        - "movement_speed 0.004"
+        - "attack_speed -1.78"
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_gold, pitch=0.9, listeners=Source{}}"
+    Weapon_Equip_Mechanics:
+      - "Sound{sound=item.armor.equip_gold, volume=0.6, pitch=0.9, listeners=Source{}}"
+  Skin:
+    Default:
+      Custom_Model_Data: 7
+  Damage:
+    # Donating: 3 a hit every 9 ticks (7 hits unarmored, 6 at the head, 20/14 in the best gear). The cash register is the
+    # hit sound (WeaponMechanics plays Damage.Mechanics only for a hit that lands); the gold burst is items.sk's.
+    # MeleeFx: no client swing (a whack hid the twirl below the screen) and the chain's 12-tick clock.
+    Base_Damage: 3
+    Armor_Damage: 2
+    Mechanics:
+      - "Sound{sound=block.chain.place, pitch=1.6, volume=0.5} @Target{}"
+      - "Sound{sound=entity.experience_orb.pickup, pitch=1.25, volume=0.6, delayBeforePlay=2} @Target{}"
+      - "Sound{sound=block.note_block.bell, pitch=1.7, volume=0.45, delayBeforePlay=2} @Target{}"
+    Head:
+      Bonus_Damage: 0
+    Backstab:
+      Bonus_Damage: 0
+  Melee:
+    Enable_Melee: true
+    Melee_Range: 3.5
+    Melee_Hit_Delay: 9
+    Melee_Miss:
+      Mechanics:
+        - "Sound{sound=block.chain.step, pitch=1.4, volume=0.6, noise=0.1}"
+      Melee_Miss_Delay: 9

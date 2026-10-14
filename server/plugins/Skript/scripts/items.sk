@@ -8,6 +8,8 @@
 # was MechanicsCore's Push in Baseball_Bat.yml). Only hits that land (priority monitor), never on a cop or another NPC
 # (2026-10-13), and never when the victim is in a heist or would be shoved into one (outsiders pushed robbers into
 # armor-ignoring traps, and bystanders into a heist whose alarm then hunted them).
+# Gold Nunchucks (WeaponMechanics title Gold_Nunchucks, 2026-10-13): a burst of gold dust on every hit that lands (its
+# cash-register sound is in Gold_Nunchucks.yml). Only hits that land (priority monitor), only between real players.
 
 # ---------- Energy Drink ----------
 
@@ -53,3 +55,20 @@ on damage of player with priority monitor:
 	wait 1 tick
 	victim is alive
 	set velocity of victim to vector({_ux} * cfg("bat::knockback"), cfg("bat::lift"), {_uz} * cfg("bat::knockback"))
+
+# ---------- Gold Nunchucks (WeaponMechanics title Gold_Nunchucks) ----------
+# A burst of gold on every hit that lands (priority monitor: a cancelled hit, like one on a passive player or in a safe
+# zone, never gets here). Only on real players: a hit contract's target and bodyguards are seen by their hunter alone,
+# and particles would show everyone else where they are. The cash-register sound is the weapon file's.
+
+on damage of player with priority monitor:
+	attacker is a player
+	attacker is not victim
+	isNpc(attacker) is false
+	isNpc(victim) is false
+	wmTitle(attacker's tool) is "Gold_Nunchucks"
+	# A melee hit only: a bullet or thrown knife that lands after switching to the nunchucks is "projectile".
+	damage cause is attack
+	set {_l} to (location of victim) ~ vector(0, 1.2, 0)
+	draw 10 rgb(255, 212, 64) dust particles of size 1.1 with offset vector(0.3, 0.35, 0.3) at {_l}
+	draw 6 rgb(214, 158, 30) dust particles of size 0.8 with offset vector(0.4, 0.45, 0.4) at {_l}

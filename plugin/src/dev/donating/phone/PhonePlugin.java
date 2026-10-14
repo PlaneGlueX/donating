@@ -98,6 +98,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final CarCam carCam = new CarCam(this);
     // The guns' first-person animation clock (only with WeaponMechanics: its classes load only then).
     private GunFx gunFx;
+    // The melee weapons' swings and chain clocks (also only with WeaponMechanics).
+    private MeleeFx meleeFx;
     private Nametags nametags; // null without TAB
     /** Personal views (pv.sk): entities tagged this are invisible to everyone before they exist; Skript reveals them. */
     static final String PV_TAG = "donating_pv";
@@ -171,6 +173,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             getServer().getPluginManager().registerEvents(gunFx.spin, this); // the spin guns' spin-up (GunSpin)
             getServer().getPluginManager().registerEvents(gunFx.bag, this); // the offhand hidden while a gun reloads (BagHide)
             getServer().getPluginManager().registerEvents(gunFx.shells, this); // the ends of a shell-by-shell reload (ShellLoad), after GunFx
+            meleeFx = new MeleeFx(this);
+            meleeFx.configure(getConfig());
+            getServer().getPluginManager().registerEvents(meleeFx, this); // the melee weapons' swings (MeleeFx)
         } else getLogger().info("WeaponMechanics not found: no gun animations");
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
         marks.start();
@@ -233,6 +238,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         carSmooth.configure(c);
         carCam.configure(c);
         if (gunFx != null) gunFx.configure(c);
+        if (meleeFx != null) meleeFx.configure(c);
         gps.city(hasCity() ? world : null, x0, z0, imgW, imgH, bpp);
         getLogger().info("GPS roads: " + (gps.roads() == null ? "none" : gps.roads().w + "x" + gps.roads().h + " cells"));
 
@@ -612,10 +618,10 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin"));
+            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
-                case "status", "gps", "mark", "nametag" -> options.addAll(players);
+                case "status", "gps", "mark", "nametag", "melee" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
                 case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel"));
                 case "wall" -> options.addAll(List.of("create", "remove", "repair", "list"));
@@ -670,7 +676,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
         if (args.length >= 2 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) { if (gunFx == null) { sender.sendMessage("GUNSPIN off (no WeaponMechanics)"); return true; } return gunFx.spin.command(sender, args); }
-        if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status()); return true; }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status() + (meleeFx == null ? "" : " " + meleeFx.summary())); return true; }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("melee")) { if (meleeFx == null) { sender.sendMessage("MELEE off (no WeaponMechanics)"); return true; } return meleeFx.command(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunskin")) { if (gunFx == null) { sender.sendMessage("GUNSKIN off (no WeaponMechanics)"); return true; } return gunFx.gunskinCommand(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("steer")) return carSmooth.steer.command(sender, args);
@@ -731,6 +738,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone place set <id> <base|shop|spawn|landmark|garage|quest|heist0-4> <world> <x> <z> <name...> | remove <id> | clear | list: icons on the phone's map (nav.sk)");
             sender.sendMessage("/dphone carsmooth [off|sync|track|all | together on|off | bundle on|off | via-clock on|off] | carprobe <plate> [<ticks>] | carbundle [player]: smoother MTVehicles cars (car stands sent every tick, as far as their driver, resynced together, one bundle per car and tick) and a probe log");
             sender.sendMessage("/dphone cam <player> | cam tune [<key> <value>] | cam probe <player> <ticks>: the chase camera in cars (carcam.sk; the probe logs a row a tick to camprobe.log)");
+            sender.sendMessage("/dphone melee [player]: the melee weapons' swings and chain clocks (MeleeFx), or what a player holds");
             return true;
         }
         load();

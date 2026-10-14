@@ -8,7 +8,7 @@ Energy_Drink:
       Lore:
         - "<gray>A can of pure sugar and bad decisions."
         - ""
-        - "<gray>Weapon Statistics"
+        - "<gray>Effect"
         - "<gold>➣<gray> Speed II <gold>⟸ <gray>for 3 seconds"
       Unbreakable: true
       Hide_Flags: true
