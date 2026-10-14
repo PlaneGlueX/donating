@@ -703,7 +703,7 @@ const render = (what, view, W, H, opts = {}) => {
   const img = renderView(items, view, W || dw, H || dh, opts.swing || null)
   return { png: encode(img.W, img.H, img.px), tris: img.tris }
 }
-module.exports = { render, openSources, makeLoader, resolveItemModel, decodePng }
+module.exports = { render, openSources, makeLoader, resolveItemModel, decodePng, lazyZip }
 
 if (require.main === module) {
   const args = process.argv.slice(2)
