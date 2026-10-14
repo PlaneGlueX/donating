@@ -14,6 +14,7 @@ const rcon = require(path.join(ROOT, 'bots', 'rcon.js'))
 const DATA_VERSION = 4790
 const STRUCT_DIR = path.join(ROOT, 'server', 'world', 'generated', 'donating', 'structure', 'build')
 const PIECE = 48
+const ATTACHED = /(_bed|:ladder|_button|tripwire_hook|:lever|wall_torch|:lantern|_carpet|_candle|short_grass|tall_grass)$/
 
 const parseState = s => {
   const m = /^(?:minecraft:)?([a-z0-9_]+)(?:\[(.*)\])?$/.exec(s)
@@ -100,28 +101,44 @@ async function place (build, { world = 'jailbreak', name = 'build', log = consol
   if (!b) return { pieces: 0, blocks: 0 }
   fs.mkdirSync(STRUCT_DIR, { recursive: true })
   const stamp = Date.now().toString(36)
+  // Two passes: blocks that hang on a neighbour (beds, ladders, hooks, buttons...) go after everything else, or a shape
+  // update turns them to air when their support lands in a piece pasted later. A bed's foot goes with its head's piece.
   const groups = new Map()
   for (const [k, state] of build.blocks) {
     const [x, y, z] = k.split(',').map(Number)
-    const key = `${Math.floor((x - b.x1) / PIECE)},${Math.floor((z - b.z1) / PIECE)}`
+    const { name, props } = parseState(state)
+    const late = ATTACHED.test(name)
+    let gx = x, gz = z
+    if (/_bed$/.test(name) && props.part === 'foot') {
+      const d = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] }[props.facing] || [0, 0]
+      gx += d[0]; gz += d[1]
+    }
+    const key = `${late ? 1 : 0},${Math.floor((gx - b.x1) / PIECE)},${Math.floor((gz - b.z1) / PIECE)}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push({ x, y, z, state })
   }
   const r = await rcon.connect()
   try {
     let n = 0
-    for (const [key, blocks] of groups) {
-      const [gx, gz] = key.split(',').map(Number)
-      const ox = b.x1 + gx * PIECE
-      const oz = b.z1 + gz * PIECE
-      const sx = Math.min(PIECE, b.x2 - ox + 1)
-      const sz = Math.min(PIECE, b.z2 - oz + 1)
+    const keys = [...groups.keys()].sort((p, q) => Number(p[0]) - Number(q[0])) // pass 0 first
+    for (const key of keys) {
+      const blocks = groups.get(key)
+      const [pass, gx, gz] = key.split(',').map(Number)
+      // the piece's own box (a bed's foot may sit one block past the grid cell)
+      let ox = Infinity, oz = Infinity, mx = -Infinity, mz = -Infinity
+      for (const p of blocks) { ox = Math.min(ox, p.x); oz = Math.min(oz, p.z); mx = Math.max(mx, p.x); mz = Math.max(mz, p.z) }
+      const sx = mx - ox + 1, sz = mz - oz + 1
       const sy = b.y2 - b.y1 + 1
-      const file = `${name}_${stamp}_${gx}_${gz}`
+      const file = `${name}_${stamp}_${pass}_${gx}_${gz}`
       fs.writeFileSync(path.join(STRUCT_DIR, `${file}.nbt`), pieceNbt(blocks, ox, b.y1, oz, sx, sy, sz))
       const ex = `execute in minecraft:${world} run`
       await r.cmd(`${ex} forceload add ${ox} ${oz} ${ox + sx - 1} ${oz + sz - 1}`)
-      const out = await r.cmd(`${ex} place template donating:build/${file} ${ox} ${b.y1} ${oz}`)
+      let out = ''
+      for (let t = 0; t < 40; t++) { // a force-loaded chunk loads a tick or more later
+        out = await r.cmd(`${ex} place template donating:build/${file} ${ox} ${b.y1} ${oz}`)
+        if (!/not loaded/i.test(out)) break
+        await new Promise(res => setTimeout(res, 100))
+      }
       await r.cmd(`${ex} forceload remove ${ox} ${oz} ${ox + sx - 1} ${oz + sz - 1}`)
       if (!/loaded template|placed/i.test(out)) throw new Error(`piece ${file}: ${out.trim()}`)
       n++

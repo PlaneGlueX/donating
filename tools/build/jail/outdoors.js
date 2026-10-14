@@ -1,0 +1,861 @@
+// Jailbreak prison, module M1 (jail-spec sections 3, 7.3 and 10): the perimeter and everything outdoors.
+// Brick walls W1..W7, chain-link fences F1..F7 (plus the annex south fence, F4 and the inner vehicle gate fence), the
+// 15 watchtowers (8 in brick walls, 7 lattice towers in fence lines), the front gate with its booth, the open back gate,
+// the RELEASE gate on F6, the roads, the parking lot, the service lane, the yard (field, goals, bleachers, workout pads,
+// paths, scoreboard, floodlights), the plaza and walkway, the picnic annex, the water tower, manholes, lamps, trees and
+// grass, and the easy-escape route with its arrows, lamps and EXIT signs.
+// Every block goes through S(), which writes only inside M1's region (spec 2.1); later parts overwrite earlier ones
+// (towers last: tower bases win over every surface).
+// ---- COMMON (jail-spec 1.7, copy verbatim) ----
+const h = (x, y, z) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 100
+const pick = (x, y, z, mix) => { const v = h(x, y, z); let a = 0; for (const [s, p] of mix) { a += p; if (v < a) return s } return mix[mix.length - 1][0] }
+const MIX = {
+  white: [['white_concrete', 70], ['smooth_quartz', 20], ['calcite', 10]],
+  brick: [['bricks', 85], ['polished_granite', 8], ['terracotta', 7]],
+  asphalt: [['black_concrete', 75], ['black_concrete_powder', 15], ['gray_concrete_powder', 10]],
+  darkstone: [['blackstone', 40], ['cobbled_deepslate', 35], ['polished_basalt', 25]],
+  navy: [['blue_terracotta', 80], ['blue_concrete', 20]]
+}
+// true if column (x,z) is inside or on the main building's outer face
+const inMain = (x, z) => {
+  if (x < 41 || x > 142 || z < 45 || z > 245) return false
+  if (x > 128) return z >= x - 55 && z <= 127 + Math.floor((142 - x) * 3 / 7)       // the east bulge, both chamfers
+  if (x >= 111 && z > 356 - x) return false                                          // SE chamfer (128,228)-(111,245)
+  if (x <= 87 && z > 219 + Math.floor((x - 41) * 26 / 46)) return false              // SW chamfer (41,219)-(87,245)
+  return true
+}
+const ring = (inside, x, z, t) => { if (!inside(x, z)) return false                  // t-thick outer wall ring of a footprint
+  for (let dx = -t; dx <= t; dx++) for (let dz = -t; dz <= t; dz++) if (!inside(x + dx, z + dz)) return true; return false }
+const inUpper = (x, z) => inMain(x, z) && x >= 58 && z <= 192 && (z <= 133 || x <= 122)   // the 3-storey block
+// both halves of a door; y = the lower half. Iron doors can't be opened by hand.
+const door = (b, x, y, z, facing, hinge = 'left', open = false, block = 'iron_door') => {
+  b.set(x, y, z, `${block}[facing=${facing},half=lower,hinge=${hinge},open=${open},powered=false]`)
+  b.set(x, y + 1, z, `${block}[facing=${facing},half=upper,hinge=${hinge},open=${open},powered=false]`) }
+// both parts of a bed; (x,y,z) = the head, the foot is one block opposite to facing. Beds are decoration only.
+const bed = (b, color, x, y, z, facing) => {
+  const d = { north: [0, 1], south: [0, -1], east: [-1, 0], west: [1, 0] }[facing]
+  b.set(x, y, z, `${color}_bed[facing=${facing},part=head,occupied=false]`)
+  b.set(x + d[0], y, z + d[1], `${color}_bed[facing=${facing},part=foot,occupied=false]`) }
+// a diagonal line rasterized 4-connected (an extra cell wherever x and z both change), for fences and bars
+const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Math.abs(z2 - z1)); let px = null, pz = null
+  for (let i = 0; i <= n; i++) { const x = Math.round(x1 + (x2 - x1) * i / n), z = Math.round(z1 + (z2 - z1) * i / n)
+    if (px !== null && x !== px && z !== pz) fn(x, pz); fn(x, z); px = x; pz = z } }
+// ---- end COMMON ----
+void ring; void inUpper; void bed // COMMON helpers M1 doesn't need
+
+// ---------------------------------------------------------------------------------------------------------------------
+// M1's region (2.1): x -40..480, z -30..470, y 62..130, minus the M5 boxes, the main building polygon and its 1-block
+// apron (except the cells of W2 and W3 and F6's end post), and M3's EXIT box.
+const M5 = [[63, -6, 254, 42], [182, 43, 254, 68], [182, 69, 238, 80], [118, 275, 162, 322], [193, 283, 338, 345], [289, 237, 334, 262]]
+const apronMemo = new Map()
+const inApron = (x, z) => {
+  const k = `${x},${z}`
+  let v = apronMemo.get(k)
+  if (v === undefined) {
+    v = false
+    if (!inMain(x, z)) for (let dx = -1; dx <= 1 && !v; dx++) for (let dz = -1; dz <= 1; dz++) if (inMain(x + dx, z + dz)) { v = true; break }
+    apronMemo.set(k, v)
+  }
+  return v
+}
+const inW23 = (x, z) => (x >= 8 && x <= 40 && z >= 72 && z <= 74) || (x >= 129 && x <= 181 && z >= 71 && z <= 73)
+const own = (x, y, z) => {
+  if (y < 62 || y > 130 || x < -40 || x > 480 || z < -30 || z > 470) return false
+  for (const r of M5) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return false
+  if (x >= -7 && x <= -3 && z >= 82 && z <= 86) return false
+  if (inMain(x, z)) return false
+  if (inApron(x, z)) return (inW23(x, z) && y <= 78) || (x === 88 && z === 246)
+  return true
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Geometry shared by the build and by the labels (pure).
+const DIR = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] }
+const OPP = { north: 'south', south: 'north', east: 'west', west: 'east' }
+// [name, x, z, kind, spotlight lens faces, wall-tower door [face, offset along the face], cab doorway]
+const TOWERS = [
+  ['T1', 8, 73, 'wall', 'east', ['east', 2], 'south'],
+  ['T2', 172, 72, 'wall', 'south', ['south', 0], 'west'],
+  ['T3', 261, 72, 'wall', 'south', ['south', 0], 'east'],
+  ['T4', 279, 113, 'wall', 'west', ['west', 0], 'north'],
+  ['T5', 279, 171, 'wall', 'west', ['west', 0], 'south'],
+  ['T6', 279, 235, 'wall', 'west', ['west', 0], 'north'],
+  ['T7', 381, 235, 'wall', 'west', ['south', -2], 'south'],
+  ['T8', 381, 272, 'wall', 'west', ['west', 0], 'north'],
+  ['T9', 381, 347, 'lattice', 'west', null, 'north'],
+  ['T10', 381, 396, 'lattice', 'north', null, 'west'],
+  ['T11', 296, 396, 'lattice', 'north', null, 'east'],
+  ['T12', 248, 396, 'lattice', 'north', null, 'west'],
+  ['T13', 110, 396, 'lattice', 'north', null, 'east'],
+  ['T14', 110, 292, 'lattice', 'north', null, 'east'],
+  ['T15', 75, 292, 'lattice', 'east', null, 'north']
+]
+const inBase = (x, z) => TOWERS.some(t => Math.abs(x - t[1]) <= 4 && Math.abs(z - t[2]) <= 4)
+const inDeck = (x, z) => TOWERS.some(t => Math.abs(x - t[1]) <= 6 && Math.abs(z - t[2]) <= 6)
+
+// Brick walls: [x1, z1, x2, z2, axis, centre] (3 thick = centre ±1). W4 runs to x 280 to close the W4/W5 corner.
+const WALLS = [
+  [7, 73, 9, 213, 'z', 8], [8, 72, 40, 74, 'x', 73], [129, 71, 181, 73, 'x', 72], [239, 71, 280, 73, 'x', 72],
+  [278, 72, 280, 235, 'z', 279], [279, 234, 381, 236, 'x', 235], [380, 235, 382, 347, 'z', 381]
+]
+const BAND = new Map() // "x,z" -> { centre }
+for (const [x1, z1, x2, z2, ax, c] of WALLS) for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) {
+  const k = `${x},${z}`, centre = ax === 'z' ? x === c : z === c
+  BAND.set(k, { centre: centre || (BAND.get(k) || {}).centre || false })
+}
+const inBand = (x, z) => BAND.has(`${x},${z}`)
+
+// Chain-link fences: ordered cells, the outward side (outriggers lean away from the yard), a closed gate's index range.
+const axisCells = (x1, z1, x2, z2) => { const c = []; for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) c.push([x, z]); return c }
+const lineCells = (x1, z1, x2, z2) => { const c = []; line4(x1, z1, x2, z2, (x, z) => c.push([x, z])); return c }
+const F6ALL = lineCells(88, 246, 106, 288)
+const FENCES = [
+  { name: 'F1', cells: axisCells(381, 352, 381, 391), out: [1, 0], plates: true },
+  { name: 'F2 west', cells: axisCells(115, 396, 243, 396), out: [0, 1], plates: true },
+  { name: 'F2 east', cells: axisCells(301, 396, 376, 396), out: [0, 1], plates: true },
+  { name: 'F3', cells: axisCells(110, 297, 110, 391), out: [-1, 0], plates: true },
+  { name: 'F4', cells: axisCells(115, 292, 117, 292), out: [0, 1] },
+  { name: 'F5', cells: lineCells(9, 214, 71, 289).filter(([x, z]) => !inBase(x, z)), out: [-1, 1] },
+  { name: 'F6 north', cells: F6ALL.filter(([x, z]) => z <= 261), out: [-1, 0] },
+  { name: 'F6 south', cells: F6ALL.filter(([x, z]) => z >= 269 && !inBase(x, z)), out: [-1, 0] },
+  { name: 'F7', cells: axisCells(339, 237, 339, 349), out: [1, 0], gate: [26, 29], plates: true },
+  { name: 'annex south', cells: axisCells(340, 349, 376, 349), out: [0, 1], plates: true },
+  { name: 'inner gate', cells: axisCells(163, 322, 192, 322), out: [0, 1], gate: [7, 23] }
+]
+// HIGH VOLTAGE plates every 24 cells, each centred on a post (i % 4 === 0) and 5 cells wide (i-2..i+2), clear of gates
+const plateIndexes = f => {
+  const out = []
+  if (!f.plates) return out
+  for (let i = 16; i + 2 < f.cells.length; i += 24) {
+    if (f.gate && i + 2 >= f.gate[0] - 1 && i - 2 <= f.gate[1] + 1) continue
+    out.push(i)
+  }
+  return out
+}
+
+// The easy-escape route (7.3): E2..E8, painted 5 wide.
+const ROUTE = [[130.5, 197.5], [140.5, 197.5], [140.5, 255.5], [101.5, 255.5], [96.5, 265.5], [92.5, 292.5], [92.5, 418.5]]
+const segDist = (px, pz, a, b) => {
+  const vx = b[0] - a[0], vz = b[1] - a[1], L2 = vx * vx + vz * vz
+  const t = Math.max(0, Math.min(1, ((px - a[0]) * vx + (pz - a[1]) * vz) / L2))
+  return Math.hypot(px - a[0] - t * vx, pz - a[1] - t * vz)
+}
+const routeDist = (x, z) => { let d = Infinity; for (let i = 1; i < ROUTE.length; i++) d = Math.min(d, segDist(x + 0.5, z + 0.5, ROUTE[i - 1], ROUTE[i])); return d }
+const ROUTE_CELLS = new Set()
+const ROUTE_NEAR = new Set() // the route and 2 blocks either side: nothing tall goes there
+for (let x = 84; x <= 146; x++) for (let z = 192; z <= 422; z++) {
+  const d = routeDist(x, z)
+  if (d <= 2.5) ROUTE_CELLS.add(`${x},${z}`)
+  if (d <= 4.5) ROUTE_NEAR.add(`${x},${z}`)
+}
+// EXIT signs at the turns: [post x, z, the face the label is on, text]
+const SIGNS = [[145, 197, 'west', 'EXIT →'], [140, 260, 'north', 'EXIT →'], [97, 254, 'east', 'EXIT ←'], [91, 264, 'east', 'EXIT ←']]
+
+// ---------------------------------------------------------------------------------------------------------------------
+let B = null
+const S = (x, y, z, s) => { if (own(x, y, z)) B.set(x, y, z, s) }
+const G = (x, y, z) => B.get(x, y, z)
+const D = (x, y, z) => { if (own(x, y, z)) B.blocks.delete(`${x},${y},${z}`) }
+const rect = (x1, z1, x2, z2, fn) => { for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) fn(x, z) }
+const asphalt = (x, z) => S(x, 64, z, pick(x, 64, z, MIX.asphalt))
+const white = (x, z) => S(x, 64, z, 'white_concrete')
+const joint = (x, z) => S(x, 64, z, (x % 6 === 0 || z % 6 === 0) ? 'smooth_stone' : 'light_gray_concrete') // concrete with smooth_stone joints
+const PAD = [['lime_concrete_powder', 70], ['grass_block', 30]]
+const PANEL = [['blackstone', 45], ['cobbled_deepslate', 35], ['deepslate_tiles', 20]] // darker than MIX.darkstone, for the tower panels
+
+// ---- lamps, manholes, trees -------------------------------------------------------------------------------------------
+// Lamp post (3.4): a polished_blackstone_wall pole y 65..71 and a 3-lamp head of ochre_froglight (y 72) under
+// polished_blackstone_slab (y 73).
+function lamp (x, z, axis = 'x') {
+  for (let y = 65; y <= 71; y++) S(x, y, z, 'polished_blackstone_wall')
+  for (let k = -1; k <= 1; k++) {
+    const lx = axis === 'x' ? x + k : x, lz = axis === 'x' ? z : z + k
+    S(lx, 72, lz, 'ochre_froglight[axis=y]')
+    S(lx, 73, lz, 'polished_blackstone_slab[type=bottom]')
+  }
+}
+// Manhole: an iron trapdoor cover, ringed by polished_andesite, with a smooth_stone rim.
+function manhole (x, z) {
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+    const r = Math.max(Math.abs(dx), Math.abs(dz))
+    if (r === 2 && Math.abs(dx) + Math.abs(dz) === 4) continue
+    S(x + dx, 64, z + dz, r === 0 ? 'iron_trapdoor[facing=north,half=top,open=false,powered=false,waterlogged=false]' : r === 1 ? 'polished_andesite' : 'smooth_stone')
+  }
+}
+// Cypress: a spruce_log trunk under a stacked spruce_leaves cone (8 tall, 3 wide).
+function cypress (x, z, tall = 8) {
+  S(x, 65, z, 'spruce_log[axis=y]')
+  for (let y = 66; y < 66 + tall; y++) {
+    const k = y - 66
+    const shape = k === 0 || k === tall - 3 || k === tall - 2 ? 'plus' : k === tall - 1 ? 'dot' : 'full'
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      if (shape === 'dot' && (dx || dz)) continue
+      if (shape === 'plus' && dx && dz) continue
+      S(x + dx, y, z + dz, (dx || dz || k >= tall - 3) ? 'spruce_leaves[persistent=true]' : 'spruce_log[axis=y]')
+    }
+  }
+}
+// Round tree: an oak trunk under a ball of oak leaves.
+function oak (x, z) {
+  const cy = 70
+  for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) for (let dz = -3; dz <= 3; dz++) {
+    if (dx * dx + dy * dy + dz * dz > 10.5) continue
+    S(x + dx, cy + dy, z + dz, 'oak_leaves[persistent=true]')
+  }
+  for (let y = 65; y <= 69; y++) S(x, y, z, 'oak_log[axis=y]')
+}
+// A spot is clear for a tree when nothing of ours is there (no paving, no structure) and it's all M1's.
+function clear (x, z, r, top) {
+  for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+    if (ROUTE_NEAR.has(`${x + dx},${z + dz}`)) return false
+    for (let y = 64; y <= top; y++) if (!own(x + dx, y, z + dz) || G(x + dx, y, z + dz)) return false
+  }
+  return true
+}
+function shrub (x, z) {
+  const s = h(x, 1, z) < 50 ? 'oak_leaves[persistent=true]' : 'azalea_leaves[persistent=true]'
+  S(x, 65, z, s)
+  if (h(x, 2, z) < 50) S(x + 1, 65, z, s)
+  if (h(x, 3, z) < 50) S(x, 65, z + 1, s)
+  if (h(x, 4, z) < 40) S(x, 66, z, s)
+}
+
+// ---- roads and ground -------------------------------------------------------------------------------------------------
+function roads () {
+  // Service lane, then the diagonal band between F5 and F6 / the SW chamfer, down to the back gate.
+  rect(10, 75, 39, 212, asphalt)
+  const f5 = new Map(), f6 = new Map()
+  line4(9, 214, 71, 289, (x, z) => f5.set(z, Math.max(f5.get(z) ?? -99, x)))
+  for (const [x, z] of F6ALL) f6.set(z, Math.min(f6.get(z) ?? 999, x))
+  let lastF5 = 9
+  for (let z = 213; z <= 291; z++) {
+    if (f5.has(z)) lastF5 = f5.get(z)
+    const xmin = lastF5 + 1
+    const xmax = z < 246 ? 87 : z <= 288 ? f6.get(z) - 1 : 105
+    for (let x = xmin; x <= xmax; x++) if (!inMain(x, z) && !inApron(x, z)) asphalt(x, z)
+  }
+  for (let x = 81; x <= 104; x++) asphalt(x, 292) // through the back gate
+  // Patrol parking stalls along the building's west face (not in front of its service doors at z 100..101, 116..117).
+  for (let z = 76; z <= 208; z += 4) if (z <= 92 || z >= 124) for (let x = 32; x <= 39; x++) white(x, z)
+  // Back road, gate driveway, south road, highway.
+  rect(82, 293, 103, 418, asphalt)
+  rect(252, 397, 291, 418, asphalt)
+  const crossing = x => (x >= 82 && x <= 103) || (x >= 252 && x <= 291) || (x >= 431 && x <= 466)
+  for (let x = -40; x <= 480; x++) {
+    const jct = x >= 431 && x <= 466
+    for (let z = 419; z <= 441; z++) {
+      if (!jct && z === 430 && ((x % 6) + 6) % 6 < 3) S(x, 64, z, 'yellow_concrete')
+      else if (!jct && ((z === 420 && !crossing(x)) || z === 440)) white(x, z)
+      else asphalt(x, z)
+    }
+    for (const z of [416, 417, 418]) if (!crossing(x)) S(x, 64, z, 'light_gray_concrete')
+    for (const z of [442, 443, 444]) if (!jct) S(x, 64, z, 'light_gray_concrete')
+    if (!crossing(x)) S(x, 65, 418, 'smooth_stone_slab[type=bottom]')
+    if (!jct) S(x, 65, 442, 'smooth_stone_slab[type=bottom]')
+  }
+  for (let z = 300; z <= 470; z++) {
+    if (z >= 419 && z <= 441) continue
+    for (let x = 431; x <= 466; x++) {
+      if (x === 448 || x === 449) S(x, 64, z, 'yellow_concrete')
+      else if (x === 432 || x === 465 || ((x === 440 || x === 457) && ((z % 6) + 6) % 6 < 3)) white(x, z)
+      else asphalt(x, z)
+    }
+  }
+  // Traffic lights at the junction's 4 corners: a pole, an arm over the road, a red/yellow/lime head.
+  for (const [px, pz, dir] of [[429, 417, 1], [468, 417, -1], [429, 443, 1], [468, 443, -1]]) {
+    for (let y = 65; y <= 72; y++) S(px, y, pz, 'polished_blackstone_wall')
+    for (let k = 1; k <= 4; k++) S(px + dir * k, 72, pz, 'polished_blackstone_wall')
+    const hx = px + dir * 4
+    S(hx, 71, pz, 'red_concrete'); S(hx, 70, pz, 'yellow_concrete'); S(hx, 69, pz, 'lime_concrete')
+    S(hx, 68, pz, 'polished_blackstone_slab[type=top]')
+  }
+  // Sidewalk lamps along the south road.
+  for (const x of [-20, 40, 140, 200, 330, 400, 476]) lamp(x, 417)
+  // Vent-exit path from the outlet south to the south road's sidewalk, with 4 lamp posts.
+  rect(-6, 87, -2, 415, (x, z) => S(x, 64, z, 'dirt_path'))
+  for (const z of [120, 200, 280, 360]) lamp(-8, z, 'z')
+  // Lane lamps on its west edge.
+  for (const z of [90, 138, 162, 186]) lamp(11, z, 'z')
+}
+
+function parkingLot () {
+  const median = (x, z) => x >= 147 && x <= 231 && z >= 346 && z <= 350
+  const lot = (x, z) => { if (!median(x, z)) asphalt(x, z) }
+  rect(111, 323, 192, 349, lot)
+  rect(111, 293, 117, 322, lot)
+  rect(193, 346, 338, 349, lot)
+  rect(111, 350, 380, 393, lot)
+  // the strip along the front fence: a sidewalk with a curb, asphalt in front of the gate
+  rect(111, 394, 380, 395, (x, z) => {
+    if (x >= 252 && x <= 292) { asphalt(x, z); return }
+    S(x, 64, z, 'light_gray_concrete')
+    if (z === 394) S(x, 65, z, 'smooth_stone_slab[type=bottom]')
+  })
+  // stalls 4 wide x 8 deep along the south fence: none at the ramp (x 128..175) or the gate (252..292)
+  for (const [a, b] of [[114, 126], [176, 248], [296, 376]]) for (let x = a; x <= b; x += 4) for (let z = 386; z <= 393; z++) white(x, z)
+  // planted median with cypresses and lamps
+  rect(147, 346, 231, 350, (x, z) => {
+    if (x === 147 || x === 231 || z === 346 || z === 350) { S(x, 64, z, 'smooth_stone'); S(x, 65, z, 'smooth_stone_slab[type=bottom]') }
+  })
+  for (let x = 153; x <= 225; x += 12) cypress(x, 348)
+  for (const x of [159, 183, 207]) lamp(x, 348)
+  // lamps every ~24
+  for (const x of [130, 155, 180]) lamp(x, 336)
+  for (const x of [120, 186, 210, 234, 258, 282, 306, 330, 354, 374]) lamp(x, 380)
+  ramp()
+}
+
+// Wooden escape ramp (scenery): spruce slabs and stairs rising west from the ground to a top at y 69, oak trim.
+function ramp () {
+  const k = x => x <= 136 ? 10 : 1 + Math.floor((171 - x) * 9 / 35) // surface = 65 + k/2
+  for (let x = 132; x <= 171; x++) for (let z = 373; z <= 387; z++) {
+    const kk = k(x), full = kk >> 1, side = z === 373 || z === 387
+    if (side) { // oak trim: a full-height oak side with a fence rail along the higher part
+      const n = Math.ceil(kk / 2)
+      for (let y = 65; y < 65 + n; y++) S(x, y, z, 'oak_planks')
+      if (kk >= 4) S(x, 65 + n, z, 'oak_fence')
+      continue
+    }
+    for (let y = 65; y < 65 + full; y++) S(x, y, z, y === 64 + full && kk % 2 === 0 && k(x + 1) === kk - 1 && x < 171 ? 'spruce_stairs[facing=west,half=bottom]' : 'spruce_planks')
+    if (kk % 2 === 1) S(x, 65 + full, z, 'spruce_slab[type=bottom]')
+  }
+}
+
+// ---- yard, plaza, walkway -----------------------------------------------------------------------------------------------
+const PLAZA = (x, z) => (x >= 163 && x <= 192 && z >= 279 && z <= 321) || (x >= 112 && x <= 162 && z >= 265 && z <= 274) ||
+  (x >= 163 && x <= 334 && z >= 265 && z <= 278) || (x >= 335 && x <= 338 && z >= 263 && z <= 282)
+const DIAG = [[140.5, 133], [170, 103]]
+const PATH = (x, z) => (x >= 134 && x <= 147 && z >= 134 && z <= 264) || (x >= 169 && x <= 240 && z >= 98 && z <= 108) ||
+  (x >= 147 && x <= 196 && z >= 185 && z <= 193) || (x >= 185 && x <= 196 && z >= 185 && z <= 243) ||
+  (z >= 98 && z <= 134 && x >= 134 && x <= 176 && segDist(x, z, DIAG[0], DIAG[1]) <= 6.6)
+
+function plazaAndPaths () {
+  // plaza, the strip by the Visitors Building, the walkway and the strip east of it (concrete with joints)
+  rect(112, 263, 338, 321, (x, z) => { if (PLAZA(x, z)) joint(x, z) })
+  manhole(180, 290)
+  // SEASON board, facing north: black board, red cells
+  for (let x = 170; x <= 176; x++) for (let y = 65; y <= 69; y++) {
+    const frame = x === 170 || x === 176 || y === 65 || y === 69
+    S(x, y, 279, frame || (x + y) % 2 ? 'black_concrete' : 'red_concrete')
+  }
+  // yard paths: light_gray_concrete with smooth_stone edges (a path edge is where it meets grass)
+  rect(130, 96, 242, 264, (x, z) => {
+    if (!PATH(x, z)) return
+    const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => !PATH(x + dx, z + dz) && !PLAZA(x + dx, z + dz))
+    S(x, 64, z, edge ? 'smooth_stone' : 'light_gray_concrete')
+  })
+  manhole(191, 243)
+  // walkway and plaza lamps
+  for (const x of [199, 223, 247, 271, 295, 319]) lamp(x, 277)
+  lamp(168, 300); lamp(187, 300)
+  // punch-box footprint decals (x 335..338, leading west to the box)
+  for (const [x, z] of [[338, 255], [337, 253], [336, 255], [335, 253]]) S(x, 64, z, 'gray_concrete')
+}
+
+function field () {
+  // mown stripes: 5-wide bands across the field (grass bands are the world's own grass)
+  rect(200, 128, 260, 232, (x, z) => { if (Math.floor((z - 128) / 5) % 2 === 1) S(x, 64, z, 'moss_block') })
+  for (let z = 128; z <= 232; z++) { white(200, z); white(260, z) }
+  for (let x = 200; x <= 260; x++) { white(x, 128); white(x, 232); white(x, 180) }
+  rect(219, 169, 241, 191, (x, z) => { if (Math.abs(Math.hypot(x - 230, z - 180) - 9) < 0.5) white(x, z) })
+  white(230, 180); white(230, 139); white(230, 221)
+  const outline = (x1, z1, x2, z2) => { for (let x = x1; x <= x2; x++) { white(x, z1); white(x, z2) } for (let z = z1; z <= z2; z++) { white(x1, z); white(x2, z) } }
+  outline(212, 128, 248, 144); outline(212, 216, 248, 232); outline(222, 128, 238, 133); outline(222, 227, 238, 232)
+  // goals 7 wide x 3 tall with white nets: red north (z 128), blue south (z 232)
+  for (const [gz, dz, col] of [[128, -1, 'red_concrete'], [232, 1, 'blue_concrete']]) {
+    for (let y = 65; y <= 67; y++) { S(227, y, gz, col); S(233, y, gz, col) }
+    for (let x = 228; x <= 232; x++) S(x, 67, gz, col)
+    for (let y = 65; y <= 67; y++) {
+      for (let x = 227; x <= 233; x++) S(x, y, gz + 2 * dz, 'white_stained_glass_pane')
+      for (const x of [227, 233]) S(x, y, gz + dz, 'white_stained_glass_pane')
+    }
+  }
+  // floodlight masts at the field corners: 14 tall, 3 sea_lantern heads under a cap
+  for (const [x, z] of [[198, 126], [262, 126], [198, 234], [262, 234]]) {
+    for (let y = 65; y <= 78; y++) S(x, y, z, 'polished_blackstone_wall')
+    for (let k = -1; k <= 1; k++) { S(x + k, 79, z, 'sea_lantern'); S(x + k, 80, z, 'polished_blackstone_slab[type=bottom]') }
+  }
+  // scoreboard on the east side between the bleachers, facing west (team strips on top)
+  for (let z = 169; z <= 177; z++) for (let y = 66; y <= 69; y++) S(272, y, z, y === 69 && z <= 172 ? 'red_concrete' : y === 69 && z >= 174 ? 'blue_concrete' : 'black_concrete')
+  S(272, 65, 170, 'polished_blackstone_wall'); S(272, 65, 176, 'polished_blackstone_wall')
+  // an interior yard fence along the field's west side (4 high) with open 3-wide gaps
+  for (let z = 128; z <= 232; z++) {
+    if ((z >= 150 && z <= 152) || (z >= 188 && z <= 190) || (z >= 208 && z <= 210)) continue
+    const post = z === 128 || z === 232 || z % 4 === 0 || z === 149 || z === 153 || z === 187 || z === 191 || z === 207 || z === 211
+    if (post) for (let y = 65; y <= 68; y++) S(197, y, z, 'diorite_wall')
+    else { for (let y = 65; y <= 67; y++) S(197, y, z, 'iron_bars'); S(197, 68, z, 'iron_chain[axis=z]') }
+  }
+}
+
+// Bleachers: 4 tiers of quartz_stairs seats on smooth_quartz, then a top platform with a rail at the back.
+function bleacher (x1, z1, x2, z2, front) {
+  const back = front === 'south' ? 'north' : 'east'
+  const depth = front === 'south' ? z2 - z1 + 1 : x2 - x1 + 1
+  rect(x1, z1, x2, z2, (x, z) => {
+    const r = front === 'south' ? z2 - z : x - x1
+    if (r <= 7) {
+      const t = r >> 1
+      for (let y = 65; y < 65 + t; y++) S(x, y, z, 'smooth_quartz')
+      S(x, 65 + t, z, r % 2 === 0 ? `quartz_stairs[facing=${back},half=bottom]` : 'smooth_quartz')
+    } else {
+      for (let y = 65; y <= 67; y++) S(x, y, z, 'smooth_quartz')
+      S(x, 68, z, 'quartz_slab[type=top]')
+      const sideEnd = front === 'south' ? x === x1 || x === x2 : z === z1 || z === z2
+      if (r === depth - 1 || sideEnd) S(x, 69, z, 'iron_bars')
+    }
+  })
+}
+
+// Workout pads: lighter grass in a chamfered white outline, trampolines, benches and dumbbell racks.
+function pads () {
+  const pad = (x1, z1, x2, z2, c = 4) => {
+    const inside = (x, z) => x >= x1 && x <= x2 && z >= z1 && z <= z2 && (x - x1) + (z - z1) >= c && (x2 - x) + (z - z1) >= c &&
+      (x - x1) + (z2 - z) >= c && (x2 - x) + (z2 - z) >= c
+    rect(x1, z1, x2, z2, (x, z) => {
+      if (!inside(x, z)) return
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => !inside(x + dx, z + dz))) { white(x, z); return }
+      const s = pick(x, 64, z, PAD)
+      if (s !== 'grass_block') S(x, 64, z, s)
+    })
+  }
+  pad(161, 124, 185, 180); pad(161, 200, 185, 240)
+  const trampoline = (x, z) => {
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+      const a = Math.abs(dx), c = Math.abs(dz)
+      if (a + c > 4) continue
+      if (a <= 2 && c <= 2 && a + c <= 3) { S(x + dx, 64, z + dz, 'slime_block'); S(x + dx, 65, z + dz, 'black_carpet') } else S(x + dx, 64, z + dz, 'polished_andesite')
+    }
+  }
+  trampoline(169, 135); trampoline(170, 168); trampoline(172, 222)
+  const bench = (x, z) => { // a weight bench along x: seat slabs, uprights at the head and a bar across
+    for (let k = 0; k <= 2; k++) S(x + k, 65, z, 'quartz_slab[type=top]')
+    for (const dz of [-1, 1]) { S(x, 65, z + dz, 'iron_bars'); S(x, 66, z + dz, 'iron_bars') }
+    for (let dz = -1; dz <= 1; dz++) S(x, 67, z + dz, 'iron_chain[axis=z]')
+  }
+  bench(176, 140); bench(176, 150); bench(166, 232); bench(176, 212)
+  const rack = (x, z) => { // dumbbells: iron_block ends with iron_chain bars between, two rows
+    for (const dz of [0, 2]) { S(x, 65, z + dz, 'iron_block'); S(x + 3, 65, z + dz, 'iron_block'); S(x + 1, 65, z + dz, 'iron_chain[axis=x]'); S(x + 2, 65, z + dz, 'iron_chain[axis=x]') }
+  }
+  rack(176, 160); rack(166, 152); rack(176, 228); rack(165, 206)
+}
+
+// Benches (quartz stairs, back toward `back`, with smooth_quartz arms) and planters along the plaza, walkway and yard path.
+function bench (x, z, along, back) {
+  const [ax, az] = along === 'x' ? [1, 0] : [0, 1]
+  S(x - ax, 65, z - az, 'quartz_slab[type=bottom]'); S(x + 3 * ax, 65, z + 3 * az, 'quartz_slab[type=bottom]')
+  for (let k = 0; k <= 2; k++) S(x + k * ax, 65, z + k * az, `quartz_stairs[facing=${back},half=bottom]`)
+}
+function planter (x, z) {
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    if (dx || dz) S(x + dx, 65, z + dz, 'smooth_stone_slab[type=bottom]')
+  }
+  S(x, 64, z, 'grass_block'); S(x, 65, z, 'azalea_leaves[persistent=true]'); S(x, 66, z, 'azalea_leaves[persistent=true]')
+}
+function furniture () {
+  bench(164, 296, 'z', 'west'); bench(164, 312, 'z', 'west')
+  planter(189, 284); planter(189, 316); planter(166, 284)
+  for (const x of [205, 255, 305]) bench(x, 264, 'x', 'north')
+  bench(149, 205, 'z', 'east'); bench(149, 233, 'z', 'east'); bench(149, 160, 'z', 'east')
+}
+
+// ---- the picnic annex and the water tower ------------------------------------------------------------------------------
+function annex () {
+  rect(340, 237, 379, 348, joint)
+  const umbrella = (cx, cz) => {
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) if (Math.abs(dx) + Math.abs(dz) <= 4) S(cx + dx, 64, cz + dz, 'sandstone')
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      const r = Math.max(Math.abs(dx), Math.abs(dz))
+      if (r === 1) S(cx + dx, 65, cz + dz, 'birch_slab[type=top]')
+      if (r === 2 && Math.abs(dx) + Math.abs(dz) <= 3) S(cx + dx, 65, cz + dz, 'birch_slab[type=bottom]')
+    }
+    for (let y = 65; y <= 69; y++) S(cx, y, cz, 'oak_fence')
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+      if (Math.abs(dx) + Math.abs(dz) > 6) continue
+      const sector = Math.floor((Math.atan2(dz, dx) + Math.PI) / (Math.PI / 4)) % 2
+      S(cx + dx, 70, cz + dz, sector ? 'blue_concrete' : 'light_blue_concrete')
+      if (Math.abs(dx) + Math.abs(dz) <= 2) S(cx + dx, 71, cz + dz, 'blue_concrete')
+    }
+    S(cx, 72, cz, 'end_rod[facing=up]')
+  }
+  umbrella(355, 247); umbrella(355, 293); umbrella(360, 320)
+  // stacked boxes
+  for (let x = 345; x <= 359; x += 3) for (let z = 328; z <= 342; z += 3) {
+    if (h(x, 0, z) < 25) continue
+    const top = 65 + h(x, 1, z) % 3
+    for (let y = 65; y <= top; y++) {
+      const s = h(x, y, z) % 2 ? 'stripped_oak_wood[axis=y]' : 'packed_mud'
+      rect(x, z, x + 1, z + 1, (bx, bz) => S(bx, y, bz, s))
+    }
+  }
+  lamp(370, 262); lamp(345, 305); lamp(372, 332)
+}
+
+function waterTower (cx = 300, cz = 30) {
+  // 4 legs up to the tank's rounded bottom, iron_chain braces between them at two levels
+  for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) for (let y = 65; y <= 83; y++) S(cx + dx, y, cz + dz, 'polished_blackstone_wall')
+  for (const y of [71, 78]) for (let k = -2; k <= 2; k++) {
+    S(cx + k, y, cz - 3, 'iron_chain[axis=x]'); S(cx + k, y, cz + 3, 'iron_chain[axis=x]')
+    S(cx - 3, y, cz + k, 'iron_chain[axis=z]'); S(cx + 3, y, cz + k, 'iron_chain[axis=z]')
+  }
+  const disc = (y, r, s, hollow = false) => {
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+      const inside = (a, b) => a * a + b * b <= (r + 0.5) * (r + 0.5)
+      if (!inside(dx, dz)) continue
+      if (hollow && inside(dx + 1, dz) && inside(dx - 1, dz) && inside(dx, dz + 1) && inside(dx, dz - 1)) continue
+      S(cx + dx, y, cz + dz, s)
+    }
+  }
+  // the tank, radius 6, y 84..94, rounded top and bottom, a light_blue_terracotta band; a blue cone roof
+  disc(84, 4, 'light_blue_concrete'); disc(85, 5, 'light_blue_concrete', true)
+  for (let y = 86; y <= 92; y++) disc(y, 6, y === 88 || y === 89 ? 'light_blue_terracotta' : 'light_blue_concrete', true)
+  disc(93, 5, 'light_blue_concrete', true); disc(94, 5, 'light_blue_concrete')
+  for (let y = 95, r = 4; r >= 0; y++, r--) disc(y, r, 'blue_concrete')
+}
+
+// ---- brick walls --------------------------------------------------------------------------------------------------------
+function walls () {
+  const ringCells = new Set()
+  for (const [k, v] of BAND) {
+    const [x, z] = k.split(',').map(Number)
+    for (let y = 62; y <= 64; y++) S(x, y, z, 'stone_bricks')
+    for (let y = 65; y <= 66; y++) S(x, y, z, 'polished_deepslate')
+    for (let y = 67; y <= 76; y++) S(x, y, z, y === 71 || y === 73 ? 'orange_terracotta' : pick(x, y, z, MIX.brick))
+    S(x, 77, z, v.centre ? 'deepslate_tiles' : 'polished_blackstone')
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (!inBand(x + dx, z + dz)) ringCells.add(`${x + dx},${z + dz}`)
+  }
+  // the walkway's overhang ledge and its iron_bars railing; where the ledge can't go (another module's region) the
+  // railing stands on the wall's own edge instead
+  for (const k of ringCells) {
+    const [x, z] = k.split(',').map(Number)
+    if (inDeck(x, z)) continue
+    if (own(x, 77, z)) { S(x, 77, z, 'polished_blackstone_slab[type=top]'); S(x, 78, z, 'iron_bars'); continue }
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (inBand(x + dx, z + dz) && !inDeck(x + dx, z + dz)) S(x + dx, 78, z + dz, 'iron_bars')
+  }
+  // pilasters every 12 blocks on both faces: 1 block proud where the ground is free, else flush in the face
+  for (const [x1, z1, x2, z2, ax, c] of WALLS) {
+    for (let a = (ax === 'z' ? z1 : x1); a <= (ax === 'z' ? z2 : x2); a++) {
+      if (a % 12 !== 0) continue
+      for (const side of [-1, 1]) {
+        const fx = ax === 'z' ? c + side : a, fz = ax === 'z' ? a : c + side
+        const px = ax === 'z' ? c + 2 * side : a, pz = ax === 'z' ? a : c + 2 * side
+        if (inDeck(fx, fz)) continue
+        const proud = !inBand(px, pz) && !G(px, 64, pz) && !inDeck(px, pz) && !ROUTE_NEAR.has(`${px},${pz}`) &&
+          [64, 65, 76].every(y => own(px, y, pz))
+        for (let y = 67; y <= 76; y++) S(fx, y, fz, 'polished_deepslate')
+        if (proud) { S(px, 64, pz, 'stone_bricks'); for (let y = 65; y <= 76; y++) S(px, y, pz, 'polished_deepslate') }
+      }
+    }
+  }
+  // C4 weak spot on W5's inside face (x 278, z 133..158): a dashed chalk square and chalk dots
+  for (let z = 133; z <= 158; z++) for (let y = 65; y <= 76; y++) {
+    if (z % 12 === 0) continue
+    const onSquare = (z >= 138 && z <= 153 && y >= 67 && y <= 74) && (z === 138 || z === 153 || y === 67 || y === 74)
+    if (onSquare) { if ((z + y) % 2 === 0) S(278, y, z, 'white_concrete') } else if (h(278, y, z) < 6) S(278, y, z, h(279, y, z) % 2 ? 'white_terracotta' : 'calcite')
+  }
+}
+
+// ---- chain-link fences and gates ----------------------------------------------------------------------------------------
+function fences () {
+  for (const f of FENCES) {
+    const cells = f.cells, on = new Set(cells.map(c => c.join())), n = cells.length
+    for (let i = 0; i < n; i++) {
+      const [x, z] = cells[i]
+      const nb = cells[i + 1] || cells[i - 1]
+      const ax = nb && nb[0] !== x ? 'x' : 'z'
+      const inGate = f.gate && i >= f.gate[0] && i <= f.gate[1]
+      if (inGate) { // a closed sliding gate: iron_bars on a polished_andesite track, light grey top rail
+        S(x, 64, z, 'polished_andesite')
+        for (let y = 65; y <= 70; y++) S(x, y, z, 'iron_bars')
+        S(x, 71, z, 'light_gray_concrete')
+        continue
+      }
+      const post = i % 4 === 0 || i === n - 1 || (f.gate && (i === f.gate[0] - 1 || i === f.gate[1] + 1))
+      let o = null
+      for (const c of [[x + f.out[0], z], [x, z + f.out[1]]]) if ((c[0] !== x || c[1] !== z) && !on.has(c.join())) { o = c; break }
+      S(x, 64, z, 'smooth_stone'); S(x, 65, z, 'polished_andesite')
+      for (let y = 66; y <= 70; y++) S(x, y, z, 'iron_bars')
+      if (post) {
+        for (let y = 65; y <= 72; y++) S(x, y, z, 'diorite_wall')
+        if (o) S(o[0], 72, o[1], 'andesite_wall')
+      } else {
+        S(x, 71, z, `iron_chain[axis=${ax}]`); S(x, 72, z, `iron_chain[axis=${ax}]`)
+        if (o) S(o[0], 72, o[1], `iron_chain[axis=${ax}]`)
+      }
+    }
+    // HIGH VOLTAGE plates every 24: a 3x2 yellow face in a black border (5 wide, y 66..69), set into the mesh at a post
+    for (const i of plateIndexes(f)) for (let k = -2; k <= 2; k++) {
+      const [x, z] = cells[i + k]
+      for (let y = 66; y <= 69; y++) S(x, y, z, Math.abs(k) < 2 && (y === 67 || y === 68) ? 'yellow_concrete' : 'black_concrete')
+    }
+  }
+  // F7's punch-box gate: posts were set at its ends; the panel is the gate range above.
+  // RELEASE gate on F6: andesite_wall posts at the line's cells at z 261 and z 269, a crossbar at y 71 over the gap,
+  // and an orange sign plate on its east side.
+  for (const [x, z] of F6ALL) {
+    if (z === 261 || z === 269) {
+      for (let y = 65; y <= 71; y++) S(x, y, z, 'andesite_wall')
+      D(x, 72, z); D(x - 1, 72, z)
+    }
+    if (z >= 261 && z <= 269) S(x, 71, z, 'andesite_wall')
+  }
+  for (let z = 264; z <= 266; z++) S(97, 71, z, 'orange_concrete')
+  // Front gate: closed sliding panels x 253..267 and x 277..291 meeting the booth.
+  for (const [x1, x2] of [[253, 267], [277, 291]]) for (let x = x1; x <= x2; x++) {
+    S(x, 64, 396, 'polished_andesite')
+    const stile = x === x1 || x === x2 || x === (x1 + x2) >> 1
+    for (let y = 65; y <= 70; y++) S(x, y, 396, stile ? 'light_gray_concrete' : 'iron_bars')
+    S(x, 71, 396, 'light_gray_concrete')
+  }
+  // Back gate (always open): an andesite_wall gantry with a green EXIT plate, panels parked against the tower bases.
+  for (const x of [80, 105]) { S(x, 64, 292, 'smooth_stone'); for (let y = 65; y <= 72; y++) S(x, y, 292, 'andesite_wall') }
+  for (let x = 80; x <= 105; x++) S(x, 73, 292, x >= 90 && x <= 95 ? 'green_concrete' : 'andesite_wall')
+  // (F3's first post stands at (110, 297) in the east panel's row: the panel stops on both sides of it)
+  for (const [x1, x2] of [[71, 79], [106, 114]]) for (let x = x1; x <= x2; x++) {
+    if (x === 110) continue
+    S(x, 64, 297, 'polished_andesite')
+    for (let y = 65; y <= 69; y++) S(x, y, 297, x === x1 || x === x2 || x === 109 || x === 111 ? 'light_gray_concrete' : 'iron_bars')
+    S(x, 70, 297, 'light_gray_concrete')
+  }
+}
+
+// Gatehouse booth (x 268..276, z 391..399, y 64..70) on its island (x 267..277, z 386..416).
+function booth () {
+  rect(267, 386, 277, 416, (x, z) => {
+    if ((x >= 268 && x <= 276 && z >= 391 && z <= 399) || z === 396) return // the booth; the gate panels' row
+    if (x === 267 || x === 277 || z === 386 || z === 416) { S(x, 64, z, 'smooth_stone'); S(x, 65, z, 'smooth_stone_slab[type=bottom]') } else D(x, 64, z)
+  })
+  const row = { 64: 'light_gray_concrete', 65: 'red_concrete', 67: 'red_concrete', 69: 'red_terracotta' }
+  rect(268, 391, 276, 399, (x, z) => {
+    const r = Math.max(Math.abs(x - 272), Math.abs(z - 395))
+    S(x, 70, z, 'red_concrete')
+    if (r < 3) { S(x, 64, z, 'blue_concrete'); return }
+    for (let y = 64; y <= 69; y++) S(x, y, z, row[y] || pick(x, y, z, MIX.white))
+    const corner = Math.abs(x - 272) >= 3 && Math.abs(z - 395) >= 3
+    const window = corner || ((x <= 269 || x >= 275) && (z === 393 || z === 394)) || (z >= 398 && x >= 271 && x <= 273) ||
+      (z <= 392 && (x === 270 || x === 274))
+    if (window) for (let y = 66; y <= 68; y++) S(x, y, z, 'light_blue_stained_glass')
+  })
+  // the door (closed iron, north side) in the inner layer, framed in the outer layer
+  D(272, 65, 391); D(272, 66, 391)
+  for (let y = 65; y <= 67; y++) { S(271, y, 391, 'light_gray_concrete'); S(273, y, 391, 'light_gray_concrete') }
+  S(272, 67, 391, 'light_gray_concrete')
+  if (own(272, 65, 392)) door(B, 272, 65, 392, 'north')
+  // the console: two red_concrete blocks with a stone_button each (6 blocks from the door), a desk and a chair
+  for (const x of [271, 273]) { S(x, 65, 397, 'red_concrete'); S(x, 66, 397, 'stone_button[face=floor,facing=north,powered=false]') }
+  S(272, 65, 397, 'smooth_stone_slab[type=top]')
+  S(272, 65, 396, 'polished_blackstone_stairs[facing=north,half=bottom]')
+  S(272, 69, 395, 'lantern[hanging=true,waterlogged=false]')
+  cypress(272, 404)
+  manhole(272, 410)
+}
+
+// ---- watchtowers --------------------------------------------------------------------------------------------------------
+function tower ([name, cx, cz, kind, spot, doorSpec, cabDoor]) {
+  void name
+  for (let dx = -6; dx <= 6; dx++) for (let dz = -6; dz <= 6; dz++) for (let y = 62; y <= 90; y++) {
+    if ((Math.abs(dx) <= 4 && Math.abs(dz) <= 4) || y >= 77) D(cx + dx, y, cz + dz)
+  }
+  const P = (d, t) => DIR[d][0] === 0 ? [t, 0] : [0, t] // offset along a face
+  // base 9x9, y 64..76
+  for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+    const x = cx + dx, z = cz + dz, a = Math.abs(dx), c = Math.abs(dz), r = Math.max(a, c)
+    const leg = a >= 3 && c >= 3
+    if (kind === 'wall') {
+      if (r <= 2) { S(x, 64, z, 'polished_andesite'); continue }
+      for (let y = 62; y <= 63; y++) S(x, y, z, 'stone_bricks')
+      for (let y = 64; y <= 76; y++) {
+        let s
+        if (leg) s = 'light_gray_concrete'
+        else if (r === 3) s = pick(x, y, z, MIX.darkstone)
+        else if (y === 64 || y === 70 || y === 76) s = 'light_gray_concrete'
+        else { // dark panels, an X-brace in each 5x5 panel (y 65..69 under the middle beam, y 71..75 over it)
+          const t = (a === 4 ? dz : dx) + 2, k = y < 70 ? y - 65 : y - 71
+          s = (t === k || t === 4 - k) ? 'light_gray_concrete' : pick(x, y, z, PANEL)
+        }
+        S(x, y, z, s)
+      }
+    } else {
+      if (leg) { for (let y = 62; y <= 76; y++) S(x, y, z, 'polished_blackstone'); continue }
+      if (r <= 3) { S(x, 64, z, 'polished_andesite'); continue }
+      // the chain-link wrap y 64..70, a beam at y 71 and y 76, a zig-zag brace between
+      S(x, 64, z, 'smooth_stone'); S(x, 65, z, 'polished_andesite')
+      for (let y = 66; y <= 70; y++) S(x, y, z, 'iron_bars')
+      S(x, 71, z, 'polished_blackstone_wall'); S(x, 76, z, 'polished_blackstone_wall')
+      const face = a === 4 ? (dx > 0 ? 0 : 2) : (dz > 0 ? 1 : 3)
+      let t = a === 4 ? dz : dx
+      if (face % 2) t = -t
+      const zig = { '-2': [72], '-1': [72, 73], 0: [73, 74], 1: [74, 75], 2: [75] }[t]
+      for (const y of zig) S(x, y, z, 'polished_blackstone_wall')
+    }
+  }
+  if (kind === 'wall') {
+    // door (closed iron) on the inside face, framed in light grey; a ladder up the opposite inner wall to the deck
+    const [face, t] = doorSpec, d = DIR[face], [px, pz] = P(face, t), [qx, qz] = P(face, 1)
+    const ox = cx + 4 * d[0] + px, oz = cz + 4 * d[1] + pz, ix = cx + 3 * d[0] + px, iz = cz + 3 * d[1] + pz
+    D(ox, 65, oz); D(ox, 66, oz)
+    for (let y = 65; y <= 67; y++) { S(ox + qx, y, oz + qz, 'light_gray_concrete'); S(ox - qx, y, oz - qz, 'light_gray_concrete') }
+    S(ox, 67, oz, 'light_gray_concrete')
+    if (own(ix, 65, iz)) door(B, ix, 65, iz, face)
+    for (let y = 65; y <= 77; y++) S(cx - 2 * d[0], y, cz - 2 * d[1], `ladder[facing=${face},waterlogged=false]`)
+    S(cx + qx, 76, cz + qz, 'lantern[hanging=true,waterlogged=false]')
+  }
+  // deck 13x13 at y 77 with a polished_blackstone_slab edge and an iron_bars railing (open where a wall walkway joins)
+  for (let dx = -6; dx <= 6; dx++) for (let dz = -6; dz <= 6; dz++) {
+    const x = cx + dx, z = cz + dz, rim = Math.max(Math.abs(dx), Math.abs(dz)) === 6
+    if (kind === 'wall' && G(x, 77, z) && G(x, 77, z).startsWith('ladder')) continue
+    S(x, 77, z, rim ? 'polished_blackstone_slab[type=top]' : 'deepslate_tiles')
+    if (rim && !inBand(x, z)) { S(x, 78, z, 'iron_bars'); S(x, 76, z, 'polished_blackstone_slab[type=top]') }
+  }
+  // cab 7x7 y 78..81: blue corners, light blue glass, a doorway; a desk and a chair at the yard-side window
+  const f = DIR[spot], [fqx, fqz] = P(spot, 1), cd = DIR[cabDoor]
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+    if (Math.max(Math.abs(dx), Math.abs(dz)) !== 3) continue
+    const x = cx + dx, z = cz + dz, corner = Math.abs(dx) === 3 && Math.abs(dz) === 3
+    const doorway = dx === 3 * cd[0] && dz === 3 * cd[1]
+    for (let y = 78; y <= 81; y++) {
+      if (doorway && y <= 79) continue
+      S(x, y, z, corner || y === 78 || y === 81 || doorway ? 'blue_concrete' : 'light_blue_stained_glass_pane')
+    }
+  }
+  for (let k = -1; k <= 1; k++) S(cx + 2 * f[0] + k * fqx, 78, cz + 2 * f[1] + k * fqz, 'smooth_stone_slab[type=top]')
+  S(cx + f[0], 78, cz + f[1], `polished_blackstone_stairs[facing=${OPP[spot]},half=bottom]`)
+  S(cx, 81, cz, 'lantern[hanging=true,waterlogged=false]')
+  // roof: a wide, low, stepped octagon, orange_terracotta rim, y 82..84
+  for (let dx = -5; dx <= 5; dx++) for (let dz = -5; dz <= 5; dz++) {
+    const a = Math.abs(dx), c = Math.abs(dz)
+    const oct = r => a <= r && c <= r && a + c <= r + Math.floor(r / 2)
+    if (!oct(5)) continue
+    const rim = !oct(4)
+    S(cx + dx, 82, cz + dz, rim ? 'orange_terracotta' : 'orange_concrete')
+    if (oct(3)) S(cx + dx, 83, cz + dz, oct(2) ? 'orange_concrete' : 'red_concrete')
+    if (a <= 1 && c <= 1) S(cx + dx, 84, cz + dz, 'red_concrete')
+  }
+  // spotlight: a dark neck and a round lamp head with a sea_lantern lens toward the yard
+  S(cx, 85, cz, 'polished_blackstone_wall')
+  for (let y = 86; y <= 87; y++) {
+    S(cx, y, cz, 'iron_block')
+    S(cx + f[0], y, cz + f[1], 'sea_lantern')
+    for (const s of [-1, 1]) {
+      S(cx + s * fqx, y, cz + s * fqz, 'light_gray_concrete')
+      S(cx + f[0] + s * fqx, y, cz + f[1] + s * fqz, 'light_gray_concrete')
+    }
+  }
+}
+
+// ---- the easy-escape route ----------------------------------------------------------------------------------------------
+function route () {
+  for (const k of ROUTE_CELLS) { const [x, z] = k.split(',').map(Number); S(x, 64, z, 'orange_concrete') }
+  // white arrows every 6 blocks, pointing along the route
+  // a solid head and a shaft, [along, across]: the tip at 0
+  const ARROW = [[0, 0], [-1, -1], [-1, 0], [-1, 1], [-2, -2], [-2, -1], [-2, 0], [-2, 1], [-2, 2], [-3, 0], [-4, 0]]
+  for (let i = 1; i < ROUTE.length; i++) {
+    const [a, b] = [ROUTE[i - 1], ROUTE[i]], L = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const ux = Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1]) ? Math.sign(b[0] - a[0]) : 0
+    const uz = ux === 0 ? Math.sign(b[1] - a[1]) : 0
+    for (let s = 3; s < L - 1.5; s += 6) {
+      const px = Math.floor(a[0] + (b[0] - a[0]) * s / L), pz = Math.floor(a[1] + (b[1] - a[1]) * s / L)
+      for (const [u, v] of ARROW) {
+        const x = px + u * ux - v * uz, z = pz + u * uz + v * ux
+        if (ROUTE_CELLS.has(`${x},${z}`)) S(x, 64, z, 'white_concrete')
+      }
+    }
+  }
+  // lamp posts along it
+  for (const [x, z, ax] of [[136, 193, 'x'], [145, 213, 'z'], [145, 229, 'z'], [145, 245, 'z'], [126, 251, 'x'], [110, 251, 'x'],
+    [88, 276, 'z'], [80, 305, 'z'], [80, 329, 'z'], [80, 353, 'z'], [80, 377, 'z'], [80, 401, 'z']]) lamp(x, z, ax)
+  // EXIT signs at the turns: a post and a green plate
+  for (const [x, z] of SIGNS) {
+    S(x, 64, z, 'polished_andesite')
+    for (let y = 65; y <= 66; y++) S(x, y, z, 'polished_blackstone_wall')
+    S(x, 67, z, 'green_concrete')
+    S(x, 68, z, 'polished_blackstone_slab[type=bottom]')
+  }
+}
+
+// ---- trees, shrubs, grass -----------------------------------------------------------------------------------------------
+const OAKS = [[-18, 110], [-16, 160], [-20, 205], [-17, 250], [-22, 300], [-18, 350], [-24, 395], [-32, 140], [-34, 230], [-30, 330],
+  [22, 56], [30, 40], [8, 48], [145, 52], [168, 62], [176, 47],
+  [275, 52], [318, 58], [332, 28], [284, 12], [350, 88], [312, 118], [300, 160], [296, 205], [340, 130], [365, 185], [392, 140],
+  [412, 205], [402, 85], [362, 40], [420, 30], [440, 120], [455, 250], [470, 330], [395, 262], [402, 302], [396, 338], [408, 372], [418, 410],
+  [0, 456], [62, 458], [132, 456], [198, 460], [278, 455], [352, 458], [418, 460], [470, 455],
+  [128, 406], [196, 408], [320, 406], [352, 409], [30, 320], [52, 362], [18, 400], [62, 408], [22, 262], [44, 292], [-2, 240],
+  [40, 20], [100, 0], [180, 10], [250, -15], [-25, 40], [10, -10], [140, -20], [220, -25]]
+const OUT_CYPRESS = [[230, 406], [310, 404], [372, 405], [160, 404], [-10, 430], [420, 290]]
+function greenery () {
+  // cypresses along the facades (the two at the entrance first), the police strip and the pocket by the Visitors Building
+  for (const [x, z] of [[131, 192], [131, 203], [131, 150], [131, 166], [131, 182], [131, 213], [131, 223],
+    [205, 281], [221, 281], [237, 281], [312, 281], [328, 281], [114, 283]]) cypress(x, z)
+  for (const [x, z] of OUT_CYPRESS) if (clear(x, z, 1, 74)) cypress(x, z)
+  for (const [x, z] of OAKS) {
+    const jx = x + (h(x, 5, z) % 3) - 1, jz = z + (h(x, 6, z) % 3) - 1
+    if (clear(jx, jz, 3, 74)) oak(jx, jz)
+  }
+  // shrubs: the row north of the main building and the north pocket
+  for (let x = 44; x <= 124; x += 7) S(x, 65, 43, h(x, 7, 43) < 50 ? 'oak_leaves[persistent=true]' : 'azalea_leaves[persistent=true]')
+  for (const [x, z] of [[134, 60], [138, 47], [152, 66], [158, 45], [172, 54], [180, 66], [160, 58], [131, 52], [150, 44]]) if (clear(x, z, 1, 66)) shrub(x, z)
+  // clumps of short and tall grass on the open grass (never on the field, the route or anything built)
+  for (let x = -40; x <= 480; x++) for (let z = -30; z <= 470; z++) {
+    if (h(x >> 3, 9, z >> 3) >= 30) continue // clumps, not an even sprinkle
+    const v = h(x, 65, z)
+    if (v >= 14) continue
+    if (x >= 99 && x <= 338 && z >= 74 && z <= 322) continue // outside landscaping only: the yard, lawn and plaza stay mown
+    if (ROUTE_NEAR.has(`${x},${z}`)) continue
+    if (G(x, 64, z) || G(x, 65, z) || G(x, 66, z) || !own(x, 64, z) || !own(x, 66, z)) continue
+    if (v < 3) { S(x, 65, z, 'tall_grass[half=lower]'); S(x, 66, z, 'tall_grass[half=upper]') } else S(x, 65, z, 'short_grass')
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+module.exports = (b) => {
+  B = b
+  roads()
+  parkingLot()
+  plazaAndPaths()
+  field()
+  bleacher(186, 82, 236, 92, 'south')
+  bleacher(265, 128, 276, 162, 'west')
+  bleacher(265, 184, 276, 218, 'west')
+  pads()
+  furniture()
+  annex()
+  waterTower()
+  manhole(424, 386)
+  route()
+  walls()
+  fences()
+  booth()
+  for (const t of TOWERS) tower(t)
+  greenery()
+  B = null
+  return b
+}
+
+// ---- labels (1.6; a label on a face sits on the face plane + 0.03) ----------------------------------------------------
+const LABELS = [
+  { x: 271.97, y: 67.5, z: 173.5, facing: 'west', text: '0 0', color: '#ffffff', scale: 1 },
+  { x: 173.5, y: 69.5, z: 278.97, facing: 'north', text: 'SEASON', color: '#ffffff', scale: 1 },
+  { x: 92.5, y: 73.5, z: 291.97, facing: 'north', text: 'EXIT', color: '#ffffff', scale: 2 },
+  { x: 98.03, y: 71.5, z: 265.5, facing: 'east', text: 'RELEASE', color: '#ffffff', scale: 1 }
+]
+for (const f of FENCES) for (const i of plateIndexes(f)) {
+  const [x, z] = f.cells[i]
+  if (f.out[1] !== 0) LABELS.push({ x: x + 0.5, y: 68.0, z: f.out[1] > 0 ? z + 1.03 : z - 0.03, facing: f.out[1] > 0 ? 'south' : 'north', text: 'HIGH VOLTAGE', color: '#000000', scale: 1 })
+  else LABELS.push({ x: f.out[0] > 0 ? x + 1.03 : x - 0.03, y: 68.0, z: z + 0.5, facing: f.out[0] > 0 ? 'east' : 'west', text: 'HIGH VOLTAGE', color: '#000000', scale: 1 })
+}
+for (const [x, z, facing, text] of SIGNS) {
+  const d = DIR[facing]
+  LABELS.push({ x: d[0] ? (d[0] > 0 ? x + 1.03 : x - 0.03) : x + 0.5, y: 67.5, z: d[1] ? (d[1] > 0 ? z + 1.03 : z - 0.03) : z + 0.5, facing, text, color: '#ffffff', scale: 0.6 })
+}
+module.exports.labels = LABELS
+
+// ---- points (7.2, 7.3, 10) ----------------------------------------------------------------------------------------------
+module.exports.points = {
+  R_SPAWN_OUT: [133.5, 65, 197.5, -90],
+  E2: [130.5, 65, 197.5, 0],
+  E3: [140.5, 65, 197.5, 0],
+  E4: [140.5, 65, 255.5, 0],
+  E5: [101.5, 65, 255.5, 0],
+  E6: [96.5, 65, 265.5, 0],
+  E7: [92.5, 65, 292.5, 0],
+  E8: [92.5, 65, 418.5, 0]
+}
