@@ -6,7 +6,7 @@
 // player in 4 hits and one in the best gear (Tactical Helmet 3 + Heavy Vest 8 = 11 armor points: -66%
 // at Per_Armor_Point -6%) in 10-12, and nothing is stronger; every melee does base + bonus <= 5.0 (2026-10-13).
 // An attacker bot hits a target bot 3 blocks away (each health drop is one hit): the Katana (title Dagger) 5 every 16
-// ticks, 5.25 from behind (config.yml's Back +5%), reach 4.5, a 10-tick whack (DonatingPhone's MeleeFx); the Brass
+// ticks, 5.25 from behind (config.yml's Back +5%), reach 4.5, slash frames on a 10-tick clock (donating:melee/dagger, no client swing: DonatingPhone's MeleeFx); the Brass
 // Knuckles 3.5 every 12 ticks, reach 3.3, punch frames on a 6-tick clock (donating:melee/brass_knuckles) and no client
 // swing (it would bend the glove's sleeve onto the screen); the Gold Nunchucks 3 every 9 ticks, reach 3.5, no client
 // swing (a whack hid the twirl below the screen), the chain's 12-tick clock (donating:melee/gold_nunchucks), and a gold burst on hits that land (items.sk);
@@ -43,7 +43,7 @@ const LOG = path.join(__dirname, '..', '..', 'server', 'logs', 'latest.log')
 // fp = what its first person adds (hands: our glove and sleeve; chain: the nunchucks' twirl); chain = its MeleeFx
 // clock's ticks (= the number of first-person frames).
 const ITEMS = [
-  { w: 'Dagger', file: 'weapons/melee/Dagger.yml', cmd: 1, model: 'melee_katana_full' },
+  { w: 'Dagger', file: 'weapons/melee/Dagger.yml', cmd: 1, model: 'melee_katana_full', chain: 10 },
   { w: 'Baseball_Bat', file: 'weapons/melee/Baseball_Bat.yml', cmd: 2, model: 'pipe_wrench' },
   { w: 'Throwing_Knife', file: 'weapons/consumables/Throwing_Knife.yml', cmd: 3, model: 'throwing_knife', consumable: true },
   { w: 'Energy_Drink', file: 'weapons/consumables/Energy_Drink.yml', cmd: 4, model: 'energy_drink', consumable: true },
@@ -60,7 +60,7 @@ const SWINGS = {
   Baseball_Bat: { swing: 'whack', ticks: '14' },
   Brass_Knuckles: { swing: 'none', chain: '6' },
   Gold_Nunchucks: { swing: 'none', chain: '12' },
-  Dagger: { swing: 'whack', ticks: '10' }
+  Dagger: { swing: 'none', chain: '10' }
 }
 const KNUCKLE_HANDS = ['donating:item/hands/melee_knuckles_rglove', 'donating:item/hands/melee_knuckles_arm']
 const GOLD = [[255, 212, 64], [214, 158, 30]] // items.sk's two gold dusts
@@ -176,7 +176,7 @@ module.exports = async ({ check, args = [] }) => {
         if (m) fx[m[1]] = Object.fromEntries(m[2].split(',').map(x => x.split(':').map(y => y.trim())).filter(x => x[0]))
       }
     }
-    check('DonatingPhone\'s meleefx (the jar\'s config.yml): the Pipe Wrench a 14-tick whack, the Brass Knuckles none with a 6-tick chain, the Gold Nunchucks none with a 12-tick chain, the Katana a 10-tick whack',
+    check('DonatingPhone\'s meleefx (the jar\'s config.yml): the Pipe Wrench a 14-tick whack, the Brass Knuckles none with a 6-tick chain, the Gold Nunchucks none with a 12-tick chain, the Katana none with a 10-tick chain',
       Object.keys(fx).sort().join() === Object.keys(SWINGS).sort().join() && Object.entries(SWINGS).every(([w, s]) => Object.entries(s).every(([k, v]) => fx[w][k] === v) && (s.chain || !fx[w].chain || fx[w].chain === '0')), JSON.stringify(fx))
     const chained = ITEMS.filter(i => i.chain)
     check('...each chain as long as its first-person frames', chained.every(i => fx[i.w] && Number(fx[i.w].chain) === frames(i) && frames(i) === i.chain), chained.map(i => `${i.w} chain ${fx[i.w] && fx[i.w].chain} frames ${frames(i)}`).join(', '))
@@ -378,8 +378,8 @@ module.exports = async ({ check, args = [] }) => {
     }
     if (want('fx')) {
       const st = (await cmd('dphone melee')).trim()
-      check('/dphone melee: on, with the four melees (the wrench a 14-tick whack, the knuckles none with a 6-tick chain, the nunchucks none with a 12-tick chain, the Katana a 10-tick whack)',
-        /enabled=true/.test(st) && /Baseball_Bat\{whack 14\}/.test(st) && /Brass_Knuckles\{none 6 chain 6 donating:melee\/brass_knuckles\}/.test(st) && /Gold_Nunchucks\{none 6 chain 12 donating:melee\/gold_nunchucks\}/.test(st) && /Dagger\{whack 10\}/.test(st), st)
+      check('/dphone melee: on, with the four melees (the wrench a 14-tick whack, the knuckles none with a 6-tick chain, the nunchucks none with a 12-tick chain, the Katana none with a 10-tick chain)',
+        /enabled=true/.test(st) && /Baseball_Bat\{whack 14\}/.test(st) && /Brass_Knuckles\{none 6 chain 6 donating:melee\/brass_knuckles\}/.test(st) && /Gold_Nunchucks\{none 6 chain 12 donating:melee\/gold_nunchucks\}/.test(st) && /Dagger\{none 6 chain 10 donating:melee\/dagger\}/.test(st), st)
       const k = await knucklesFx()
       check('the Brass Knuckles carry no client swing (swing_animation none) and their chain\'s cooldown group (donating:melee/brass_knuckles)', k.ok, k.info)
       const ns = await swingOf(4)
@@ -387,7 +387,8 @@ module.exports = async ({ check, args = [] }) => {
       check('the Gold Nunchucks no client swing (their twirl frames are the strike) and their group (donating:melee/gold_nunchucks)', ns.type === 'none' && ng === 'donating:melee/gold_nunchucks', `swing ${ns.raw}; group ${ng}`)
       const ks = await swingOf(0)
       const ws = await swingOf(1)
-      check('the Katana a 10-tick whack and the Pipe Wrench a 14-tick one', ks.type === 'whack' && ks.ticks === 10 && ws.type === 'whack' && ws.ticks === 14, `katana ${ks.raw}; wrench ${ws.raw}`)
+      const kg = await groupOf(0)
+      check('the Katana no client swing (its slash frames are the cut) with its group (donating:melee/dagger), the Pipe Wrench a 14-tick whack', ks.type === 'none' && kg === 'donating:melee/dagger' && ws.type === 'whack' && ws.ticks === 14, `katana ${ks.raw}; wrench ${ws.raw}`)
     }
     for (const armored of [false, true]) {
       const tag = armored ? 'best gear' : 'no armor'
@@ -405,10 +406,11 @@ module.exports = async ({ check, args = [] }) => {
         check(`Katana (title Dagger), ${tag}: ${(5 * m).toFixed(2)} a hit (${shots(5 * m)} hits), a hit every 16 ticks`, kat.length === 3 && near(kat, 5 * m), `drops ${kat.join(', ')}`)
         if (!armored) {
           await heal()
-          // Swings every 300 ms (6 ticks): a 16-tick pace lands every 3rd (~900 ms apart).
-          const katPace = await swing(0, 7, 300)
+          // Swings every 300 ms (6 ticks): a 16-tick pace lands every 3rd (~900 ms apart); an 8th swing so a late 7th
+          // (the 800 ms gate) still leaves 3 hits.
+          const katPace = await swing(0, 8, 300)
           const katGaps = gapsOf()
-          check('...a hit every 16 ticks: of 7 swings 300 ms apart exactly 3 land, 780-1050 ms apart', katPace.length === 3 && near(katPace, 5) && katGaps.length === 2 && katGaps.every(g => g >= 780 && g <= 1050), `drops ${katPace.join(', ')}; gaps ${katGaps.join(', ')} ms`)
+          check('...a hit every 16 ticks: of 8 swings 300 ms apart exactly 3 land, 780-1250 ms apart', katPace.length === 3 && near(katPace, 5) && katGaps.length === 2 && katGaps.every(g => g >= 780 && g <= 1250), `drops ${katPace.join(', ')}; gaps ${katGaps.join(', ')} ms`)
           // Reach on a swing alone (Paper sends WeaponMechanics a swing only when its own 3.0 ray finds nothing nearer).
           const katReach = await swingOnly(0, 4.6)
           check('...a swing alone lands at 4.6 blocks (its reach is 4.5, the longest of any melee): 5', katReach.length === 1 && near(katReach, 5), `drops ${katReach.join(', ')}`)
@@ -651,7 +653,7 @@ module.exports = async ({ check, args = [] }) => {
         await sleep(400)
       }
       const plain = clocksSince(c0, /^donating:melee\//)
-      check('the Katana and the Pipe Wrench start no chain clock (a whack only)', plain.length === 0, JSON.stringify(plain))
+      check('the Katana starts its 10-tick slash clock (donating:melee/dagger), the Pipe Wrench none (a whack only)', plain.length === 1 && plain[0].group === 'donating:melee/dagger' && plain[0].ticks === 10, JSON.stringify(plain))
       const k = await knucklesFx()
       check('...and after the fights the Brass Knuckles still carry no client swing and their group', k.ok, k.info)
     }
