@@ -751,10 +751,13 @@ module.exports = ({ write, canvas, shade, display, both }) => {
       on_false: composite(state, rest)
     })
     // In first person the animated model, elsewhere the static full model (and the icon in the gui).
-    const byContext = (state, fp) => ({
+    // fpLeft: the left hand's own tree (the melee frames, 2026-10-13: the left display is the right one mirrored and
+    // turned 180 degrees about the model's y, so a frame's motion along model z, or a turn about x or y, runs the
+    // other way there; the module mirrors it in z for the left hand).
+    const byContext = (state, fp, fpLeft = fp) => ({
       type: 'minecraft:select',
       property: 'minecraft:display_context',
-      cases: handList.length && spec.hands.leftTree !== false ? [{ when: ['firstperson_righthand'], model: fp }, { when: ['firstperson_lefthand'], model: forLeft(fp) }] : [{ when: ['firstperson_righthand', 'firstperson_lefthand'], model: fp }],
+      cases: (handList.length && spec.hands.leftTree !== false) || fpLeft !== fp ? [{ when: ['firstperson_righthand'], model: fp }, { when: ['firstperson_lefthand'], model: forLeft(fpLeft) }] : [{ when: ['firstperson_righthand', 'firstperson_lefthand'], model: fp }],
       fallback: { type: 'minecraft:model', model: id('full', state) }
     })
     // A custom_model_data flag GunFx sets (DonatingPhone GunFx.java): 0 firing (the automatic guns), 1 a firearm action

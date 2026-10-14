@@ -1,7 +1,10 @@
 // shop.sk: the gun, gear and bag shops. Opened like a Citizens NPC would (console "dshop open") and
 // once through a tagged shopkeeper. Money is checked all-or-nothing, confirm clicks, one action per
 // click (same-tick double clicks), ammo room, the loadout (move, unequip gives rounds back), Stims,
-// save + restore after dying, combat and staff rules, the weapon audit, gear and bags.
+// save + restore after dying, combat and staff rules, the weapon audit, gear and bags. Hovering a weapon or a
+// consumable shows its own details (its WeaponMechanics lore, weaponlore.sk; owner, 2026-10-13).
+const path = require('path')
+const { spawnSync } = require('child_process')
 const { Vec3 } = require('vec3')
 const { join, sleep, messagesSince, quit } = require('../lib')
 const rconLib = require('../rcon')
@@ -14,10 +17,13 @@ const CHUNKS = '680 680 690 690'
 const TAB = { loadout: 45, weapons: 47, ammo: 49, items: 51 }
 const HOT = n => 11 + n
 const CELL = [19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43]
-// Weapons tab, in core.sk's shop::weapons order (titles Baseball_Bat and Dagger came in 2026-09-28, drawn as the Pipe
-// Wrench and the Karambit since 2026-10-13; the Old Revolver, Brave Patriot, Combat Rifle and Sniper Rifle 2026-10-06,
-// between the first guns).
-const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Dagger: CELL[2], '50_GS': CELL[3], '357_Magnum': CELL[4], Uzi: CELL[5], STG44: CELL[6], R9_0: CELL[7], M4A1: CELL[8], AK_47: CELL[9], AX_50: CELL[10], MG34: CELL[11], FN_FAL: CELL[12] }
+// Weapons tab, in core.sk's shop::weapons order (titles Baseball_Bat and Dagger came in 2026-09-28; Baseball_Bat is the
+// Pipe Wrench since 2026-10-13 and Dagger the Katana (the Karambit before); Brass_Knuckles and Gold_Nunchucks new
+// 2026-10-13; the Old Revolver, Brave Patriot, Combat Rifle and Sniper Rifle 2026-10-06, between the first guns).
+const WPN = { Combat_Knife: CELL[0], Baseball_Bat: CELL[1], Brass_Knuckles: CELL[2], Dagger: CELL[3], Gold_Nunchucks: CELL[4], '50_GS': CELL[5], '357_Magnum': CELL[6], Uzi: CELL[7], STG44: CELL[8], R9_0: CELL[9], M4A1: CELL[10], AK_47: CELL[11], AX_50: CELL[12], MG34: CELL[13], FN_FAL: CELL[14] }
+// Items tab: the consumables in core.sk's shop::consumables order.
+const CON = { Stim: CELL[0], Bandage: CELL[1], Throwing_Knife: CELL[2], Energy_Drink: CELL[3] }
+const LORE_TOOL = path.join(__dirname, '..', '..', 'tools', 'make-weapon-lore.js')
 const AMMO_ROW = { light: 19, shells: 28, rifle: 37 } // +pack = row + 2, +5 packs = row + 3, fill = row + 4
 
 module.exports = async ({ check }) => {
@@ -30,6 +36,9 @@ module.exports = async ({ check }) => {
   const TEST = { 'wpn::50_GS::level': 0, 'wpn::Uzi::level': 0, 'wpn::R9_0::level': 0, 'wpn::AK_47::level': 0, 'bag::2::level': 0, 'bag::3::level': 0, 'bag::4::level': 0, 'bag::5::level': 0, 'gear::helmet-1::price': 750, 'gear::helmet-2::price': 2500, 'gear::vest-1::price': 1000, 'gear::vest-2::price': 5000, 'con::Stim::price': 200, 'wpn::50_GS::price': 300, 'wpn::Uzi::price': 3000, 'wpn::R9_0::price': 7500, 'wpn::AK_47::price': 15000, 'wpn::Combat_Knife::price': 150, 'bag::1::price': 0, 'bag::2::price': 7500, 'bag::3::price': 30000, 'bag::4::price': 120000, 'bag::5::price': 400000, 'bag::1::replace': 0, 'bag::2::replace': 750, 'bag::3::replace': 3000, 'bag::4::replace': 12000, 'bag::5::replace': 40000 }
   try {
     await rcon.cmd('zzcfgreload')
+    // The shop's hover details come from weaponlore.sk, generated from the weapon files: it must be up to date.
+    const gen = spawnSync(process.execPath, [LORE_TOOL, '--check'], { encoding: 'utf8' })
+    check('weaponlore.sk is up to date with the weapon files (tools\\make-weapon-lore.js --check)', gen.status === 0, `${gen.status} ${(gen.stdout || '').trim()} ${(gen.stderr || '').trim()}`.slice(0, 400))
     const wrong = []
     for (const [k, v] of Object.entries(OWNER)) {
       const got = Number(((await rcon.cmd(`zzcfg ${k}`)).match(/= (\d+)/) || [])[1])
@@ -94,12 +103,33 @@ module.exports = async ({ check }) => {
     check('the gun shop opens with its layout', w && JSON.stringify(w.title).includes('Gun Shop') && layout === '0=gold_ingot 2=writable_book 4=book 6=recovery_compass 8=barrier 11=light_gray_stained_glass_pane 45=chest 47=feather 49=gold_nugget 51=feather', layout)
 
     // ---------- Buying weapons ----------
+    await rcon.cmd(`dlevel set ${NAME} 0`) // the melee level gates below are read at level 0
     await tab('weapons')
-    // The Veteran (2026-10-06): the 12th weapon, its own cell, name, price and level gate (core.sk's $800,000 / 90).
+    // Lore lines of a shop slot, each as JSON text (a line's colors split it into parts, but each part's text is whole).
+    const loreOf = s => {
+      const it = bot.currentWindow && bot.currentWindow.slots[s]
+      const l = it && it.customLore
+      return Array.isArray(l) ? l.map(x => JSON.stringify(x)) : []
+    }
+    const lineOf = (lines, re) => lines.findIndex(l => re.test(l))
+    // The melees of 2026-10-13 (PROPOSAL prices and levels): amethyst shards in their cells.
+    const meleeCell = (w, name, price, level) => {
+      const it = bot.currentWindow && bot.currentWindow.slots[WPN[w]]
+      const txt = it ? JSON.stringify(it) : ''
+      return { ok: at(WPN[w]) === 'amethyst_shard' && txt.includes(name) && txt.includes(price) && new RegExp(`Needs level ${level}(?!\\d)`).test(txt), info: `${w} ${at(WPN[w])} ${txt.slice(0, 200)}` }
+    }
+    const melees = [meleeCell('Brass_Knuckles', 'Brass Knuckles', '$1,500', 2), meleeCell('Dagger', 'Katana', '$15,000', 12), meleeCell('Gold_Nunchucks', 'Gold Nunchucks', '$25,000', 15)]
+    check('the new melees on the Weapons tab (amethyst shards): Brass Knuckles $1,500 "Needs level 2", Katana $15,000 "Needs level 12", Gold Nunchucks $25,000 "Needs level 15"', melees.every(m => m.ok), melees.filter(m => !m.ok).map(m => m.info).join(' | '))
+    // Hovering a weapon shows its own details (its WeaponMechanics lore) under the shop's lines.
+    const kat = loreOf(WPN.Dagger)
+    check('hovering the Katana shows its details (Weapon Statistics, the 4.5-block reach) under its price', lineOf(kat, /Weapon Statistics/) > 0 && kat.some(l => /4\.5/.test(l)) && lineOf(kat, /15,000/) >= 0 && lineOf(kat, /15,000/) < lineOf(kat, /Weapon Statistics/), kat.join(' / ').slice(0, 700))
+    const akLore = loreOf(WPN.AK_47)
+    check('...and the AK-48 its stat sheet (Weapon Statistics - 66.5)', akLore.some(l => /Weapon Statistics/.test(l)) && akLore.some(l => /66\.5/.test(l)), akLore.join(' / ').slice(0, 700))
+    // The Veteran (2026-10-06): the 14th weapon, its own cell, name, price and level gate (core.sk's $800,000 / 90).
     const vetItem = bot.currentWindow && bot.currentWindow.slots[WPN.MG34]
     const vetText = vetItem ? JSON.stringify(vetItem) : ''
     check('the Veteran is on the Weapons tab: its cell, its name, $800,000 and "Needs level 90"', at(WPN.MG34) === 'feather' && /Veteran/.test(vetText) && /800,000/.test(vetText) && /Needs level 90/.test(vetText), `${at(WPN.MG34)}; ${vetText.slice(0, 400)}`)
-    // The Hand Minigun (2026-10-12): the 13th weapon (core.sk's $1,500,000 / 125, PROPOSAL); its belts raised the rifle
+    // The Hand Minigun (2026-10-12): the 15th weapon (core.sk's $1,500,000 / 125, PROPOSAL); its 100-round box raised the rifle
     // rounds a player can carry to 400.
     const mgItem = bot.currentWindow && bot.currentWindow.slots[WPN.FN_FAL]
     const mgText = mgItem ? JSON.stringify(mgItem) : ''
@@ -177,6 +207,15 @@ module.exports = async ({ check }) => {
 
     // ---------- Stims ----------
     await tab('items')
+    // Hovering a consumable shows its details too, above the shift-click hint (still the last line).
+    const stimLore = loreOf(CON.Stim)
+    const bandLore = loreOf(CON.Bandage)
+    check('hovering a consumable shows its details: the Stim\'s Effect and Heal, with "Shift-click: fill up" still last; the Bandage\'s heal over 4 seconds',
+      stimLore.some(l => /Effect/.test(l)) && stimLore.some(l => /Heal/.test(l)) && stimLore.length > 0 && /Shift-click: fill up/.test(stimLore[stimLore.length - 1]) && bandLore.some(l => /Heal over 4 seconds/.test(l)),
+      `${stimLore.join(' / ')} || ${bandLore.join(' / ')}`.slice(0, 900))
+    const drinkLore = loreOf(CON.Energy_Drink)
+    check('...a consumable above your level (the Energy Drink, level 10, at level 0): "Needs level 10" and its details, and no shift-click hint',
+      drinkLore.some(l => /Needs level 10/.test(l)) && drinkLore.some(l => /Speed II/.test(l)) && !drinkLore.some(l => /Shift-click/.test(l)), drinkLore.join(' / ').slice(0, 600))
     // A lower confirm limit for this part: the shift-fill ($400) must ask first, then go through.
     await rcon.cmd('zzcfgset shop::confirm-above 300')
     before = await bal()

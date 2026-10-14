@@ -1141,7 +1141,7 @@ function loadSettings():
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
 	# files (AK-47 5.5 a body shot: 4 shots unarmored, 11 in a Tactical Helmet + Heavy Vest).
 	# Guns need Reload.Ammo in their WeaponMechanics file and an "ammo" here; melee has neither.
-	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Dagger", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47", "AX_50", "MG34" and "FN_FAL"
+	set {-cfg::shop::weapons::*} to "Combat_Knife", "Baseball_Bat", "Brass_Knuckles", "Dagger", "Gold_Nunchucks", "50_GS", "357_Magnum", "Uzi", "STG44", "R9_0", "M4A1", "AK_47", "AX_50", "MG34" and "FN_FAL"
 	set {-cfg::wpn::Combat_Knife::name} to "Combat Knife"
 	set {-cfg::wpn::Combat_Knife::kind} to "Melee"
 	# Owner, 2026-09-27: weapons cost more and guns need a level (melee first).
@@ -1153,22 +1153,35 @@ function loadSettings():
 	set {-cfg::wpn::Combat_Knife::level} to 0
 	# Owner, 2026-09-28: "more melee weapons/consumables (dagger, throwable knife, grappler, energy drink ...)". PROPOSAL
 	# prices and levels. item = the base item WeaponMechanics gives it (a feather when not set): the pack draws these on an
-	# amethyst shard by their model number (tools\make-item-art.js). Baseball_Bat = the Pipe Wrench, Dagger = the Karambit
-	# since 2026-10-13 (PG3D-inspired, hand-made; titles kept like the guns'). Every melee: base + bonus <= 5.0. Damage in
-	# their WeaponMechanics files: the wrench 5 with a push (a hit every 28 ticks), the karambit 4 every 12 ticks (5.25 from
-	# behind).
+	# amethyst shard by their model number (tools\make-item-art.js). Baseball_Bat = the Pipe Wrench (2026-10-13); Dagger =
+	# the Katana since 2026-10-13 (was the Karambit); Brass_Knuckles and Gold_Nunchucks new (shards 6, 7). PG3D-inspired,
+	# hand-made; titles kept like the guns'. Every melee: base + bonus <= 5.0 (their WeaponMechanics files): the wrench 5
+	# with a push every 28 ticks, the knuckles 3.5 every 12, the katana 5 every 16 (reach 4.5), the nunchucks 3 every 9.
+	# PROPOSAL prices and levels.
 	set {-cfg::wpn::Baseball_Bat::name} to "Pipe Wrench"
 	set {-cfg::wpn::Baseball_Bat::kind} to "Melee"
 	set {-cfg::wpn::Baseball_Bat::price} to 1000
 	set {-cfg::wpn::Baseball_Bat::model} to 2
 	set {-cfg::wpn::Baseball_Bat::item} to amethyst shard
 	set {-cfg::wpn::Baseball_Bat::level} to 0
-	set {-cfg::wpn::Dagger::name} to "Karambit"
+	set {-cfg::wpn::Brass_Knuckles::name} to "Brass Knuckles"
+	set {-cfg::wpn::Brass_Knuckles::kind} to "Melee"
+	set {-cfg::wpn::Brass_Knuckles::price} to 1500
+	set {-cfg::wpn::Brass_Knuckles::model} to 6
+	set {-cfg::wpn::Brass_Knuckles::item} to amethyst shard
+	set {-cfg::wpn::Brass_Knuckles::level} to 2
+	set {-cfg::wpn::Dagger::name} to "Katana"
 	set {-cfg::wpn::Dagger::kind} to "Melee"
-	set {-cfg::wpn::Dagger::price} to 2500
+	set {-cfg::wpn::Dagger::price} to 15000
 	set {-cfg::wpn::Dagger::model} to 1
 	set {-cfg::wpn::Dagger::item} to amethyst shard
-	set {-cfg::wpn::Dagger::level} to 3
+	set {-cfg::wpn::Dagger::level} to 12
+	set {-cfg::wpn::Gold_Nunchucks::name} to "Gold Nunchucks"
+	set {-cfg::wpn::Gold_Nunchucks::kind} to "Melee"
+	set {-cfg::wpn::Gold_Nunchucks::price} to 25000
+	set {-cfg::wpn::Gold_Nunchucks::model} to 7
+	set {-cfg::wpn::Gold_Nunchucks::item} to amethyst shard
+	set {-cfg::wpn::Gold_Nunchucks::level} to 15
 	set {-cfg::wpn::50_GS::name} to "Classic Pistol"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
 	set {-cfg::wpn::50_GS::price} to 7500
@@ -1243,7 +1256,7 @@ function loadSettings():
 	set {-cfg::wpn::MG34::level} to 90
 	# The Hand Minigun (assault_rifles\FN_FAL.yml, 2026-10-12; owner: "a spin-up minigun at level 125"; PROPOSAL): four
 	# barrels on a rifle frame that spin up before it fires (DonatingPhone's GunSpin: the first round about 0.4 s into a
-	# held trigger, 16 a second at full spin after 1.2 s), a 100-round belt, 3.4 a body shot (6 shots), 30% slower walking
+	# held trigger, 16 a second at full spin after 1.2 s), a 100-round box, 3.4 a body shot (6 shots), 30% slower walking
 	# while held. Between the Viper ($1.25M, level 110) and the Riviera ($2M, level 130). Never in cops' or NPCs' hands.
 	set {-cfg::wpn::FN_FAL::name} to "Hand Minigun"
 	set {-cfg::wpn::FN_FAL::kind} to "Minigun"
@@ -1272,7 +1285,7 @@ function loadSettings():
 	set {-cfg::ammo::rifle::item} to gold nugget
 	set {-cfg::ammo::rifle::price} to 3
 	set {-cfg::ammo::rifle::pack} to 30
-	# 400 since the Hand Minigun (2026-10-12, PROPOSAL; 300 before): four spare 100-round belts (7 of the 27 ammo slots).
+	# 400 since the Hand Minigun (2026-10-12, PROPOSAL; 300 before): four spare 100-round boxes (7 of the 27 ammo slots).
 	set {-cfg::ammo::rifle::max} to 400
 
 	# Consumables: WeaponMechanics items with Shoot.Consume_Item_On_Shoot (no leftover item).

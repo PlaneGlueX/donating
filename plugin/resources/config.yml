@@ -272,3 +272,22 @@ gunfx:
     AX_50: { shot: 20, draw: 40, alone: 6, action: 16, glint: 10 }
     MG34: { shot: 0, draw: 40, fire: 5 }
     FN_FAL: { shot: 0, draw: 40, fire: 4, spin: { up: 24, down: 30, fire-at: 0.3, min-rate: 5, sound-range: 32 } }
+
+# Melee swings (MeleeFx.java, 2026-10-13; the owner: "make sure to have swing animations if applicable"): each melee
+# weapon (WeaponMechanics title) gets the client's own attack animation on its item (the swing_animation component):
+# stab (the spear's forward jab), whack (the normal swing) or none, over ticks. chain: N > 0 also starts an N-tick
+# cooldown on the item's own group (donating:melee/<title>) on every arm swing, once more than half of the last has
+# passed (swings every tick, mining a block, let it finish); the pack's first-person frames read it (keep chain equal
+# to the frame count: Brass_Knuckles 6, Gold_Nunchucks 12).
+# A melee drawn with our gloves (Brass_Knuckles) must stay none: the client's swing turns the whole item, sleeve
+# included; its punch is the frames. Only the holder sees a stab, none or a longer swing (ViaVersion sends others the
+# default whack). A server config.yml without meleefx.melee uses this list (the jar's). enabled: false (then /dphone
+# reload) puts every melee back to vanilla's swing (online players now, the rest when they join): do that and keep the
+# jar until every owner has joined once before taking it out, since the swing is saved on the items. /dphone melee.
+meleefx:
+  enabled: true
+  melee:
+    Baseball_Bat: { swing: whack, ticks: 14 }
+    Brass_Knuckles: { swing: none, chain: 6 }
+    Gold_Nunchucks: { swing: none, chain: 12 } # none: a whack drops the item below the screen and hides the twirl
+    Dagger: { swing: whack, ticks: 10 }

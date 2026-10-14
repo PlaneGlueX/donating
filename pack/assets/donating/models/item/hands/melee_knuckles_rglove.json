@@ -1,0 +1,119 @@
+{
+  "parent": "donating:item/hands_rglove",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        160,
+        0,
+        90
+      ],
+      "translation": [
+        -0.5,
+        3.5,
+        0
+      ],
+      "scale": [
+        1.1,
+        1.1,
+        1.1
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -20,
+        0,
+        90
+      ],
+      "translation": [
+        -0.5,
+        3.5,
+        0
+      ],
+      "scale": [
+        1.1,
+        1.1,
+        1.1
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        -90
+      ],
+      "translation": [
+        0,
+        -2.19,
+        1.54
+      ],
+      "scale": [
+        1.1,
+        1.1,
+        1.1
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        90,
+        90
+      ],
+      "translation": [
+        0,
+        -2.19,
+        1.54
+      ],
+      "scale": [
+        1.1,
+        1.1,
+        1.1
+      ]
+    },
+    "gui": {
+      "rotation": [
+        25,
+        0,
+        -90
+      ],
+      "translation": [
+        -0.35,
+        -2.69,
+        0
+      ],
+      "scale": [
+        2.84,
+        2.84,
+        2.84
+      ]
+    },
+    "ground": {
+      "translation": [
+        1.17,
+        1.85,
+        0
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        -25,
+        180,
+        -90
+      ],
+      "translation": [
+        0.33,
+        -2.47,
+        0
+      ],
+      "scale": [
+        2.61,
+        2.61,
+        2.61
+      ]
+    }
+  }
+}

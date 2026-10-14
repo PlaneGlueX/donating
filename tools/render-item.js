@@ -13,6 +13,10 @@
 //   fpl   first person, left hand (-0.56, firstperson_lefthand applied with (-tx, ty, tz), (rx, -ry, -rz))
 //   side  third person, right hand, seen from the player's right (orthographic), with the player
 //   tp    another player holding it in the right hand, seen from the front-left (perspective)
+//   ground  a dropped item (ItemEntityRenderer: its lowest point 1/16 + the bob's middle 0.1 above the ground, ground transform; no spin),
+//         seen from the front, above (perspective)
+//   fixed an item frame on a wall facing you (ItemFrameRenderer: turned 180 degrees, 0.5 scale, fixed transform;
+//         orthographic, the frame drawn behind it)
 //   all   every view: <out> is then a prefix, <out>-<view>.png
 // Sources, first found wins: pack\assets (ours), WeaponMechanics' pack zip (extras\packs\wm), the local
 // Minecraft client jar (vanilla models and textures, previews only; %APPDATA%\.minecraft\versions).
@@ -24,13 +28,15 @@
 // (minecraft:keybind_down true: fire held, and custom_model_data flag 0 on: GunFx's firing flag), --flag <n>[,<n>]
 // (those custom_model_data flags on: 1 GunFx's action clock, 2 its draw on a gun with a shot clock), --time <v> (minecraft:time, 0-1). --def <file.json> draws an item
 // model given as JSON (an item definition, or just its "model") instead of <what> (then <what> is left out).
+// --swing whack:<p> | stab:<p> (fp and fpl): the client's attack animation at progress p (0-1), the item's
+// swing_animation (the melee weapons: DonatingPhone MeleeFx), between the arm offset and the display (swingAttack).
 // Element rotations (axis/angle/origin/rescale and 26.x x/y/z), per-file lefthand fallback (a missing
 // lefthand copies the righthand one, as the client's deserializer does), per-context parent display,
 // generated (flat sprite) items extruded, textures, face shade (up 1, down 0.5, N/S 0.8, E/W 0.6),
 // light_emission, a depth buffer. Not drawn: the hand bob, the equip dip, tints, special models.
 //
 // Usage: tools\node\node.exe tools\render-item.js <model id | item[@cmd]> <out.png> [view] [W H] [--pack zip]
-//          [--cooldown v] [--fire] [--time v] [--def file.json]
+//          [--cooldown v] [--fire] [--time v] [--swing whack:p|stab:p] [--def file.json]
 //   e.g. tools\node\node.exe tools\render-item.js feather@1009 %TEMP%\gs50-ads.png fp
 //        tools\node\node.exe tools\render-item.js breeze_rod@donating:tool_grappler %TEMP%\grappler all
 const fs = require('fs')
@@ -545,10 +551,36 @@ const lookAt = (eye, target, fovDeg, W, H) => {
 
 // ---------- Views ----------
 const SKY = (W, H) => (x, y) => { const t = y / H; return [Math.round(150 - 40 * t), Math.round(186 - 30 * t), Math.round(222 - 20 * t)] }
-const SIZES = { gui: [256, 256], fp: [640, 400], fpl: [640, 400], side: [480, 400], tp: [480, 480] }
-const CONTEXT_OF = { gui: 'gui', fp: 'firstperson_righthand', fpl: 'firstperson_lefthand', side: 'thirdperson_righthand', tp: 'thirdperson_righthand' }
+const SIZES = { gui: [256, 256], fp: [640, 400], fpl: [640, 400], side: [480, 400], tp: [480, 480], ground: [400, 300], fixed: [256, 256] }
+const CONTEXT_OF = { gui: 'gui', fp: 'firstperson_righthand', fpl: 'firstperson_lefthand', side: 'thirdperson_righthand', tp: 'thirdperson_righthand', ground: 'ground', fixed: 'fixed' }
 
-const renderView = (items, view, W, H) => {
+// The 26.3 client's first-person attack animation (FirstPersonHandsAndItemsRenderer; the item's swing_animation
+// component), applied after applyItemArmTransform and before the item's display transform. swing = { type, p } (p the
+// swing's progress 0-1; side 1 the right hand, -1 the left), or null.
+//   whack (swingArm: the normal swing): T(side -0.4 sin(sqrt(p) pi), 0.2 sin(sqrt(p) 2pi), -0.2 sin(p pi)), then
+//     Ry(side (45 + sin(p^2 pi) -20)), Rz(side sin(sqrt(p) pi) -20), Rx(sin(sqrt(p) pi) -80), Ry(side -45)
+//   stab (SpearAnimations.firstPersonAttack): a = inOutSine(p over 0-0.05), b = outBack(p over 0.05-0.2), c =
+//     inOutExpo(p over 0.4-1): T(side 0.1 (a - b), -0.075 (a - c), 0.65 (a - b)), Rx(-70 (a - c)), T(0, 0, -0.25 (c - b))
+const swingAttack = (swing, side) => {
+  if (!swing) return M4.id()
+  const p = swing.p
+  if (swing.type === 'stab') {
+    const prog = (a, b) => Math.max(0, Math.min(1, (p - a) / (b - a)))
+    const inOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2
+    const outBack = t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2) }
+    const inOutExpo = t => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2
+    const a = inOutSine(prog(0, 0.05)); const b = outBack(prog(0.05, 0.2)); const c = inOutExpo(prog(0.4, 1))
+    return chain(M4.t(side * 0.1 * (a - b), -0.075 * (a - c), 0.65 * (a - b)), M4.r3(rx3(-70 * (a - c))), M4.t(0, 0, -0.25 * (c - b)))
+  }
+  const sq = Math.sqrt(p)
+  const f = Math.sin(p * p * Math.PI)
+  const g = Math.sin(sq * Math.PI)
+  return chain(
+    M4.t(side * -0.4 * Math.sin(sq * Math.PI), 0.2 * Math.sin(sq * 2 * Math.PI), -0.2 * Math.sin(p * Math.PI)),
+    M4.r3(ry3(side * (45 + f * -20))), M4.r3(rz3(side * g * -20)), M4.r3(rx3(g * -80)), M4.r3(ry3(side * -45)))
+}
+
+const renderView = (items, view, W, H, swing = null) => {
   const ctx = CONTEXT_OF[view]
   const models = items(ctx)
   if (view === 'gui') {
@@ -584,12 +616,38 @@ const renderView = (items, view, W, H) => {
     const proj = p => p[2] > -0.05 ? null : [W / 2 + p[0] / -p[2] * k, H / 2 - p[1] / -p[2] * k, -p[2]]
     proj.persp = true
     proj.near = -0.0501
-    // ItemInHandRenderer.applyItemArmTransform: (±0.56, -0.52, -0.72), no swing, no equip dip.
-    for (const m of models) drawQuads(img, m.quads, chain(M4.t(left ? -0.56 : 0.56, -0.52, -0.72), itemMatrix(m.display[ctx], left, m.local)), proj)
+    // ItemInHandRenderer.applyItemArmTransform: (±0.56, -0.52, -0.72), no equip dip; --swing the client's attack
+    // animation between it and the item's display transform (swingAttack).
+    const sw = swingAttack(swing, left ? -1 : 1)
+    for (const m of models) drawQuads(img, m.quads, chain(M4.t(left ? -0.56 : 0.56, -0.52, -0.72), sw, itemMatrix(m.display[ctx], left, m.local)), proj)
     for (let d = -8; d <= 8; d++) {
       if (Math.abs(d) < 3) continue
       for (const [x, y] of [[W / 2 + d, H / 2], [W / 2, H / 2 + d]]) img.px.set([255, 255, 255, 255], (Math.floor(y) * W + Math.floor(x)) * 4)
     }
+    return img
+  }
+  if (view === 'ground') {
+    const img = newImage(W, H, SKY(W, H))
+    const proj = lookAt([0, 1.05, 1.7], [0, 0.25, 0], 45, W, H)
+    // the grass under it (a 2x2 block patch, a checker of two tones)
+    const grass = []
+    for (let i = -2; i < 2; i++) for (let j = -2; j < 2; j++) grass.push({ pts: [[i, 0, j], [i, 0, j + 1], [i + 1, 0, j + 1], [i + 1, 0, j]], color: (i + j) % 2 ? [96, 150, 64] : [108, 162, 72], dir: 'up' })
+    drawQuads(img, grass, M4.id(), proj, true)
+    const mats = models.map(m => itemMatrix(m.display[ctx], false, m.local))
+    let minY = Infinity
+    models.forEach((m, i) => m.quads.forEach(q => q.pts.forEach(p => { minY = Math.min(minY, M4.app(mats[i], p)[1]) })))
+    const lift = (minY === Infinity ? 0 : -minY) + 0.0625 + 0.1
+    models.forEach((m, i) => drawQuads(img, m.quads, chain(M4.t(0, lift, 0), mats[i]), proj))
+    return img
+  }
+  if (view === 'fixed') {
+    const img = newImage(W, H, [92, 92, 96])
+    const size = Math.min(W, H) - 8
+    const ortho = p => [W / 2 + p[0] * size, H / 2 - p[1] * size, -p[2]]
+    // the frame: a 14/16 oak border round a 12/16 back, drawn well behind the item (a thick item is never cut by it)
+    const sq = (a, z, color) => ({ pts: [[-a, a, z], [-a, -a, z], [a, -a, z], [a, a, z]], color, dir: 'south' })
+    drawQuads(img, [sq(7 / 16, -0.3, [158, 120, 76]), sq(6 / 16, -0.29, [134, 94, 60])], M4.id(), ortho, true)
+    for (const m of models) drawQuads(img, m.quads, chain(M4.r3(ry3(180)), M4.s(0.5, 0.5, 0.5), itemMatrix(m.display[ctx], false, m.local)), ortho)
     return img
   }
   // Third person: the player and the item in the right hand.
@@ -642,7 +700,7 @@ const render = (what, view, W, H, opts = {}) => {
   const S = openSources(opts.pack)
   const items = makeItems(S, what, opts)
   const [dw, dh] = SIZES[view]
-  const img = renderView(items, view, W || dw, H || dh)
+  const img = renderView(items, view, W || dw, H || dh, opts.swing || null)
   return { png: encode(img.W, img.H, img.px), tris: img.tris }
 }
 module.exports = { render, openSources, makeLoader, resolveItemModel, decodePng }
@@ -655,16 +713,18 @@ if (require.main === module) {
   for (const k of ['cooldown', 'time', 'cmd']) { const i = args.indexOf('--' + k); if (i >= 0) { opts[k] = Number(args[i + 1]); args.splice(i, 2) } }
   const gi = args.indexOf('--flag')
   if (gi >= 0) { opts.flags = args[gi + 1].split(',').map(Number); args.splice(gi, 2) }
+  const si = args.indexOf('--swing')
+  if (si >= 0) { const [type, p] = args[si + 1].split(':'); if (!['whack', 'stab'].includes(type) || isNaN(+p)) throw new Error('--swing whack:<p> or stab:<p>'); opts.swing = { type, p: +p }; args.splice(si, 2) }
   const fi = args.indexOf('--fire')
   if (fi >= 0) { opts.fire = true; args.splice(fi, 1) }
   const di = args.indexOf('--def')
   if (di >= 0) { opts.def = JSON.parse(fs.readFileSync(args[di + 1], 'utf8').replace(/^\uFEFF/, '')); args.splice(di, 2); args.unshift('(def)') }
   const [what, out, view = 'fp', W, H] = args
   if (!what || !out) {
-    console.log('usage: render-item.js <model id | item[@cmd]> <out.png | prefix> [gui|fp|fpl|side|tp|all] [W H] [--pack zip] [--cooldown v] [--fire] [--flag n[,n]] [--time v] [--def file.json [--cmd n]]')
+    console.log('usage: render-item.js <model id | item[@cmd]> <out.png | prefix> [gui|fp|fpl|side|tp|ground|fixed|all] [W H] [--pack zip] [--cooldown v] [--fire] [--flag n[,n]] [--time v] [--swing whack:p|stab:p] [--def file.json [--cmd n]]')
     process.exit(1)
   }
-  const views = view === 'all' ? ['gui', 'fp', 'fpl', 'side', 'tp'] : [view]
+  const views = view === 'all' ? ['gui', 'fp', 'fpl', 'side', 'tp', 'ground', 'fixed'] : [view]
   if (!views.every(v => SIZES[v])) throw new Error(`unknown view ${view}`)
   for (const v of views) {
     const file = view === 'all' ? `${out.replace(/\.png$/, '')}-${v}.png` : out

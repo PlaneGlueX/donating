@@ -6,7 +6,7 @@ Stim:
       Lore:
         - "<gray>Military stimulant that cauterizes combat wounds."
         - ""
-        - "<gray>Weapon Statistics"
+        - "<gray>Effect"
         - "<gold>➣ &c♥♥♥♥♥♥♥♥ <gold>⟸ <gray>Heal"
       Unbreakable: true
       Hide_Flags: true

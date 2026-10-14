@@ -7,7 +7,7 @@ MG34:
       # pay for the 50-round magazine and the flattest dropoff of the automatic guns. Damage sits between the Classic
       # Pistol (4.3: 65) and the Machine Gun (4.85: 67) by its 4.6 a hit. The total is their mean.
       Lore:
-        - "<gray>A WWII light machine gun on a folded bipod."
+        - "<gray>A WWII light machine gun on a bipod."
         - "<gray>A 50-round magazine; it holds up at range."
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 59.8"

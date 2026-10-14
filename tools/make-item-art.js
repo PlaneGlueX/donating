@@ -4,8 +4,9 @@
 //   - ammo icons: light (pistol/SMG rounds), shells (shotgun), rifle
 //   - the XP bar as a brass ammo belt (the XP bar shows the held gun's ammo, hud.sk)
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
-//   - melee weapons and consumables (karambit, pipe wrench, throwing knife, energy drink, bandage) and the
-//     Grappler: 3D models (in menus too), and the thrown knife in flight
+//   - melee weapons and consumables (pipe wrench, throwing knife, energy drink, bandage) and the Grappler:
+//     3D models (in menus too), and the thrown knife in flight; the Katana, the Brass Knuckles and the Gold
+//     Nunchucks are pg-kit modules in tools\guns\ (katana.js, knuckles.js, nunchucks.js; amethyst_shard.json)
 //   - the sold WeaponMechanics guns (.50 GS, Uzi, AK-47, R9-0), the Combat Knife and the Stim, each in its
 //     own module in tools\guns\ (items/feather.json; preview with tools\render-item.js)
 // and the JSON that wires them up. Items are picked by their first custom_model_data string
@@ -602,21 +603,22 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   }
 }
 // ---------- Melee weapons, consumables and the Grappler (owner, 2026-09-28) ----------
-// The WeaponMechanics items (weapons\melee\Dagger.yml and Baseball_Bat.yml, weapons\consumables\
-// Throwing_Knife.yml, Energy_Drink.yml and Bandage.yml) are amethyst shards, not feathers (feather.json's
-// numbers are WeaponMechanics' own guns: we only redraw the sold ones, see "The sold guns" at the end of
-// this section): their Skin.Default.Custom_Model_Data 1-5 is the custom_model_data float
-// amethyst_shard.json dispatches on. Since 2026-10-13 (the owner: melees from PG3D, and the consumables in
-// the 3D style of the Drill and the Safe Kit) the title Dagger draws the Karambit and Baseball_Bat the Pipe
-// Wrench (titles kept, like the guns'), and every one of them is its 3D model everywhere, the shop and the
-// hotbar too (a gui transform each, no 2D icons). The Grappler (grapple.sk, a heist tool like the Drill) is
+// The WeaponMechanics items (weapons\melee\Dagger.yml, Baseball_Bat.yml, Brass_Knuckles.yml and
+// Gold_Nunchucks.yml, weapons\consumables\Throwing_Knife.yml, Energy_Drink.yml and Bandage.yml) are amethyst
+// shards, not feathers (feather.json's numbers are WeaponMechanics' own guns: we only redraw the sold ones, see
+// "The sold guns" at the end of this section): their Skin.Default.Custom_Model_Data 1-7 is the custom_model_data
+// float amethyst_shard.json dispatches on (written after the guns: 1, 6 and 7 are pg-kit modules). Since
+// 2026-10-13 (the owner: melees from PG3D, and the consumables in the 3D style of the Drill and the Safe Kit) the
+// title Dagger draws the Katana (tools\guns\katana.js; the Karambit before) and Baseball_Bat the Pipe Wrench
+// (titles kept, like the guns'), the new titles Brass_Knuckles (6) and Gold_Nunchucks (7) the Brass Knuckles and
+// the Gold Nunchucks (knuckles.js, nunchucks.js: first-person frames on DonatingPhone MeleeFx's clocks), and every
+// one of them is its 3D model everywhere, the shop and the hotbar too (a gui transform each, no 2D icons). The Grappler (grapple.sk, a heist tool like the Drill) is
 // a breeze rod picked by the string donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its
 // hook (donating:grapple_hook) and a rope (donating:grapple_rope) are breeze rods too, for item displays.
 // A thrown knife in flight is the bullets' iron nugget with custom model data 7004 (see Bullets).
 // Models are boxes (1 unit = 1/16 block). The wrench and the throwing knife are built upright and turned
 // 45° to lie where a sword sprite does, with vanilla's handheld display, so they sit in the hand like a
-// sword; the karambit (like the Combat Knife, tools\guns\knife.js) has a display of its own, so its cord
-// wraps keep their own turn; the can and the bandage are held like any item (vanilla's generated display).
+// sword; the can and the bandage are held like any item (vanilla's generated display).
 {
   const K = [28, 24, 20, 255]
   const rgba = c => c.length === 4 ? c : [...c, 255]
@@ -700,7 +702,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   ]), {
     ...HANDHELD,
     // Lower, smaller and further in than a sword, so the whole head shows in the lower right (also on 4:3) with the
-    // jaw toward the crosshair, in line with the Karambit and the Combat Knife.
+    // jaw toward the crosshair, in line with the Combat Knife.
     firstperson_righthand: { rotation: [0, -90, 25], translation: [-2.5, 1.2, 0.5], scale: [0.6, 0.6, 0.6] },
     firstperson_lefthand: { rotation: [0, 90, -25], translation: [-2.5, 1.2, 0.5], scale: [0.6, 0.6, 0.6] },
     // On the slot's diagonal, butt lower left and the L-jaw upper right opening up-left, rolled 30° about its own
@@ -709,54 +711,6 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     // about x fills it).
     gui: { rotation: [-22.2, -20.7, -4.1], translation: [0.42, -0.57, 0], scale: [0.73, 0.73, 0.73] },
     fixed: { rotation: [0, 180, 0], translation: [-0.4, -0.7, 0], scale: [0.73, 0.73, 0.73] }
-  })
-
-  // Karambit (title Dagger, shard 1; from PG3D's Tactical Knife, hand-made): a finger ring, a black grip with
-  // diagonal cord wraps and a bright steel claw curling over toward -x into a downward hook, the sharp inner
-  // (concave) edge bright, the convex spine dark with two jimping notches. Built upright, ring at the bottom; not
-  // run through diag() (the wraps keep their own 22.5° turn), so it has a display of its own with both hands
-  // written out (the client mirrors a left-hand transform: (-tx, ty, tz), (rx, -ry, -rz)). The blade's steps are
-  // staggered 0.02 in z so overlapping flats never share a plane. The model's middle is off (6.6, 3.8): the gui,
-  // ground and frame translations centre it.
-  solid('karambit', [
-    [228, 236, 248], [176, 184, 198], [112, 120, 134], // 0-2 steel light (inner edge), steel, spine dark
-    [36, 36, 42], [60, 60, 68], [104, 108, 120], // 3-5 grip, grip lit, cord band
-    [154, 160, 172], [204, 210, 220], [72, 76, 86], // 6-8 ring, ring light, bolster
-    [46, 49, 56], // 9 jimping
-    [238, 244, 252] // 10 edge highlight
-  ], [
-    { from: [6.0, -3.6, 7.5], to: [10.0, -2.6, 8.5], c: { all: 6, down: 8 } }, // the finger ring around a 2x2 hole
-    { from: [6.0, -0.6, 7.5], to: [10.0, 0.4, 8.5], c: { all: 6, up: 7 } },
-    { from: [6.0, -2.6, 7.5], to: [7.0, -0.6, 8.5], c: { all: 6, west: 7 } },
-    { from: [9.0, -2.6, 7.5], to: [10.0, -0.6, 8.5], c: { all: 6, east: 7 } },
-    { from: [7.0, 0.4, 7.3], to: [9.0, 5.6, 8.7], c: { all: 3, east: 4 } }, // grip
-    ...[1.0, 2.3, 3.6, 4.9].map(y => ({ from: [6.9, y, 7.2], to: [9.1, y + 0.45, 8.8], c: 5, rot: { angle: 22.5, axis: 'z', origin: [8, y + 0.225, 8] } })), // cord wraps
-    { from: [6.8, 5.6, 7.35], to: [9.2, 6.2, 8.65], c: 8 }, // bolster
-    { from: [7.4, 6.2, 7.6], to: [9.0, 8.4, 8.4], c: { all: 1, east: 2, west: 0 } }, // the claw, stepping over to the hook
-    { from: [6.6, 8.2, 7.62], to: [8.6, 9.8, 8.38], c: { all: 1, east: 2, up: 2, west: 0, down: 0 } },
-    { from: [5.6, 9.6, 7.64], to: [7.8, 10.8, 8.36], c: { all: 1, east: 2, up: 2, west: 0, down: 0 } },
-    { from: [4.6, 10.2, 7.66], to: [6.4, 11.2, 8.34], c: { all: 1, up: 2, down: 0 } },
-    { from: [3.6, 9.4, 7.7], to: [4.8, 10.8, 8.3], c: { all: 1, up: 2, west: 2, east: 0, down: 0 } }, // hook
-    { from: [3.2, 8.6, 7.75], to: [4.2, 9.4, 8.25], c: 0 }, // point
-    ...[6.7, 7.5].map(y => ({ from: [9.0, y, 7.7], to: [9.3, y + 0.4, 8.3], c: 9 })), // jimping on the spine
-    // The bright cutting edge on the flats along the inner curve, 0.05 proud of its step. Flats only: their other
-    // faces lie on their step's own faces (which would z-fight).
-    { from: [7.4, 6.6, 7.55], to: [8.0, 8.4, 8.45], c: 10, dirs: ['north', 'south'] },
-    { from: [6.6, 8.4, 7.57], to: [7.2, 9.8, 8.43], c: 10, dirs: ['north', 'south'] },
-    { from: [5.6, 9.6, 7.59], to: [6.8, 10.1, 8.41], c: 10, dirs: ['north', 'south'] },
-    { from: [4.8, 10.2, 7.61], to: [5.6, 10.65, 8.39], c: 10, dirs: ['north', 'south'] },
-    { from: [4.3, 9.4, 7.65], to: [4.8, 10.2, 8.35], c: 10, dirs: ['north', 'south'] }
-  ], {
-    // Held forward, the ring behind the fist and the claw hooking down in front.
-    thirdperson_righthand: { rotation: [0, -90, 0], translation: [0, 0.5, 1], scale: [0.95, 0.95, 0.95] },
-    thirdperson_lefthand: { rotation: [0, 90, 0], translation: [0, 0.5, 1], scale: [0.95, 0.95, 0.95] },
-    // Blade up in the lower right, the claw curling toward the crosshair (the mirror image in the left hand).
-    firstperson_righthand: { rotation: [0, -70, -10], translation: [-2.5, 6.8, -0.5], scale: [0.85, 0.85, 0.85] },
-    firstperson_lefthand: { rotation: [0, 110, 10], translation: [-2.5, 6.8, -0.5], scale: [0.85, 0.85, 0.85] },
-    // Diagonal: ring lower left with its hole showing, the claw upper right hooking over.
-    gui: { rotation: [10, -25, -40], translation: [3.4, 2.4, 0], scale: [0.95, 0.95, 0.95] },
-    ground: { rotation: [0, 0, -45], translation: [2.4, 3.2, 0], scale: [0.6, 0.6, 0.6] },
-    fixed: { rotation: [0, 180, -45], translation: [-3.2, 1.6, 0], scale: [0.8, 0.8, 0.8] }
   })
 
   // Throwing knife: slim, no guard, a cord-wrapped handle and a ring at the end.
@@ -1045,23 +999,6 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   })
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 
-  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard.
-  const SHARD = [['karambit', 1], ['pipe_wrench', 2], ['throwing_knife', 3], ['energy_drink', 4], ['bandage', 5]]
-  write('minecraft/items/amethyst_shard.json', {
-    // A drink or a throw lowers the stack: no re-equip dip (like WeaponMechanics' feather.json).
-    hand_animation_on_swap: false,
-    model: {
-      type: 'minecraft:range_dispatch',
-      property: 'minecraft:custom_model_data',
-      index: 0,
-      entries: [
-        ...SHARD.map(([name, n]) => ({ threshold: n, model: { type: 'minecraft:model', model: `donating:item/${name}` } })),
-        { threshold: SHARD.length + 1, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
-      ],
-      fallback: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' }
-    }
-  })
-
   // The thrown knife in flight (iron_nugget.json, custom model data 7004, see Bullets): point first
   // along -z like the bullets, the blade upright, 10.5 units from the point (z = -3) to the ring (z =
   // 7.5, just ahead of the true position at z = 8), and no south (backward) faces, so the thrower sees
@@ -1178,20 +1115,33 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   // --only <id>[,<id>]: build just these gun modules (previews while drawing one gun: tools\render-item.js on its
   // donating:item/<name>_full); feather.json isn't written then.
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null
-  for (const [id, numbers] of Object.entries(GUNS)) {
-    if (only && !only.includes(id)) continue
+  // A module's entries, checked to be exactly its numbers.
+  const runModule = (id, numbers) => {
     const got = require(path.join(__dirname, 'guns', `${id}.js`))({ ...helpers, id })
     const keys = Object.keys(got).map(Number)
     const missing = numbers.filter(n => !keys.includes(n))
     const extra = keys.filter(n => !numbers.includes(n))
     if (missing.length || extra.length) throw new Error(`tools\\guns\\${id}.js must return exactly ${numbers.join(', ')} (missing ${missing.join(', ') || '-'}, extra ${extra.join(', ') || '-'})`)
-    for (const n of numbers) feather.push({ threshold: n, model: typeof got[n] === 'string' ? { type: 'minecraft:model', model: got[n] } : got[n] })
+    return Object.fromEntries(numbers.map(n => [n, typeof got[n] === 'string' ? { type: 'minecraft:model', model: got[n] } : got[n]]))
+  }
+  for (const [id, numbers] of Object.entries(GUNS)) {
+    if (only && !only.includes(id)) continue
+    const got = runModule(id, numbers)
+    for (const n of numbers) feather.push({ threshold: n, model: got[n] })
+  }
+  // The pg-kit melee weapons (2026-10-13): amethyst_shard.json's 1 (the Katana, title Dagger), 6 (the Brass Knuckles)
+  // and 7 (the Gold Nunchucks), with the kit's frames on DonatingPhone MeleeFx's clocks.
+  const MELEE = { katana: [1], knuckles: [6], nunchucks: [7] }
+  const melee = {}
+  for (const [id, numbers] of Object.entries(MELEE)) {
+    if (only && !only.includes(id)) continue
+    Object.assign(melee, runModule(id, numbers))
   }
   // Every model the entries name must exist (and be ours), and so must its parents.
   const modelFile = id => { const [ns, p] = id.split(':'); return path.join(PACK, ns, 'models', ...p.split('/')) + '.json' }
   const checkModel = id => {
-    if (!id.startsWith('donating:')) throw new Error(`feather.json: ${id} isn't one of our models`)
-    if (!fs.existsSync(modelFile(id))) throw new Error(`feather.json: the model ${id} wasn't written`)
+    if (!id.startsWith('donating:')) throw new Error(`item models: ${id} isn't one of our models`)
+    if (!fs.existsSync(modelFile(id))) throw new Error(`item models: the model ${id} wasn't written`)
     const j = JSON.parse(fs.readFileSync(modelFile(id), 'utf8'))
     if (j.parent && j.parent.startsWith('donating:')) checkModel(j.parent)
   }
@@ -1201,6 +1151,30 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     for (const v of Object.values(m)) if (typeof v === 'object') Array.isArray(v) ? v.forEach(walkModels) : walkModels(v)
   }
   feather.forEach(e => walkModels(e.model))
+  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard (8 up, and
+  // the fallback for no number).
+  if (!only) {
+    const model = n => ({ type: 'minecraft:model', model: `donating:item/${n}` })
+    const SHARD = { 1: melee[1], 2: model('pipe_wrench'), 3: model('throwing_knife'), 4: model('energy_drink'), 5: model('bandage'), 6: melee[6], 7: melee[7] }
+    Object.values(SHARD).forEach(walkModels) // ours only: before the plain shard is added (checkModel refuses minecraft:)
+    write('minecraft/items/amethyst_shard.json', {
+      // A drink or a throw lowers the stack: no re-equip dip (like WeaponMechanics' feather.json).
+      hand_animation_on_swap: false,
+      // Every attack resets the 26.3 client's swap ticker, which sinks the held item up to 0.6 blocks for the attack
+      // delay: the Brass Knuckles' punch and the Gold Nunchucks' twirl (the frames) played below the screen.
+      swap_animation_scale: 0,
+      model: {
+        type: 'minecraft:range_dispatch',
+        property: 'minecraft:custom_model_data',
+        index: 0,
+        entries: [
+          ...Object.entries(SHARD).map(([n, m]) => ({ threshold: Number(n), model: m })).sort((a, b) => a.threshold - b.threshold),
+          { threshold: 8, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
+        ],
+        fallback: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' }
+      }
+    })
+  }
   // Gun skins (tools\guns\skins.js, 2026-10-06): each look repaints its gun's tiles (pg.js paintSkin) and gets an item
   // definition of its own, donating:gunskin_<gun>_<look> (assets/donating/items/), with the gun's entries (the same
   // states and frames) on the skin's models; DonatingPhone's GunFx puts it on a player's guns as their item_model.

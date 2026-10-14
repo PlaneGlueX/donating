@@ -1,0 +1,56 @@
+# Donating (2026-10-13): the Brass Knuckles (from PG3D's Steampunk Fists, made grounded: a brass knuckle-duster on our
+# tactical glove; hand-made). The rule for every melee: Base_Damage + any bonus <= 5.0 (4 hits unarmored even at
+# x1.30), always under the AK-48's 5.5.
+Brass_Knuckles:
+  Info:
+    Cancel:
+      Drop_Item: true
+      Swap_Hands: true
+    Weapon_Item:
+      # Donating: not a feather (WeaponMechanics' pack owns feather.json); the pack's amethyst_shard.json
+      # draws it by its custom model data (tools\guns\knuckles.js).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Brass Knuckles"
+      Lore:
+        - "<gray>A brass duster over a tactical glove."
+        - "<gray>Quick jabs, but only at arm's length."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 3.5 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 1.7 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 3 <gold>⟸ <gray>Range in blocks"
+      Unbreakable: true
+      Hide_Flags: true
+      Attributes:
+        - "movement_speed 0.004"
+        - "attack_speed -2.33"
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_gold, pitch=1.2, listeners=Source{}}"
+    Weapon_Equip_Mechanics:
+      - "Sound{sound=item.armor.equip_gold, volume=0.6, pitch=1.2, listeners=Source{}}"
+  Skin:
+    Default:
+      Custom_Model_Data: 6
+  Damage:
+    # Donating: 3.5 a hit every 12 ticks (6 hits unarmored, 5 at the head, 17/12 in the best gear). Range 3.3: the client
+    # attacks up to 3.0 by its own view, and 3.0 exactly would turn lag-edge hits into misses with a 12-tick lockout.
+    # 10 ticks would out-kill the Katana. DonatingPhone's MeleeFx draws the punch as frames (no client swing: it would
+    # bend the glove's sleeve onto the screen).
+    Base_Damage: 3.5
+    Armor_Damage: 3
+    Mechanics:
+      - "Sound{sound=entity.player.attack.strong, pitch=1.25, volume=0.7} @Target{}"
+      - "Sound{sound=block.chain.hit, pitch=1.7, volume=0.35} @Target{}"
+    Head:
+      Bonus_Damage: 0
+    Backstab:
+      Bonus_Damage: 0
+  Melee:
+    Enable_Melee: true
+    Melee_Range: 3.3
+    Melee_Hit_Delay: 12
+    Melee_Miss:
+      Mechanics:
+        - "Sound{sound=entity.player.attack.nodamage, pitch=1.3, noise=0.1}"
+      Melee_Miss_Delay: 12

@@ -11,7 +11,7 @@ if (!mod || !id) { console.log('usage: node lint.js <module.js> <gun id> [--kit 
 const out = path.join(__dirname, 'out-lint-' + id)
 let spec = null
 const { pg } = build({ kit, out, guns: [id], skins: false, modules: { [id]: mod }, wrap: (n, s) => { spec = s; return s } })
-const name = 'gun_' + id
+const name = pg.made['gun_' + id] ? 'gun_' + id : 'melee_' + id // a gun, or a pg-kit melee weapon (katana, knuckles, nunchucks)
 const g = pg.made[name]
 const D = spec.density || (spec.style === 'pg' ? 4 : 2)
 const issues = []
