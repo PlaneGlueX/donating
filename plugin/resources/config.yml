@@ -26,6 +26,27 @@ passive-tag: donating_passive
 open-tag: donating_phone_open
 # Bottom line on the held phone (ASCII only; "" = none).
 hint: "R-click: map  F: apps"
+# Big map zoom (sneak while it's open; not in a vehicle): 1 = the whole city, then that many times closer around you,
+# never past the city's edge (at most 4 screen pixels a city pixel; levels that would look the same are left out).
+# /dphone zoom <player> [level] shows or sets it.
+big-zoom: [1, 2, 4, 8]
+
+# ---------- GPS paths (/dphone path, Paths.java): staff lay nodes and links in game; saved in paths.yml ----------
+# In a world with paths the GPS's way goes along them (floors, doors and fences the road grid can't see): onto the link
+# that makes the whole trip shortest, along the links, then off to the target.
+paths:
+  # Blocks: the player joins a link this close (also the target's end); none that close: the road grid or a straight line.
+  range: 24
+  # Picking the way in, a block of height counts this many (a link on another floor isn't "near").
+  vertical-weight: 3
+  # Walking off the paths counts this many times a block on them.
+  off-cost: 1.5
+  # Blocks: another way in must be this much shorter to replace the current one (no flicker).
+  hysteresis: 2
+  # In a world with paths a quest's area is only this many blocks up or down (12 elsewhere): not the floor above.
+  arrive-height: 4
+  # /dphone path show: nodes and links within this many blocks.
+  show-range: 40
 
 # ---------- GPS (gps.sk sets each player's target; this finds the way along the roads and draws it) ----------
 gps:

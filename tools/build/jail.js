@@ -138,6 +138,7 @@ const snbt = s => [...s].map(c => {
 }).join('')
 const f = n => `${Math.round(n * 1000) / 1000}f`
 
+// A whole number in a command coordinate means the block centre (+0.5): always write the decimals.
 async function placeLabels () {
   const rcon = require(path.join(ROOT, 'bots', 'rcon.js'))
   const list = labels()
@@ -161,7 +162,7 @@ async function placeLabels () {
         `transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[${f(l.scale)},${f(l.scale)},${f(l.scale)}]}}`
       let out = ''
       for (let t = 0; t < 40; t++) {
-        out = await r.cmd(`${ex} summon minecraft:text_display ${l.x} ${l.y} ${l.z} ${nbtText}`)
+        out = await r.cmd(`${ex} summon minecraft:text_display ${l.x.toFixed(3)} ${l.y.toFixed(3)} ${l.z.toFixed(3)} ${nbtText}`)
         if (!/not loaded|out of the world/i.test(out)) break
         await new Promise(res => setTimeout(res, 100))
       }

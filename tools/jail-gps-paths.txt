@@ -1,0 +1,383 @@
+# The prison's GPS paths (187 nodes, 193 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
+# Run every line that isn't a comment, in order (local: tools\rcon.ps1; Minehut: the console, or upload the paths.yml they make).
+dphone path clear jailbreak confirm
+dphone path addat jailbreak 48.5 58 59.5 id=1 nolink
+dphone path addat jailbreak 55.5 58 59.5 id=2 nolink
+dphone path addat jailbreak 62.5 58 59.5 id=3 nolink
+dphone path addat jailbreak 69.5 58 59.5 id=4 nolink
+dphone path addat jailbreak 71.5 59 59.5 id=5 nolink
+dphone path addat jailbreak 73.5 58 59.5 id=6 nolink
+dphone path addat jailbreak 76.5 58 59.5 id=7 nolink
+dphone path addat jailbreak 77.5 59 59.5 id=8 nolink
+dphone path addat jailbreak 79.5 58 59.5 id=9 nolink
+dphone path addat jailbreak 91.5 58 59.5 id=10 nolink
+dphone path addat jailbreak 98.5 58 59.5 id=11 nolink
+dphone path addat jailbreak 105.5 58 59.5 id=12 nolink
+dphone path addat jailbreak 112.5 58 59.5 id=13 nolink
+dphone path addat jailbreak 119.5 58 59.5 id=14 nolink
+dphone path addat jailbreak 48.5 58 51.5 id=15 nolink Cell N46
+dphone path addat jailbreak 55.5 58 51.5 id=16 nolink Cell N53
+dphone path addat jailbreak 62.5 58 51.5 id=17 nolink Cell N60
+dphone path addat jailbreak 69.5 58 51.5 id=18 nolink Cell N67
+dphone path addat jailbreak 76.5 58 51.5 id=19 nolink Cell N74
+dphone path addat jailbreak 91.5 58 51.5 id=20 nolink Cell N89
+dphone path addat jailbreak 98.5 58 51.5 id=21 nolink Cell N96
+dphone path addat jailbreak 105.5 58 51.5 id=22 nolink Cell N103
+dphone path addat jailbreak 112.5 58 51.5 id=23 nolink Cell N110
+dphone path addat jailbreak 48.5 58 68.5 id=24 nolink Cell S46
+dphone path addat jailbreak 55.5 58 68.5 id=25 nolink Cell S53
+dphone path addat jailbreak 62.5 58 68.5 id=26 nolink Cell S60
+dphone path addat jailbreak 69.5 58 68.5 id=27 nolink Cell S67
+dphone path addat jailbreak 98.5 58 68.5 id=28 nolink Cell S96
+dphone path addat jailbreak 105.5 58 68.5 id=29 nolink Cell S103
+dphone path addat jailbreak 112.5 58 68.5 id=30 nolink Cell S110
+dphone path addat jailbreak 119.5 58 68.5 id=31 nolink Cell S117
+dphone path addat jailbreak 78.5 58 59.5 id=32 nolink SNEAK_BACK
+dphone path addat jailbreak 80.5 58 62.5 id=33 nolink
+dphone path addat jailbreak 84.5 58 80.5 id=34 nolink CP_VENT
+dphone path addat jailbreak 84.5 58 90.5 id=35 nolink CP_OFFICE
+dphone path addat jailbreak 84.5 58 97.5 id=36 nolink COURSE_PUSH
+dphone path addat jailbreak 80.5 58 77.5 id=37 nolink RUSTY_TALK
+dphone path addat jailbreak 80.5 58 78.5 id=38 nolink
+dphone path addat jailbreak 73.5 58 77.5 id=39 nolink
+dphone path addat jailbreak 61.5 58 80.5 id=40 nolink BOILER_IN
+dphone path addat jailbreak 80.5 58 93.5 id=41 nolink
+dphone path addat jailbreak 78.5 58 93.5 id=42 nolink
+dphone path addat jailbreak 78.5 58 92.5 id=43 nolink T_SO_GATE
+dphone path addat jailbreak 65.5 58 89.5 id=44 nolink
+dphone path addat jailbreak 64.5 59 88.5 id=45 nolink
+dphone path addat jailbreak 64.5 64 88.5 id=46 nolink
+dphone path addat jailbreak 64.5 65 89.5 id=47 nolink SO_UP
+dphone path addat jailbreak 71.5 65.06 106.5 id=48 nolink
+dphone path addat jailbreak 71.5 65 116.5 id=49 nolink
+dphone path addat jailbreak 80.5 65 117.5 id=50 nolink
+dphone path addat jailbreak 82.5 65 117.5 id=51 nolink COURSE_DONE
+dphone path addat jailbreak 84.5 58 105.5 id=52 nolink
+dphone path addat jailbreak 83.5 65 112.5 id=53 nolink STAIR_GATE_A
+dphone path addat jailbreak 84.5 65 112.5 id=54 nolink
+dphone path addat jailbreak 84.5 65 121.5 id=55 nolink ROUTE_HALLB_1
+dphone path addat jailbreak 82.5 65 151.5 id=56 nolink
+dphone path addat jailbreak 84.5 65 155.5 id=57 nolink ROUTE_HALLB_2
+dphone path addat jailbreak 84.5 65 188.5 id=58 nolink ROUTE_HALLB_3
+dphone path addat jailbreak 86.5 65 198.5 id=59 nolink R_SPAWN
+dphone path addat jailbreak 133.5 65 197.5 id=60 nolink R_SPAWN_OUT
+dphone path addat jailbreak 88.5 65 144.5 id=61 nolink
+dphone path addat jailbreak 98.5 65 138.5 id=62 nolink
+dphone path addat jailbreak 100.5 66 137.5 id=63 nolink DONUT_CAFE
+dphone path addat jailbreak 90.5 65 115.5 id=64 nolink
+dphone path addat jailbreak 91.5 65 112.5 id=65 nolink
+dphone path addat jailbreak 91.5 65 95.5 id=66 nolink
+dphone path addat jailbreak 87.5 65 94.5 id=67 nolink
+dphone path addat jailbreak 82.5 65 89.5 id=68 nolink SEARCH_WIRES
+dphone path addat jailbreak 91.5 65 71.5 id=69 nolink
+dphone path addat jailbreak 67.5 65 72.5 id=70 nolink
+dphone path addat jailbreak 64.5 65 75.5 id=71 nolink
+dphone path addat jailbreak 61.5 65 75.5 id=72 nolink
+dphone path addat jailbreak 53.5 65 59.5 id=73 nolink
+dphone path addat jailbreak 52.5 66 58.5 id=74 nolink
+dphone path addat jailbreak 51.5 65 57.5 id=75 nolink
+dphone path addat jailbreak 50.5 65 56.5 id=76 nolink
+dphone path addat jailbreak 49.5 65 52.5 id=77 nolink ASSEMBLE_STAND
+dphone path addat jailbreak 60.5 65 52.5 id=78 nolink SEARCH_PUTTY
+dphone path addat jailbreak 99.5 65 203.5 id=79 nolink
+dphone path addat jailbreak 105.5 65 209.5 id=80 nolink
+dphone path addat jailbreak 108.5 65.06 211.5 id=81 nolink
+dphone path addat jailbreak 98.5 65 228.5 id=82 nolink
+dphone path addat jailbreak 95.5 65 229.5 id=83 nolink
+dphone path addat jailbreak 83.5 65 229.5 id=84 nolink
+dphone path addat jailbreak 82.5 66 228.5 id=85 nolink SEARCH_TIMER
+dphone path addat jailbreak 140.5 65 165.5 id=86 nolink ROUTE_YARDS_12
+dphone path addat jailbreak 140.5 65 140.5 id=87 nolink ROUTE_YARDN_1
+dphone path addat jailbreak 156.5 65 122.5 id=88 nolink ROUTE_YARDN_2
+dphone path addat jailbreak 172.5 65 103.5 id=89 nolink ROUTE_YARDN_3
+dphone path addat jailbreak 205.5 65 103.5 id=90 nolink ROUTE_YARDN_4
+dphone path addat jailbreak 238.5 65 103.5 id=91 nolink ROUTE_YARDN_5
+dphone path addat jailbreak 263.5 65 118.5 id=92 nolink ROUTE_YARDN_6
+dphone path addat jailbreak 263.5 65 145.5 id=93 nolink ROUTE_YARDS_1
+dphone path addat jailbreak 263.5 65 172.5 id=94 nolink ROUTE_YARDS_2
+dphone path addat jailbreak 263.5 65 199.5 id=95 nolink ROUTE_YARDS_3
+dphone path addat jailbreak 263.5 65 226.5 id=96 nolink ROUTE_YARDS_4
+dphone path addat jailbreak 263.5 65 245.5 id=97 nolink ROUTE_YARDS_5
+dphone path addat jailbreak 227.5 65 243.5 id=98 nolink ROUTE_YARDS_6
+dphone path addat jailbreak 190.5 65 240.5 id=99 nolink ROUTE_YARDS_7
+dphone path addat jailbreak 190.5 65 215.5 id=100 nolink ROUTE_YARDS_8
+dphone path addat jailbreak 190.5 65 189.5 id=101 nolink ROUTE_YARDS_9
+dphone path addat jailbreak 165.5 65 189.5 id=102 nolink ROUTE_YARDS_10
+dphone path addat jailbreak 140.5 65 189.5 id=103 nolink ROUTE_YARDS_11
+dphone path addat jailbreak 150.5 65 163.5 id=104 nolink
+dphone path addat jailbreak 179.5 65 156.5 id=105 nolink
+dphone path addat jailbreak 197.5 65 152.5 id=106 nolink
+dphone path addat jailbreak 140.5 65 240.5 id=107 nolink RUN_4
+dphone path addat jailbreak 273.5 65 180.5 id=108 nolink STASH_1
+dphone path addat jailbreak 238.5 65 94.5 id=109 nolink STASH_2
+dphone path addat jailbreak 162.5 65 245.5 id=110 nolink STASH_3
+dphone path addat jailbreak 180.5 65 271.5 id=111 nolink ROUTE_WALK_3
+dphone path addat jailbreak 180.5 65 290.5 id=112 nolink ROUTE_WALK_2
+dphone path addat jailbreak 180.5 65 310.5 id=113 nolink ROUTE_WALK_1
+dphone path addat jailbreak 190.5 65 318.5 id=114 nolink STASH_4
+dphone path addat jailbreak 178.5 65 320.5 id=115 nolink PLANT_GATE
+dphone path addat jailbreak 178.5 65 326.5 id=116 nolink
+dphone path addat jailbreak 184.5 65.5 346.5 id=117 nolink
+dphone path addat jailbreak 190.5 65 362.5 id=118 nolink ROUTE_LOT_2
+dphone path addat jailbreak 205.5 65 271.5 id=119 nolink ROUTE_WALK_4
+dphone path addat jailbreak 235.5 65 271.5 id=120 nolink ROUTE_WALK_5
+dphone path addat jailbreak 265.5 65 271.5 id=121 nolink ROUTE_WALK_6
+dphone path addat jailbreak 295.5 65 271.5 id=122 nolink ROUTE_WALK_7
+dphone path addat jailbreak 330.5 65 271.5 id=123 nolink ROUTE_WALK_8
+dphone path addat jailbreak 336.5 65 265.5 id=124 nolink ROUTE_WALK_9
+dphone path addat jailbreak 336.5 65 258.5 id=125 nolink ROUTE_WALK_10
+dphone path addat jailbreak 335.5 65 254.5 id=126 nolink PUNCH_STAND
+dphone path addat jailbreak 308.5 65 260.5 id=127 nolink
+dphone path addat jailbreak 316.5 65 260.5 id=128 nolink
+dphone path addat jailbreak 316.5 65 254.5 id=129 nolink
+dphone path addat jailbreak 313.5 65 248.5 id=130 nolink
+dphone path addat jailbreak 312.5 66 247.5 id=131 nolink
+dphone path addat jailbreak 311.5 65 246.5 id=132 nolink
+dphone path addat jailbreak 210.5 65 285.5 id=133 nolink
+dphone path addat jailbreak 210.5 65 288.5 id=134 nolink POL_IN
+dphone path addat jailbreak 219.5 65 288.5 id=135 nolink
+dphone path addat jailbreak 222.5 65 291.5 id=136 nolink
+dphone path addat jailbreak 225.5 65 292.5 id=137 nolink ROUTE_POLOFFICE_1
+dphone path addat jailbreak 225.5 65 296.5 id=138 nolink ROUTE_POLOFFICE_2
+dphone path addat jailbreak 246.5 65 296.5 id=139 nolink ROUTE_POLOFFICE_3
+dphone path addat jailbreak 246.5 65 293.5 id=140 nolink ROUTE_POLOFFICE_4
+dphone path addat jailbreak 211.5 65 300.5 id=141 nolink
+dphone path addat jailbreak 214.5 65 300.5 id=142 nolink
+dphone path addat jailbreak 220.5 65 304.5 id=143 nolink ROUTE_POLDESK_1
+dphone path addat jailbreak 219.5 65 305.5 id=144 nolink
+dphone path addat jailbreak 218.5 66 306.5 id=145 nolink
+dphone path addat jailbreak 218.5 66.5 307.5 id=146 nolink
+dphone path addat jailbreak 218.5 65 308.5 id=147 nolink
+dphone path addat jailbreak 210.5 65 319.5 id=148 nolink
+dphone path addat jailbreak 210.5 65 326.5 id=149 nolink
+dphone path addat jailbreak 230.5 65 362.5 id=150 nolink ROUTE_LOT_3
+dphone path addat jailbreak 337.5 65 263.5 id=151 nolink
+dphone path addat jailbreak 340.5 65 264.5 id=152 nolink PUNCH_IN
+dphone path addat jailbreak 346.5 65 326.5 id=153 nolink
+dphone path addat jailbreak 347.5 65 327.5 id=154 nolink
+dphone path addat jailbreak 347.5 65 330.5 id=155 nolink
+dphone path addat jailbreak 349.5 66 332.5 id=156 nolink
+dphone path addat jailbreak 349.5 67 334.5 id=157 nolink
+dphone path addat jailbreak 349.5 68 337.5 id=158 nolink
+dphone path addat jailbreak 351.5 67 337.5 id=159 nolink
+dphone path addat jailbreak 352.5 67 338.5 id=160 nolink
+dphone path addat jailbreak 352.5 68 340.5 id=161 nolink
+dphone path addat jailbreak 354.5 67 340.5 id=162 nolink
+dphone path addat jailbreak 355.5 67 341.5 id=163 nolink
+dphone path addat jailbreak 357.5 68 341.5 id=164 nolink
+dphone path addat jailbreak 360.5 69 341.5 id=165 nolink
+dphone path addat jailbreak 363.5 70 341.5 id=166 nolink
+dphone path addat jailbreak 366.5 71 341.5 id=167 nolink
+dphone path addat jailbreak 366.5 72 344.5 id=168 nolink
+dphone path addat jailbreak 366.5 73 347.5 id=169 nolink
+dphone path addat jailbreak 366.5 72.63 350.5 id=170 nolink
+dphone path addat jailbreak 366.5 70 351.5 id=171 nolink
+dphone path addat jailbreak 366.5 68 352.5 id=172 nolink
+dphone path addat jailbreak 365.5 65 352.5 id=173 nolink
+dphone path addat jailbreak 350.5 65 362.5 id=174 nolink ROUTE_LOT_6
+dphone path addat jailbreak 150.5 65 362.5 id=175 nolink ROUTE_LOT_1
+dphone path addat jailbreak 270.5 65 362.5 id=176 nolink ROUTE_LOT_4
+dphone path addat jailbreak 310.5 65 362.5 id=177 nolink ROUTE_LOT_5
+dphone path addat jailbreak 272.5 65 389.5 id=178 nolink ROUTE_GATE_2
+dphone path addat jailbreak 272.5 65 393.5 id=179 nolink BOOTH_IN
+dphone path addat jailbreak 271.5 65 396.5 id=180 nolink CONSOLE
+dphone path addat jailbreak 236.5 65 389.5 id=181 nolink ROUTE_GATE_1
+dphone path addat jailbreak 308.5 65 389.5 id=182 nolink ROUTE_GATE_3
+dphone path addat jailbreak 272.5 65 390.5 id=183 nolink
+dphone path addat jailbreak 267.5 65.5 390.5 id=184 nolink
+dphone path addat jailbreak 266.5 65 395.5 id=185 nolink FUSE_STAND
+dphone path addat jailbreak 260.5 65 392.5 id=186 nolink FRONT_IN
+dphone path addat jailbreak 260.5 65 404.5 id=187 nolink LOT_EXIT
+dphone path link 1 2
+dphone path link 1 15
+dphone path link 1 24
+dphone path link 2 3
+dphone path link 2 16
+dphone path link 2 25
+dphone path link 3 4
+dphone path link 3 17
+dphone path link 3 26
+dphone path link 4 5
+dphone path link 4 18
+dphone path link 4 27
+dphone path link 5 6
+dphone path link 6 7
+dphone path link 7 8
+dphone path link 7 19
+dphone path link 8 32
+dphone path link 9 10
+dphone path link 9 32
+dphone path link 10 11
+dphone path link 10 20
+dphone path link 11 12
+dphone path link 11 21
+dphone path link 11 28
+dphone path link 12 13
+dphone path link 12 22
+dphone path link 12 29
+dphone path link 13 14
+dphone path link 13 23
+dphone path link 13 30
+dphone path link 14 31
+dphone path link 32 33
+dphone path link 33 34
+dphone path link 34 35
+dphone path link 34 37
+dphone path link 34 38
+dphone path link 35 36
+dphone path link 35 41
+dphone path link 36 52
+dphone path link 38 39
+dphone path link 39 40
+dphone path link 41 42
+dphone path link 42 43
+dphone path link 43 44
+dphone path link 44 45
+dphone path link 45 46
+dphone path link 46 47
+dphone path link 47 48
+dphone path link 48 49
+dphone path link 49 50
+dphone path link 50 51
+dphone path link 51 55
+dphone path link 51 64
+dphone path link 52 53
+dphone path link 53 54
+dphone path link 54 55
+dphone path link 55 56
+dphone path link 55 64
+dphone path link 56 57
+dphone path link 57 58
+dphone path link 57 61
+dphone path link 58 59
+dphone path link 59 60
+dphone path link 59 79
+dphone path link 60 86
+dphone path link 61 62
+dphone path link 62 63
+dphone path link 64 65
+dphone path link 65 66
+dphone path link 66 67
+dphone path link 66 69
+dphone path link 67 68
+dphone path link 69 70
+dphone path link 70 71
+dphone path link 71 72
+dphone path link 72 73
+dphone path link 73 74
+dphone path link 74 75
+dphone path link 75 76
+dphone path link 76 77
+dphone path link 77 78
+dphone path link 79 80
+dphone path link 79 82
+dphone path link 80 81
+dphone path link 82 83
+dphone path link 83 84
+dphone path link 84 85
+dphone path link 86 87
+dphone path link 86 103
+dphone path link 86 104
+dphone path link 87 88
+dphone path link 88 89
+dphone path link 89 90
+dphone path link 90 91
+dphone path link 91 92
+dphone path link 91 109
+dphone path link 92 93
+dphone path link 93 94
+dphone path link 94 95
+dphone path link 94 106
+dphone path link 94 108
+dphone path link 95 96
+dphone path link 96 97
+dphone path link 97 98
+dphone path link 98 99
+dphone path link 99 100
+dphone path link 99 107
+dphone path link 99 110
+dphone path link 99 111
+dphone path link 100 101
+dphone path link 101 102
+dphone path link 102 103
+dphone path link 103 107
+dphone path link 104 105
+dphone path link 105 106
+dphone path link 111 112
+dphone path link 111 119
+dphone path link 112 113
+dphone path link 113 114
+dphone path link 113 115
+dphone path link 115 116
+dphone path link 116 117
+dphone path link 117 118
+dphone path link 118 150
+dphone path link 118 175
+dphone path link 119 120
+dphone path link 119 133
+dphone path link 120 121
+dphone path link 121 122
+dphone path link 122 123
+dphone path link 122 127
+dphone path link 123 124
+dphone path link 124 125
+dphone path link 125 126
+dphone path link 125 151
+dphone path link 127 128
+dphone path link 128 129
+dphone path link 129 130
+dphone path link 130 131
+dphone path link 131 132
+dphone path link 133 134
+dphone path link 134 135
+dphone path link 134 141
+dphone path link 135 136
+dphone path link 136 137
+dphone path link 137 138
+dphone path link 138 139
+dphone path link 139 140
+dphone path link 141 142
+dphone path link 142 143
+dphone path link 143 144
+dphone path link 144 145
+dphone path link 145 146
+dphone path link 146 147
+dphone path link 147 148
+dphone path link 148 149
+dphone path link 149 150
+dphone path link 150 176
+dphone path link 151 152
+dphone path link 152 153
+dphone path link 153 154
+dphone path link 154 155
+dphone path link 155 156
+dphone path link 156 157
+dphone path link 157 158
+dphone path link 158 159
+dphone path link 159 160
+dphone path link 160 161
+dphone path link 161 162
+dphone path link 162 163
+dphone path link 163 164
+dphone path link 164 165
+dphone path link 165 166
+dphone path link 166 167
+dphone path link 167 168
+dphone path link 168 169
+dphone path link 169 170
+dphone path link 170 171
+dphone path link 171 172
+dphone path link 172 173
+dphone path link 173 174
+dphone path link 174 177
+dphone path link 176 177
+dphone path link 176 178
+dphone path link 178 181
+dphone path link 178 182
+dphone path link 178 183
+dphone path link 179 180
+dphone path link 179 183
+dphone path link 181 186
+dphone path link 183 184
+dphone path link 184 185
+dphone path link 186 187

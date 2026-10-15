@@ -3,7 +3,7 @@
 # (ESCAPE-SPEC 2.3). jailPointsLoad() deletes and refills exactly these memory variables: {-jailpt::*},
 # {-jailroute::*}, {-jailzone::*}, {-jailwall::*}, {-jailinner::*}, {-jaildoor::*}, {-jailbreach::*},
 # {-jailrubble::*} and {-jailpts::*}.
-# 184 points, 10 routes, 53 zones, 25 + 37 outline vertices, 27 doors, 3 breaches.
+# 176 points, 10 routes, 53 zones, 25 + 37 outline vertices, 27 doors, 3 breaches.
 
 on load:
 	jailPointsLoad()
@@ -42,16 +42,8 @@ function jailPointsLoad():
 	set {-jailpt::LOT_EXIT} to "260.5|65|404.5|0"
 	set {-jailpt::L_FUSE} to "266.97|66.5|395.5|90"
 	set {-jailpt::L_GATEHOUSE} to "272.5|68.5|390.97|180"
-	set {-jailpt::L_HOTBAR} to "77|59.8|79.97|180"
-	set {-jailpt::L_JUMP} to "68|61|60|90"
-	set {-jailpt::L_LADDER} to "66|60|88.03|0"
 	set {-jailpt::L_OFFICE} to "80.03|61|94|-90"
-	set {-jailpt::L_PHONE} to "77|59.8|76.03|0"
 	set {-jailpt::L_POLICE_N} to "211|69.5|284.97|180"
-	set {-jailpt::L_READER} to "80.03|59.9|86.5|-90"
-	set {-jailpt::L_SNEAK} to "84|60.8|56.5|0"
-	set {-jailpt::L_SPRINT} to "57|61|60|90"
-	set {-jailpt::L_WALK} to "49|61|60|90"
 	set {-jailpt::PLANT_GATE} to "178.5|65|320.5|0"
 	set {-jailpt::POL_DOOR_N} to "210|65|286|0"
 	set {-jailpt::POL_DOOR_S} to "210|65|321|0"
@@ -322,7 +314,7 @@ function jailPointsLoad():
 	add "61|57|82|61|59|83" to {-jailzone::crawl::*}
 	add "45|57|74|72|62|81" to {-jailzone::boiler::*}
 	add "75|57|76|78|61|79" to {-jailzone::rustycell::*}
-	add "78|57|77|78|60|79" to {-jailzone::rustydoor::*}
+	add "77|57|76|78|60|79" to {-jailzone::rustydoor::*}
 	add "64|58|88|64|64|88" to {-jailzone::ladder::*}
 	add "64|64|88|78|72|112" to {-jailzone::soup::*}
 	add "74|64|115|78|68|119" to {-jailzone::hallcend::*}
@@ -767,5 +759,5 @@ function jailPointsLoad():
 	add "181|65|324|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "177|65|321|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "178|65|324|iron_bars" to {-jailrubble::gate::*}
-	set {-jailpts::count} to 184
+	set {-jailpts::count} to 176
 	set {-jailpts::loaded} to true

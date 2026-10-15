@@ -4,9 +4,9 @@
 // steps up to G, and the vent: the mouth, the crawl, the walk tunnel under the lane and the west wall, the shaft and its
 // hatch outside. Regions: B1 x 43..126, y 50..63, z 47..113; DUCT x -2..42, y 55..61, z 82..86; EXIT x -7..-3,
 // y 55..68, z 82..86. Natural stone and dirt stay around the dug rooms; every visible wall is set explicitly.
-// The escape rework (ESCAPE-SPEC 3.2, 2026-10-14): B1's west wing is the controls course (hurdles, signs); the crawl
-// turns north into the boiler room, a broken wall leads on into Rusty's cell, and the walk tunnel and its shaft are
-// sealed (grass over the old hatch).
+// The escape rework (ESCAPE-SPEC 3.2, 2026-10-14): B1's west wing is the controls course (hurdles; its instruction
+// signs went the same day); the crawl turns north into the boiler room, a broken wall leads on into Rusty's cell, and
+// the walk tunnel and its shaft are sealed (grass over the old hatch).
 
 // ---- COMMON (jail-spec 1.7, copy verbatim) ----
 const h = (x, y, z) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 100
@@ -444,16 +444,9 @@ module.exports.labels = [
   { x: 80.03, y: 60.5, z: 84.5, facing: 'east', text: 'VENT', color: '#ffd54a', scale: 1 },
   { x: 119.5, y: 61.5, z: 56.03, facing: 'south', text: 'MAX SECURITY', color: '#ffffff', scale: 1 },
   { x: 84.5, y: 61.0, z: 50.5, facing: 'up', text: 'Z', color: '#cfe8ff', scale: 1 },
-  // the controls course's signs (ESCAPE-SPEC 3.2-5), free-floating
-  { x: 49.0, y: 61.0, z: 60.0, facing: 'west', text: 'WALK: W A S D', color: '#ffffff', scale: 0.6 }, // L_WALK
-  { x: 57.0, y: 61.0, z: 60.0, facing: 'west', text: 'SPRINT: double-tap W (or hold Ctrl)', color: '#ffffff', scale: 0.6 }, // L_SPRINT
-  { x: 68.0, y: 61.0, z: 60.0, facing: 'west', text: 'JUMP: Space', color: '#ffffff', scale: 0.6 }, // L_JUMP
-  { x: 84.0, y: 60.8, z: 56.5, facing: 'south', text: "SNEAK: hold Shift. Take his keycard. Don't wake him.", color: '#ffffff', scale: 0.6 }, // L_SNEAK
-  { x: 80.03, y: 59.9, z: 86.5, facing: 'east', text: 'KEYCARD: right-click the red reader', color: '#ffffff', scale: 0.6 }, // L_READER
-  { x: 77.0, y: 59.8, z: 76.03, facing: 'south', text: 'PHONE: slot 9. Right-click: map. F: apps', color: '#ffffff', scale: 0.6 }, // L_PHONE
-  { x: 77.0, y: 59.8, z: 79.97, facing: 'north', text: 'HOTBAR: keys 1-5 or the mouse wheel', color: '#ffffff', scale: 0.6 }, // L_HOTBAR
-  { x: 80.03, y: 61.0, z: 94.0, facing: 'east', text: 'SECURITY OFFICE (keycard)', color: '#ffffff', scale: 0.6 }, // L_OFFICE
-  { x: 66.0, y: 60.0, z: 88.03, facing: 'south', text: 'CLIMB: walk into the ladder', color: '#ffffff', scale: 0.6 } // L_LADDER
+  // the controls course's instruction signs are gone (owner, 2026-10-14: "get rid of the floating text in the tutorial
+  // hallway since we switched over": jailcourse.sk tells each step on screen); place names stay
+  { x: 80.03, y: 61.0, z: 94.0, facing: 'east', text: 'SECURITY OFFICE', color: '#ffffff', scale: 0.6 } // L_OFFICE
 ]
 
 // the Skript spots of 7.1 and 10, copied exactly; block spots (doors, lids, hatches, readers) with yaw 0
@@ -484,15 +477,7 @@ const points = {
   RUSTY_TALK: [80.25, 58.0, 77.5, 90],
   BOILER_IN: [61.5, 58, 80.5, 0],
   SNEAK_BACK: [78.5, 58, 59.5, -90],
-  L_WALK: [49.0, 61.0, 60.0, 90],
-  L_SPRINT: [57.0, 61.0, 60.0, 90],
-  L_JUMP: [68.0, 61.0, 60.0, 90],
-  L_SNEAK: [84.0, 60.8, 56.5, 0],
-  L_READER: [80.03, 59.9, 86.5, -90],
-  L_PHONE: [77.0, 59.8, 76.03, 0],
-  L_HOTBAR: [77.0, 59.8, 79.97, 180],
-  L_OFFICE: [80.03, 61.0, 94.0, -90],
-  L_LADDER: [66.0, 60.0, 88.03, 0]
+  L_OFFICE: [80.03, 61.0, 94.0, -90]
 }
 // the other tutorial spawn cells and their doors (7.1)
 for (const x0 of [46, 53, 67, 74, 89, 96, 103, 110]) { points[`T_CELL_N${x0}`] = [x0 + 2.5, 58.0, 51.5, 0]; points[`T_CELL_N${x0}_DOOR`] = [x0 + 2, 58, 55, 0] }

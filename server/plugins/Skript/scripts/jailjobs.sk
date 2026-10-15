@@ -2,7 +2,8 @@
 # ESCAPE-SPEC revision 3, section 6). Built 2026-10-14.
 #
 # Four inmates are quest givers (quests.sk kinds lefty, rusty, tank, whisper; /djailjobs setup puts them at their
-# points): Lefty on the Hall B bench (his one-time lessons are the "lefty" chain in story.sk; after it, the Yard Run),
+# points): Lefty on the Hall B bench (his one-time lessons are the "lefty" chain in story.sk; after it, the Yard Run;
+# for anyone who brings him the three C4 parts, the C4: jjC4),
 # Rusty in his B1 cell (talked to through the bars: an interaction box in the corridor; donut trades), Tank in the
 # yard (the Distraction) and Whisper in the telephone room (deliveries and the stash). quests.sk's questOpen calls
 # jjobTalk for them.
@@ -299,6 +300,10 @@ function jjobTalk(p: player, kind: text, n: text):
 				if jjDone({_p}) is true:
 					jjSay({_p}, {_who}, "Nice. Here's your cut.")
 				stop
+	# The C4: Lefty takes the three parts and hands it back put together, before his lessons and jobs.
+	if {_kind} is "lefty":
+		if jjC4({_p}) is true:
+			stop
 	# A talk mission with this giver (Lefty's l_meet): his lines, then it's done (story.sk).
 	loop {-cfg::story::chains::*}:
 		set {_cid} to storyIdOf({_p}, loop-value)
@@ -326,6 +331,37 @@ function jjobTalk(p: player, kind: text, n: text):
 		jjRusty({_p})
 		stop
 	jjMenu({_p}, {_kind})
+
+# Lefty puts the C4 together (owner, 2026-10-14: "for the last part of the c4, instead of going to the workbench, give it
+# to lefty and he will give you the completed item"): the putty, the wires and a timer for a C4 in hotbar 1-5. False when
+# the player doesn't carry all three (his usual talk then).
+function jjC4(p: player) :: boolean:
+	loop "putty", "wires" and "timer":
+		if jailCount({_p}, loop-value) < 1:
+			return false
+	set {_who} to jjWho("lefty")
+	if jailCount({_p}, "c4") >= 1:
+		jjSay({_p}, {_who}, "One at a time. Use the one you've got.")
+		return true
+	set {_free} to false
+	loop integers from 0 to 4:
+		if slot loop-value of {_p}'s inventory is air:
+			set {_free} to true
+	if {_free} is false:
+		jjSay({_p}, {_who}, "Free up a hand first.")
+		hudBar({_p}, "&cFree a slot in hotbar 1-5 for the C4", 2)
+		return true
+	jailTake({_p}, "putty", 1)
+	jailTake({_p}, "wires", 1)
+	jailTake({_p}, "timer", 1)
+	jailGive({_p}, "c4", 1)
+	progEvent({_p}, "jailc4", 1, "")
+	play sound "block.anvil.use" with volume 0.8 to {_p}
+	jjSay({_p}, {_who}, "Give me those. There: hold right-click on the vehicle gate by the plaza, then get clear.")
+	hudBar({_p}, "&a+ C4 &7(hotbar) · hold right-click on the vehicle gate by the plaza", 2)
+	jailLog("c4 %{_p}% by=lefty")
+	jjLog("c4 %{_p}% %uuid of {_p}%")
+	return true
 
 # Rusty's donut trade: a keycard if they carry none, else a C4 part they don't carry, else $100; once per
 # jjob::donut::cooldown (a catch clears it). Without a donut: his line and the donut hint.
@@ -634,6 +670,11 @@ function jjPass(p: player):
 	else if {_id} is "stash":
 		if {-jjob::%{_u}%::step} is "find":
 			jjStashShow({_p})
+			set {_sl} to jailPt("%{-jjob::%{_u}%::target}%")
+			if {_sl} is set:
+				if world of {_sl} is world of {_p}:
+					if distance between {_p} and {_sl} <= 3:
+						hudBar({_p}, "&eHold right-click &7· Dig up the stash", 0)
 	else if {_id} is "distraction":
 		set {_h} to {-jail::hostile::%{_u}%}
 		if {-jjob::%{_u}%::step} is "heat":

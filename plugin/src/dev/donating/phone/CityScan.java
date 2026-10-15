@@ -64,6 +64,27 @@ final class CityScan {
 
     File file() { return new File(plugin.getDataFolder(), "city.bin"); }
     private File useFile() { return new File(plugin.getDataFolder(), "city.yml"); }
+    /** Another world's own city (2026-10-14: the prison world while the main city is the test city): cities/<world>.bin. */
+    private File otherFile(String world) { return new File(new File(plugin.getDataFolder(), "cities"), world + ".bin"); }
+
+    /** Every other world's saved city (unreadable ones are left out with a warning). */
+    java.util.List<Image> others() {
+        java.util.List<Image> out = new java.util.ArrayList<>();
+        File[] files = new File(plugin.getDataFolder(), "cities").listFiles((d, n) -> n.endsWith(".bin"));
+        if (files != null) for (File f : files) {
+            try { out.add(load(f)); } catch (IOException e) { plugin.getLogger().warning("cities/" + f.getName() + " can't be read: " + e.getMessage()); }
+        }
+        return out;
+    }
+
+    /** The saved city of a world: the main city.bin when it's that world's, else cities/<world>.bin (null: none). */
+    private Image imageOf(String world) {
+        Image im = image();
+        if (im != null && (world == null || im.world.equals(world))) return im;
+        File f = world == null ? null : otherFile(world);
+        if (f == null || !f.exists()) return null;
+        try { return load(f); } catch (IOException e) { return null; }
+    }
 
     /** city.yml: which city the phones show (the scan or the config's city-maps). The plugin owns it, like pool.yml. */
     boolean useScan() { return "scan".equalsIgnoreCase(YamlConfiguration.loadConfiguration(useFile()).getString("source", "maps")); }
@@ -136,10 +157,21 @@ final class CityScan {
         switch (sub) {
             case "info" -> {
                 Image im = image();
+                java.util.List<String> own = new java.util.ArrayList<>();
+                for (Image o : others()) own.add(o.world + ":" + o.box().replace(' ', ',') + "@" + o.scale() + (plugin.otherCities().contains(o.world) ? "" : "(unused)"));
                 who.sendMessage("CITY source=" + (useScan() ? "scan" : "maps") + " shown=" + plugin.cityDesc()
                         + " file=" + (im == null ? "none" : im.world + " " + im.box() + " scale " + im.scale() + " (" + im.w + "x" + im.h + " px, made "
                         + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(new java.util.Date(im.made)) + ")")
+                        + " others=" + (own.isEmpty() ? "none" : String.join(" ", own))
                         + (job == null ? "" : " scanning=" + job.progress()));
+            }
+            case "remove" -> {
+                // remove <world>: that world's own city (the main city stays: /dphone city use maps).
+                File f = args.length == 3 && args[2].matches("[\\w-]+") ? otherFile(args[2]) : null; // a world name, never a path
+                if (f == null || !f.exists()) { who.sendMessage("CITY usage: /dphone city remove <world> (a world's own city, cities/<world>.bin)"); return true; }
+                if (!f.delete()) { who.sendMessage("CITY can't delete " + f.getName()); return true; }
+                plugin.cityChanged();
+                who.sendMessage("CITY removed " + args[2] + "'s own city: players there see the main city again");
             }
             case "cancel" -> {
                 if (job == null) { who.sendMessage("CITY no scan running"); return true; }
@@ -162,10 +194,10 @@ final class CityScan {
                 who.sendMessage("CITY the phones show " + (plugin.isScanCity() ? "the scan" : "the city-maps") + ": " + plugin.cityDesc() + roadsNote());
             }
             case "pixel" -> {
-                // Tests: one pixel of the saved scan at a block.
-                Image im = image();
+                // Tests: one pixel of the saved scan at a block (of a world's own city with a world).
+                Image im = args.length > 4 ? imageOf(args[4]) : image();
                 int x, z;
-                try { x = Integer.parseInt(args[2]); z = Integer.parseInt(args[3]); } catch (RuntimeException e) { who.sendMessage("CITY usage: /dphone city pixel <x> <z>"); return true; }
+                try { x = Integer.parseInt(args[2]); z = Integer.parseInt(args[3]); } catch (RuntimeException e) { who.sendMessage("CITY usage: /dphone city pixel <x> <z> [world]"); return true; }
                 if (im == null) { who.sendMessage("CITY pixel none (no city.bin)"); return true; }
                 int ix = Math.floorDiv(x - im.x0, im.bpp), iz = Math.floorDiv(z - im.z0, im.bpp);
                 if (ix < 0 || iz < 0 || ix >= im.w || iz >= im.h) { who.sendMessage("CITY pixel " + x + "," + z + " outside"); return true; }
@@ -173,7 +205,7 @@ final class CityScan {
                 who.sendMessage("CITY pixel " + x + "," + z + " = " + b + " color=" + (b >> 2) + " shade=" + (b & 3) + " at=" + ix + "," + iz);
             }
             case "scan" -> scanCommand(who, args);
-            default -> who.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] | cancel | use scan|maps | pixel <x> <z>]: draw the phone's city from the world");
+            default -> who.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] [world] | cancel | use scan|maps | pixel <x> <z> [world] | remove <world>]: draw the phone's city from the world");
         }
         return true;
     }
@@ -186,6 +218,9 @@ final class CityScan {
         if (job != null) { who.sendMessage("CITY a scan is running (" + job.progress() + "): /dphone city cancel first"); return; }
         boolean confirm = rawArgs.length > 2 && rawArgs[rawArgs.length - 1].equalsIgnoreCase("confirm");
         String[] args = confirm ? java.util.Arrays.copyOf(rawArgs, rawArgs.length - 1) : rawArgs;
+        // A world name at the end: scan that world (the console's way to the prison world).
+        World named = args.length > 2 && !args[args.length - 1].matches("-?\\d+") ? Bukkit.getWorld(args[args.length - 1]) : null;
+        if (named != null) args = java.util.Arrays.copyOf(args, args.length - 1);
         World world;
         int x1, z1, x2, z2, scale;
         try {
@@ -195,23 +230,23 @@ final class CityScan {
                 x2 = Integer.parseInt(args[4]);
                 z2 = Integer.parseInt(args[5]);
                 scale = args.length == 7 ? Integer.parseInt(args[6]) : -1;
-                world = who instanceof Player p ? p.getWorld() : plugin.cityWorld() != null ? plugin.cityWorld() : Bukkit.getWorlds().get(0);
+                world = named != null ? named : who instanceof Player p ? p.getWorld() : plugin.cityWorld() != null ? plugin.cityWorld() : Bukkit.getWorlds().get(0);
             } else if (args.length == 2 || args.length == 3) {
                 // The city the phones show now (the maps' box or the last scan's), at its scale or a new one.
-                int[] box = plugin.cityBox();
-                if (box == null) { who.sendMessage("CITY no city yet: /dphone city scan <x1> <z1> <x2> <z2> [scale]"); return; }
+                int[] box = named != null ? plugin.cityBox(named.getName()) : plugin.cityBox();
+                if (box == null) { who.sendMessage("CITY no city " + (named != null ? "of " + named.getName() + " " : "") + "yet: /dphone city scan <x1> <z1> <x2> <z2> [scale] [world]"); return; }
                 x1 = box[0];
                 z1 = box[1];
                 x2 = box[2];
                 z2 = box[3];
                 scale = args.length == 3 ? Integer.parseInt(args[2]) : Integer.numberOfTrailingZeros(box[4]);
-                world = plugin.cityWorld();
+                world = named != null ? named : plugin.cityWorld();
             } else {
-                who.sendMessage("CITY usage: /dphone city scan [<x1> <z1> <x2> <z2>] [scale 0-4]");
+                who.sendMessage("CITY usage: /dphone city scan [<x1> <z1> <x2> <z2>] [scale 0-4] [world]");
                 return;
             }
         } catch (NumberFormatException e) {
-            who.sendMessage("CITY usage: /dphone city scan [<x1> <z1> <x2> <z2>] [scale 0-4] (whole numbers)");
+            who.sendMessage("CITY usage: /dphone city scan [<x1> <z1> <x2> <z2>] [scale 0-4] [world] (whole numbers)");
             return;
         }
         if (scale > 4) { who.sendMessage("CITY scale is 0-4 (1, 2, 4, 8 or 16 blocks a pixel)"); return; }
@@ -228,9 +263,12 @@ final class CityScan {
         if (w > MAX_SIDE || h > MAX_SIDE) { who.sendMessage("CITY too big: " + w + "x" + h + " pixels at scale " + scale + " (at most " + MAX_SIDE + " a side): use a higher scale"); return; }
         long chunks = (long) (((x0 + w * bpp - 1) >> 4) - (x0 >> 4) + 1) * (((z0 + h * bpp - 1) >> 4) - ((z0 - bpp) >> 4) + 1);
         if (chunks > MAX_CHUNKS && !confirm) { who.sendMessage("CITY that box is " + chunks + " chunks (about " + chunks / 15 / 60 + " min): add confirm at the end if you mean it"); return; }
-        job = new Job(who, world, x0, z0, bpp, w, h);
+        // A world other than the main city's gets its own city (cities/<world>.bin); the main city stays as it is.
+        World mainWorld = plugin.cityWorld();
+        boolean other = mainWorld != null && !mainWorld.getName().equals(world.getName());
+        job = new Job(who, world, x0, z0, bpp, w, h, other);
         who.sendMessage("CITY scanning " + world.getName() + " " + x0 + " " + z0 + " " + (x0 + w * bpp - 1) + " " + (z0 + h * bpp - 1) + " at scale " + scale
-                + " (" + w + "x" + h + " px, " + job.total + " chunks, about " + Math.max(1, job.total / 15) + " s)");
+                + " (" + w + "x" + h + " px, " + job.total + " chunks, about " + Math.max(1, job.total / 15) + " s)" + (other ? " as " + world.getName() + "'s own city" : ""));
     }
 
     // ---------- The scan ----------
@@ -239,6 +277,7 @@ final class CityScan {
         final CommandSender who;
         final World world;
         final int x0, z0, bpp, w, h, minY, maxY;
+        final boolean other;                   // another world's own city (cities/<world>.bin), not the main city
         final int zTop;                        // the pixel row north of the image (shades the first row, like vanilla)
         final int cx1, cz1, rowsZ;             // the chunks: index i = (cx - cx1) * rowsZ + (cz - cz1)
         int next;                              // the next chunk to ask for
@@ -259,9 +298,10 @@ final class CityScan {
         volatile boolean cancelled;
         boolean finishing;
 
-        Job(CommandSender who, World world, int x0, int z0, int bpp, int w, int h) {
+        Job(CommandSender who, World world, int x0, int z0, int bpp, int w, int h, boolean other) {
             this.who = who;
             this.world = world;
+            this.other = other;
             this.x0 = x0;
             this.z0 = z0;
             this.bpp = bpp;
@@ -418,9 +458,14 @@ final class CityScan {
             Image im = new Image(world.getName(), x0, z0, bpp, w, h, System.currentTimeMillis(), px);
             // Written here, put in place on the main thread only while the scan still counts (review fix: a cancel during
             // this step replaced city.bin anyway).
+            File dest = other ? otherFile(world.getName()) : file();
             File tmp;
             String saved;
-            try { tmp = writeTmp(im, file()); saved = null; } catch (IOException e) { tmp = null; saved = e.getMessage(); }
+            try {
+                dest.getParentFile().mkdirs();
+                tmp = writeTmp(im, dest);
+                saved = null;
+            } catch (IOException e) { tmp = null; saved = e.getMessage(); }
             File written = tmp;
             String writeErr = saved;
             if (!plugin.isEnabled()) { if (written != null) written.delete(); return; }
@@ -428,6 +473,17 @@ final class CityScan {
                 if (job != this) { if (written != null) written.delete(); return; }
                 job = null;
                 long secs = (System.currentTimeMillis() - started) / 1000;
+                if (other) {
+                    String err = writeErr;
+                    if (written != null) {
+                        try { commit(written, dest); } catch (IOException e) { err = e.getMessage(); written.delete(); }
+                    }
+                    if (err != null) { who.sendMessage("CITY scanned in " + secs + " s but NOT saved (" + err + ")"); return; }
+                    plugin.cityChanged();
+                    who.sendMessage("CITY done in " + secs + " s: " + w + "x" + h + " px at scale " + Integer.numberOfTrailingZeros(bpp) + ", saved cities/" + dest.getName()
+                            + "; players in " + world.getName() + " see it now (sneak on the big map to zoom)");
+                    return;
+                }
                 // Staff chose a city with /dphone city use while it ran: keep that choice, on disk too (review fix).
                 if (chose) {
                     if (written != null) written.delete();

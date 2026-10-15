@@ -1438,8 +1438,12 @@ command /zzjail <player> <text>:
 		else if {_sub} is "eligible":
 			# What the city's features answer for this player (garage.sk Valet, grapple.sk, hits.sk).
 			send "ZZJAIL %{_p}% car=%carCallBlock({_p})% grapple=%grappleBlock({_p})% hit=%hitEligible({_p})%"
+		else if {_sub} is "stepnum":
+			# jailcourse.sk's number for the player's course step (cell 1 .. upstairs 9), and its checkpoint.
+			set {_s} to jcStepOf({_p})
+			send "ZZJAIL %{_p}% step=%{_s}% num=%jcStepNum({_s})% cp=%jcCheckpoint({_p}, {_s})%"
 		else:
-			send "ZZJAIL usage: state|step|give|strip|info|catch|escape-check|cellopen|ko|shield|hostile|calm|unstuck|own|tag|mark"
+			send "ZZJAIL usage: state|step|give|strip|info|catch|escape-check|cellopen|ko|shield|hostile|calm|unstuck|own|tag|mark|eligible|stepnum"
 
 # A plugin teleport into the prison world (no teleport immunity, never refused by the prison's teleport gate).
 command /zzjailtp <player> <number> <number> <number> [<number>]:

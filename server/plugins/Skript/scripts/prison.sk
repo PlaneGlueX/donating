@@ -657,8 +657,8 @@ every 5 ticks:
 
 # ---------- Catching: arrest, down, quit, stuck, surrender, staff ----------
 
-# Back to the cell (a course player: back to the course checkpoint). Everything but "stuck" also takes the jail items
-# and clears the search cooldowns, so the escape starts over at once.
+# Back to the cell (a course player: back to the course checkpoint). Everything but "stuck" also takes the jail items and
+# the weapons in hotbar 1-5 and clears the search cooldowns, so the escape starts over at once.
 function jailCatch(p: player, why: text):
 	set {_u} to "%uuid of {_p}%"
 	# A dead player respawns by the respawn rules (healing or moving one on the death screen breaks the client).
@@ -684,8 +684,15 @@ function jailCatch(p: player, why: text):
 	delete {-jail::mark::%{_u}%}
 	delete {-jail::lot::%{_u}%}
 	jailModsOff({_p})
+	set {_armed} to false
 	if {_why} is not "stuck":
 		jailStrip({_p})
+		# Equipped weapons and consumables (hotbar 1-5) go too, like a death; they stay unlocked (owner, 2026-10-14: "getting
+		# arrested in prison takes away your weapons too"). The yard's Gun Shop gives back the melee you own.
+		loop integers from 0 to 4:
+			if slot loop-value of {_p}'s inventory is not air:
+				set {_armed} to true
+				set slot loop-value of {_p}'s inventory to air
 		loop {-cfg::prison::spots::*}:
 			set {_sp::*} to loop-value split at "|"
 			deleteData({_p}, "jspot-ready::%{_sp::1}%")
@@ -714,6 +721,8 @@ function jailCatch(p: player, why: text):
 	delete {-jail::doorclose::cell_%{_c}%}
 	jailDoor("cell_%{_c}%", false)
 	msg({_p}, "&7Your cell opens in %{_secs}%s. The escape starts over.")
+	if {_armed} is true:
+		msg({_p}, "&7They took your weapons. The Gun Shop in the yard gives back the melee you own.")
 
 # ---------- The course's end (jailcourse.sk calls it; /dprison course skip too) ----------
 
@@ -961,7 +970,8 @@ on join:
 		stop
 	if {_s} is "off":
 		stop
-	# A free player in the prison world (a logout in the 3 s after an escape): to the city.
+	# A free player in the prison world (a logout in the 3 s after an escape) goes to the city, but only while after-escape
+	# is "spawn" (the default "": the jailbreak world is the whole map, a free player stays in it).
 	world of player is jailWorld()
 	{-cfg::prison::after-escape} is "spawn"
 	wait 1 second
@@ -1347,13 +1357,13 @@ function jailHoldTime(p: player) :: number:
 		return {_t}
 	return 0
 
-# "Searching ▮▮▯ 1.2s" on the action bar.
+# "Hold right-click · Searching ▮▮▯ 1.2s" on the action bar (owner, 2026-10-14: "make sure to specify to hold right click").
 function jailHoldBar(p: player, what: text, need: number):
 	set {_t} to jailHoldTime({_p})
 	set {_f} to min(1, {_t} / max(0.1, {_need}))
 	set {_left} to max(0, {_need} - {_t})
 	set {_s} to "%round({_left} * 10) / 10%"
-	hudBar({_p}, "&e%{_what}% %lootMeter({_f})% &f%{_s}%s", 1)
+	hudBar({_p}, "&eHold right-click &7· &e%{_what}% %lootMeter({_f})% &f%{_s}%s", 1)
 
 # A hit that lands resets a hold.
 on damage of player with priority monitor:
@@ -1501,7 +1511,7 @@ command /prison [<text>]:
 		if {-jail::hostile::%{_u}%} is set:
 			set {_what} to "%{_what}% &c(the guards are after you)"
 		msg(player, "&7You're an inmate, %{_what}%&7.")
-		msg(player, "&6Ways out: &fa keycard &7(knock a guard down or trade Rusty a donut) through the police station, &fC4 &7(parts in the workshop, the supply closet and the infirmary; put it together at the workshop bench) on the vehicle gate by the plaza, or &fthe fence by the Gun Shop &7(punch the box when no guard is near, or use a keycard) and over the boxes. &6Then the lot: &7the front gate opens from the gatehouse booth's console. A keycard opens the booth, or punch its fuse box when no guard is near.")
+		msg(player, "&6Ways out: &fa keycard &7(knock a guard down or trade Rusty a donut) through the police station, &fC4 &7(parts in the workshop, the supply closet and the infirmary: hold right-click to search; Lefty in Hall B puts it together) on the vehicle gate by the plaza, or &fthe fence by the Gun Shop &7(punch the box when no guard is near, or use a keycard) and over the boxes. &6Then the lot: &7the front gate opens from the gatehouse booth's console. A keycard opens the booth, or punch its fuse box when no guard is near.")
 		msg(player, "&7Stuck somewhere? &f/prison stuck &7(back to your cell; while the guards are after you it counts as a catch).")
 
 # ---------- /dprison (staff) ----------

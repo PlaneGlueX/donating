@@ -4,11 +4,16 @@
 // booth's console, is the way out. Checked here: the closed prison holds; the keycard through the police station (the
 // doors open as you walk up, a follower gets the method too); the gatehouse door (keycard, the fuse box refused near
 // the GATE cop, its inside exit); the console and the front gate (open 15 s for everyone, the escape with its method,
-// the close moving whoever stands in the gateway, the 30 s cooldown); the C4 (the three parts, the bench, the plant, the
-// blast, the rubble path, the rebuild warning and the hole rule, the chalk hint on W5); the parkour (the punch box
+// the close moving whoever stands in the gateway, the 30 s cooldown; an escape leaves the player in the jailbreak world:
+// owner, 2026-10-14, "the jailbreak map is supposed to be the entire map"); the C4 (the three parts with their markers on
+// the spots and "Hold right-click" prompts, Lefty putting them together (owner, 2026-10-14: "give it to lefty"), the
+// plant, the blast, the rubble path, the rebuild warning and the hole rule, the chalk hint on W5); the parkour (the punch box
 // refused near the WALK cop, the punch gate, the crates, over the fence); free players kept out; teleport commands and
-// guns refused inside; the Prison Gun Shop (melee you own only); combat-logging inside; a catch clears the method.
+// guns refused inside; the Prison Gun Shop (melee you own only); combat-logging inside; a catch clears the method. The jail
+// items carry their icons (custom model data the pack draws).
 // The cops are blinded for this scenario (prison-cops tests what they see); their positions still matter (the boxes).
+const fs = require('fs')
+const path = require('path')
 const { start, field, sleep } = require('../prisonlib')
 
 const E1 = 'PcEscA'
@@ -16,6 +21,9 @@ const E2 = 'PcEscB'
 const E3 = 'PcEscC'
 const VET_CELLS = ['n89', 'n96', 'n103', 'n110', 's96', 's103', 's110', 's117']
 const CONSOLE = [272.5, 65, 397.5]
+const LEFTY = [80.5, 65.5, 151.5]
+const PACK = path.join(__dirname, '..', '..', 'pack', 'assets')
+const KINDS = ['coursecard', 'keycard', 'putty', 'wires', 'timer', 'c4', 'donut', 'note', 'stash']
 const near = (p, x, z, d = 1) => p && Math.abs(p[0] - x) <= d && Math.abs(p[2] - z) <= d
 
 module.exports = async ({ check }) => {
@@ -39,6 +47,21 @@ module.exports = async ({ check }) => {
     const copsOk = await until(async () => !/none/.test(await t.cop('gate')) && !/none/.test(await t.cop('walk')), 90000, 2000)
     check('setup: the GATE and WALK cops exist', copsOk, `${await t.cop('gate')} | ${await t.cop('walk')}`)
     await sleep(500)
+
+    // ---------- the jail items' icons (owner, 2026-10-14: "add icon textures to donuts, keycards, etc.") ----------
+    const brick = JSON.parse(fs.readFileSync(path.join(PACK, 'minecraft', 'items', 'brick.json'), 'utf8'))
+    const cases = (brick.model.cases || []).map(c => c.when)
+    const bad = []
+    for (const k of KINDS) {
+      await cmd(`zzjail ${E1} strip`)
+      await cmd(`zzjail ${E1} give ${k}`)
+      const cmdData = await cmd(`minecraft:data get entity ${E1} Inventory[{components:{"minecraft:custom_data":{donating_id:"jail:${k}"}}}].components."minecraft:custom_model_data"`)
+      if (!cmdData.includes(`"donating:jail_${k}"`)) bad.push(`${k}: ${cmdData}`)
+      if (!cases.includes(`donating:jail_${k}`)) bad.push(`${k}: not in brick.json`)
+      if (!fs.existsSync(path.join(PACK, 'donating', 'textures', 'item', `jail_${k}.png`))) bad.push(`${k}: no texture`)
+    }
+    await cmd(`zzjail ${E1} strip`)
+    check('every jail item carries its icon (custom model data donating:jail_<kind>), and the pack draws each of the 9', bad.length === 0, bad.join(' / '))
 
     // ---------- the closed prison: no inner barrier or gate lets an inmate through ----------
     const tries = [
@@ -105,8 +128,10 @@ module.exports = async ({ check }) => {
     check('...and the inmate walks out', ok, `${await pos(E2)}`)
 
     // ---------- the console and the front gate ----------
+    since = Date.now()
     await jtp(E1, 272.5, 65, 395.5, 0)
     await sleep(1500)
+    check('inside the booth: "Hold right-click on the console"', said(e1, /Hold right-click on the console/, since))
     const held = await hold(e1, CONSOLE, 3800, 1)
     const opened = await until(async () => /state=open/.test(await breach('front')), 1500)
     let fr = await breach('front')
@@ -128,7 +153,13 @@ module.exports = async ({ check }) => {
     s1 = await info(E1)
     check('out through the front gate: ESCAPED, state out, method keycard, the jail items gone', field(s1, 'state') === 'out' && said(e1, /ESCAPED/, since) && logs.prison.has(new RegExp(`escape ${E1} \\S+ keycard`)) && field(s1, 'items') === '', s1)
     check('the follower out the other lane: method keycard (no escape-unknown)', logs.prison.has(new RegExp(`escape ${E2} \\S+ keycard`)) && !logs.prison.has(new RegExp(`escape-unknown ${E2}`)), logs.prison.since().split('\n').filter(l => /escape/.test(l)).join(' / '))
-    check('...sent to the city spawn 3 s later', await until(async () => (await dim(E1)) === 'minecraft:overworld', 5000), await dim(E1))
+    await sleep(4500)
+    s1 = await info(E1)
+    check('...and stays where it is in the jailbreak world, outside the walls (no teleport to another world)', (await dim(E1)) === 'minecraft:jailbreak' && field(s1, 'inside') === 'false' && field(s1, 'state') === 'out', `${await dim(E1)} ${s1}`)
+    ok = await walk(e1, [[262.5, 404.5], [262.5, 410.5]], 4000)
+    await sleep(1200)
+    const pFree = await pos(E1)
+    check('...walks on freely outside (not pulled back, still free)', ok && pFree && pFree[2] > 409 && field(await info(E1), 'state') === 'out', `${pFree} ${await info(E1)}`)
     const closed = await until(async () => /state=closed/.test(await breach('front')), 18000, 300)
     const closeMs = Date.now() - openedAt
     fr = await breach('front')
@@ -176,12 +207,17 @@ module.exports = async ({ check }) => {
 
     // ---------- C4 ----------
     await cmd(`zzjail ${E1} strip`)
+    since = Date.now()
     await into(E1, 61.5, 65, 54.5, 180)
     await sleep(1500)
+    const mark = await until(() => t.near(e1, 'item_display', [60.88, 65.5, 53.5], 0.3), 4000)
+    check('the workshop barrel\'s glowing marker sits on its front face (owner: "on the same block"), not over it', !!mark && !t.near(e1, 'item_display', [61.5, 66.6, 53.5], 0.4), mark ? `${mark.position}` : 'none')
+    check('...next to it: "Hold right-click · Search here"', await until(() => said(e1, /Hold right-click . Search here/, since), 2000))
+    since = Date.now()
     await hold(e1, [61.5, 64.99, 53.5], 2600, 1)
     await sleep(400)
     let s = await info(E1)
-    check('searching the workshop barrel (hold 2 s): the C4 putty', /putty:/.test(field(s, 'items')), s)
+    check('searching the workshop barrel (hold 2 s, "Hold right-click · Searching"): the C4 putty', /putty:/.test(field(s, 'items')) && said(e1, /Hold right-click . Searching/, since), s)
     await cmd(`zzjail ${E1} strip`)
     since = Date.now()
     await hold(e1, [61.5, 64.99, 53.5], 600, 1)
@@ -193,33 +229,46 @@ module.exports = async ({ check }) => {
     await hold(e1, [81.5, 64.99, 90.5], 2600, 1)
     await jtp(E1, 82.5, 65, 230.5, 90)
     await sleep(1500)
+    since = Date.now()
     await hold(e1, [81.5, 65.99, 230.5], 2600, 1)
     await sleep(400)
     s = await info(E1)
-    check('the supply closet and the infirmary: the wires and the timer', /wires:/.test(s) && /timer:/.test(s), s)
+    check('the supply closet and the infirmary: the wires and the timer; with all three, "bring them to Lefty"', /wires:/.test(s) && /timer:/.test(s) && said(e1, /bring them to Lefty/, since), s)
     await jtp(E1, 49.5, 65, 52.5, 180)
-    await cmd(`zzfill ${E1} 0 4`)
     await sleep(1500)
     since = Date.now()
-    await hold(e1, [49.5, 64.99, 51.5], 3600, 1)
+    await hold(e1, [49.5, 64.99, 51.5], 600, 1)
     await sleep(400)
     s = await info(E1)
-    check('the bench with hotbar 1-5 full: refused, the parts kept', said(e1, /Free a slot in hotbar 1-5/, since) && /putty:/.test(s) && /wires:/.test(s) && /timer:/.test(s) && !/c4:/.test(s), s)
+    check('the old workshop bench only points to Lefty, nothing made', said(e1, /Lefty puts C4 together/, since) && !/c4:/.test(field(s, 'items')) && /putty:/.test(s), s)
+    await cmd('djailjobs setup')
+    await jtp(E1, 82.5, 65, 151.5, 90)
+    await cmd(`zzfill ${E1} 0 4`)
+    const lefty = await until(() => t.near(e1, 'mannequin', LEFTY), 30000, 500)
+    since = Date.now()
+    if (lefty) await e1.activateEntity(lefty).catch(() => {})
+    await sleep(900)
+    s = await info(E1)
+    check('Lefty with hotbar 1-5 full: refused ("Free a slot in hotbar 1-5"), the parts kept', !!lefty && said(e1, /Free a slot in hotbar 1-5/, since) && /putty:/.test(s) && /wires:/.test(s) && /timer:/.test(s) && !/c4:/.test(s), s)
     await cmd(`minecraft:clear ${E1} minecraft:stone`)
     await sleep(500)
-    await hold(e1, [49.5, 64.99, 51.5], 3600, 1)
-    await sleep(500)
+    logs.prison.mark()
+    since = Date.now()
+    if (lefty) await e1.activateEntity(lefty).catch(() => {})
+    await sleep(900)
     s = await info(E1)
     const c4slot = Number((field(s, 'items').match(/c4:(\d+)/) || [])[1])
-    check('the bench: a C4 into hotbar 1-5, the parts used', c4slot >= 0 && c4slot <= 4 && !/putty|wires|timer/.test(field(s, 'items')), s)
+    check('the three parts to Lefty: a C4 into hotbar 1-5, the parts gone, "Give me those"', c4slot >= 0 && c4slot <= 4 && !/putty|wires|timer/.test(field(s, 'items')) && said(e1, /Give me those/, since) && logs.prison.has(new RegExp(`c4 ${E1} by=lefty`)), s)
     e1.setQuickBarSlot(c4slot >= 0 && c4slot <= 4 ? c4slot : 0)
     // An inmate at 1 heart next to the gate, and a free bot at 2 blocks while it blows.
     await into(E2, 179.5, 65, 319.9, 0)
     await cmd(`zzhp ${E2} 2`)
     await state(E3, 'out')
+    since = Date.now()
     await jtp(E1, 178.5, 65, 320.5, 0)
     await cmd(`zzhp ${E1} 20`)
     await sleep(1500)
+    check('at the vehicle gate holding the C4: "Hold right-click on the gate · plant the C4"', said(e1, /Hold right-click on the gate . plant the C4/, since))
     const hpE1 = e1.health
     await hold(e1, [178.5, 66, 321.9], 3800, 1)
     check('planting the C4 on the vehicle gate (hold 3 s): armed', /state=armed/.test(await breach('gate')), await breach('gate'))

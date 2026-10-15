@@ -1,7 +1,8 @@
 // The prison's inmates and their missions (jailjobs.sk, story.sk's lefty chain, quests.sk; ESCAPE-SPEC 6 and 7.2-6;
 // owner, 2026-10-14: "NPCs with small missions for money or items: a one-time chain for new players, then short
 // repeatable jobs"). The four givers stand after /djailjobs setup; Lefty's lessons for a course graduate, each paying
-// once (meet him, the Prison Gun Shop, a donut, a C4 with the GPS on the nearest missing part, a keycard, the escape);
+// once (meet him, the Prison Gun Shop, a donut ("Hold right-click · Take a donut" at the counter), a C4 with the GPS on
+// the nearest missing part and then on Lefty, who puts the three parts together, a keycard, the escape);
 // an escape mid-chain finishes it; a veteran sent in by a death never gets it; Mara's chain only after the first escape
 // (WELCOME TO THE CITY, the "broke out" brief); c1_knife completes silently for a bot holding the knife; Lefty's bar is
 // blue; each job (Yard Run, Special Delivery, The Stash, Distraction) pays once and then waits; Rusty's donut trade
@@ -41,6 +42,7 @@ module.exports = async ({ check }) => {
     await cmd(`zzdata ${n} jspot-ready::DONUT_CAFE none`)
     await jtp(n, ...CAFE_STAND)
     await until(async () => !!near(bot, 'interaction', CAFE, 1.2), 4000)
+    await sleep(2000) // the "Hold right-click" prompt comes every 10 ticks (a "New mission" line holds the action bar 1.5 s)
     return hold(bot, CAFE, 1200, 1.2)
   }
   const gps = async n => cmd(`dphone gps ${n}`)
@@ -81,9 +83,10 @@ module.exports = async ({ check }) => {
     await closeWin(m1)
     const shop = await until(async () => /id=l_donut/.test(await story(M1, 'lefty')), 8000, 500)
     check('opening the Prison Gun Shop: l_shop passes (+$50)', shop && (await bal(M1)) === b0 + 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    since = Date.now()
     await donut(m1, M1)
     await sleep(600)
-    check('a donut from the cafeteria counter (into the pockets)', /donut:/.test(field(await info(M1), 'items')), await info(M1))
+    check('a donut from the cafeteria counter (into the pockets), "Hold right-click · Take a donut" next to it', /donut:/.test(field(await info(M1), 'items')) && said(m1, /Hold right-click . Take a donut/, since), `${await info(M1)} ${t.text(m1, since)}`)
     await jtp(M1, ...LEFTY_STAND)
     await sleep(1500)
     b0 = await bal(M1)
@@ -93,7 +96,7 @@ module.exports = async ({ check }) => {
     await talk(m1, LEFTY)
     const dn = await until(async () => /id=l_c4/.test(await story(M1, 'lefty')), 8000, 500)
     check('the donut to Lefty: "Mm, chocolate.", l_donut passes once (+$75, one donut taken)', dn && said(m1, /Mm, chocolate/, since) && (await bal(M1)) === b0 + 75 && !/donut:/.test(field(await info(M1), 'items')), `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} ${await info(M1)}`)
-    // l_c4: the GPS on the nearest part the bot lacks, then the bench.
+    // l_c4: the GPS on the nearest part the bot lacks, then on Lefty, who puts it together.
     await sleep(2000)
     const g1 = await gps(M1)
     await cmd(`zzjail ${M1} give wires`)
@@ -104,13 +107,14 @@ module.exports = async ({ check }) => {
     await cmd(`zzjail ${M1} give timer`)
     await sleep(2500)
     const g3 = await gps(M1)
-    check('...with all three parts: the workshop bench', /target=49(\.\d+)?,65(\.\d+)?,51/.test(g3), g3)
+    check('...with all three parts: Lefty (he puts it together)', /target=80(\.\d+)?,65(\.\d+)?,151/.test(g3), g3)
     b0 = await bal(M1)
-    await jtp(M1, 49.5, 65, 52.5, 180)
-    await until(async () => !!near(m1, 'interaction', [49.5, 64.99, 51.5], 1), 4000)
-    await hold(m1, [49.5, 64.99, 51.5], 3600, 1)
+    await jtp(M1, ...LEFTY_STAND)
+    await sleep(1500)
+    since = Date.now()
+    await talk(m1, LEFTY)
     const c4 = await until(async () => /id=l_card/.test(await story(M1, 'lefty')), 8000, 500)
-    check('a C4 put together: l_c4 passes (+$100)', c4 && (await bal(M1)) === b0 + 100, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    check('the three parts to Lefty: a C4 back, l_c4 passes (+$100)', c4 && (await bal(M1)) === b0 + 100 && /c4:/.test(field(await info(M1), 'items')) && !/(putty|wires|timer):/.test(field(await info(M1), 'items')) && said(m1, /Give me those/, since), `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} ${await info(M1)}`)
     await cmd(`zzjail ${M1} strip`)
     b0 = await bal(M1)
     await cmd(`zzjail ${M1} give keycard`)
@@ -124,7 +128,7 @@ module.exports = async ({ check }) => {
     const xp1 = Number(((await cmd(`zzdata ${M1} level-xp`)).match(/= (\d+)/) || [])[1] || 0)
     check('the escape: l_out passes (+$250, +50 XP), the chain done', out && (await bal(M1)) === b0 + 250 && xp1 - xp0 >= 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} xp ${xp0} -> ${xp1}`)
     const mara = await until(async () => /id=c1_meet/.test(await story(M1, 'story')), 10000, 500)
-    await until(() => said(m1, /WELCOME TO THE CITY/, since), 8000) // 4 s after the escape, at the city spawn
+    await until(() => said(m1, /WELCOME TO THE CITY/, since), 8000) // 4 s after the escape, where it stands (the jailbreak world)
     check('...then Mara\'s chain starts (c1_meet) with WELCOME TO THE CITY and the "broke out" brief', mara && said(m1, /WELCOME TO THE CITY/, since) && said(m1, /Heard you broke out/, since), `${await story(M1, 'story')} ${t.text(m1, since).slice(0, 300)}`)
     // c1_knife: a state|weapon mission, done at once for a bot holding the knife.
     await cmd(`zzjail ${M1} own Combat_Knife`)

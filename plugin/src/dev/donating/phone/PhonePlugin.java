@@ -30,6 +30,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.map.MapPalette;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.entity.Entity;
 import org.bukkit.inventory.ItemStack;
@@ -75,18 +76,48 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private boolean smallArrows;
     private String passiveTag, openTag, hint;
     private String cityDesc = "none";
+    // The big map's zoom levels (sneak while it's open): 1 = the whole city, then that many times closer around you.
+    private int[] bigZooms = {1, 2, 4, 8};
+    static final double MIN_F = 0.25; // at most 4 screen pixels per city pixel
 
-    // The city: tiles[row][col] (rows north to south, columns west to east), all the same scale.
+    // The main city: tiles[row][col] when it's made of city-maps (rows north to south, columns west to east), same scale.
     private MapView[][] tiles;
-    private World world;
-    private int bpp;          // blocks per city pixel
-    private double x0, z0;    // world position of the image's top-left corner
-    private int imgW, imgH;
-    private byte[] img;       // imgW x imgH city pixels, read on the first render (a scanned city: at load)
-    private boolean scanCity; // the city is city.bin (/dphone city scan), not the city-maps
+    private City main;        // null: no city (phones stay blank)
+    private boolean scanCity; // the main city is city.bin (/dphone city scan), not the city-maps
+    // Other worlds' own cities (CityScan: cities/<world>.bin) by world name: a player in that world sees it instead
+    // (2026-10-14: the prison world, before it becomes the main world).
+    private final Map<String, City> others = new HashMap<>();
     private final CityScan cityScan = new CityScan(this);
     private final WallMaps wallMaps = new WallMaps(this, BLACK);
-    private final List<Poi> pois = new ArrayList<>();
+
+    /** A city image: pixel (x, z) is img[z * w + x], its top-left corner at block (x0, z0), bpp blocks a pixel. */
+    static final class City {
+        final String world;
+        final double x0, z0;
+        final int bpp, w, h;
+        byte[] img;                                // a city of map tiles: read on its first render
+        final List<Poi> pois = new ArrayList<>();  // the city maps' banner labels
+
+        City(String world, double x0, double z0, int bpp, int w, int h, byte[] img) {
+            this.world = world;
+            this.x0 = x0;
+            this.z0 = z0;
+            this.bpp = bpp;
+            this.w = w;
+            this.h = h;
+            this.img = img;
+        }
+
+        double ix(double wx) { return (wx - x0) / bpp; }
+        double iz(double wz) { return (wz - z0) / bpp; }
+        double fit() { return Math.max(1, Math.max(w, h) / 128.0); } // the whole city on the big map: image pixels per screen pixel
+    }
+
+    /** The city a player in world w sees: that world's own, else the main city (null: none). */
+    City cityFor(World w) {
+        City o = w == null ? null : others.get(w.getName());
+        return o != null ? o : main;
+    }
 
     private final List<MapView> pool = new ArrayList<>();
     private final Map<UUID, MapView> assigned = new HashMap<>();
@@ -151,11 +182,17 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         boolean tilted;                  // the client reported the tilted camera
         boolean overPin;                 // the big map's cursor is on the GPS pin (the strip says so)
         long clickedAt;                  // last left-click on the big map (a pin)
+        int bigZoom = 1;                 // the big map's zoom (big-zoom: 1 = the whole city), kept for the session
+        double bcx = Double.NaN, bcz, bf; // the zoomed big map's center (image pixels) and scale it was centered at
+        String zoomHint = "";            // the strip's zoom part ("Shift: x2"; "" = can't zoom here)
+        City vc;                         // the view drawn now: its city, center and image pixels per screen pixel
+        double vcx, vcz, vf = 1;
     }
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        gps.paths.load(); // once: /dphone reload keeps the paths in memory (a queued save may not be written yet)
         load();
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(wallMaps, this);
@@ -222,13 +259,21 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         openTag = c.getString("open-tag", "donating_phone_open");
         hint = c.getString("hint", "R-click: map  F: apps");
         if (!MinecraftFont.Font.isValid(hint)) hint = "";
-        img = null;
-        pois.clear();
+        List<Integer> zs = new ArrayList<>(List.of(1));
+        for (int z : c.getIntegerList("big-zoom")) if (z > 1 && z <= 64 && !zs.contains(z)) zs.add(z);
+        if (!c.isList("big-zoom")) zs = List.of(1, 2, 4, 8);
+        bigZooms = zs.stream().mapToInt(Integer::intValue).sorted().toArray();
         for (State s : states.values()) s.drawn = Long.MIN_VALUE; // redraw everyone
         // The pool lives in pool.yml, so the plugin never rewrites the owner's config.yml.
         File poolFile = new File(getDataFolder(), "pool.yml");
         YamlConfiguration saved = YamlConfiguration.loadConfiguration(poolFile);
         loadCity(c, saved.getIntegerList("pool"));
+        others.clear();
+        for (CityScan.Image im : cityScan.others()) {
+            if (main != null && im.world().equals(main.world)) continue; // the main city wins in its own world
+            others.put(im.world(), new City(im.world(), im.x0(), im.z0(), im.bpp(), im.w(), im.h(), im.px()));
+            getLogger().info("City of " + im.world() + ": scan " + im.box() + " (" + im.w() * im.bpp() + "x" + im.h() * im.bpp() + " blocks)");
+        }
         routePin = mapColor(c.getString("gps.route.pin", "#D040E0"));
         routeQuest = mapColor(c.getString("gps.route.quest", "#FF5A1F"));
         routeLoot = mapColor(c.getString("gps.route.loot", "#30C8C0"));
@@ -239,10 +284,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         carCam.configure(c);
         if (gunFx != null) gunFx.configure(c);
         if (meleeFx != null) meleeFx.configure(c);
-        gps.city(hasCity() ? world : null, x0, z0, imgW, imgH, bpp);
+        World mw = cityWorld();
+        if (main == null || mw == null) gps.city(null, 0, 0, 0, 0, 1);
+        else gps.city(mw, main.x0, main.z0, main.w, main.h, main.bpp);
         getLogger().info("GPS roads: " + (gps.roads() == null ? "none" : gps.roads().w + "x" + gps.roads().h + " cells"));
 
-        World poolWorld = world != null ? world : Bukkit.getWorlds().get(0);
+        World poolWorld = mw != null ? mw : Bukkit.getWorlds().get(0);
         List<Integer> cityIds = new ArrayList<>();
         if (tiles != null) for (MapView[] row : tiles) for (MapView t : row) cityIds.add(t.getId());
         List<Integer> ids = new ArrayList<>();
@@ -294,18 +341,22 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         return MapPalette.matchColor((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
     }
 
-    boolean hasCity() { return tiles != null || scanCity; }
+    boolean hasCity() { return main != null; }
     boolean isScanCity() { return scanCity; }
 
     // For CityScan: the city the phones show now.
     String cityDesc() { return cityDesc; }
-    World cityWorld() { return hasCity() ? world : null; }
-    /** The city's box {x1, z1, x2, z2, blocks per pixel}, or null. */
-    int[] cityBox() {
-        if (!hasCity()) return null;
-        int x1 = (int) Math.floor(x0), z1 = (int) Math.floor(z0);
-        return new int[] {x1, z1, x1 + imgW * bpp - 1, z1 + imgH * bpp - 1, bpp};
+    World cityWorld() { return main == null ? null : Bukkit.getWorld(main.world); }
+    /** The main city's box {x1, z1, x2, z2, blocks per pixel}, or null; with a world, that world's own city's (or null). */
+    int[] cityBox() { return box(main); }
+    int[] cityBox(String world) { return box(main != null && main.world.equals(world) ? main : others.get(world)); }
+    private static int[] box(City c) {
+        if (c == null) return null;
+        int x1 = (int) Math.floor(c.x0), z1 = (int) Math.floor(c.z0);
+        return new int[] {x1, z1, x1 + c.w * c.bpp - 1, z1 + c.h * c.bpp - 1, c.bpp};
     }
+    /** For CityScan's info: the other worlds' cities. */
+    java.util.Set<String> otherCities() { return others.keySet(); }
     /** A scan finished or /dphone city use: load the city again (the GPS's road grid with it). */
     void cityChanged() { load(); }
     boolean gpsRoadsFit() { return gps.roads() != null; }
@@ -320,17 +371,17 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
     // For WallMaps: the city image (read from the city maps on first use, like a phone does), its size and places.
     byte[] cityImage(MapCanvas canvas, Player p) {
-        if (!hasCity()) return null;
-        if (img == null && tiles != null) renderer.readCity(canvas, p);
-        return img;
+        if (main == null) return null;
+        if (main.img == null && tiles != null) renderer.readCity(canvas, p);
+        return main.img;
     }
-    int imgW() { return imgW; }
-    int imgH() { return imgH; }
-    double toImageX(double wx) { return (wx - x0) / bpp; }
-    double toImageZ(double wz) { return (wz - z0) / bpp; }
+    int imgW() { return main.w; }
+    int imgH() { return main.h; }
+    double toImageX(double wx) { return main.ix(wx); }
+    double toImageZ(double wz) { return main.iz(wz); }
     long placesVersion() { return placesVersion; }
     java.util.Collection<Place> placeList() { return places.values(); }
-    List<Poi> poiList() { return pois; }
+    List<Poi> poiList() { return main.pois; }
     boolean placesShown() { return placesOn; }
     boolean isPhoneOrCityMap(int id) {
         for (MapView v : pool) if (v.getId() == id) return true;
@@ -344,7 +395,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
      */
     private void loadCity(FileConfiguration c, List<Integer> poolIds) {
         tiles = null;
-        world = null;
+        main = null;
         scanCity = false;
         if (cityScan.useScan()) {
             CityScan.Image im = cityScan.image();
@@ -352,15 +403,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             if (w == null) {
                 getLogger().warning("city.yml says scan, but " + (im == null ? "city.bin is missing or unreadable" : "its world " + im.world() + " isn't loaded") + ": using city-maps");
             } else {
-                world = w;
-                bpp = im.bpp();
-                x0 = im.x0();
-                z0 = im.z0();
-                imgW = im.w();
-                imgH = im.h();
-                img = im.px();
+                main = new City(w.getName(), im.x0(), im.z0(), im.bpp(), im.w(), im.h(), im.px());
                 scanCity = true;
-                cityDesc = "scan " + im.world() + " " + im.box() + " (" + (imgW * bpp) + "x" + (imgH * bpp) + " blocks, scale " + im.scale() + ")";
+                cityDesc = "scan " + im.world() + " " + im.box() + " (" + (im.w() * im.bpp()) + "x" + (im.h() * im.bpp()) + " blocks, scale " + im.scale() + ")";
                 return;
             }
         }
@@ -398,14 +443,11 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 return;
             }
         }
+        if (first.getWorld() == null) { getLogger().warning("city map " + first.getId() + "'s world isn't loaded: phones stay blank."); return; }
         tiles = t;
-        world = first.getWorld();
-        bpp = 1 << scale;
-        x0 = first.getCenterX() - 64.0 * bpp;
-        z0 = first.getCenterZ() - 64.0 * bpp;
-        imgW = 128 * cols;
-        imgH = 128 * t.length;
-        cityDesc += " (" + (imgW * bpp) + "x" + (imgH * bpp) + " blocks)";
+        int bpp = 1 << scale;
+        main = new City(first.getWorld().getName(), first.getCenterX() - 64.0 * bpp, first.getCenterZ() - 64.0 * bpp, bpp, 128 * cols, 128 * t.length, null);
+        cityDesc += " (" + (main.w * bpp) + "x" + (main.h * bpp) + " blocks)";
     }
 
     // ---------- Pool: one map id per online player (Skript reads the metadata) ----------
@@ -474,19 +516,57 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
     private boolean bigMapOpen(Player p) {
         MapView v = assigned.get(p.getUniqueId());
-        return v != null && states.containsKey(p.getUniqueId()) && img != null && holds(p, v) && p.getScoreboardTags().contains(openTag);
+        City c = cityFor(p.getWorld());
+        return v != null && states.containsKey(p.getUniqueId()) && c != null && c.img != null && holds(p, v) && p.getScoreboardTags().contains(openTag);
+    }
+
+    /**
+     * Sneak with the big map open: the next zoom level around you (2026-10-14, the owner: "load the whole island then allow
+     * the player to zoom in on their location"). Sneak because every other key already does something there: left-click
+     * pins, right-click and the hotbar close it, F opens the apps. Not in a vehicle (sneaking gets out).
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSneak(PlayerToggleSneakEvent e) {
+        Player p = e.getPlayer();
+        if (!e.isSneaking() || p.isInsideVehicle() || !bigMapOpen(p)) return;
+        City c = cityFor(p.getWorld());
+        List<Integer> lv = zoomLevels(c);
+        if (lv.size() < 2 || !c.world.equals(p.getWorld().getName())) return; // another world's map: nothing to zoom around
+        State s = states.get(p.getUniqueId());
+        int i = lv.indexOf(s.bigZoom);
+        setZoom(s, lv.get((i + 1) % lv.size()));
+        p.playSound(p.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.35f, s.bigZoom == 1 ? 1.2f : 1.6f);
+    }
+
+    private static void setZoom(State s, int z) {
+        s.bigZoom = z;
+        s.bcx = Double.NaN;
+        s.drawn = Long.MIN_VALUE;
+    }
+
+    /** The big map's zoom levels for a city (big-zoom; levels that would look the same as the one before are left out). */
+    private List<Integer> zoomLevels(City c) {
+        List<Integer> out = new ArrayList<>();
+        double last = -1;
+        for (int z : bigZooms) {
+            double f = Math.max(MIN_F, c.fit() / z);
+            if (f != last) out.add(z);
+            last = f;
+        }
+        return out;
     }
 
     private void pick(Player p) {
         State s = states.get(p.getUniqueId());
-        if (!s.anchored || !s.baseOpen || s.curX < 0) return; // the cursor isn't placed yet
+        if (!s.anchored || !s.baseOpen || s.curX < 0 || s.vc == null) return; // the cursor isn't placed yet
+        City c = s.vc;
+        if (!c.world.equals(p.getWorld().getName())) return; // another world's city: a pin there would land in this world
         long now = System.currentTimeMillis();
         if (now - s.clickedAt < 400) return;
         s.clickedAt = now;
-        double f = Math.max(1, Math.max(imgW, imgH) / 128.0);
-        double ix = imgW / 2.0 + (s.curX - 64 + 0.5) * f, iz = imgH / 2.0 + (s.curY - 64 + 0.5) * f;
-        if (ix < 0 || iz < 0 || ix >= imgW || iz >= imgH) return; // off the city
-        double wx = x0 + ix * bpp, wz = z0 + iz * bpp, reach = hoverRadius * f * bpp;
+        double ix = s.vcx + (s.curX - 64 + 0.5) * s.vf, iz = s.vcz + (s.curY - 64 + 0.5) * s.vf;
+        if (ix < 0 || iz < 0 || ix >= c.w || iz >= c.h) return; // off the city
+        double wx = c.x0 + ix * c.bpp, wz = c.z0 + iz * c.bpp, reach = hoverRadius * s.vf * c.bpp;
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "gpspick " + p.getName() + " " + Gps.fmt(wx) + " " + Gps.fmt(wz) + " " + Gps.fmt(reach));
     }
 
@@ -553,9 +633,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         Gps.Nav nav = gps.nav(p);
         Gps.Target t = nav == null ? null : nav.slots.get("pin");
         boolean over = false;
-        if (t != null && t.world.equals(world)) {
-            double f = Math.max(1, Math.max(imgW, imgH) / 128.0);
-            double sx = ((t.x - x0) / bpp - imgW / 2.0) / f + 64, sy = ((t.z - z0) / bpp - imgH / 2.0) / f + 64;
+        City c = s.vc;
+        if (t != null && c != null && t.world.getName().equals(c.world)) {
+            double sx = (c.ix(t.x) - s.vcx) / s.vf + 64, sy = (c.iz(t.z) - s.vcz) / s.vf + 64;
             over = Math.hypot(sx - s.curX, sy - s.curY) <= hoverRadius;
         }
         if (over != s.overPin) {
@@ -568,6 +648,10 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private void bigStrip(State s) {
         if (s.canvas == null || !s.baseOpen) return;
         String text = s.overPin ? "L-click: remove pin" : "L-click: set a pin";
+        if (!s.zoomHint.isEmpty()) {
+            String z = (s.overPin ? "L: unpin  " : "L: pin  ") + s.zoomHint;
+            if (MinecraftFont.Font.getWidth(z) <= 124) text = z;
+        }
         for (int i = 119 * 128; i < 128 * 128; i++) { s.base[i] = STRIP; s.canvas.setPixel(i % 128, i / 128, STRIP); }
         s.canvas.drawText(Math.max(0, (128 - MinecraftFont.Font.getWidth(text)) / 2), 120, MinecraftFont.Font, "§34;" + text);
         for (int i = 119 * 128; i < 128 * 128; i++) s.base[i] = s.canvas.getPixel(i % 128, i / 128);
@@ -618,12 +702,12 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
         if (args.length == 1) {
-            options.addAll(List.of("reload", "status", "roads", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
+            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
-                case "status", "gps", "mark", "nametag", "melee" -> options.addAll(players);
+                case "status", "gps", "mark", "nametag", "melee", "zoom" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
-                case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel"));
+                case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel", "remove"));
                 case "wall" -> options.addAll(List.of("create", "remove", "repair", "list"));
                 case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
                 default -> { }
@@ -633,6 +717,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             else if (args[0].equalsIgnoreCase("nametag")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
             else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("use")) options.addAll(List.of("scan", "maps"));
+            else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("remove")) options.addAll(others.keySet());
+            else if (args[0].equalsIgnoreCase("zoom")) for (int z : bigZooms) options.add(String.valueOf(z));
             else if (args[0].equalsIgnoreCase("wall") && (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("repair"))) options.addAll(wallMaps.names());
         } else if (args.length == 4) {
             if (args[0].equalsIgnoreCase("gps")) {
@@ -648,6 +734,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         if (args.length >= 2 && args[0].equalsIgnoreCase("steer")) options.addAll(carSmooth.steer.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
         if (args.length >= 2 && args[0].equalsIgnoreCase("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
+        if (args.length >= 2 && args[0].equalsIgnoreCase("path")) options.addAll(gps.paths.complete(args));
         if (args.length == 2 && args[0].equalsIgnoreCase("gunfx")) options.add("spin");
         if (args.length == 3 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) options.addAll(players);
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
@@ -682,6 +769,23 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         if (args.length >= 1 && args[0].equalsIgnoreCase("cam")) return carCam.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("steer")) return carSmooth.steer.command(sender, args);
         if (args.length >= 1 && (args[0].equalsIgnoreCase("gps") || args[0].equalsIgnoreCase("roads"))) return gps.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("path")) return gps.paths.command(sender, args);
+        if (args.length >= 2 && args[0].equalsIgnoreCase("zoom")) {
+            // zoom <player> [level]: the big map's zoom (sneak cycles it in game); for tests and staff.
+            Player p = Bukkit.getPlayerExact(args[1]);
+            State s = p == null ? null : states.get(p.getUniqueId());
+            City c = p == null ? null : cityFor(p.getWorld());
+            if (s == null || c == null) { sender.sendMessage("ZOOM " + args[1] + " none (offline or no city)"); return true; }
+            List<Integer> lv = zoomLevels(c);
+            if (args.length > 2) {
+                int z;
+                try { z = Integer.parseInt(args[2].replace("x", "")); } catch (NumberFormatException ex) { z = -1; }
+                if (!lv.contains(z)) { sender.sendMessage("ZOOM levels for this city: " + lv); return true; }
+                setZoom(s, z);
+            }
+            sender.sendMessage("ZOOM " + p.getName() + " x" + s.bigZoom + " levels=" + lv);
+            return true;
+        }
         if (args.length >= 1 && args[0].equalsIgnoreCase("mark")) {
             if (args.length == 3 && args[2].equalsIgnoreCase("status")) {
                 Player p = Bukkit.getPlayerExact(args[1]);
@@ -719,16 +823,21 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             MapView v = p == null ? null : assigned.get(p.getUniqueId());
             if (v == null) { sender.sendMessage("PHONE " + args[1] + " none"); return true; }
             State s = states.get(p.getUniqueId());
+            City c = cityFor(p.getWorld());
             sender.sendMessage("PHONE " + p.getName() + " map=" + v.getId() + " holding=" + holds(p, v)
-                    + " open=" + p.getScoreboardTags().contains(openTag) + " city=" + (scanCity ? "scan" : tiles != null ? "maps" : "none") + " cityRead=" + (img != null)
-                    + " pois=" + pois.size() + " places=" + places.size() + " cursor=" + (s == null ? "none" : s.curX + "," + s.curY) + " route=" + routePin + "," + routeQuest + "," + routeLoot);
+                    + " open=" + p.getScoreboardTags().contains(openTag) + " city=" + (scanCity ? "scan" : tiles != null ? "maps" : "none") + " cityRead=" + (main != null && main.img != null)
+                    + " pois=" + (main == null ? 0 : main.pois.size()) + " places=" + places.size() + " cursor=" + (s == null ? "none" : s.curX + "," + s.curY) + " route=" + routePin + "," + routeQuest + "," + routeLoot
+                    + " shown=" + (c == null ? "none" : c == main ? "main:" + c.world : "own:" + c.world) + " zoom=" + (s == null ? 1 : s.bigZoom)
+                    + " view=" + (s == null || s.vc == null ? "none" : Paths.num(s.vcx) + "," + Paths.num(s.vcz) + "," + Paths.num(s.vf) + (s.baseOpen ? ",big" : ",held")));
             return true;
         }
         if (args.length > 1 || (args.length == 1 && !args[0].equalsIgnoreCase("reload"))) {
             sender.sendMessage("/dphone [reload]: reload the config and re-read the city (after adding banner labels)");
             sender.sendMessage("/dphone status <player>: that player's phone map, view and cursor");
             sender.sendMessage("/dphone roads [info | scan [x1 z1 x2 z2] | cancel | show <player> [on|off]]: the GPS road grid");
-            sender.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] | cancel | use scan|maps | pixel <x> <z>]: draw the phone's city from the world (no flying over it with maps)");
+            sender.sendMessage("/dphone path [info | add [name] [--nolink] | addat <world> <x> <y> <z> [id=<n>] [nolink] [name] | link|unlink <a> <b> | remove <id> | list [world] | show [on|off] | near | clear <world> confirm | dump [world]]: GPS paths the way goes along (floors, doors: no straight lines through walls)");
+            sender.sendMessage("/dphone city [info | scan [x1 z1 x2 z2] [scale 0-4] [world] | cancel | use scan|maps | pixel <x> <z> [world] | remove <world>]: draw the phone's city from the world (no flying over it with maps); another world than the main city's gets its own");
+            sender.sendMessage("/dphone zoom <player> [level]: the big map's zoom (sneak cycles it while it's open)");
             sender.sendMessage("/dphone wall create <name> <cols> <rows> [<world> <x> <y> <z> <face>] | remove <name> | repair <name> | list: a big city map on a wall (look at its bottom-left block)");
             sender.sendMessage("/dphone gps <player> [set <pin|quest|loot> <world> <radius> <x,y,z[;x,y,z...]> <label...> | active <slot|none> | clear [slot]]: the GPS target (gps.sk)");
             sender.sendMessage("/dphone mark <player> <entity-uuid> <color|#RRGGBB> <range> | <player> off | <player> status: a locator dot on an entity for one player (hits.sk)");
@@ -777,52 +886,71 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final class Renderer extends MapRenderer {
         Renderer() { super(true); } // contextual: one canvas per player
 
+
         @Override
         public void render(MapView view, MapCanvas canvas, Player p) {
-            if (!hasCity() || !holds(p, view)) return; // nobody sees a phone in the pocket
-            if (img == null && tiles != null) readCity(canvas, p);
-            if (img == null) return;
+            if (!holds(p, view)) return; // nobody sees a phone in the pocket
+            City c = cityFor(p.getWorld());
+            if (c == null) return;
+            if (c.img == null && c == main && tiles != null) readCity(canvas, p);
+            if (c.img == null) return;
             State s = states.computeIfAbsent(p.getUniqueId(), k -> new State());
             s.canvas = canvas;
             boolean open = p.getScoreboardTags().contains(openTag);
             Location l = p.getLocation();
-            boolean here = world.equals(l.getWorld());
+            boolean here = c.world.equals(l.getWorld().getName());
             // The player in image pixels.
-            double px = here ? (l.getX() - x0) / bpp : imgW / 2.0;
-            double pz = here ? (l.getZ() - z0) / bpp : imgH / 2.0;
+            double px = here ? c.ix(l.getX()) : c.w / 2.0;
+            double pz = here ? c.iz(l.getZ()) : c.h / 2.0;
 
             // Held view follows you: re-center once you're `step` screen pixels from the middle.
             if (Double.isNaN(s.cx) || Math.abs(px - s.cx) * zoom >= step || Math.abs(pz - s.cz) * zoom >= step) {
                 s.cx = Math.round(px * zoom) / (double) zoom;
                 s.cz = Math.round(pz * zoom) / (double) zoom;
             }
-            // The view: center (cx, cz) in image pixels, f image pixels per screen pixel.
-            double f = open ? Math.max(1, Math.max(imgW, imgH) / 128.0) : 1.0 / zoom;
-            double cx = open ? imgW / 2.0 : s.cx, cz = open ? imgH / 2.0 : s.cz;
+            // The view: center (cx, cz) in image pixels, f image pixels per screen pixel. The big map: the whole city
+            // (zoom 1), or zoomed in around you (sneak), re-centered like the held view and never past the city's edge.
+            List<Integer> levels = open ? zoomLevels(c) : List.of(1);
+            int bz = open && here && levels.contains(s.bigZoom) ? s.bigZoom : 1;
+            double f = open ? Math.max(MIN_F, c.fit() / bz) : 1.0 / zoom;
+            double cx = s.cx, cz = s.cz;
+            if (open && bz == 1) { cx = c.w / 2.0; cz = c.h / 2.0; }
+            else if (open) {
+                if (Double.isNaN(s.bcx) || s.bf != f || Math.abs(px - s.bcx) / f >= step || Math.abs(pz - s.bcz) / f >= step) {
+                    s.bcx = Math.round(px / f) * f;
+                    s.bcz = Math.round(pz / f) * f;
+                    s.bf = f;
+                }
+                cx = clampView(s.bcx, c.w, f);
+                cz = clampView(s.bcz, c.h, f);
+            }
+            // The strip's zoom part (not for passengers: sneaking gets them out).
+            String zh = !open || !here || levels.size() < 2 || p.isInsideVehicle() ? "" : bz == 1 ? "Shift: zoom" : "Shift: x" + bz;
+            if (!zh.equals(s.zoomHint)) { s.zoomHint = zh; s.drawn = Long.MIN_VALUE; }
 
             // The GPS: its route on the map, the target's name and distance in the held phone's strip.
             Gps.Target gt = gps.target(p);
-            boolean gpsHere = gt != null && gt.world.equals(world);
+            boolean gpsHere = gt != null && gt.world.getName().equals(c.world);
             // In a vehicle a right-click doesn't open the map (drivers can't; the car key locks): no "R:map".
             boolean carKey = holdsKey(p), riding = p.isInsideVehicle();
             String strip = !open && gt != null ? gpsStrip(gt, carKey || riding) : carKey ? "R-click: lock / unlock" : riding ? "" : hint;
-            boolean grid = open && gps.showRoads(p);
+            boolean grid = open && c == main && gps.showRoads(p);
             // Redraw only when the view, the route, the strip or the grid view changed (the held view already
-            // redraws on every re-center, so the route follows you there; the big map every 16 blocks).
-            long gpsKey = gt == null ? 0 : gt.version * 1_000_003L + (open ? Math.round(gt.left / 16) : 0);
-            long key = open ? Long.MAX_VALUE - gpsKey * 2 - (grid ? 1 : 0)
+            // redraws on every re-center, so the route follows you there; the big map every 4 screen pixels of the way).
+            long gpsKey = gt == null ? 0 : gt.version * 1_000_003L + (open ? Math.round(gt.left / Math.max(2, 4 * f * c.bpp)) : 0);
+            long key = open ? (((bz * 1_000_003L + Math.round(cx / f)) * 1_000_003L + Math.round(cz / f)) * 31 + gpsKey) * 2 + (grid ? 1 : 0)
                     : ((((long) Math.round(cx * zoom) << 32) ^ (Math.round(cz * zoom) & 0xffffffffL)) * 31 + gpsKey) * 31 + strip.hashCode();
-            if (key != s.drawn || s.viewId != view.getId()) {
+            if (key != s.drawn || s.viewId != view.getId() || s.vc != c || open != s.baseOpen) {
                 for (int y = 0; y < 128; y++) {
                     int iz = (int) Math.floor(cz + (y - 64 + 0.5) * f);
                     for (int x = 0; x < 128; x++) {
                         int ix = (int) Math.floor(cx + (x - 64 + 0.5) * f);
-                        boolean in = ix >= 0 && iz >= 0 && ix < imgW && iz < imgH;
-                        s.base[y * 128 + x] = in ? img[iz * imgW + ix] : 0; // 0 = see-through: the phone's screen texture
+                        boolean in = ix >= 0 && iz >= 0 && ix < c.w && iz < c.h;
+                        s.base[y * 128 + x] = in ? c.img[iz * c.w + ix] : 0; // 0 = see-through: the phone's screen texture
                     }
                 }
-                if (grid) drawGrid(s, cx, cz, f);
-                if (gpsHere) drawRoute(s, gt, cx, cz, f, open);
+                if (grid) drawGrid(s, c, cx, cz, f);
+                if (gpsHere) drawRoute(s, gt, c, here ? px : Double.NaN, pz, cx, cz, f, open);
                 if (!open && !strip.isEmpty()) for (int i = 119 * 128; i < 128 * 128; i++) s.base[i] = STRIP;
                 for (int i = 0; i < s.base.length; i++) canvas.setPixel(i % 128, i / 128, s.base[i]); // only changed pixels are re-sent
                 if (!open && !strip.isEmpty()) {
@@ -831,6 +959,10 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 s.drawn = key;
                 s.viewId = view.getId();
                 s.baseOpen = open;
+                s.vc = c;
+                s.vcx = cx;
+                s.vcz = cz;
+                s.vf = f;
                 s.curX = s.curY = -1; // the redraw wiped the cursor
                 if (open) {
                     bigStrip(s);
@@ -839,33 +971,34 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             }
 
             MapCursorCollection cursors = new MapCursorCollection();
-            for (Poi poi : pois) put(cursors, poi.ix, poi.iz, cx, cz, f, poi.dir, poi.type, poi.caption);
+            for (Poi poi : c.pois) put(cursors, poi.ix, poi.iz, cx, cz, f, poi.dir, poi.type, poi.caption);
             // Places (nav.sk): colored banners; the name only on the big map, while the cursor is on it.
             if (placesOn && (open || placesHeld)) {
                 Place hp = null;
                 double hb = hoverRadius + 0.5;
                 if (open && s.curX >= 0) for (Place pl : places.values()) {
-                    if (!pl.world().equals(world.getName())) continue;
-                    double d = Math.hypot(((pl.x() - x0) / bpp - cx) / f + 64 - s.curX, ((pl.z() - z0) / bpp - cz) / f + 64 - s.curY);
+                    if (!pl.world().equals(c.world)) continue;
+                    double d = Math.hypot((c.ix(pl.x()) - cx) / f + 64 - s.curX, (c.iz(pl.z()) - cz) / f + 64 - s.curY);
                     if (d < hb) { hb = d; hp = pl; }
                 }
                 for (Place pl : places.values()) {
-                    if (!pl.world().equals(world.getName())) continue;
+                    if (!pl.world().equals(c.world)) continue;
                     Component cap = pl == hp ? Component.text(pl.label(), pl.color()) : null;
                     // Direction 8, like vanilla's banners (MapItemSavedData.toggleBanner adds them at 180 degrees): 0 draws them upside down.
-                    put(cursors, (pl.x() - x0) / bpp, (pl.z() - z0) / bpp, cx, cz, f, (byte) 8, pl.type(), cap);
+                    put(cursors, c.ix(pl.x()), c.iz(pl.z()), cx, cz, f, (byte) 8, pl.type(), cap);
                 }
             }
             // Passive players: a green arrow. Name only on the big map, while the cursor is on it.
             Player hovered = null;
             double best = hoverRadius + 0.5;
             List<Player> shown = new ArrayList<>();
-            for (Player o : world.getPlayers()) {
+            World cw = Bukkit.getWorld(c.world);
+            if (cw != null) for (Player o : cw.getPlayers()) {
                 if (o == p || !o.getScoreboardTags().contains(passiveTag) || !p.canSee(o)) continue;
                 shown.add(o);
                 if (open && s.curX >= 0) {
                     Location ol = o.getLocation();
-                    double d = Math.hypot(((ol.getX() - x0) / bpp - cx) / f + 64 - s.curX, ((ol.getZ() - z0) / bpp - cz) / f + 64 - s.curY);
+                    double d = Math.hypot((c.ix(ol.getX()) - cx) / f + 64 - s.curX, (c.iz(ol.getZ()) - cz) / f + 64 - s.curY);
                     if (d < best) { best = d; hovered = o; }
                 }
             }
@@ -873,7 +1006,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 Location ol = o.getLocation();
                 MapCursor.Type type = open && smallArrows ? SMALL_PASSIVE : MapCursor.Type.FRAME;
                 Component name = o == hovered ? Component.text(o.getName(), NamedTextColor.GREEN) : null;
-                put(cursors, (ol.getX() - x0) / bpp, (ol.getZ() - z0) / bpp, cx, cz, f, dir(ol.getYaw()), type, name);
+                put(cursors, c.ix(ol.getX()), c.iz(ol.getZ()), cx, cz, f, dir(ol.getYaw()), type, name);
             }
             MapCursor.Type self = open && smallArrows ? SMALL_SELF : MapCursor.Type.PLAYER;
             if (here && !put(cursors, px, pz, cx, cz, f, dir(l.getYaw()), self, null)) {
@@ -883,16 +1016,16 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 cursors.addCursor(new MapCursor(ex, ez, (byte) 0, MapCursor.Type.PLAYER_OFF_MAP, true, (Component) null));
             }
             // The GPS targets: a red X for a pin, a target mark for a quest, a white X for the base; names on
-            // the big map. The one on hold shows too (without a route). Off the held view only the active one
-            // sits on the edge, toward it.
+            // the big map. The one on hold shows too (without a route). Off the view only the active one sits on
+            // the edge, toward it.
             Gps.Nav nav = gps.nav(p);
             if (nav != null) for (Gps.Target t : nav.slots.values()) {
-                if (!t.world.equals(world)) continue;
+                if (!t.world.getName().equals(c.world)) continue;
                 MapCursor.Type type = t.kind.equals("pin") ? MapCursor.Type.RED_X : t.kind.equals("quest") ? MapCursor.Type.TARGET_POINT : MapCursor.Type.TARGET_X;
                 NamedTextColor tc = t.kind.equals("pin") ? NamedTextColor.LIGHT_PURPLE : t.kind.equals("quest") ? NamedTextColor.GOLD : NamedTextColor.AQUA;
                 Component cap = open ? Component.text(t.label, tc) : null;
                 for (double[] q : t.pts) {
-                    double tix = (q[0] - x0) / bpp, tiz = (q[2] - z0) / bpp;
+                    double tix = c.ix(q[0]), tiz = c.iz(q[2]);
                     if (put(cursors, tix, tiz, cx, cz, f, (byte) 0, type, cap)) continue;
                     if (t != gt || q[0] != gt.x || q[2] != gt.z) continue;
                     double mx = (tix - cx) / f * 2, mz = (tiz - cz) / f * 2, m = Math.max(Math.abs(mx), Math.abs(mz));
@@ -902,24 +1035,42 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             canvas.setCursors(cursors);
         }
 
-        /** The GPS route over the view: from where you are, cell by cell, to the target. */
-        private void drawRoute(State s, Gps.Target t, double cx, double cz, double f, boolean open) {
-            Roads r = gps.roads();
-            if (r == null || t.fieldRoads != r || t.walk.length == 0) return;
+        /** A zoomed view's center along one side: half a screen from each edge (a city smaller than the view stays centered). */
+        private static double clampView(double v, int size, double f) {
+            double half = 64 * f;
+            return size <= 2 * half ? size / 2.0 : Math.max(half, Math.min(size - half, v));
+        }
+
+        /**
+         * The GPS route over the view: from where you are (px, pz in image pixels; NaN = not in this city's world) along
+         * a staff path's points, or cell by cell over the road grid, to the target.
+         */
+        private void drawRoute(State s, Gps.Target t, City c, double px, double pz, double cx, double cz, double f, boolean open) {
+            int n;
+            double[] ixs, izs;
+            if (t.line != null) {
+                if (Double.isNaN(px)) return;
+                n = t.line.length + 1;
+                ixs = new double[n];
+                izs = new double[n];
+                ixs[0] = px;
+                izs[0] = pz;
+                for (int i = 1; i < n; i++) { ixs[i] = c.ix(t.line[i - 1][0]); izs[i] = c.iz(t.line[i - 1][2]); }
+            } else {
+                Roads r = gps.roads();
+                if (c != main || r == null || t.fieldRoads != r || t.walk.length == 0) return;
+                n = t.walk.length + 1;
+                ixs = new double[n];
+                izs = new double[n];
+                for (int i = 0; i < t.walk.length; i++) { ixs[i] = (t.walk[i] % r.w + 0.5) * r.k; izs[i] = (t.walk[i] / r.w + 0.5) * r.k; }
+                ixs[n - 1] = c.ix(t.x); // on to the target itself
+                izs[n - 1] = c.iz(t.z);
+            }
             byte col = t.kind.equals("pin") ? routePin : t.kind.equals("quest") ? routeQuest : routeLoot;
-            int n = t.walk.length + 1;
             int[] xs = new int[n], ys = new int[n];
             for (int i = 0; i < n; i++) {
-                double ix, iz;
-                if (i < t.walk.length) {
-                    ix = (t.walk[i] % r.w + 0.5) * r.k;
-                    iz = (t.walk[i] / r.w + 0.5) * r.k;
-                } else { // on to the target itself
-                    ix = (t.x - x0) / bpp;
-                    iz = (t.z - z0) / bpp;
-                }
-                xs[i] = (int) Math.floor((ix - cx) / f + 64);
-                ys[i] = (int) Math.floor((iz - cz) / f + 64);
+                xs[i] = (int) Math.floor((ixs[i] - cx) / f + 64);
+                ys[i] = (int) Math.floor((izs[i] - cz) / f + 64);
             }
             // The held phone: 2 pixels wide with a black edge (it has to stand out on any street); the big map: 1.
             if (!open) for (int i = 1; i < n; i++) line(s.base, xs[i - 1], ys[i - 1], xs[i], ys[i], BLACK, -1, 2);
@@ -927,14 +1078,14 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
 
         /** Staff view (/dphone roads show): road cells yellow, walls and water red, on the big map. */
-        private void drawGrid(State s, double cx, double cz, double f) {
+        private void drawGrid(State s, City c, double cx, double cz, double f) {
             Roads r = gps.roads();
             if (r == null) return;
             for (int y = 0; y < 128; y++) {
                 int iz = (int) Math.floor(cz + (y - 64 + 0.5) * f);
                 for (int x = 0; x < 128; x++) {
                     int ix = (int) Math.floor(cx + (x - 64 + 0.5) * f);
-                    if (ix < 0 || iz < 0 || ix >= imgW || iz >= imgH) continue;
+                    if (ix < 0 || iz < 0 || ix >= c.w || iz >= c.h) continue;
                     int gx = ix / r.k, gz = iz / r.k;
                     if (!r.inside(gx, gz)) continue;
                     byte k = r.kind[gz * r.w + gx];
@@ -943,6 +1094,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 }
             }
         }
+
 
         /** A line of square dots (offsets lo..hi from each point) into a 128x128 buffer; off-screen parts are skipped. */
         private static void line(byte[] px, int x0, int y0, int x1, int y1, byte col, int lo, int hi) {
@@ -962,7 +1114,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
         /** City pixels + banner labels, read once from each city map's own vanilla renderer. */
         private void readCity(MapCanvas canvas, Player p) {
-            byte[] px = new byte[imgW * imgH];
+            int imgW = main.w;
+            byte[] px = new byte[imgW * main.h];
             List<Poi> found = new ArrayList<>();
             for (int r = 0; r < tiles.length; r++) for (int col = 0; col < tiles[r].length; col++) {
                 MapView t = tiles[r][col];
@@ -981,9 +1134,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                     found.add(new Poi(col * 128 + 64 + m.getX() / 2.0, r * 128 + 64 + m.getY() / 2.0, m.getDirection(), type, m.caption()));
                 }
             }
-            pois.clear();
-            pois.addAll(found);
-            img = px;
+            main.pois.clear();
+            main.pois.addAll(found);
+            main.img = px;
             for (State s : states.values()) s.drawn = Long.MIN_VALUE; // the scratch reads drew over this canvas
             getLogger().info("Read city " + cityDesc + ": " + found.size() + " labels.");
         }

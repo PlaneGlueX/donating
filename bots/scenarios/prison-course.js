@@ -1,11 +1,14 @@
 // The prison's B1 controls course for first-joiners (jailcourse.sk; ESCAPE-SPEC 4.4 and 7.2-1; owner, 2026-10-14: "the
 // lower levels learn the controls"). A first join lands in a west-wing cell; the door opens after 5 s and stays open
 // while the bot is inside; (no basic-controls steps: owner, 2026-10-14) sneak past the sleeping guard for his keycard, the vent
-// reader, the lids that force the crawl, the boiler room, Rusty's knife (the hotbar lesson), the phone, the Security
+// reader, the lids that force the crawl, the boiler room, Rusty's knife (the hotbar lesson; from then on his door opens
+// from inside: owner, 2026-10-14, "theres no way out back into the hallway"), the phone, the Security
 // Office reader, the ladder hatch, the SECURITY door from Hall C, Hall B: done (state in, Lefty's chain starts). Then a
 // course bot pushed back from B1's stair, and rejoins at a checkpoint and in a cell (its door opens 3 s after the join).
-// Every step is told straight to the player (a title, a TUTORIAL chat line); /tutorial confirm takes a player back to
-// their step, and after the course back to the start as a prisoner again.
+// The guard wakes for a bot not sneaking within 5 blocks of him, also outside his post (owner, 2026-10-14). B1 has no
+// course instruction signs any more (only place names). Every step is told straight to the player (a title, a TUTORIAL
+// chat line); /tutorial confirm takes a player back to their step, and after the course back to the start as a
+// prisoner again.
 // Bots can't crawl: they're teleported past the crawl, and the blocks are checked instead.
 const { start, field, sleep } = require('../prisonlib')
 
@@ -43,6 +46,20 @@ module.exports = async ({ check }) => {
     const woke = await until(async () => said(a, /HEY!/, since), 3000)
     const back = await pos(A)
     check('walking into the guard post without sneaking: HEY! and back to SNEAK_BACK', woke && back && Math.abs(back[0] - 78.5) < 1 && Math.abs(back[2] - 59.5) < 1, `${back}`)
+    const signs = await cmd('execute in minecraft:jailbreak if entity @e[type=minecraft:text_display,tag=jail_label,x=43,y=56,z=47,dx=83,dy=8,dz=66]')
+    check('B1 keeps only its place names (VENT, MAX SECURITY, the Z, SECURITY OFFICE): no course instruction signs', /Count: 4(?!\d)/.test(signs), signs)
+    // The corridor past the guard post (6 blocks from him) without sneaking: he sleeps on.
+    await sleep(3200)
+    since = Date.now()
+    await tp(A, 84.5, 58, 57.5, 0)
+    await sleep(1600)
+    check('walking past the guard post in the corridor (6 blocks from him) without sneaking: he sleeps on', !said(a, /HEY!/, since), t.text(a, since))
+    // Within 5 blocks of him but outside the post (the cell next to it, through the wall): HEY! all the same.
+    since = Date.now()
+    await tp(A, 89.4, 58, 50.5, -90)
+    const woke2 = await until(async () => said(a, /HEY!/, since), 3000)
+    const back2 = await pos(A)
+    check('within 5 blocks of him outside the guard post, not sneaking: HEY! too (the radius, not only the post)', woke2 && back2 && Math.abs(back2[0] - 78.5) < 1 && Math.abs(back2[2] - 59.5) < 1, `${back2}`)
 
     // ---- sneaking, the keycard on the desk
     sneak(a, true)
@@ -101,6 +118,12 @@ module.exports = async ({ check }) => {
     check('the Combat Knife unlocked and in slot 1 (the bot holds slot 0), "Press 2"', knifeSay && /(WM |\| )1=Combat_Knife:/.test(await cmd(`zzwm ${A}`)) && /= true/.test(await cmd(`zzdata ${A} wpn::Combat_Knife`)), dump.slice(0, 300))
     check('the hotbar step told after the knife: "Hold the knife" and the fixed-hotbar TUTORIAL line', said(a, /Hold the knife/, since) && said(a, /TUTORIAL.*hotbar is fixed/, since))
     check('the bar says "press 2"', await until(() => a.bars.some(b => /Hold the knife: press 2/.test(b.text)), 2000), (a.bars.slice(-1)[0] || {}).text)
+    // The way out: from the hotbar step on, Rusty's door opens from inside (the hotbar and phone steps work anywhere).
+    check("in Rusty's cell at step hotbar: the door shut until the bot walks up", !(await doorOpen('rusty')), await door('rusty'))
+    const atDoor = await t.walk(a, [[78.4, 78.5]], 3000)
+    check('...walking up to it opens it', atDoor && await until(() => doorOpen('rusty'), 1500), `${await pos(A)} ${await door('rusty')}`)
+    const outside = await t.walk(a, [[81.5, 78.5]], 3000)
+    check('...and the bot walks out into the corridor (still step hotbar)', outside && field(await info(A), 'step') === 'hotbar', `${await pos(A)} ${await info(A)}`)
     // The knife moved to slot 3 (hotbar.2), then selected: any slot counts.
     await cmd(`minecraft:item replace entity ${A} hotbar.2 from entity ${A} hotbar.1`)
     await cmd(`minecraft:item replace entity ${A} hotbar.1 with minecraft:air`)

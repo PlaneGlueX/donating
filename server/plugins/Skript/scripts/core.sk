@@ -2041,8 +2041,10 @@ function loadSettings():
 	# The master switch: off until the bot suite passes with it on. Data "jail" "off" exempts one player (test bots).
 	set {-cfg::prison::enabled} to false
 	set {-cfg::prison::world} to "jailbreak"
-	# After an escape: "spawn" = the EssentialsX spawn 3 s later (until launch the city is another world), "" = stay.
-	set {-cfg::prison::after-escape} to "spawn"
+	# After an escape: "" = stay where you are (owner, 2026-10-14: "the jailbreak map is supposed to be the entire map not just
+	# the prison, so when you escape you go to the city in the same world and not get teleported"); "spawn" = the
+	# EssentialsX spawn 3 s later.
+	set {-cfg::prison::after-escape} to ""
 	set {-cfg::prison::course::cells::*} to "n46", "n53", "n60", "n67", "s46", "s53", "s60" and "s67"
 	set {-cfg::prison::cells::*} to "n89", "n96", "n103", "n110", "s96", "s103", "s110" and "s117"
 	set {-cfg::prison::cell-open} to 12 seconds
@@ -2069,7 +2071,6 @@ function loadSettings():
 	set {-cfg::prison::search::cooldown} to 10 minutes
 	set {-cfg::prison::donut::hold} to 0.5 seconds
 	set {-cfg::prison::donut::cooldown} to 3 minutes
-	set {-cfg::prison::assemble::hold} to 3 seconds
 	set {-cfg::prison::plant::hold} to 3 seconds
 	set {-cfg::prison::c4::fuse} to 5
 	set {-cfg::prison::c4::radius} to 4
@@ -2101,6 +2102,8 @@ function loadSettings():
 	set {-cfg::prison::front::cooldown} to 30 seconds
 	set {-cfg::prison::drop::despawn} to 60 seconds
 	set {-cfg::prison::course::wake} to 0.5 seconds
+	# The sleeping guard wakes for a course player not sneaking this close to him, wherever they are (owner, 2026-10-14).
+	set {-cfg::prison::course::wake-radius} to 5
 	set {-cfg::prison::course::stuck} to 30 seconds
 	# Jail items (prison.sk jailItem): on brick, drawn by the pack (donating:jail_<kind>); one stack per kind in the
 	# upper inventory (slots 9-35), the C4 in hotbar 1-5.
@@ -2110,11 +2113,11 @@ function loadSettings():
 	set {-cfg::jailitem::keycard::name} to "Keycard"
 	set {-cfg::jailitem::keycard::lore} to "The police station, the gate by the Gun Shop, the gatehouse"
 	set {-cfg::jailitem::putty::name} to "C4 Putty"
-	set {-cfg::jailitem::putty::lore} to "C4 part 1 of 3"
+	set {-cfg::jailitem::putty::lore} to "C4 part 1 of 3: Lefty puts the three together"
 	set {-cfg::jailitem::wires::name} to "Detonator Wires"
-	set {-cfg::jailitem::wires::lore} to "C4 part 2 of 3"
+	set {-cfg::jailitem::wires::lore} to "C4 part 2 of 3: Lefty puts the three together"
 	set {-cfg::jailitem::timer::name} to "Timer"
-	set {-cfg::jailitem::timer::lore} to "C4 part 3 of 3"
+	set {-cfg::jailitem::timer::lore} to "C4 part 3 of 3: Lefty puts the three together"
 	set {-cfg::jailitem::c4::name} to "C4"
 	set {-cfg::jailitem::c4::lore} to "Hold right-click on the vehicle gate by the plaza"
 	set {-cfg::jailitem::donut::name} to "Donut"
@@ -2242,15 +2245,15 @@ function loadSettings():
 	set {-cfg::story::l_donut::label} to "Bring Lefty a donut from the cafeteria"
 	set {-cfg::story::l_donut::obj} to "ev|jaildonut|1"
 	set {-cfg::story::l_donut::gps} to "jail:DONUT_CAFE"
-	set {-cfg::story::l_donut::brief} to "The cafeteria counter. Grab me a donut. Everything in here runs on donuts."
+	set {-cfg::story::l_donut::brief} to "The cafeteria counter: hold right-click on it and grab me a donut. Everything in here runs on donuts."
 	set {-cfg::story::l_donut::done} to "Mm. You'll do."
 	set {-cfg::story::l_donut::rewards::*} to "money|75"
-	set {-cfg::story::l_c4::label} to "Put together a C4"
+	set {-cfg::story::l_c4::label} to "Bring Lefty the three C4 parts"
 	set {-cfg::story::l_c4::obj} to "ev|jailc4|1"
-	# The nearest search spot whose part the player lacks, then the bench (4.13 storyGpsSpots).
+	# The nearest search spot whose part the player lacks, then Lefty (4.13 storyGpsSpots; he puts it together: jailjobs.sk).
 	set {-cfg::story::l_c4::gps} to "jailc4"
-	set {-cfg::story::l_c4::brief} to "Putty in the workshop, wires in the supply closet, a timer in the infirmary. Put it together at the workshop bench."
-	set {-cfg::story::l_c4::done} to "Careful with that. The vehicle gate by the plaza: blow it and you're in the lot."
+	set {-cfg::story::l_c4::brief} to "Putty in the workshop, wires in the supply closet, a timer in the infirmary: hold right-click to search each. Bring me all three and I put it together."
+	set {-cfg::story::l_c4::done} to "Careful with that. The vehicle gate by the plaza: hold right-click on it to plant it, and you're in the lot."
 	set {-cfg::story::l_c4::rewards::*} to "money|100"
 	set {-cfg::story::l_card::label} to "Get a keycard"
 	set {-cfg::story::l_card::obj} to "ev|jailcard|1"

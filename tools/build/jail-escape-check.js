@@ -410,9 +410,7 @@ const APPENDIX_B = [
   ['BOILER_IN', 61.5, 58, 80.5, 'stand', 'inner'],
   ['SNEAK_BACK', 78.5, 58, 59.5, 'stand', 'inner'],
   ['RUSTY_TALK', 80.25, 58.0, 77.5, 'display'],
-  ['L_WALK', 49.0, 61.0, 60.0, 'label:west'], ['L_SPRINT', 57.0, 61.0, 60.0, 'label:west'], ['L_JUMP', 68.0, 61.0, 60.0, 'label:west'],
-  ['L_SNEAK', 84.0, 60.8, 56.5, 'label:south'], ['L_READER', 80.03, 59.9, 86.5, 'label:east'], ['L_PHONE', 77.0, 59.8, 76.03, 'label:south'],
-  ['L_HOTBAR', 77.0, 59.8, 79.97, 'label:north'], ['L_OFFICE', 80.03, 61.0, 94.0, 'label:east'], ['L_LADDER', 66.0, 60.0, 88.03, 'label:south'],
+  ['L_OFFICE', 80.03, 61.0, 94.0, 'label:east'],
   ['SEARCH_PUTTY', 61, 65, 53, 'block:barrel'], ['SEARCH_WIRES', 81, 65, 90, 'block:barrel'],
   ['ASSEMBLE', 49, 65, 51, 'block:crafting_table'],
   ['ASSEMBLE_STAND', 49.5, 65, 52.5, 'stand', 'inner'],
@@ -428,7 +426,9 @@ const APPENDIX_B = [
 const EXISTING = ['R_SPAWN', 'T_SPAWN', 'T_KEYCARD', 'T_GUARD_SEAT', 'T_DONUT', 'T_VENT_STAND', 'T_VENT_DOOR', 'T_VENT_READER', 'T_SO_GATE_A',
   'T_SO_GATE_B', 'T_SO_READER_OUT', 'T_SO_READER_IN', 'RUSTY', 'GUN_KEEPER',
   ...CELLS.north.filter(x0 => x0 !== 60).map(x0 => `T_CELL_N${x0}`), ...CELLS.south.map(x0 => `T_CELL_S${x0}`)]
-const DROPPED = ['E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'T_EXIT', 'T_SHAFT_HATCH', 'PLANT_WALL', 'C4_WALL', 'GATE_OUT', 'WALL_OUT', 'ROUTE_POLAISLE_1']
+const DROPPED = ['E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'T_EXIT', 'T_SHAFT_HATCH', 'PLANT_WALL', 'C4_WALL', 'GATE_OUT', 'WALL_OUT', 'ROUTE_POLAISLE_1',
+  // the course's instruction signs (owner, 2026-10-14: the steps are told on screen)
+  'L_WALK', 'L_SPRINT', 'L_JUMP', 'L_SNEAK', 'L_READER', 'L_PHONE', 'L_HOTBAR', 'L_LADDER']
 if (step(7)) {
   console.log('7. The points (Appendix B)')
   const m = makeModel()

@@ -335,6 +335,11 @@ function gpsWay(p: player) :: text:
 					return "&eturn right in %round({_in})%m &7· %{_d}%m"
 				if {_turn} is "left":
 					return "&eturn left in %round({_in})%m &7· %{_d}%m"
+				# Stairs or a ladder on a staff path (DonatingPhone's /dphone path: floors the road grid can't see).
+				if {_turn} is "up":
+					return "&ego up in %round({_in})%m &7· %{_d}%m"
+				if {_turn} is "down":
+					return "&ego down in %round({_in})%m &7· %{_d}%m"
 	return "&e%gpsArrow({_p}, {_n})% %{_d}%m"
 
 function gpsHud(p: player) :: boolean:

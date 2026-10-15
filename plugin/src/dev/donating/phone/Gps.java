@@ -42,7 +42,8 @@ import org.bukkit.metadata.FixedMetadataValue;
  * a new best route at once, with no rerouting. A target can be several spots (any chop shop, any base): the
  * nearest along the roads wins. Cars and walkers get different costs (walkers may cut through an alley, cars
  * keep to the roads). Before the first scan, outside the city or in another world it points straight at the
- * target ("direct").
+ * target ("direct"). A world with staff-laid paths (Paths, /dphone path: floors, basements, fenced yards the grid can't
+ * see) goes along those first; the roads or the straight line only where no path is within reach.
  *
  * Shown on the phone (PhonePlugin's renderer: the route, the targets' icons, the name and distance in the
  * strip) and in the world, to that player only: a dust trail on the way ahead, a ring on the ground around the
@@ -51,8 +52,8 @@ import org.bukkit.metadata.FixedMetadataValue;
  *
  * Only this plugin writes the player metadata Skript reads (up to 5 ticks old): donating_gps_next (Location:
  * the next corner), donating_gps_left (Double: blocks left along the way, or in a straight line),
- * donating_gps_state (route | direct | arrived | paused), donating_gps_turn (left | right | "") and
- * donating_gps_turn_in (Double: blocks to that turn).
+ * donating_gps_state (route | direct | arrived | paused), donating_gps_turn (left | right | up | down | "": up and down
+ * are stairs or a ladder on a staff path) and donating_gps_turn_in (Double: blocks to that turn).
  */
 final class Gps {
     static final String META_NEXT = "donating_gps_next", META_LEFT = "donating_gps_left", META_STATE = "donating_gps_state";
@@ -61,6 +62,7 @@ final class Gps {
     static final double SQRT2 = Math.sqrt(2);
 
     private final PhonePlugin plugin;
+    final Paths paths;
     private final ExecutorService worker = daemon("DonatingPhone-GPS");     // flow fields
     private final ExecutorService scanner = daemon("DonatingPhone-roads");  // the road scan (never delays a route)
 
@@ -129,6 +131,10 @@ final class Gps {
         long requestedAt;
         int version;               // the phone redraws when this changes
         int[] walk = new int[0];   // cells from the player to the target
+        final Paths.Memo memo = new Paths.Memo(); // a staff path's field and the way in picked last
+        double[][] line;           // on a staff path: the points from the player on (x, y, z), else null
+        int[] via = new int[0];    // the path nodes it passes
+        String pick = "", way = "direct"; // the way in (Paths), and path | roads | direct
         double left, turnIn;
         String turn = "";
         Location next;
@@ -148,7 +154,10 @@ final class Gps {
         }
     }
 
-    Gps(PhonePlugin plugin) { this.plugin = plugin; }
+    Gps(PhonePlugin plugin) {
+        this.plugin = plugin;
+        paths = new Paths(plugin);
+    }
 
     // ---------- Setup ----------
 
@@ -184,6 +193,7 @@ final class Gps {
         colors.clear();
         for (String kind : List.of("pin", "quest", "loot")) colors.put(kind, color(c.getString("gps.color." + kind), kind.equals("pin") ? 0xD040E0 : kind.equals("quest") ? 0xFF5A1F : 0x30C8C0));
         cache.clear();
+        paths.configure(c);
     }
 
     private int[] costs(FileConfiguration c, String key, int[] def) {
@@ -272,6 +282,7 @@ final class Gps {
         scan = null;
         for (Nav n : navs.values()) removeStand(n);
         navs.clear();
+        paths.shutdown(); // a queued save of paths.yml
     }
 
     // ---------- Targets (gps.sk: /dphone gps ...) ----------
@@ -343,6 +354,7 @@ final class Gps {
         Nav n = navs.remove(p.getUniqueId());
         quiet(p, n != null ? n : new Nav());
         showRoads.remove(p.getUniqueId());
+        paths.quit(p);
     }
 
     // ---------- Every tick (PhonePlugin's watcher) ----------
@@ -350,6 +362,7 @@ final class Gps {
     void tick() {
         ticks++;
         if (scan != null) scan.pump();
+        paths.tick();
         if (ticks % 5 != 0) return;
         boolean draw = ticks % 10 == 0;
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -388,39 +401,63 @@ final class Gps {
         if (sameWorld) nearest(t, l);
         double flat = sameWorld ? Math.hypot(l.getX() - t.x, l.getZ() - t.z) : Double.MAX_VALUE;
         double r = t.kind.equals("pin") && car ? Math.max(t.radius, carPinRadius) : t.radius;
+        // In a world with paths (floors), a quest's area is only a few blocks high: not the room above it.
+        boolean floors = sameWorld && paths.has(l.getWorld());
+        double high = floors ? paths.arriveHeight() : 12;
         if (!paused) {
-            if (!t.arrived && sameWorld && (t.kind.equals("pin") || Math.abs(l.getY() - t.y) <= 12)) {
+            if (!t.arrived && sameWorld && (t.kind.equals("pin") || Math.abs(l.getY() - t.y) <= high)) {
                 boolean in = flat <= r;
                 if (!in && walked) for (double[] q : t.pts) if (distToSegment(q[0], q[2], px, pz, l.getX(), l.getZ()) <= r) { in = true; break; }
                 if (in) { t.arrived = true; t.arrivedAt = now; }
             } else if (t.arrived && now - t.arrivedAt > 1500 && flat > r + Math.max(4, r / 2)) t.arrived = false;
         }
 
-        // The way.
+        // The way: the world's staff paths first (they know floors and doors), else the road grid, else a straight line.
         Roads rd = roads;
         int from = -1;
         t.cells = new int[0];
-        if (rd != null && sameWorld && t.world.getName().equals(rd.world)) {
-            t.cells = cellsOf(t, rd);
-            from = rd.cellAt(l.getX(), l.getZ());
-        }
-        boolean fieldOk = t.field != null && t.fieldRoads == rd && t.cells.length > 0 && t.field.sameTargets(t.cells);
-        if (t.cells.length > 0 && (!fieldOk || t.fieldCar != car)) request(p, t, rd, car, now, fieldOk);
-        fieldOk = t.field != null && t.fieldRoads == rd && t.cells.length > 0 && t.field.sameTargets(t.cells); // the cache may have filled it
         double lead = Math.max(leadMin, Math.min(leadMax, n.speed * 2));
         t.turn = "";
         t.turnIn = -1;
-        if (from >= 0 && fieldOk) {
-            walk(t, rd, from);
-            headFor(t, rd);
-            t.left = length(t, rd, l);
-            t.next = corner(t, rd, l, lead);
-            t.state = "route";
-        } else {
+        Paths.Route pr = floors && !paused ? paths.route(t.memo, t.pts, l, p.getEyeLocation()) : null;
+        if (pr != null) {
+            if (!pr.pick().equals(t.pick) || !Arrays.equals(pr.via(), t.via)) t.version++; // the phone redraws the new way
+            t.line = pr.line();
+            t.via = pr.via();
+            t.pick = pr.pick();
             t.walk = new int[0];
-            t.left = sameWorld ? Math.hypot(flat, l.getY() - t.y) : -1;
-            t.next = sameWorld ? toward(l, t, Math.min(lead, flat)) : null;
-            t.state = "direct";
+            t.x = pr.spot()[0];
+            t.y = pr.spot()[1];
+            t.z = pr.spot()[2];
+            t.left = lineLength(t, l);
+            t.next = lineCorner(t, l, lead);
+            t.state = "route";
+            t.way = "path";
+        } else {
+            t.line = null;
+            t.via = new int[0];
+            t.pick = "";
+            if (rd != null && sameWorld && t.world.getName().equals(rd.world)) {
+                t.cells = cellsOf(t, rd);
+                from = rd.cellAt(l.getX(), l.getZ());
+            }
+            boolean fieldOk = t.field != null && t.fieldRoads == rd && t.cells.length > 0 && t.field.sameTargets(t.cells);
+            if (t.cells.length > 0 && (!fieldOk || t.fieldCar != car)) request(p, t, rd, car, now, fieldOk);
+            fieldOk = t.field != null && t.fieldRoads == rd && t.cells.length > 0 && t.field.sameTargets(t.cells); // the cache may have filled it
+            if (from >= 0 && fieldOk) {
+                walk(t, rd, from);
+                headFor(t, rd);
+                t.left = length(t, rd, l);
+                t.next = corner(t, rd, l, lead);
+                t.state = "route";
+                t.way = "roads";
+            } else {
+                t.walk = new int[0];
+                t.left = sameWorld ? Math.hypot(flat, l.getY() - t.y) : -1;
+                t.next = sameWorld ? toward(l, t, Math.min(lead, flat)) : null;
+                t.state = "direct";
+                t.way = "direct";
+            }
         }
         if (t.arrived) t.state = "arrived";
         if (paused) t.state = "paused";
@@ -586,6 +623,85 @@ final class Gps {
         return at(t.world, r.centerX(t.walk[j]), r.centerZ(t.walk[j]), l);
     }
 
+    // ---------- A staff path's way (Paths): a line of points, heights included ----------
+
+    private static double dist3(double x, double y, double z, double[] q) { return Math.sqrt((q[0] - x) * (q[0] - x) + (q[1] - y) * (q[1] - y) + (q[2] - z) * (q[2] - z)); }
+
+    /** Blocks left along the path: from the player to its first point, then point to point. */
+    private static double lineLength(Target t, Location l) {
+        double d = 0, x = l.getX(), y = l.getY(), z = l.getZ();
+        for (double[] q : t.line) { d += dist3(x, y, z, q); x = q[0]; y = q[1]; z = q[2]; }
+        return d;
+    }
+
+    /** The distance from q to the segment a-b, in 3D. */
+    private static double distToSeg3(double[] q, double ax, double ay, double az, double[] b) {
+        double vx = b[0] - ax, vy = b[1] - ay, vz = b[2] - az, L2 = vx * vx + vy * vy + vz * vz;
+        double u = L2 == 0 ? 0 : Math.max(0, Math.min(1, ((q[0] - ax) * vx + (q[1] - ay) * vy + (q[2] - az) * vz) / L2));
+        return dist3(ax + u * vx, ay + u * vy, az + u * vz, q);
+    }
+
+    /**
+     * The dot on a staff path: the farthest point of it in a straight line from the player (points they stand at are
+     * passed), no farther than `lead`; at its height (another floor shows above or below on the bar). The turn there:
+     * up or down when the next stretch climbs or drops (stairs, a ladder), else left or right if it bends 30° or more.
+     */
+    private Location lineCorner(Target t, Location l, double lead) {
+        double[][] ln = t.line;
+        double sx = l.getX(), sy = l.getY(), sz = l.getZ();
+        int i0 = 0;
+        while (i0 < ln.length - 1 && dist3(sx, sy, sz, ln[i0]) < 1.5) i0++;
+        int j = i0;
+        for (int k = i0 + 1; k < ln.length; k++) {
+            boolean straight = true;
+            for (int i = i0; i < k && straight; i++) if (distToSeg3(ln[i], sx, sy, sz, ln[k]) > 1.0) straight = false;
+            if (!straight) break;
+            j = k;
+        }
+        double[] c = ln[j];
+        double toCorner = dist3(sx, sy, sz, c);
+        if (j < ln.length - 1) {
+            int k = j + 1;
+            while (k < ln.length - 1 && dist3(c[0], c[1], c[2], ln[k]) < 2) k++;
+            double[] o = ln[k];
+            double dy = o[1] - c[1], flat = Math.hypot(o[0] - c[0], o[2] - c[2]);
+            if (Math.abs(dy) >= 2.5 && Math.abs(dy) >= flat * 0.4) {
+                t.turn = dy > 0 ? "up" : "down";
+                t.turnIn = toCorner;
+            } else {
+                double ix = c[0] - sx, iz = c[2] - sz, ox = o[0] - c[0], oz = o[2] - c[2];
+                double ang = Math.toDegrees(Math.atan2(ix * oz - iz * ox, ix * ox + iz * oz));
+                if (Math.abs(ang) >= 30 && Math.hypot(ix, iz) > 0.5) {
+                    t.turn = ang > 0 ? "right" : "left";
+                    t.turnIn = toCorner;
+                }
+            }
+        }
+        double f = toCorner > lead ? lead / toCorner : 1;
+        return new Location(t.world, sx + (c[0] - sx) * f, sy + (c[1] - sy) * f + 1, sz + (c[2] - sz) * f);
+    }
+
+    /** Dust along a staff path at its own height (indoors, not on the roof). */
+    private static void lineTrail(Player p, Target t, Location l, double len, Particle.DustOptions dust) {
+        World w = l.getWorld();
+        double px = l.getX(), py = l.getY(), pz = l.getZ(), along = 0, next = 2.5;
+        for (double[] q : t.line) {
+            double dx = q[0] - px, dy = q[1] - py, dz = q[2] - pz, seg = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            while (seg > 0 && next <= along + seg) {
+                if (next > len) return;
+                double u = (next - along) / seg, x = px + dx * u, z = pz + dz * u;
+                if (!w.isChunkLoaded((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4)) return;
+                p.spawnParticle(Particle.DUST, x, py + dy * u + 0.25, z, 1, 0, 0, 0, 0, dust, true);
+                next += 2;
+            }
+            along += seg;
+            px = q[0];
+            py = q[1];
+            pz = q[2];
+            if (along > len) return;
+        }
+    }
+
     private static double distToSegment(double x, double z, double ax, double az, double bx, double bz) {
         double dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz;
         double u = len2 == 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
@@ -652,6 +768,7 @@ final class Gps {
     private void trail(Player p, Nav n, Target t, Roads r, Location l) {
         Particle.DustOptions dust = new Particle.DustOptions(colorOf(t.kind), 1.4f);
         double len = Math.max(trailMin, Math.min(trailMax, n.speed * 3));
+        if (t.line != null) { lineTrail(p, t, l, len, dust); return; }
         World w = l.getWorld();
         List<double[]> pts = new ArrayList<>();
         if (t.walk.length > 0) {
@@ -695,13 +812,14 @@ final class Gps {
         Particle.DustOptions dust = new Particle.DustOptions(colorOf(t.kind), 1.6f);
         World w = t.world;
         int n = (int) Math.max(12, Math.min(48, t.radius * 4));
+        boolean floors = paths.has(w); // indoors: at the target's own height, not on the roof
         for (double[] q : t.pts) {
             if (Math.hypot(q[0] - l.getX(), q[2] - l.getZ()) > ringRange + t.radius) continue;
             for (int i = 0; i < n; i++) {
                 double a = 2 * Math.PI * i / n, x = q[0] + Math.cos(a) * t.radius, z = q[2] + Math.sin(a) * t.radius;
                 int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
                 if (!w.isChunkLoaded(bx >> 4, bz >> 4)) continue;
-                double y = w.getHighestBlockYAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1.2;
+                double y = floors ? q[1] + 0.2 : w.getHighestBlockYAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1.2;
                 p.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, dust, true);
             }
         }
@@ -795,7 +913,14 @@ final class Gps {
                     .append(" spots=").append(t.pts.length).append(" r=").append(fmt(t.radius)).append(" state=").append(t.state).append(" left=").append(fmt(t.left))
                     .append(" next=").append(t.next == null ? "none" : fmt(t.next.getX()) + "," + fmt(t.next.getY()) + "," + fmt(t.next.getZ()))
                     .append(" turn=").append(t.turn.isEmpty() ? "none" : t.turn + "@" + fmt(t.turnIn)).append(" field=").append(t.field != null).append(" car=").append(t.fieldCar)
-                    .append(" walk=").append(t.walk.length);
+                    .append(" walk=").append(t.walk.length).append(" way=").append(t.way);
+            if (t.line != null) {
+                StringBuilder v = new StringBuilder();
+                for (int id : t.via) v.append(v.length() == 0 ? "" : ",").append(id);
+                double[] q = t.line[0];
+                b.append(" pick=").append(t.pick).append(" line=").append(t.line.length).append(" via=").append(v.length() == 0 ? "-" : v)
+                        .append(" first=").append(fmt(q[0])).append(',').append(fmt(q[1])).append(',').append(fmt(q[2]));
+            }
             Roads r = roads;
             if (t.walk.length > 0 && r != null && t.fieldRoads == r) {
                 int roadCells = 0, blockedCells = 0;

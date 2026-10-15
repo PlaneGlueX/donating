@@ -44,7 +44,7 @@ const ZONES = {
   crawl: [[61, 57, 84, 76, 59, 84], [61, 57, 82, 61, 59, 83]],
   boiler: [[45, 57, 74, 72, 62, 81]],
   rustycell: [[75, 57, 76, 78, 61, 79]],
-  rustydoor: [[78, 57, 77, 78, 60, 79]],
+  rustydoor: [[77, 57, 76, 78, 60, 79]], // the cell's front half: the door opens from inside (jailcourse.sk)
   ladder: [[64, 58, 88, 64, 64, 88]],
   soup: [[64, 64, 88, 78, 72, 112]],
   hallcend: [[74, 64, 115, 78, 68, 119]],

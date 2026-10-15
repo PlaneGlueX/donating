@@ -6,7 +6,9 @@
 # last step. Here:
 #   - readers (red tripwire hooks) and keycard doors that open as a prisoner carrying a keycard walks up (the police
 #     station's yard and POLICE doors, the punch gate, the gatehouse door); the gatehouse door also opens from inside;
-#   - search spots (the C4's three parts, the cafeteria's donut) and the C4 bench, with loot.sk's hold mechanic;
+#   - search spots (the C4's three parts, the cafeteria's donut) with loot.sk's hold mechanic, a glowing marker on each
+#     spot and a "Hold right-click" prompt next to it; Lefty puts the three parts together (jailjobs.sk jjC4), the old
+#     workshop bench only points to him;
 #   - the breach "gate" (the vehicle gate between the plaza and the lot): plant, a 5 s fuse, the blast, open 2 min,
 #     a 5 s warning, then rebuilt (nobody can hold a hole open);
 #   - the two punch boxes (the Gun Shop's: the punch gate to the parkour; the gatehouse fuse box: the booth door), both
@@ -464,40 +466,102 @@ function jeSpotClick(p: player, point: text):
 	setData({_p}, "jspot-ready::%{_point}%", (unix timestamp of now) + {_cd})
 	pvKill({_p}, "jspot:%{_point}%")
 	play sound "entity.item.pickup" with volume 1 to {_p}
-	hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7(in your pockets: E)", 1)
+	set {_all} to false
+	if {_kind} is "putty" or "wires" or "timer":
+		set {_all} to jeC4Parts({_p})
+	if {_all} is true:
+		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7· all three parts: bring them to Lefty in Hall B", 2)
+		msg({_p}, "&7You have the putty, the wires and a timer: &fLefty &7in Hall B puts them together.")
+	else:
+		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7(in your pockets: E)", 1)
 	jeLog("search %{_p}% %{_point}% %{_kind}%")
 
-function jeBenchClick(p: player):
-	if jailCount({_p}, "putty") < 1:
-		set {_miss} to true
-	if jailCount({_p}, "wires") < 1:
-		set {_miss} to true
-	if jailCount({_p}, "timer") < 1:
-		set {_miss} to true
-	if {_miss} is set:
-		hudBar({_p}, "&7The bench needs the putty, the wires and a timer.", 1)
-		stop
-	set {_need} to jeSecs("prison::assemble::hold")
-	if jailHold({_p}, "bench", {_need}) is false:
-		jailHoldBar({_p}, "Assembling", {_need})
-		stop
-	set {_free} to false
-	loop integers from 0 to 4:
-		if slot loop-value of {_p}'s inventory is air:
-			set {_free} to true
-	if {_free} is false:
-		hudBar({_p}, "&cFree a slot in hotbar 1-5 for the C4", 2)
-		stop
-	jailTake({_p}, "putty", 1)
-	jailTake({_p}, "wires", 1)
-	jailTake({_p}, "timer", 1)
-	jailGive({_p}, "c4", 1)
-	progEvent({_p}, "jailc4", 1, "")
-	play sound "block.anvil.use" with volume 0.8 to {_p}
-	hudBar({_p}, "&a+ C4 &7(hotbar). Hold it on the vehicle gate by the plaza.", 2)
-	jeLog("c4 %{_p}%")
+# All three C4 parts carried (Lefty puts them together: jailjobs.sk jjC4).
+function jeC4Parts(p: player) :: boolean:
+	loop "putty", "wires" and "timer":
+		if jailCount({_p}, loop-value) < 1:
+			return false
+	return true
 
-# Every 2 s: a glowing marker (only for that prisoner) over each spot they could take from now, within 24 blocks.
+# The old workshop bench: Lefty puts the C4 together now (owner, 2026-10-14: "instead of going to the workbench, give it
+# to lefty and he will give you the completed item").
+function jeBenchClick(p: player):
+	hudBar({_p}, "&7Lefty puts C4 together: bring him the putty, the wires and a timer (Hall B).", 1)
+
+# Where a spot's marker goes: on the spot itself (owner, 2026-10-14: "dont put the glowing brick above the search area put
+# it on the same block"). A block with a facing (a barrel): just out of its front face; a trapdoor (a cabinet door): the
+# block's middle, in front of the door; any other block: on top. A free point (the donut on the counter): resting there.
+function jeMarkAt(l: location) :: location:
+	set {_w} to world of {_l}
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	if mod({_x}, 1) is not 0:
+		return location({_x}, {_y} + 0.2, {_z}, {_w})
+	set {_cx} to {_x} + 0.5
+	set {_cy} to {_y} + 0.5
+	set {_cz} to {_z} + 0.5
+	set {_bd} to "%block data of block at {_l}%"
+	if {_bd} contains "trapdoor":
+		return location({_cx}, {_cy}, {_cz}, {_w})
+	set {_o} to 0.62
+	if {_bd} contains "facing=north":
+		return location({_cx}, {_cy}, {_cz} - {_o}, {_w})
+	if {_bd} contains "facing=south":
+		return location({_cx}, {_cy}, {_cz} + {_o}, {_w})
+	if {_bd} contains "facing=west":
+		return location({_cx} - {_o}, {_cy}, {_cz}, {_w})
+	if {_bd} contains "facing=east":
+		return location({_cx} + {_o}, {_cy}, {_cz}, {_w})
+	return location({_cx}, {_y} + 1.2, {_cz}, {_w})
+
+# Every 10 ticks: "Hold right-click" next to the nearest spot an inmate can use now (owner, 2026-10-14: "for tasks like
+# taking the donut and searching, make sure to specify to hold right click"): a search spot or the donut within 3
+# blocks, the console inside the booth, the vehicle gate with a C4 in hand. Priority 0: a hold's progress bar wins.
+every 10 ticks:
+	jailOn() is true
+	set {_w} to jailWorld()
+	loop all players:
+		set {_p} to loop-player
+		if world of {_p} is {_w}:
+			if {_p} is alive:
+				if jailState({_p}) is "in":
+					if jailExempt({_p}) is false:
+						jePrompt({_p})
+
+function jePrompt(p: player):
+	set {_l} to location of {_p}
+	set {_best} to 3.01
+	loop {-cfg::prison::spots::*}:
+		set {_s::*} to loop-value split at "|"
+		set {_sl} to jailPt({_s::1})
+		if {_sl} is set:
+			if mod(x-coordinate of {_sl}, 1) is 0:
+				set {_sl} to location((x-coordinate of {_sl}) + 0.5, (y-coordinate of {_sl}) + 0.5, (z-coordinate of {_sl}) + 0.5, world of {_sl})
+			set {_d} to distance between {_l} and {_sl}
+			if {_d} < {_best}:
+				if jeSpotWhy({_p}, {_s::1}) is "":
+					set {_best} to {_d}
+					set {_kind} to {_s::2}
+	if {_kind} is set:
+		if {_kind} is "donut":
+			hudBar({_p}, "&eHold right-click &7· Take a donut", 0)
+		else:
+			hudBar({_p}, "&eHold right-click &7· Search here", 0)
+		stop
+	if jailZone("booth", {_l}) is true:
+		if jbrState("front") is not "open":
+			if jeLeft("cool::front") <= 0:
+				hudBar({_p}, "&eHold right-click &7on the console · open the front gate", 0)
+		stop
+	if jailHeld({_p}) is "c4":
+		loop {-cfg::prison::breaches::*}:
+			if jbrState(loop-value) is "intact":
+				if jailZone("plant%loop-value%", {_l}) is true:
+					hudBar({_p}, "&eHold right-click &7on the gate · plant the C4", 0)
+					stop
+
+# Every 2 s: a glowing marker (only for that prisoner) on each spot they could take from now, within 24 blocks.
 every 2 seconds:
 	jailOn() is true
 	set {_w} to jailWorld()
@@ -520,11 +584,7 @@ every 2 seconds:
 							set {_want} to true
 			if {_want} is true:
 				if pvGet({_p}, {_key}) is not set:
-					set {_ml} to {_l}
-					if mod(x-coordinate of {_l}, 1) is 0:
-						set {_ml} to location((x-coordinate of {_l}) + 0.5, (y-coordinate of {_l}) + 1.6, (z-coordinate of {_l}) + 0.5, {_w})
-					else:
-						set {_ml} to location(x-coordinate of {_l}, (y-coordinate of {_l}) + 0.6, z-coordinate of {_l}, {_w})
+					set {_ml} to jeMarkAt({_l})
 					set {_e} to pvItem({_p}, {_key}, {_ml}, jailItem({_s::2}, 1), 0.4)
 					if {_e} is set:
 						set billboard of {_e} to center

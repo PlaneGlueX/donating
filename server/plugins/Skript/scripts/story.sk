@@ -721,7 +721,7 @@ function storyGpsSpots(p: player, id: text) :: text:
 				if {_a::2} is {_w}:
 					add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
 	# The prison (prison.sk): "jail:<POINT>" a point there; "jailc4" the nearest search spot whose C4 part the player
-	# lacks, then the workshop bench (all three carried), nothing with a C4 in hand.
+	# lacks, then Lefty (all three carried: he puts it together, jailjobs.sk), nothing with a C4 in hand.
 	if {_g} starts with "jail:":
 		set {_jl} to jailPt(subtext of {_g} from characters 6 to (length of {_g}))
 		if {_jl} is set:
@@ -751,10 +751,11 @@ function storyGpsSpots(p: player, id: text) :: text:
 					if jailCount({_p}, loop-value) < 1:
 						set {_missing} to true
 				if {_missing} is false:
-					set {_jl} to jailPt("ASSEMBLE")
-					if {_jl} is set:
-						if "%world of {_jl}%" is {_w}:
-							add gpsSpot({_jl}) to {_s::*}
+					loop {quest::giver::*}:
+						set {_a::*} to loop-value split at "|"
+						if {_a::1} is "lefty":
+							if {_a::2} is {_w}:
+								add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
 	if {_g} is "crate":
 		loop {crateblock::*}:
 			set {_k::*} to loop-index split at ":"

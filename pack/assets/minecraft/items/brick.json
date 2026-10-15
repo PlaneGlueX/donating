@@ -5,17 +5,17 @@
     "index": 0,
     "cases": [
       {
-        "when": "donating:jail_coursecard",
-        "model": {
-          "type": "minecraft:model",
-          "model": "donating:item/jail_coursecard"
-        }
-      },
-      {
         "when": "donating:jail_keycard",
         "model": {
           "type": "minecraft:model",
           "model": "donating:item/jail_keycard"
+        }
+      },
+      {
+        "when": "donating:jail_coursecard",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_coursecard"
         }
       },
       {

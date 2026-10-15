@@ -1,7 +1,7 @@
 // tutorial.sk, reworked 2026-09-27 (owner: the bag costs money and is earned; "do your realistic tutorial job"): a
 // first join starts with money::start ($1,000) and nothing else, a welcome title and the first steps (Mara on the
 // GPS), and Mara's chapter 1 starts at once; there's no spawn lock any more; no Gym Bag is free (with $0 it's refused,
-// with enough money it's bought) and the first bag ends the tutorial ("done"). /tutorial shows the steps again.
+// with enough money it's bought) and the first bag ends the tutorial ("done"). /tutorial is the prison course (closed while the prison is off).
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -69,7 +69,8 @@ module.exports = async ({ check }) => {
     t = Date.now()
     bot.chat('/tutorial')
     await sleep(800)
-    check('/tutorial shows the first steps again', /Meet Mara/.test(text(t)), text(t))
+    // /tutorial is the prison course now (2026-10-14), never the city's welcome lines; with the prison off it says so
+    check('/tutorial with the prison off: "closed right now", not the welcome lines', /tutorial is closed right now/.test(text(t)) && !/Meet Mara/.test(text(t)), text(t))
   } finally {
     bot && bot.setControlState && bot.setControlState('forward', false)
     await rcon.cmd(`rg remove -w world ${REGION}`).catch(() => {})

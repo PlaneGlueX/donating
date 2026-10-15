@@ -2,9 +2,11 @@
 // free bot killed in the city respawns at R_SPAWN as an inmate with an empty hotbar 1-5 and its car job ended without
 // a cooldown; an exempt bot (data jail "off") respawns at the city spawn; a /kill inside costs nothing and is a downing
 // (its cell, the hunt gone); lethal damage inside downs instead of killing (no death, its cell, the door after 12 s,
-// the jail items and search waits gone, no money lost); the stair gate opens for inmates from both sides, for a hunted
-// one only upward, never for the course; a free bot rejoining in the prison world goes to the city; with the prison
-// switched off an inmate is moved to the city and freed when it's switched on again.
+// the jail items, the weapons in hotbar 1-5 and the search waits gone, no money lost; owner, 2026-10-14: "getting
+// arrested in prison takes away your weapons too"; a calm /prison stuck keeps them); the stair gate opens for inmates from
+// both sides, for a hunted one only upward, never for the course; a free bot rejoining in the prison world stays there
+// (the jailbreak world is the whole map: owner, 2026-10-14); with the prison switched off an inmate is moved to the city
+// and freed when it's switched on again.
 const { start, field, sleep } = require('../prisonlib')
 
 const A = 'PcRespA'
@@ -76,6 +78,8 @@ module.exports = async ({ check }) => {
     await into(A, 200.5, 65, 150.5, 0)
     await cmd(`zzjail ${A} give keycard`)
     await cmd(`zzjail ${A} give putty`)
+    await cmd(`zzjail ${A} own Combat_Knife`)
+    await cmd(`wm give ${A} Combat_Knife 1 {slot:0}`)
     await cmd(`zzdata ${A} jspot-ready::SEARCH_PUTTY ${Math.floor(Date.now() / 1000) + 600}`)
     await sleep(1200)
     b0 = await bal(A)
@@ -90,9 +94,25 @@ module.exports = async ({ check }) => {
     check('lethal damage inside: no death (DOWNED instead), the bot stays alive', deaths === 0 && a.health > 0 && said(a, /DOWNED/, since) && !said(a, /died|was slain|fell/, since), `deaths=${deaths} hp=${a.health} ${t.text(a, since)}`)
     check('...back in an east-wing cell, its door shut', VET_CELLS.includes(cell) && !(await doorOpen(CELL_DOOR[cell])), `${s} ${await door(CELL_DOOR[cell] || 'x')}`)
     check('...the jail items gone and the search wait cleared', field(s, 'items') === '' && /= <none>/.test(await cmd(`zzdata ${A} jspot-ready::SEARCH_PUTTY`)), `${s} ${await cmd(`zzdata ${A} jspot-ready::SEARCH_PUTTY`)}`)
+    const dumpD = await cmd(`zzdump ${A}`)
+    check('...the knife in hotbar 1-5 taken too ("They took your weapons"), still unlocked', !/(DUMP |\| )[0-4]=/.test(dumpD) && said(a, /They took your weapons/, since) && /= true/.test(await cmd(`zzdata ${A} wpn::Combat_Knife`)), dumpD)
     check('...no money lost; logged "catch ... down"', (await bal(A)) === b0 && t.logs.prison.has(new RegExp(`catch ${A} \\S+ down`)), `bal ${await bal(A)} vs ${b0}`)
     const opened = await until(() => doorOpen(CELL_DOOR[cell]), 14000, 300)
     check('...the cell door opens after the 12 s wait', opened && Date.now() - since >= 11000, `${Date.now() - since} ms`)
+
+    // ---- a calm /prison stuck keeps the weapons (it takes nothing); a staff catch takes them
+    await into(A, 200.5, 65, 150.5, 0)
+    await cmd(`wm give ${A} Combat_Knife 1 {slot:0}`)
+    await cmd(`zzjail ${A} unstuck`)
+    await sleep(800)
+    a.chat('/prison stuck')
+    await until(async () => VET_CELLS.includes(field(await info(A), 'cell')), 4000)
+    await sleep(1500)
+    check('a calm /prison stuck: back to a cell with the knife kept', VET_CELLS.includes(field(await info(A), 'cell')) && /Combat_Knife/.test(await cmd(`zzwm ${A}`)), `${await info(A)} ${await cmd(`zzwm ${A}`)}`)
+    await sleep(2500) // jailCatch ignores a second catch within 3 s
+    await cmd(`dprison catch ${A}`)
+    await sleep(2000)
+    check('...an arrest (staff catch) takes it', !/Combat_Knife/.test(await cmd(`zzwm ${A}`)), await cmd(`zzwm ${A}`))
 
     // ---- the stair gate: up and down for an inmate, only up for a hunted one, never for the course
     const awayFromGate = async n => { await t.jtp(n, 84.5, 65, 130.5, 0); await sleep(400); await cmd('dprison door stairgate close'); await sleep(400) }
@@ -119,7 +139,7 @@ module.exports = async ({ check }) => {
     await state(A, 'in')
     await awayFromGate(A)
 
-    // ---- a free bot rejoining in the prison world goes to the city spawn
+    // ---- a free bot rejoining in the prison world stays there (the jailbreak world is the whole map)
     await state(B, 'off')
     await t.jtp(B, 260.5, 65, 404.5, 0)
     await state(B, 'out')
@@ -128,8 +148,9 @@ module.exports = async ({ check }) => {
     await t.drop(B)
     await sleep(1500)
     await t.newBot(B)
-    const went = await until(async () => (await dim(B)) === 'minecraft:overworld', 5000)
-    check('a free bot rejoining in the prison world is sent to the city spawn', went, await dim(B))
+    await sleep(4000)
+    const pB = await pos(B)
+    check('a free bot rejoining in the prison world stays where it was, still free (no teleport to the city)', (await dim(B)) === 'minecraft:jailbreak' && pB && Math.abs(pB[0] - 260.5) < 1 && Math.abs(pB[2] - 404.5) < 1 && field(await info(B), 'state') === 'out', `${await dim(B)} ${pB} ${await info(B)}`)
 
     // ---- the master switch off: an inmate in jailbreak is moved to the city, freed when it's on again
     await into(A, 200.5, 65, 150.5, 0)

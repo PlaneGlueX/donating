@@ -29,13 +29,16 @@ function jcStepOf(p: player) :: text:
 		return "%{_s}%"
 	return "cell"
 
-# The step's place in the course (cell 1 .. upstairs 9; an unknown step 0).
+# The step's place in the course (cell 1 .. upstairs 9; an unknown step 0). Counted: loop-index over a function's list
+# starts at 0 (found 2026-10-14: every step read one lower, so Rusty's door opened from inside only at upstairs, never at
+# office, and a vent-step checkpoint was the cell).
 function jcStepNum(s: text) :: number:
-	set {_n} to 0
+	set {_i} to 0
 	loop jcSteps():
+		add 1 to {_i}
 		if loop-value is {_s}:
-			set {_n} to loop-index parsed as number
-	return {_n}
+			return {_i}
+	return 0
 
 function jcSet(p: player, s: text):
 	set {_old} to jcStepOf({_p})
@@ -58,7 +61,7 @@ function jcPrompt(p: player, s: text):
 	else if {_s} is "sneak":
 		set {_t} to "Sneak past the guard"
 		set {_sub} to "&7Hold &fShift&7 and take the keycard off his desk"
-		set {_c} to "Guards notice inmates who aren't sneaking. Sneak into the guard post and take the keycard off the desk."
+		set {_c} to "Guards notice inmates who aren't sneaking: get near him without sneaking and he wakes up. Sneak into the guard post and take the keycard off the desk."
 	else if {_s} is "vent":
 		set {_t} to "Use the keycard"
 		set {_sub} to "&7Right-click the vent's &cred reader"
@@ -262,7 +265,15 @@ function jcPass(p: player):
 			set {_kl} to jailPt("T_KEYCARD")
 			if {_kl} is set:
 				pvItem({_p}, "jcourse:card", {_kl}, jailItem("coursecard", 1), 0.5)
-		if jailZone("sneak", {_l}) is true:
+		# The guard post, or anywhere within wake-radius of him (owner, 2026-10-14: "catch you if you walk in a 5 block
+		# radius of him, not just infront of him").
+		set {_near} to jailZone("sneak", {_l})
+		if {_near} is false:
+			set {_gs} to jailPt("T_GUARD_SEAT")
+			if {_gs} is set:
+				if distance between {_l} and {_gs} <= cfg("prison::course::wake-radius"):
+					set {_near} to true
+		if {_near} is true:
 			if {_p} is sneaking:
 				delete {-jc::unsneak::%{_u}%}
 			else if {-jc::unsneak::%{_u}%} is not set:
@@ -283,7 +294,7 @@ function jcPass(p: player):
 	else if {_s} is "hotbar":
 		if wmTitle(tool of {_p}) is "Combat_Knife":
 			jcSet({_p}, "phone")
-			storyText({_p}, "Rusty", "Your phone's in slot 9: press 9 and right-click to open the map. Out in the city it's your GPS; F opens the apps.")
+			storyText({_p}, "Rusty", "Your phone's in slot 9: press 9 and right-click to open the map. Out in the city it's your GPS; F opens the apps. The door opens from in here when you walk up to it.")
 	else if {_s} is "phone":
 		if {_p} has scoreboard tag "donating_phone_open":
 			jcSet({_p}, "office")
@@ -326,10 +337,13 @@ every 5 ticks:
 									jailDoorPulse("vent", {_secs})
 							else:
 								jailDoorPulse("vent", {_secs})
+						# From the hotbar step on (Rusty's knife) the door opens from inside: the hotbar and phone steps work
+						# anywhere, and the boiler room's crawl can't be entered standing (owner, 2026-10-14: "theres no way
+						# out back into the hallway").
 						if jailZone("rustydoor", {_l}) is true:
 							if {_st} is "in":
 								jailDoorPulse("rusty", {_secs})
-							else if {_n} >= 8:
+							else if {_n} >= 6:
 								jailDoorPulse("rusty", {_secs})
 						if jailZone("ladder", {_l}) is true:
 							jailDoorPulse("sohatch", {_secs})
