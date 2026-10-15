@@ -94,6 +94,7 @@ lp group owner permission set donating.wanted false
 lp group owner permission set mtvehicles.ride false
 lp group owner permission set mtvehicles.oppakken false
 lp user Explosde parent add owner
+lp user Explosde permission set essentials.sudo.exempt true
 lp group default permission set weaponmechanics.use.* true
 lp group default permission set donating.inventory.bypass false
 dranks setup

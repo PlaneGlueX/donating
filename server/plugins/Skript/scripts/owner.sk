@@ -1,0 +1,48 @@
+# owner.sk: /console <command> runs a command as the real console, for the owner only (owner, 2026-10-14: "allow the
+# user Explosde (me) to be able to run console only commands"). Gated by UUID, never by name: locally the server runs in
+# offline mode, where anyone can join under any name. The UUIDs: Explosde's on Minehut (Mojang, online mode) and on the
+# local test server (offline mode). Every use is logged to plugins\Skript\logs\owner.log.
+
+function ownerIs(p: player) :: boolean:
+	set {_u} to "%uuid of {_p}%"
+	if {_u} is "645aeff2-33ca-4a62-9878-79cea6b5254f" or "bbcbfbe4-58b2-312c-8cc8-91ce902da8ee":
+		return true
+	return false
+
+command /console <text>:
+	description: Owner only: run a command as the console.
+	usage: /console <command>
+	executable by: players
+	trigger:
+		if ownerIs(player) is false:
+			send "Unknown command. Type ""/help"" for help." to player
+			stop
+		set {_c} to arg-1
+		if {_c} starts with "/":
+			set {_c} to subtext of {_c} from characters 2 to length of {_c}
+		log "%player% %uuid of player%: %{_c}%" to "owner"
+		execute console command {_c}
+		send colored "&7Console: &f/%{_c}%" to player
+
+on tab complete of "/console" and "/skript:console":
+	ownerIs(player) is false
+	cancel event
+
+# Nobody, not even the console, makes the owner run a command (owner, 2026-10-14: "disable /sudo command for my
+# username"). LuckPerms' essentials.sudo.exempt covers players; EssentialsX ignores it for the console. RCON commands
+# fire no Skript command event, so RCON's /sudo still works (it's local-only and never port-forwarded).
+on command:
+	set {_c} to command
+	if {_c} contains ":":
+		set {_c} to last element of ({_c} split at ":")
+	{_c} is "sudo" or "esudo"
+	set {_a::*} to full command split at " "
+	set {_t} to {_a::2} parsed as player
+	{_t} is set
+	ownerIs({_t}) is true
+	cancel event
+	if player is set:
+		send colored "&cYou can't sudo that player." to player
+	else:
+		send "You can't sudo that player." to console
+	log "sudo refused: %sender% -> %{_t}%: %full command%" to "owner"
