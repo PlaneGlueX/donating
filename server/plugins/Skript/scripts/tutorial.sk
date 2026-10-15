@@ -60,17 +60,16 @@ command /tutorial [<text>]:
 	description: Your tutorial step; /tutorial confirm takes you back to it.
 	executable by: players
 	trigger:
-		# While the prison runs, /tutorial is the prison course (jailcourse.sk); the city's first steps follow once out.
-		if jailOn() is true:
-			set {_a} to ""
-			if arg-1 is set:
-				set {_a} to arg-1
-			jcTutorial(player, {_a})
-			if {_a} is "confirm":
-				stop
-			if jailState(player) is "course":
-				stop
-		tutorialSteps(player)
+		# The prison course, also after it's done (owner, 2026-10-14: "/tutorial for people who want to go back to the
+		# tutorial even after they complete it (but they still keep their stats)"): jailcourse.sk jcTutorial. Never the
+		# city's welcome lines (tutorialSteps: the first join only).
+		if jailOn() is false:
+			msg(player, "&7The prison tutorial is closed right now.")
+			stop
+		set {_a} to ""
+		if arg-1 is set:
+			set {_a} to arg-1
+		jcTutorial(player, {_a})
 
 command /dtutorial <offline player> <text>:
 	permission: donating.staff

@@ -485,7 +485,7 @@ function jcTutorial(p: player, arg: text):
 			msg({_p}, "%{_bar}%")
 			msg({_p}, "&7Lost? &f/tutorial confirm &7takes you back to this step.")
 		else:
-			msg({_p}, "&7You've done the course. &f/tutorial confirm &7runs it again from your cell (no rewards twice): &cyou'll be a prisoner again &7and have to break out.")
+			msg({_p}, "&7You've done the course. &f/tutorial confirm &7runs it again from a cell. You keep your money, level and unlocks (no rewards twice), but &cyou'll be a prisoner again &7and have to break out.")
 		stop
 	set {_why} to jcTutorialBlock({_p})
 	if {_why} is not "":
