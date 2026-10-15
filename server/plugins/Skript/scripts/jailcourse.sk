@@ -1,0 +1,513 @@
+# jailcourse.sk: the B1 controls course for first-joiners (ESCAPE-SPEC 4.4; owner, 2026-10-14: "the lower levels
+# learn the controls"). Built 2026-10-14.
+#
+# Only Donating's own controls (owner, 2026-10-14: "no need to give a tutorial on basic minecraft controls"): the
+# walk, sprint and jump steps are gone (old saves of them read as sneak). Each step is told straight to the player as it
+# starts (jcPrompt: chat, title, ping; a chime for the one done: owner, "the text in the air ... is easy to miss").
+# A first-joiner starts in a west-wing cell with data jail "course" (prison.sk's first join) and walks the steps
+# (data jail-step): cell, sneak (past the sleeping guard, take his keycard), vent (its red reader),
+# crawl, boiler (the broken wall into Rusty's cell), hotbar (Rusty's knife), phone, office (the Security Office's
+# reader), upstairs (the SECURITY door into Hall B): done (prison.sk jailCourseDone: data jail "in"). Every 5 ticks this
+# file writes the step's boss bar ({-jail::coursebar::<u>}, prison.sk's prisonHud draws it) and its checkpoint point
+# ({-jail::checkpoint::<u>}: rejoins, a course death and /prison stuck go there).
+# Also here, for every prisoner: the course doors' inside exits (nobody who follows a first-joiner through a pulsed
+# door is ever shut in), the vent lids (closed while a course player is in the chamber: the crawl), the push-back from
+# B1's stair. jailescape.sk handles every reader click and calls jailCourseReader for the three course readers.
+# Calls prison.sk only (and shop.sk, story.sk, pv.sk); prison.sk never calls this file.
+
+function jcLog(t: text):
+	log {_t} to "prison"
+
+function jcSteps() :: texts:
+	return "cell", "sneak", "vent", "crawl", "boiler", "hotbar", "phone", "office" and "upstairs"
+
+function jcStepOf(p: player) :: text:
+	set {_s} to getData({_p}, "jail-step")
+	if {_s} is set:
+		if {_s} is "walk" or "sprint" or "jump":
+			return "sneak"
+		return "%{_s}%"
+	return "cell"
+
+# The step's place in the course (cell 1 .. upstairs 9; an unknown step 0).
+function jcStepNum(s: text) :: number:
+	set {_n} to 0
+	loop jcSteps():
+		if loop-value is {_s}:
+			set {_n} to loop-index parsed as number
+	return {_n}
+
+function jcSet(p: player, s: text):
+	set {_old} to jcStepOf({_p})
+	setData({_p}, "jail-step", {_s})
+	jcLog("course-step %{_p}% %{_s}%")
+	if {_old} is not {_s}:
+		if {_old} is not "cell":
+			play sound "entity.experience_orb.pickup" with volume 0.6 to {_p}
+		# The hotbar step is told once Rusty's knife is in a slot (jcRusty): its key isn't known before.
+		if {_s} is not "hotbar":
+			jcPrompt({_p}, {_s})
+
+# The step, straight to the player: a title with its key, a chat line, a ping (the boss bar keeps it after).
+function jcPrompt(p: player, s: text):
+	set {_t} to ""
+	if {_s} is "cell":
+		set {_t} to "Locked up"
+		set {_sub} to "&7Your cell opens in a moment"
+		set {_c} to "New inmates learn the ropes down here first. Your cell opens in a moment."
+	else if {_s} is "sneak":
+		set {_t} to "Sneak past the guard"
+		set {_sub} to "&7Hold &fShift&7 and take the keycard off his desk"
+		set {_c} to "Guards notice inmates who aren't sneaking. Sneak into the guard post and take the keycard off the desk."
+	else if {_s} is "vent":
+		set {_t} to "Use the keycard"
+		set {_sub} to "&7Right-click the vent's &cred reader"
+		set {_c} to "Keycards work from your pockets: right-click a red reader to open its door."
+	else if {_s} is "crawl":
+		set {_t} to "Through the vent"
+		set {_sub} to "&7Follow it to the other side"
+		set {_c} to "Follow the vent to the other side."
+	else if {_s} is "boiler":
+		set {_t} to "Find a way through"
+		set {_sub} to "&7Into the next cell"
+		set {_c} to "There's a way into the next cell from the boiler room."
+	else if {_s} is "hotbar":
+		set {_t} to "Hold the knife"
+		set {_sub} to "&7Press &f%jcKnifeKey({_p})%"
+		set {_c} to "Your hotbar is fixed: 1-5 weapons and items, 6-8 quest items, 9 your phone; your bag rides in the offhand. Inside the walls only melee works."
+	else if {_s} is "phone":
+		set {_t} to "Your phone"
+		set {_sub} to "&7Press &f9&7, then &fright-click"
+		set {_c} to "Right-click with the phone: the map (your GPS in the city). F with the phone: the apps."
+	else if {_s} is "office":
+		set {_t} to "The Security Office"
+		set {_sub} to "&7Down the hall: the same keycard"
+		set {_c} to "The Security Office is down the hall. Its reader takes the same keycard."
+	else if {_s} is "upstairs":
+		set {_t} to "Up and out"
+		set {_sub} to "&7Up the ladder, through the SECURITY door"
+		set {_c} to "Up the ladder and through the SECURITY door into the main block."
+	if {_t} is not "":
+		send title colored "&e&l%{_t}%" with subtitle colored {_sub} to {_p} for 4 seconds
+		msg({_p}, "&e&lTUTORIAL&r &7· %{_c}%")
+		play sound "block.note_block.pling" with volume 0.8 and pitch 1.4 to {_p}
+
+# The step's checkpoint point: the course cell before the walk is done (its door stays open while you're inside).
+function jcCheckpoint(p: player, s: text) :: text:
+	if jcStepNum({_s}) <= 2:
+		set {_u} to "%uuid of {_p}%"
+		set {_c} to {-jail::cell::%{_u}%}
+		if {_c} is not set:
+			set {_c} to jailCellAssign({_p}, "course")
+		if {_c} is "n60":
+			return "T_SPAWN"
+		return "T_CELL_%{_c}%"
+	if {_s} is "vent":
+		return "CP_VENT"
+	if {_s} is "crawl" or "boiler":
+		return "BOILER_IN"
+	if {_s} is "hotbar" or "phone":
+		return "RUSTY_IN"
+	if {_s} is "office":
+		return "CP_OFFICE"
+	return "SO_UP"
+
+# Where Rusty's knife goes: the first empty slot of hotbar 1-5 the player isn't holding (a new player holds slot 1, and a
+# knife landing in the held slot would finish the hotbar lesson before they press anything), else any empty one.
+function jcKnifeSlot(p: player) :: number:
+	set {_held} to index of {_p}'s current hotbar slot
+	loop integers from 0 to 4:
+		if loop-value is not {_held}:
+			if slot loop-value of {_p}'s inventory is air:
+				return loop-value
+	return freeLoadoutSlot({_p})
+
+# The hotbar key the Combat Knife sits on (1-5).
+function jcKnifeKey(p: player) :: number:
+	set {_s} to loadoutSlotOf({_p}, "wpn:Combat_Knife")
+	if {_s} < 0:
+		set {_s} to 0
+	return {_s} + 1
+
+function jcBar(p: player, s: text) :: text:
+	set {_t} to "Your cell opens in a moment"
+	if {_s} is "sneak":
+		set {_t} to "Sneak (&fShift&7) past the sleeping guard and take his keycard"
+	else if {_s} is "vent":
+		set {_t} to "Use the keycard on the vent's red reader"
+	else if {_s} is "crawl":
+		set {_t} to "Crawl through the vent"
+	else if {_s} is "boiler":
+		set {_t} to "Find a way into the next cell"
+	else if {_s} is "hotbar":
+		set {_t} to "Hold the knife: press &f%jcKnifeKey({_p})%"
+	else if {_s} is "phone":
+		set {_t} to "Your phone: press &f9&7, then right-click"
+	else if {_s} is "office":
+		set {_t} to "The Security Office is down the hall: same keycard"
+	else if {_s} is "upstairs":
+		set {_t} to "Out through the SECURITY door"
+	return "&e&lTUTORIAL&r &7· %{_t}%"
+
+# ---------- The sleeping guard (a mannequin, the police skin) ----------
+
+function jcGuardCheck():
+	jailOn() is true
+	set {_l} to jailPt("T_GUARD_SEAT")
+	{_l} is set
+	chunk at {_l} is loaded
+	set {_n} to 0
+	loop all entities in radius 3 around {_l}:
+		if loop-entity has scoreboard tag "jail_guard":
+			add 1 to {_n}
+			if {_n} > 1:
+				kill loop-entity
+	{_n} is 0
+	set {_prof} to ""
+	set {_t} to {-cfg::cop::skin-texture}
+	set {_s} to {-cfg::cop::skin-signature}
+	if {_t} is set:
+		if {_s} is set:
+			if {_t} is not "":
+				set {_prof} to ",profile:{properties:[{name:""textures"",value:""%{_t}%"",signature:""%{_s}%""}]}"
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	execute console command "execute in %worldDim(world of {_l})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_jail"",""jail_guard""],Invulnerable:1b,immovable:1b,hide_description:1b,CustomName:""Guard"",CustomNameVisible:0b,pose:""crouching""%{_prof}%,Rotation:[0f,0f]}"
+	jcLog("guard summoned")
+
+# ---------- The steps (every 5 ticks) ----------
+
+function jcWake(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_at} to {-jc::wokeat::%{_u}%}
+	if {_at} is set:
+		if difference between {_at} and now < 3 seconds:
+			stop
+	set {-jc::wokeat::%{_u}%} to now
+	delete {-jc::unsneak::%{_u}%}
+	send title colored "&c&lHEY!" with subtitle colored "&7He woke up" to {_p} for 2 seconds
+	play sound "entity.villager.no" with volume 1 to {_p}
+	set {_l} to jailPt("SNEAK_BACK")
+	if {_l} is set:
+		teleport {_p} to {_l}
+	msg({_p}, "&cHe woke up. Hold Shift and try again.")
+
+# Rusty's cell: his lines, then the Combat Knife (the hotbar lesson). The step moves on first (no second run).
+function jcRusty(p: player):
+	jcSet({_p}, "hotbar")
+	set {-jc::knifeat::%uuid of {_p}%} to now
+	storyText({_p}, "Rusty", "Took you long enough. Name's Rusty.")
+	wait 2 seconds
+	{_p} is online
+	setData({_p}, "wpn::Combat_Knife", true)
+	if loadoutSlotOf({_p}, "wpn:Combat_Knife") < 0:
+		set {_s} to jcKnifeSlot({_p})
+		if {_s} >= 0:
+			equipWeapon({_p}, "Combat_Knife", {_s})
+	storyText({_p}, "Rusty", "Here, a knife. Press %jcKnifeKey({_p})% to hold it.")
+	jcPrompt({_p}, "hotbar")
+	jcLog("course-knife %{_p}% key=%jcKnifeKey({_p})%")
+
+function jcPass(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_s} to jcStepOf({_p})
+	set {_l} to location of {_p}
+	set {-jail::checkpoint::%{_u}%} to jcCheckpoint({_p}, {_s})
+	set {-jail::coursebar::%{_u}%} to jcBar({_p}, {_s})
+	if {_s} is not "sneak":
+		pvKill({_p}, "jcourse:card")
+		delete {-jc::unsneak::%{_u}%}
+	# A course death (staff /kill, the void) clears the pockets and hotbar 1-5 (death.sk): the card and the knife back.
+	set {_n} to jcStepNum({_s})
+	if {_n} >= 3:
+		if jailCount({_p}, "coursecard") < 1:
+			jailGive({_p}, "coursecard", 1)
+	if {_s} is "hotbar":
+		if getData({_p}, "wpn::Combat_Knife") is true:
+			if loadoutSlotOf({_p}, "wpn:Combat_Knife") < 0:
+				# Not in the 2 s while Rusty is still talking (jcRusty gives it then).
+				set {_give} to true
+				if {-jc::knifeat::%{_u}%} is set:
+					if difference between {-jc::knifeat::%{_u}%} and now < 3 seconds:
+						set {_give} to false
+				if {_give} is true:
+					set {_ks} to jcKnifeSlot({_p})
+					if {_ks} >= 0:
+						equipWeapon({_p}, "Combat_Knife", {_ks})
+	# B1's landing and stair are the guards' way.
+	if jailZone("pushback", {_l}) is true:
+		set {_to} to jailPt("COURSE_PUSH")
+		if {_to} is set:
+			teleport {_p} to {_to}
+		hudBar({_p}, "&7That stair is the guards' way. Yours is through the Security Office.", 2)
+		stop
+	if {_s} is "cell":
+		if {-jc::cellprompt::%{_u}%} is not set:
+			set {-jc::cellprompt::%{_u}%} to true
+			jcPrompt({_p}, "cell")
+		set {_d} to {-jail::cellopen::%{_u}%}
+		set {_open} to false
+		if {_d} is set:
+			if {_d} <= now:
+				set {_open} to true
+		else if jailCellAt({_l}) is not "":
+			set {_open} to true
+		if {_open} is true:
+			jcSet({_p}, "sneak")
+			play sound "block.iron_door.open" with volume 0.8 to {_p}
+	else if {_s} is "sneak":
+		# The keycard on the desk, for this player only (pv.sk).
+		if pvGet({_p}, "jcourse:card") is not set:
+			set {_kl} to jailPt("T_KEYCARD")
+			if {_kl} is set:
+				pvItem({_p}, "jcourse:card", {_kl}, jailItem("coursecard", 1), 0.5)
+		if jailZone("sneak", {_l}) is true:
+			if {_p} is sneaking:
+				delete {-jc::unsneak::%{_u}%}
+			else if {-jc::unsneak::%{_u}%} is not set:
+				set {-jc::unsneak::%{_u}%} to now
+			else if difference between {-jc::unsneak::%{_u}%} and now >= cfg("prison::course::wake"):
+				jcWake({_p})
+		else:
+			delete {-jc::unsneak::%{_u}%}
+	else if {_s} is "vent":
+		if jailZone("crawl", {_l}) is true:
+			jcSet({_p}, "crawl")
+	else if {_s} is "crawl":
+		if jailZone("boiler", {_l}) is true:
+			jcSet({_p}, "boiler")
+	else if {_s} is "boiler":
+		if jailZone("rustycell", {_l}) is true:
+			jcRusty({_p})
+	else if {_s} is "hotbar":
+		if wmTitle(tool of {_p}) is "Combat_Knife":
+			jcSet({_p}, "phone")
+			storyText({_p}, "Rusty", "Your phone's in slot 9: press 9 and right-click to open the map. Out in the city it's your GPS; F opens the apps.")
+	else if {_s} is "phone":
+		if {_p} has scoreboard tag "donating_phone_open":
+			jcSet({_p}, "office")
+			storyText({_p}, "Rusty", "Good. The Security Office is down the hall, same keycard. Up the ladder and you're in the main block.")
+			jailDoorPulse("rusty", jailDoorSecs())
+	else if {_s} is "office":
+		if jailZone("soup", {_l}) is true:
+			jcSet({_p}, "upstairs")
+	else if {_s} is "upstairs":
+		if jailZone("hallb", {_l}) is true:
+			pvKill({_p}, "jcourse:card")
+			jailCourseDone({_p})
+
+# Every 5 ticks: the course steps, the inside exits and the vent lids.
+every 5 ticks:
+	jailOn() is true
+	set {_w} to jailWorld()
+	set {_secs} to jailDoorSecs()
+	set {_inchamber} to false
+	set {_crawler} to false
+	loop all players:
+		set {_p} to loop-player
+		if world of {_p} is {_w}:
+			if {_p} is alive:
+				set {_st} to jailState({_p})
+				if {_st} is "course" or "in":
+					if jailExempt({_p}) is false:
+						if {_st} is "course":
+							jcPass({_p})
+						set {_l} to location of {_p}
+						set {_step} to jcStepOf({_p})
+						set {_n} to jcStepNum({_step})
+						# The inside exits: every course door opens from its inside for any prisoner.
+						if jailZone("ventchamber", {_l}) is true:
+							set {_inchamber} to true
+							if {_st} is "course":
+								if {_step} is "vent" or "crawl":
+									set {_crawler} to true
+								else:
+									jailDoorPulse("vent", {_secs})
+							else:
+								jailDoorPulse("vent", {_secs})
+						if jailZone("rustydoor", {_l}) is true:
+							if {_st} is "in":
+								jailDoorPulse("rusty", {_secs})
+							else if {_n} >= 8:
+								jailDoorPulse("rusty", {_secs})
+						if jailZone("ladder", {_l}) is true:
+							jailDoorPulse("sohatch", {_secs})
+						if jailZone("hallcend", {_l}) is true:
+							jailDoorPulse("security", {_secs})
+	# The vent lids: closed (flat) while a course player is in the chamber, so they crawl; open again once nobody has
+	# been in it for 2 s.
+	if {_crawler} is true:
+		if {-jc::lidsclosed} is not set:
+			set {-jc::lidsclosed} to true
+			jailDoor("ventlids", false)
+	if {_inchamber} is true:
+		set {-jc::chamberat} to now
+	else if {-jc::lidsclosed} is set:
+		set {_at} to {-jc::chamberat}
+		set {_reopen} to true
+		if {_at} is set:
+			if difference between {_at} and now < 2 seconds:
+				set {_reopen} to false
+		if {_reopen} is true:
+			delete {-jc::lidsclosed}
+			jailDoor("ventlids", true)
+
+every 30 seconds:
+	jcGuardCheck()
+
+on load:
+	wait 10 ticks
+	jcGuardCheck()
+	jailOn() is true
+	set {_l} to jailPt("T_KEYCARD")
+	{_l} is set
+	jailBox("course_card", location(82.5, 58.5, 51.5, jailWorld()), 1.02, 1.02)
+
+every 10 seconds:
+	jailOn() is true
+	{-jail::boxes::course_card} is not set
+	jailBox("course_card", location(82.5, 58.5, 51.5, jailWorld()), 1.02, 1.02)
+
+# ---------- The keycard on the desk (a shared click box; each player sees their own card) ----------
+
+on right click on interaction:
+	set {_k} to {-jail::iboxof::%uuid of event-entity%}
+	{_k} is set
+	{_k} starts with "course_"
+	cancel event
+	set {-jail::guard::%player%} to now
+	jailOn() is true
+	if {_k} is "course_card":
+		jailState(player) is "course"
+		jcStepOf(player) is "sneak"
+		if player is not sneaking:
+			jcWake(player)
+			stop
+		if jailGive(player, "coursecard", 1) < 1:
+			if jailCount(player, "coursecard") < 1:
+				hudBar(player, "&cNo room for the keycard.", 2)
+				stop
+		pvKill(player, "jcourse:card")
+		delete {-jc::unsneak::%uuid of player%}
+		jcSet(player, "vent")
+		play sound "item.armor.equip_leather" with volume 0.8 to player
+		msg(player, "&7The card is in your pockets (E). Readers find it there.")
+
+# ---------- The course readers (jailescape.sk calls this for T_VENT_READER, T_SO_READER_OUT, T_SO_READER_IN) ----------
+
+function jailCourseReader(p: player, name: text):
+	set {_st} to jailState({_p})
+	set {_secs} to jailDoorSecs()
+	if {_name} is "T_SO_READER_IN":
+		if {_st} is "course" or "in":
+			jailDoorPulse("sogate", {_secs})
+			play sound "block.note_block.chime" with volume 0.8 to {_p}
+		stop
+	set {_ok} to false
+	if {_st} is "course":
+		if jailCount({_p}, "coursecard") >= 1:
+			set {_s} to jcStepOf({_p})
+			if {_name} is "T_VENT_READER":
+				if {_s} is "vent":
+					set {_ok} to true
+					jailDoorPulse("vent", {_secs})
+			else if {_name} is "T_SO_READER_OUT":
+				if {_s} is "office":
+					set {_ok} to true
+					jailDoorPulse("sogate", {_secs})
+	if {_ok} is true:
+		play sound "block.note_block.chime" with volume 0.8 to {_p}
+		jcLog("course-reader %{_p}% %{_name}%")
+	else:
+		hudBar({_p}, "&7That reader is the guards'.", 2)
+		play sound "block.note_block.bass" with volume 0.8 and pitch 0.6 to {_p}
+
+# ---------- Joins ----------
+
+# A course player who rejoins goes back to the step's checkpoint (a first join is prison.sk's: it set the checkpoint).
+on join:
+	jailOn() is true
+	jailState(player) is "course"
+	set {_u} to "%uuid of player%"
+	{-jail::checkpoint::%{_u}%} is not set
+	wait 3 ticks
+	player is online
+	set {_s} to jcStepOf(player)
+	set {_cp} to jcCheckpoint(player, {_s})
+	set {-jail::checkpoint::%{_u}%} to {_cp}
+	set {_l} to jailPt({_cp})
+	if {_l} is set:
+		teleport player to {_l}
+	if {_s} is "cell":
+		jailCellWait(player, cfg("prison::join-open") / 1 second)
+	jcLog("course-rejoin %player% %{_s}% at=%{_cp}%")
+
+on quit:
+	set {_u} to "%uuid of player%"
+	delete {-jc::unsneak::%{_u}%}
+	delete {-jc::sprintat::%{_u}%}
+	delete {-jc::wokeat::%{_u}%}
+	delete {-jc::knifeat::%{_u}%}
+	delete {-jc::cellprompt::%{_u}%}
+	delete {-jail::coursebar::%{_u}%}
+
+on unload:
+	jailBoxOff("course_card")
+
+# ---------- /tutorial (tutorial.sk's command calls this while the prison runs) ----------
+# Owner, 2026-10-14: "update the /tutorial and /tutorial confirm command to bring you back to the tutorial if you forget".
+# /tutorial: your step and the offer; /tutorial confirm: back to the step's spot with its prompt again. After the course:
+# the course from the start again (no rewards twice: Rusty's knife is already yours), as a prisoner again. Never as a way
+# out of a chase, a fight, a heist or with loot on you.
+function jcTutorialBlock(p: player) :: text:
+	if {_p} is not alive:
+		return "Not while you're dead."
+	if isCombatTagged({_p}) is true:
+		return "Not in a fight."
+	if isWanted({_p}) is true:
+		return "Not while you're wanted."
+	if {-jail::hostile::%uuid of {_p}%} is set:
+		return "Not while the guards are after you."
+	if jailCatching({_p}) is true:
+		return "Not while you're being taken back."
+	if heistOf({_p}) is not "":
+		return "Not inside a heist."
+	if bagTotal({_p}) > 0:
+		return "Not while you carry loot."
+	return ""
+
+function jcTutorial(p: player, arg: text):
+	set {_st} to jailState({_p})
+	if {_arg} is not "confirm":
+		if {_st} is "course":
+			set {_bar} to jcBar({_p}, jcStepOf({_p}))
+			msg({_p}, "%{_bar}%")
+			msg({_p}, "&7Lost? &f/tutorial confirm &7takes you back to this step.")
+		else:
+			msg({_p}, "&7You've done the course. &f/tutorial confirm &7runs it again from your cell (no rewards twice): &cyou'll be a prisoner again &7and have to break out.")
+		stop
+	set {_why} to jcTutorialBlock({_p})
+	if {_why} is not "":
+		msg({_p}, "&c%{_why}%")
+		stop
+	set {_u} to "%uuid of {_p}%"
+	if {_st} is not "course":
+		jailStrip({_p})
+		setData({_p}, "jail", "course")
+		setData({_p}, "jail-step", "cell")
+		delete {-jc::cellprompt::%{_u}%}
+		jcLog("course-replay %{_p}% from=%{_st}%")
+	set {_s} to jcStepOf({_p})
+	set {_cp} to jcCheckpoint({_p}, {_s})
+	set {-jail::checkpoint::%{_u}%} to {_cp}
+	set {_l} to jailPt({_cp})
+	if {_l} is not set:
+		msg({_p}, "&cThe course isn't set up on this map.")
+		stop
+	teleport {_p} to {_l}
+	if {_s} is "cell":
+		jailCellWait({_p}, cfg("prison::join-open") / 1 second)
+	else:
+		jcPrompt({_p}, {_s})
+	jcLog("course-back %{_p}% %{_s}% at=%{_cp}%")

@@ -475,5 +475,17 @@ module.exports.labels = [
 ]
 module.exports.points = {
   R_SPAWN: [86.5, 65, 198.5, -90],
-  B_BOUNTY: [80.03, 67.6, 197.0, -90]
+  B_BOUNTY: [80.03, 67.6, 197.0, -90],
+  // the escape (ESCAPE-SPEC Appendix B, M2)
+  ROUTE_HALLB_1: [84.5, 65, 121.5, 0],
+  ROUTE_HALLB_2: [84.5, 65, 155.5, 0],
+  ROUTE_HALLB_3: [84.5, 65, 188.5, 0],
+  LEFTY: [80.5, 65.5, 151.5, -90],
+  WHISPER: [108.5, 65, 209.5, 0],
+  DONUT_CAFE: [100.5, 66.0, 137.5, 0],
+  SEARCH_TIMER: [81, 66, 230, 0],
+  STAIR_GATE_A: [84, 65, 113, 0],
+  STAIR_GATE_B: [85, 65, 113, 0],
+  SECURITY_DOOR: [79, 65, 117, 0],
+  COURSE_DONE: [82.5, 65, 117.5, -90]
 }

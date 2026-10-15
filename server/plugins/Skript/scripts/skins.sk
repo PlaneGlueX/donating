@@ -81,6 +81,9 @@ function questSkinId(kind: text) :: text:
 		return "vic"
 	if {_kind} is "hits":
 		return "broker"
+	# The prison's inmates (jailjobs.sk): skins later (the owner); "" is the default look.
+	if {_kind} is "lefty" or "rusty" or "tank" or "whisper":
+		return ""
 	return {_kind}
 
 command /dskins [<text>]:

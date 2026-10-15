@@ -47,8 +47,11 @@ function deathLootPool(p: player, cause: text) :: number:
 		return -1
 	return heistLootPool({_h})
 
-# L = min(B × p, C), whole dollars.
+# L = min(B × p, C), whole dollars. Nothing inside the prison walls (prison.sk turns such a death into a downing).
 function deathLoss(p: player, cause: text) :: number:
+	if prisonIn({_p}) is true:
+		if jailInsideAt(location of {_p}) is true:
+			return 0
 	set {_d} to deathDifficulty({_p}, {_cause})
 	if {_cause} is "cop":
 		set {_share} to cfg("difficulty::%{_d}%::cop-p")

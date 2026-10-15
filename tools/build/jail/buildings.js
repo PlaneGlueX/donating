@@ -398,6 +398,23 @@ module.exports = (b) => {
     F(210, 68, 322, 211, 68, 322, 'light_gray_concrete')
     F(208, 70, 322, 214, 70, 322, 'blue_concrete')                                       // sign band behind the white POLICE label
 
+    // ---- the keycard route (ESCAPE-SPEC 3.4): the paste is sparse, so openings are set to air ----
+    // the yard (north) door in the west wing's north face, x 210..211 between the window frames at x 207 and 212:
+    // the outer layer open, a closed iron double door in the inner layer (hinges outside), a transom, the frame
+    F(210, 65, 285, 211, 67, 285, 'air')
+    door(B, 210, 65, 286, 'north', 'left', false); door(B, 211, 65, 286, 'north', 'right', false)
+    S(210, 67, 286, 'light_blue_stained_glass'); S(211, 67, 286, 'light_blue_stained_glass')
+    F(209, 64, 285, 209, 68, 285, 'light_gray_concrete'); F(212, 64, 285, 212, 68, 285, 'light_gray_concrete')
+    F(210, 68, 285, 211, 68, 285, 'light_gray_concrete')
+    S(209, 66, 285, 'red_concrete'); S(209, 66, 284, 'tripwire_hook[facing=north,attached=false,powered=false]')  // reader outside
+    S(212, 66, 286, 'red_concrete'); S(212, 66, 287, 'tripwire_hook[facing=south,attached=false,powered=false]')  // reader inside
+    // the POLICE doors' inside reader (no outside reader: they open only from inside)
+    S(209, 66, 321, 'red_concrete'); S(209, 66, 320, 'tripwire_hook[facing=north,attached=false,powered=false]')
+    // roller doors on the garage bays (inner layer z 321; the outer layer z 322 stays a 1-deep recess), so the station
+    // is closed to the lot
+    for (const [a1, a2] of [[311, 322], [325, 336]]) for (let x = a1; x <= a2; x++) for (let y = 65; y <= 69; y++) {
+      S(x, y, 321, y % 2 ? 'light_gray_concrete' : 'polished_andesite') }
+
     // ---- the front: star, flagpole, planter, paving, stalls, the Bank Truck box, the fence segment ----
     const STAR = ['...X...', '...X...', 'XXXXXXX', '.XXXXX.', '..XXX..', '.XX.XX.', 'XX...XX']   // y 73 (top) .. 67
     const TIPS = new Set(['3,0', '0,2', '6,2', '0,6', '6,6', '1,6', '5,6'])
@@ -745,8 +762,24 @@ module.exports.labels = [
   { x: 139.0, y: 69.5, z: 276.97, facing: 'north', text: 'VISITORS', color: '#ffffff', scale: 4 },
   { x: 139.0, y: 69.5, z: 321.03, facing: 'south', text: 'VISITORS', color: '#ffffff', scale: 4 },
   { x: 211.0, y: 70.5, z: 323.03, facing: 'south', text: 'POLICE', color: '#ffffff', scale: 3 },
-  { x: 334.03, y: 66.0, z: 250.5, facing: 'east', text: "Don't Punch!", color: '#ff8f80', scale: 1.5 }
+  { x: 334.03, y: 66.0, z: 250.5, facing: 'east', text: "Don't Punch!", color: '#ff8f80', scale: 1.5 },
+  { x: 211.0, y: 69.5, z: 284.97, facing: 'north', text: 'POLICE · STAFF ONLY', color: '#ffffff', scale: 0.8 } // L_POLICE_N
 ]
-// Skript spots (jail-spec 7 and 10): the Gun Shop's shopkeeper, facing the customers.
-module.exports.points = { GUN_KEEPER: [311.5, 65.0, 243.5, 0] }
+// Skript spots (jail-spec 7 and 10): the Gun Shop's shopkeeper, facing the customers; the escape's police station
+// (ESCAPE-SPEC Appendix B, M5).
+module.exports.points = {
+  GUN_KEEPER: [311.5, 65.0, 243.5, 0],
+  ROUTE_POLDESK_1: [220.5, 65, 304.5, 0], // the desk cop behind the front desk, facing the POLICE doors
+  ROUTE_POLOFFICE_1: [225.5, 65, 292.5, 0], // the office cop's loop in the north-east office
+  ROUTE_POLOFFICE_2: [225.5, 65, 296.5, 0],
+  ROUTE_POLOFFICE_3: [246.5, 65, 296.5, 0],
+  ROUTE_POLOFFICE_4: [246.5, 65, 293.5, 0],
+  POL_DOOR_N: [210, 65, 286, 0],
+  POL_DOOR_S: [210, 65, 321, 0],
+  POL_READER_N_OUT: [209, 66, 284, 0],
+  POL_READER_N_IN: [212, 66, 287, 0],
+  POL_READER_S_IN: [209, 66, 320, 0],
+  POL_IN: [210.5, 65, 288.5, 180],
+  L_POLICE_N: [211.0, 69.5, 284.97, 180]
+}
 module.exports.strays = []

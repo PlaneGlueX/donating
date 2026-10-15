@@ -55,6 +55,8 @@ command /zzclear <player>:
 		setData(arg-1, "vic", "done")
 		setData(arg-1, "jobs::mara::unlocked", "off")
 		setData(arg-1, "jobs::boss::unlocked", "off")
+		# ...and the prison (prison.sk: data jail "off" exempts the bot; the prison-* scenarios set their own state).
+		setData(arg-1, "jail", "off")
 		applyLayout(arg-1)
 		applyMapVisibility(arg-1)
 
@@ -1303,3 +1305,261 @@ command /zzcarcall <player> <text>:
 		delete {-car::callat::%uuid of arg-1%}
 		carCall(arg-1, (arg-2 in upper case))
 		send "CARCALL %arg-1% %arg-2% out=%{car::outof::%uuid of arg-1%}%"
+
+# ---------- The prison (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk; ESCAPE-SPEC 7.1) ----------
+
+# One line for the prison-* scenarios: "JAIL <p> state= step= cell= inside= lot= lotflag= hostile= hunters= stun=
+# shield= items=<kind:slotxn,...> mark= lowhp= course= ko=<other:secs,...> koby=<other:secs,...>".
+function zzJailInfo(p: player) :: text:
+	set {_u} to "%uuid of {_p}%"
+	set {_l} to location of {_p}
+	set {_h} to "no"
+	if {-jail::hostile::%{_u}%} is set:
+		set {_h} to "yes"
+	set {_hn} to {-jail::hunters::%{_u}%}
+	if {_hn} is not set:
+		set {_hn} to 0
+	set {_st} to "no"
+	if jailFuture({-jail::stun::%{_u}%}) is true:
+		set {_st} to "yes"
+	set {_sh} to 0
+	if jailShielded({_p}) is true:
+		set {_sh} to ceil(jailSecsLeft({-jail::shield::%{_u}%}))
+	set {_lo} to "no"
+	if {-jail::lowhp::%{_u}%} is set:
+		set {_lo} to "yes"
+	set {_ko} to ""
+	loop {-jail::ko::%{_u}%::*}:
+		if loop-value > now:
+			set {_who} to loop-index
+			set {_pl} to playerByUuid(loop-index)
+			if {_pl} is set:
+				set {_who} to name of {_pl}
+			set {_e} to "%{_who}%:%ceil(jailSecsLeft(loop-value))%"
+			if {_ko} is "":
+				set {_ko} to {_e}
+			else:
+				set {_ko} to "%{_ko}%,%{_e}%"
+	set {_koby} to ""
+	loop all players:
+		set {_d} to {-jail::ko::%uuid of loop-player%::%{_u}%}
+		if {_d} is set:
+			if {_d} > now:
+				set {_e} to "%name of loop-player%:%ceil(jailSecsLeft({_d}))%"
+				if {_koby} is "":
+					set {_koby} to {_e}
+				else:
+					set {_koby} to "%{_koby}%,%{_e}%"
+	set {_cw} to 0
+	if jailFuture({-jail::cellopen::%{_u}%}) is true:
+		set {_cw} to ceil(jailSecsLeft({-jail::cellopen::%{_u}%}))
+	return "JAIL %{_p}% state=%jailState({_p})% step=%getData({_p}, "jail-step")% cell=%{-jail::cell::%{_u}%}% cellwait=%{_cw}% inside=%jailInsideAt({_l})% lot=%jailInLot({_l})% lotflag=%{-jail::lot::%{_u}%}% hostile=%{_h}% hunters=%{_hn}% stun=%{_st}% shield=%{_sh}% items=%jailItemsText({_p})% mark=%jailMarkOf({_p})% lowhp=%{_lo}% course=%getData({_p}, "jail-course")% cp=%{-jail::checkpoint::%{_u}%}% ko=%{_ko}% koby=%{_koby}%"
+
+# /zzjail <player> state <course|in|out|off|none> | step <step> | give <kind> [n] | strip | info | catch | escape-check |
+# cellopen <secs> | ko <other> <secs|clear> (the player can't hurt the other for secs) | shield <secs|clear> | hostile |
+# calm | unstuck | own <weapon> | tag | mark <method> | eligible
+command /zzjail <player> <text>:
+	executable by: console
+	trigger:
+		set {_p} to arg-1
+		set {_u} to "%uuid of {_p}%"
+		set {_a::*} to arg-2 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "state":
+			if {_a::2} is "none":
+				deleteData({_p}, "jail")
+			else:
+				setData({_p}, "jail", {_a::2})
+				if {_a::2} is "course":
+					if getData({_p}, "jail-step") is not set:
+						setData({_p}, "jail-step", "cell")
+			send "ZZJAIL %{_p}% state=%jailState({_p})%"
+		else if {_sub} is "step":
+			setData({_p}, "jail-step", {_a::2})
+			send "ZZJAIL %{_p}% step=%getData({_p}, "jail-step")%"
+		else if {_sub} is "give":
+			set {_n} to 1
+			if {_a::3} is set:
+				set {_n} to {_a::3} parsed as number
+			set {_got} to jailGive({_p}, {_a::2}, {_n})
+			send "ZZJAIL %{_p}% give %{_a::2}% got=%{_got}% items=%jailItemsText({_p})%"
+		else if {_sub} is "strip":
+			jailStrip({_p})
+			send "ZZJAIL %{_p}% stripped"
+		else if {_sub} is "info":
+			send zzJailInfo({_p})
+		else if {_sub} is "catch":
+			jailCatch({_p}, "staff")
+			send "ZZJAIL %{_p}% caught"
+		else if {_sub} is "escape-check":
+			jailEscapeCheck({_p})
+			send "ZZJAIL %{_p}% escape-check state=%jailState({_p})%"
+		else if {_sub} is "cellopen":
+			jailCellWait({_p}, {_a::2} parsed as number)
+			send "ZZJAIL %{_p}% cellopen %{_a::2}%"
+		else if {_sub} is "ko":
+			set {_o} to {_a::2} parsed as player
+			if {_o} is not set:
+				send "ZZJAIL ko: no player %{_a::2}%"
+				stop
+			if {_a::3} is "clear":
+				delete {-jail::ko::%{_u}%::%uuid of {_o}%}
+			else:
+				set {-jail::ko::%{_u}%::%uuid of {_o}%} to jailDate({_a::3} parsed as number)
+			send "ZZJAIL %{_p}% ko %{_o}% %{_a::3}%"
+		else if {_sub} is "shield":
+			if {_a::2} is "clear":
+				delete {-jail::shield::%{_u}%}
+			else:
+				set {-jail::shield::%{_u}%} to jailDate({_a::2} parsed as number)
+			send "ZZJAIL %{_p}% shield %{_a::2}%"
+		else if {_sub} is "hostile":
+			# Wanted with no cop hunting (jailcops.sk's lose clock calms them 20 s later unless a cop sees them).
+			set {-jail::hostile::%{_u}%} to now
+			set {-jail::seen::%{_u}%} to now
+			send "ZZJAIL %{_p}% hostile"
+		else if {_sub} is "calm":
+			jcopCalm({_u}, "zz")
+			send "ZZJAIL %{_p}% calm"
+		else if {_sub} is "unstuck":
+			# /prison stuck's once-a-minute wait ends now.
+			delete {-jail::stuckat::%{_u}%}
+			send "ZZJAIL %{_p}% unstuck"
+		else if {_sub} is "own":
+			# A weapon unlocked (shop.sk's data wpn::<title> true), e.g. own 50_GS.
+			setData({_p}, "wpn::%{_a::2}%", true)
+			send "ZZJAIL %{_p}% owns %{_a::2}%"
+		else if {_sub} is "tag":
+			tagCombat({_p}, "trap")
+			send "ZZJAIL %{_p}% tagged=%isCombatTagged({_p})%"
+		else if {_sub} is "mark":
+			jailMark({_p}, {_a::2})
+			send "ZZJAIL %{_p}% mark=%jailMarkOf({_p})%"
+		else if {_sub} is "eligible":
+			# What the city's features answer for this player (garage.sk Valet, grapple.sk, hits.sk).
+			send "ZZJAIL %{_p}% car=%carCallBlock({_p})% grapple=%grappleBlock({_p})% hit=%hitEligible({_p})%"
+		else:
+			send "ZZJAIL usage: state|step|give|strip|info|catch|escape-check|cellopen|ko|shield|hostile|calm|unstuck|own|tag|mark"
+
+# A plugin teleport into the prison world (no teleport immunity, never refused by the prison's teleport gate).
+command /zzjailtp <player> <number> <number> <number> [<number>]:
+	executable by: console
+	trigger:
+		set {_yaw} to arg-5
+		if {_yaw} is not set:
+			set {_yaw} to 0
+		teleport arg-1 to location(arg-2, arg-3, arg-4, jailWorld(), {_yaw}, 0)
+		send "JAILTP %arg-1% %arg-2% %arg-3% %arg-4%"
+
+# A door's current block data (its first block, the lower half): "DOOR <name> <block data>".
+command /zzjaildoor <text>:
+	executable by: console
+	trigger:
+		set {_v} to {-jaildoor::%arg-1%::1}
+		if {_v} is not set:
+			send "DOOR %arg-1% unknown"
+			stop
+		set {_a::*} to "%{_v}%" split at "|"
+		set {_l} to location({_a::1} parsed as number, {_a::2} parsed as number, {_a::3} parsed as number, jailWorld())
+		send "DOOR %arg-1% %block data of block at {_l}% pulse=%ceil(jailSecsLeft({-jail::doorclose::%arg-1%}))%"
+
+# A breach or gate (gate, punch, front): its state, or open|close|due (an open one is due now)|cool (its cooldown ends).
+command /zzjailbreach <text> [<text>]:
+	executable by: console
+	trigger:
+		set {_id} to arg-1
+		if arg-2 is "open":
+			jbrOpen({_id})
+		else if arg-2 is "close":
+			jbrClose({_id})
+		else if arg-2 is "due":
+			jbrDue({_id})
+		else if arg-2 is "cool":
+			jbrCool({_id})
+			if {_id} is "front":
+				jbrCool("fuse")
+		set {_cool} to ceil(jailSecsLeft({-jailbr::cool::%{_id}%}))
+		set {_due} to ceil(jailSecsLeft({-jailbr::opento::%{_id}%}))
+		# Its blocks: how many stand as built ("built=n/total"), how many are air.
+		set {_n} to 0
+		set {_built} to 0
+		set {_air} to 0
+		loop {-jailbreach::%{_id}%::*}:
+			set {_b::*} to loop-value split at "|"
+			set {_l} to location({_b::1} parsed as number, {_b::2} parsed as number, {_b::3} parsed as number, jailWorld())
+			add 1 to {_n}
+			set {_now} to "%block data of block at {_l}%"
+			set {_base::*} to {_b::4} split at "["
+			if {_now} contains "minecraft:%{_base::1}%":
+				add 1 to {_built}
+			if block at {_l} is air:
+				add 1 to {_air}
+		send "BREACH %{_id}% state=%jbrState({_id})% due=%{_due}% cool=%{_cool}% fuse=%ceil(jailSecsLeft({-jailbr::cool::fuse}))% built=%{_built}%/%{_n}% air=%{_air}%"
+
+# A prison cop by route: "COP id= route= loaded= at= yaw= hunts= staggered= lastattack=".
+command /zzjailcop <text>:
+	executable by: console
+	trigger:
+		set {_id} to jcopIdOf(arg-1)
+		if {_id} is "":
+			send "COP route=%arg-1% none"
+			stop
+		send jcopInfo({_id})
+
+command /zzjailcops:
+	executable by: console
+	trigger:
+		send jcopCounts()
+
+# Moves a prison cop (Citizens' moveto, through the real console: --id needs it).
+command /zzjailcopto <text> <number> <number> <number>:
+	executable by: console
+	trigger:
+		set {_id} to jcopIdOf(arg-1)
+		if {_id} is "":
+			send "COPTO route=%arg-1% none"
+			stop
+		execute console command "npc moveto %arg-2% %arg-3% %arg-4% %jailWorld()% --id %{_id}%"
+		jcopMoved({_id}, location(arg-2, arg-3, arg-4, jailWorld()))
+		send "COPTO %arg-1% id=%{_id}% to %arg-2% %arg-3% %arg-4%"
+
+# The cop roster until the next loadSettings (tests that aren't about cops): "none", or routes split by spaces. Cops
+# of routes left out are removed.
+command /zzjailroster <text>:
+	executable by: console
+	trigger:
+		delete {-cfg::jailcop::roster::*}
+		if arg-1 is not "none":
+			set {-cfg::jailcop::roster::*} to arg-1 split at " "
+		set {_n} to 0
+		loop indices of {-jailcop::id::*}:
+			set {_r} to "%{-jailcop::id::%loop-value%}%"
+			if {-cfg::jailcop::roster::*} does not contain {_r}:
+				add loop-value to {_ids::*}
+		loop {_ids::*}:
+			jcopRemove(loop-value, "zz-roster")
+			add 1 to {_n}
+		send "ROSTER %size of {-cfg::jailcop::roster::*}% routes, removed %{_n}%"
+
+# A car job with a real MTVehicles plate (from /zzcarnew) but no car in the world (prison-respawn: a death ends it as
+# "jailed", no cooldown). "CTFAKE <player> job=<tier> plate=<plate>"
+command /zzctfake <player> <text> <text>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		set {_l} to location of arg-1
+		set {-ctjob::%{_u}%} to arg-2
+		set {-ctjob::%{_u}%::p} to arg-1
+		set {-ctjob::%{_u}%::model} to "sedan"
+		set {-ctjob::%{_u}%::label} to "Red"
+		set {-ctjob::%{_u}%::plate} to arg-3
+		set {-ctjob::%{_u}%::spotat} to {_l}
+		set {-ctjob::%{_u}%::carat} to {_l}
+		set {_until} to now
+		add 10 minutes to {_until}
+		set {-ctjob::%{_u}%::until} to {_until}
+		set {-ctjob::%{_u}%::stage} to "find"
+		set {-ctjob::%{_u}%::fails} to 0
+		set {-ctjob::%{_u}%::misses} to 0
+		set {-ctplate::%arg-3%} to {_u}
+		send "CTFAKE %arg-1% job=%{-ctjob::%{_u}%}% plate=%arg-3% cd=%{ctcd::%{_u}%}%"

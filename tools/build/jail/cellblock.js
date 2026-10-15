@@ -4,6 +4,9 @@
 // steps up to G, and the vent: the mouth, the crawl, the walk tunnel under the lane and the west wall, the shaft and its
 // hatch outside. Regions: B1 x 43..126, y 50..63, z 47..113; DUCT x -2..42, y 55..61, z 82..86; EXIT x -7..-3,
 // y 55..68, z 82..86. Natural stone and dirt stay around the dug rooms; every visible wall is set explicitly.
+// The escape rework (ESCAPE-SPEC 3.2, 2026-10-14): B1's west wing is the controls course (hurdles, signs); the crawl
+// turns north into the boiler room, a broken wall leads on into Rusty's cell, and the walk tunnel and its shaft are
+// sealed (grass over the old hatch).
 
 // ---- COMMON (jail-spec 1.7, copy verbatim) ----
 const h = (x, y, z) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 100
@@ -116,6 +119,8 @@ module.exports = (b) => {
     for (const [dz, xs] of [[0, [82, 86]], [1, [82, 83, 85, 86]], [2, [83, 84, 85]], [3, [84]]]) for (const x of xs) set(x, 57, z0 + dz, 'yellow_concrete')
   }
   for (const z0 of [69, 73, 88, 92]) chevZ(z0)
+  // the controls course's hurdles (ESCAPE-SPEC 3.2-1): two 1-high striped bars across the west wing, jumped over
+  for (const x of [71, 77]) for (let z = 56; z <= 63; z++) set(x, 58, z, z % 2 ? 'yellow_concrete' : 'black_concrete')
 
   // ceiling (y 63): deepslate tiles with polished deepslate borders; none over the stair opening z 104..111
   for (let x = 45; x <= 123; x++) for (let z = 56; z <= 103; z++) {
@@ -302,16 +307,21 @@ module.exports = (b) => {
   for (const x of [39, 43]) for (const z of [82, 86]) F(x, 58, z, x, 60, z, 'iron_block') // the grate walls' end posts (the stone behind them is outside DUCT)
   set(41, 59, 83, 'lightning_rod[facing=south,powered=false]'); set(41, 59, 85, 'lightning_rod[facing=north,powered=false]') // the fan hubs
   set(41, 61, 84, 'sea_lantern')
-  // the exit shaft (inside EXIT): a ladder up to an iron hatch in the grass outside the west wall
+  // the exit shaft (inside EXIT): a ladder up to the grass outside the west wall, closed over since the vent no longer
+  // leads out (ESCAPE-SPEC 3.2-4: the hatch and the ladder support's top are grass, the outlet is gone)
   F(-5, 57, 83, -5, 63, 83, 'iron_block'); F(-5, 57, 85, -5, 63, 85, 'iron_block')
   set(-5, 57, 84, 'iron_block')
   F(-4, 60, 84, -4, 63, 84, 'iron_block')
-  F(-6, 58, 84, -6, 64, 84, 'iron_block') // the ladder's support, the shaft's west side
+  F(-6, 58, 84, -6, 63, 84, 'iron_block') // the ladder's support, the shaft's west side
   F(-5, 58, 84, -5, 63, 84, 'ladder[facing=east]')
   set(-5, 61, 83, 'sea_lantern')
-  set(-5, 64, 84, 'iron_trapdoor[facing=east,half=top,open=false]')
-  // the outlet beside the hatch
-  F(-6, 65, 83, -6, 66, 85, 'polished_andesite'); F(-6, 67, 83, -6, 67, 85, bars)
+  set(-5, 64, 84, 'grass_block'); set(-6, 64, 84, 'grass_block')
+  F(-6, 65, 83, -6, 67, 85, AIR)
+  set(-6, 64, 83, 'grass_block'); set(-6, 64, 85, 'grass_block') // the grass died to dirt under the old outlet
+  // ESCAPE-SPEC 3.2-2: the crawl turns north into the boiler room at x 61 and its west end is capped, so the walk
+  // tunnel (x -4..59, still dug) is sealed off; 3.2-3: a broken wall from the boiler room into Rusty's cell
+  set(61, 58, 83, AIR)
+  F(60, 58, 84, 60, 59, 84, 'iron_block')
 
   // ===== 8. The Security Office lower floor (tutorial room; int-SecurityOffice2026) =====
   F(64, 58, 88, 78, 62, 106, AIR)
@@ -425,12 +435,25 @@ module.exports = (b) => {
   F(46, 62, 75, 71, 62, 75, 'waxed_cut_copper'); F(46, 62, 80, 71, 62, 80, 'iron_chain[axis=x]')
   set(70, 58, 81, 'smithing_table'); set(69, 58, 81, 'anvil[facing=east]')
   for (const x of [47, 54, 63]) { set(x, 62, 78, 'iron_chain[axis=y]'); set(x, 61, 78, 'lantern[hanging=true]') }
+  // the course's way on (ESCAPE-SPEC 3.2-3): a broken wall, 2 high, through the boiler room's east wall (x 73) and
+  // Rusty's west wall (x 74) at z 77
+  F(73, 58, 77, 74, 59, 77, AIR)
 }
 
 module.exports.labels = [
   { x: 80.03, y: 60.5, z: 84.5, facing: 'east', text: 'VENT', color: '#ffd54a', scale: 1 },
   { x: 119.5, y: 61.5, z: 56.03, facing: 'south', text: 'MAX SECURITY', color: '#ffffff', scale: 1 },
-  { x: 84.5, y: 61.0, z: 50.5, facing: 'up', text: 'Z', color: '#cfe8ff', scale: 1 }
+  { x: 84.5, y: 61.0, z: 50.5, facing: 'up', text: 'Z', color: '#cfe8ff', scale: 1 },
+  // the controls course's signs (ESCAPE-SPEC 3.2-5), free-floating
+  { x: 49.0, y: 61.0, z: 60.0, facing: 'west', text: 'WALK: W A S D', color: '#ffffff', scale: 0.6 }, // L_WALK
+  { x: 57.0, y: 61.0, z: 60.0, facing: 'west', text: 'SPRINT: double-tap W (or hold Ctrl)', color: '#ffffff', scale: 0.6 }, // L_SPRINT
+  { x: 68.0, y: 61.0, z: 60.0, facing: 'west', text: 'JUMP: Space', color: '#ffffff', scale: 0.6 }, // L_JUMP
+  { x: 84.0, y: 60.8, z: 56.5, facing: 'south', text: "SNEAK: hold Shift. Take his keycard. Don't wake him.", color: '#ffffff', scale: 0.6 }, // L_SNEAK
+  { x: 80.03, y: 59.9, z: 86.5, facing: 'east', text: 'KEYCARD: right-click the red reader', color: '#ffffff', scale: 0.6 }, // L_READER
+  { x: 77.0, y: 59.8, z: 76.03, facing: 'south', text: 'PHONE: slot 9. Right-click: map. F: apps', color: '#ffffff', scale: 0.6 }, // L_PHONE
+  { x: 77.0, y: 59.8, z: 79.97, facing: 'north', text: 'HOTBAR: keys 1-5 or the mouse wheel', color: '#ffffff', scale: 0.6 }, // L_HOTBAR
+  { x: 80.03, y: 61.0, z: 94.0, facing: 'east', text: 'SECURITY OFFICE (keycard)', color: '#ffffff', scale: 0.6 }, // L_OFFICE
+  { x: 66.0, y: 60.0, z: 88.03, facing: 'south', text: 'CLIMB: walk into the ladder', color: '#ffffff', scale: 0.6 } // L_LADDER
 ]
 
 // the Skript spots of 7.1 and 10, copied exactly; block spots (doors, lids, hatches, readers) with yaw 0
@@ -441,7 +464,6 @@ const points = {
   T_DONUT: [85.5, 59.0, 51.5, 0],
   T_STARTER: [71.5, 59.0, 96.5, 0],
   T_VENT_STAND: [77.5, 58.0, 84.5, 0],
-  T_EXIT: [-3.5, 65.0, 84.5, 0],
   RUSTY: [77.5, 58.0, 77.5, -90],
   T_SPAWN_DOOR: [62, 58, 55, 0],
   T_SO_GATE: [79, 58, 93, 0], // 7.1's name for the pair: the lower half of its north door (= T_SO_GATE_A)
@@ -453,9 +475,28 @@ const points = {
   T_VENT_READER: [80, 59, 85, 0],
   T_VENT_LID_A: [77, 59, 84, 0],
   T_VENT_LID_B: [78, 59, 84, 0],
-  T_SHAFT_HATCH: [-5, 64, 84, 0]
+  // the controls course (ESCAPE-SPEC Appendix B, M3)
+  CP_VENT: [84.5, 58, 80.5, 180],
+  CP_OFFICE: [84.5, 58, 90.5, 180],
+  COURSE_PUSH: [84.5, 58, 97.5, 180],
+  RUSTY_DOOR: [79, 58, 78, 0],
+  RUSTY_IN: [75.5, 58, 77.5, -90],
+  RUSTY_TALK: [80.25, 58.0, 77.5, 90],
+  BOILER_IN: [61.5, 58, 80.5, 0],
+  SNEAK_BACK: [78.5, 58, 59.5, -90],
+  L_WALK: [49.0, 61.0, 60.0, 90],
+  L_SPRINT: [57.0, 61.0, 60.0, 90],
+  L_JUMP: [68.0, 61.0, 60.0, 90],
+  L_SNEAK: [84.0, 60.8, 56.5, 0],
+  L_READER: [80.03, 59.9, 86.5, -90],
+  L_PHONE: [77.0, 59.8, 76.03, 0],
+  L_HOTBAR: [77.0, 59.8, 79.97, 180],
+  L_OFFICE: [80.03, 61.0, 94.0, -90],
+  L_LADDER: [66.0, 60.0, 88.03, 0]
 }
 // the other tutorial spawn cells and their doors (7.1)
 for (const x0 of [46, 53, 67, 74, 89, 96, 103, 110]) { points[`T_CELL_N${x0}`] = [x0 + 2.5, 58.0, 51.5, 0]; points[`T_CELL_N${x0}_DOOR`] = [x0 + 2, 58, 55, 0] }
 for (const x0 of [46, 53, 60, 67, 96, 103, 110, 117]) { points[`T_CELL_S${x0}`] = [x0 + 2.5, 58.0, 68.5, 180]; points[`T_CELL_S${x0}_DOOR`] = [x0 + 2, 58, 64, 0] }
 module.exports.points = points
+// the cell rows (x0 of each cell), for jail.js points (the cell doors and zones) and the escape checker
+module.exports.cells = { north: NORTH_CELLS, south: SOUTH_CELLS }

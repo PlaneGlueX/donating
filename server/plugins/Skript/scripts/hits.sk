@@ -294,6 +294,9 @@ function hitNeighbors(n: text) :: texts:
 
 # Whether a spot is too close to a heist or a safe zone (targets and nodes stay out).
 function hitForbidden(l: location, pad: number) :: boolean:
+	# No target, bodyguard or walker spot inside the prison walls (prison.sk).
+	if jailInsideAt({_l}) is true:
+		return true
 	if heistAt({_l}) is not "":
 		return true
 	if isSafeZone({_l}) is true:
@@ -680,6 +683,9 @@ function hitWindowOver(p: player):
 # ---------- The hunt (every second, and every 5 ticks while a copy exists) ----------
 
 function hitEligible(p: player) :: boolean:
+	# Once the prison world is the main world, a prisoner would keep hunting (prison.sk).
+	if prisonIn({_p}) is true:
+		return false
 	if {_p} is not alive:
 		return false
 	if isAfk({_p}) is true:

@@ -1,0 +1,939 @@
+# jailescape.sk: the ways out of the prison (ESCAPE-SPEC 4.7; owner, 2026-10-14: "a few escape methods like blowing up
+# a gate, a keycard from a cop and out through the cop station, parkour"; revision 3: "Lot is one more step"). Built
+# 2026-10-14.
+#
+# Every method ends in the lot (still the prison); the front gate, opened from the gatehouse booth's console, is the
+# last step. Here:
+#   - readers (red tripwire hooks) and keycard doors that open as a prisoner carrying a keycard walks up (the police
+#     station's yard and POLICE doors, the punch gate, the gatehouse door); the gatehouse door also opens from inside;
+#   - search spots (the C4's three parts, the cafeteria's donut) and the C4 bench, with loot.sk's hold mechanic;
+#   - the breach "gate" (the vehicle gate between the plaza and the lot): plant, a 5 s fuse, the blast, open 2 min,
+#     a 5 s warning, then rebuilt (nobody can hold a hole open);
+#   - the two punch boxes (the Gun Shop's: the punch gate to the parkour; the gatehouse fuse box: the booth door), both
+#     refused while a guard is within 16 blocks;
+#   - the gatehouse console (hold 3 s) and the front gate: it slides open for 15 s for everyone, then closes (moving
+#     whoever stands in the gateway) and cools down 30 s;
+#   - the escape marks (the method of the inner barrier a prisoner crossed, followers included) and the W5 chalk hint.
+# State in memory: {-jailbr::state::<id>} (gate: intact|armed|open|closing; punch, front: closed|open),
+# {-jailbr::armed::gate} (the blast date), {-jailbr::opento::<id>} (when an open one is due),
+# {-jailbr::cool::punch|fuse|front} (cooldowns), {-jailbr::disp|text::gate} (the C4's displays). prison.sk's /dprison
+# breach and setup ask through {-jailbr::req::<id>} = open|close|restore (prison.sk never calls this file).
+# For tests (zz-testkit.sk): jbrOpen(id), jbrClose(id), jbrDue(id), jbrCool(id), jbrRestore(id), jbrState(id).
+
+function jeLog(t: text):
+	log {_t} to "prison"
+
+function jeSecs(key: text) :: number:
+	return cfg({_key}) / 1 second
+
+# The cooldown or due date of a breach in seconds from now (0 = passed or none).
+function jeLeft(key: text) :: number:
+	set {_d} to {-jailbr::%{_key}%}
+	if {_d} is set:
+		return jailSecsLeft({_d})
+	return 0
+
+function jbrState(id: text) :: text:
+	set {_s} to {-jailbr::state::%{_id}%}
+	if {_s} is set:
+		return "%{_s}%"
+	if {_id} is "gate":
+		return "intact"
+	return "closed"
+
+# The block location of a point (readers, search spots).
+function jeBlock(name: text) :: location:
+	set {_l} to jailPt({_name})
+	if {_l} is set:
+		return location(floor(x-coordinate of {_l}), floor(y-coordinate of {_l}), floor(z-coordinate of {_l}), world of {_l})
+	return {_none}
+
+function jeCopRouteStart(id: text) :: location:
+	set {_r} to {-jailcop::id::%{_id}%}
+	if {_r} is set:
+		set {_v} to {-jailroute::%{_r}%::1}
+		if {_v} is set:
+			set {_a::*} to "%{_v}%" split at "|"
+			set {_x} to {_a::1} parsed as number
+			set {_y} to {_a::2} parsed as number
+			set {_z} to {_a::3} parsed as number
+			return location({_x}, {_y}, {_z}, jailWorld())
+	return {_none}
+
+# A prison cop home to its route's first point (Citizens' moveto: a teleport).
+function jeCopHome(e: entity):
+	set {_id} to jailCopId({_e})
+	{_id} is not ""
+	set {_to} to jeCopRouteStart({_id})
+	{_to} is set
+	execute console command "npc moveto %x-coordinate of {_to}% %y-coordinate of {_to}% %z-coordinate of {_to}% %world of {_to}% --id %{_id}%"
+	# Where jailcops.sk looks for it next (a long teleport respawns the NPC as a new entity; jailcops.sk jcopMoved).
+	set {-jailcop::at::%{_id}%} to {_to}
+	delete {-jailcop::ent::%{_id}%}
+	delete {-jailcop::look::%{_id}%}
+	jeLog("cop-home %{_id}% %{-jailcop::id::%{_id}%}%")
+
+# A prison cop within r blocks of l.
+function jeCopNear(l: location, r: number) :: boolean:
+	loop all entities in radius {_r} around {_l}:
+		if jailCopId(loop-entity) is not "":
+			return true
+	return false
+
+# ---------- Breach blocks ----------
+
+function jeBlocksOpen(id: text):
+	set {_w} to jailWorld()
+	{_w} is set
+	loop {-jailbreach::%{_id}%::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		update block at location({_x}, {_y}, {_z}, {_w}) as air[]
+
+# Every block back from its stored (built) state, with neighbour updates (the bars reconnect).
+function jeBlocksRestore(id: text):
+	set {_w} to jailWorld()
+	{_w} is set
+	loop {-jailbreach::%{_id}%::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		set {_bd} to {_a::4} parsed as block data
+		if {_bd} is set:
+			update block at location({_x}, {_y}, {_z}, {_w}) as {_bd}
+
+function jeRubbleClear(id: text):
+	set {_w} to jailWorld()
+	{_w} is set
+	loop {-jailrubble::%{_id}%::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		set {_base::*} to {_a::4} split at "["
+		set {_l} to location({_x}, {_y}, {_z}, {_w})
+		if "%block data of block at {_l}%" contains {_base::1}:
+			update block at {_l} as air[]
+
+function jeRubblePlace(id: text):
+	set {_w} to jailWorld()
+	{_w} is set
+	loop {-jailrubble::%{_id}%::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		set {_l} to location({_x}, {_y}, {_z}, {_w})
+		if block at {_l} is air:
+			set {_c} to location({_x} + 0.5, {_y} + 0.5, {_z} + 0.5, {_w})
+			set {_busy} to false
+			loop all entities in radius 0.8 around {_c}:
+				set {_busy} to true
+			if {_busy} is false:
+				set {_bd} to {_a::4} parsed as block data
+				if {_bd} is set:
+					update block at {_l} as {_bd}
+
+function jeDispOff(id: text):
+	loop "disp" and "text":
+		set {_e} to {-jailbr::%loop-value%::%{_id}%}
+		if {_e} is set:
+			if {_e} is valid:
+				kill {_e}
+		delete {-jailbr::%loop-value%::%{_id}%}
+
+function jeDispSetup(d: entity):
+	make {_d} not persistent
+	add "donating_jail" to scoreboard tags of {_d}
+	add "jbr_disp" to scoreboard tags of {_d}
+
+# ---------- Requests from prison.sk (/dprison breach, /dprison setup) ----------
+
+every 5 ticks:
+	loop {-jailbr::req::*}:
+		add "%loop-index%|%loop-value%" to {_r::*}
+	delete {-jailbr::req::*}
+	loop {_r::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::2} is "open":
+			jbrOpen({_a::1})
+		else if {_a::2} is "close":
+			jbrClose({_a::1})
+		else if {_a::2} is "restore":
+			jbrRestore({_a::1})
+
+# Opens a breach or gate now (gate: as if blown, with no blast; punch: the punch gate; front: the front gate).
+function jbrOpen(id: text):
+	if {_id} is "gate":
+		jeDispOff({_id})
+		jeBlocksOpen({_id})
+		jeRubblePlace({_id})
+		set {-jailbr::state::gate} to "open"
+		delete {-jailbr::armed::gate}
+		set {-jailbr::opento::gate} to jailDate(jeSecs("prison::breach::open"))
+		jeLog("breach gate opened (staff)")
+	else if {_id} is "punch":
+		jePunchGateOpen()
+	else if {_id} is "front":
+		jeFrontOpen()
+
+# Closes it now (the hole rule first: nobody stays inside the blocks).
+function jbrClose(id: text):
+	if {_id} is "gate":
+		jbrGateCloseNow({_id})
+	else if {_id} is "punch":
+		jePunchGateClose()
+	else if {_id} is "front":
+		jeFrontClose()
+
+# An open breach or gate is due now (a breach's 5 s warning then runs).
+function jbrDue(id: text):
+	if {-jailbr::opento::%{_id}%} is set:
+		set {-jailbr::opento::%{_id}%} to now
+
+function jbrCool(id: text):
+	if {_id} is "punch":
+		delete {-jailbr::cool::punch}
+	else if {_id} is "fuse":
+		delete {-jailbr::cool::fuse}
+	else if {_id} is "front":
+		delete {-jailbr::cool::front}
+
+# Closed as built, no cooldowns, no displays (on load and /dprison setup).
+function jbrRestore(id: text):
+	jeDispOff({_id})
+	jeBlocksRestore({_id})
+	if {_id} is "gate":
+		jeRubbleClear({_id})
+		set {-jailbr::state::gate} to "intact"
+	else:
+		set {-jailbr::state::%{_id}%} to "closed"
+	delete {-jailbr::armed::%{_id}%}
+	delete {-jailbr::opento::%{_id}%}
+	delete {-jailbr::cool::%{_id}%}
+	if {_id} is "front":
+		delete {-jailbr::cool::fuse}
+	jeLog("restore %{_id}%")
+
+on load:
+	wait 10 ticks
+	jailOn() is true
+	loop "gate", "punch" and "front":
+		jbrRestore(loop-value)
+	jeBoxes()
+
+on unload:
+	loop "gate", "punch" and "front":
+		jeDispOff(loop-value)
+	loop {-jail::boxes::*}:
+		if loop-index starts with "spot_" or "plant_":
+			add loop-index to {_k::*}
+		else if loop-index is "bench" or "console":
+			add loop-index to {_k::*}
+	loop {_k::*}:
+		jailBoxOff(loop-value)
+
+# ---------- The click boxes (prison.sk keeps them) ----------
+
+function jeBoxes():
+	jailOn() is true
+	set {_w} to jailWorld()
+	loop {-cfg::prison::spots::*}:
+		set {_s::*} to loop-value split at "|"
+		set {_l} to jailPt({_s::1})
+		if {_l} is set:
+			set {_x} to x-coordinate of {_l}
+			if mod({_x}, 1) is 0:
+				jailBox("spot_%{_s::1}%", location({_x} + 0.5, (y-coordinate of {_l}) - 0.01, (z-coordinate of {_l}) + 0.5, {_w}), 1.02, 1.02)
+			else:
+				jailBox("spot_%{_s::1}%", {_l}, 0.8, 0.6)
+	set {_l} to jeBlock("ASSEMBLE")
+	if {_l} is set:
+		jailBox("bench", location((x-coordinate of {_l}) + 0.5, (y-coordinate of {_l}) - 0.01, (z-coordinate of {_l}) + 0.5, {_w}), 1.02, 1.02)
+	loop {-cfg::prison::breaches::*}:
+		set {_l} to jailPt("C4_%loop-value%")
+		if {_l} is set:
+			jailBox("plant_%loop-value%", location(x-coordinate of {_l}, (y-coordinate of {_l}) - 1, z-coordinate of {_l}, {_w}), 1.2, 2)
+	set {_l} to jailPt("CONSOLE")
+	if {_l} is set:
+		jailBox("console", {_l}, 3.02, 1.6)
+
+every 10 seconds:
+	jeBoxes()
+
+# ---------- Readers ----------
+
+on right click on tripwire hook with priority lowest:
+	jailOn() is true
+	world of event-block is jailWorld()
+	set {_bx} to floor(x-coordinate of event-block)
+	set {_by} to floor(y-coordinate of event-block)
+	set {_bz} to floor(z-coordinate of event-block)
+	loop "T_VENT_READER", "T_SO_READER_OUT", "T_SO_READER_IN", "POL_READER_N_OUT", "POL_READER_N_IN", "POL_READER_S_IN", "PUNCH_READER" and "BOOTH_READER":
+		if {_name} is not set:
+			set {_l} to jeBlock(loop-value)
+			if {_l} is set:
+				if x-coordinate of {_l} is {_bx}:
+					if y-coordinate of {_l} is {_by}:
+						if z-coordinate of {_l} is {_bz}:
+							set {_name} to loop-value
+	{_name} is set
+	cancel event
+	set {-jail::guard::%player%} to now
+	jailExempt(player) is false
+	player is alive
+	if {_name} starts with "T_":
+		jailCourseReader(player, {_name})
+		stop
+	jeReader(player, {_name})
+
+# A prison reader: an inmate with a keycard anywhere in the inventory.
+function jeReader(p: player, name: text):
+	if jailState({_p}) is not "in":
+		hudBar({_p}, "&cYou need a keycard.", 2)
+		play sound "block.note_block.bass" with volume 0.8 and pitch 0.6 to {_p}
+		stop
+	if jailCount({_p}, "keycard") < 1:
+		hudBar({_p}, "&cYou need a keycard.", 2)
+		play sound "block.note_block.bass" with volume 0.8 and pitch 0.6 to {_p}
+		stop
+	jeKeycard({_p}, {_name})
+
+# What a keycard does at a reader (or walking up to its door).
+function jeKeycard(p: player, name: text):
+	set {_secs} to jailDoorSecs()
+	set {_ok} to true
+	if {_name} is "POL_READER_N_OUT" or "POL_READER_N_IN":
+		jailDoorPulse("poln", {_secs})
+	else if {_name} is "POL_READER_S_IN":
+		jailDoorPulse("pols", {_secs})
+		jailMark({_p}, "keycard")
+	else if {_name} is "PUNCH_READER":
+		if jbrState("punch") is "open":
+			jailMark({_p}, "parkour")
+			stop
+		if jeLeft("cool::punch") > 0:
+			set {_cl} to ceil(jeLeft("cool::punch"))
+			hudBar({_p}, "&7The gate motor's cooling down: %{_cl}%s.", 2)
+			stop
+		jePunchGateOpen()
+		jailMark({_p}, "parkour")
+	else if {_name} is "BOOTH_READER":
+		jailDoorPulse("booth", {_secs})
+	else:
+		set {_ok} to false
+	{_ok} is true
+	jailAct({_p}, "reader")
+	set {_at} to {-je::chime::%{_p}%::%{_name}%}
+	if {_at} is set:
+		if difference between {_at} and now < 2 seconds:
+			stop
+	set {-je::chime::%{_p}%::%{_name}%} to now
+	play sound "block.note_block.chime" with volume 0.8 to {_p}
+	jeLog("reader %{_p}% %{_name}%")
+
+# ---------- Every 5 ticks: keycard doors by approach, the booth's inside exit, the escape marks ----------
+
+every 5 ticks:
+	jailOn() is true
+	set {_w} to jailWorld()
+	set {_secs} to jailDoorSecs()
+	loop all players:
+		set {_p} to loop-player
+		if world of {_p} is {_w}:
+			if {_p} is alive:
+				if jailState({_p}) is "in":
+					if jailExempt({_p}) is false:
+						set {_l} to location of {_p}
+						# The booth's inside exit: nobody is ever shut in the gatehouse.
+						if jailZone("boothin", {_l}) is true:
+							jailDoorPulse("booth", {_secs})
+						# Keycard doors open as you walk up (as in Jailbreak).
+						set {_app} to ""
+						if jailZone("polnout", {_l}) is true:
+							set {_app} to "POL_READER_N_OUT"
+						else if jailZone("polnin", {_l}) is true:
+							set {_app} to "POL_READER_N_IN"
+						else if jailZone("polin", {_l}) is true:
+							set {_app} to "POL_READER_S_IN"
+						else if jailZone("punchapp", {_l}) is true:
+							set {_app} to "PUNCH_READER"
+						else if jailZone("boothapp", {_l}) is true:
+							set {_app} to "BOOTH_READER"
+						if {_app} is not "":
+							if jailCount({_p}, "keycard") >= 1:
+								jeKeycard({_p}, {_app})
+						# The escape marks: whoever passes an open inner barrier gets its method (followers too).
+						if jailZone("polexit", {_l}) is true:
+							if {-jail::doorclose::pols} is set:
+								if {-jail::doorclose::pols} > now:
+									jailMark({_p}, "keycard")
+						if jailZone("gatehole", {_l}) is true:
+							if jbrState("gate") is "open" or "closing":
+								jailMark({_p}, "c4")
+						if jailZone("punchhole", {_l}) is true:
+							if jbrState("punch") is "open":
+								jailMark({_p}, "parkour")
+
+# ---------- Clicks on the boxes: search spots, the bench, planting, the console ----------
+
+on right click on interaction:
+	set {_k} to {-jail::iboxof::%uuid of event-entity%}
+	{_k} is set
+	# Only this file's boxes (jailcourse.sk has course_*, other scripts may register their own keys).
+	set {_mine} to false
+	if {_k} starts with "spot_" or "plant_":
+		set {_mine} to true
+	else if {_k} is "bench" or "console":
+		set {_mine} to true
+	{_mine} is true
+	cancel event
+	set {-jail::guard::%player%} to now
+	jailOn() is true
+	jailExempt(player) is false
+	player is alive
+	if itemId(player's tool) is "phone":
+		if {_k} is not "console":
+			phoneHint(player, "do that")
+			stop
+	if jailState(player) is not "in":
+		hudBar(player, "&7Finish the course first.", 1)
+		stop
+	if {_k} starts with "spot_":
+		jeSpotClick(player, subtext of {_k} from characters 6 to (length of {_k}))
+	else if {_k} is "bench":
+		jeBenchClick(player)
+	else if {_k} starts with "plant_":
+		jePlantClick(player, subtext of {_k} from characters 7 to (length of {_k}))
+	else if {_k} is "console":
+		jeConsoleClick(player)
+
+# The spot's line in prison::spots ("SEARCH_PUTTY|putty|search|search").
+function jeSpotLine(point: text) :: text:
+	loop {-cfg::prison::spots::*}:
+		set {_s::*} to loop-value split at "|"
+		if {_s::1} is {_point}:
+			return loop-value
+	return ""
+
+# Why the player can't take from a spot now ("" = they can).
+function jeSpotWhy(p: player, point: text) :: text:
+	set {_line} to jeSpotLine({_point})
+	if {_line} is "":
+		return "&7Nothing here."
+	set {_s::*} to {_line} split at "|"
+	set {_kind} to {_s::2}
+	set {_name} to {-cfg::jailitem::%{_kind}%::name}
+	if jailCount({_p}, {_kind}) >= jailMax({_kind}):
+		if {_kind} is "donut":
+			return "&7Your pockets are full of donuts."
+		return "&7You've got the %{_name}% already."
+	if {_kind} is "putty" or "wires" or "timer":
+		if jailCount({_p}, "c4") >= 1:
+			return "&7You've got a C4 already."
+	set {_ready} to getData({_p}, "jspot-ready::%{_point}%")
+	if {_ready} is set:
+		set {_left} to {_ready} - (unix timestamp of now)
+		if {_left} > 0:
+			return "&7Nothing here right now. Try again in %formatClock({_left})%."
+	return ""
+
+function jeSpotClick(p: player, point: text):
+	set {_why} to jeSpotWhy({_p}, {_point})
+	if {_why} is not "":
+		hudBar({_p}, {_why}, 1)
+		stop
+	set {_s::*} to jeSpotLine({_point}) split at "|"
+	set {_kind} to {_s::2}
+	set {_need} to jeSecs("prison::%{_s::3}%::hold")
+	set {_what} to "Searching"
+	if {_kind} is "donut":
+		set {_what} to "Taking a donut"
+	else:
+		jailAct({_p}, "search")
+	if jailHold({_p}, "spot_%{_point}%", {_need}) is false:
+		jailHoldBar({_p}, {_what}, {_need})
+		stop
+	if jailGive({_p}, {_kind}, 1) < 1:
+		hudBar({_p}, "&cNo room for it.", 1)
+		stop
+	set {_cd} to jeSecs("prison::%{_s::4}%::cooldown")
+	setData({_p}, "jspot-ready::%{_point}%", (unix timestamp of now) + {_cd})
+	pvKill({_p}, "jspot:%{_point}%")
+	play sound "entity.item.pickup" with volume 1 to {_p}
+	hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7(in your pockets: E)", 1)
+	jeLog("search %{_p}% %{_point}% %{_kind}%")
+
+function jeBenchClick(p: player):
+	if jailCount({_p}, "putty") < 1:
+		set {_miss} to true
+	if jailCount({_p}, "wires") < 1:
+		set {_miss} to true
+	if jailCount({_p}, "timer") < 1:
+		set {_miss} to true
+	if {_miss} is set:
+		hudBar({_p}, "&7The bench needs the putty, the wires and a timer.", 1)
+		stop
+	set {_need} to jeSecs("prison::assemble::hold")
+	if jailHold({_p}, "bench", {_need}) is false:
+		jailHoldBar({_p}, "Assembling", {_need})
+		stop
+	set {_free} to false
+	loop integers from 0 to 4:
+		if slot loop-value of {_p}'s inventory is air:
+			set {_free} to true
+	if {_free} is false:
+		hudBar({_p}, "&cFree a slot in hotbar 1-5 for the C4", 2)
+		stop
+	jailTake({_p}, "putty", 1)
+	jailTake({_p}, "wires", 1)
+	jailTake({_p}, "timer", 1)
+	jailGive({_p}, "c4", 1)
+	progEvent({_p}, "jailc4", 1, "")
+	play sound "block.anvil.use" with volume 0.8 to {_p}
+	hudBar({_p}, "&a+ C4 &7(hotbar). Hold it on the vehicle gate by the plaza.", 2)
+	jeLog("c4 %{_p}%")
+
+# Every 2 s: a glowing marker (only for that prisoner) over each spot they could take from now, within 24 blocks.
+every 2 seconds:
+	jailOn() is true
+	set {_w} to jailWorld()
+	loop all players:
+		set {_p} to loop-player
+		set {_show} to false
+		if world of {_p} is {_w}:
+			if jailState({_p}) is "in":
+				if {_p} is alive:
+					set {_show} to true
+		loop {-cfg::prison::spots::*}:
+			set {_s::*} to loop-value-2 split at "|"
+			set {_key} to "jspot:%{_s::1}%"
+			set {_want} to false
+			if {_show} is true:
+				set {_l} to jailPt({_s::1})
+				if {_l} is set:
+					if distance between {_p} and {_l} <= 24:
+						if jeSpotWhy({_p}, {_s::1}) is "":
+							set {_want} to true
+			if {_want} is true:
+				if pvGet({_p}, {_key}) is not set:
+					set {_ml} to {_l}
+					if mod(x-coordinate of {_l}, 1) is 0:
+						set {_ml} to location((x-coordinate of {_l}) + 0.5, (y-coordinate of {_l}) + 1.6, (z-coordinate of {_l}) + 0.5, {_w})
+					else:
+						set {_ml} to location(x-coordinate of {_l}, (y-coordinate of {_l}) + 0.6, z-coordinate of {_l}, {_w})
+					set {_e} to pvItem({_p}, {_key}, {_ml}, jailItem({_s::2}, 1), 0.4)
+					if {_e} is set:
+						set billboard of {_e} to center
+						set glowing of {_e} to true
+						set glow color override of {_e} to yellow
+			else if pvGet({_p}, {_key}) is set:
+				pvKill({_p}, {_key})
+
+# ---------- The breach (gate): plant, fuse, blast, open, rebuild ----------
+
+function jePlantClick(p: player, id: text):
+	if jailHeld({_p}) is not "c4":
+		hudBar({_p}, "&7Hold the C4 (hotbar) and hold right-click here.", 1)
+		stop
+	if jailZone("plant%{_id}%", location of {_p}) is false:
+		hudBar({_p}, "&7Get closer to the gate.", 1)
+		stop
+	if jbrState({_id}) is not "intact":
+		hudBar({_p}, "&7Already blown.", 1)
+		stop
+	jailAct({_p}, "plant")
+	set {_need} to jeSecs("prison::plant::hold")
+	if jailHold({_p}, "plant_%{_id}%", {_need}) is false:
+		jailHoldBar({_p}, "Planting", {_need})
+		stop
+	jbrPlant({_p}, {_id})
+
+function jbrPlant(p: player, id: text):
+	jbrState({_id}) is "intact"
+	jailTake({_p}, "c4", 1) is true
+	set {_at} to jailPt("C4_%{_id}%")
+	{_at} is set
+	set {_fuse} to cfg("prison::c4::fuse")
+	set {-jailbr::state::%{_id}%} to "armed"
+	set {-jailbr::armed::%{_id}%} to jailDate({_fuse})
+	set {_u} to "%uuid of {_p}%"
+	jailMark({_p}, "c4")
+	jailLoud({_p})
+	set {-jail::loudat::%{_u}%} to {_at}
+	jailAct({_p}, "plant")
+	jeDispOff({_id})
+	spawn an item display at {_at}:
+		jeDispSetup(event-display)
+		set item of event-display to jailItem("c4", 1)
+		set display scale of event-display to vector(0.6, 0.6, 0.6)
+	set {-jailbr::disp::%{_id}%} to last spawned entity
+	set {_tl} to {_at} ~ vector(0, 0.5, 0)
+	spawn a text display at {_tl}:
+		jeDispSetup(event-display)
+		set billboard of event-display to center
+		set text of event-display to colored "&c&lC4 &f%{_fuse}%"
+	set {-jailbr::text::%{_id}%} to last spawned entity
+	set {_name} to {-cfg::prison::breach::%{_id}%::name}
+	play sound "block.bell.resonate" with volume 3 at {_at}
+	loop all players:
+		if world of loop-player is world of {_at}:
+			if distance between loop-player and {_at} <= 64:
+				if prisonInside(loop-player) is true:
+					hudBar(loop-player, "&c⚠ C4 at %{_name}%!", 2)
+	jeLog("plant %{_id}% by %{_p}% %{_u}%")
+	# The fuse: a beep a second, higher each time, the countdown over it.
+	loop {_fuse} times:
+		jbrState({_id}) is "armed"
+		set {_left} to {_fuse} - loop-number + 1
+		set {_t} to {-jailbr::text::%{_id}%}
+		if {_t} is set:
+			if {_t} is valid:
+				set text of {_t} to colored "&c&lC4 &f%{_left}%"
+		set {_pitch} to 1 + (loop-number - 1) / max(1, {_fuse})
+		play sound "block.note_block.hat" with volume 1.5 and pitch {_pitch} at {_at}
+		wait 1 second
+	jbrState({_id}) is "armed"
+	jbrBlast({_id}, {_p})
+
+function jbrBlast(id: text, p: player):
+	set {_at} to jailPt("C4_%{_id}%")
+	{_at} is set
+	set {_w} to world of {_at}
+	jeDispOff({_id})
+	draw 3 explosion emitter particles at {_at}
+	play sound "entity.generic.explode" with volume 2 at {_at}
+	jeBlocksOpen({_id})
+	# Damage only to prisoners inside, never enough to down anyone; cops take it all (10 HP > 3 hearts).
+	set {_r} to cfg("prison::c4::radius")
+	set {_dmg} to cfg("prison::c4::damage")
+	loop all entities in radius {_r} around {_at}:
+		set {_e} to loop-entity
+		set {_dist} to distance between {_e} and {_at}
+		set {_d} to {_dmg} * (1 - {_dist} / {_r})
+		if {_d} > 0:
+			if jailCopId({_e}) is not "":
+				set invulnerability time of {_e} to 0 ticks
+				damage {_e} by {_d}
+			else if {_e} is a player:
+				if isNpc({_e}) is false:
+					if jailState({_e}) is "in":
+						if jailExempt({_e}) is false:
+							if jailInsideAt(location of {_e}) is true:
+								set {_d} to min({_d}, (health of {_e}) - 1)
+								if {_d} > 0:
+									set invulnerability time of {_e} to 0 ticks
+									damage {_e} by {_d}
+									set {_dx} to (x-coordinate of {_e}) - (x-coordinate of {_at})
+									set {_dz} to (z-coordinate of {_e}) - (z-coordinate of {_at})
+									set {_len} to max(0.1, sqrt({_dx} * {_dx} + {_dz} * {_dz}))
+									set velocity of {_e} to vector(0.6 * {_dx} / {_len}, 0.3, 0.6 * {_dz} / {_len})
+	# Loud: the planter again, and every prisoner near the blast carrying contraband.
+	if {_p} is online:
+		jailLoud({_p})
+		set {-jail::loudat::%uuid of {_p}%} to {_at}
+	set {_lr} to cfg("prison::c4::loud-range")
+	loop all players:
+		if world of loop-player is {_w}:
+			if distance between loop-player and {_at} <= {_lr}:
+				if jailState(loop-player) is "in":
+					set {_cb} to false
+					loop {-cfg::jailcop::contraband::*}:
+						if jailCount(loop-player, loop-value-2) > 0:
+							set {_cb} to true
+					if {_cb} is true:
+						set {-jail::loud::%uuid of loop-player%} to now
+						set {-jail::loudat::%uuid of loop-player%} to {_at}
+	jeRubblePlace({_id})
+	set {-jailbr::state::%{_id}%} to "open"
+	delete {-jailbr::armed::%{_id}%}
+	set {-jailbr::opento::%{_id}%} to jailDate(jeSecs("prison::breach::open"))
+	jeLog("breach %{_id}% blown by %{_p}%")
+
+# The hole's rule, then the blocks back: prisoners to PLANT_<ID>, free players out to LOT_EXIT, cops home.
+function jbrGateCloseNow(id: text):
+	set {_in} to jailPt("PLANT_%{_id}%")
+	set {_out} to jailPt("LOT_EXIT")
+	set {_w} to jailWorld()
+	loop all players:
+		if world of loop-player is {_w}:
+			if jailZone("%{_id}%hole", location of loop-player) is true:
+				set {_s} to jailState(loop-player)
+				if {_s} is "course" or "in":
+					if {_in} is set:
+						teleport loop-player to {_in}
+				else if jailExempt(loop-player) is false:
+					if {_out} is set:
+						teleport loop-player to {_out}
+	set {_at} to jailPt("C4_%{_id}%")
+	if {_at} is set:
+		loop all entities in radius 8 around {_at}:
+			if jailCopId(loop-entity) is not "":
+				if jailZone("%{_id}%hole", location of loop-entity) is true:
+					jeCopHome(loop-entity)
+	jeDispOff({_id})
+	jeBlocksRestore({_id})
+	jeRubbleClear({_id})
+	set {-jailbr::state::%{_id}%} to "intact"
+	delete {-jailbr::armed::%{_id}%}
+	delete {-jailbr::opento::%{_id}%}
+	jeLog("breach %{_id}% rebuilt")
+
+# Due: "Rebuilding in 5s" to players within 16 blocks, then it closes (it never waits for an empty hole).
+function jbrGateWarn(id: text):
+	jbrState({_id}) is "open"
+	set {-jailbr::state::%{_id}%} to "closing"
+	set {_at} to jailPt("C4_%{_id}%")
+	set {_name} to {-cfg::prison::breach::%{_id}%::name}
+	set {_ws} to jeSecs("prison::breach::warn")
+	if {_at} is set:
+		set {_wr} to cfg("prison::breach::warn-range")
+		loop all players:
+			if world of loop-player is world of {_at}:
+				if distance between loop-player and {_at} <= {_wr}:
+					hudBar(loop-player, "&eRebuilding %{_name}% in %{_ws}%s", 2)
+	wait 1 second * {_ws}
+	jbrState({_id}) is "closing"
+	jbrGateCloseNow({_id})
+
+# ---------- The punch boxes ----------
+
+on left click:
+	event-block is set
+	jailOn() is true
+	world of event-block is jailWorld()
+	set {_bl} to location of event-block
+	set {_box} to ""
+	if jailZone("punchbox", {_bl}) is true:
+		set {_box} to "gun"
+	else if jailZone("fusebox", {_bl}) is true:
+		set {_box} to "fuse"
+	{_box} is not ""
+	jailExempt(player) is false
+	player is alive
+	jailState(player) is "in"
+	jePunch(player, {_box}, {_bl})
+
+function jePunch(p: player, box: text, bl: location):
+	set {_stand} to jailPt("PUNCH_STAND")
+	set {_cool} to "cool::punch"
+	if {_box} is "fuse":
+		set {_stand} to jailPt("FUSE_STAND")
+		set {_cool} to "cool::fuse"
+	{_stand} is set
+	if jeCopNear({_stand}, cfg("prison::punch::guard-range")) is true:
+		hudBar({_p}, "&7A guard's watching.", 2)
+		stop
+	set {_u} to "%uuid of {_p}%"
+	set {_now} to unix timestamp of now
+	set {_n} to 0
+	set {_first} to {_now}
+	set {_v} to {-jail::punch::%{_u}%::%{_box}%}
+	if {_v} is set:
+		set {_a::*} to "%{_v}%" split at "|"
+		set {_n} to {_a::1} parsed as number
+		set {_first} to {_a::2} parsed as number
+		if {_now} - {_first} > jeSecs("prison::punch::window"):
+			set {_n} to 0
+			set {_first} to {_now}
+	add 1 to {_n}
+	set {-jail::punch::%{_u}%::%{_box}%} to "%{_n}%|%{_first}%"
+	jailAct({_p}, "punch")
+	set {_c} to {_bl}
+	# Every shock-every-th punch shocks (it never downs anyone on its own: generic damage, capped at 1 heart left).
+	if mod({_n}, cfg("prison::punch::shock-every")) is 0:
+		set {_d} to min(cfg("prison::punch::shock"), (health of {_p}) - 0.5)
+		if {_d} > 0:
+			set invulnerability time of {_p} to 0 ticks
+			damage {_p} by {_d}
+		draw 6 electric spark particles with offset vector(0.3, 0.3, 0.3) at {_c}
+		play sound "entity.lightning_bolt.thunder" with volume 0.3 and pitch 2 at {_c}
+	if jeLeft({_cool}) > 0:
+		# Punches only shock while it cools down: they don't count toward the next opening (the count keeps only its
+		# place in the shock rhythm).
+		set {_keep} to mod({_n}, cfg("prison::punch::shock-every"))
+		set {-jail::punch::%{_u}%::%{_box}%} to "%{_keep}%|%{_first}%"
+		hudBar({_p}, "&7The box is still sparking.", 1)
+		stop
+	set {_hits} to cfg("prison::punch::hits")
+	if {_n} < {_hits}:
+		hudBar({_p}, "&ePunch the box &f%{_n}%/%{_hits}%", 1)
+		play sound "block.anvil.land" with volume 0.4 and pitch 1.8 at {_c}
+		stop
+	delete {-jail::punch::%{_u}%::%{_box}%}
+	if {_box} is "gun":
+		if jbrState("punch") is "open":
+			jailMark({_p}, "parkour")
+			stop
+		jePunchGateOpen()
+		jailMark({_p}, "parkour")
+		jeLog("punch-box %{_p}%")
+	else:
+		set {-jailbr::cool::fuse} to jailDate(jeSecs("prison::punch::cooldown"))
+		jailDoorPulse("booth", jeSecs("prison::fuse::open"))
+		set {_door} to jeBlock("BOOTH_DOOR")
+		if {_door} is set:
+			play sound "block.iron_door.open" with volume 1 at {_door}
+		draw 12 electric spark particles with offset vector(0.3, 0.4, 0.3) at {_c}
+		hudBar({_p}, "&aThe gatehouse door's open.", 2)
+		jeLog("fuse-box %{_p}%")
+
+# ---------- The punch gate (F7's gate by the Gun Shop: the parkour's way in) ----------
+
+function jePunchGateOpen():
+	jbrState("punch") is not "open"
+	jeBlocksOpen("punch")
+	set {-jailbr::state::punch} to "open"
+	set {-jailbr::opento::punch} to jailDate(jeSecs("prison::punch::open"))
+	set {-jailbr::cool::punch} to jailDate(jeSecs("prison::punch::cooldown"))
+	set {_l} to jailPt("PUNCH_IN")
+	if {_l} is set:
+		play sound "block.iron_door.open" with volume 1.5 at {_l}
+	jeLog("punch-gate open")
+
+# Closes at once (its 8 s were counted down): prisoners in the gateway back to PUNCH_STAND, cops home.
+function jePunchGateClose():
+	set {_to} to jailPt("PUNCH_STAND")
+	set {_w} to jailWorld()
+	loop all players:
+		if world of loop-player is {_w}:
+			if jailZone("punchhole", location of loop-player) is true:
+				if jailExempt(loop-player) is false:
+					if {_to} is set:
+						teleport loop-player to {_to}
+	set {_l} to jailPt("PUNCH_IN")
+	if {_l} is set:
+		loop all entities in radius 8 around {_l}:
+			if jailCopId(loop-entity) is not "":
+				if jailZone("punchhole", location of loop-entity) is true:
+					jeCopHome(loop-entity)
+		play sound "block.iron_door.close" with volume 1.5 at {_l}
+	jeBlocksRestore("punch")
+	set {-jailbr::state::punch} to "closed"
+	delete {-jailbr::opento::punch}
+	jeLog("punch-gate closed")
+
+# ---------- The gatehouse console and the front gate ----------
+
+function jeConsoleClick(p: player):
+	if jailZone("booth", location of {_p}) is false:
+		hudBar({_p}, "&7Get inside the gatehouse.", 1)
+		stop
+	if jbrState("front") is "open":
+		hudBar({_p}, "&7The gate's already open. Go!", 1)
+		stop
+	if jeLeft("cool::front") > 0:
+		set {_cl} to ceil(jeLeft("cool::front"))
+		hudBar({_p}, "&7The gate motor's cooling down: %{_cl}%s.", 1)
+		stop
+	jailAct({_p}, "console")
+	set {_need} to jeSecs("prison::console::hold")
+	if jailHold({_p}, "console", {_need}) is false:
+		jailHoldBar({_p}, "Opening the front gate", {_need})
+		stop
+	jeFrontOpen()
+	progEvent({_p}, "jailgate", 1, "")
+	jeLog("front %{_p}%")
+
+function jeFrontOpen():
+	jbrState("front") is not "open"
+	set {-jailbr::state::front} to "open"
+	set {-jailbr::opento::front} to jailDate(jeSecs("prison::front::open"))
+	set {_w} to jailWorld()
+	{_w} is set
+	play sound "block.piston.extend" with volume 2 at location(260.5, 66, 396.5, {_w})
+	play sound "block.piston.extend" with volume 2 at location(284.5, 66, 396.5, {_w})
+	set {_b} to jailPt("BOOTH_STAND")
+	if {_b} is set:
+		play sound "block.bell.resonate" with volume 2 at {_b}
+	loop all players:
+		if world of loop-player is {_w}:
+			if jailState(loop-player) is "in":
+				if jailInLot(location of loop-player) is true:
+					hudBar(loop-player, "&a&lTHE FRONT GATE IS OPEN", 2)
+	jeFrontSlide()
+
+# The panels slide: a column of each a tick, from the booth outward (x 267 and 277 first, 253 and 291 last).
+function jeFrontSlide():
+	set {_w} to jailWorld()
+	{_w} is set
+	loop 15 times:
+		jbrState("front") is "open"
+		set {_xa} to 268 - loop-number
+		set {_xb} to 276 + loop-number
+		loop {-jailbreach::front::*}:
+			set {_a::*} to loop-value-2 split at "|"
+			set {_x} to {_a::1} parsed as number
+			if {_x} is {_xa} or {_xb}:
+				set {_y} to {_a::2} parsed as number
+				set {_z} to {_a::3} parsed as number
+				update block at location({_x}, {_y}, {_z}, {_w}) as air[]
+		wait 1 tick
+
+# At its time, at once: the gateway first (a prisoner past the gate row's middle escapes now; the rest back to the lot
+# side, free players out to LOT_EXIT, cops home), then every block back; a 30 s cooldown.
+function jeFrontClose():
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_in} to jailPt("FRONT_IN")
+	set {_out} to jailPt("LOT_EXIT")
+	loop all players:
+		if world of loop-player is {_w}:
+			if jailZone("fronthole", location of loop-player) is true:
+				jailEscapeCheck(loop-player)
+				set {_s} to jailState(loop-player)
+				if {_s} is "course" or "in":
+					if {_in} is set:
+						teleport loop-player to {_in}
+				else if jailExempt(loop-player) is false:
+					if {_out} is set:
+						teleport loop-player to {_out}
+	loop all entities in radius 24 around location(272.5, 66, 396.5, {_w}):
+		if jailCopId(loop-entity) is not "":
+			if jailZone("fronthole", location of loop-entity) is true:
+				jeCopHome(loop-entity)
+	jeBlocksRestore("front")
+	set {-jailbr::state::front} to "closed"
+	delete {-jailbr::opento::front}
+	set {-jailbr::cool::front} to jailDate(jeSecs("prison::front::cooldown"))
+	play sound "block.piston.contract" with volume 2 at location(260.5, 66, 396.5, {_w})
+	play sound "block.piston.contract" with volume 2 at location(284.5, 66, 396.5, {_w})
+	jeLog("front closed")
+
+# ---------- Every second: the breach's and the gates' clocks, the punch gate's countdown, the chalk hint ----------
+
+every second:
+	jailOn() is true
+	set {_w} to jailWorld()
+	loop {-cfg::prison::breaches::*}:
+		if jbrState(loop-value) is "open":
+			set {_due} to {-jailbr::opento::%loop-value%}
+			if {_due} is set:
+				if {_due} <= now:
+					jbrGateWarn(loop-value)
+	if jbrState("punch") is "open":
+		set {_left} to jeLeft("opento::punch")
+		if {_left} <= 0:
+			jePunchGateClose()
+		else:
+			set {_g} to jailPt("PUNCH_IN")
+			if {_g} is set:
+				loop all players:
+					if world of loop-player is {_w}:
+						if distance between loop-player and {_g} <= 16:
+							hudBar(loop-player, "&eGate open: %ceil({_left})%s", 1)
+	if jbrState("front") is "open":
+		if jeLeft("opento::front") <= 0:
+			jeFrontClose()
+	# W5's chalk is scenery: the vehicle gate is the weak spot.
+	loop all players:
+		if world of loop-player is {_w}:
+			if jailHeld(loop-player) is "c4":
+				if jailZone("chalk", location of loop-player) is true:
+					hudBar(loop-player, "&7Too thick to blow. The vehicle gate by the plaza is the weak spot.", 2)
+
+on quit:
+	delete {-je::chime::%player%::*}

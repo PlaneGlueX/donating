@@ -940,6 +940,14 @@ module.exports = (b) => {
   module.exports._drops = drops
 }
 module.exports.labels = []
-module.exports.points = {}
+// the escape (ESCAPE-SPEC Appendix B, M4): the C4 parts' search spots, the bench, the Security Office's hatch
+module.exports.points = {
+  SEARCH_PUTTY: [61, 65, 53, 0],
+  SEARCH_WIRES: [81, 65, 90, 0],
+  ASSEMBLE: [49, 65, 51, 0],
+  ASSEMBLE_STAND: [49.5, 65, 52.5, 180],
+  T_SO_HATCH: [64, 64, 88, 0],
+  SO_UP: [64.5, 65, 89.5, 0]
+}
 module.exports._mine = mine
 module.exports._roomAt = (lvl, x, z) => { const r = roomAt(lvl, x, z); return r ? r.id : null }

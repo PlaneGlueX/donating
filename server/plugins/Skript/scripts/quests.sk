@@ -17,9 +17,12 @@
 # Saved: {quest::giver::<n>} = "kind|world|x|y|z|yaw|place" (the counter {questcounter} lives outside the
 # list). The NPC has the tags donating_quest, quest_<kind>, questg_<n> and questLook() (the look's version: raise it
 # when the summon changes, and every NPC is replaced by one with the new look); a missing one comes back within
-# 30 s while its chunk is loaded (extras and old looks go). Givers stand in the main world (the console summons them).
-# Staff: /dquest add <kind> [place], addat <kind> <x> <y> <z> <yaw> [place], remove <n>, list, dump (the addat
-# lines for Minehut), open <player> <n> (for a Citizens NPC's click command later).
+# 30 s while its chunk is loaded (extras and old looks go). Givers stand in the main world or the prison world
+# (prison::world: the inmates Lefty, Rusty, Tank and Whisper, jailjobs.sk); the console summons them "execute in" their
+# world (core.sk worldDim).
+# Staff: /dquest add <kind> [place], addat <kind> <x> <y> <z> <yaw> [place] (the main world), addatw <kind> <world>
+# <x> <y> <z> <yaw> [place], remove <n>, list, dump (the addat/addatw lines for Minehut), open <player> <n> (for a
+# Citizens NPC's click command later).
 # Log: plugins\Skript\logs\quests.log.
 
 function questLog(text: text):
@@ -93,6 +96,12 @@ function questNearest(p: player, kind: text) :: text:
 					set {_found} to loop-index
 	return {_found}
 
+# "the Scrap Yard", or the place as it is when it has its own article (the prison's "the Yard").
+function questThe(place: text) :: text:
+	if {_place} starts with "the ":
+		return {_place}
+	return "the %{_place}%"
+
 # "Scrap Yard (140m)" for the nearest giver of a kind, "" if none.
 function questNearestText(p: player, kind: text) :: text:
 	set {_n} to questNearest({_p}, {_kind})
@@ -116,7 +125,7 @@ function questFind(p: player, kind: text):
 		msg({_p}, "&7%{_who}% isn't in town yet.")
 		stop
 	gpsPin({_p}, questLoc({_n}), questPlace({_n}))
-	msg({_p}, "&6Talk to &e%questNpcName({_n})% &6at the &e%questPlace({_n})%&6.")
+	msg({_p}, "&6Talk to &e%questNpcName({_n})% &6at &e%questThe(questPlace({_n}))%&6.")
 
 # Every giver as a /gps place ("world|x|y|z|name|quest", as gps.sk's gpsPlaces).
 function questPlaces() :: texts:
@@ -149,7 +158,7 @@ function questSpawn(n: text):
 			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1,components:{""minecraft:custom_model_data"":{strings:[""%{_model}%""]}}}}"
 		else:
 			set {_hold} to ",equipment:{mainhand:{id:""minecraft:%{_item}%"",count:1}}"
-	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%"",""%questLook()%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}%"",color:""gray""}%{_hold}%%skinProfile(questSkinId({_k}))%,Rotation:[%{_yaw}%f,0f]}"
+	execute console command "execute in %worldDim(world of {_l})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_quest"",""quest_%{_k}%"",""questg_%{_n}%"",""%questLook()%""],Invulnerable:1b,immovable:1b,PersistenceRequired:1b,CustomName:{text:""%{_name}%"",color:""gold""},CustomNameVisible:1b,description:{text:""%{_what}%"",color:""gray""}%{_hold}%%skinProfile(questSkinId({_k}))%,Rotation:[%{_yaw}%f,0f]}"
 
 # One NPC per giver while its chunk is loaded: a missing one comes back, extras and older looks go.
 function questCheck(n: text):
@@ -248,6 +257,10 @@ function questOpen(p: player, n: text):
 		# The Broker (hits.sk): this week's hit contract.
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.7 to {_p}
 		hitMenu({_p})
+	else if {_k} is "lefty" or "rusty" or "tank" or "whisper":
+		# The prison's inmates (jailjobs.sk): Lefty's lessons, their jobs, Rusty's donut trade.
+		play sound "entity.villager.ambient" with volume 0.6 and pitch 1.0 to {_p}
+		jjobTalk({_p}, {_k}, {_n})
 	else:
 		msg({_p}, "&7Nothing to do here yet.")
 
@@ -263,7 +276,9 @@ function questSpotBlock(l: location, kind: text, place: text) :: text:
 		set {_all} to join {-cfg::quests::*} with ", "
 		return "no quest kind %{_kind}% (kinds: %{_all}%)"
 	if world of {_l} is not poiMainWorld():
-		return "only in the main world (%poiMainWorld()%): the console summons the NPC there"
+		# Or the prison world (the inmates, jailjobs.sk). Not loaded: world() is unset and "is not" holds (refused).
+		if world of {_l} is not world(cfg("prison::world")):
+			return "only in the main world (%poiMainWorld()%) or the prison world (%cfg("prison::world")%)"
 	if heistAt({_l}) is not "":
 		return "inside a heist"
 	if {_place} contains "|":
@@ -296,7 +311,7 @@ function questAdd(sender: text, l: location, kind: text, place: text) :: text:
 	questSpawn({_n})
 	poiReconcile()
 	questLog("add %{_n}% %{_kind}% %{_place}% at %{_x}% %{_y}% %{_z}% yaw=%{_yaw}% by=%{_sender}%")
-	set {_out} to "QUEST giver %{_n}% (%{_kind}%) added: %questNpcName({_n})% at the %{_place}%"
+	set {_out} to "QUEST giver %{_n}% (%{_kind}%) added: %questNpcName({_n})% at %questThe({_place})%"
 	if isSafeZone({_l}) is false:
 		set {_out} to "%{_out}% (not in a safe zone: players can be shot while in its menu)"
 	return {_out}
@@ -365,6 +380,36 @@ command /dquest [<text>]:
 			set {_l} to location({_x}, {_y}, {_z}, poiMainWorld())
 			set yaw of {_l} to {_yaw}
 			send questAdd("%sender%", {_l}, {_k}, {_place}) to sender
+		else if {_sub} is "addatw":
+			# addat in another world (the prison's inmates; /dquest dump prints these for givers outside the main world).
+			set {_k} to {_a::2}
+			set {_w} to world({_a::3})
+			set {_x} to {_a::4} parsed as number
+			set {_y} to {_a::5} parsed as number
+			set {_z} to {_a::6} parsed as number
+			set {_yaw} to {_a::7} parsed as number
+			set {_ok} to true
+			if {_w} is not set:
+				set {_ok} to false
+			if {_x} is not set:
+				set {_ok} to false
+			if {_y} is not set:
+				set {_ok} to false
+			if {_z} is not set:
+				set {_ok} to false
+			if {_yaw} is not set:
+				set {_ok} to false
+			if {_ok} is false:
+				send "QUEST addatw <kind> <world (loaded)> <x> <y> <z> <yaw> [place name]" to sender
+				stop
+			set {_place} to questRest(arg-1, 8)
+			if {_place} is "":
+				set {_place} to {-cfg::quest::%{_k}%::place}
+			if {_place} is not set:
+				set {_place} to "Quest"
+			set {_l} to location({_x}, {_y}, {_z}, {_w})
+			set yaw of {_l} to {_yaw}
+			send questAdd("%sender%", {_l}, {_k}, {_place}) to sender
 		else if {_sub} is "remove":
 			set {_n} to {_a::2}
 			if {quest::giver::%{_n}%} is not set:
@@ -386,11 +431,16 @@ command /dquest [<text>]:
 				send "QUEST %loop-index%: %loop-value% (%questNpcName(loop-index)%)" to sender
 			send "QUEST end" to sender
 		else if {_sub} is "dump":
-			# The lines that recreate every giver (for Minehut).
+			# The lines that recreate every giver (for Minehut): addat in the main world, addatw elsewhere (the prison).
+			set {_mw} to "%poiMainWorld()%"
 			loop {quest::giver::*}:
 				set {_q::*} to loop-value split at "|"
-				send "dquest addat %{_q::1}% %{_q::3}% %{_q::4}% %{_q::5}% %{_q::6}% %{_q::7}%" to sender
-				questLog("dump: dquest addat %{_q::1}% %{_q::3}% %{_q::4}% %{_q::5}% %{_q::6}% %{_q::7}%")
+				if {_q::2} is {_mw}:
+					set {_line} to "dquest addat %{_q::1}% %{_q::3}% %{_q::4}% %{_q::5}% %{_q::6}% %{_q::7}%"
+				else:
+					set {_line} to "dquest addatw %{_q::1}% %{_q::2}% %{_q::3}% %{_q::4}% %{_q::5}% %{_q::6}% %{_q::7}%"
+				send {_line} to sender
+				questLog("dump: %{_line}%")
 		else if {_sub} is "open":
 			set {_who} to {_a::2} parsed as player
 			set {_n} to {_a::3}
@@ -402,4 +452,4 @@ command /dquest [<text>]:
 				stop
 			questOpen({_who}, {_n})
 		else:
-			send "QUEST usage: /dquest add <kind> [place] | addat <kind> <x> <y> <z> <yaw> [place] | remove <n> | list | dump | open <player> <n>" to sender
+			send "QUEST usage: /dquest add <kind> [place] | addat <kind> <x> <y> <z> <yaw> [place] | addatw <kind> <world> <x> <y> <z> <yaw> [place] | remove <n> | list | dump | open <player> <n>" to sender

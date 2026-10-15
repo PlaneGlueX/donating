@@ -499,6 +499,10 @@ function openShop(p: player, kind: text):
 	renderShop({_p})
 	open {_gui} to {_p}
 	play sound "block.chest.open" with volume 0.5 to {_p}
+	# The Prison Gun Shop (prison.sk): Lefty's l_shop mission counts it.
+	if {_kind} is "gun":
+		if prisonInside({_p}) is true:
+			progEvent({_p}, "jailshop", 1, "gun")
 
 on right click on entity:
 	event-entity has scoreboard tag "donating_shop"
@@ -994,6 +998,12 @@ function shopAction(p: player, act: text, shift: boolean):
 		close {_p}'s inventory
 		msg({_p}, "&c%{_why}%")
 		stop
+	# Inside the prison walls: only taking out melee you own (shopJailBlock).
+	set {_jw} to shopJailBlock({_p}, {_act})
+	if {_jw} is not "":
+		shopFail({_p}, {_jw})
+		renderShop({_p})
+		stop
 	# Any other action cancels an armed confirmation of something else (checked in needsConfirm).
 	set {_parts::*} to {_act} split at ":"
 	set {_what} to {_parts::1}
@@ -1024,6 +1034,26 @@ function shopAction(p: player, act: text, shift: boolean):
 		if {-shop::confirm::%{_p}%} does not start with "%{_act}%@":
 			delete {-shop::confirm::%{_p}%}
 	renderShop({_p})
+
+# Inside the prison walls (prison.sk): take out melee you own, nothing else. "" = allowed. "buy" would spend money
+# behind bars (the owner: re-arm, not shop; veterans neither), "save" would replace a veteran's real loadout with the
+# knife, and a hunted prisoner shouldn't hide in a menu. "hot" stays (clickHotbar refuses a slot holding a jail item).
+function shopJailBlock(p: player, act: text) :: text:
+	if prisonInside({_p}) is false:
+		return ""
+	if {-jail::hostile::%uuid of {_p}%} is set:
+		return "Not while the guards are after you."
+	set {_a::*} to {_act} split at ":"
+	if {_a::1} is "buy":
+		return "Unlock weapons once you're out. In here you can take out melee you own."
+	if {_a::1} is "sel":
+		if {-cfg::wpn::%{_a::2}%::kind} is not "Melee":
+			return "No guns inside the walls: take them out once you're out."
+	if {_a::1} is "save":
+		return "Save it once you're out."
+	if {_a::1} is "ammo" or "con" or "tool" or "gear" or "bag" or "restore":
+		return "Not inside the walls: do that once you're out."
+	return ""
 
 # ---------- Weapons and the loadout ----------
 
@@ -1540,7 +1570,8 @@ function spawnKeeper(id: text):
 	set {_y} to y-coordinate of {_loc}
 	set {_z} to z-coordinate of {_loc}
 	set {_yaw} to yaw of {_loc}
-	execute console command "summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b%skinProfile({_kind})%,Rotation:[%{_yaw}%f,0f]}"
+	# "execute in": a keeper saved in another world (the Prison Gun Shop in the prison world) is summoned there.
+	execute console command "execute in %worldDim(world of {_loc})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b%skinProfile({_kind})%,Rotation:[%{_yaw}%f,0f]}"
 
 every 30 seconds:
 	loop {shop::keepers::*}:

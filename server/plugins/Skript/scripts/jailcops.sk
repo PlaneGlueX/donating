@@ -1,0 +1,1211 @@
+# jailcops.sk: the prison guards (ESCAPE-SPEC revision 3, section 5; owner, 2026-10-14: "If the cop is in range, they
+# try to taze then arrest you when closer, if too far they shoot you until they get closer (make sure people under 3
+# hearts are slower but can still escape). Prison cops are level 1 so not that good aim."). Built 2026-10-14.
+#
+# - 10 Citizens + Sentinel NPCs named jailcop::name ("Prison Guard": a space, so never a real account's skin), one per
+#   patrol route of jailcop::roster. A route is jailpoints.sk's {-jailroute::<route>::*} (ROUTE_<R>_1..n, then n-1 back
+#   to 2: a there-and-back loop for Citizens' linear waypoints). They exist while someone is in the prison (prison.sk
+#   prisonIn) and are removed jailcop::idle-despawn after the last one left.
+# - Sentinel only targets and chases (melee reach 1.5). Every Sentinel hit is cancelled at priority lowest; this script
+#   attacks by itself every 5 ticks, with line of sight and a per-cop rate: a gunshot at 8-24 blocks, a taser shot at
+#   2.5-8, a grab and arrest up close. No projectiles (nothing can hit a bystander). Generic damage has no attacker: it
+#   never combat-tags, and a lethal one downs the prisoner (prison.sk).
+# - Only hostile prisoners are hunted ({-jail::hostile::<u>}), and only by the cops that saw it (5.3): a hit on a cop, a
+#   C4, or being seen in a restricted area, holding a C4, doing an act (a reader, a punch, a search...), or carrying
+#   contraband right past a cop. Out of every hunting cop's sight for jailcop::lose::time (the clock stops in the no-lose
+#   zones) = lost them.
+# - Known = alive: {-jailcop::id::<npc id>} = route while Citizens still has the NPC (dead and respawning, or despawned
+#   in an unloaded chunk). Only our own "npc remove" forgets one (idle, stale, staff). The saved {jailcops::ids::<id>}
+#   are removed when this script loads after a restart (memory is empty then); a /sk reload keeps the cops.
+# - Sentinel and Citizens take "--id" only from the real console (execute console command), never from RCON.
+# Shared (ESCAPE-SPEC 2.2): writes {-jail::hostile|hunters|stun|seen::<u>} and {-jailcop::id::<id>}; reads
+# {-jail::act|loud|loudat|caught|escaped::<u>}. Internal: {-jailcop::of::<route>} = id, {-jailcop::ent|at|seenat|look|
+# shot|taser|hitat|strayat|deadat|walk::<id>}, {-jailcop::hunts::<id>::<u>}, {-jail::notice::<u>::<id>},
+# {-jail::grab::<u>}, {-jailcop::lastocc}, {-jailcop::spawnrun}, {-jailcop::tried::<route>}.
+# Staff: /djailcops list | spawn | removeall | hostile <player> | calm <player> | dump. Log: plugins\Skript\logs\jailcops.log.
+# For the test helpers (zz-testkit.sk): jcopIdOf(route), jcopEnt(id), jcopInfo(id), jcopCounts().
+
+function jcopLog(t: text):
+	log {_t} to "jailcops"
+
+function jcopSentinel(id: text, args: text):
+	execute console command "sentinel %{_args}% --id %{_id}%"
+
+function jcopNpcCmd(id: text, args: text):
+	execute console command "npc %{_args}% --id %{_id}%"
+
+# ---------- Routes ----------
+
+# The n-th point of a route's patrol list (1 = its first point, where the cop spawns).
+function jcopRoutePt(r: text, n: number) :: location:
+	set {_v} to {-jailroute::%{_r}%::%{_n}%}
+	if {_v} is set:
+		set {_w} to jailWorld()
+		if {_w} is set:
+			set {_a::*} to "%{_v}%" split at "|"
+			set {_x} to {_a::1} parsed as number
+			set {_y} to {_a::2} parsed as number
+			set {_z} to {_a::3} parsed as number
+			return location({_x}, {_y}, {_z}, {_w})
+	return {_none}
+
+# How many distinct points a route has: its patrol list is 1..n, then n-1 back to 2 (m = 2n - 2; one point: m = 1).
+function jcopRouteN(r: text) :: number:
+	set {_m} to size of {-jailroute::%{_r}%::*}
+	if {_m} < 1:
+		return 0
+	return floor(({_m} + 2) / 2)
+
+# A calm cop is out of place (the stray rule, 5.5): farther than its route's radius (horizontally) from the polyline of
+# ROUTE_<R>_1..n, more than stray::dy above or below the nearest route point, or inside the gatehouse booth (it followed
+# someone in and can't open the iron door).
+function jcopOutOfPlace(l: location, r: text) :: boolean:
+	set {_out} to false
+	if jailZone("booth", {_l}) is true:
+		set {_out} to true
+	else:
+		set {_n} to jcopRouteN({_r})
+		if {_n} >= 1:
+			set {_px} to x-coordinate of {_l}
+			set {_py} to y-coordinate of {_l}
+			set {_pz} to z-coordinate of {_l}
+			loop {_n} times:
+				set {_i} to loop-number
+				set {_a::*} to "%{-jailroute::%{_r}%::%{_i}%}%" split at "|"
+				set {_xs::%{_i}%} to {_a::1} parsed as number
+				set {_ys::%{_i}%} to {_a::2} parsed as number
+				set {_zs::%{_i}%} to {_a::3} parsed as number
+			# The nearest point (its height) and the distance to it.
+			set {_bp} to 999999999
+			set {_by} to {_py}
+			loop {_n} times:
+				set {_i} to loop-number
+				set {_dx} to {_px} - {_xs::%{_i}%}
+				set {_dz} to {_pz} - {_zs::%{_i}%}
+				set {_d2} to {_dx} * {_dx} + {_dz} * {_dz}
+				if {_d2} < {_bp}:
+					set {_bp} to {_d2}
+					set {_by} to {_ys::%{_i}%}
+			set {_best} to sqrt({_bp})
+			# The segments between them.
+			set {_segs} to {_n} - 1
+			if {_segs} >= 1:
+				loop {_segs} times:
+					set {_i} to loop-number
+					set {_j} to {_i} + 1
+					set {_ax} to {_xs::%{_i}%}
+					set {_az} to {_zs::%{_i}%}
+					set {_abx} to {_xs::%{_j}%} - {_ax}
+					set {_abz} to {_zs::%{_j}%} - {_az}
+					set {_l2} to {_abx} * {_abx} + {_abz} * {_abz}
+					if {_l2} > 0:
+						set {_t} to (({_px} - {_ax}) * {_abx} + ({_pz} - {_az}) * {_abz}) / {_l2}
+						set {_t} to max(0, min(1, {_t}))
+						set {_cx} to {_ax} + {_t} * {_abx}
+						set {_cz} to {_az} + {_t} * {_abz}
+						set {_ex} to {_px} - {_cx}
+						set {_ez} to {_pz} - {_cz}
+						set {_dd} to sqrt({_ex} * {_ex} + {_ez} * {_ez})
+						if {_dd} < {_best}:
+							set {_best} to {_dd}
+			set {_rad} to {-cfg::jailcop::route::%{_r}%::radius}
+			if {_rad} is not set:
+				set {_rad} to 12
+			if {_best} > {_rad}:
+				set {_out} to true
+			else if abs({_py} - {_by}) > cfg("jailcop::stray::dy"):
+				set {_out} to true
+	return {_out}
+
+# ---------- Known cops and their entities ----------
+
+function jcopIdOf(r: text) :: text:
+	set {_id} to {-jailcop::of::%{_r}%}
+	if {_id} is set:
+		return "%{_id}%"
+	return ""
+
+function jcopSeen(id: text, e: entity):
+	set {-jailcop::ent::%{_id}%} to {_e}
+	set {-jailcop::seenat::%{_id}%} to now
+	set {-jailcop::at::%{_id}%} to location of {_e}
+
+# A known cop's entity while it's loaded and alive. Citizens swaps the entity when the skin goes on, at a respawn and
+# at a chunk reload: it's found again near its last spot (at most once a second; the 10 s sweep finds it anywhere).
+function jcopEnt(id: text) :: entity:
+	set {_e} to {-jailcop::ent::%{_id}%}
+	if {_e} is set:
+		if {_e} is valid:
+			if {_e} is alive:
+				return {_e}
+		delete {-jailcop::ent::%{_id}%}
+	set {_go} to true
+	set {_lk} to {-jailcop::look::%{_id}%}
+	if {_lk} is set:
+		if difference between {_lk} and now < 1 second:
+			set {_go} to false
+	if {_go} is true:
+		set {-jailcop::look::%{_id}%} to now
+		set {_at} to {-jailcop::at::%{_id}%}
+		if {_at} is set:
+			if chunk at {_at} is loaded:
+				loop all entities in radius 32 around {_at}:
+					if {_found} is not set:
+						if loop-entity has metadata "NPC-ID":
+							set {_mv} to metadata value "NPC-ID" of loop-entity
+							if "%{_mv}%" is {_id}:
+								if loop-entity is alive:
+									set {_found} to loop-entity
+		if {_found} is set:
+			jcopSeen({_id}, {_found})
+			return {_found}
+	return {_none}
+
+# The cop was hit by melee within jailcop::stagger: no taser, no grab, no arrest (it can still shoot from range).
+function jcopStaggered(id: text) :: boolean:
+	set {_h} to {-jailcop::hitat::%{_id}%}
+	if {_h} is set:
+		if difference between {_h} and now < cfg("jailcop::stagger"):
+			return true
+	return false
+
+function jcopHuntsAny(id: text) :: boolean:
+	loop {-jailcop::hunts::%{_id}%::*}:
+		return true
+	return false
+
+function jcopHunterCount(u: text) :: number:
+	set {_n} to 0
+	loop indices of {-jailcop::id::*}:
+		if {-jailcop::hunts::%loop-value%::%{_u}%} is set:
+			add 1 to {_n}
+	return {_n}
+
+# Someone is in the prison (state course or in, not exempt).
+function jcopOccupied() :: boolean:
+	if jailOn() is true:
+		loop all players:
+			if prisonIn(loop-player) is true:
+				return true
+	return false
+
+# Just caught or escaped (3 s): nothing makes them hostile again while the catch moves them to their cell.
+function jcopFresh(u: text) :: boolean:
+	set {_c} to {-jail::caught::%{_u}%}
+	if {_c} is set:
+		if difference between {_c} and now < 3 seconds:
+			return true
+	set {_c} to {-jail::escaped::%{_u}%}
+	if {_c} is set:
+		if difference between {_c} and now < 3 seconds:
+			return true
+	return false
+
+# ---------- Spawning, setup, removal ----------
+
+# Makes the missing roster cops one at a time (the waits are in this function: Skript doesn't wait for a called
+# function that waits). force: also when nobody is in the prison (/djailcops spawn).
+function jcopSpawnMissing(force: boolean):
+	if {-jailcop::spawnrun} is set:
+		if difference between {-jailcop::spawnrun} and now < 60 seconds:
+			stop
+	set {-jailcop::spawnrun} to now
+	set {_name} to cfg("jailcop::name")
+	loop {-cfg::jailcop::roster::*}:
+		set {_r} to loop-value
+		set {_go} to false
+		if jailOn() is true:
+			if {-jailcop::of::%{_r}%} is not set:
+				set {_go} to true
+				if {_force} is false:
+					if jcopOccupied() is false:
+						set {_go} to false
+					else if {-jailcop::tried::%{_r}%} is set:
+						if difference between {-jailcop::tried::%{_r}%} and now < 30 seconds:
+							set {_go} to false
+		if {_go} is true:
+			set {_l} to jcopRoutePt({_r}, 1)
+			if {_l} is not set:
+				jcopLog("no-route %{_r}%")
+				set {_go} to false
+		if {_go} is true:
+			set {-jailcop::tried::%{_r}%} to now
+			# Citizens spawns an NPC only into a loaded chunk, and the new one is found by its entity: load the chunk for
+			# the moment (SkBee, no ticket: Paper keeps it a few seconds; the NPC despawns with it and comes back when a
+			# player comes near).
+			load chunk at {_l}
+			loop 80 times:
+				if npcBusy() is true:
+					wait 1 tick
+			if npcBusy() is true:
+				jcopLog("busy-timeout %{_r}%")
+				set {_go} to false
+		if {_go} is true:
+			set {-npc::busy} to now
+			set {_x} to x-coordinate of {_l}
+			set {_y} to y-coordinate of {_l}
+			set {_z} to z-coordinate of {_l}
+			set {_wn} to "%world of {_l}%"
+			execute console command "npc create %{_name}% --at %{_x}%,%{_y}%,%{_z}%,%{_wn}% --type PLAYER --trait sentinel --nameplate false"
+			set {_id} to ""
+			set {_tries} to 0
+			loop 40 times:
+				if {_id} is "":
+					loop all entities in radius 3 around {_l}:
+						if {_id} is "":
+							if loop-entity has metadata "NPC-ID":
+								if name of loop-entity is {_name}:
+									set {_mv} to metadata value "NPC-ID" of loop-entity
+									set {_raw} to "%{_mv}%"
+									if {-jailcop::id::%{_raw}%} is not set:
+										if {-cop::heist::%{_raw}%} is not set:
+											if {-hit::npc::%{_raw}%} is not set:
+												set {_id} to {_raw}
+												set {_ent} to loop-entity
+					if {_id} is "":
+						add 1 to {_tries}
+						wait 1 tick
+			delete {-npc::busy}
+			if {_id} is "":
+				jcopLog("spawn-failed %{_r}% at %{_x}% %{_y}% %{_z}% (the sweep removes it if it appears later)")
+			else:
+				set {jailcops::ids::%{_id}%} to {_r}
+				set {-jailcop::id::%{_id}%} to {_r}
+				set {-jailcop::of::%{_r}%} to {_id}
+				delete {-jailcop::tried::%{_r}%}
+				jcopSeen({_id}, {_ent})
+				jcopSetup({_id}, {_r})
+				jcopLog("spawn %{_r}% id=%{_id}% at %{_x}% %{_y}% %{_z}% after %{_tries}% ticks")
+				wait 5 ticks
+	delete {-jailcop::spawnrun}
+
+# The spawn point, the patrol, the look and the numbers (every Sentinel hit is cancelled anyway: damage 1). The skin
+# goes on last: Citizens respawns the entity for it, and "sentinel spawnpoint" needs the NPC spawned.
+function jcopSetup(id: text, r: text):
+	jcopSentinel({_id}, "spawnpoint")
+	set {_n} to size of {-jailroute::%{_r}%::*}
+	if {_n} >= 2:
+		execute console command "waypoints provider linear --id %{_id}%"
+		loop {_n} times:
+			set {_l} to jcopRoutePt({_r}, loop-number)
+			if {_l} is set:
+				# Citizens' "waypoints add" takes whole block coordinates (getInteger) and walks to that block.
+				set {_x} to floor(x-coordinate of {_l})
+				set {_y} to floor(y-coordinate of {_l})
+				set {_z} to floor(z-coordinate of {_l})
+				execute console command "waypoints add %{_x}% %{_y}% %{_z}% %world of {_l}% --id %{_id}%"
+	else:
+		jcopFace({_id}, {_r})
+	set {_m} to cfg("jailcop::model")
+	execute console command "npc setequipment hand feather[custom_model_data={floats:[%{_m}%f]}] --id %{_id}%"
+	jcopSentinel({_id}, "health %cfg("jailcop::health")%")
+	jcopSentinel({_id}, "damage 1")
+	jcopSentinel({_id}, "attackrate %cfg("jailcop::attack-rate")%")
+	jcopSentinel({_id}, "reach %cfg("jailcop::reach")%")
+	jcopSentinel({_id}, "range %cfg("jailcop::range")%")
+	jcopSentinel({_id}, "chaserange %cfg("jailcop::chase")%")
+	jcopSentinel({_id}, "speed %cfg("jailcop::speed")%")
+	jcopSentinel({_id}, "respawntime %cfg("jailcop::respawn")%")
+	jcopSentinel({_id}, "fightback false")
+	jcopSentinel({_id}, "safeshot true")
+	jcopSentinel({_id}, "needammo false")
+	jcopSentinel({_id}, "deathxp 0")
+	# The police skin (core.sk cop::skin-*, signed once by MineSkin; cops.sk's).
+	set {_tex} to {-cfg::cop::skin-texture}
+	set {_sig} to {-cfg::cop::skin-signature}
+	if {_tex} is set:
+		if {_sig} is set:
+			if {_tex} is not "":
+				execute console command "npc skin -t police %{_tex}% %{_sig}% --id %{_id}%"
+
+# A one-point route's cop (the desk cop) faces the way its point says (ROUTE_<R>_1's yaw: the desk cop watches the
+# POLICE doors).
+function jcopFace(id: text, r: text):
+	set {_l} to jailPt("ROUTE_%{_r}%_1")
+	if {_l} is set:
+		set {_yaw} to yaw of {_l}
+		jcopNpcCmd({_id}, "rotate --body %{_yaw}% --head %{_yaw}%")
+
+function jcopForget(id: text):
+	set {_r} to {-jailcop::id::%{_id}%}
+	if {_r} is set:
+		if "%{-jailcop::of::%{_r}%}%" is {_id}:
+			delete {-jailcop::of::%{_r}%}
+	delete {-jailcop::id::%{_id}%}
+	delete {jailcops::ids::%{_id}%}
+	delete {-jailcop::hunts::%{_id}%::*}
+	delete {-jailcop::ent::%{_id}%}
+	delete {-jailcop::at::%{_id}%}
+	delete {-jailcop::seenat::%{_id}%}
+	delete {-jailcop::look::%{_id}%}
+	delete {-jailcop::shot::%{_id}%}
+	delete {-jailcop::taser::%{_id}%}
+	delete {-jailcop::hitat::%{_id}%}
+	delete {-jailcop::strayat::%{_id}%}
+	delete {-jailcop::deadat::%{_id}%}
+	delete {-jailcop::walk::%{_id}%}
+
+function jcopRemove(id: text, why: text):
+	set {_r} to {-jailcop::id::%{_id}%}
+	jcopForget({_id})
+	execute console command "npc remove %{_id}%"
+	jcopLog("remove id=%{_id}% route=%{_r}% why=%{_why}%")
+
+function jcopRemoveAll(why: text) :: number:
+	set {_n} to 0
+	loop indices of {-jailcop::id::*}:
+		add loop-value to {_ids::*}
+	loop {_ids::*}:
+		jcopRemove(loop-value, {_why})
+		add 1 to {_n}
+	return {_n}
+
+# Any NPC named like a prison cop that isn't a known one is removed (a spawn that timed out, one Citizens brings back
+# after a crash, a staff copy); known ones refresh their entity. Never while an NPC is being made (it's unknown for a
+# tick or two then).
+function jcopSweep():
+	npcBusy() is false
+	# A spawn run that never finished (a /sk reload in the middle of it) doesn't block the sweep or the next run.
+	if {-jailcop::spawnrun} is set:
+		if difference between {-jailcop::spawnrun} and now < 60 seconds:
+			stop
+		delete {-jailcop::spawnrun}
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_name} to cfg("jailcop::name")
+	loop all entities in {_w}:
+		if loop-entity has metadata "NPC-ID":
+			if name of loop-entity is {_name}:
+				set {_mv} to metadata value "NPC-ID" of loop-entity
+				set {_id} to "%{_mv}%"
+				if {-jailcop::id::%{_id}%} is set:
+					if loop-entity is alive:
+						jcopSeen({_id}, loop-entity)
+				else:
+					execute console command "npc remove %{_id}%"
+					delete {jailcops::ids::%{_id}%}
+					jcopLog("sweep id=%{_id}%")
+
+# Prison cops left from before a restart or a crash (memory is empty then): removed once Citizens has loaded its NPCs.
+on load:
+	wait 5 seconds
+	loop indices of {jailcops::ids::*}:
+		if {-jailcop::id::%loop-value%} is not set:
+			execute console command "npc remove %loop-value%"
+			jcopLog("cleanup id=%loop-value% route=%{jailcops::ids::%loop-value%}%")
+			delete {jailcops::ids::%loop-value%}
+	jcopSweep()
+
+# The roster while someone is in the prison, the idle removal, the sweep.
+every 10 seconds:
+	set {_known} to size of {-jailcop::id::*}
+	if jcopOccupied() is true:
+		set {-jailcop::lastocc} to now
+		set {_miss} to false
+		loop {-cfg::jailcop::roster::*}:
+			if {-jailcop::of::%loop-value%} is not set:
+				set {_miss} to true
+		if {_miss} is true:
+			jcopSpawnMissing(false)
+	else if {_known} > 0:
+		if {-jailcop::lastocc} is not set:
+			set {-jailcop::lastocc} to now
+		else if difference between {-jailcop::lastocc} and now >= cfg("jailcop::idle-despawn"):
+			set {_n} to jcopRemoveAll("idle")
+			delete {-jailcop::lastocc}
+			jcopLog("idle-despawn %{_n}% cops")
+	jcopSweep()
+
+# Stale: a known cop whose entity hasn't been seen for jailcop::stale while the chunk where Citizens keeps it is loaded
+# (its last spot; after a death its spawn point) is really gone (a staff /npc remove, a Citizens hiccup): forgotten and
+# removed, so the next pass makes it again.
+every 60 seconds:
+	loop indices of {-jailcop::id::*}:
+		add loop-value to {_ids::*}
+	loop {_ids::*}:
+		set {_id} to loop-value
+		set {_seen} to {-jailcop::seenat::%{_id}%}
+		if {_seen} is not set:
+			set {-jailcop::seenat::%{_id}%} to now
+		else if difference between {_seen} and now >= cfg("jailcop::stale"):
+			set {_at} to {-jailcop::at::%{_id}%}
+			if {_at} is not set:
+				set {_at} to jcopRoutePt("%{-jailcop::id::%{_id}%}%", 1)
+			if {_at} is set:
+				if chunk at {_at} is loaded:
+					if jcopEnt({_id}) is not set:
+						jcopRemove({_id}, "stale")
+
+# ---------- Hostility ----------
+
+# A cop sees a player: eye to eye within notice::range (notice::sneak while sneaking), within notice::cone of the cop's
+# facing (traps.sk's camera math: dot > 0 and dot² >= cos²(cone) × d²), and line of sight (glass, bars and doors stop it).
+function jcopSees(e: entity, p: player) :: boolean:
+	set {_ok} to false
+	if world of {_e} is world of {_p}:
+		set {_ce} to eye location of {_e}
+		set {_pe} to eye location of {_p}
+		set {_cx} to x-coordinate of {_ce}
+		set {_cy} to y-coordinate of {_ce}
+		set {_cz} to z-coordinate of {_ce}
+		set {_px} to x-coordinate of {_pe}
+		set {_py} to y-coordinate of {_pe}
+		set {_pz} to z-coordinate of {_pe}
+		set {_vx} to {_px} - {_cx}
+		set {_vy} to {_py} - {_cy}
+		set {_vz} to {_pz} - {_cz}
+		set {_d2} to {_vx} * {_vx} + {_vy} * {_vy} + {_vz} * {_vz}
+		set {_r} to cfg("jailcop::notice::range")
+		if {_p} is sneaking:
+			set {_r} to cfg("jailcop::notice::sneak")
+		if {_d2} <= {_r} * {_r}:
+			set {_yaw} to yaw of {_e}
+			set {_fx} to 0 - sin({_yaw})
+			set {_fz} to cos({_yaw})
+			set {_dot} to {_vx} * {_fx} + {_vz} * {_fz}
+			if {_dot} > 0:
+				set {_c} to cos(cfg("jailcop::notice::cone"))
+				if {_dot} * {_dot} >= {_c} * {_c} * {_d2}:
+					if {_e} has line of sight to {_p}:
+						set {_ok} to true
+	return {_ok}
+
+# Cop id hunts the player: a Sentinel target and the hunts flag; the first hunter makes the player hostile. Never in
+# the 3 s after a catch or an escape (jcopFresh): a hit on the arresting cop in the second before the catch moves them
+# made the prisoner hostile again in their cell (B1 is a no-lose zone, so it never wore off there).
+function jcopHunt(p: player, id: text, why: text):
+	set {_u} to "%uuid of {_p}%"
+	jcopFresh({_u}) is false
+	if {-jailcop::hunts::%{_id}%::%{_u}%} is not set:
+		set {-jailcop::hunts::%{_id}%::%{_u}%} to true
+		jcopSentinel({_id}, "addtarget uuid:%{_u}%")
+		jcopLog("hunt %{_p}% %{_u}% by=%{_id}% (%{-jailcop::id::%{_id}%}%) why=%{_why}%")
+	if {-jail::hostile::%{_u}%} is not set:
+		set {-jail::hostile::%{_u}%} to now
+		set {-jail::seen::%{_u}%} to now
+		# A new hunt starts clean: a grab clock left by a hunt that a downing ended (prison.sk's jailCatch deletes the
+		# hostility itself) arrested at once.
+		delete {-jail::grab::%{_u}%}
+		delete {-jail::notice::%{_u}%::*}
+		send title colored "&c&lSPOTTED" with subtitle colored "&7The guards are after you" to {_p} for 2 seconds
+		play sound "block.bell.use" with volume 1 to {_p}
+		jcopLog("hostile %{_p}% %{_u}% why=%{_why}% by=%{_id}%")
+	set {-jail::hunters::%{_u}%} to jcopHunterCount({_u})
+
+# A cop drops one player: the Sentinel target, and the player forgiven (Sentinel keeps chasing and punching an entity
+# it already targets after a removetarget alone: found by the prison-cops scenario, 2026-10-14; forgive with a uuid
+# clears its current target and the chase).
+function jcopDrop(id: text, u: text):
+	jcopSentinel({_id}, "removetarget uuid:%{_u}%")
+	jcopSentinel({_id}, "forgive %{_u}%")
+
+# Every cop drops the player (lost them, caught, escaped, quit, out of the prison, staff).
+function jcopCalm(u: text, why: text):
+	loop indices of {-jailcop::id::*}:
+		if {-jailcop::hunts::%loop-value%::%{_u}%} is set:
+			delete {-jailcop::hunts::%loop-value%::%{_u}%}
+			jcopDrop(loop-value, {_u})
+	set {_was} to {-jail::hostile::%{_u}%}
+	delete {-jail::hostile::%{_u}%}
+	delete {-jail::seen::%{_u}%}
+	delete {-jail::hunters::%{_u}%}
+	delete {-jail::grab::%{_u}%}
+	delete {-jail::notice::%{_u}%::*}
+	if {_was} is set:
+		jcopLog("calm %{_u}% why=%{_why}%")
+
+# Notice and joining (every 10 ticks) for one prisoner inside.
+function jcopNoticePass(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_range} to cfg("jailcop::notice::range") + 2
+	# The loaded cops near enough to matter (nothing else is looked at: most passes stop here).
+	loop indices of {-jailcop::id::*}:
+		set {_e} to jcopEnt(loop-value)
+		if {_e} is set:
+			if world of {_e} is world of {_p}:
+				if distance between {_e} and {_p} <= {_range}:
+					add loop-value to {_near::*}
+	if {_near::*} is not set:
+		delete {-jail::notice::%{_u}%::*}
+		stop
+	# Joining: a hostile player seen by a cop that doesn't hunt them yet (more guards join a chase they see).
+	if {-jail::hostile::%{_u}%} is set:
+		loop {_near::*}:
+			set {_id} to loop-value
+			if {-jailcop::hunts::%{_id}%::%{_u}%} is not set:
+				if jcopSees(jcopEnt({_id}), {_p}) is true:
+					jcopHunt({_p}, {_id}, "joined")
+		stop
+	if jcopFresh({_u}) is true:
+		stop
+	# Suspicious: in a restricted area, holding a C4, or an act within notice::act-window.
+	set {_why} to ""
+	if jailInZones(location of {_p}, {-cfg::jailcop::restricted::*}) is true:
+		set {_why} to "restricted"
+	else if jailHeld({_p}) is "c4":
+		set {_why} to "c4"
+	else:
+		set {_win} to cfg("jailcop::notice::act-window")
+		loop {-jail::act::%{_u}%::*}:
+			if {_why} is "":
+				if difference between loop-value and now < {_win}:
+					set {_why} to "act:%loop-index%"
+	set {_need} to max(1, round((cfg("jailcop::notice::time") / 1 second) * 2))
+	set {_frisk} to cfg("jailcop::notice::frisk")
+	set {_cb} to "?"
+	loop {_near::*}:
+		set {_id} to loop-value
+		set {_e} to jcopEnt({_id})
+		if {_e} is set:
+			if {_why} is not "":
+				if jcopSees({_e}, {_p}) is true:
+					add 1 to {-jail::notice::%{_u}%::%{_id}%}
+					if {-jail::notice::%{_u}%::%{_id}%} >= {_need}:
+						delete {-jail::notice::%{_u}%::%{_id}%}
+						jcopHunt({_p}, {_id}, "seen-%{_why}%")
+				else:
+					delete {-jail::notice::%{_u}%::%{_id}%}
+			# Contraband in the pockets: only a close look finds it (no cone: the cop is right there).
+			if {-jailcop::hunts::%{_id}%::%{_u}%} is not set:
+				if distance between {_e} and {_p} <= {_frisk}:
+					if {_cb} is "?":
+						set {_cb} to ""
+						loop {-cfg::jailcop::contraband::*}:
+							if {_cb} is "":
+								if jailCount({_p}, loop-value-2) > 0:
+									set {_cb} to loop-value-2
+					if {_cb} is not "":
+						if {_e} has line of sight to {_p}:
+							jcopHunt({_p}, {_id}, "frisk-%{_cb}%")
+	if {_why} is "":
+		delete {-jail::notice::%{_u}%::*}
+
+every 10 ticks:
+	jailOn() is true
+	set {_w} to jailWorld()
+	loop all players:
+		set {_p} to loop-player
+		if world of {_p} is {_w}:
+			if {_p} is alive:
+				if jailState({_p}) is "in":
+					if jailExempt({_p}) is false:
+						if jailInsideAt(location of {_p}) is true:
+							jcopNoticePass({_p})
+
+# Losing them (every second): the hunters count, "seen" refreshed while a hunting cop within lose::range has line of
+# sight or while in a no-lose zone; lose::time since then = lost them. Calm too when the player isn't a prisoner in the
+# prison world any more, or was caught or escaped after the hostility started.
+function jcopLosePass(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_h} to {-jail::hostile::%{_u}%}
+	{_h} is set
+	set {_why} to ""
+	if prisonIn({_p}) is false:
+		set {_why} to "out"
+	else if world of {_p} is not jailWorld():
+		set {_why} to "world"
+	else if jailState({_p}) is not "in":
+		set {_why} to "state"
+	else:
+		set {_c} to {-jail::caught::%{_u}%}
+		if {_c} is set:
+			if {_c} >= {_h}:
+				set {_why} to "caught"
+		set {_c} to {-jail::escaped::%{_u}%}
+		if {_c} is set:
+			if {_c} >= {_h}:
+				set {_why} to "escaped"
+	if {_why} is not "":
+		jcopCalm({_u}, {_why})
+		stop
+	set {-jail::hunters::%{_u}%} to jcopHunterCount({_u})
+	{_p} is alive
+	set {_lr} to cfg("jailcop::lose::range")
+	set {_sees} to false
+	loop indices of {-jailcop::id::*}:
+		if {_sees} is false:
+			if {-jailcop::hunts::%loop-value%::%{_u}%} is set:
+				set {_e} to jcopEnt(loop-value)
+				if {_e} is set:
+					if world of {_e} is world of {_p}:
+						if distance between {_e} and {_p} <= {_lr}:
+							if {_e} has line of sight to {_p}:
+								set {_sees} to true
+	if {_sees} is false:
+		if jailInZones(location of {_p}, {-cfg::jailcop::nolose::*}) is true:
+			set {_sees} to true
+	if {_sees} is true:
+		set {-jail::seen::%{_u}%} to now
+		stop
+	set {_seen} to {-jail::seen::%{_u}%}
+	if {_seen} is not set:
+		set {-jail::seen::%{_u}%} to now
+	else if difference between {_seen} and now >= cfg("jailcop::lose::time"):
+		jcopCalm({_u}, "lost")
+		hudBar({_p}, "&aYou lost the guards.", 2)
+		play sound "block.note_block.chime" with volume 0.8 to {_p}
+
+every second:
+	if jailOn() is true:
+		loop all players:
+			if {-jail::hostile::%uuid of loop-player%} is set:
+				jcopLosePass(loop-player)
+	# Hostile players who aren't online any more (a quit we missed) or anyone while the prison is off: calm.
+	loop indices of {-jail::hostile::*}:
+		set {_u} to loop-value
+		set {_on} to false
+		if jailOn() is true:
+			if playerByUuid({_u}) is set:
+				set {_on} to true
+		if {_on} is false:
+			add {_u} to {_calm::*}
+	loop {_calm::*}:
+		jcopCalm(loop-value, "gone")
+	# Hunts left on a cop for a player who isn't hostile any more (a catch deletes the hostility): the target goes.
+	loop indices of {-jailcop::id::*}:
+		set {_id} to loop-value
+		loop indices of {-jailcop::hunts::%{_id}%::*}:
+			if {-jail::hostile::%loop-value-2%} is not set:
+				add "%{_id}%|%loop-value-2%" to {_drop::*}
+	loop {_drop::*}:
+		set {_a::*} to loop-value split at "|"
+		delete {-jailcop::hunts::%{_a::1}%::%{_a::2}%}
+		jcopDrop({_a::1}, {_a::2})
+	# The rest of a hunt that ended without jcopCalm (a catch): the guard count, the sighting and the grab clock.
+	loop indices of {-jail::hunters::*}:
+		if {-jail::hostile::%loop-value%} is not set:
+			add loop-value to {_left::*}
+	loop indices of {-jail::grab::*}:
+		if {-jail::hostile::%loop-value%} is not set:
+			add loop-value to {_left::*}
+	loop {_left::*}:
+		delete {-jail::hunters::%loop-value%}
+		delete {-jail::seen::%loop-value%}
+		delete {-jail::grab::%loop-value%}
+	jcopStrayPass()
+
+# ---------- Strays ----------
+
+# Every second for each loaded cop: a calm cop out of place for stray::time is moved to its route's first point (a
+# Citizens teleport). The desk cop (a one-point route) walks back to its desk and faces the doors again.
+function jcopStrayPass():
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_st} to cfg("jailcop::stray::time")
+	loop indices of {-jailcop::id::*}:
+		set {_id} to loop-value
+		set {_r} to "%{-jailcop::id::%{_id}%}%"
+		set {_e} to jcopEnt({_id})
+		if {_e} is set:
+			jcopSeen({_id}, {_e})
+			if jcopHuntsAny({_id}) is true:
+				delete {-jailcop::strayat::%{_id}%}
+			else if world of {_e} is not {_w}:
+				jcopHome({_id}, {_r}, "world")
+			else if jcopOutOfPlace(location of {_e}, {_r}) is true:
+				set {_sa} to {-jailcop::strayat::%{_id}%}
+				if {_sa} is not set:
+					set {-jailcop::strayat::%{_id}%} to now
+				else if difference between {_sa} and now >= {_st}:
+					jcopHome({_id}, {_r}, "stray")
+			else:
+				delete {-jailcop::strayat::%{_id}%}
+				if jcopRouteN({_r}) is 1:
+					jcopDesk({_id}, {_r}, {_e})
+
+function jcopHome(id: text, r: text, why: text):
+	delete {-jailcop::strayat::%{_id}%}
+	set {_l} to jcopRoutePt({_r}, 1)
+	{_l} is set
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	jcopNpcCmd({_id}, "moveto %{_x}% %{_y}% %{_z}% %world of {_l}%")
+	jcopMoved({_id}, {_l})
+	if jcopRouteN({_r}) is 1:
+		jcopFace({_id}, {_r})
+	jcopLog("%{_why}% %{_r}% id=%{_id}% to %{_x}% %{_y}% %{_z}%")
+
+# After a Citizens moveto the cop is looked for at its new spot: a long teleport respawns the NPC as a new entity, and
+# jcopEnt only searches 32 blocks round the last spot (the cop was lost to this script until the 10 s sweep found it:
+# found by the prison-cops scenario, 2026-10-14). jailescape.sk and the test helpers call it too.
+function jcopMoved(id: text, l: location):
+	set {-jailcop::at::%{_id}%} to {_l}
+	delete {-jailcop::ent::%{_id}%}
+	delete {-jailcop::look::%{_id}%}
+
+# The desk cop: back to its point (pathto, every 5 s at most) and facing its way once there.
+function jcopDesk(id: text, r: text, e: entity):
+	set {_l} to jailPt("ROUTE_%{_r}%_1")
+	{_l} is set
+	set {_dx} to (x-coordinate of {_e}) - (x-coordinate of {_l})
+	set {_dz} to (z-coordinate of {_e}) - (z-coordinate of {_l})
+	set {_d} to sqrt({_dx} * {_dx} + {_dz} * {_dz})
+	if {_d} > 1.5:
+		set {_wk} to {-jailcop::walk::%{_id}%}
+		set {_go} to true
+		if {_wk} is set:
+			if difference between {_wk} and now < 5 seconds:
+				set {_go} to false
+		if {_go} is true:
+			set {-jailcop::walk::%{_id}%} to now
+			set {_x} to x-coordinate of {_l}
+			set {_y} to y-coordinate of {_l}
+			set {_z} to z-coordinate of {_l}
+			jcopNpcCmd({_id}, "pathto %{_x}% %{_y}% %{_z}%")
+	else:
+		set {_want} to yaw of {_l}
+		set {_have} to yaw of {_e}
+		set {_diff} to mod(({_have} - {_want}) + 540, 360) - 180
+		if abs({_diff}) > 30:
+			jcopFace({_id}, {_r})
+
+# ---------- Attacks, the taser, the arrest (every 5 ticks) ----------
+
+function jcopStunned(u: text) :: boolean:
+	set {_d} to {-jail::stun::%{_u}%}
+	if {_d} is set:
+		if {_d} > now:
+			return true
+	return false
+
+function jcopTaserReady(id: text) :: boolean:
+	set {_t} to {-jailcop::taser::%{_id}%}
+	if {_t} is set:
+		if difference between {_t} and now < cfg("jailcop::taser::cooldown"):
+			return false
+	return true
+
+# Where a shot goes: the target's chest, or for a miss a point 1.5 blocks beside it (and a bit up or down).
+function jcopAim(p: player, from: location, hit: boolean) :: location:
+	set {_t} to location of {_p}
+	set {_tx} to x-coordinate of {_t}
+	set {_ty} to (y-coordinate of {_t}) + 1.2
+	set {_tz} to z-coordinate of {_t}
+	if {_hit} is false:
+		set {_fx} to x-coordinate of {_from}
+		set {_fz} to z-coordinate of {_from}
+		set {_dx} to {_tx} - {_fx}
+		set {_dz} to {_tz} - {_fz}
+		set {_hl} to max(0.1, sqrt({_dx} * {_dx} + {_dz} * {_dz}))
+		set {_side} to 1
+		if random number between 0 and 1 < 0.5:
+			set {_side} to -1
+		set {_tx} to {_tx} - ({_dz} / {_hl}) * 1.5 * {_side}
+		set {_tz} to {_tz} + ({_dx} / {_hl}) * 1.5 * {_side}
+		set {_ty} to {_ty} + (random number between -0.5 and 0.8)
+	return location({_tx}, {_ty}, {_tz}, world of {_p})
+
+# A particle line from a to b that everyone near sees (crit: a gunshot's tracer; spark: the taser).
+function jcopTracer(a: location, b: location, kind: text):
+	set {_ax} to x-coordinate of {_a}
+	set {_ay} to y-coordinate of {_a}
+	set {_az} to z-coordinate of {_a}
+	set {_bx} to x-coordinate of {_b}
+	set {_by} to y-coordinate of {_b}
+	set {_bz} to z-coordinate of {_b}
+	set {_w} to world of {_a}
+	set {_len} to distance between {_a} and {_b}
+	set {_steps} to max(1, min(24, floor({_len} * 1.5)))
+	loop {_steps} times:
+		set {_f} to loop-number / {_steps}
+		set {_x} to {_ax} + ({_bx} - {_ax}) * {_f}
+		set {_y} to {_ay} + ({_by} - {_ay}) * {_f}
+		set {_z} to {_az} + ({_bz} - {_az}) * {_f}
+		set {_pt} to location({_x}, {_y}, {_z}, {_w})
+		# Speed 0: a line that stays put (the default speed scatters crits and sparks, CLAUDE.md).
+		if {_kind} is "spark":
+			draw 1 electric spark particle with offset vector(0, 0, 0) with an extra value of 0 at {_pt}
+		else:
+			draw 1 crit particle with offset vector(0, 0, 0) with an extra value of 0 at {_pt}
+
+# The taser's stun: slower and no jumping for taser::stun (transient modifiers, prison.sk removes them at a catch).
+function jcopStun(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {-jail::stun::%{_u}%} to jailDate(cfg("jailcop::taser::stun") / 1 second)
+	if {-jail::stunmod::%{_u}%} is not set:
+		set {-jail::stunmod::%{_u}%} to true
+		set {_amt} to 0 - cfg("jailcop::taser::slow")
+		# Never twice under one key (Paper refuses a second modifier with the same id).
+		remove attribute modifier with key "donating:jail_stun" from {_p}
+		apply transient attribute modifier to {_p}:
+			attribute: movement speed
+			id: "donating:jail_stun"
+			amount: {_amt}
+			operation: multiply_scalar_1
+		apply transient attribute modifier to {_p}:
+			attribute: jump strength
+			id: "donating:jail_stun"
+			amount: -1
+			operation: multiply_scalar_1
+	send title colored "&e&lTASED" with subtitle colored "&7Move!" to {_p} for 1 second
+
+# A gunshot (taser::range < d <= gun::range): p = hit-far + (hit-near - hit-far) × (24 - d) / (24 - 8), clamped, × the
+# sprint factor; a hit is gun::damage hearts of generic damage.
+function jcopGun(e: entity, id: text, p: player, d: number):
+	set {-jailcop::shot::%{_id}%} to now
+	set {_hn} to cfg("jailcop::gun::hit-near")
+	set {_hf} to cfg("jailcop::gun::hit-far")
+	set {_gr} to cfg("jailcop::gun::range")
+	set {_tr} to cfg("jailcop::taser::range")
+	set {_pc} to {_hf} + ({_hn} - {_hf}) * ({_gr} - {_d}) / max(0.1, {_gr} - {_tr})
+	set {_pc} to max({_hf}, min({_hn}, {_pc}))
+	if {_p} is sprinting:
+		set {_pc} to {_pc} * cfg("jailcop::gun::sprint")
+	set {_hit} to false
+	if random number between 0 and 1 < {_pc}:
+		set {_hit} to true
+	set {_from} to eye location of {_e}
+	set {_to} to jcopAim({_p}, {_from}, {_hit})
+	jcopTracer({_from}, {_to}, "crit")
+	play sound "entity.firework_rocket.blast" with volume 1.5 and pitch 1.7 at {_from}
+	jcopLog("shot id=%{_id}% %{_p}% d=%round({_d} * 10) / 10% p=%round({_pc} * 100) / 100% hit=%{_hit}%")
+	if {_hit} is true:
+		set invulnerability time of {_p} to 0 ticks
+		damage {_p} by cfg("jailcop::gun::damage")
+
+# A taser shot (taser::min < d <= taser::range, the cop's taser ready): p = hit-far + (hit-near - hit-far) ×
+# (8 - d) / (8 - 2.5); a hit stuns first (a lethal zap downs the player, and the catch then clears the stun), then
+# taser::damage hearts.
+function jcopTaser(e: entity, id: text, p: player, d: number):
+	set {-jailcop::shot::%{_id}%} to now
+	set {-jailcop::taser::%{_id}%} to now
+	set {_hn} to cfg("jailcop::taser::hit-near")
+	set {_hf} to cfg("jailcop::taser::hit-far")
+	set {_tr} to cfg("jailcop::taser::range")
+	set {_tm} to cfg("jailcop::taser::min")
+	set {_pc} to {_hf} + ({_hn} - {_hf}) * ({_tr} - {_d}) / max(0.1, {_tr} - {_tm})
+	set {_pc} to max({_hf}, min({_hn}, {_pc}))
+	set {_hit} to false
+	if random number between 0 and 1 < {_pc}:
+		set {_hit} to true
+	set {_from} to eye location of {_e}
+	set {_to} to jcopAim({_p}, {_from}, {_hit})
+	jcopTracer({_from}, {_to}, "spark")
+	jcopLog("taser id=%{_id}% %{_p}% d=%round({_d} * 10) / 10% p=%round({_pc} * 100) / 100% hit=%{_hit}%")
+	if {_hit} is true:
+		play sound "entity.guardian.attack" with volume 1 and pitch 2 at {_from}
+		jcopStun({_p})
+		set invulnerability time of {_p} to 0 ticks
+		damage {_p} by cfg("jailcop::taser::damage")
+	else:
+		play sound "block.fire.extinguish" with volume 0.8 and pitch 1.4 at {_to}
+
+# For one hostile prisoner inside: each hunting cop that's loaded, has line of sight and is ready shoots (far) or tases
+# (mid, not while staggered); then the arrest: the nearest such cop that isn't staggered within arrest::range of a
+# stunned player, or within arrest::grab-range for arrest::grab.
+function jcopAttackPass(p: player):
+	set {_u} to "%uuid of {_p}%"
+	{_p} is alive
+	prisonInside({_p}) is true
+	set {_rate} to cfg("jailcop::attack-rate")
+	set {_gr} to cfg("jailcop::gun::range")
+	set {_tr} to cfg("jailcop::taser::range")
+	set {_tm} to cfg("jailcop::taser::min")
+	# Past every attack's range a cop does nothing here: no line-of-sight ray for it.
+	set {_reach} to max({_gr}, {_tr}, cfg("jailcop::arrest::range"), cfg("jailcop::arrest::grab-range"))
+	if {_reach} is not set:
+		set {_reach} to 9999
+	set {_near} to 9999
+	set {_nearid} to ""
+	loop indices of {-jailcop::id::*}:
+		set {_id} to loop-value
+		if {-jail::hostile::%{_u}%} is set:
+			if {-jailcop::hunts::%{_id}%::%{_u}%} is set:
+				set {_e} to jcopEnt({_id})
+				if {_e} is set:
+					if world of {_e} is world of {_p}:
+						set {_d} to distance between {_e} and {_p}
+						if {_d} > {_reach}:
+							set {_d} to -1
+						if {_d} >= 0:
+							if {_e} has line of sight to {_p}:
+								set {_stag} to jcopStaggered({_id})
+								if {_stag} is false:
+									if {_d} < {_near}:
+										set {_near} to {_d}
+										set {_nearid} to {_id}
+								set {_ready} to true
+								set {_last} to {-jailcop::shot::%{_id}%}
+								if {_last} is set:
+									if (difference between {_last} and now) / 1 second < {_rate}:
+										set {_ready} to false
+								if {_ready} is true:
+									if {_d} > {_tr}:
+										if {_d} <= {_gr}:
+											jcopGun({_e}, {_id}, {_p}, {_d})
+									else if {_d} > {_tm}:
+										if {_stag} is false:
+											if jcopTaserReady({_id}) is true:
+												jcopTaser({_e}, {_id}, {_p}, {_d})
+	# A shot may have downed them already (the catch deletes the hostility).
+	{-jail::hostile::%{_u}%} is set
+	{_p} is alive
+	set {_ar} to false
+	if {_nearid} is "":
+		delete {-jail::grab::%{_u}%}
+	else:
+		if {_near} <= cfg("jailcop::arrest::range"):
+			if jcopStunned({_u}) is true:
+				set {_ar} to true
+		if {_ar} is false:
+			if {_near} <= cfg("jailcop::arrest::grab-range"):
+				set {_g} to {-jail::grab::%{_u}%}
+				if {_g} is not set:
+					set {-jail::grab::%{_u}%} to now
+				else if difference between {_g} and now >= cfg("jailcop::arrest::grab"):
+					set {_ar} to true
+			else:
+				delete {-jail::grab::%{_u}%}
+	if {_ar} is true:
+		jcopLog("arrest %{_p}% %{_u}% by=%{_nearid}% d=%round({_near} * 10) / 10% stunned=%jcopStunned({_u})%")
+		jcopCalm({_u}, "arrest")
+		jailCatch({_p}, "arrest")
+
+# The C4's beeping (jailescape.sk jailLoud, newer than 1 s): every cop within loud-range of the spot comes, line of
+# sight or not.
+function jcopLoudPass(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_ld} to {-jail::loud::%{_u}%}
+	{_ld} is set
+	difference between {_ld} and now < 1 second
+	jailState({_p}) is "in"
+	jailExempt({_p}) is false
+	{_p} is alive
+	jcopFresh({_u}) is false
+	# A plant from before a catch doesn't count (a condition line in an if block only ends that block: stop instead).
+	set {_c} to {-jail::caught::%{_u}%}
+	if {_c} is set:
+		if {_c} >= {_ld}:
+			stop
+	set {_at} to {-jail::loudat::%{_u}%}
+	if {_at} is not set:
+		set {_at} to location of {_p}
+	set {_lr} to cfg("jailcop::loud-range")
+	loop indices of {-jailcop::id::*}:
+		set {_e} to jcopEnt(loop-value)
+		if {_e} is set:
+			if world of {_e} is world of {_at}:
+				if distance between {_e} and {_at} <= {_lr}:
+					jcopHunt({_p}, loop-value, "loud")
+
+every 5 ticks:
+	loop all players:
+		set {_p} to loop-player
+		set {_u} to "%uuid of {_p}%"
+		if jailOn() is true:
+			if {-jail::loud::%{_u}%} is set:
+				jcopLoudPass({_p})
+			if {-jail::hostile::%{_u}%} is set:
+				jcopAttackPass({_p})
+		# The stun runs out (or a catch deleted it).
+		if {-jail::stunmod::%{_u}%} is set:
+			if jcopStunned({_u}) is false:
+				delete {-jail::stunmod::%{_u}%}
+				remove attribute modifier with key "donating:jail_stun" from {_p}
+
+# ---------- Damage and death ----------
+
+# Every Sentinel hit by a prison cop is cancelled (it only chases; this script attacks): later handlers never see one.
+on damage with priority lowest:
+	attacker is set
+	set {_id} to jailCopId(attacker)
+	{_id} is not ""
+	cancel event
+	jcopLog("sentinel-hit-cancelled id=%{_id}% victim=%victim%")
+
+# A prisoner hits a prison cop (the hit landed: monitor): that cop and every cop within notice::range with line of
+# sight hunt them (they hear the fight); a melee hit (a WeaponMechanics melee weapon or a bare hand) staggers the cop.
+on damage with priority monitor:
+	set {_id} to jailCopId(victim)
+	{_id} is not ""
+	attacker is set
+	attacker is a player
+	isNpc(attacker) is false
+	# Inmates only (a course player is never hunted; staff in creative are exempt).
+	jailState(attacker) is "in"
+	prisonIn(attacker) is true
+	set {_i} to tool of attacker
+	set {_melee} to false
+	if {_i} is air:
+		set {_melee} to true
+	else:
+		set {_w} to wmTitle({_i})
+		if {_w} is not "":
+			if {-cfg::wpn::%{_w}%::kind} is "Melee":
+				set {_melee} to true
+	if {_melee} is true:
+		set {-jailcop::hitat::%{_id}%} to now
+	jcopLog("hit id=%{_id}% by %attacker% melee=%{_melee}% dmg=%final damage%")
+	jcopHunt(attacker, {_id}, "hit")
+	set {_r} to cfg("jailcop::notice::range")
+	loop indices of {-jailcop::id::*}:
+		if loop-value is not {_id}:
+			set {_e} to jcopEnt(loop-value)
+			if {_e} is set:
+				if world of {_e} is world of attacker:
+					if distance between {_e} and attacker <= {_r}:
+						if {_e} has line of sight to attacker:
+							jcopHunt(attacker, loop-value, "heard")
+
+# A prison cop down: no drops, no death message, its targets gone (Sentinel keeps a target list through a death), a
+# keycard on the ground (keycard-chance). Sentinel respawns it at its spawn point after jailcop::respawn seconds (same
+# id, same route).
+on death with priority lowest:
+	set {_id} to jailCopId(victim)
+	{_id} is not ""
+	clear drops
+	set {_vu} to "%uuid of victim%"
+	set {-jail::deadcop::%{_vu}%} to true
+	loop indices of {-jailcop::hunts::%{_id}%::*}:
+		jcopDrop({_id}, loop-value)
+	delete {-jailcop::hunts::%{_id}%::*}
+	delete {-jailcop::ent::%{_id}%}
+	set {-jailcop::deadat::%{_id}%} to now
+	set {_r} to "%{-jailcop::id::%{_id}%}%"
+	set {_home} to jcopRoutePt({_r}, 1)
+	if {_home} is set:
+		set {-jailcop::at::%{_id}%} to {_home}
+	set {_l} to location of victim
+	if random number between 0 and 1 <= cfg("jailcop::keycard-chance"):
+		jailDrop({_l}, "keycard", "cop")
+	set {_by} to "?"
+	if attacker is set:
+		set {_by} to "%attacker%"
+		if attacker is a player:
+			if isNpc(attacker) is false:
+				if prisonIn(attacker) is true:
+					msg(attacker, "&aGuard down. &7Grab the keycard.")
+	jcopLog("down id=%{_id}% route=%{_r}% by=%{_by}% at %floor(x-coordinate of {_l})% %floor(y-coordinate of {_l})% %floor(z-coordinate of {_l})%")
+	wait 1 tick
+	delete {-jail::deadcop::%{_vu}%}
+
+on death with priority highest:
+	{-jail::deadcop::%uuid of victim%} is set
+	delete the death message
+
+# A hostile prisoner logging out: the cops drop them (prison.sk's quit handler, at lowest, already marked the catch at
+# the next join).
+on quit:
+	set {_u} to "%uuid of player%"
+	if {-jail::hostile::%{_u}%} is set:
+		jcopCalm({_u}, "quit")
+	delete {-jail::notice::%{_u}%::*}
+	delete {-jail::grab::%{_u}%}
+
+# ---------- Staff: /djailcops ----------
+
+# One line about a cop (staff list, the test helpers).
+function jcopInfo(id: text) :: text:
+	set {_r} to {-jailcop::id::%{_id}%}
+	if {_r} is not set:
+		return "COP id=%{_id}% unknown"
+	set {_e} to jcopEnt({_id})
+	set {_loaded} to "no"
+	set {_where} to "-"
+	set {_yaw} to "-"
+	if {_e} is set:
+		set {_loaded} to "yes"
+		set {_l} to location of {_e}
+		set {_where} to "%round((x-coordinate of {_l}) * 10) / 10% %round((y-coordinate of {_l}) * 10) / 10% %round((z-coordinate of {_l}) * 10) / 10%"
+		set {_yaw} to "%round(yaw of {_e})%"
+	set {_h} to ""
+	loop indices of {-jailcop::hunts::%{_id}%::*}:
+		set {_who} to loop-value
+		set {_pl} to playerByUuid(loop-value)
+		if {_pl} is set:
+			set {_who} to name of {_pl}
+		if {_h} is "":
+			set {_h} to {_who}
+		else:
+			set {_h} to "%{_h}%,%{_who}%"
+	set {_last} to "-"
+	if {-jailcop::shot::%{_id}%} is set:
+		set {_last} to "%round((difference between {-jailcop::shot::%{_id}%} and now) / 1 second * 10) / 10%s"
+	return "COP id=%{_id}% route=%{_r}% loaded=%{_loaded}% at=%{_where}% yaw=%{_yaw}% hunts=%{_h}% staggered=%jcopStaggered({_id})% lastattack=%{_last}%"
+
+function jcopCounts() :: text:
+	set {_k} to 0
+	set {_l} to 0
+	loop indices of {-jailcop::id::*}:
+		add 1 to {_k}
+		if jcopEnt(loop-value) is set:
+			add 1 to {_l}
+	return "COPS known=%{_k}% loaded=%{_l}% roster=%size of {-cfg::jailcop::roster::*}%"
+
+command /djailcops [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		set {_usage} to "JAILCOPS usage: /djailcops list | spawn | removeall | hostile <player> | calm <player> | dump"
+		if {_sub} is "list":
+			loop {-cfg::jailcop::roster::*}:
+				set {_id} to jcopIdOf(loop-value)
+				if {_id} is "":
+					send "COP route=%loop-value% none" to sender
+				else:
+					send jcopInfo({_id}) to sender
+			send jcopCounts() to sender
+		else if {_sub} is "spawn":
+			if jailOn() is false:
+				send "JAILCOPS the prison is off (core.sk prison::enabled)" to sender
+				stop
+			send "JAILCOPS spawning the missing cops (one at a time; /djailcops list in a few seconds)" to sender
+			jcopLog("spawn by=%sender%")
+			jcopSpawnMissing(true)
+		else if {_sub} is "removeall":
+			set {_n} to jcopRemoveAll("staff")
+			send "JAILCOPS removed %{_n}% cops" to sender
+		else if {_sub} is "hostile" or "calm":
+			set {_p} to {_a::2} parsed as player
+			if {_p} is not set:
+				send {_usage} to sender
+				stop
+			if {_sub} is "calm":
+				jcopCalm("%uuid of {_p}%", "staff")
+				send "JAILCOPS %{_p}% calm" to sender
+				stop
+			if jcopFresh("%uuid of {_p}%") is true:
+				send "JAILCOPS %{_p}% was caught or escaped in the last 3 s: nobody hunts them yet" to sender
+				stop
+			set {_r} to cfg("jailcop::notice::range")
+			set {_n} to 0
+			loop indices of {-jailcop::id::*}:
+				set {_e} to jcopEnt(loop-value)
+				if {_e} is set:
+					if world of {_e} is world of {_p}:
+						if distance between {_e} and {_p} <= {_r}:
+							jcopHunt({_p}, loop-value, "staff")
+							add 1 to {_n}
+			send "JAILCOPS %{_p}%: %{_n}% cops within %{_r}% blocks hunt them" to sender
+		else if {_sub} is "dump":
+			# Every core.sk jailcop::* setting, three levels deep (lists joined).
+			loop indices of {-cfg::jailcop::*}:
+				set {_k} to loop-value
+				if {-cfg::jailcop::%{_k}%} is set:
+					send "jailcop::%{_k}% = %{-cfg::jailcop::%{_k}%}%" to sender
+				else if {-cfg::jailcop::%{_k}%::1} is set:
+					send "jailcop::%{_k}% = %join {-cfg::jailcop::%{_k}%::*} with ", "%" to sender
+				else:
+					loop indices of {-cfg::jailcop::%{_k}%::*}:
+						set {_k2} to "%{_k}%::%loop-value-2%"
+						if {-cfg::jailcop::%{_k2}%} is set:
+							send "jailcop::%{_k2}% = %{-cfg::jailcop::%{_k2}%}%" to sender
+						else:
+							loop indices of {-cfg::jailcop::%{_k2}%::*}:
+								set {_k3} to "%{_k2}%::%loop-value-3%"
+								send "jailcop::%{_k3}% = %{-cfg::jailcop::%{_k3}%}%" to sender
+		else:
+			send {_usage} to sender
+
+on tab complete of "/djailcops" and "/skript:djailcops":
+	set tab completions for position 1 to "list", "spawn", "removeall", "hostile", "calm" and "dump"
+	set {_s} to tab arg-1
+	if {_s} is "hostile" or "calm":
+		loop all players:
+			if player can see loop-player:
+				add name of loop-player to {_n::*}
+		if {_n::*} is set:
+			set tab completions for position 2 to {_n::*}

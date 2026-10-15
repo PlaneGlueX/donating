@@ -4,6 +4,7 @@
 //   - ammo icons: light (pistol/SMG rounds), shells (shotgun), rifle
 //   - the XP bar as a brass ammo belt (the XP bar shows the held gun's ammo, hud.sk)
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
+//   - the prison's jail items on brick (keycards, the C4 and its parts, a donut, a note, the stash: prison.sk)
 //   - melee weapons and consumables (pipe wrench, throwing knife, energy drink, bandage) and the Grappler:
 //     3D models (in menus too), and the thrown knife in flight; the Katana, the Brass Knuckles and the Gold
 //     Nunchucks are pg-kit modules in tools\guns\ (katana.js, knuckles.js, nunchucks.js; amethyst_shard.json)
@@ -489,6 +490,190 @@ for (const [type, a] of Object.entries(AMMO)) {
       '................'
     ], { S: [206, 210, 216, 255], H: [...hi, 255], h: [...lo, 255] }))
     addCase('flint', 'donating:lockpick_' + tier, 'donating:item/lockpick_' + tier)
+  }
+}
+// ---------- Jail items (prison.sk jailItem, 2026-10-14; ESCAPE-SPEC 4.12) ----------
+// 16x16 sprites on brick (no other script uses it), picked by donating:jail_<kind>; the vanilla brick otherwise. They
+// sit in the upper inventory (E) and the C4 in hotbar 1-5; a cop's keycard also lies on the ground as a dropped item.
+{
+  const K = [28, 24, 20, 255]
+  const art = (rows, colors) => { const c = canvas(16, 16); c.draw(rows, { k: K, ...colors }); return c.png() }
+  const JAIL = {
+    // The sleeping guard's card: light blue, a "G", a dark stripe.
+    coursecard: art([
+      '................',
+      '................',
+      '................',
+      '.kkkkkkkkkkkkkk.',
+      '.kBBBBBBBBBBBBk.',
+      '.kDDDDDDDDDDDDk.',
+      '.kBBBBBBBBBBBBk.',
+      '.kBBWWBBBBBBBBk.',
+      '.kBWBBBBLLLLLBk.',
+      '.kBWBWWBBBBBBBk.',
+      '.kBWBBWBLLLBBBk.',
+      '.kBBWWBBBBBBBBk.',
+      '.kkkkkkkkkkkkkk.',
+      '................',
+      '................',
+      '................'
+    ], { B: [150, 206, 240, 255], D: [52, 104, 170, 255], W: [255, 255, 255, 255], L: [104, 160, 210, 255] }),
+    // A guard's keycard: cyan, a gold chip, a clip hole.
+    keycard: art([
+      '................',
+      '................',
+      '................',
+      '.kkkkkkkkkkkkkk.',
+      '.kCCCCCCCCCChCk.',
+      '.kCCCCCCCCCCCCk.',
+      '.kCYYYYCCCCCCCk.',
+      '.kCYyYyCcccccCk.',
+      '.kCYYYYCCCCCCCk.',
+      '.kCCCCCCcccCCCk.',
+      '.kCCCCCCCCCCCCk.',
+      '.kDDDDDDDDDDDDk.',
+      '.kkkkkkkkkkkkkk.',
+      '................',
+      '................',
+      '................'
+    ], { C: [70, 214, 220, 255], c: [40, 160, 170, 255], h: [16, 40, 46, 255], Y: [252, 206, 70, 255], y: [196, 140, 30, 255], D: [24, 120, 132, 255] }),
+    // C4 putty: a grey-white block in black tape.
+    putty: art([
+      '................',
+      '................',
+      '................',
+      '..kkkkkkkkkkkk..',
+      '..kWWWWWWWWWWk..',
+      '..kWwwWWWwwWWk..',
+      '..kTTTTTTTTTTk..',
+      '..kTtTTTTTTtTk..',
+      '..kWWWwwWWWWWk..',
+      '..kWwWWWWWwwWk..',
+      '..kTTTTTTTTTTk..',
+      '..kTTtTTTTtTTk..',
+      '..kWWWWWWWWWWk..',
+      '..kkkkkkkkkkkk..',
+      '................',
+      '................'
+    ], { W: [232, 230, 222, 255], w: [196, 194, 186, 255], T: [56, 56, 62, 255], t: [86, 86, 94, 255] }),
+    // Detonator wires: a red and a blue loop with a loose end.
+    wires: art([
+      '................',
+      '....kkkkkkk.....',
+      '...kRRRRRRRk....',
+      '..kRkkkkkkkRk...',
+      '..kRk.....kRk...',
+      '..kRkkkkkkkRk...',
+      '...kBBBBBBBk....',
+      '..kBkkkkkkkBk...',
+      '..kBk.....kBk...',
+      '..kBkkkkkkkBk...',
+      '...kRRRRRRRk....',
+      '....kkkkkkRk....',
+      '..........kRk...',
+      '...........kBk..',
+      '............kk..',
+      '................'
+    ], { R: [222, 46, 46, 255], B: [56, 110, 230, 255] }),
+    // The timer: a black box with red digits "0:05".
+    timer: art([
+      '................',
+      '................',
+      '................',
+      'kkkkkkkkkkkkkkkk',
+      'kGGGGGGGGGGGGGGk',
+      'kddddddddddddddk',
+      'kRRRdddRRRdRRRdk',
+      'kRdRdRdRdRdRdddk',
+      'kRdRdddRdRdRRRdk',
+      'kRdRdRdRdRdddRdk',
+      'kRRRdddRRRdRRRdk',
+      'kddddddddddddddk',
+      'kGGGGGGGGGGGGGGk',
+      'kkkkkkkkkkkkkkkk',
+      '................',
+      '................'
+    ], { G: [70, 70, 76, 255], d: [20, 18, 18, 255], R: [255, 54, 40, 255] }),
+    // The C4: the putty block with the timer and the wires taped on.
+    c4: art([
+      '................',
+      '.............RB.',
+      '............RB..',
+      '..kkkkkkkkkkRk..',
+      '..kWWWWWWWWWBk..',
+      '..kWkkkkkkWWWk..',
+      '..kWkRdRRkWWWk..',
+      '..kWkkkkkkWWWk..',
+      '..kTTTTTTTTTTk..',
+      '..kWWWWWWWWWWk..',
+      '..kWwWWWWwWWWk..',
+      '..kTTTTTTTTTTk..',
+      '..kWWWWWWWWWWk..',
+      '..kkkkkkkkkkkk..',
+      '................',
+      '................'
+    ], { W: [232, 230, 222, 255], w: [196, 194, 186, 255], T: [56, 56, 62, 255], R: [255, 54, 40, 255], d: [20, 18, 18, 255], B: [56, 110, 230, 255] }),
+    // A donut: pink frosting, sprinkles, the hole.
+    donut: art([
+      '................',
+      '................',
+      '.....kkkkkk.....',
+      '...kkPPPPPPkk...',
+      '..kPPyPPPPbPPk..',
+      '..kPPPPPgPPPPk..',
+      '.kPbPPPkkPPPyPk.',
+      '.kPPPPk..kPPPPk.',
+      '.kPPgPk..kPbPPk.',
+      '.kPPPPPkkPPPPPk.',
+      '..kOPPyPPPPgPk..',
+      '..kOOPPPPbPPOk..',
+      '...kkOOOOOOkk...',
+      '.....kkkkkk.....',
+      '................',
+      '................'
+    ], { P: [250, 150, 196, 255], O: [206, 140, 72, 255], y: [255, 236, 90, 255], b: [90, 170, 255, 255], g: [120, 220, 110, 255] }),
+    // A folded note.
+    note: art([
+      '................',
+      '................',
+      '................',
+      '..kkkkkkkkkkkk..',
+      '..kWWWWWWWWWWk..',
+      '..kWllllllWWWk..',
+      '..kWWWWWWWWWWk..',
+      '..kWllllWWWWWk..',
+      '..kSSSSSSSSSSk..',
+      '..kwwwwwwwwwwk..',
+      '..kwlllllwwwwk..',
+      '..kwwwwwwwwwwk..',
+      '..kkkkkkkkkkkk..',
+      '................',
+      '................',
+      '................'
+    ], { W: [248, 246, 236, 255], w: [222, 218, 202, 255], l: [150, 150, 160, 255], S: [176, 170, 150, 255] }),
+    // The stash: a small cloth bundle tied with string.
+    stash: art([
+      '................',
+      '................',
+      '......kkkk......',
+      '.....kCssCk.....',
+      '......kssk......',
+      '....kkCsCkk.....',
+      '...kCCCsCCCk....',
+      '..kCCcCsCcCCk...',
+      '..kCCCCsCCCCk...',
+      '..kCcCCsCCcCk...',
+      '..kCCCCsCCCCk...',
+      '...kCCCsCCCk....',
+      '....kkkkkkk.....',
+      '................',
+      '................',
+      '................'
+    ], { C: [150, 110, 70, 255], c: [118, 84, 52, 255], s: [226, 210, 170, 255] })
+  }
+  for (const [kind, png] of Object.entries(JAIL)) {
+    sprite('jail_' + kind, png)
+    addCase('brick', 'donating:jail_' + kind, 'donating:item/jail_' + kind)
   }
 }
 // ---------- The car key as a tripwire hook ----------

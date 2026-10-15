@@ -1,0 +1,1729 @@
+# prison.sk: the Jailbreak prison's core (owner, 2026-10-14: "make the escape a little more complex"; ESCAPE-SPEC
+# revision 3, sections 4.3, 4.5 and 4.6). Built 2026-10-14.
+#
+# Who's in prison: data "jail" = "course" (a first-joiner in the B1 controls course, jailcourse.sk), "in" (an inmate),
+# "out" (free) or "off" (exempt: test bots, staff tests); unset = an account from before the prison (free). Every
+# death respawns in the prison (R_SPAWN, empty-handed); nobody dies inside the walls (lethal damage downs you: back to
+# your cell, the escape starts over). The outline (jailpoints.sk {-jailwall::*}) is the outer fence: leaving it is the
+# escape, and only the front gate gets anyone out. The inner outline ({-jailinner::*}) tells the yard from the lot.
+# The master switch: core.sk prison::enabled (read directly: unset = off) and the prison world loaded.
+#
+# Provides (ESCAPE-SPEC 2.2, signatures exact): jailOn, jailWorld, jailPt, jailZone, jailPolyAt, jailInsideAt,
+# jailInnerAt, jailInLot, jailState, prisonIn, prisonInside, jailCatch, jailAct, jailLoud, jailMark, jailItem, jailGive,
+# jailCount, jailTake, jailHeld, jailDrop, jailDoor, jailDoorPulse, jailDoorReset, jailShielded, prisonHud.
+# Also: jailExempt, jailEscapeCheck (the front gate's closing), jailCourseDone (jailcourse.sk and /dprison course skip),
+# jailCellAssign / jailCellFree, jailStrip, jailHold (loot.sk's hold mechanic), jailBox / jailBoxOff (interaction boxes,
+# maintained here), jailCopId (the prison cop an entity is, or ""), jailSecsLeft, jailFuture.
+# Never calls jailcourse.sk, jailescape.sk, jailcops.sk or jailjobs.sk: those read and write the shared memory below.
+#
+# Saved data: jail, jail-step (jailcourse.sk), jail-quit-hostile, jail-course ("done" once the course is finished),
+# jail-escapes, jspot-ready::<point> (jailescape.sk's search cooldowns), jail-offmoved (moved out by the master switch:
+# freed, not escaped, when the prison is on again). Memory: {-jail::cell::<u>},
+# {-jail::cellby::<cell>::<u>}, {-jail::cellopen::<u>} (+ ::cellwait), {-jail::mark::<u>} = "method|unix",
+# {-jail::lot::<u>}, {-jail::ko::<a>::<b>}, {-jail::shield::<u>}, {-jail::lastout::<u>}, {-jail::lowhp::<u>},
+# {-jail::stunmod::<u>}, {-jail::diedin::<u>}, {-jail::stuckat::<u>}, {-jail::checkpoint::<u>}, {-jail::act::<u>::<act>},
+# {-jail::loud::<u>}, {-jail::loudat::<u>}, {-jail::caught::<u>}, {-jail::escaped::<u>}, {-jail::doorclose::<door>}.
+# Written elsewhere and read here: {-jail::hostile|hunters|stun|seen::<u>} (jailcops.sk), {-jail::coursebar::<u>}
+# (jailcourse.sk), {-jail::bar::<u>} (jailjobs.sk), {-jailbr::*} (jailescape.sk), {-jailcop::id::<npc id>} (jailcops.sk).
+# Commands: /prison [stuck] (players), /dprison (staff). Log: plugins\Skript\logs\prison.log.
+
+function jailLog(t: text):
+	log {_t} to "prison"
+
+# ---------- The switch, the world, points, zones, the two outlines ----------
+
+# The prison runs: the switch on (read directly: unset = off, and the tests' zzcfgbool deletes it), the world loaded and
+# the points loaded.
+function jailOn() :: boolean:
+	if {-cfg::prison::enabled} is true:
+		set {_n} to {-cfg::prison::world}
+		if {_n} is set:
+			if world({_n}) is set:
+				if {-jailpts::loaded} is not set:
+					jailPointsLoad()
+				if {-jailpts::loaded} is true:
+					return true
+	return false
+
+function jailWorld() :: world:
+	set {_n} to {-cfg::prison::world}
+	if {_n} is set:
+		return world({_n})
+	return {_none}
+
+# A point from jailpoints.sk (with its yaw) in the prison world: "R_SPAWN", "T_CELL_N96" (any case).
+function jailPt(name: text) :: location:
+	if {-jailpts::loaded} is not set:
+		jailPointsLoad()
+	set {_v} to {-jailpt::%{_name}%}
+	if {_v} is set:
+		set {_w} to jailWorld()
+		if {_w} is set:
+			set {_a::*} to "%{_v}%" split at "|"
+			set {_x} to {_a::1} parsed as number
+			set {_y} to {_a::2} parsed as number
+			set {_z} to {_a::3} parsed as number
+			set {_yaw} to {_a::4} parsed as number
+			if {_yaw} is not set:
+				set {_yaw} to 0
+			return location({_x}, {_y}, {_z}, {_w}, {_yaw}, 0)
+	return {_none}
+
+# l lies in one of the zone's boxes (corners inclusive, block coordinates: a box x1..x2 holds x1 <= x < x2 + 1). The
+# zone "lot" has no boxes: it's inside the outline and outside the inner outline.
+function jailZone(zone: text, l: location) :: boolean:
+	if {_zone} is "lot":
+		return jailInLot({_l})
+	if world of {_l} is jailWorld():
+		set {_x} to x-coordinate of {_l}
+		set {_y} to y-coordinate of {_l}
+		set {_z} to z-coordinate of {_l}
+		loop {-jailzone::%{_zone}%::*}:
+			set {_b::*} to loop-value split at "|"
+			set {_x1} to {_b::1} parsed as number
+			set {_y1} to {_b::2} parsed as number
+			set {_z1} to {_b::3} parsed as number
+			set {_x2} to ({_b::4} parsed as number) + 1
+			set {_y2} to ({_b::5} parsed as number) + 1
+			set {_z2} to ({_b::6} parsed as number) + 1
+			if {_x} >= {_x1}:
+				if {_x} < {_x2}:
+					if {_z} >= {_z1}:
+						if {_z} < {_z2}:
+							if {_y} >= {_y1}:
+								if {_y} < {_y2}:
+									return true
+	return false
+
+# In any of a list of zones (prison::nopvp, jailcop::restricted).
+function jailInZones(l: location, zones: texts) :: boolean:
+	loop {_zones::*}:
+		if jailZone(loop-value, {_l}) is true:
+			return true
+	return false
+
+# Ray casting on a generated outline: poly "wall" = Appendix A ({-jailwall::1..n} = "x|z"), "inner" = Appendix A2
+# ({-jailinner::1..n}). x and z only (any height). Nested ifs and a final return: a failing condition line at a
+# returning function's top level returns nothing (CLAUDE.md).
+function jailPolyAt(l: location, poly: text) :: boolean:
+	if jailOn() is true:
+		return jailPolyRaw({_l}, {_poly})
+	return false
+
+# The same test whether the prison is on or not (/dsetup prison checks the map with the switch off).
+function jailPolyRaw(l: location, poly: text) :: boolean:
+	if {-jailpts::loaded} is not set:
+		jailPointsLoad()
+	if jailWorld() is set:
+		if world of {_l} is jailWorld():
+			set {_px} to x-coordinate of {_l}
+			set {_pz} to z-coordinate of {_l}
+			set {_in} to false
+			if {_poly} is "inner":
+				set {_pts::*} to {-jailinner::*}
+			else:
+				set {_pts::*} to {-jailwall::*}
+			set {_n} to size of {_pts::*}
+			set {_pj::*} to {_pts::%{_n}%} split at "|"
+			loop {_n} times:
+				set {_i} to loop-number
+				set {_pi::*} to {_pts::%{_i}%} split at "|"
+				set {_xi} to {_pi::1} parsed as number
+				set {_zi} to {_pi::2} parsed as number
+				set {_xj} to {_pj::1} parsed as number
+				set {_zj} to {_pj::2} parsed as number
+				set {_a} to false
+				if {_zi} > {_pz}:
+					set {_a} to true
+				set {_c} to false
+				if {_zj} > {_pz}:
+					set {_c} to true
+				if {_a} is not {_c}:
+					set {_cross} to ({_xj} - {_xi}) * ({_pz} - {_zi}) / ({_zj} - {_zi}) + {_xi}
+					if {_px} < {_cross}:
+						if {_in} is true:
+							set {_in} to false
+						else:
+							set {_in} to true
+				set {_pj::*} to {_pi::*}
+			return {_in}
+	return false
+
+# Inside the outline (the lot included): in the prison.
+function jailInsideAt(l: location) :: boolean:
+	return jailPolyAt({_l}, "wall")
+
+# Inside the inner outline: the yard side of the lot.
+function jailInnerAt(l: location) :: boolean:
+	return jailPolyAt({_l}, "inner")
+
+# The lot (the parking lot, the POL apron, the Visitors Building's south half, the gatehouse booth).
+function jailInLot(l: location) :: boolean:
+	if jailInsideAt({_l}) is true:
+		if jailInnerAt({_l}) is false:
+			return true
+	return false
+
+# ---------- Who's in prison ----------
+
+# Data "jail": "course", "in", "out", "off" or "" (unset: from before the prison, free).
+function jailState(p: player) :: text:
+	set {_s} to getData({_p}, "jail")
+	if {_s} is set:
+		return "%{_s}%"
+	return ""
+
+# Never "in the prison": data jail "off" (test bots, staff tests), creative and spectator (builders).
+function jailExempt(p: player) :: boolean:
+	if jailState({_p}) is "off":
+		return true
+	if gamemode of {_p} is creative:
+		return true
+	if gamemode of {_p} is spectator:
+		return true
+	return false
+
+function prisonIn(p: player) :: boolean:
+	if jailOn() is true:
+		set {_s} to jailState({_p})
+		if {_s} is "course" or "in":
+			if jailExempt({_p}) is false:
+				return true
+	return false
+
+function prisonInside(p: player) :: boolean:
+	if prisonIn({_p}) is true:
+		if jailInsideAt(location of {_p}) is true:
+			return true
+	return false
+
+# ---------- Small helpers ----------
+
+# Whether a date is in the future (an unset one isn't).
+function jailFuture(d: date) :: boolean:
+	if {_d} > now:
+		return true
+	return false
+
+# Seconds until a date (0 when it passed).
+function jailSecsLeft(d: date) :: number:
+	if {_d} > now:
+		return (difference between now and {_d}) / 1 second
+	return 0
+
+function jailDate(secs: number) :: date:
+	set {_d} to now
+	add 1 second * {_secs} to {_d}
+	return {_d}
+
+function jailDoorSecs() :: number:
+	return cfg("prison::door-open") / 1 second
+
+# The prison cop an entity is (its Citizens id, while jailcops.sk knows it), or "".
+function jailCopId(e: entity) :: text:
+	if {_e} has metadata "NPC-ID":
+		set {_mv} to metadata value "NPC-ID" of {_e}
+		set {_id} to "%{_mv}%"
+		if {-jailcop::id::%{_id}%} is set:
+			return {_id}
+	return ""
+
+# The inmate protection is running (after the course, a cell opening, a respawn; attacking ends your own).
+function jailShielded(p: player) :: boolean:
+	set {_d} to {-jail::shield::%uuid of {_p}%}
+	if {_d} is set:
+		if {_d} > now:
+			return true
+	return false
+
+function jailShieldOn(p: player):
+	set {-jail::shield::%uuid of {_p}%} to jailDate(cfg("prison::shield") / 1 second)
+
+# An act a cop may see: "reader", "punch", "search", "plant", "stash", "console", "fight" (refreshed on every hold
+# click and every punch, so a long act stays visible: jailcops.sk's notice::act-window).
+function jailAct(p: player, act: text):
+	set {-jail::act::%uuid of {_p}%::%{_act}%} to now
+
+# The C4 beeping: the cops within jailcop::loud-range of {-jail::loudat::<u>} come at once (jailcops.sk). The spot is
+# the player's; jailescape.sk sets it to the breach's display point right after.
+function jailLoud(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {-jail::loud::%{_u}%} to now
+	set {-jail::loudat::%{_u}%} to location of {_p}
+
+# The escape method in progress ("keycard", "c4", "parkour"), set at the inner barrier and kept until the escape, a
+# catch or a respawn (the front gate comes later).
+function jailMark(p: player, method: text):
+	set {-jail::mark::%uuid of {_p}%} to "%{_method}%|%unix timestamp of now%"
+
+function jailMarkOf(p: player) :: text:
+	set {_m} to {-jail::mark::%uuid of {_p}%}
+	if {_m} is set:
+		set {_a::*} to "%{_m}%" split at "|"
+		return {_a::1}
+	return ""
+
+# The movement modifiers: low health (jail_lowhp) and the taser's stun (jail_stun, jailcops.sk). Transient (never saved
+# with the player); the join and every catch remove them anyway.
+function jailModsOff(p: player):
+	remove attribute modifier with key "donating:jail_lowhp" from {_p}
+	remove attribute modifier with key "donating:jail_stun" from {_p}
+	set {_u} to "%uuid of {_p}%"
+	delete {-jail::lowhp::%{_u}%}
+	delete {-jail::stunmod::%{_u}%}
+
+# ---------- Jail items (upper inventory, slots 9-35; the C4 in hotbar 1-5) ----------
+
+function jailMax(kind: text) :: number:
+	if {_kind} is "donut":
+		return 3
+	return 1
+
+# n of a jail item: brick, drawn by the pack (donating:jail_<kind>).
+function jailItem(kind: text, n: number) :: item:
+	set {_name} to {-cfg::jailitem::%{_kind}%::name}
+	if {_name} is not set:
+		set {_name} to {_kind}
+	set {_lore} to {-cfg::jailitem::%{_kind}%::lore}
+	if {_lore} is not set:
+		set {_lore} to ""
+	set {_i} to brick named "&f%{_name}%" with lore "&7%{_lore}%"
+	set item amount of {_i} to max(1, {_n})
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:jail_%{_kind}%"
+	return tagItem({_i}, "jail:%{_kind}%")
+
+# How many the player carries (slots 0-35 and the offhand).
+function jailCount(p: player, kind: text) :: number:
+	set {_id} to "jail:%{_kind}%"
+	set {_n} to 0
+	loop integers from 0 to 35:
+		set {_i} to slot loop-value of {_p}'s inventory
+		if {_i} is not air:
+			if itemId({_i}) is {_id}:
+				add item amount of {_i} to {_n}
+	set {_o} to offhand tool of {_p}
+	if {_o} is not air:
+		if itemId({_o}) is {_id}:
+			add item amount of {_o} to {_n}
+	return {_n}
+
+# Gives up to n (one stack per kind, up to its max): the upper inventory, the C4 into hotbar 1-5. Returns how many fit.
+function jailGive(p: player, kind: text, n: number) :: number:
+	set {_have} to jailCount({_p}, {_kind})
+	set {_fit} to min({_n}, jailMax({_kind}) - {_have})
+	if {_fit} <= 0:
+		return 0
+	set {_id} to "jail:%{_kind}%"
+	set {_slot} to -1
+	if {_have} > 0:
+		loop integers from 0 to 35:
+			if {_slot} is -1:
+				set {_i} to slot loop-value of {_p}'s inventory
+				if {_i} is not air:
+					if itemId({_i}) is {_id}:
+						set {_slot} to loop-value
+	if {_slot} is -1:
+		if {_kind} is "c4":
+			loop integers from 0 to 4:
+				if {_slot} is -1:
+					if slot loop-value of {_p}'s inventory is air:
+						set {_slot} to loop-value
+			if {_slot} is -1:
+				hudBar({_p}, "&cFree a slot in hotbar 1-5 for the C4", 2)
+				return 0
+		else:
+			loop integers from 9 to 35:
+				if {_slot} is -1:
+					if slot loop-value of {_p}'s inventory is air:
+						set {_slot} to loop-value
+			if {_slot} is -1:
+				return 0
+	set slot {_slot} of {_p}'s inventory to jailItem({_kind}, {_have} + {_fit})
+	if {_kind} is "keycard":
+		progEvent({_p}, "jailcard", 1, "")
+	return {_fit}
+
+# Takes n, or nothing (false).
+function jailTake(p: player, kind: text, n: number) :: boolean:
+	if jailCount({_p}, {_kind}) < {_n}:
+		return false
+	set {_id} to "jail:%{_kind}%"
+	set {_left} to {_n}
+	loop integers from 0 to 35:
+		if {_left} > 0:
+			set {_i} to slot loop-value of {_p}'s inventory
+			if {_i} is not air:
+				if itemId({_i}) is {_id}:
+					set {_a} to item amount of {_i}
+					if {_a} <= {_left}:
+						set slot loop-value of {_p}'s inventory to air
+						remove {_a} from {_left}
+					else:
+						set slot loop-value of {_p}'s inventory to jailItem({_kind}, {_a} - {_left})
+						set {_left} to 0
+	if {_left} > 0:
+		set {_o} to offhand tool of {_p}
+		if itemId({_o}) is {_id}:
+			set offhand tool of {_p} to air
+	return true
+
+# The jail kind in the main hand, or "" (in practice only "c4" can be held).
+function jailHeld(p: player) :: text:
+	set {_i} to tool of {_p}
+	if {_i} is not air:
+		set {_id} to itemId({_i})
+		if {_id} starts with "jail:":
+			set {_a::*} to {_id} split at ":"
+			return {_a::2}
+	return ""
+
+# Every jail item out of the inventory (slots 0-35 and the offhand).
+function jailStrip(p: player):
+	loop integers from 0 to 35:
+		set {_i} to slot loop-value of {_p}'s inventory
+		if {_i} is not air:
+			if itemId({_i}) starts with "jail:":
+				set slot loop-value of {_p}'s inventory to air
+	if itemId(offhand tool of {_p}) starts with "jail:":
+		set offhand tool of {_p} to air
+
+# ---------- Drops (a cop's keycard on the ground: bag.sk's duffel pattern) ----------
+
+function jailDrop(l: location, kind: text, why: text):
+	add 1 to {-jail::dropn}
+	set {_id} to "jail:%{_kind}%:drop:%unix timestamp of now%-%{-jail::dropn}%"
+	set {_i} to jailItem({_kind}, 1)
+	set {_i} to tagItem({_i}, {_id})
+	set {_until} to (unix timestamp of now) + cfg("prison::drop::despawn") / 1 second
+	set double tag "donating_jail_until" of custom nbt of {_i} to {_until}
+	drop {_i} at {_l} without velocity
+	set {_e} to last dropped item
+	# "last dropped item" keeps the previous drop's entity when this one failed: check it's this one.
+	set {_ok} to false
+	if {_e} is set:
+		if itemId(item of {_e}) is {_id}:
+			set {_ok} to true
+	if {_ok} is false:
+		jailLog("drop-failed %{_kind}% why=%{_why}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+		stop
+	make {_e} invulnerable
+	set display name of {_e} to colored "&e%{-cfg::jailitem::%{_kind}%::name}%"
+	show the custom name of {_e}
+	jailLog("drop %{_kind}% why=%{_why}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+
+function jailDropTell(p: player, t: text):
+	set {_at} to {-jail::droptell::%{_p}%}
+	if {_at} is set:
+		if difference between {_at} and now < 1 second:
+			stop
+	set {-jail::droptell::%{_p}%} to now
+	hudBar({_p}, {_t}, 1)
+
+# Always cancelled (never lands in an inventory slot by vanilla); an inmate inside with room takes it.
+on player attempt item pickup:
+	set {_e} to event-dropped item
+	set {_id} to itemId(item of {_e})
+	{_id} starts with "jail:"
+	cancel event
+	set {_a::*} to {_id} split at ":"
+	set {_k} to {_a::2}
+	if prisonInside(player) is false:
+		jailDropTell(player, "&7That's for inmates.")
+		stop
+	if jailState(player) is not "in":
+		jailDropTell(player, "&7Finish the course first.")
+		stop
+	player is alive
+	if jailGive(player, {_k}, 1) < 1:
+		jailDropTell(player, "&7You can't carry another %{-cfg::jailitem::%{_k}%::name}%.")
+		stop
+	kill {_e}
+	play sound "entity.item.pickup" with volume 1 to player
+	hudBar(player, "&a+ %{-cfg::jailitem::%{_k}%::name}% &7(in your pockets: E)", 1)
+	jailLog("pickup %player% %{_k}%")
+
+on inventory pickup:
+	itemId(event-item) starts with "jail:"
+	cancel event
+
+on entity pickup:
+	event-entity is not a player
+	itemId(event-item) starts with "jail:"
+	cancel event
+
+# A jail drop's time runs out (its until-time travels in the item, so a restart or an unloaded chunk can't keep one).
+every second:
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_now} to unix timestamp of now
+	loop all dropped items in {_w}:
+		set {_i} to item of loop-entity
+		if itemId({_i}) starts with "jail:":
+			set {_until} to double tag "donating_jail_until" of custom nbt of {_i}
+			if {_until} is set:
+				if {_until} <= {_now}:
+					jailLog("drop-expired %itemId({_i})%")
+					kill loop-entity
+
+# ---------- Doors (iron doors and trapdoors by name, from the build's states) ----------
+
+function jailDoorNames() :: texts:
+	loop "vent", "ventlids", "rusty", "sogate", "sohatch", "security", "stairgate", "poln", "pols" and "booth":
+		add loop-value to {_out::*}
+	loop jailCells():
+		add "cell_%loop-value%" to {_out::*}
+	return {_out::*}
+
+# Opens or closes a door: every block's built state with open=<open> (with neighbour updates). Nothing for a door
+# already in that state.
+function jailDoor(name: text, open: boolean):
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_changed} to false
+	loop {-jaildoor::%{_name}%::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_st} to {_a::4}
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		set {_l} to location({_x}, {_y}, {_z}, {_w})
+		if {_first} is not set:
+			set {_first} to {_l}
+		if {_st} contains "open=":
+			replace all "open=true" with "open=%{_open}%" in {_st}
+			replace all "open=false" with "open=%{_open}%" in {_st}
+			if "%block data of block at {_l}%" does not contain "open=%{_open}%":
+				set {_bd} to {_st} parsed as block data
+				if {_bd} is set:
+					update block at {_l} as {_bd}
+					set {_changed} to true
+	if {_changed} is true:
+		if {_first} is set:
+			set {_snd} to "block.iron_door.close"
+			if {_open} is true:
+				set {_snd} to "block.iron_door.open"
+			if {_name} is "ventlids" or "sohatch":
+				set {_snd} to "block.iron_trapdoor.close"
+				if {_open} is true:
+					set {_snd} to "block.iron_trapdoor.open"
+			play sound {_snd} with volume 0.8 at {_first}
+
+# Opens a door for secs seconds (a pulse during a pulse extends it); the closer below shuts it after.
+function jailDoorPulse(name: text, secs: number):
+	set {_until} to jailDate({_secs})
+	set {_cur} to {-jail::doorclose::%{_name}%}
+	if {_cur} is set:
+		if {_cur} > now:
+			if {_cur} < {_until}:
+				set {-jail::doorclose::%{_name}%} to {_until}
+			stop
+	set {-jail::doorclose::%{_name}%} to {_until}
+	jailDoor({_name}, true)
+
+# The built state again: doors and the hatch closed, the vent lids open.
+function jailDoorReset(name: text):
+	set {_w} to jailWorld()
+	{_w} is set
+	delete {-jail::doorclose::%{_name}%}
+	loop {-jaildoor::%{_name}%::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		set {_l} to location({_x}, {_y}, {_z}, {_w})
+		set {_bd} to {_a::4} parsed as block data
+		if {_bd} is set:
+			update block at {_l} as {_bd}
+
+function jailDoorsReset() :: number:
+	set {_n} to 0
+	loop jailDoorNames():
+		jailDoorReset(loop-value)
+		add 1 to {_n}
+	return {_n}
+
+# Pulsed doors whose time passed close (runs whether the prison is on or not, so nothing is left open).
+every 5 ticks:
+	loop {-jail::doorclose::*}:
+		if loop-value <= now:
+			add loop-index to {_close::*}
+	loop {_close::*}:
+		delete {-jail::doorclose::%loop-value%}
+		jailDoor(loop-value, false)
+
+# ---------- Cells ----------
+
+# Every cell id ("n46", "s117"), from the generated points (T_CELL_<ID>_DOOR).
+function jailCells() :: texts:
+	if {-jail::cellids::*} is not set:
+		loop {-jailpt::*}:
+			set {_k} to loop-index in lower case
+			if {_k} starts with "t_cell_":
+				if {_k} ends with "_door":
+					set {_e} to (length of {_k}) - 5
+					add (subtext of {_k} from characters 8 to {_e}) to {-jail::cellids::*}
+	return {-jail::cellids::*}
+
+# The cell a spot is in ("" = none).
+function jailCellAt(l: location) :: text:
+	if world of {_l} is jailWorld():
+		set {_y} to y-coordinate of {_l}
+		if {_y} >= 57:
+			if {_y} < 63:
+				set {_z} to z-coordinate of {_l}
+				if {_z} >= 48:
+					if {_z} < 72:
+						loop jailCells():
+							if jailZone("cell_%loop-value%", {_l}) is true:
+								return loop-value
+	return ""
+
+function jailCellFree(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_c} to {-jail::cell::%{_u}%}
+	if {_c} is set:
+		delete {-jail::cellby::%{_c}%::%{_u}%}
+	delete {-jail::cell::%{_u}%}
+
+# A cell for the player (kind "course": the west wing's course cells; else the veterans' east wing): the first nobody
+# has, else the least used.
+function jailCellAssign(p: player, kind: text) :: text:
+	set {_u} to "%uuid of {_p}%"
+	jailCellFree({_p})
+	if {_kind} is "course":
+		set {_list::*} to {-cfg::prison::course::cells::*}
+	else:
+		set {_list::*} to {-cfg::prison::cells::*}
+	set {_best} to ""
+	loop {_list::*}:
+		if {_best} is "":
+			if size of {-jail::cellby::%loop-value%::*} is 0:
+				set {_best} to loop-value
+	if {_best} is "":
+		set {_bestn} to 99999
+		loop {_list::*}:
+			set {_n} to size of {-jail::cellby::%loop-value%::*}
+			if {_n} < {_bestn}:
+				set {_bestn} to {_n}
+				set {_best} to loop-value
+	set {-jail::cell::%{_u}%} to {_best}
+	set {-jail::cellby::%{_best}%::%{_u}%} to true
+	return {_best}
+
+# The player's cell opens in secs (the cell rule below opens it then).
+function jailCellWait(p: player, secs: number):
+	set {_u} to "%uuid of {_p}%"
+	set {-jail::cellopen::%{_u}%} to jailDate({_secs})
+	set {-jail::cellwait::%{_u}%} to {_secs}
+
+# The cell rule and the stair gate (every 5 ticks): a cell with an alive prisoner in it keeps its door open unless one of
+# them is still waiting (so nobody is ever shut in past their wait: an AFK player, a quit during the wait, a restart or
+# a missed pulse all end with the door open). The tick a prisoner's own wait passes in a cell: the 30 s protection.
+every 5 ticks:
+	jailOn() is true
+	set {_w} to jailWorld()
+	set {_secs} to jailDoorSecs()
+	loop all players:
+		if world of loop-player is {_w}:
+			if loop-player is alive:
+				set {_s} to jailState(loop-player)
+				if {_s} is "course" or "in":
+					if jailExempt(loop-player) is false:
+						set {_l} to location of loop-player
+						set {_u} to "%uuid of loop-player%"
+						set {_c} to jailCellAt({_l})
+						if {_c} is not "":
+							set {_occ::%{_c}%} to true
+							set {_d} to {-jail::cellopen::%{_u}%}
+							if {_d} is set:
+								if {_d} > now:
+									set {_wait::%{_c}%} to true
+								else:
+									delete {-jail::cellopen::%{_u}%}
+									delete {-jail::cellwait::%{_u}%}
+									jailShieldOn(loop-player)
+						# The stair gate: up for any inmate, down only for one the guards aren't after; never for the course.
+						if {_s} is "in":
+							if jailZone("stairup", {_l}) is true:
+								jailDoorPulse("stairgate", {_secs})
+							else if jailZone("stairhall", {_l}) is true:
+								if {-jail::hostile::%{_u}%} is set:
+									hudBar(loop-player, "&cThe gate stays shut while the guards are after you.", 2)
+								else:
+									jailDoorPulse("stairgate", {_secs})
+	loop {_occ::*}:
+		if {_wait::%loop-index%} is not set:
+			jailDoorPulse("cell_%loop-index%", {_secs})
+
+# ---------- Catching: arrest, down, quit, stuck, surrender, staff ----------
+
+# Back to the cell (a course player: back to the course checkpoint). Everything but "stuck" also takes the jail items
+# and clears the search cooldowns, so the escape starts over at once.
+function jailCatch(p: player, why: text):
+	set {_u} to "%uuid of {_p}%"
+	# A dead player respawns by the respawn rules (healing or moving one on the death screen breaks the client).
+	{_p} is alive
+	if {-jail::catching::%{_u}%} is set:
+		if difference between {-jail::catching::%{_u}%} and now < 3 seconds:
+			stop
+	set {-jail::catching::%{_u}%} to now
+	if jailState({_p}) is "course":
+		set {_cp} to {-jail::checkpoint::%{_u}%}
+		if {_cp} is not set:
+			set {_cp} to "T_SPAWN"
+		set {_l} to jailPt({_cp})
+		if {_l} is set:
+			teleport {_p} to {_l}
+		heal {_p}
+		set food level of {_p} to cfg("prison::food")
+		jailLog("catch-course %{_p}% %{_why}% to=%{_cp}%")
+		stop
+	set {-jail::caught::%{_u}%} to now
+	delete {-jail::hostile::%{_u}%}
+	delete {-jail::stun::%{_u}%}
+	delete {-jail::mark::%{_u}%}
+	delete {-jail::lot::%{_u}%}
+	jailModsOff({_p})
+	if {_why} is not "stuck":
+		jailStrip({_p})
+		loop {-cfg::prison::spots::*}:
+			set {_sp::*} to loop-value split at "|"
+			deleteData({_p}, "jspot-ready::%{_sp::1}%")
+	heal {_p}
+	set food level of {_p} to cfg("prison::food")
+	remove all potion effects from {_p}
+	clearCombat({_p})
+	if {_why} is "arrest":
+		send title colored "&c&lARRESTED" with subtitle colored "&7Back to your cell" to {_p} for 3 seconds
+	else if {_why} is "down":
+		send title colored "&c&lDOWNED" with subtitle colored "&7Back to your cell" to {_p} for 3 seconds
+	else:
+		send title colored "&7&lBACK TO YOUR CELL" with subtitle colored "&7The escape starts over" to {_p} for 3 seconds
+	play sound "block.iron_door.close" with volume 1 to {_p}
+	progEvent({_p}, "jailcaught", 1, {_why})
+	jailLog("catch %{_p}% %{_u}% %{_why}%")
+	wait 1 second
+	{_p} is online
+	set {_c} to jailCellAssign({_p}, "vet")
+	set {_l} to jailPt("T_CELL_%{_c}%")
+	if {_l} is set:
+		teleport {_p} to {_l}
+	set {_secs} to cfg("prison::cell-open") / 1 second
+	jailCellWait({_p}, {_secs})
+	# The door shuts now: a pulse left from someone who just walked out of this cell would let them skip the wait.
+	delete {-jail::doorclose::cell_%{_c}%}
+	jailDoor("cell_%{_c}%", false)
+	msg({_p}, "&7Your cell opens in %{_secs}%s. The escape starts over.")
+
+# ---------- The course's end (jailcourse.sk calls it; /dprison course skip too) ----------
+
+function jailCourseDone(p: player):
+	set {_u} to "%uuid of {_p}%"
+	setData({_p}, "jail", "in")
+	setData({_p}, "jail-course", "done")
+	deleteData({_p}, "jail-step")
+	delete {-jail::checkpoint::%{_u}%}
+	delete {-jail::coursebar::%{_u}%}
+	set {_n} to jailCount({_p}, "coursecard")
+	if {_n} > 0:
+		jailTake({_p}, "coursecard", {_n})
+	jailCellFree({_p})
+	jailShieldOn({_p})
+	send title colored "&6&lYOU'RE IN THE BLOCK" with subtitle colored "&7Now find a way out. Lefty on the bench knows how." to {_p} for 4 seconds
+	play sound "ui.toast.challenge_complete" with volume 0.7 to {_p}
+	progEvent({_p}, "jailcourse", 1, "")
+	jailLog("course-done %{_p}% %{_u}%")
+
+# ---------- The escape ----------
+
+function jailEscape(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_m} to jailMarkOf({_p})
+	set {_l} to location of {_p}
+	if {_m} is "":
+		set {_m} to "other"
+		jailLog("escape-unknown %{_p}% %{_u}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
+	setData({_p}, "jail", "out")
+	set {-jail::escaped::%{_u}%} to now
+	delete {-jail::mark::%{_u}%}
+	delete {-jail::lot::%{_u}%}
+	jailStrip({_p})
+	jailCellFree({_p})
+	jailModsOff({_p})
+	set {_sub} to "Out the front gate"
+	if {_m} is "keycard":
+		set {_sub} to "Through the police station"
+	else if {_m} is "c4":
+		set {_sub} to "Blew your way out"
+	else if {_m} is "parkour":
+		set {_sub} to "Over the fence"
+	send title colored "&a&lESCAPED" with subtitle colored "&7%{_sub}%" to {_p} for 4 seconds
+	play sound "ui.toast.challenge_complete" with volume 1 to {_p}
+	progEvent({_p}, "escape", 1, {_m})
+	jailLog("escape %{_p}% %{_u}% %{_m}% %x-coordinate of {_l}% %z-coordinate of {_l}%")
+	set {_n} to getData({_p}, "jail-escapes")
+	if {_n} is not set:
+		set {_n} to 0
+	setData({_p}, "jail-escapes", {_n} + 1)
+	if {-cfg::prison::after-escape} is "spawn":
+		wait 3 seconds
+		{_p} is online
+		jailState({_p}) is "out"
+		execute console command "essentialsspawn:spawn %name of {_p}%"
+		if {_n} is 0:
+			wait 1 second
+			{_p} is online
+			tutorialWelcome({_p})
+	else if {_n} is 0:
+		wait 4 seconds
+		{_p} is online
+		tutorialWelcome({_p})
+
+# Being caught right now: jailCatch's second before the cell.
+function jailCatching(p: player) :: boolean:
+	set {_ct} to {-jail::catching::%uuid of {_p}%}
+	if {_ct} is set:
+		if difference between {_ct} and now < 2 seconds:
+			return true
+	return false
+
+# The escape test for one player now (every second for everyone; the front gate's closing calls it first).
+function jailEscapeCheck(p: player):
+	jailOn() is true
+	jailState({_p}) is "in"
+	jailExempt({_p}) is false
+	jailCatching({_p}) is false
+	{_p} is alive
+	world of {_p} is jailWorld()
+	jailInsideAt(location of {_p}) is false
+	jailEscape({_p})
+
+# Every second: the lot (once a run), the escape, prisoners moved to another world, and free players kept out.
+every second:
+	jailOn() is true
+	set {_w} to jailWorld()
+	loop all players:
+		set {_p} to loop-player
+		if {_p} is alive:
+			if jailExempt({_p}) is false:
+				set {_s} to jailState({_p})
+				set {_u} to "%uuid of {_p}%"
+				# A prisoner being caught (the second before their cell, jailCatch): no escape and no lot flag then. Before,
+				# the lot pass set the flag again after the catch cleared it, and a prisoner caught in the gateway could walk
+				# out in that second (review fix, 2026-10-14).
+				if jailCatching({_p}) is true:
+					set {_s} to "caught"
+				if world of {_p} is {_w}:
+					set {_l} to location of {_p}
+					if {_s} is "in":
+						if jailInsideAt({_l}) is false:
+							# Moved out by the master switch (jailOffMove; at launch the prison is the main world, so
+							# they're still in it): freed like a player in another world, not an escape.
+							if getData({_p}, "jail-offmoved") is true:
+								deleteData({_p}, "jail-offmoved")
+								setData({_p}, "jail", "out")
+								jailCellFree({_p})
+								jailStrip({_p})
+								jailModsOff({_p})
+								jailLog("left-off %{_p}% %{_u}%")
+							else:
+								jailEscape({_p})
+						else if getData({_p}, "jail-offmoved") is true:
+							# Walked back in while the prison was off: an inmate again.
+							deleteData({_p}, "jail-offmoved")
+						else if {-jail::lot::%{_u}%} is not set:
+							if jailInnerAt({_l}) is false:
+								set {-jail::lot::%{_u}%} to true
+								set {_mm} to jailMarkOf({_p})
+								if {_mm} is "":
+									set {_mm} to "other"
+								send title colored "&6&lTHE LOT" with subtitle colored "&7The front gate opens from the gatehouse booth" to {_p} for 3 seconds
+								play sound "block.note_block.bell" with volume 1 to {_p}
+								progEvent({_p}, "jaillot", 1, {_mm})
+								jailLog("lot %{_p}% %{_mm}%")
+					else if {_s} is "course":
+						# A course player outside the walls (moved by the master switch while the prison is the main
+						# world): back to their step.
+						if jailInsideAt({_l}) is false:
+							set {_cp} to {-jail::checkpoint::%{_u}%}
+							if {_cp} is not set:
+								set {_cp} to "T_SPAWN"
+							set {_to} to jailPt({_cp})
+							if {_to} is set:
+								teleport {_p} to {_to}
+								jailLog("course-back %{_p}% %{_u}% to=%{_cp}%")
+					else if {_s} is not "caught":
+						# Free players can't walk in (the lot included: only the open front gate lets one in).
+						if jailInsideAt({_l}) is true:
+							make {_p} dismount
+							set {_to} to {-jail::lastout::%{_u}%}
+							if {_to} is not set:
+								set {_to} to jailPt("LOT_EXIT")
+							if {_to} is set:
+								teleport {_p} to {_to}
+							hudBar({_p}, "&cThat's the prison. You don't want to go back in.", 3)
+						else:
+							set {-jail::lastout::%{_u}%} to {_l}
+				else if {_s} is "in":
+					setData({_p}, "jail", "out")
+					deleteData({_p}, "jail-offmoved")
+					jailCellFree({_p})
+					jailStrip({_p})
+					jailModsOff({_p})
+					jailLog("left %{_p}% %{_u}% to=%world of {_p}%")
+				else if {_s} is "course":
+					set {_cp} to {-jail::checkpoint::%{_u}%}
+					if {_cp} is not set:
+						set {_cp} to "T_SPAWN"
+					set {_to} to jailPt({_cp})
+					if {_to} is set:
+						teleport {_p} to {_to}
+						jailLog("course-back %{_p}% %{_u}% to=%{_cp}%")
+
+# ---------- The master switch off: nobody stays shut in ----------
+
+function jailOffMove(p: player):
+	jailOn() is false
+	set {_n} to {-cfg::prison::world}
+	{_n} is set
+	set {_w} to world({_n})
+	{_w} is set
+	world of {_p} is {_w}
+	set {_s} to jailState({_p})
+	if {_s} is "course" or "in":
+		gamemode of {_p} is not creative
+		gamemode of {_p} is not spectator
+		# Only from inside the walls: at launch the prison is the main world, and a player already at the city spawn
+		# would be sent there again every 30 s.
+		jailPolyRaw(location of {_p}, "wall") is true
+		execute console command "essentialsspawn:spawn %name of {_p}%"
+		# When the prison is on again, an "in" player found outside the walls is freed, not escaped (prison.sk's pass).
+		if {_s} is "in":
+			setData({_p}, "jail-offmoved", true)
+		jailLog("off-moved %{_p}% %{_s}%")
+
+on load:
+	wait 5 ticks
+	loop all players:
+		jailOffMove(loop-player)
+	jailOn() is true
+	delete {-jail::cellids::*}
+	jailDoorsReset()
+
+every 30 seconds:
+	loop all players:
+		jailOffMove(loop-player)
+
+# ---------- First join, rejoin, quit ----------
+
+# A new player starts in a course cell (before join-quit.sk's first-join handler sets first-join).
+on join with priority lowest:
+	jailOn() is true
+	getData(player, "first-join") is not set
+	getData(player, "jail") is not set
+	set {_u} to "%uuid of player%"
+	setData(player, "jail", "course")
+	setData(player, "jail-step", "cell")
+	set {_c} to jailCellAssign(player, "course")
+	set {_cp} to "T_CELL_%{_c}%"
+	if {_c} is "n60":
+		set {_cp} to "T_SPAWN"
+	set {-jail::checkpoint::%{_u}%} to {_cp}
+	jailLog("first-join %player% %{_u}% cell=%{_c}%")
+	wait 2 ticks
+	player is online
+	set {_l} to jailPt({_cp})
+	if {_l} is set:
+		teleport player to {_l}
+	jailCellWait(player, cfg("prison::course::cell-open") / 1 second)
+
+on join:
+	jailModsOff(player)
+	set {_u} to "%uuid of player%"
+	if jailOn() is false:
+		wait 1 second
+		player is online
+		jailOffMove(player)
+		stop
+	set {_s} to jailState(player)
+	if {_s} is "course" or "in":
+		if jailExempt(player) is false:
+			if jailCellAt(location of player) is not "":
+				jailCellWait(player, cfg("prison::join-open") / 1 second)
+	if {_s} is "in":
+		if getData(player, "jail-quit-hostile") is true:
+			deleteData(player, "jail-quit-hostile")
+			wait 1 second
+			player is online
+			jailCatch(player, "quit")
+		stop
+	if {_s} is "course":
+		stop
+	if {_s} is "off":
+		stop
+	# A free player in the prison world (a logout in the 3 s after an escape): to the city.
+	world of player is jailWorld()
+	{-cfg::prison::after-escape} is "spawn"
+	wait 1 second
+	player is online
+	jailExempt(player) is false
+	execute console command "essentialsspawn:spawn %name of player%"
+
+# Before jailcops.sk's quit handler (it calms the player and deletes the hostility).
+on quit with priority lowest:
+	set {_u} to "%uuid of player%"
+	if prisonIn(player) is true:
+		if {-jail::hostile::%{_u}%} is set:
+			setData(player, "jail-quit-hostile", true)
+			jailLog("quit-hostile %player% %{_u}%")
+	jailCellFree(player)
+	# The join rules replace what's lost. Kept: the escape mark, the lot flag and the knockout cooldowns (a relog in the
+	# lot keeps the method; a relog doesn't reset a cooldown).
+	delete {-jail::cellopen::%{_u}%}
+	delete {-jail::cellwait::%{_u}%}
+	delete {-jail::lastout::%{_u}%}
+	delete {-jail::lowhp::%{_u}%}
+	delete {-jail::stunmod::%{_u}%}
+	delete {-jail::diedin::%{_u}%}
+	delete {-jail::stuckat::%{_u}%}
+	delete {-jail::checkpoint::%{_u}%}
+	delete {-jail::shield::%{_u}%}
+	delete {-jail::catching::%{_u}%}
+	delete {-jail::punch::%{_u}%::*}
+	delete {-jail::act::%{_u}%::*}
+	delete {-jail::hold::%player%}
+	delete {-jail::hold::%player%::*}
+	delete {-jail::guard::%player%}
+	delete {-jail::droptell::%player%}
+
+# ---------- Respawns and deaths ----------
+
+on respawn with priority highest:
+	jailOn() is true
+	jailExempt(player) is false
+	set {_u} to "%uuid of player%"
+	set {_s} to jailState(player)
+	if {_s} is "course":
+		set {_cp} to {-jail::checkpoint::%{_u}%}
+		if {_cp} is not set:
+			set {_cp} to "T_SPAWN"
+		set respawn location to jailPt({_cp})
+	else if {-jail::diedin::%{_u}%} is set:
+		set respawn location to jailPt("R_SPAWN")
+		wait 1 tick
+		player is online
+		delete {-jail::diedin::%{_u}%}
+		jailCatch(player, "down")
+		stop
+	else:
+		set {_l} to jailPt("R_SPAWN")
+		set {_dx} to random number between -1 and 1
+		set {_dz} to random number between -1 and 1
+		set {_l} to {_l} ~ vector({_dx}, 0, {_dz})
+		set respawn location to {_l}
+		setData(player, "jail", "in")
+		delete {-jail::mark::%{_u}%}
+		delete {-jail::lot::%{_u}%}
+		msg(player, "&7Locked up again. Find a way out.")
+		jailLog("respawn-in %player% %{_u}%")
+	wait 1 tick
+	player is online
+	if {-ctjob::%{_u}%} is set:
+		ctEnd({_u}, "jailed")
+	heal player
+	set food level of player to 10
+	jailShieldOn(player)
+
+# A death inside the walls anyway (staff /kill, the void, /suicide): the respawn downs them (their cell, the hostility
+# gone, jail items taken).
+on death of player with priority lowest:
+	isNpc(victim) is false
+	jailOn() is true
+	jailState(victim) is "in"
+	jailInsideAt(location of victim) is true
+	set {-jail::diedin::%uuid of victim%} to true
+
+# ---------- Damage: downed instead of dying, shots through the fence, inmate PvP ----------
+
+# The fence and inmate PvP (default priority, before the downing below).
+on damage:
+	jailOn() is true
+	set {_vin} to false
+	set {_ain} to false
+	set {_vok} to false
+	if victim is a player:
+		if isNpc(victim) is false:
+			set {_vok} to true
+	if {_vok} is false:
+		if jailCopId(victim) is not "":
+			set {_vok} to true
+	{_vok} is true
+	set {_vin} to jailInsideAt(location of victim)
+	attacker is set
+	if attacker is a player:
+		if isNpc(attacker) is false:
+			set {_ain} to jailInsideAt(location of attacker)
+			# No shots into or out of the prison.
+			if {_vin} is not {_ain}:
+				cancel event
+				hudBar(attacker, "&7Not through the fence.", 3)
+				stop
+			if {_vin} is true:
+				set {_w} to wmTitle(attacker's tool)
+				if {_w} is not "":
+					if {-cfg::wpn::%{_w}%::kind} is not "Melee":
+						cancel event
+						stop
+			# Inmate PvP: both real players inside.
+			victim is a player
+			isNpc(victim) is false
+			{_vin} is true
+			attacker is not victim
+			if jailInZones(location of victim, {-cfg::prison::nopvp::*}) is true:
+				cancel event
+				hudBar(attacker, "&aNo fighting here.", 3)
+				stop
+			if jailInZones(location of attacker, {-cfg::prison::nopvp::*}) is true:
+				cancel event
+				hudBar(attacker, "&aNo fighting here.", 3)
+				stop
+			set {_au} to "%uuid of attacker%"
+			set {_vu} to "%uuid of victim%"
+			# The knockout cooldown (owner: "dont want spam killing"): one way and per pair, before the protection step (a
+			# refused swing doesn't end the attacker's own protection).
+			set {_ko} to {-jail::ko::%{_au}%::%{_vu}%}
+			if {_ko} is set:
+				if {_ko} > now:
+					cancel event
+					hudBar(attacker, "&7You knocked them out already. Leave them be for %formatClock(jailSecsLeft({_ko}))%, unless they hit you.", 3)
+					stop
+				delete {-jail::ko::%{_au}%::%{_vu}%}
+			# Attacking ends your own protection; a protected inmate can't be hurt.
+			delete {-jail::shield::%{_au}%}
+			if jailShielded(victim) is true:
+				cancel event
+				hudBar(attacker, "&eThey just got here: protected for a few seconds.", 3)
+				stop
+			# Otherwise the hit goes on (passive mode, pvp.sk's spawn shield and the combat tag work as always); the
+			# monitor handler below clears the cooldown once it really lands.
+			stop
+	# A Citizens NPC that isn't a prison cop (heist cops, hit bodyguards) can't hurt anyone inside.
+	if {_vin} is true:
+		if isNpc(attacker) is true:
+			if jailCopId(attacker) is "":
+				cancel event
+
+# An inmate's hit that landed (not cancelled by anything): the one who was knocked out hit first, so the cooldown on
+# hitting them back is over (the owner's "unless they hit first"; a swing in a no-PvP zone doesn't count). The guards
+# see brawlers (jailcops.sk: the act "fight").
+on damage of player with priority monitor:
+	jailOn() is true
+	attacker is set
+	attacker is a player
+	isNpc(attacker) is false
+	isNpc(victim) is false
+	attacker is not victim
+	jailInsideAt(location of victim) is true
+	delete {-jail::ko::%uuid of victim%::%uuid of attacker%}
+	if prisonIn(victim) is true:
+		if prisonIn(attacker) is true:
+			jailAct(attacker, "fight")
+
+# Lethal damage inside downs the prisoner instead (Skript's damage and health are both in hearts). The knockout record
+# for the inmate who did it.
+on damage of player with priority highest:
+	isNpc(victim) is false
+	prisonIn(victim) is true
+	world of victim is jailWorld()
+	final damage >= health of victim
+	cancel event
+	if attacker is set:
+		if attacker is a player:
+			if isNpc(attacker) is false:
+				if attacker is not victim:
+					if prisonIn(attacker) is true:
+						# The knockout landed: it counts as a hit (any cooldown the victim had on the attacker is over).
+						delete {-jail::ko::%uuid of victim%::%uuid of attacker%}
+						jailAct(attacker, "fight")
+						set {_cd} to cfg("prison::ko-cooldown") / 1 second
+						set {-jail::ko::%uuid of attacker%::%uuid of victim%} to jailDate({_cd})
+						msg(attacker, "&7You knocked %name of victim% out. Leave them be for %formatClock({_cd})% unless they come at you.")
+						msg(victim, "&7%name of attacker% knocked you out. They can't touch you for %formatClock({_cd})% unless you hit them first.")
+						jailLog("ko %attacker% %victim%")
+	jailCatch(victim, "down")
+
+# ---------- Rules inside ----------
+
+# No guns, consumables or tools inside (before WeaponMechanics' normal handler).
+on right click with priority lowest:
+	jailOn() is true
+	jailExempt(player) is false
+	jailInsideAt(location of player) is true
+	set {_i} to player's tool
+	{_i} is not air
+	set {_w} to wmTitle({_i})
+	set {_bad} to false
+	if {_w} is not "":
+		if {-cfg::con::%{_w}%::price} is set:
+			set {_bad} to true
+			set {_why} to "&cNot inside the walls."
+		else if {-cfg::wpn::%{_w}%::kind} is not "Melee":
+			set {_bad} to true
+			set {_why} to "&cNo guns inside the walls."
+	else if itemId({_i}) starts with "tool:":
+		set {_bad} to true
+		set {_why} to "&cNot inside the walls."
+	{_bad} is true
+	cancel event
+	hudBar(player, {_why}, 2)
+
+# No teleport commands (staff pass). EssentialsX gives every command an "e" alias (/espawn, /eback, /etpaccept): those
+# count too. The teleport gate below is what really holds (any other alias or plugin command).
+on command:
+	player is set
+	prisonIn(player) is true
+	player does not have permission "donating.staff"
+	set {_parts::*} to command split at ":"
+	set {_cmd} to last element of {_parts::*} in lower case
+	set {_alt} to {_cmd}
+	if {_cmd} starts with "e":
+		set {_alt} to subtext of {_cmd} from characters 2 to (length of {_cmd})
+	loop {-cfg::prison::blocked-commands::*}:
+		if loop-value is {_cmd} or {_alt}:
+			cancel event
+			msg(player, "&cNot from in here. Break out first.")
+			stop
+
+# The gate: a prisoner is never teleported out of the prison by anything but this server's own moves (plugin teleports:
+# a catch, the course, /dprison free). A command's teleport (/espawn, /eback, a /tpa someone accepts, staff /tp) or an
+# ender pearl that would land outside the outline (or in another world) is refused, so the only way out is the front
+# gate (an "in" player in another world counts as freed by staff: use /dprison free, or set the state first).
+on teleport with priority highest:
+	teleport cause is not plugin
+	prisonIn(player) is true
+	jailInsideAt(event-location) is false
+	cancel event
+	msg(player, "&cNot from in here. Break out first.")
+	jailLog("tp-refused %player% %uuid of player% cause=%teleport cause% to=%world of event-location% %x-coordinate of event-location% %z-coordinate of event-location%")
+
+# Beds are decoration ("Respawn point set" would mean nothing); the gatehouse console's buttons are scenery (its
+# interaction box takes the clicks, jailescape.sk).
+on right click:
+	event-block is set
+	jailOn() is true
+	world of event-block is jailWorld()
+	set {_t} to "%type of event-block%"
+	if {_t} contains "bed":
+		cancel event
+	else if {_t} contains "button":
+		cancel event
+
+# Under 3 hearts a prisoner is slower (sprint 5.6 b/s × 0.8 = 4.48 > a level-1 cop's ~4.0: still escapable).
+every 10 ticks:
+	loop all players:
+		set {_p} to loop-player
+		set {_u} to "%uuid of {_p}%"
+		set {_slow} to false
+		if {_p} is alive:
+			if prisonInside({_p}) is true:
+				if health of {_p} <= cfg("prison::lowhp"):
+					set {_slow} to true
+		if {_slow} is true:
+			if {-jail::lowhp::%{_u}%} is not set:
+				set {-jail::lowhp::%{_u}%} to true
+				set {_amt} to 0 - cfg("prison::lowhp-slow")
+				apply transient attribute modifier to {_p}:
+					attribute: movement speed
+					id: "donating:jail_lowhp"
+					amount: {_amt}
+					operation: multiply_scalar_1
+				hudBar({_p}, "&cHurt: you're slower", 1)
+		else if {-jail::lowhp::%{_u}%} is set:
+			delete {-jail::lowhp::%{_u}%}
+			remove attribute modifier with key "donating:jail_lowhp" from {_p}
+
+# Food: 9 bars inside (natural regeneration, sprinting allowed).
+every 10 seconds:
+	loop all players:
+		if prisonInside(loop-player) is true:
+			if food level of loop-player < cfg("prison::food"):
+				set food level of loop-player to cfg("prison::food")
+
+# ---------- Interaction boxes (jailcourse.sk, jailescape.sk): one registry, kept every 2 s ----------
+# {-jail::boxes::<key>} = "x|y|z|width|height" (wanted, in the prison world), {-jail::ibox::<key>} = the entity,
+# {-jail::iboxof::<entity uuid>} = key. Non-persistent, tags donating_jail and jbox. A click lands in each script's own
+# "on right click on interaction" (they check {-jail::iboxof::<uuid>} for their keys).
+
+function jailBox(key: text, l: location, w: number, h: number):
+	set {-jail::boxes::%{_key}%} to "%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%|%{_w}%|%{_h}%"
+
+function jailBoxOff(key: text):
+	delete {-jail::boxes::%{_key}%}
+	set {_e} to {-jail::ibox::%{_key}%}
+	if {_e} is set:
+		delete {-jail::iboxof::%uuid of {_e}%}
+		if {_e} is valid:
+			kill {_e}
+	delete {-jail::ibox::%{_key}%}
+
+function jailBoxSetup(e: entity, w: number, h: number):
+	make {_e} not persistent
+	add "donating_jail" to scoreboard tags of {_e}
+	add "jbox" to scoreboard tags of {_e}
+	set interaction width of {_e} to {_w}
+	set interaction height of {_e} to {_h}
+	make {_e} unresponsive
+
+function jailBoxCheck(key: text):
+	set {_v} to {-jail::boxes::%{_key}%}
+	{_v} is set
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_a::*} to "%{_v}%" split at "|"
+	set {_x} to {_a::1} parsed as number
+	set {_y} to {_a::2} parsed as number
+	set {_z} to {_a::3} parsed as number
+	set {_bw} to {_a::4} parsed as number
+	set {_bh} to {_a::5} parsed as number
+	set {_l} to location({_x}, {_y}, {_z}, {_w})
+	chunk at {_l} is loaded
+	set {_e} to {-jail::ibox::%{_key}%}
+	if {_e} is set:
+		if {_e} is valid:
+			stop
+		delete {-jail::iboxof::%uuid of {_e}%}
+	spawn an interaction at {_l}:
+		jailBoxSetup(event-entity, {_bw}, {_bh})
+	set {_e} to last spawned entity
+	set {-jail::ibox::%{_key}%} to {_e}
+	set {-jail::iboxof::%uuid of {_e}%} to {_key}
+
+every 2 seconds:
+	if jailOn() is false:
+		loop {-jail::ibox::*}:
+			if loop-value is valid:
+				kill loop-value
+		delete {-jail::ibox::*}
+		delete {-jail::iboxof::*}
+		stop
+	loop {-jail::boxes::*}:
+		jailBoxCheck(loop-index)
+	# Boxes nobody wants any more (a reload, a box switched off).
+	loop all entities in jailWorld():
+		if loop-entity has scoreboard tag "jbox":
+			if {-jail::iboxof::%uuid of loop-entity%} is not set:
+				kill loop-entity
+
+# loot.sk's hold mechanic: holding right-click repeats a click every 4 ticks; each click credits min(Δt, loot::credit)
+# seconds; a pause over loot::gap starts over; a hit that lands resets it. True once need seconds of holding are done.
+function jailHold(p: player, key: text, need: number) :: boolean:
+	set {_last} to {-jail::hold::%{_p}%::at}
+	set {-jail::hold::%{_p}%::at} to now
+	set {_cur} to {-jail::hold::%{_p}%}
+	if {_cur} is not set:
+		set {_cur} to ""
+	if {_cur} is not {_key}:
+		set {-jail::hold::%{_p}%} to {_key}
+		set {-jail::hold::%{_p}%::t} to 0
+		return false
+	if {_last} is not set:
+		set {-jail::hold::%{_p}%::t} to 0
+		return false
+	set {_dt} to (difference between {_last} and now) / 1 second
+	if {_dt} > cfg("loot::gap"):
+		set {-jail::hold::%{_p}%::t} to 0
+		return false
+	add min({_dt}, cfg("loot::credit")) to {-jail::hold::%{_p}%::t}
+	if {-jail::hold::%{_p}%::t} >= {_need}:
+		delete {-jail::hold::%{_p}%}
+		delete {-jail::hold::%{_p}%::*}
+		return true
+	return false
+
+# The seconds held so far on the current hold.
+function jailHoldTime(p: player) :: number:
+	set {_t} to {-jail::hold::%{_p}%::t}
+	if {_t} is set:
+		return {_t}
+	return 0
+
+# "Searching ▮▮▯ 1.2s" on the action bar.
+function jailHoldBar(p: player, what: text, need: number):
+	set {_t} to jailHoldTime({_p})
+	set {_f} to min(1, {_t} / max(0.1, {_need}))
+	set {_left} to max(0, {_need} - {_t})
+	set {_s} to "%round({_left} * 10) / 10%"
+	hudBar({_p}, "&e%{_what}% %lootMeter({_f})% &f%{_s}%s", 1)
+
+# A hit that lands resets a hold.
+on damage of player with priority monitor:
+	delete {-jail::hold::%victim%}
+	delete {-jail::hold::%victim%::*}
+
+# For a moment after a jail click, a plain right-click (the crosshair slid off) does nothing: the phone and a held
+# weapon don't react.
+on right click with priority lowest:
+	clicked entity is not set
+	set {_g} to {-jail::guard::%player%}
+	{_g} is set
+	difference between {_g} and now < 0.5 seconds
+	cancel event
+
+# ---------- The boss bar (hud.sk calls it first) ----------
+
+function prisonHud(p: player) :: boolean:
+	if prisonIn({_p}) is false:
+		return false
+	set {_u} to "%uuid of {_p}%"
+	if jailState({_p}) is "course":
+		set {_t} to {-jail::coursebar::%{_u}%}
+		if {_t} is set:
+			hudBossSet({_p}, {_t}, "yellow", 1)
+			return true
+	set {_d} to {-jail::stun::%{_u}%}
+	if {_d} is set:
+		if {_d} > now:
+			set {_full} to cfg("jailcop::taser::stun") / 1 second
+			hudBossSet({_p}, "&e&lTASED&r &7· move!", "yellow", jailSecsLeft({_d}) / max(0.1, {_full}))
+			return true
+	if {-jail::hostile::%{_u}%} is set:
+		set {_n} to {-jail::hunters::%{_u}%}
+		if {_n} is not set:
+			set {_n} to 1
+		set {_n} to max(1, {_n})
+		set {_g} to "guards"
+		if {_n} is 1:
+			set {_g} to "guard"
+		set {_prog} to 1
+		set {_seen} to {-jail::seen::%{_u}%}
+		if {_seen} is set:
+			set {_lose} to cfg("jailcop::lose::time") / 1 second
+			set {_since} to (difference between {_seen} and now) / 1 second
+			set {_prog} to max(0, {_lose} - {_since}) / max(1, {_lose})
+		hudBossSet({_p}, "&c&lWANTED&r &7· %{_n}% %{_g}% after you", "red", {_prog})
+		return true
+	set {_d} to {-jail::cellopen::%{_u}%}
+	if {_d} is set:
+		if {_d} > now:
+			set {_left} to jailSecsLeft({_d})
+			set {_tot} to {-jail::cellwait::%{_u}%}
+			if {_tot} is not set:
+				set {_tot} to max(1, {_left})
+			hudBossSet({_p}, "&7Your cell opens in %ceil({_left})%s", "white", {_left} / max(1, {_tot}))
+			return true
+	# A planted C4 within 12 blocks (jailescape.sk).
+	loop {-cfg::prison::breaches::*}:
+		if {_c4} is not set:
+			if {-jailbr::state::%loop-value%} is "armed":
+				set {_b} to {-jailbr::armed::%loop-value%}
+				set {_at} to jailPt("C4_%loop-value%")
+				if {_b} is set:
+					if {_at} is set:
+						if world of {_p} is world of {_at}:
+							if distance between {_p} and {_at} <= 12:
+								set {_c4} to jailSecsLeft({_b})
+	if {_c4} is set:
+		hudBossSet({_p}, "&c&lC4&r &7· %ceil({_c4})%s", "red", {_c4} / max(1, cfg("prison::c4::fuse")))
+		return true
+	set {_lot} to jailInLot(location of {_p})
+	if {_lot} is true:
+		if {-jailbr::state::front} is "open":
+			set {_due} to {-jailbr::opento::front}
+			if {_due} is set:
+				set {_left} to jailSecsLeft({_due})
+				hudBossSet({_p}, "&a&lGATE OPEN&r &7· %ceil({_left})%s", "green", {_left} / max(1, cfg("prison::front::open") / 1 second))
+				return true
+		hudBossSet({_p}, "&6&lTHE LOT&r &7· the front gate opens from the gatehouse booth", "yellow", 1)
+		return true
+	set {_bar} to {-jail::bar::%{_u}%}
+	if {_bar} is set:
+		set {_a::*} to "%{_bar}%" split at "|"
+		set {_pr} to {_a::3} parsed as number
+		if {_pr} is not set:
+			set {_pr} to 1
+		hudBossSet({_p}, {_a::1}, {_a::2}, {_pr})
+		return true
+	return false
+
+# ---------- /prison (players) ----------
+
+function jailStuck(p: player):
+	set {_u} to "%uuid of {_p}%"
+	if prisonIn({_p}) is false:
+		msg({_p}, "&7You're not in the prison.")
+		stop
+	if {_p} is not alive:
+		stop
+	set {_course} to false
+	if jailState({_p}) is "course":
+		set {_course} to true
+		set {_wait} to cfg("prison::course::stuck") / 1 second
+	else:
+		set {_wait} to cfg("prison::stuck") / 1 second
+	set {_at} to {-jail::stuckat::%{_u}%}
+	if {_at} is set:
+		set {_since} to (difference between {_at} and now) / 1 second
+		if {_since} < {_wait}:
+			msg({_p}, "&7Too soon: /prison stuck again in %ceil({_wait} - {_since})%s.")
+			stop
+	set {-jail::stuckat::%{_u}%} to now
+	if {_course} is true:
+		set {_cp} to {-jail::checkpoint::%{_u}%}
+		if {_cp} is not set:
+			set {_cp} to "T_SPAWN"
+		set {_l} to jailPt({_cp})
+		if {_l} is set:
+			teleport {_p} to {_l}
+		jailLog("stuck-course %{_p}% to=%{_cp}%")
+		stop
+	if {-jail::hostile::%{_u}%} is set:
+		jailCatch({_p}, "surrender")
+	else:
+		jailCatch({_p}, "stuck")
+
+command /prison [<text>]:
+	description: The prison: how you get out, and /prison stuck.
+	executable by: players
+	trigger:
+		if arg-1 is "stuck":
+			jailStuck(player)
+			stop
+		if prisonIn(player) is false:
+			msg(player, "&7You're free. Every death sends you back to the prison, though.")
+			stop
+		set {_u} to "%uuid of player%"
+		if jailState(player) is "course":
+			msg(player, "&6You're new here. &7Follow the steps on the bar at the top; &f/prison stuck &7puts you back at your step.")
+			stop
+		set {_what} to "&fin the yard"
+		if jailInLot(location of player) is true:
+			set {_what} to "&6in the lot"
+		if {-jail::hostile::%{_u}%} is set:
+			set {_what} to "%{_what}% &c(the guards are after you)"
+		msg(player, "&7You're an inmate, %{_what}%&7.")
+		msg(player, "&6Ways out: &fa keycard &7(knock a guard down or trade Rusty a donut) through the police station, &fC4 &7(parts in the workshop, the supply closet and the infirmary; put it together at the workshop bench) on the vehicle gate by the plaza, or &fthe fence by the Gun Shop &7(punch the box when no guard is near, or use a keycard) and over the boxes. &6Then the lot: &7the front gate opens from the gatehouse booth's console. A keycard opens the booth, or punch its fuse box when no guard is near.")
+		msg(player, "&7Stuck somewhere? &f/prison stuck &7(back to your cell; while the guards are after you it counts as a catch).")
+
+# ---------- /dprison (staff) ----------
+
+function jailItemsText(p: player) :: text:
+	set {_out} to ""
+	loop integers from 0 to 35:
+		set {_i} to slot loop-value of {_p}'s inventory
+		if {_i} is not air:
+			set {_id} to itemId({_i})
+			if {_id} starts with "jail:":
+				set {_a::*} to {_id} split at ":"
+				set {_e} to "%{_a::2}%:%loop-value%x%item amount of {_i}%"
+				if {_out} is "":
+					set {_out} to {_e}
+				else:
+					set {_out} to "%{_out}%,%{_e}%"
+	return {_out}
+
+function jailInfo(p: player) :: text:
+	set {_u} to "%uuid of {_p}%"
+	set {_l} to location of {_p}
+	set {_ins} to jailInsideAt({_l})
+	set {_lot} to jailInLot({_l})
+	set {_h} to "no"
+	if {-jail::hostile::%{_u}%} is set:
+		set {_h} to "yes(%{-jail::hunters::%{_u}%}%)"
+	set {_sh} to "0"
+	if jailShielded({_p}) is true:
+		set {_sh} to "%ceil(jailSecsLeft({-jail::shield::%{_u}%}))%"
+	set {_ko} to ""
+	loop {-jail::ko::%{_u}%::*}:
+		if loop-value > now:
+			# The other player's name while they're online (the index is their uuid).
+			set {_who} to loop-index
+			loop all players:
+				if "%uuid of loop-player%" is loop-index-1:
+					set {_who} to name of loop-player
+			set {_e} to "%{_who}%:%ceil(jailSecsLeft(loop-value-1))%"
+			if {_ko} is "":
+				set {_ko} to {_e}
+			else:
+				set {_ko} to "%{_ko}%,%{_e}%"
+	set {_koby} to ""
+	loop all players:
+		set {_d} to {-jail::ko::%uuid of loop-player%::%{_u}%}
+		if {_d} is set:
+			if {_d} > now:
+				set {_e} to "%loop-player%:%ceil(jailSecsLeft({_d}))%"
+				if {_koby} is "":
+					set {_koby} to {_e}
+				else:
+					set {_koby} to "%{_koby}%,%{_e}%"
+	set {_step} to getData({_p}, "jail-step")
+	set {_cell} to {-jail::cell::%{_u}%}
+	set {_mark} to {-jail::mark::%{_u}%}
+	set {_stun} to "no"
+	if {-jail::stun::%{_u}%} is set:
+		if {-jail::stun::%{_u}%} > now:
+			set {_stun} to "yes"
+	return "JAIL %{_p}% state=%jailState({_p})% step=%{_step}% cell=%{_cell}% inside=%{_ins}% lot=%{_lot}% hostile=%{_h}% stun=%{_stun}% shield=%{_sh}% items=%jailItemsText({_p})% mark=%{_mark}% lotflag=%{-jail::lot::%{_u}%}% course=%getData({_p}, "jail-course")% ko=%{_ko}% koby=%{_koby}%"
+
+command /dprison [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		set {_usage} to "PRISON usage: /dprison info|catch|free <player> | state <player> course|in|out|off | step <player> <step> | course <player> skip | door <name> open|close | breach gate|punch|front open|close | setup | reload"
+		if {_sub} is "reload":
+			jailPointsLoad()
+			delete {-jail::cellids::*}
+			send "PRISON points reloaded: %{-jailpts::count}% points, %size of jailCells()% cells, on=%jailOn()%" to sender
+			jailLog("reload by=%sender%")
+			stop
+		if {_sub} is "setup":
+			jailSetup(sender)
+			stop
+		if {_sub} is "door":
+			set {_name} to {_a::2}
+			if {-jaildoor::%{_name}%::*} is not set:
+				send "PRISON no door %{_name}% (%join jailDoorNames() with ", "%)" to sender
+				stop
+			if {_a::3} is "open":
+				jailDoor({_name}, true)
+			else:
+				delete {-jail::doorclose::%{_name}%}
+				jailDoor({_name}, false)
+			send "PRISON door %{_name}% %{_a::3}%" to sender
+			jailLog("door %{_name}% %{_a::3}% by=%sender%")
+			stop
+		if {_sub} is "breach":
+			set {_id} to {_a::2}
+			if {_id} is not "gate" or "punch" or "front":
+				send "PRISON breach gate|punch|front open|close" to sender
+				stop
+			if {_a::3} is not "open" or "close":
+				send "PRISON breach gate|punch|front open|close" to sender
+				stop
+			# jailescape.sk runs the breaches: it picks the request up within a tick.
+			set {-jailbr::req::%{_id}%} to {_a::3}
+			send "PRISON breach %{_id}% %{_a::3}% requested (jailescape.sk applies it)" to sender
+			jailLog("breach %{_id}% %{_a::3}% by=%sender%")
+			stop
+		set {_who} to {_a::2} parsed as player
+		if {_who} is not set:
+			send {_usage} to sender
+			stop
+		if {_sub} is "info":
+			send jailInfo({_who}) to sender
+		else if {_sub} is "state":
+			set {_st} to {_a::3}
+			if {_st} is not "course" or "in" or "out" or "off":
+				send "PRISON state course|in|out|off" to sender
+				stop
+			setData({_who}, "jail", {_st})
+			if {_st} is "course":
+				if getData({_who}, "jail-step") is not set:
+					setData({_who}, "jail-step", "cell")
+			jailLog("state %{_who}% %{_st}% by=%sender%")
+			send "PRISON %{_who}% state=%{_st}%" to sender
+		else if {_sub} is "step":
+			set {_st} to {_a::3}
+			if {_st} is not set:
+				send "PRISON step <player> cell|sneak|vent|crawl|boiler|hotbar|phone|office|upstairs" to sender
+				stop
+			setData({_who}, "jail", "course")
+			setData({_who}, "jail-step", {_st})
+			jailLog("step %{_who}% %{_st}% by=%sender%")
+			send "PRISON %{_who}% step=%{_st}%" to sender
+		else if {_sub} is "course":
+			if {_a::3} is not "skip":
+				send "PRISON course <player> skip" to sender
+				stop
+			jailCourseDone({_who})
+			jailLog("course-skip %{_who}% by=%sender%")
+			send "PRISON %{_who}% finished the course" to sender
+		else if {_sub} is "catch":
+			jailCatch({_who}, "staff")
+			send "PRISON %{_who}% caught" to sender
+		else if {_sub} is "free":
+			setData({_who}, "jail", "out")
+			jailStrip({_who})
+			jailCellFree({_who})
+			jailModsOff({_who})
+			delete {-jail::mark::%uuid of {_who}%}
+			delete {-jail::lot::%uuid of {_who}%}
+			set {_l} to jailPt("LOT_EXIT")
+			if {_l} is set:
+				teleport {_who} to {_l}
+			jailLog("free %{_who}% by=%sender%")
+			send "PRISON %{_who}% is free (at LOT_EXIT)" to sender
+		else:
+			send {_usage} to sender
+
+# Idempotent: the points, every door in its built state, the breaches and gates restored (closed, no cooldowns), a gun
+# shopkeeper at GUN_KEEPER, no mobs in the prison world. Givers are /djailjobs setup's, cops spawn by themselves.
+function jailSetup(s: command sender):
+	jailPointsLoad()
+	delete {-jail::cellids::*}
+	set {_w} to jailWorld()
+	if {_w} is not set:
+		send "PRISON the prison world %{-cfg::prison::world}% isn't loaded" to {_s}
+		stop
+	set {_doors} to jailDoorsReset()
+	loop "gate", "punch" and "front":
+		set {-jailbr::req::%loop-value%} to "restore"
+	# A gun shopkeeper within 3 blocks of GUN_KEEPER in the prison world.
+	set {_gk} to jailPt("GUN_KEEPER")
+	set {_keeper} to "kept"
+	if {_gk} is set:
+		set {_found} to false
+		loop {shop::keepers::*}:
+			if loop-value is "gun":
+				set {_kl} to {shop::keeper::%loop-index%::loc}
+				if {_kl} is set:
+					if world of {_kl} is {_w}:
+						if distance between {_kl} and {_gk} <= 3:
+							set {_found} to true
+		if {_found} is false:
+			set {_n} to ""
+			loop 1000 times:
+				if {_n} is "":
+					if {shop::keepers::%loop-number%} is not set:
+						set {_n} to "%loop-number%"
+			set {shop::keepers::%{_n}%} to "gun"
+			set {shop::keeper::%{_n}%::loc} to {_gk}
+			spawnKeeper({_n})
+			set {_keeper} to "added (%{_n}%)"
+	execute console command "execute in %worldDim({_w})% run gamerule spawn_mobs false"
+	set {_m} to 0
+	loop all entities in {_w}:
+		if loop-entity is a monster:
+			add 1 to {_m}
+			kill loop-entity
+	send "PRISON setup: %{-jailpts::count}% points, %{_doors}% doors reset, breaches gate/punch/front restored, gun shopkeeper %{_keeper}%, spawn_mobs off, %{_m}% monsters removed, on=%jailOn()%" to {_s}
+	jailLog("setup by=%{_s}% doors=%{_doors}% keeper=%{_keeper}% monsters=%{_m}%")
+
+on tab complete of "/dprison" and "/skript:dprison":
+	set tab completions for position 1 to "info", "state", "step", "course", "catch", "free", "door", "breach", "setup" and "reload"
+	set {_s} to tab arg-1
+	if {_s} is "door":
+		set tab completions for position 2 to jailDoorNames()
+		set tab completions for position 3 to "open" and "close"
+		stop
+	if {_s} is "breach":
+		set tab completions for position 2 to "gate", "punch" and "front"
+		set tab completions for position 3 to "open" and "close"
+		stop
+	if {_s} is "setup" or "reload":
+		stop
+	loop all players:
+		if player can see loop-player:
+			add name of loop-player to {_n::*}
+	if {_n::*} is set:
+		set tab completions for position 2 to {_n::*}
+	if {_s} is "state":
+		set tab completions for position 3 to "course", "in", "out" and "off"
+	else if {_s} is "step":
+		set tab completions for position 3 to "cell", "sneak", "vent", "crawl", "boiler", "hotbar", "phone", "office" and "upstairs"
+	else if {_s} is "course":
+		set tab completions for position 3 to "skip"
+
+on tab complete of "/prison" and "/skript:prison":
+	set tab completions for position 1 to "stuck"

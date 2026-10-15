@@ -35,6 +35,11 @@ on join:
 	player is online
 	send title "&6&lDONATING" with subtitle "&7Welcome, robber!" to player for 4 seconds
 	play sound "entity.player.levelup" with volume 0.6 to player
+	# The prison (prison.sk): a new player starts in a cell.
+	if jailOn() is true:
+		msg(player, "Welcome to Donating! You start with &a%formatMoney({_start})%&7... in a cell.")
+		msg(player, "Learn the ropes, then break out.")
+		stop
 	if {_start} > 0:
 		msg(player, "Welcome to Donating! You start with &a%formatMoney({_start})%&7.")
 	else:

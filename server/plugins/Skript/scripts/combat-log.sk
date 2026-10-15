@@ -120,6 +120,8 @@ on command:
 on quit:
 	player is alive
 	isCombatTagged(player) is true
+	# Inside the prison logging out while hunted is a catch at the next join (prison.sk), never a death.
+	prisonIn(player) is false
 	# A staff kick isn't a combat log (core.sk's staffKicked). A kick the player caused (chat spam, a
 	# timed-out client) is. A server stop never gets here: Paper disables plugins first.
 	staffKicked(player) is false

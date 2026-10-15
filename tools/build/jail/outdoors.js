@@ -1,9 +1,11 @@
 // Jailbreak prison, module M1 (jail-spec sections 3, 7.3 and 10): the perimeter and everything outdoors.
 // Brick walls W1..W7, chain-link fences F1..F7 (plus the annex south fence, F4 and the inner vehicle gate fence), the
-// 15 watchtowers (8 in brick walls, 7 lattice towers in fence lines), the front gate with its booth, the open back gate,
-// the RELEASE gate on F6, the roads, the parking lot, the service lane, the yard (field, goals, bleachers, workout pads,
-// paths, scoreboard, floodlights), the plaza and walkway, the picnic annex, the water tower, manholes, lamps, trees and
-// grass, and the easy-escape route with its arrows, lamps and EXIT signs.
+// 15 watchtowers (8 in brick walls, 7 lattice towers in fence lines), the front gate with its booth (a reader and a fuse
+// box: ESCAPE-SPEC 3.1-11), the closed back gate, the roads, the parking lot, the service lane, the yard (field, goals,
+// bleachers, workout pads, paths, scoreboard, floodlights), the plaza and walkway, the picnic annex with the parkour
+// crates, the water tower, manholes, lamps, trees and grass.
+// The escape rework (ESCAPE-SPEC, 2026-10-14): F6 is one fence (no RELEASE gap), the back gate is closed and the easy
+// route is gone. The paste is sparse, so everything removed is set explicitly (air, grass or the surface underneath).
 // Every block goes through S(), which writes only inside M1's region (spec 2.1); later parts overwrite earlier ones
 // (towers last: tower bases win over every surface).
 // ---- COMMON (jail-spec 1.7, copy verbatim) ----
@@ -116,8 +118,7 @@ const FENCES = [
   { name: 'F3', cells: axisCells(110, 297, 110, 391), out: [-1, 0], plates: true },
   { name: 'F4', cells: axisCells(115, 292, 117, 292), out: [0, 1] },
   { name: 'F5', cells: lineCells(9, 214, 71, 289).filter(([x, z]) => !inBase(x, z)), out: [-1, 1] },
-  { name: 'F6 north', cells: F6ALL.filter(([x, z]) => z <= 261), out: [-1, 0] },
-  { name: 'F6 south', cells: F6ALL.filter(([x, z]) => z >= 269 && !inBase(x, z)), out: [-1, 0] },
+  { name: 'F6', cells: F6ALL.filter(([x, z]) => !inBase(x, z)), out: [-1, 0] }, // one fence: the RELEASE gap is closed
   { name: 'F7', cells: axisCells(339, 237, 339, 349), out: [1, 0], gate: [26, 29], plates: true },
   { name: 'annex south', cells: axisCells(340, 349, 376, 349), out: [0, 1], plates: true },
   { name: 'inner gate', cells: axisCells(163, 322, 192, 322), out: [0, 1], gate: [7, 23] }
@@ -133,7 +134,8 @@ const plateIndexes = f => {
   return out
 }
 
-// The easy-escape route (7.3): E2..E8, painted 5 wide.
+// The old easy-escape route (7.3), removed by unroute(). The route and its 2-block margin are kept: greenery and the
+// pilasters stay off ROUTE_NEAR, so their output doesn't change.
 const ROUTE = [[130.5, 197.5], [140.5, 197.5], [140.5, 255.5], [101.5, 255.5], [96.5, 265.5], [92.5, 292.5], [92.5, 418.5]]
 const segDist = (px, pz, a, b) => {
   const vx = b[0] - a[0], vz = b[1] - a[1], L2 = vx * vx + vz * vz
@@ -271,9 +273,12 @@ function roads () {
   }
   // Sidewalk lamps along the south road.
   for (const x of [-20, 40, 140, 200, 330, 400, 476]) lamp(x, 417)
-  // Vent-exit path from the outlet south to the south road's sidewalk, with 4 lamp posts.
-  rect(-6, 87, -2, 415, (x, z) => S(x, 64, z, 'dirt_path'))
-  for (const z of [120, 200, 280, 360]) lamp(-8, z, 'z')
+  // The old vent-exit path west of W1 (the vent no longer leads out): grass again, its 4 lamp posts gone.
+  rect(-6, 87, -2, 415, (x, z) => S(x, 64, z, 'grass_block'))
+  for (const z of [120, 200, 280, 360]) {
+    for (let y = 65; y <= 71; y++) S(-8, y, z, 'air')
+    for (let k = -1; k <= 1; k++) { S(-8, 72, z + k, 'air'); S(-8, 73, z + k, 'air') }
+  }
   // Lane lamps on its west edge.
   for (const z of [90, 138, 162, 186]) lamp(11, z, 'z')
 }
@@ -490,6 +495,25 @@ function annex () {
   lamp(370, 262); lamp(345, 305); lamp(372, 332)
 }
 
+// The parkour (ESCAPE-SPEC 3.1-8): from the annex's box stacks up five props P1..P5 to the annex's south fence, over its
+// mesh (chain top 72.6, feet at 73) and down three crates L1..L3 into the lot. One way: L3 to L2 is +2.
+// [x1, z1, x2, z2, top]; crates alternate stripped oak and packed mud like the annex's boxes; P3 is an AC unit.
+const PARKOUR = [
+  ['P1', 360, 340, 361, 341, 68], ['P2', 363, 340, 364, 341, 69], ['P3', 366, 340, 367, 341, 70], ['P4', 366, 343, 367, 344, 71],
+  ['P5', 366, 346, 367, 348, 72], ['L1', 366, 351, 367, 351, 69], ['L2', 366, 352, 367, 352, 67], ['L3', 366, 353, 367, 353, 65]
+]
+const PARKOUR_VENTS = [366, 66, 339, 367, 69, 339] // P3's vents on its north face
+function parkour () {
+  for (const [name, x1, z1, x2, z2, top] of PARKOUR) rect(x1, z1, x2, z2, (x, z) => {
+    for (let y = 65; y <= top; y++) S(x, y, z, name === 'P3' ? 'light_gray_concrete' : (x + y + z) % 2 ? 'stripped_oak_wood[axis=y]' : 'packed_mud')
+  })
+  const [vx1, vy1, vz, vx2, vy2] = PARKOUR_VENTS
+  for (let x = vx1; x <= vx2; x++) for (let y = vy1; y <= vy2; y++) S(x, y, vz, 'iron_trapdoor[facing=north,half=bottom,open=true]')
+  // the punch gate's reader, on a red plate on a stub next to F7's gate post (339, 262)
+  S(338, 65, 262, 'polished_andesite'); S(338, 66, 262, 'red_concrete')
+  S(337, 66, 262, 'tripwire_hook[facing=west,attached=false,powered=false]')
+}
+
 function waterTower (cx = 300, cz = 30) {
   // 4 legs up to the tank's rounded bottom, iron_chain braces between them at two levels
   for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) for (let y = 65; y <= 83; y++) S(cx + dx, y, cz + dz, 'polished_blackstone_wall')
@@ -589,32 +613,29 @@ function fences () {
     }
   }
   // F7's punch-box gate: posts were set at its ends; the panel is the gate range above.
-  // RELEASE gate on F6: andesite_wall posts at the line's cells at z 261 and z 269, a crossbar at y 71 over the gap,
-  // and an orange sign plate on its east side.
-  for (const [x, z] of F6ALL) {
-    if (z === 261 || z === 269) {
-      for (let y = 65; y <= 71; y++) S(x, y, z, 'andesite_wall')
-      D(x, 72, z); D(x - 1, 72, z)
-    }
-    if (z >= 261 && z <= 269) S(x, 71, z, 'andesite_wall')
-  }
-  for (let z = 264; z <= 266; z++) S(97, 71, z, 'orange_concrete')
-  // Front gate: closed sliding panels x 253..267 and x 277..291 meeting the booth.
+  // F6's old RELEASE arch is gone (F6 is one fence now): its sign plate's one block off the fence line goes too.
+  S(97, 71, 264, 'air')
+  // Front gate: closed sliding panels x 253..267 and x 277..291 meeting the booth (Skript slides them open: breach "front").
   for (const [x1, x2] of [[253, 267], [277, 291]]) for (let x = x1; x <= x2; x++) {
     S(x, 64, 396, 'polished_andesite')
     const stile = x === x1 || x === x2 || x === (x1 + x2) >> 1
     for (let y = 65; y <= 70; y++) S(x, y, 396, stile ? 'light_gray_concrete' : 'iron_bars')
     S(x, 71, 396, 'light_gray_concrete')
   }
-  // Back gate (always open): an andesite_wall gantry with a green EXIT plate, panels parked against the tower bases.
+  // Back gate (closed): the andesite_wall gantry over two shut sliding panels x 81..104 (stiles at 81, 92, 93, 104).
   for (const x of [80, 105]) { S(x, 64, 292, 'smooth_stone'); for (let y = 65; y <= 72; y++) S(x, y, 292, 'andesite_wall') }
-  for (let x = 80; x <= 105; x++) S(x, 73, 292, x >= 90 && x <= 95 ? 'green_concrete' : 'andesite_wall')
-  // (F3's first post stands at (110, 297) in the east panel's row: the panel stops on both sides of it)
+  for (let x = 80; x <= 105; x++) S(x, 73, 292, 'andesite_wall')
+  for (let x = 81; x <= 104; x++) {
+    S(x, 64, 292, 'polished_andesite')
+    for (let y = 65; y <= 70; y++) S(x, y, 292, [81, 92, 93, 104].includes(x) ? 'light_gray_concrete' : 'iron_bars')
+    S(x, 71, 292, 'light_gray_concrete')
+  }
+  // The panels that stood parked at z 297 are gone: the lot's asphalt strip from x 111, grass west of it (F3's post at
+  // x 110 stays).
   for (const [x1, x2] of [[71, 79], [106, 114]]) for (let x = x1; x <= x2; x++) {
     if (x === 110) continue
-    S(x, 64, 297, 'polished_andesite')
-    for (let y = 65; y <= 69; y++) S(x, y, 297, x === x1 || x === x2 || x === 109 || x === 111 ? 'light_gray_concrete' : 'iron_bars')
-    S(x, 70, 297, 'light_gray_concrete')
+    S(x, 64, 297, x >= 111 ? pick(x, 64, 297, MIX.asphalt) : 'grass_block')
+    for (let y = 65; y <= 70; y++) S(x, y, 297, 'air')
   }
 }
 
@@ -645,6 +666,11 @@ function booth () {
   S(272, 65, 397, 'smooth_stone_slab[type=top]')
   S(272, 65, 396, 'polished_blackstone_stairs[facing=north,half=bottom]')
   S(272, 69, 395, 'lantern[hanging=true,waterlogged=false]')
+  // ESCAPE-SPEC 3.1-11: the door's outside reader (a red plate in the frame's west side, the hook on the island) and the
+  // fuse box on the curb against the booth's west wall (punched from the lot at (266, 395)). The console's buttons are
+  // 5 blocks from the door (jail-spec 1.8 keeps 3); Skript cancels clicks on them.
+  S(271, 66, 391, 'red_concrete'); S(271, 66, 390, 'tripwire_hook[facing=north,attached=false,powered=false]')
+  S(267, 65, 395, 'iron_block'); S(267, 66, 395, 'iron_block')
   cypress(272, 404)
   manhole(272, 410)
 }
@@ -742,33 +768,31 @@ function tower ([name, cx, cz, kind, spot, doorSpec, cabDoor]) {
   }
 }
 
-// ---- the easy-escape route ----------------------------------------------------------------------------------------------
-function route () {
-  for (const k of ROUTE_CELLS) { const [x, z] = k.split(',').map(Number); S(x, 64, z, 'orange_concrete') }
-  // white arrows every 6 blocks, pointing along the route
-  // a solid head and a shaft, [along, across]: the tip at 0
-  const ARROW = [[0, 0], [-1, -1], [-1, 0], [-1, 1], [-2, -2], [-2, -1], [-2, 0], [-2, 1], [-2, 2], [-3, 0], [-4, 0]]
-  for (let i = 1; i < ROUTE.length; i++) {
-    const [a, b] = [ROUTE[i - 1], ROUTE[i]], L = Math.hypot(b[0] - a[0], b[1] - a[1])
-    const ux = Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1]) ? Math.sign(b[0] - a[0]) : 0
-    const uz = ux === 0 ? Math.sign(b[1] - a[1]) : 0
-    for (let s = 3; s < L - 1.5; s += 6) {
-      const px = Math.floor(a[0] + (b[0] - a[0]) * s / L), pz = Math.floor(a[1] + (b[1] - a[1]) * s / L)
-      for (const [u, v] of ARROW) {
-        const x = px + u * ux - v * uz, z = pz + u * uz + v * ux
-        if (ROUTE_CELLS.has(`${x},${z}`)) S(x, 64, z, 'white_concrete')
-      }
+// T9's west face where the annex's south fence (z 349, the parkour's last fence) meets it. The face's brace leaves a
+// notch over the y 71 beam there (72.5 to the brace at 75), and a crouching player could walk the fence top east from
+// the parkour, step off the post at x 376 into it and drop into the tower's hollow, which straddles the outline (x 381.5):
+// out past the front gate. Braced shut up to the y 75 brace (WP-BUILD review, 2026-10-14; the checker's crouch pass).
+function sealT9 () {
+  for (let y = 72; y <= 74; y++) S(377, y, 349, 'polished_blackstone_wall')
+}
+
+// ---- the old easy-escape route, removed (ESCAPE-SPEC 3.1-4) ---------------------------------------------------------
+// Its paint goes back to grass where nothing earlier set the cell (paths, roads and the doorstep keep their own surface:
+// route() no longer paints over them), its 12 lamps and 4 EXIT sign posts become air.
+function unroute () {
+  for (const k of ROUTE_CELLS) { const [x, z] = k.split(',').map(Number); if (!G(x, 64, z)) S(x, 64, z, 'grass_block') }
+  for (const [x, z, ax] of [[136, 193, 'x'], [145, 213, 'z'], [145, 229, 'z'], [145, 245, 'z'], [126, 251, 'x'], [110, 251, 'x'],
+    [88, 276, 'z'], [80, 305, 'z'], [80, 329, 'z'], [80, 353, 'z'], [80, 377, 'z'], [80, 401, 'z']]) {
+    const gone = (x, y, z) => { if (!G(x, y, z)) S(x, y, z, 'air') } // a cell an earlier part set keeps that block
+    for (let y = 65; y <= 71; y++) gone(x, y, z)
+    for (let k = -1; k <= 1; k++) {
+      const lx = ax === 'x' ? x + k : x, lz = ax === 'x' ? z : z + k
+      gone(lx, 72, lz); gone(lx, 73, lz)
     }
   }
-  // lamp posts along it
-  for (const [x, z, ax] of [[136, 193, 'x'], [145, 213, 'z'], [145, 229, 'z'], [145, 245, 'z'], [126, 251, 'x'], [110, 251, 'x'],
-    [88, 276, 'z'], [80, 305, 'z'], [80, 329, 'z'], [80, 353, 'z'], [80, 377, 'z'], [80, 401, 'z']]) lamp(x, z, ax)
-  // EXIT signs at the turns: a post and a green plate
   for (const [x, z] of SIGNS) {
-    S(x, 64, z, 'polished_andesite')
-    for (let y = 65; y <= 66; y++) S(x, y, z, 'polished_blackstone_wall')
-    S(x, 67, z, 'green_concrete')
-    S(x, 68, z, 'polished_blackstone_slab[type=bottom]')
+    if (!G(x, 64, z)) S(x, 64, z, 'grass_block')
+    for (let y = 65; y <= 68; y++) S(x, y, z, 'air')
   }
 }
 
@@ -818,13 +842,15 @@ module.exports = (b) => {
   pads()
   furniture()
   annex()
+  parkour()
   waterTower()
   manhole(424, 386)
-  route()
+  unroute()
   walls()
   fences()
   booth()
   for (const t of TOWERS) tower(t)
+  sealT9()
   greenery()
   B = null
   return b
@@ -834,28 +860,64 @@ module.exports = (b) => {
 const LABELS = [
   { x: 271.97, y: 67.5, z: 173.5, facing: 'west', text: '0 0', color: '#ffffff', scale: 1 },
   { x: 173.5, y: 69.5, z: 278.97, facing: 'north', text: 'SEASON', color: '#ffffff', scale: 1 },
-  { x: 92.5, y: 73.5, z: 291.97, facing: 'north', text: 'EXIT', color: '#ffffff', scale: 2 },
-  { x: 98.03, y: 71.5, z: 265.5, facing: 'east', text: 'RELEASE', color: '#ffffff', scale: 1 }
+  { x: 272.5, y: 68.5, z: 390.97, facing: 'north', text: 'GATEHOUSE', color: '#ffffff', scale: 0.8 }, // L_GATEHOUSE
+  { x: 266.97, y: 66.5, z: 395.5, facing: 'west', text: 'FUSE BOX', color: '#ffd84d', scale: 0.5 } // L_FUSE
 ]
 for (const f of FENCES) for (const i of plateIndexes(f)) {
   const [x, z] = f.cells[i]
   if (f.out[1] !== 0) LABELS.push({ x: x + 0.5, y: 68.0, z: f.out[1] > 0 ? z + 1.03 : z - 0.03, facing: f.out[1] > 0 ? 'south' : 'north', text: 'HIGH VOLTAGE', color: '#000000', scale: 1 })
   else LABELS.push({ x: f.out[0] > 0 ? x + 1.03 : x - 0.03, y: 68.0, z: z + 0.5, facing: f.out[0] > 0 ? 'east' : 'west', text: 'HIGH VOLTAGE', color: '#000000', scale: 1 })
 }
-for (const [x, z, facing, text] of SIGNS) {
-  const d = DIR[facing]
-  LABELS.push({ x: d[0] ? (d[0] > 0 ? x + 1.03 : x - 0.03) : x + 0.5, y: 67.5, z: d[1] ? (d[1] > 0 ? z + 1.03 : z - 0.03) : z + 0.5, facing, text, color: '#ffffff', scale: 0.6 })
-}
 module.exports.labels = LABELS
 
-// ---- points (7.2, 7.3, 10) ----------------------------------------------------------------------------------------------
+// ---- points (7.2, 10; ESCAPE-SPEC Appendix B, M1) -----------------------------------------------------------------------
+const route = (name, pts) => Object.fromEntries(pts.map((p, i) => [`ROUTE_${name}_${i + 1}`, [...p, 0]]))
 module.exports.points = {
   R_SPAWN_OUT: [133.5, 65, 197.5, -90],
-  E2: [130.5, 65, 197.5, 0],
-  E3: [140.5, 65, 197.5, 0],
-  E4: [140.5, 65, 255.5, 0],
-  E5: [101.5, 65, 255.5, 0],
-  E6: [96.5, 65, 265.5, 0],
-  E7: [92.5, 65, 292.5, 0],
-  E8: [92.5, 65, 418.5, 0]
+  // cop patrols (jailcops.sk walks them there and back)
+  ...route('YARDN', [[140.5, 65, 140.5], [156.5, 65, 122.5], [172.5, 65, 103.5], [205.5, 65, 103.5], [238.5, 65, 103.5], [263.5, 65, 118.5]]),
+  ...route('YARDS', [[263.5, 65, 145.5], [263.5, 65, 172.5], [263.5, 65, 199.5], [263.5, 65, 226.5], [263.5, 65, 245.5], [227.5, 65, 243.5],
+    [190.5, 65, 240.5], [190.5, 65, 215.5], [190.5, 65, 189.5], [165.5, 65, 189.5], [140.5, 65, 189.5], [140.5, 65, 165.5]]),
+  ...route('WALK', [[180.5, 65, 310.5], [180.5, 65, 290.5], [180.5, 65, 271.5], [205.5, 65, 271.5], [235.5, 65, 271.5], [265.5, 65, 271.5],
+    [295.5, 65, 271.5], [330.5, 65, 271.5], [336.5, 65, 265.5], [336.5, 65, 258.5]]),
+  ...route('W5', [[279.5, 78, 120.5], [279.5, 78, 141.5], [279.5, 78, 163.5], [283.5, 78, 166.5], [283.5, 78, 175.5], [279.5, 78, 178.5],
+    [279.5, 78, 203.5], [279.5, 78, 228.5]]),
+  ...route('W67', [[287.5, 78, 235.5], [310.5, 78, 235.5], [340.5, 78, 235.5], [373.5, 78, 235.5], [377.5, 78, 240.5], [381.5, 78, 243.5],
+    [381.5, 78, 264.5], [377.5, 78, 267.5], [377.5, 78, 277.5], [381.5, 78, 280.5], [381.5, 78, 310.5], [381.5, 78, 340.5]]),
+  ...route('GATE', [[236.5, 65, 389.5], [272.5, 65, 389.5], [308.5, 65, 389.5]]), // the lot's south strip, past the booth door
+  ...route('LOT', [[150.5, 65, 362.5], [190.5, 65, 362.5], [230.5, 65, 362.5], [270.5, 65, 362.5], [310.5, 65, 362.5], [350.5, 65, 362.5]]),
+  TANK: [181.5, 65, 156.5, 90],
+  // the C4 on the inner vehicle gate
+  PLANT_GATE: [178.5, 65, 320.5, 0],
+  C4_GATE: [178.5, 67.0, 321.9, 180],
+  // the punch box and the punch gate on F7
+  PUNCH_STAND: [335.5, 65, 254.5, 90],
+  PUNCH_READER: [337, 66, 262, 0],
+  PUNCH_IN: [340.5, 65, 264.5, -90],
+  RUN_1: [172.5, 65, 103.5, 0],
+  RUN_2: [238.5, 65, 103.5, 0],
+  RUN_3: [227.5, 65, 243.5, 0],
+  RUN_4: [140.5, 65, 240.5, 0],
+  STASH_1: [273.5, 65, 180.5, 0],
+  STASH_2: [238.5, 65, 94.5, 0],
+  STASH_3: [162.5, 65, 245.5, 0],
+  STASH_4: [190.5, 65, 318.5, 0],
+  // the lot, the gatehouse booth and the front gate
+  LOT_EXIT: [260.5, 65, 404.5, 0],
+  BOOTH_OUT: [272.5, 65, 389.5, 0],
+  BOOTH_READER: [271, 66, 390, 0],
+  BOOTH_DOOR: [272, 65, 392, 0],
+  BOOTH_IN: [272.5, 65, 393.5, 0],
+  BOOTH_STAND: [272.5, 65, 395.5, 0],
+  CONSOLE: [272.5, 65.0, 397.5, 0],
+  FUSE_BOX: [267, 66, 395, 0],
+  FUSE_STAND: [266.5, 65, 395.5, -90],
+  FRONT_IN: [260.5, 65, 392.5, 180],
+  L_GATEHOUSE: [272.5, 68.5, 390.97, 180],
+  L_FUSE: [266.97, 66.5, 395.5, 90]
 }
+// The parkour props' blocks (the checker takes them out to prove they're the only way over the annex fence).
+module.exports.parkour = [
+  ...PARKOUR.map(([, x1, z1, x2, z2, top]) => [x1, 65, z1, x2, top, z2]),
+  [PARKOUR_VENTS[0], PARKOUR_VENTS[1], PARKOUR_VENTS[2], PARKOUR_VENTS[3], PARKOUR_VENTS[4], PARKOUR_VENTS[2]]
+]

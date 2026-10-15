@@ -1,0 +1,210 @@
+// The prison's B1 controls course for first-joiners (jailcourse.sk; ESCAPE-SPEC 4.4 and 7.2-1; owner, 2026-10-14: "the
+// lower levels learn the controls"). A first join lands in a west-wing cell; the door opens after 5 s and stays open
+// while the bot is inside; (no basic-controls steps: owner, 2026-10-14) sneak past the sleeping guard for his keycard, the vent
+// reader, the lids that force the crawl, the boiler room, Rusty's knife (the hotbar lesson), the phone, the Security
+// Office reader, the ladder hatch, the SECURITY door from Hall C, Hall B: done (state in, Lefty's chain starts). Then a
+// course bot pushed back from B1's stair, and rejoins at a checkpoint and in a cell (its door opens 3 s after the join).
+// Every step is told straight to the player (a title, a TUTORIAL chat line); /tutorial confirm takes a player back to
+// their step, and after the course back to the start as a prisoner again.
+// Bots can't crawl: they're teleported past the crawl, and the blocks are checked instead.
+const { start, field, sleep } = require('../prisonlib')
+
+const A = 'PcCourseA'
+const B = 'PcCourseB'
+const COURSE_CELLS = ['n46', 'n53', 'n60', 'n67', 's46', 's53', 's60', 's67']
+
+module.exports = async ({ check }) => {
+  const t = await start()
+  const { cmd, info, tp, door, doorOpen, isBlock, pos, said, until, sneak, clickBlock, Vec3 } = t
+  try {
+    await t.prisonOn()
+    // ---- A first join: a west-wing course cell, step cell
+    const a = await t.newBot(A, { fresh: true })
+    await sleep(1500)
+    let s = await info(A)
+    const cell = field(s, 'cell')
+    check('first join: state course, step cell', field(s, 'state') === 'course' && field(s, 'step') === 'cell', s)
+    check('first join: in a west-wing course cell in jailbreak', COURSE_CELLS.includes(cell) && (await t.dim(A)) === 'minecraft:jailbreak', `${cell} ${await t.dim(A)}`)
+    check('first join: the cell door is shut while the wait runs', !(await doorOpen(`cell_${cell}`)), await door(`cell_${cell}`))
+    const opened = await until(() => doorOpen(`cell_${cell}`), 6000)
+    check('the cell door opens after ~5 s', opened, await door(`cell_${cell}`))
+    await sleep(3500)
+    s = await info(A)
+    check('...stays open while the bot stands inside, and the step is sneak (no walk/sprint/jump steps)', (await doorOpen(`cell_${cell}`)) && field(s, 'step') === 'sneak', s)
+    check('the Locked up prompt in the cell (title and a TUTORIAL chat line)', said(a, /Locked up/) && said(a, /TUTORIAL.*learn the ropes/i))
+    check('the sneak step told straight away: "Sneak past the guard" and its TUTORIAL line', said(a, /Sneak past the guard/) && said(a, /TUTORIAL.*Guards notice inmates/))
+    check('the boss bar says TUTORIAL', a.bars.some(b => /TUTORIAL/.test(b.text)), (a.bars.slice(-1)[0] || {}).text)
+    await tp(A, 78.5, 58, 59.5, 180)
+    await sleep(3200)
+
+    // ---- the sleeping guard: not sneaking wakes him
+    let since = Date.now()
+    await tp(A, 84.5, 58, 53.5, 180)
+    const woke = await until(async () => said(a, /HEY!/, since), 3000)
+    const back = await pos(A)
+    check('walking into the guard post without sneaking: HEY! and back to SNEAK_BACK', woke && back && Math.abs(back[0] - 78.5) < 1 && Math.abs(back[2] - 59.5) < 1, `${back}`)
+
+    // ---- sneaking, the keycard on the desk
+    sneak(a, true)
+    await sleep(3500)
+    await tp(A, 82.5, 58, 53.5, 180, 30)
+    await sleep(800)
+    const cb = t.near(a, 'interaction', [82.5, 58.5, 51.5], 1.5)
+    if (cb) {
+      a._client.write('use_entity', { target: cb.id, mouse: 2, sneaking: true, hand: 0, x: 0, y: 0.5, z: 0, location: { x: 0, y: 0.5, z: 0 } })
+      a._client.write('use_entity', { target: cb.id, mouse: 0, sneaking: true, hand: 0, location: { x: 0, y: 0, z: 0 } })
+    }
+    await sleep(900)
+    sneak(a, false)
+    s = await info(A)
+    const items = field(s, 'items')
+    check('sneaking and clicking the keycard: the coursecard in the pockets (slots 9-35), step vent', cb && field(s, 'step') === 'vent' && /coursecard:(9|[12]\d|3[0-5])x1/.test(items), s)
+    check('the vent step told: "Use the keycard"', said(a, /Use the keycard/))
+    const dump0 = await cmd(`zzdump ${A}`)
+    check('...hotbar 1-5 still empty', !/(DUMP |\| )[0-4]=/.test(dump0), dump0)
+
+    // ---- the vent reader, the lids
+    await tp(A, 81.5, 58, 85.5, 90)
+    await sleep(900)
+    await clickBlock(a, 80, 59, 85)
+    await sleep(500)
+    check('the vent reader opens the vent door', await doorOpen('vent'), await door('vent'))
+    await sleep(3800)
+    check('...and it closes after 3 s', !(await doorOpen('vent')), await door('vent'))
+    await tp(A, 77.5, 58, 84.5, 90)
+    await sleep(900)
+    check('standing in the vent chamber closes the lids (the crawl)', await isBlock(77, 59, 84, 'minecraft:iron_trapdoor[open=false]') && await isBlock(78, 59, 84, 'minecraft:iron_trapdoor[open=false]'))
+    // Bots can't crawl: into the crawl, then the boiler room by teleport.
+    await tp(A, 70.5, 58, 84.5, 90)
+    await sleep(900)
+    check('in the crawl: step crawl', field(await info(A), 'step') === 'crawl', await info(A))
+    check('the crawl is 1 high (x 61..76, z 84, y 59 solid above y 58 air)', await isBlock(70, 58, 84, 'minecraft:air') && !(await isBlock(70, 59, 84, 'minecraft:air')))
+    await sleep(2500)
+    check('the lids open again 2 s after the chamber is empty', await isBlock(77, 59, 84, 'minecraft:iron_trapdoor[open=true]'))
+    await tp(A, 61.5, 58, 80.5, 0)
+    await sleep(900)
+    check('the boiler room: step boiler', field(await info(A), 'step') === 'boiler', await info(A))
+
+    // ---- Rusty's cell through the broken wall: the knife (not into the held slot)
+    a.setQuickBarSlot(0)
+    await tp(A, 72.5, 58, 77.5, -90)
+    await sleep(3300)
+    since = Date.now()
+    await a.lookAt(new Vec3(80, 59.6, 77.5), true)
+    a.setControlState('forward', true)
+    await until(async () => { const p = await pos(A); return p && p[0] >= 75.2 }, 3000, 150)
+    a.setControlState('forward', false)
+    const knifeSay = await until(() => said(a, /Here, a knife\. Press 2/, since), 5000)
+    const dump = await cmd(`zzdump ${A}`)
+    s = await info(A)
+    check('walking into Rusty\'s cell: step hotbar, Rusty says "Took you long enough"', field(s, 'step') === 'hotbar' && said(a, /Took you long enough/, since), s)
+    check('the Combat Knife unlocked and in slot 1 (the bot holds slot 0), "Press 2"', knifeSay && /(WM |\| )1=Combat_Knife:/.test(await cmd(`zzwm ${A}`)) && /= true/.test(await cmd(`zzdata ${A} wpn::Combat_Knife`)), dump.slice(0, 300))
+    check('the hotbar step told after the knife: "Hold the knife" and the fixed-hotbar TUTORIAL line', said(a, /Hold the knife/, since) && said(a, /TUTORIAL.*hotbar is fixed/, since))
+    check('the bar says "press 2"', await until(() => a.bars.some(b => /Hold the knife: press 2/.test(b.text)), 2000), (a.bars.slice(-1)[0] || {}).text)
+    // The knife moved to slot 3 (hotbar.2), then selected: any slot counts.
+    await cmd(`minecraft:item replace entity ${A} hotbar.2 from entity ${A} hotbar.1`)
+    await cmd(`minecraft:item replace entity ${A} hotbar.1 with minecraft:air`)
+    await sleep(600)
+    a.setQuickBarSlot(2)
+    const held = await until(async () => field(await info(A), 'step') === 'phone', 3000)
+    check('the knife held from another slot: step phone', held, await info(A))
+
+    // ---- the phone: right-click opens the map, Rusty's door opens
+    a.setQuickBarSlot(8)
+    await sleep(500)
+    a.activateItem()
+    const phoned = await until(async () => field(await info(A), 'step') === 'office', 3000)
+    check('right-clicking the phone: step office', phoned, await info(A))
+    check('the office step told: "The Security Office"', await until(() => said(a, /The Security Office/), 2000))
+    check('...and Rusty\'s door opens', await doorOpen('rusty'), await door('rusty'))
+    a.activateItem()
+    await sleep(500)
+    a.setQuickBarSlot(2)
+
+    // ---- the Security Office: its outside reader, the ladder hatch, upstairs, the SECURITY door, Hall B
+    await tp(A, 81.5, 58, 95.5, 90)
+    await sleep(900)
+    await clickBlock(a, 80, 59, 95)
+    await sleep(500)
+    check('the Security Office outside reader opens its gate (course card, step office)', await doorOpen('sogate'), await door('sogate'))
+    await tp(A, 64.5, 60, 88.5, 0)
+    await sleep(900)
+    check('in the ladder column: the hatch opens', await doorOpen('sohatch'), await door('sohatch'))
+    await tp(A, 64.5, 65, 89.5, 0)
+    await sleep(900)
+    check('the Security Office upstairs: step upstairs', field(await info(A), 'step') === 'upstairs', await info(A))
+    await tp(A, 76.5, 65, 117.5, -90)
+    await sleep(3300)
+    check('in Hall C: the SECURITY door opens from inside', await doorOpen('security'), await door('security'))
+    since = Date.now()
+    await a.lookAt(new Vec3(86, 66.6, 117.5), true)
+    a.setControlState('forward', true)
+    const done = await until(async () => field(await info(A), 'state') === 'in', 5000, 200)
+    a.setControlState('forward', false)
+    s = await info(A)
+    check('through the SECURITY door into Hall B: state in, the course done, the coursecard gone', done && field(s, 'course') === 'done' && !/coursecard/.test(s), s)
+    check('the YOU\'RE IN THE BLOCK title', said(a, /IN THE BLOCK/, since))
+    const lefty = await until(async () => /id=l_meet/.test(await cmd(`dstory info ${A} lefty`)), 8000)
+    check('Lefty\'s chain starts (l_meet)', lefty, await cmd(`dstory info ${A} lefty`))
+
+    // ---- /tutorial after the course: the offer, then confirm puts A back in a course cell as a prisoner again
+    since = Date.now()
+    a.chat('/tutorial')
+    check('/tutorial after the course offers the replay', await until(() => said(a, /tutorial confirm/, since), 3000))
+    a.chat('/tutorial confirm')
+    const replay = await until(async () => { const r = await info(A); return field(r, 'state') === 'course' && field(r, 'step') === 'cell' }, 4000)
+    s = await info(A)
+    check('/tutorial confirm after the course: state course, step cell, in a course cell', replay && COURSE_CELLS.includes(field(s, 'cell')), s)
+    await t.drop(A)
+
+    // ---- B: a course bot at step cell logs out and back: its door opens 3 s after the join
+    let b = await t.newBot(B, { fresh: true })
+    await sleep(1500)
+    s = await info(B)
+    const bcell = field(s, 'cell')
+    check('B: a first join at step cell', field(s, 'step') === 'cell' && COURSE_CELLS.includes(bcell), s)
+    await t.drop(B)
+    await sleep(1500)
+    b = await t.newBot(B)
+    const j0 = Date.now()
+    await sleep(1200)
+    s = await info(B)
+    const shut = !(await doorOpen(`cell_${bcell}`))
+    const reopened = await until(() => doorOpen(`cell_${bcell}`), 4500)
+    check('B rejoins at step cell in its cell: the door shut at first, open ~3 s after the join', field(s, 'state') === 'course' && shut && reopened && Date.now() - j0 >= 2500, `${s} after ${Date.now() - j0} ms`)
+
+    // ---- B at step boiler logs out somewhere else: it rejoins at BOILER_IN
+    await cmd(`zzjail ${B} step boiler`)
+    await tp(B, 84.5, 58, 80.5, 180)
+    await sleep(1500)
+    await t.drop(B)
+    await sleep(1500)
+    b = await t.newBot(B)
+    await sleep(1500)
+    const bp = await pos(B)
+    check('B at step boiler rejoins at BOILER_IN', bp && Math.abs(bp[0] - 61.5) < 0.6 && Math.abs(bp[2] - 80.5) < 0.6, `${bp}`)
+
+    // ---- /tutorial confirm during the course: back to the step's spot with its prompt
+    await tp(B, 84.5, 58, 80.5, 180)
+    await sleep(3300)
+    since = Date.now()
+    b.chat('/tutorial')
+    check('/tutorial during the course: the step and the confirm offer', await until(() => said(b, /tutorial confirm/, since), 3000))
+    b.chat('/tutorial confirm')
+    const backed = await until(async () => { const p = await pos(B); return p && Math.abs(p[0] - 61.5) < 0.6 && Math.abs(p[2] - 80.5) < 0.6 }, 3000)
+    check('/tutorial confirm at step boiler: back at BOILER_IN with the prompt again', backed && await until(() => said(b, /Find a way through/, since), 2000), `${await pos(B)}`)
+
+    // ---- B on B1's landing: pushed back to COURSE_PUSH
+    await cmd(`zzjail ${B} step office`)
+    await tp(B, 84.5, 58, 105.5, 0)
+    const pushed = await until(async () => { const p = await pos(B); return p && Math.abs(p[2] - 97.5) < 0.6 }, 3000)
+    check('a course bot on B1\'s landing is pushed back to COURSE_PUSH', pushed, `${await pos(B)}`)
+    check('...with the hint', said(b, /That stair is the guards' way/))
+  } finally {
+    await t.prisonOff()
+    for (const n of [A, B]) {
+      if (t.bots[n]) await cmd(`zzjail ${n} state off`)
+    }
+    await t.close()
+  }
+}

@@ -64,11 +64,12 @@ on respawn:
 # shopkeepers: every 10 s each POI gets exactly one (a missing one comes back, extras go). Quest givers
 # (quests.sk) get one too ("q_<n>", poi::quest::color), always shown.
 # Saved: {poi::<n>} = "type|world|x|y|z|name" (only POIs under poi::, the counter is {poicounter}). Colors: core.sk poi::<type>::color and
-# difficulty::<d>::waypoint (names from Minecraft's /waypoint command: aqua, yellow, gold, ...). POIs live in
-# the main world (Nether and End are off): the console summons them there, so /dpoi refuses other worlds
-# and a heist in another world gets no POI. Each POI remembers where its stand is ({poiat::<id>}) and
-# which chunk it force-loaded ({poichunk::<id>} = "cx:cz"): a POI that moves (a heist's hologram set
-# again) loses its old stand, and a chunk no POI uses any more is released.
+# difficulty::<d>::waypoint (names from Minecraft's /waypoint command: aqua, yellow, gold, ...). Staff POIs live
+# in the main world (/dpoi refuses other worlds); since 2026-10-14 a stand can be in any world (the prison world's
+# quest givers): the console summons and force-loads with "execute in" (core.sk worldDim). Each POI remembers where
+# its stand is ({poiat::<id>}) and which chunk it force-loaded ({poichunk::<id>} = "cx:cz", {poichunkw::<id>} = its
+# world, unset = the main world): a POI that moves (a heist's hologram set again) loses its old stand, and a chunk no
+# POI uses any more is released.
 
 function poiTag(id: text) :: text:
 	return "poi_%{_id}%"
@@ -79,28 +80,36 @@ function poiMainWorld() :: world:
 		return loop-value
 
 # Releases a POI's force-loaded chunk unless another POI still sits in it, and forgets its stand.
+# {poichunkw::<id>} = the chunk's world (2026-10-14: POIs in the prison world; unset = the main world).
 function poiRelease(id: text):
 	set {_c} to {poichunk::%{_id}%}
+	set {_cw} to {poichunkw::%{_id}%}
 	delete {poichunk::%{_id}%}
+	delete {poichunkw::%{_id}%}
 	delete {poiat::%{_id}%}
 	delete {-poi::state::%{_id}%}
 	{_c} is set
+	set {_w} to poiMainWorld()
+	if {_cw} is set:
+		if world({_cw}) is set:
+			set {_w} to world({_cw})
 	loop {poichunk::*}:
 		if loop-value is {_c}:
-			stop
+			set {_ow} to {poichunkw::%loop-index%}
+			if {_ow} is not set:
+				set {_ow} to "%poiMainWorld()%"
+			if {_ow} is "%{_w}%":
+				stop
 	set {_p::*} to {_c} split at ":"
 	set {_bx} to ({_p::1} parsed as number) * 16
 	set {_bz} to ({_p::2} parsed as number) * 16
-	execute console command "forceload remove %{_bx}% %{_bz}%"
+	execute console command "execute in %worldDim({_w})% run forceload remove %{_bx}% %{_bz}%"
 
 # The stand of a POI (staff ones by number, heists by "h_<id>"), summoned if missing.
 function poiEnsure(id: text, l: location, color: text, on: boolean):
 	set {_tag} to poiTag({_id})
-	if world of {_l} is not poiMainWorld():
-		if {-poi::warned::%{_id}%} is not set:
-			set {-poi::warned::%{_id}%} to true
-			send "[Donating] nav: POI %{_id}% is outside the main world; it gets no stand" to console
-		stop
+	# Any world (2026-10-14: the prison world's quest givers): the console runs "execute in" that world.
+	set {_dim} to worldDim(world of {_l})
 	# Moved (a heist's hologram set again): the old stand and its chunk go first.
 	set {_ax} to x-coordinate of {_l}
 	set {_ay} to y-coordinate of {_l}
@@ -130,14 +139,16 @@ function poiEnsure(id: text, l: location, color: text, on: boolean):
 		set {_z} to z-coordinate of {_l}
 		set {_cx} to floor({_x} / 16)
 		set {_cz} to floor({_z} / 16)
-		execute console command "forceload add %{_cx} * 16% %{_cz} * 16%"
+		execute console command "execute in %{_dim}% run forceload add %{_cx} * 16% %{_cz} * 16%"
 		set {poichunk::%{_id}%} to "%{_cx}%:%{_cz}%"
-		execute console command "summon minecraft:armor_stand %{_x}% %{_y}% %{_z}% {Tags:[""donating_poi"",""%{_tag}%""],Invisible:1b,Invulnerable:1b,NoGravity:1b,Silent:1b,Marker:1b}"
+		set {poichunkw::%{_id}%} to "%world of {_l}%"
+		execute console command "execute in %{_dim}% run summon minecraft:armor_stand %{_x}% %{_y}% %{_z}% {Tags:[""donating_poi"",""%{_tag}%""],Invisible:1b,Invulnerable:1b,NoGravity:1b,Silent:1b,Marker:1b}"
 		# A new stand has the default range and color: always set them.
 		delete {-poi::state::%{_id}%}
 	# A stand summoned before chunks were tracked: remember its chunk now.
 	if {poichunk::%{_id}%} is not set:
 		set {poichunk::%{_id}%} to "%floor(x-coordinate of {_l} / 16)%:%floor(z-coordinate of {_l} / 16)%"
+		set {poichunkw::%{_id}%} to "%world of {_l}%"
 	# Every pass: the color, the icon and whether it's shown (cheap, and survives /waypoint or attribute edits).
 	set {_style} to poiStyle({_id})
 	if {-poi::state::%{_id}%} is not "%{_color}%:%{_range}%:%{_style}%":

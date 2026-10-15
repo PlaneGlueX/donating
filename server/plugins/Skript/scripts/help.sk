@@ -20,6 +20,7 @@ function showHelp(p: player):
 	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Car crates give rare wraps and mods." to {_p}
 	send colored "&7• &eCrates: &7a free key every day (&f/daily&7), more in &f/crates&7; open them at crate stands. &f/cosmetics &7to wear what you won." to {_p}
 	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
+	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse. &f/prison" to {_p}
 	send colored "&7• &eTrading: &7stand next to someone and &f/trade &7their name: cars and crate cosmetics." to {_p}
 	send colored "&7• &ePhone &7(hotbar 9): hold it for the map, right-click for the whole city, &fF &7for the apps: Messages, GPS, Missions, Garage, Bag, Crates, Cosmetics, Season, Bounties, Passive mode (no PvP, lower pay)." to {_p}
 	send colored "&7• &eRanks &7(&f/ranks&7) support the server: a tag, a bag look and more bag room. Seasons: &f/season&7, &f/lb&7." to {_p}
@@ -30,6 +31,9 @@ function helpLine(p: player, cmd: text, what: text):
 
 function showCommands(p: player):
 	send colored "%cfg("prefix")%&fCommands" to {_p}
+	send colored "&6Prison" to {_p}
+	helpLine({_p}, "/prison", "how to break out (while you're inside)")
+	helpLine({_p}, "/prison stuck", "back to your cell (or the course step); a catch while the guards are after you")
 	send colored "&6Robbing" to {_p}
 	helpLine({_p}, "/heists", "every heist and store, open or not")
 	helpLine({_p}, "/bag", "what's in your bag, per heist")
@@ -180,6 +184,10 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dtrap pos1/pos2 | add <heist> laser/plate/floor/camera ... | set/info/remove <id> | list/show/dry/dump/clear/reload", "traps")
 		ahLine({_s}, "/dloot pos1/pos2 | add <heist> pile/smash/safe/drill ... | set/info/remove/regate <id> | list/show/preview/roll/check/dump/clear/reload", "loot (style=register for a store's till)")
 		ahLine({_s}, "/dcops <heist> add [x y z] | list/clear/spawn/removeall/dump", "where the cops arrive")
+		ahLine({_s}, "/dprison info/catch/free <player> | state <player> course/in/out/off | step <player> <step> | course <player> skip", "the prison: a player (CLAUDE.md, The Jailbreak map and the prison)")
+		ahLine({_s}, "/dprison door <name> open/close | breach gate/punch/front open/close | setup | reload", "the prison: doors, the breach and the gates, setup (idempotent), the points")
+		ahLine({_s}, "/djailcops list/spawn/removeall/hostile <player>/calm <player>/dump", "the prison cops")
+		ahLine({_s}, "/djailjobs setup | info/give/end/ready <player> [job]", "the prison's inmates and their jobs")
 	else if {_topic} is "map":
 		ahTitle({_s}, "Staff: the map")
 		ahLine({_s}, "/dpoi add <base/shop/spawn/landmark/garage> [name] | remove <n> | list/dump", "locator-bar dots and /gps places")
@@ -193,7 +201,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dskins [respawn]", "the NPC skins (respawn the NPCs to wear them)")
 		ahLine({_s}, "/dphone [reload] | roads scan/info/show/cancel | city scan/use/info/cancel | wall create/remove/list", "the phone map, the GPS roads, the city scan, wall maps")
 		ahLine({_s}, "/ddistrict name <id> <name...>/default | list | here | dump", "district names (regions district_<id>)")
-		ahLine({_s}, "/dsetup [heists/story/places/flags/shops/quests/jobs/crates/cars/server/phone]", "the launch checklist: what the map still needs")
+		ahLine({_s}, "/dsetup [heists/story/places/flags/shops/quests/jobs/crates/cars/server/phone/prison]", "the launch checklist: what the map still needs")
 		send colored "&7Regions by name: &fsafe_&7<x> safe zone, &fsafe_base&7<x> sells loot, &fsafe_garage_&7<x> a garage, &fheist_&7<id> a heist, &fnolock&7<x> no car locks, &fnograpple&7<x> no Grappler, &flvl150_&7<x> level 150+ only (any number). Add &fpassthrough allow&7 to each." to {_s}
 	else if {_topic} is "players":
 		ahTitle({_s}, "Staff: players")
@@ -223,7 +231,7 @@ function showAdminHelp(s: command sender, topic: text):
 		send colored "&7The &fzz&7 commands (/zztestkit, /zzclear, /zzcfgset ...) are local test helpers in zz-testkit.sk: never upload it. bots\run.js <scenario> runs a test; tools\progress-sim.js times the levels and prices." to {_s}
 	else:
 		ahTitle({_s}, "Staff commands: /adminhelp <topic>")
-		ahLine({_s}, "/adminhelp heists", "heists, stores, traps, loot, cops")
+		ahLine({_s}, "/adminhelp heists", "heists, stores, traps, loot, cops, the prison")
 		ahLine({_s}, "/adminhelp map", "places on the map, NPCs, garages, crate stands, region names")
 		ahLine({_s}, "/adminhelp players", "levels, cars, missions, jobs, hits, staff chat")
 		ahLine({_s}, "/adminhelp store", "ranks, boosters, crate keys, seasons (owner)")

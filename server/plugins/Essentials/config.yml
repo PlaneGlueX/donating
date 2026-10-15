@@ -1258,7 +1258,9 @@ newbies:
   # When players spawn for the first time, which spawnpoint should be used?
   # Set to 'none' to use the spawnpoint of the world.
   # Different spawn names can be set using '/setspawn <group>'.
-  spawnpoint: newbies
+  # Donating: none. The prison (prison.sk) puts a new player in a course cell; a newbie teleport 1 tick after the
+  # join would pull them out of it (ESCAPE-SPEC 4.3).
+  spawnpoint: none
 
   # Should players receive items on their first join?
   # This kit will be given regardless of cost and permissions and won't trigger any kit delay (cooldown).

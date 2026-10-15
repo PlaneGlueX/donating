@@ -362,7 +362,8 @@ function loadSettings():
 	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
 	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
 	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
-	set {-cfg::quests::*} to "contracts", "story", "fence" and "hits"
+	# lefty, rusty, tank, whisper: the prison's inmates (jailjobs.sk; their settings are in the prison block below).
+	set {-cfg::quests::*} to "contracts", "story", "fence", "hits", "lefty", "rusty", "tank" and "whisper"
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
@@ -407,12 +408,16 @@ function loadSettings():
 	# A mission whose needs go missing (a heist disabled for a rebuild) is checked every needs-check seconds and
 	# only skipped after needs-grace seconds in a row.
 	# The chains (story.sk): each runs one mission at a time, side by side. Mara's list is story::missions.
-	set {-cfg::story::chains::*} to "story" and "vic"
+	# lefty: the prison's one-time lessons (Lefty's settings are in the prison block below).
+	set {-cfg::story::chains::*} to "story", "vic" and "lefty"
 	set {-cfg::chain::story::giver} to "story"
 	set {-cfg::chain::story::from} to "Mara"
 	set {-cfg::chain::story::color} to "&d"
 	set {-cfg::chain::story::bar} to "&d&lMISSION"
 	set {-cfg::chain::story::barcolor} to "purple"
+	# Mara starts at the first escape (the prison, 2026-10-14): story.sk's storyState "escaped" is true for everyone
+	# while the prison is off, and for players who are out (or never came in: data jail unset).
+	set {-cfg::chain::story::start} to "state|escaped"
 	# Vic the Fence (owner, 2026-09-27: "Vic the Fence"): his own arc from level 3, next to Mara's; its end hands
 	# over his weekly Wanted List (fence.sk). PROPOSAL texts and rewards.
 	set {-cfg::chain::vic::giver} to "fence"
@@ -2031,6 +2036,268 @@ function loadSettings():
 		set {-cfg::cos::%{_rt::1}%::rarity} to "story"
 		set {-cfg::cos::%{_rt::1}%::bound} to true
 		add {_rt::1} to {-cfg::cosmetics::*}
+
+	# ---------- The prison (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk, jailjobs.sk; owner, 2026-10-14) ----------
+	# The master switch: off until the bot suite passes with it on. Data "jail" "off" exempts one player (test bots).
+	set {-cfg::prison::enabled} to false
+	set {-cfg::prison::world} to "jailbreak"
+	# After an escape: "spawn" = the EssentialsX spawn 3 s later (until launch the city is another world), "" = stay.
+	set {-cfg::prison::after-escape} to "spawn"
+	set {-cfg::prison::course::cells::*} to "n46", "n53", "n60", "n67", "s46", "s53", "s60" and "s67"
+	set {-cfg::prison::cells::*} to "n89", "n96", "n103", "n110", "s96", "s103", "s110" and "s117"
+	set {-cfg::prison::cell-open} to 12 seconds
+	set {-cfg::prison::door-open} to 3 seconds
+	# The course's cell opens this long after the first join (after join-quit's title).
+	set {-cfg::prison::course::cell-open} to 5 seconds
+	# A prisoner who joins standing in a cell: its door opens this long after the join.
+	set {-cfg::prison::join-open} to 3 seconds
+	set {-cfg::prison::food} to 9
+	set {-cfg::prison::lowhp} to 3
+	set {-cfg::prison::lowhp-slow} to 0.2
+	set {-cfg::prison::nopvp::*} to "b1", "halla", "hallbsouth" and "parkour"
+	# Inmate protection after the course, after a cell opens and after a respawn (attacking ends your own).
+	set {-cfg::prison::shield} to 30 seconds
+	# After knocking an inmate out, the attacker can't hurt them for this long unless they land a hit first (owner: "dont
+	# want spam killing"; 4.6).
+	set {-cfg::prison::ko-cooldown} to 5 minutes
+	set {-cfg::prison::stuck} to 60 seconds
+	# prison.sk also blocks each with EssentialsX's "e" in front (/espawn, /eback, /etpaccept); the rest are EssentialsX's
+	# other names for the same teleports, and Multiverse's. A teleport out of the prison is refused anyway (prison.sk).
+	set {-cfg::prison::blocked-commands::*} to "spawn", "home", "homes", "sethome", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp", "hub", "mv", "mvtp", "return", "call", "tpask", "tele", "teleport", "tp2p", "tpo", "tpohere", "tppos", "tpall", "tpaall", "tpr", "jump", "j", "jumpto", "top", "world", "mvspawn" and "mvs"
+	set {-cfg::prison::search::hold} to 2 seconds
+	# Per search spot and player; every catch clears them (the escape starts over at once).
+	set {-cfg::prison::search::cooldown} to 10 minutes
+	set {-cfg::prison::donut::hold} to 0.5 seconds
+	set {-cfg::prison::donut::cooldown} to 3 minutes
+	set {-cfg::prison::assemble::hold} to 3 seconds
+	set {-cfg::prison::plant::hold} to 3 seconds
+	set {-cfg::prison::c4::fuse} to 5
+	set {-cfg::prison::c4::radius} to 4
+	set {-cfg::prison::c4::damage} to 3
+	# Prisoners carrying contraband this close to a blast go loud with the planter.
+	set {-cfg::prison::c4::loud-range} to 8
+	set {-cfg::prison::breach::open} to 2 minutes
+	# When a breach is due: "rebuilding in 5 s" to players within 16 blocks, then it closes.
+	set {-cfg::prison::breach::warn} to 5 seconds
+	set {-cfg::prison::breach::warn-range} to 16
+	# One C4 target (revision 3: the W5 wall is dropped, it led straight past the front gate).
+	set {-cfg::prison::breaches::*} to "gate"
+	set {-cfg::prison::breach::gate::name} to "the vehicle gate"
+	# The punch boxes (the Gun Shop's and the gatehouse fuse box) share these numbers.
+	set {-cfg::prison::punch::hits} to 10
+	set {-cfg::prison::punch::window} to 12 seconds
+	set {-cfg::prison::punch::shock-every} to 2
+	set {-cfg::prison::punch::shock} to 0.5
+	set {-cfg::prison::punch::open} to 8 seconds
+	set {-cfg::prison::punch::cooldown} to 20 seconds
+	# A box refuses while a prison cop is this close to its stand point ("A guard's watching").
+	set {-cfg::prison::punch::guard-range} to 16
+	# The fuse box pops the gatehouse door open this long.
+	set {-cfg::prison::fuse::open} to 5 seconds
+	# The front gate (the lot is not out, owner): hold the gatehouse console this long; it opens for everyone this long,
+	# then can't be opened again for the cooldown.
+	set {-cfg::prison::console::hold} to 3 seconds
+	set {-cfg::prison::front::open} to 15 seconds
+	set {-cfg::prison::front::cooldown} to 30 seconds
+	set {-cfg::prison::drop::despawn} to 60 seconds
+	set {-cfg::prison::course::wake} to 0.5 seconds
+	set {-cfg::prison::course::stuck} to 30 seconds
+	# Jail items (prison.sk jailItem): on brick, drawn by the pack (donating:jail_<kind>); one stack per kind in the
+	# upper inventory (slots 9-35), the C4 in hotbar 1-5.
+	set {-cfg::jailitem::kinds::*} to "coursecard", "keycard", "putty", "wires", "timer", "c4", "donut", "note" and "stash"
+	set {-cfg::jailitem::coursecard::name} to "Guard's Keycard"
+	set {-cfg::jailitem::coursecard::lore} to "The vent and the Security Office"
+	set {-cfg::jailitem::keycard::name} to "Keycard"
+	set {-cfg::jailitem::keycard::lore} to "The police station, the gate by the Gun Shop, the gatehouse"
+	set {-cfg::jailitem::putty::name} to "C4 Putty"
+	set {-cfg::jailitem::putty::lore} to "C4 part 1 of 3"
+	set {-cfg::jailitem::wires::name} to "Detonator Wires"
+	set {-cfg::jailitem::wires::lore} to "C4 part 2 of 3"
+	set {-cfg::jailitem::timer::name} to "Timer"
+	set {-cfg::jailitem::timer::lore} to "C4 part 3 of 3"
+	set {-cfg::jailitem::c4::name} to "C4"
+	set {-cfg::jailitem::c4::lore} to "Hold right-click on the vehicle gate by the plaza"
+	set {-cfg::jailitem::donut::name} to "Donut"
+	set {-cfg::jailitem::donut::lore} to "Rusty and Lefty love these"
+	set {-cfg::jailitem::note::name} to "Folded Note"
+	set {-cfg::jailitem::note::lore} to "Don't read it"
+	set {-cfg::jailitem::stash::name} to "Stash"
+	set {-cfg::jailitem::stash::lore} to "Keep it out of sight"
+	# Search spots (jailescape.sk): point|kind|hold setting|cooldown setting
+	set {-cfg::prison::spots::*} to "SEARCH_PUTTY|putty|search|search", "SEARCH_WIRES|wires|search|search", "SEARCH_TIMER|timer|search|search" and "DONUT_CAFE|donut|donut|donut"
+	# ---------- Prison cops (jailcops.sk): level 1 (owner: "not that good aim") ----------
+	set {-cfg::jailcop::name} to "Prison Guard"
+	# gate and lot guard the parking lot and the gatehouse (revision 3).
+	set {-cfg::jailcop::roster::*} to "yardn", "yards", "walk", "w5", "w67", "hallb", "poldesk", "poloffice", "gate" and "lot"
+	# 10 HP: two Combat Knife hits (5 each, a hit a second).
+	set {-cfg::jailcop::health} to 10
+	set {-cfg::jailcop::speed} to 1.05
+	# Sentinel only targets and chases (melee reach 1.5, every Sentinel hit cancelled); jailcops.sk attacks.
+	set {-cfg::jailcop::reach} to 1.5
+	set {-cfg::jailcop::range} to 24
+	set {-cfg::jailcop::chase} to 48
+	set {-cfg::jailcop::respawn} to 60
+	set {-cfg::jailcop::model} to 9
+	# One gunshot or taser shot per cop per attack-rate seconds.
+	set {-cfg::jailcop::attack-rate} to 1.5
+	set {-cfg::jailcop::gun::range} to 24
+	# A cop hit by melee neither tases nor grabs for this long.
+	set {-cfg::jailcop::stagger} to 1.5 seconds
+	# A C4 plant or blast brings every cop within this many blocks.
+	set {-cfg::jailcop::loud-range} to 48
+	set {-cfg::jailcop::taser::range} to 8
+	set {-cfg::jailcop::taser::min} to 2.5
+	set {-cfg::jailcop::taser::hit-near} to 0.8
+	set {-cfg::jailcop::taser::hit-far} to 0.35
+	set {-cfg::jailcop::taser::cooldown} to 4 seconds
+	set {-cfg::jailcop::taser::stun} to 1.5 seconds
+	set {-cfg::jailcop::taser::slow} to 0.6
+	set {-cfg::jailcop::taser::damage} to 0.5
+	set {-cfg::jailcop::gun::hit-near} to 0.45
+	set {-cfg::jailcop::gun::hit-far} to 0.15
+	set {-cfg::jailcop::gun::sprint} to 0.7
+	set {-cfg::jailcop::gun::damage} to 1
+	set {-cfg::jailcop::arrest::range} to 2.5
+	set {-cfg::jailcop::arrest::grab-range} to 2
+	set {-cfg::jailcop::arrest::grab} to 1 second
+	set {-cfg::jailcop::notice::range} to 24
+	set {-cfg::jailcop::notice::sneak} to 12
+	set {-cfg::jailcop::notice::cone} to 75
+	set {-cfg::jailcop::notice::time} to 1 second
+	# An act (a reader, a punch, a search hold, a plant, the stash, the console, hitting an inmate) stays visible this long.
+	set {-cfg::jailcop::notice::act-window} to 4 seconds
+	# Carried contraband is spotted this close (with line of sight); a held C4 at the notice range.
+	set {-cfg::jailcop::notice::frisk} to 4
+	set {-cfg::jailcop::lose::time} to 20 seconds
+	set {-cfg::jailcop::lose::range} to 32
+	set {-cfg::jailcop::keycard-chance} to 1
+	set {-cfg::jailcop::idle-despawn} to 10 minutes
+	# Seen here = hostile. "lot" has no boxes: prison.sk's jailZone answers it from the outlines (jailInLot).
+	set {-cfg::jailcop::restricted::*} to "police", "annex", "staff" and "lot"
+	# The lose clock doesn't run here (the lot isn't one: it's big and open, and a prisoner can lose the guards there).
+	set {-cfg::jailcop::nolose::*} to "police", "annex", "staff" and "b1"
+	set {-cfg::jailcop::contraband::*} to "keycard", "c4" and "stash"
+	# The stray rule (5.5): a calm cop farther than its route's radius (horizontally) from the polyline of its route,
+	# or more than stray::dy blocks above or below it, for stray::time is moved back to its first point.
+	set {-cfg::jailcop::stray::dy} to 4
+	set {-cfg::jailcop::stray::time} to 20 seconds
+	set {-cfg::jailcop::route::yardn::radius} to 24
+	set {-cfg::jailcop::route::yards::radius} to 24
+	set {-cfg::jailcop::route::walk::radius} to 12
+	set {-cfg::jailcop::route::w5::radius} to 4
+	set {-cfg::jailcop::route::w67::radius} to 4
+	set {-cfg::jailcop::route::hallb::radius} to 5
+	set {-cfg::jailcop::route::poldesk::radius} to 12
+	set {-cfg::jailcop::route::poloffice::radius} to 10
+	set {-cfg::jailcop::route::gate::radius} to 12
+	set {-cfg::jailcop::route::lot::radius} to 24
+	# A known cop whose entity hasn't been seen for this long while its first point's chunk is loaded is forgotten
+	# (and removed), so it's made again.
+	set {-cfg::jailcop::stale} to 2 minutes
+	# ---------- The prison's inmates (quests.sk givers, jailjobs.sk; ESCAPE-SPEC 6.2): PROPOSAL names and texts ----------
+	# (The quests list and story::chains above include them.)
+	set {-cfg::quest::lefty::name} to "Advice"
+	set {-cfg::quest::lefty::npc} to "Lefty"
+	set {-cfg::quest::lefty::place} to "Hall B"
+	set {-cfg::quest::lefty::hold} to "paper"
+	set {-cfg::quest::rusty::name} to "Trades"
+	set {-cfg::quest::rusty::npc} to "Rusty"
+	set {-cfg::quest::rusty::place} to "B1"
+	set {-cfg::quest::rusty::hold} to "cookie"
+	set {-cfg::quest::tank::name} to "Jobs"
+	set {-cfg::quest::tank::npc} to "Tank"
+	set {-cfg::quest::tank::place} to "the Yard"
+	set {-cfg::quest::tank::hold} to "iron_ingot"
+	set {-cfg::quest::whisper::name} to "Deliveries"
+	set {-cfg::quest::whisper::npc} to "Whisper"
+	set {-cfg::quest::whisper::place} to "the Telephone Room"
+	set {-cfg::quest::whisper::hold} to "paper"
+	loop "lefty", "rusty", "tank" and "whisper":
+		set {-cfg::msgcontact::%loop-value%::skin} to ""
+		set {-cfg::msgcontact::%loop-value%::kind} to loop-value
+	# Lefty's chain: the one-time lessons for a new inmate. Any escape finishes it (finish-on).
+	set {-cfg::chain::lefty::giver} to "lefty"
+	set {-cfg::chain::lefty::from} to "Lefty"
+	set {-cfg::chain::lefty::color} to "&b"
+	set {-cfg::chain::lefty::bar} to "&b&lLEFTY"
+	set {-cfg::chain::lefty::barcolor} to "blue"
+	# Course graduates only (data jail-course "done"): a veteran sent in by a death never gets the chain (4.13).
+	set {-cfg::chain::lefty::start} to "state|jailcourse"
+	set {-cfg::chain::lefty::finish-on} to "escape"
+	set {-cfg::chain::lefty::missions::*} to "l_meet", "l_shop", "l_donut", "l_c4", "l_card" and "l_out"
+	loop "l_meet", "l_shop", "l_donut", "l_c4", "l_card" and "l_out":
+		set {-cfg::story::%loop-value%::chain} to "lefty"
+	set {-cfg::story::l_meet::label} to "Talk to Lefty on the Hall B bench"
+	set {-cfg::story::l_meet::obj} to "talk|lefty"
+	set {-cfg::story::l_meet::gps} to "lefty"
+	set {-cfg::story::l_meet::brief} to "New fish? Come sit with me in Hall B. Free advice."
+	set {-cfg::story::l_meet::talk::*} to "Nobody stays in here forever.", "Three ways past the fences: a keycard through the police station, C4 on the vehicle gate, or over the fence by the Gun Shop.", "Then the lot. The front gate opens from the gatehouse booth: a keycard gets you in, or punch its fuse box when the guards look away." and "First, get yourself sorted."
+	set {-cfg::story::l_meet::rewards::*} to "money|50"
+	set {-cfg::story::l_shop::label} to "Visit the Gun Shop in the yard"
+	set {-cfg::story::l_shop::obj} to "ev|jailshop|1"
+	set {-cfg::story::l_shop::gps} to "jail:GUN_KEEPER"
+	set {-cfg::story::l_shop::brief} to "The Gun Shop in the yard keeps your knives for when they lock you up again. Melee only in here."
+	set {-cfg::story::l_shop::done} to "Smart. Now the fun part."
+	set {-cfg::story::l_shop::rewards::*} to "money|50"
+	set {-cfg::story::l_donut::label} to "Bring Lefty a donut from the cafeteria"
+	set {-cfg::story::l_donut::obj} to "ev|jaildonut|1"
+	set {-cfg::story::l_donut::gps} to "jail:DONUT_CAFE"
+	set {-cfg::story::l_donut::brief} to "The cafeteria counter. Grab me a donut. Everything in here runs on donuts."
+	set {-cfg::story::l_donut::done} to "Mm. You'll do."
+	set {-cfg::story::l_donut::rewards::*} to "money|75"
+	set {-cfg::story::l_c4::label} to "Put together a C4"
+	set {-cfg::story::l_c4::obj} to "ev|jailc4|1"
+	# The nearest search spot whose part the player lacks, then the bench (4.13 storyGpsSpots).
+	set {-cfg::story::l_c4::gps} to "jailc4"
+	set {-cfg::story::l_c4::brief} to "Putty in the workshop, wires in the supply closet, a timer in the infirmary. Put it together at the workshop bench."
+	set {-cfg::story::l_c4::done} to "Careful with that. The vehicle gate by the plaza: blow it and you're in the lot."
+	set {-cfg::story::l_c4::rewards::*} to "money|100"
+	set {-cfg::story::l_card::label} to "Get a keycard"
+	set {-cfg::story::l_card::obj} to "ev|jailcard|1"
+	set {-cfg::story::l_card::gps} to "rusty"
+	set {-cfg::story::l_card::brief} to "Knock a guard down, or ask Rusty in B1: he trades for donuts."
+	set {-cfg::story::l_card::done} to "The police station's yard door. Straight through, and the same card opens the gatehouse."
+	set {-cfg::story::l_card::rewards::*} to "money|100"
+	set {-cfg::story::l_out::label} to "Break out"
+	set {-cfg::story::l_out::obj} to "ev|escape|1"
+	set {-cfg::story::l_out::brief} to "That's everything I know. Get to the lot, open the front gate from the booth, and go."
+	set {-cfg::story::l_out::done} to "Knew you had it in you. Mara runs things out there: find her."
+	set {-cfg::story::l_out::rewards::*} to "money|250" and "xp|50"
+	# Rusty hands every new inmate the Combat Knife in the course (jailcourse.sk). c1_knife stays: its objective is
+	# state|weapon, so it completes silently for anyone holding a weapon, and players who start in the city (the switch
+	# off, data jail "off") still get the knife step. Its brief and c1_meet's stay as they are for them; only players who
+	# broke out hear this one (story.sk storyBrief, 4.13).
+	set {-cfg::story::c1_meet::brief-escaped} to "Heard you broke out. Nice. I've got work for someone with nerve: come see me at the Safehouse."
+	# ---------- Prison jobs (jailjobs.sk; ESCAPE-SPEC 6.4): PROPOSAL ----------
+	set {-cfg::jjob::ids::*} to "yardrun", "delivery", "stash" and "distraction"
+	set {-cfg::jjob::yardrun::giver} to "lefty"
+	set {-cfg::jjob::yardrun::name} to "Yard Run"
+	set {-cfg::jjob::yardrun::goal} to "Touch the 4 marks around the yard in order, in 90 s from the first"
+	set {-cfg::jjob::yardrun::pay} to 150
+	set {-cfg::jjob::yardrun::cooldown} to 10 minutes
+	set {-cfg::jjob::yardrun::time} to 90 seconds
+	set {-cfg::jjob::delivery::giver} to "whisper"
+	set {-cfg::jjob::delivery::name} to "Special Delivery"
+	set {-cfg::jjob::delivery::goal} to "Take a note to another inmate"
+	set {-cfg::jjob::delivery::pay} to 150
+	set {-cfg::jjob::delivery::cooldown} to 10 minutes
+	set {-cfg::jjob::delivery::time} to 3 minutes
+	set {-cfg::jjob::stash::giver} to "whisper"
+	set {-cfg::jjob::stash::name} to "The Stash"
+	set {-cfg::jjob::stash::goal} to "Find the stash in the yard and bring it back. Keep it out of the guards' sight"
+	set {-cfg::jjob::stash::item} to "keycard"
+	set {-cfg::jjob::stash::cooldown} to 15 minutes
+	set {-cfg::jjob::stash::time} to 5 minutes
+	set {-cfg::jjob::distraction::giver} to "tank"
+	set {-cfg::jjob::distraction::name} to "Distraction"
+	set {-cfg::jjob::distraction::goal} to "Get the guards after you, then lose them without getting caught"
+	set {-cfg::jjob::distraction::pay} to 200
+	set {-cfg::jjob::distraction::item} to "part"
+	set {-cfg::jjob::distraction::cooldown} to 15 minutes
+	set {-cfg::jjob::distraction::time} to 5 minutes
+	set {-cfg::jjob::donut::cooldown} to 10 minutes
+	set {-cfg::jjob::marks::*} to "RUN_1", "RUN_2", "RUN_3" and "RUN_4"
+	set {-cfg::jjob::stashes::*} to "STASH_1", "STASH_2", "STASH_3" and "STASH_4"
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script
@@ -2212,6 +2479,17 @@ function npcBusy() :: boolean:
 		if difference between {-npc::busy} and now < 3 seconds:
 			return true
 	return false
+
+# The dimension a console "execute in" needs for world w: the first world is minecraft:overworld (Paper's main world),
+# others minecraft:<name> (Multiverse's keys, e.g. minecraft:jailbreak). The first world listed is the main one, so the
+# first loop pass decides.
+function worldDim(w: world) :: text:
+	loop all worlds:
+		if loop-value is {_w}:
+			return "minecraft:overworld"
+		set {_d} to "minecraft:%{_w}%"
+		return {_d} in lower case
+	return "minecraft:overworld"
 
 function isStaff(p: player) :: boolean:
 	if {_p} has permission "donating.staff":

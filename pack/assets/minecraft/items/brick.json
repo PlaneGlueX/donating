@@ -1,0 +1,76 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "donating:jail_coursecard",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_coursecard"
+        }
+      },
+      {
+        "when": "donating:jail_keycard",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_keycard"
+        }
+      },
+      {
+        "when": "donating:jail_putty",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_putty"
+        }
+      },
+      {
+        "when": "donating:jail_wires",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_wires"
+        }
+      },
+      {
+        "when": "donating:jail_timer",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_timer"
+        }
+      },
+      {
+        "when": "donating:jail_c4",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_c4"
+        }
+      },
+      {
+        "when": "donating:jail_donut",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_donut"
+        }
+      },
+      {
+        "when": "donating:jail_note",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_note"
+        }
+      },
+      {
+        "when": "donating:jail_stash",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_stash"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/brick"
+    }
+  }
+}

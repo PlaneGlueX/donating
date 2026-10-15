@@ -299,6 +299,22 @@ function storyState(p: player, o: text) :: boolean:
 		return false
 	if {_a::2} is "car":
 		return storyOwnsCar({_p})
+	# The prison (prison.sk, 2026-10-14). Lefty's chain: course graduates only (a veteran sent in by a death never gets
+	# "New fish?" nor l_out's pay).
+	if {_a::2} is "jailcourse":
+		if jailOn() is true:
+			if jailState({_p}) is "in":
+				if getData({_p}, "jail-course") is "done":
+					return true
+		return false
+	# Mara's chain starts at the first escape; while the prison is off, and for players from before it, at once.
+	if {_a::2} is "escaped":
+		if jailOn() is false:
+			return true
+		set {_js} to jailState({_p})
+		if {_js} is "out" or "off" or "":
+			return true
+		return false
 	return false
 
 function storyMet(p: player, id: text) :: boolean:
@@ -334,6 +350,16 @@ function storyEvent(p: player, ev: text, n: number, detail: text):
 function storyEventOf(p: player, c: text, ev: text, n: number, detail: text):
 	set {_id} to storyIdOf({_p}, {_c})
 	storyLive({_id}) is true
+	# A chain that ends at an event (Lefty's: any escape finishes it): the last mission, then the event counts for it.
+	set {_fo} to {-cfg::chain::%{_c}%::finish-on}
+	if {_fo} is set:
+		if {_fo} is {_ev}:
+			set {_last} to last element out of storyList({_c})
+			if {_id} is not {_last}:
+				setData({_p}, storyKey({_c}), {_last})
+				storyClearOf({_p}, {_c})
+				storyLog("finish-on %{_p}% %uuid of {_p}% chain=%{_c}% %{_id}% -> %{_last}%")
+				set {_id} to {_last}
 	set {_key} to storyKey({_c})
 	set {_o} to storyObj({_id})
 	set {_a::*} to {_o} split at "|"
@@ -468,6 +494,20 @@ function storyActivate(p: player, id: text):
 		set {_c} to storyChainOf({_id})
 	storyActivateOf({_p}, {_c}, {_id})
 
+# A mission's brief: brief-escaped for players who broke out of the prison (c1_meet: "Heard you broke out..."), else
+# the brief.
+function storyBrief(p: player, id: text) :: text:
+	set {_b} to {-cfg::story::%{_id}%::brief-escaped}
+	if {_b} is set:
+		set {_n} to getData({_p}, "jail-escapes")
+		if {_n} is set:
+			if {_n} > 0:
+				return {_b}
+	set {_b} to {-cfg::story::%{_id}%::brief}
+	if {_b} is set:
+		return {_b}
+	return ""
+
 function storyStartText(p: player, id: text, skipped: number):
 	set {_c} to storyChainOf({_id})
 	set {_label} to {-cfg::story::%{_id}%::label}
@@ -475,7 +515,7 @@ function storyStartText(p: player, id: text, skipped: number):
 	if {_skipped} > 0:
 		storyText({_p}, {-cfg::chain::%{_c}%::from}, "Heard you know your way around. Skipping ahead to: %{_label}%.")
 	else:
-		storyText({_p}, {_from}, {-cfg::story::%{_id}%::brief})
+		storyText({_p}, {_from}, storyBrief({_p}, {_id}))
 		# A talk mission whose giver isn't on the map: how to reach them.
 		set {_k} to {-cfg::chain::%{_c}%::giver}
 		if storyObj({_id}) is "talk|%{_k}%":
@@ -534,6 +574,14 @@ function storyRewards(p: player, id: text) :: text:
 		else if {_a::1} is "fence":
 			fenceTakeList({_p})
 			add "&6Vic's Wanted List" to {_got::*}
+		else if {_a::1} is "jail":
+			# A prison item ("jail|<kind>|<n>", prison.sk): into the pockets.
+			set {_n} to {_a::3} parsed as number
+			if {_n} is not set:
+				set {_n} to 1
+			set {_fit} to jailGive({_p}, {_a::2}, {_n})
+			if {_fit} > 0:
+				add "&f%{_fit}% %{-cfg::jailitem::%{_a::2}%::name}%" to {_got::*}
 	# No rewards: an empty list joins to nothing (unset), and storyTitle wouldn't run with an unset argument.
 	if size of {_got::*} is 0:
 		return ""
@@ -672,6 +720,41 @@ function storyGpsSpots(p: player, id: text) :: text:
 			if {_a::1} is {_g}:
 				if {_a::2} is {_w}:
 					add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
+	# The prison (prison.sk): "jail:<POINT>" a point there; "jailc4" the nearest search spot whose C4 part the player
+	# lacks, then the workshop bench (all three carried), nothing with a C4 in hand.
+	if {_g} starts with "jail:":
+		set {_jl} to jailPt(subtext of {_g} from characters 6 to (length of {_g}))
+		if {_jl} is set:
+			if "%world of {_jl}%" is {_w}:
+				add gpsSpot({_jl}) to {_s::*}
+	else if {_g} is "jailc4":
+		if jailCount({_p}, "c4") < 1:
+			set {_best} to -1
+			loop "SEARCH_PUTTY|putty", "SEARCH_WIRES|wires" and "SEARCH_TIMER|timer":
+				set {_pp::*} to loop-value split at "|"
+				if jailCount({_p}, {_pp::2}) < 1:
+					set {_jl} to jailPt({_pp::1})
+					if {_jl} is set:
+						if "%world of {_jl}%" is {_w}:
+							set {_dd} to distance between {_p} and {_jl}
+							if {_best} < 0:
+								set {_best} to {_dd}
+								set {_bl} to {_jl}
+							else if {_dd} < {_best}:
+								set {_best} to {_dd}
+								set {_bl} to {_jl}
+			if {_best} >= 0:
+				add gpsSpot({_bl}) to {_s::*}
+			else:
+				set {_missing} to false
+				loop "putty", "wires" and "timer":
+					if jailCount({_p}, loop-value) < 1:
+						set {_missing} to true
+				if {_missing} is false:
+					set {_jl} to jailPt("ASSEMBLE")
+					if {_jl} is set:
+						if "%world of {_jl}%" is {_w}:
+							add gpsSpot({_jl}) to {_s::*}
 	if {_g} is "crate":
 		loop {crateblock::*}:
 			set {_k::*} to loop-index split at ":"
@@ -740,6 +823,11 @@ function questOrder(p: player) :: texts:
 		if {_in::%loop-value%} is not set:
 			set {_in::%loop-value%} to true
 			add loop-value to {_o::*}
+	# A prison job taken (jailjobs.sk keeps {-jjob::<u>}).
+	if {-jjob::%uuid of {_p}%} is set:
+		if {_in::jjob} is not set:
+			set {_in::jjob} to true
+			add "jjob" to {_o::*}
 	loop jobsKeys({_p}):
 		if {_in::%loop-value%} is not set:
 			set {_in::%loop-value%} to true
@@ -752,6 +840,21 @@ function questTarget(p: player, key: text) :: boolean:
 	delete {-qt::%{_u}%::*}
 	if {_key} starts with "job:":
 		return jobsTarget({_p}, {_key})
+	# A prison job's target: jailjobs.sk keeps {-jjob::qt::<u>::*} current every second (story.sk never calls it).
+	if {_key} is "jjob":
+		if {-jjob::qt::%{_u}%::spots} is not set:
+			return false
+		set {-qt::%{_u}%::world} to {-jjob::qt::%{_u}%::world}
+		set {-qt::%{_u}%::spots} to {-jjob::qt::%{_u}%::spots}
+		set {-qt::%{_u}%::label} to {-jjob::qt::%{_u}%::label}
+		set {-qt::%{_u}%::radius} to {-jjob::qt::%{_u}%::radius}
+		if {-qt::%{_u}%::radius} is not set:
+			set {-qt::%{_u}%::radius} to 6
+		set {-qt::%{_u}%::by} to "jjob"
+		set {-qt::%{_u}%::obj} to {-jjob::qt::%{_u}%::obj}
+		if {-qt::%{_u}%::obj} is not set:
+			set {-qt::%{_u}%::obj} to "jjob"
+		return true
 	if storyIsChain({_key}) is false:
 		return false
 	set {_id} to storyIdOf({_p}, {_key})
@@ -774,6 +877,8 @@ function questTarget(p: player, key: text) :: boolean:
 function questOwns(by: text) :: boolean:
 	if {_by} is "job":
 		return true
+	if {_by} is "jjob":
+		return true
 	return storyIsChain({_by})
 
 # The GPS's quest slot: one owner for every chain and job. Never over a car job (contracts.sk owns the slot while
@@ -790,12 +895,19 @@ function questGps(p: player):
 	if {_ours} is false:
 		stop
 	set {_pick} to ""
+	# In the prison only Lefty's lessons and a prison job lead the GPS.
+	set {_jailed} to prisonIn({_p})
 	if {-ctjob::%{_u}%} is not set:
 		if bagTotal({_p}) <= 0:
 			loop questOrder({_p}):
 				if {_pick} is "":
-					if questTarget({_p}, loop-value) is true:
-						set {_pick} to loop-value
+					set {_ok} to true
+					if {_jailed} is true:
+						if loop-value is not "lefty" or "jjob":
+							set {_ok} to false
+					if {_ok} is true:
+						if questTarget({_p}, loop-value) is true:
+							set {_pick} to loop-value
 	if {_pick} is "":
 		if {_by} is not "":
 			gpsQuestClear({_p}, {_by})
@@ -900,7 +1012,7 @@ function storyCard(p: player, id: text) :: item:
 	set {_c} to storyChainOf({_id})
 	set {_col} to {-cfg::chain::%{_c}%::color}
 	set {_label} to {-cfg::story::%{_id}%::label}
-	set {_hint} to {-cfg::story::%{_id}%::brief}
+	set {_hint} to storyBrief({_p}, {_id})
 	set {_from} to storyFrom({_id})
 	set {_prog} to storyProgText({_p}, {_id})
 	set {_ch} to {-cfg::story::%{_id}%::chapter}

@@ -1,0 +1,953 @@
+# jailjobs.sk: the prison's inmates and their jobs (owner, 2026-10-14: "NPCs with small missions for money or items";
+# ESCAPE-SPEC revision 3, section 6). Built 2026-10-14.
+#
+# Four inmates are quest givers (quests.sk kinds lefty, rusty, tank, whisper; /djailjobs setup puts them at their
+# points): Lefty on the Hall B bench (his one-time lessons are the "lefty" chain in story.sk; after it, the Yard Run),
+# Rusty in his B1 cell (talked to through the bars: an interaction box in the corridor; donut trades), Tank in the
+# yard (the Distraction) and Whisper in the telephone room (deliveries and the stash). quests.sk's questOpen calls
+# jjobTalk for them.
+#
+# Jobs (core.sk jjob::*, PROPOSAL): one at a time, taken in person from the giver's menu. Each pays once (never while
+# AFK), then waits its cooldown (data jjob-ready::<id> = unix seconds); a failure or running out of time waits 2
+# minutes; a catch, an escape, a quit or leaving the prison ends it with no cooldown (the catch is the cost; every
+# catch also clears Rusty's trade cooldown, job or not: the escape starts over at once; not a calm /prison stuck, which
+# takes nothing). A job leads the GPS (data quest-track "jjob"); the quest tracked before comes back at its end.
+#   Yard Run (Lefty): the 4 marks in order (personal numbers over them), 90 s from the first.
+#   Special Delivery (Whisper): a note to Lefty, Rusty or Tank.
+#   The Stash (Whisper): dig it up at one of 4 spots (hold 2 s at a box only the job holder can use) and bring it
+#     back: a keycard (carrying one: $150). It's contraband: a guard who gets close sees it (jailcops.sk).
+#   Distraction (Tank): get the guards after you, then lose them without a catch: $200 and a C4 part (none fits: $100).
+#   Rusty's donut trade (no menu): a donut for a keycard, else a C4 part, else $100, once per 10 min. Without a donut:
+#     his line and the "donut" hint (the GPS to the cafeteria counter, then back to him) for 2 minutes; any job
+#     replaces the hint.
+# Shared (ESCAPE-SPEC 2.2): {-jjob::<u>} (the job), {-jjob::<u>::start|until|total|step|target}, {-jjob::qt::<u>::world|
+# spots|label|radius|obj} (its GPS target, kept current every second: story.sk's questTarget copies it; story.sk never
+# calls this file), {-jail::bar::<u>} ("title|color|progress": prison.sk's boss bar). Memory only: a restart ends every
+# job (nothing is lost: no item or money is held for a job). Internal memory: {-jj::*}.
+# Optional settings (core.sk can add them; the defaults are used while they're missing): jjob::yardrun::reach (5 min to
+# the first mark), jjob::donut::hint (2 min), jjob::fail-cooldown (2 min), jjob::stash::pay ($150), jjob::part-cash ($100).
+# Staff: /djailjobs setup|info|give|end|ready. Log: plugins\Skript\logs\jailjobs.log.
+
+function jjLog(t: text):
+	log {_t} to "jailjobs"
+
+# A timespan setting in seconds, or def while it's missing (the optional settings above).
+function jjSecs(key: text, def: number) :: number:
+	set {_v} to {-cfg::%{_key}%}
+	if {_v} is set:
+		set {_s} to {_v} / 1 second
+		if {_s} is set:
+			return {_s}
+	return {_def}
+
+# A number setting, or def while it's missing.
+function jjNum(key: text, def: number) :: number:
+	set {_v} to {-cfg::%{_key}%}
+	if {_v} is set:
+		return {_v}
+	return {_def}
+
+function jjOf(p: player) :: text:
+	set {_j} to {-jjob::%uuid of {_p}%}
+	if {_j} is set:
+		return "%{_j}%"
+	return ""
+
+# An inmate's name by quest kind ("Lefty").
+function jjWho(kind: text) :: text:
+	set {_n} to {-cfg::quest::%{_kind}%::npc}
+	if {_n} is set:
+		return "%{_n}%"
+	return {_kind}
+
+function jjName(id: text) :: text:
+	if {_id} is "donut":
+		return "Rusty's donut"
+	set {_n} to {-cfg::jjob::%{_id}%::name}
+	if {_n} is set:
+		return "%{_n}%"
+	return {_id}
+
+# Seconds until a job can be taken again (0 = ready).
+function jjReadyIn(p: player, id: text) :: number:
+	set {_r} to getData({_p}, "jjob-ready::%{_id}%")
+	if {_r} is set:
+		set {_l} to {_r} - progUnix()
+		if {_l} > 0:
+			return {_l}
+	return 0
+
+# The jobs a giver hands out.
+function jjIdsOf(kind: text) :: texts:
+	loop {-cfg::jjob::ids::*}:
+		if {-cfg::jjob::%loop-value%::giver} is {_kind}:
+			add loop-value to {_out::*}
+	return {_out::*}
+
+# A line from an inmate (story.sk's storyText: chat and the phone's Messages), never the same line twice in 3 s.
+function jjSay(p: player, from: text, line: text):
+	{_line} is not ""
+	set {_k} to "%{_from}%|%{_line}%"
+	if {-jj::said::%{_p}%} is {_k}:
+		if difference between {-jj::saidat::%{_p}%} and now < 3 seconds:
+			stop
+	set {-jj::said::%{_p}%} to {_k}
+	set {-jj::saidat::%{_p}%} to now
+	storyText({_p}, {_from}, {_line})
+
+# Where to walk to talk to an inmate of a kind (Rusty: the corridor in front of his bars).
+function jjGiverSpot(p: player, kind: text) :: location:
+	if {_kind} is "rusty":
+		set {_l} to jailPt("RUSTY_TALK")
+		if {_l} is set:
+			return {_l}
+	set {_n} to questNearest({_p}, {_kind})
+	if {_n} is not "":
+		return questLoc({_n})
+	return {_none}
+
+# A random C4 part the player doesn't carry ("" = none).
+function jjPart(p: player) :: text:
+	loop "putty", "wires" and "timer":
+		if jailCount({_p}, loop-value) < 1:
+			add loop-value to {_l::*}
+	if size of {_l::*} > 0:
+		return random element out of {_l::*}
+	return ""
+
+# A random C4 part into the pockets, none fits: cash. The reward's text.
+function jjPartOrCash(p: player, cash: number) :: text:
+	set {_k} to jjPart({_p})
+	if {_k} is not "":
+		if jailGive({_p}, {_k}, 1) >= 1:
+			return "&f%{-cfg::jailitem::%{_k}%::name}%"
+	giveMoney({_p}, {_cash})
+	return "&a%formatMoney({_cash})%"
+
+# ---------- Starting and ending ----------
+
+# Takes a job (the checks are jjAccept's): prepares what it needs. "" = started, else why not.
+function jjBeginJob(p: player, id: text) :: text:
+	set {_target} to ""
+	if {_id} is "delivery":
+		loop "lefty", "rusty" and "tank":
+			if questNearest({_p}, loop-value) is not "":
+				add loop-value to {_k::*}
+		if size of {_k::*} is 0:
+			return "&7Nobody to deliver to right now."
+		if jailCount({_p}, "note") < 1:
+			if jailGive({_p}, "note", 1) < 1:
+				return "&cNo room in your pockets for the note."
+		set {_target} to random element out of {_k::*}
+	else if {_id} is "stash":
+		loop {-cfg::jjob::stashes::*}:
+			if jailPt(loop-value) is set:
+				add loop-value to {_s::*}
+		if size of {_s::*} is 0:
+			return "&7Nothing's hidden out there right now."
+		set {_target} to random element out of {_s::*}
+	jjBegin({_p}, {_id}, {_target})
+	return ""
+
+function jjBegin(p: player, id: text, target: text):
+	set {_u} to "%uuid of {_p}%"
+	# A job before it (the donut hint) ends quietly.
+	if jjOf({_p}) is not "":
+		jjEnd({_p}, "quiet", "replaced")
+	if {_id} is "yardrun":
+		set {_secs} to jjSecs("jjob::yardrun::reach", 300)
+	else if {_id} is "donut":
+		set {_secs} to jjSecs("jjob::donut::hint", 120)
+	else:
+		set {_secs} to cfg("jjob::%{_id}%::time") / 1 second
+	set {-jjob::%{_u}%} to {_id}
+	set {-jjob::%{_u}%::start} to now
+	set {-jjob::%{_u}%::until} to jailDate({_secs})
+	set {-jjob::%{_u}%::total} to {_secs}
+	set {-jjob::%{_u}%::target} to {_target}
+	if {_id} is "yardrun":
+		set {-jjob::%{_u}%::step} to 1
+	else if {_id} is "stash":
+		set {-jjob::%{_u}%::step} to "find"
+	else if {_id} is "distraction":
+		set {-jjob::%{_u}%::step} to "heat"
+	else:
+		set {-jjob::%{_u}%::step} to "go"
+	# The newest objective leads the GPS (story.sk's questGps: in the prison only Lefty's lessons and a job). The quest
+	# tracked before comes back when the job ends (jjEnd).
+	set {_tr} to getData({_p}, "quest-track")
+	if {_tr} is set:
+		if "%{_tr}%" is not "jjob":
+			set {-jj::prevtrack::%{_u}%} to "%{_tr}%"
+	setData({_p}, "quest-track", "jjob")
+	if {_id} is not "donut":
+		set {_g} to "%{-cfg::jjob::%{_id}%::giver}%"
+		set {_who} to jjWho({_g})
+		if {_id} is "yardrun":
+			jjSay({_p}, {_who}, "Four marks round the yard. Touch them in order; the clock starts at the first.")
+		else if {_id} is "delivery":
+			jjSay({_p}, {_who}, "Take this to %jjWho({_target})%. Don't read it.")
+		else if {_id} is "stash":
+			jjSay({_p}, {_who}, "Somebody hid a stash in the yard. Bring it to me, and keep it away from the guards.")
+		else if {_id} is "distraction":
+			jjSay({_p}, {_who}, "Get the guards on your tail, then shake them. I need them looking the other way.")
+		hudBar({_p}, "&6Job: &f%jjName({_id})%", 2)
+		play sound "entity.villager.yes" with volume 0.6 to {_p}
+	jjShow({_p})
+	jjLog("start %{_p}% %{_u}% %{_id}% target=%{_target}%")
+
+# how: "done" (paid: jjDone), "fail" (the 2-minute cooldown), "quiet" (no cooldown: a catch, an escape, a quit, the
+# prison left, staff, a new job replacing the donut hint).
+function jjEnd(p: player, how: text, why: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_id} to jjOf({_p})
+	{_id} is not ""
+	if {_how} is "fail":
+		if {_id} is not "donut":
+			setData({_p}, "jjob-ready::%{_id}%", progUnix() + jjSecs("jjob::fail-cooldown", 120))
+	if {_how} is not "done":
+		# The job's own items go with it (a note nobody got, a stash nobody delivered).
+		if {_id} is "delivery":
+			set {_n} to jailCount({_p}, "note")
+			if {_n} > 0:
+				jailTake({_p}, "note", {_n})
+		else if {_id} is "stash":
+			set {_n} to jailCount({_p}, "stash")
+			if {_n} > 0:
+				jailTake({_p}, "stash", {_n})
+	pvClear({_p}, "jjob:")
+	delete {-jjob::%{_u}%}
+	delete {-jjob::%{_u}%::*}
+	delete {-jjob::qt::%{_u}%::*}
+	delete {-jail::bar::%{_u}%}
+	if getData({_p}, "quest-track") is "jjob":
+		set {_prev} to {-jj::prevtrack::%{_u}%}
+		if {_prev} is set:
+			setData({_p}, "quest-track", {_prev})
+		else:
+			deleteData({_p}, "quest-track")
+	delete {-jj::prevtrack::%{_u}%}
+	jjLog("end %{_p}% %{_u}% %{_id}% %{_how}% %{_why}%")
+
+# Pays the job (never while AFK) and ends it. The delivery's note and the stash are handed over here.
+function jjDone(p: player) :: boolean:
+	set {_id} to jjOf({_p})
+	if {_id} is "":
+		return false
+	if isAfk({_p}) is true:
+		hudBar({_p}, "&7Come back when you're awake.", 2)
+		return false
+	if {_id} is "delivery":
+		if jailTake({_p}, "note", 1) is false:
+			hudBar({_p}, "&7Where's the note?", 1)
+			return false
+	else if {_id} is "stash":
+		if jailTake({_p}, "stash", 1) is false:
+			hudBar({_p}, "&7Where's the stash?", 1)
+			return false
+	set {_got} to ""
+	if {_id} is "stash":
+		if jailCount({_p}, "keycard") < 1:
+			if jailGive({_p}, "keycard", 1) >= 1:
+				set {_got} to "&fa Keycard"
+		if {_got} is "":
+			set {_cash} to jjNum("jjob::stash::pay", 150)
+			giveMoney({_p}, {_cash})
+			set {_got} to "&a%formatMoney({_cash})%"
+	else:
+		set {_pay} to jjNum("jjob::%{_id}%::pay", 0)
+		giveMoney({_p}, {_pay})
+		set {_got} to "&a%formatMoney({_pay})%"
+		if {-cfg::jjob::%{_id}%::item} is "part":
+			set {_pc} to jjNum("jjob::part-cash", 100)
+			set {_it} to jjPartOrCash({_p}, {_pc})
+			set {_got} to "%{_got}% &7+ %{_it}%"
+	set {_cd} to cfg("jjob::%{_id}%::cooldown") / 1 second
+	setData({_p}, "jjob-ready::%{_id}%", progUnix() + {_cd})
+	progEvent({_p}, "jjob", 1, {_id})
+	msg({_p}, "&6Job done: &f%jjName({_id})% &7· %{_got}%")
+	play sound "ui.toast.challenge_complete" with volume 0.6 to {_p}
+	jjLog("done %{_p}% %uuid of {_p}% %{_id}% got=%{_got}%")
+	jjEnd({_p}, "done", "")
+	return true
+
+# ---------- Talking (quests.sk's questOpen: kinds lefty, rusty, tank, whisper) ----------
+
+function jjobTalk(p: player, kind: text, n: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_who} to jjWho({_kind})
+	if prisonIn({_p}) is false:
+		hudBar({_p}, "&7Inmates only.", 1)
+		stop
+	if jailState({_p}) is "course":
+		if {_kind} is "rusty":
+			jjSay({_p}, {_who}, "Do what I said.")
+		else:
+			jjSay({_p}, {_who}, "You're not done down there yet.")
+		stop
+	# Hand-ins first (they run against a clock): the note to its receiver, the stash to Whisper.
+	set {_id} to jjOf({_p})
+	if {_id} is "delivery":
+		if {-jjob::%{_u}%::target} is {_kind}:
+			if jailCount({_p}, "note") >= 1:
+				if jjDone({_p}) is true:
+					jjSay({_p}, {_who}, "Got it. Whisper sends her regards, huh.")
+				stop
+	if {_id} is "stash":
+		if {_kind} is "whisper":
+			if jailCount({_p}, "stash") >= 1:
+				if jjDone({_p}) is true:
+					jjSay({_p}, {_who}, "Nice. Here's your cut.")
+				stop
+	# A talk mission with this giver (Lefty's l_meet): his lines, then it's done (story.sk).
+	loop {-cfg::story::chains::*}:
+		set {_cid} to storyIdOf({_p}, loop-value)
+		if storyLive({_cid}) is true:
+			if storyObj({_cid}) is "talk|%{_kind}%":
+				if storyMet({_p}, {_cid}) is false:
+					storyTalk({_p}, {_n})
+					stop
+	if {_kind} is "lefty":
+		set {_lid} to storyIdOf({_p}, "lefty")
+		if {_lid} is "l_donut":
+			# Not again while the mission waits for story.sk's pass to pay it (a second click took a second donut).
+			if storyMet({_p}, {_lid}) is false:
+				if jailCount({_p}, "donut") >= 1:
+					jailTake({_p}, "donut", 1)
+					progEvent({_p}, "jaildonut", 1, "lefty")
+					jjSay({_p}, {_who}, "Mm, chocolate.")
+					jjLog("donut-lefty %{_p}% %{_u}%")
+					stop
+		# During his lessons Lefty has no jobs: his mission's brief.
+		if storyLive({_lid}) is true:
+			jjSay({_p}, {_who}, storyBrief({_p}, {_lid}))
+			stop
+	if {_kind} is "rusty":
+		jjRusty({_p})
+		stop
+	jjMenu({_p}, {_kind})
+
+# Rusty's donut trade: a keycard if they carry none, else a C4 part they don't carry, else $100; once per
+# jjob::donut::cooldown (a catch clears it). Without a donut: his line and the donut hint.
+function jjRusty(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_left} to jjReadyIn({_p}, "donut")
+	if {_left} > 0:
+		jjSay({_p}, "Rusty", "Not yet. Come back in %formatClock({_left})%.")
+		stop
+	if jailCount({_p}, "donut") < 1:
+		jjSay({_p}, "Rusty", "Bring me a donut from the cafeteria counter. I make it worth your while.")
+		set {_cur} to jjOf({_p})
+		if {_cur} is "":
+			jjBegin({_p}, "donut", "rusty")
+		else if {_cur} is "donut":
+			jjBegin({_p}, "donut", "rusty")
+		stop
+	jailTake({_p}, "donut", 1)
+	set {_got} to ""
+	if jailCount({_p}, "keycard") < 1:
+		if jailGive({_p}, "keycard", 1) >= 1:
+			set {_got} to "&fa Keycard"
+	if {_got} is "":
+		set {_pc} to jjNum("jjob::part-cash", 100)
+		set {_got} to jjPartOrCash({_p}, {_pc})
+	set {_cd} to cfg("jjob::donut::cooldown") / 1 second
+	setData({_p}, "jjob-ready::donut", progUnix() + {_cd})
+	jjSay({_p}, "Rusty", "Ahh. Here.")
+	msg({_p}, "&6Rusty's trade: &7a donut for %{_got}%")
+	play sound "entity.item.pickup" with volume 1 to {_p}
+	jjLog("trade %{_p}% %{_u}% got=%{_got}%")
+	if jjOf({_p}) is "donut":
+		jjEnd({_p}, "done", "trade")
+
+# ---------- The job menu (a plain 3-row chest: "<Name> · Jobs") ----------
+
+function jjPayText(p: player, id: text) :: text:
+	if {_id} is "stash":
+		if jailCount({_p}, "keycard") >= 1:
+			set {_cash} to jjNum("jjob::stash::pay", 150)
+			return "&a%formatMoney({_cash})% &7(you have a keycard)"
+		return "&fa Keycard"
+	set {_pay} to jjNum("jjob::%{_id}%::pay", 0)
+	set {_t} to "&a%formatMoney({_pay})%"
+	if {-cfg::jjob::%{_id}%::item} is "part":
+		set {_t} to "%{_t}% &7+ a C4 part"
+	return {_t}
+
+function jjIcon(p: player, id: text) :: item:
+	set {_u} to "%uuid of {_p}%"
+	set {_goal} to {-cfg::jjob::%{_id}%::goal}
+	add "&7%{_goal}%" to {_l::*}
+	add "&7Pays %jjPayText({_p}, {_id})%" to {_l::*}
+	set {_t} to formatClock(cfg("jjob::%{_id}%::time") / 1 second)
+	if {_id} is "yardrun":
+		add "&7Time: &f%{_t}% &7from the first mark" to {_l::*}
+	else:
+		add "&7Time: &f%{_t}%" to {_l::*}
+	set {_mine} to false
+	if jjOf({_p}) is {_id}:
+		set {_mine} to true
+		set {_until} to {-jjob::%{_u}%::until}
+		set {_left} to jailSecsLeft({_until})
+		add "&eYour job · &f%formatClock({_left})% &eleft" to {_l::*}
+	else:
+		set {_left} to jjReadyIn({_p}, {_id})
+		if {_left} > 0:
+			add "&7Again in %formatClock({_left})%" to {_l::*}
+		else:
+			add "&aReady" to {_l::*}
+	set {_name} to "&6%jjName({_id})%"
+	if {_id} is "yardrun":
+		set {_i} to feather named {_name} with lore {_l::*}
+	else if {_id} is "distraction":
+		set {_i} to bell named {_name} with lore {_l::*}
+	else:
+		# The note and the stash drawn by the pack (prison.sk's jail art), without the jail item's tag.
+		set {_i} to brick named {_name} with lore {_l::*}
+		set {_art} to "note"
+		if {_id} is "stash":
+			set {_art} to "stash"
+		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:jail_%{_art}%"
+	if {_mine} is true:
+		set {_i} to glint({_i})
+	return {_i}
+
+function jjMenu(p: player, kind: text):
+	set {_ids::*} to jjIdsOf({_kind})
+	set {_n} to size of {_ids::*}
+	if {_n} is 0:
+		stop
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8%jjWho({_kind})% · Jobs"
+	delete {-jj::act::%{_p}%::*}
+	# The jobs centred in the middle row, a slot apart.
+	set {_slot} to 14 - {_n}
+	loop {_ids::*}:
+		set slot {_slot} of {_gui} to jjIcon({_p}, loop-value)
+		set {-jj::act::%{_p}%::%{_slot}%} to loop-value
+		add 2 to {_slot}
+	set {-jj::gui::%{_p}%} to {_gui}
+	set {-jj::kind::%{_p}%} to {_kind}
+	if {-jj::gen::%{_p}%} is not set:
+		set {-jj::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+# Taking a job from the menu. "" = taken, else why not.
+function jjAccept(p: player, id: text, kind: text) :: text:
+	if prisonIn({_p}) is false:
+		return "&7Inmates only."
+	if jailState({_p}) is not "in":
+		return "&7Finish the course first."
+	if questNear({_p}, {_kind}) is "":
+		return "&7Talk to %jjWho({_kind})% in person."
+	set {_cur} to jjOf({_p})
+	if {_cur} is {_id}:
+		return "&7That's your job now."
+	if {_cur} is not "":
+		if {_cur} is not "donut":
+			set {_g} to "%{-cfg::jjob::%{_cur}%::giver}%"
+			set {_gw} to jjWho({_g})
+			return "&7Finish your job for %{_gw}% first."
+	set {_left} to jjReadyIn({_p}, {_id})
+	if {_left} > 0:
+		return "&7Again in %formatClock({_left})%."
+	return jjBeginJob({_p}, {_id})
+
+on inventory click:
+	{-jj::gui::%player%} is set
+	player's current inventory is {-jj::gui::%player%}
+	cancel event
+	event-inventory is {-jj::gui::%player%}
+	set {_id} to {-jj::act::%player%::%index of event-slot%}
+	{_id} is set
+	set {_click} to false
+	if click type is left mouse button:
+		set {_click} to true
+	else if click type is right mouse button:
+		set {_click} to true
+	{_click} is true
+	# One action per drawn screen: a double click takes the job once.
+	set {_gen} to {-jj::gen::%player%}
+	wait 1 tick
+	player is online
+	{-jj::gen::%player%} is {_gen}
+	add 1 to {-jj::gen::%player%}
+	set {_kind} to {-jj::kind::%player%}
+	{_kind} is set
+	set {_why} to jjAccept(player, "%{_id}%", "%{_kind}%")
+	if {_why} is "":
+		close player's inventory
+	else:
+		hudBar(player, {_why}, 2)
+		play sound "block.note_block.bass" with volume 0.7 and pitch 0.7 to player
+
+on inventory drag:
+	{-jj::gui::%player%} is set
+	player's current inventory is {-jj::gui::%player%}
+	cancel event
+
+on inventory close:
+	{-jj::gui::%player%} is set
+	event-inventory is {-jj::gui::%player%}
+	delete {-jj::gui::%player%}
+	delete {-jj::act::%player%::*}
+	delete {-jj::kind::%player%}
+
+# ---------- Every second: the job's state, its bar and its GPS target ----------
+
+# The GPS target story.sk's questTarget copies ({-jjob::qt::<u>::*}).
+function jjTarget(p: player, l: location, label: text, radius: number, obj: text):
+	set {_u} to "%uuid of {_p}%"
+	set {-jjob::qt::%{_u}%::world} to "%world of {_l}%"
+	set {-jjob::qt::%{_u}%::spots} to gpsSpot({_l})
+	set {-jjob::qt::%{_u}%::label} to {_label}
+	set {-jjob::qt::%{_u}%::radius} to {_radius}
+	set {-jjob::qt::%{_u}%::obj} to {_obj}
+
+# The job bar ({-jail::bar::<u>}, prison.sk's boss bar) and the GPS target.
+function jjShow(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_id} to jjOf({_p})
+	{_id} is not ""
+	set {_until} to {-jjob::%{_u}%::until}
+	set {_left} to jailSecsLeft({_until})
+	set {_tot} to {-jjob::%{_u}%::total}
+	set {_prog} to {_left} / max(1, {_tot})
+	set {_clock} to formatClock({_left})
+	set {_step} to {-jjob::%{_u}%::step}
+	set {_tg} to "%{-jjob::%{_u}%::target}%"
+	delete {-jjob::qt::%{_u}%::*}
+	set {_t} to jjName({_id})
+	if {_id} is "yardrun":
+		set {_n} to size of {-cfg::jjob::marks::*}
+		set {_l} to jailPt({-cfg::jjob::marks::%{_step}%})
+		if {_step} <= 1:
+			set {_t} to "Yard Run: to mark 1 · %{_clock}%"
+		else:
+			set {_t} to "Yard Run: mark %{_step}%/%{_n}% · %{_clock}%"
+		if {_l} is set:
+			jjTarget({_p}, {_l}, "Mark %{_step}%", 3, "jjob:yardrun:%{_step}%")
+	else if {_id} is "delivery":
+		set {_who} to jjWho({_tg})
+		set {_t} to "Take the note to %{_who}% · %{_clock}%"
+		set {_l} to jjGiverSpot({_p}, {_tg})
+		if {_l} is set:
+			jjTarget({_p}, {_l}, {_who}, 3, "jjob:delivery:%{_tg}%")
+	else if {_id} is "stash":
+		if {_step} is "find":
+			set {_t} to "Find the stash in the yard · %{_clock}%"
+			set {_l} to jailPt({_tg})
+			if {_l} is set:
+				jjTarget({_p}, {_l}, "The stash", 6, "jjob:stash:find")
+		else:
+			set {_t} to "Bring the stash to Whisper · %{_clock}%"
+			set {_l} to jjGiverSpot({_p}, "whisper")
+			if {_l} is set:
+				jjTarget({_p}, {_l}, "Whisper", 3, "jjob:stash:back")
+	else if {_id} is "distraction":
+		if {_step} is "heat":
+			set {_t} to "Get the guards after you · %{_clock}%"
+		else:
+			set {_t} to "Now lose them · %{_clock}%"
+	else if {_id} is "donut":
+		if jailCount({_p}, "donut") >= 1:
+			set {_t} to "Bring Rusty the donut · %{_clock}%"
+			set {_l} to jjGiverSpot({_p}, "rusty")
+			if {_l} is set:
+				jjTarget({_p}, {_l}, "Rusty", 3, "jjob:donut:rusty")
+		else:
+			set {_t} to "Get a donut from the cafeteria · %{_clock}%"
+			set {_l} to jailPt("DONUT_CAFE")
+			if {_l} is set:
+				jjTarget({_p}, {_l}, "Cafeteria counter", 3, "jjob:donut:cafe")
+	set {-jail::bar::%{_u}%} to "&3&lJOB&r &7· %{_t}%|blue|%{_prog}%"
+
+# The Yard Run's numbers over the marks still to touch (personal text displays: pv.sk), drawn again when lost.
+function jjRunMarks(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_k} to {-jjob::%{_u}%::step}
+	set {_n} to size of {-cfg::jjob::marks::*}
+	loop {_n} times:
+		set {_m} to loop-number
+		if {_m} >= {_k}:
+			set {_key} to "jjob:run%{_m}%"
+			if pvGet({_p}, {_key}) is not set:
+				set {_l} to jailPt({-cfg::jjob::marks::%{_m}%})
+				if {_l} is set:
+					if chunk at {_l} is loaded:
+						set {_at} to location(x-coordinate of {_l}, (y-coordinate of {_l}) + 1.5, z-coordinate of {_l}, world of {_l})
+						set {_e} to pvText({_p}, {_key}, {_at}, "&e&l%{_m}%")
+						if {_e} is set:
+							set display scale of {_e} to vector(2, 2, 2)
+
+# The stash, glowing at its spot for the job holder only (pv.sk).
+function jjStashShow(p: player):
+	set {_u} to "%uuid of {_p}%"
+	pvGet({_p}, "jjob:stash") is not set
+	set {_t} to "%{-jjob::%{_u}%::target}%"
+	set {_l} to jailPt({_t})
+	{_l} is set
+	chunk at {_l} is loaded
+	set {_at} to location(x-coordinate of {_l}, (y-coordinate of {_l}) + 0.6, z-coordinate of {_l}, world of {_l})
+	set {_e} to pvItem({_p}, "jjob:stash", {_at}, jailItem("stash", 1), 0.5)
+	{_e} is set
+	set billboard of {_e} to center
+	set glowing of {_e} to true
+	set glow color override of {_e} to yellow
+
+function jjPass(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_id} to jjOf({_p})
+	{_id} is not ""
+	{_p} is alive
+	set {_start} to {-jjob::%{_u}%::start}
+	# Out of the prison (an escape, staff, another world): over, no cooldown.
+	if prisonIn({_p}) is false:
+		jjEnd({_p}, "quiet", "out")
+		stop
+	if world of {_p} is not jailWorld():
+		jjEnd({_p}, "quiet", "world")
+		stop
+	set {_e} to {-jail::escaped::%{_u}%}
+	if {_e} is set:
+		if {_e} >= {_start}:
+			jjEnd({_p}, "quiet", "escaped")
+			stop
+	set {_c} to {-jail::caught::%{_u}%}
+	if {_c} is set:
+		if {_c} >= {_start}:
+			msg({_p}, "&7You got caught. The job's off.")
+			jjEnd({_p}, "quiet", "caught")
+			stop
+	if jailSecsLeft({-jjob::%{_u}%::until}) <= 0:
+		if {_id} is "donut":
+			jjEnd({_p}, "quiet", "hint")
+		else if {_id} is "yardrun":
+			msg({_p}, "&7Too slow. Try again later.")
+			jjEnd({_p}, "fail", "time")
+		else:
+			msg({_p}, "&7Out of time. The job's off.")
+			jjEnd({_p}, "fail", "time")
+		stop
+	if {_id} is "yardrun":
+		jjRunMarks({_p})
+	else if {_id} is "stash":
+		if {-jjob::%{_u}%::step} is "find":
+			jjStashShow({_p})
+	else if {_id} is "distraction":
+		set {_h} to {-jail::hostile::%{_u}%}
+		if {-jjob::%{_u}%::step} is "heat":
+			if {_h} is set:
+				if {_h} >= {_start}:
+					set {-jjob::%{_u}%::step} to "lose"
+					hudBar({_p}, "&eNow lose them.", 2)
+					jjLog("distraction-heat %{_p}% %{_u}%")
+		else if {_h} is not set:
+			# Calm again with no catch since the start (the catch check above ran first).
+			if jjDone({_p}) is true:
+				stop
+	jjShow({_p})
+
+# Rusty's talk box in the corridor, and a stash box at each spot someone is digging for (prison.sk keeps the boxes).
+function jjBoxes():
+	jailOn() is true
+	set {_l} to jailPt("RUSTY_TALK")
+	if {_l} is set:
+		jailBox("jjrusty", {_l}, 1.0, 2.0)
+	loop all players:
+		set {_u} to "%uuid of loop-player%"
+		if {-jjob::%{_u}%} is "stash":
+			if {-jjob::%{_u}%::step} is "find":
+				set {_t} to "%{-jjob::%{_u}%::target}%"
+				set {_want::%{_t}%} to true
+	loop {-jail::boxes::*}:
+		if loop-index starts with "jjstash_":
+			set {_pt} to subtext of loop-index from characters 9 to (length of loop-index)
+			if {_want::%{_pt}%} is not set:
+				add loop-index to {_off::*}
+	loop {_off::*}:
+		jailBoxOff(loop-value)
+	loop {_want::*}:
+		set {_sl} to jailPt(loop-index)
+		if {_sl} is set:
+			jailBox("jjstash_%loop-index%", {_sl}, 1.0, 1.0)
+
+every second:
+	loop all players:
+		set {_p} to loop-player
+		set {_u} to "%uuid of {_p}%"
+		# Every catch clears Rusty's trade cooldown, job or not (the escape starts over at once), except a calm /prison
+		# stuck: prison.sk takes nothing then and keeps the search waits, and clearing this one let a stuck between two
+		# donuts skip Rusty's 10 minutes (review fix).
+		set {_c} to {-jail::caught::%{_u}%}
+		if {_c} is set:
+			set {_new} to true
+			set {_seen} to {-jj::caughtseen::%{_u}%}
+			if {_seen} is set:
+				if {_seen} >= {_c}:
+					set {_new} to false
+			if {_new} is true:
+				set {-jj::caughtseen::%{_u}%} to {_c}
+				set {_st} to {-jj::unstuck::%{_u}%}
+				set {_free} to false
+				if {_st} is set:
+					if difference between {_st} and {_c} < 2 seconds:
+						set {_free} to true
+				delete {-jj::unstuck::%{_u}%}
+				if {_free} is false:
+					deleteData({_p}, "jjob-ready::donut")
+				else:
+					jjLog("unstuck %{_p}% %{_u}%: Rusty's wait kept")
+		if {-jjob::%{_u}%} is set:
+			jjPass({_p})
+	jjBoxes()
+
+# The Yard Run's marks: each within 3 blocks, in order (checked 4 times a second: a sprinter crosses one in a second).
+function jjRunCheck(p: player):
+	{_p} is alive
+	set {_u} to "%uuid of {_p}%"
+	set {_k} to {-jjob::%{_u}%::step}
+	set {_l} to jailPt({-cfg::jjob::marks::%{_k}%})
+	{_l} is set
+	world of {_p} is world of {_l}
+	distance between {_p} and {_l} <= 3
+	set {_n} to size of {-cfg::jjob::marks::*}
+	pvKill({_p}, "jjob:run%{_k}%")
+	if {_k} >= {_n}:
+		jjDone({_p})
+		stop
+	# The clock starts at the first mark.
+	if {_k} is 1:
+		set {_secs} to cfg("jjob::yardrun::time") / 1 second
+		set {-jjob::%{_u}%::until} to jailDate({_secs})
+		set {-jjob::%{_u}%::total} to {_secs}
+	set {-jjob::%{_u}%::step} to {_k} + 1
+	set {_pitch} to 0.8 + {_k} * 0.2
+	play sound "block.note_block.pling" with volume 0.8 and pitch {_pitch} to {_p}
+	hudBar({_p}, "&eMark %{_k}%/%{_n}%", 1)
+	jjShow({_p})
+
+every 5 ticks:
+	loop all players:
+		if {-jjob::%uuid of loop-player%} is "yardrun":
+			jjRunCheck(loop-player)
+
+# ---------- The boxes: Rusty through the bars, the stash ----------
+
+on right click on interaction:
+	set {_k} to {-jail::iboxof::%uuid of event-entity%}
+	{_k} is set
+	# Only this file's boxes (jjrusty, jjstash_<point>).
+	{_k} starts with "jj"
+	cancel event
+	set {-jail::guard::%player%} to now
+	jailOn() is true
+	player is alive
+	if {_k} is "jjrusty":
+		set {_n} to questNear(player, "rusty")
+		if {_n} is "":
+			hudBar(player, "&7Rusty isn't here.", 1)
+			stop
+		questOpen(player, {_n})
+		stop
+	{_k} starts with "jjstash_"
+	jjStashClick(player, subtext of {_k} from characters 9 to (length of {_k}))
+
+# Digging up the stash: only the job holder looking for this spot; hold 2 s (prison::search::hold), an act the guards
+# can see.
+function jjStashClick(p: player, pt: text):
+	set {_u} to "%uuid of {_p}%"
+	jjOf({_p}) is "stash"
+	{-jjob::%{_u}%::step} is "find"
+	set {_t} to "%{-jjob::%{_u}%::target}%"
+	set {_t} to {_t} in lower case
+	set {_pt} to {_pt} in lower case
+	{_t} is {_pt}
+	if itemId(tool of {_p}) is "phone":
+		phoneHint({_p}, "do that")
+		stop
+	jailAct({_p}, "stash")
+	set {_need} to cfg("prison::search::hold") / 1 second
+	if jailHold({_p}, "jjstash", {_need}) is false:
+		jailHoldBar({_p}, "Digging up the stash", {_need})
+		stop
+	if jailGive({_p}, "stash", 1) < 1:
+		hudBar({_p}, "&cNo room in your pockets.", 1)
+		stop
+	set {-jjob::%{_u}%::step} to "back"
+	pvKill({_p}, "jjob:stash")
+	play sound "entity.item.pickup" with volume 1 to {_p}
+	hudBar({_p}, "&a+ Stash &7· bring it to Whisper, away from the guards", 2)
+	jjLog("stash-found %{_p}% %{_u}% %{_pt}%")
+	jjShow({_p})
+
+on load:
+	wait 1 second
+	jjBoxes()
+
+on unload:
+	loop {-jail::boxes::*}:
+		if loop-index starts with "jj":
+			add loop-index to {_k::*}
+	loop {_k::*}:
+		jailBoxOff(loop-value)
+
+# A job's own items with no job (a restart forgets every job): the note and the stash go (a stash kept would block the
+# next stash job's pickup, and it's contraband).
+on join:
+	wait 2 seconds
+	player is online
+	{-jjob::%uuid of player%} is not set
+	# The job's GPS lead too (quest-track "jjob": the quest tracked before it is lost with the restart).
+	if getData(player, "quest-track") is "jjob":
+		deleteData(player, "quest-track")
+	loop "note" and "stash":
+		set {_n} to jailCount(player, loop-value)
+		if {_n} > 0:
+			jailTake(player, loop-value, {_n})
+			jjLog("join-clean %player% %loop-value% x%{_n}%")
+
+# A /prison stuck by a prisoner the guards aren't after is a free unstuck (prison.sk jailStuck: "stuck", nothing taken):
+# the catch it makes keeps Rusty's trade cooldown (the every-second pass above). Recorded before the command runs.
+on command:
+	player is set
+	set {_c} to command in lower case
+	if {_c} is "prison" or "skript:prison":
+		set {_a} to "%arguments%" in lower case
+		if {_a} is "stuck":
+			if {-jail::hostile::%uuid of player%} is not set:
+				set {-jj::unstuck::%uuid of player%} to now
+
+on quit:
+	set {_u} to "%uuid of player%"
+	if {-jjob::%{_u}%} is set:
+		jjEnd(player, "quiet", "quit")
+	# {-jj::caughtseen} and {-jj::unstuck} stay: {-jail::caught} outlives a relog, and a catch seen again after one must
+	# not clear Rusty's cooldown a second time.
+	delete {-jj::prevtrack::%{_u}%}
+	delete {-jj::said::%player%}
+	delete {-jj::saidat::%player%}
+	delete {-jj::gui::%player%}
+	delete {-jj::act::%player%::*}
+	delete {-jj::kind::%player%}
+	delete {-jj::gen::%player%}
+
+# ---------- Staff: /djailjobs ----------
+
+function jjInfo(p: player) :: text:
+	set {_u} to "%uuid of {_p}%"
+	set {_id} to jjOf({_p})
+	set {_left} to 0
+	if {_id} is not "":
+		set {_until} to {-jjob::%{_u}%::until}
+		set {_left} to ceil(jailSecsLeft({_until}))
+	set {_ids::*} to {-cfg::jjob::ids::*}
+	add "donut" to {_ids::*}
+	set {_cd} to ""
+	loop {_ids::*}:
+		set {_e} to "%loop-value%:%ceil(jjReadyIn({_p}, loop-value))%"
+		if {_cd} is "":
+			set {_cd} to {_e}
+		else:
+			set {_cd} to "%{_cd}%,%{_e}%"
+	set {_step} to {-jjob::%{_u}%::step}
+	set {_tg} to {-jjob::%{_u}%::target}
+	set {_qt} to {-jjob::qt::%{_u}%::spots}
+	set {_bar} to {-jail::bar::%{_u}%}
+	return "JJOBS %{_p}% job=%{_id}% step=%{_step}% target=%{_tg}% left=%{_left}% ready=%{_cd}% qt=%{_qt}% bar=%{_bar}%"
+
+# Puts the four inmates at their points (quests.sk's questAdd) unless one of that kind stands in the prison world.
+function jjSetup(s: command sender):
+	set {_w} to jailWorld()
+	if {_w} is not set:
+		send "JJOBS the prison world (%{-cfg::prison::world}%) isn't loaded" to {_s}
+		stop
+	set {_wn} to "%{_w}%"
+	loop "lefty", "rusty", "tank" and "whisper":
+		set {_k} to loop-value
+		set {_have} to ""
+		loop {quest::giver::*}:
+			set {_q::*} to loop-value-2 split at "|"
+			if {_q::1} is {_k}:
+				if {_q::2} is {_wn}:
+					set {_have} to loop-index
+		if {_have} is not "":
+			send "JJOBS %jjWho({_k})% stands already (giver %{_have}%)" to {_s}
+		else:
+			set {_up} to {_k} in upper case
+			set {_l} to jailPt({_up})
+			if {_l} is set:
+				set {_place} to "%{-cfg::quest::%{_k}%::place}%"
+				send questAdd("%{_s}%", {_l}, {_k}, {_place}) to {_s}
+			else:
+				send "JJOBS no point %{_up}% (jailpoints.sk)" to {_s}
+	jjBoxes()
+	jjLog("setup by=%{_s}%")
+
+command /djailjobs [<text>]:
+	description: Staff: the prison's inmates (Lefty, Rusty, Tank, Whisper) and their jobs.
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		set {_usage} to "JJOBS usage: /djailjobs setup | info <player> | give <player> <yardrun|delivery|stash|distraction|donut> | end <player> | ready <player>"
+		if {_sub} is "setup":
+			jjSetup(sender)
+			stop
+		set {_who} to {_a::2} parsed as player
+		if {_who} is not set:
+			send {_usage} to sender
+			stop
+		if {_sub} is "info":
+			send jjInfo({_who}) to sender
+		else if {_sub} is "give":
+			set {_id} to {_a::3}
+			set {_ok} to false
+			if {_id} is "donut":
+				set {_ok} to true
+			loop {-cfg::jjob::ids::*}:
+				if loop-value is {_id}:
+					set {_ok} to true
+			if {_ok} is false:
+				send {_usage} to sender
+				stop
+			if prisonIn({_who}) is false:
+				send "JJOBS %{_who}% isn't an inmate (state=%jailState({_who})%)" to sender
+				stop
+			if {_id} is "donut":
+				jjBegin({_who}, "donut", "rusty")
+				set {_why} to ""
+			else:
+				set {_why} to jjBeginJob({_who}, {_id})
+			if {_why} is "":
+				set {_wu} to "%uuid of {_who}%"
+				send "JJOBS %{_who}% got %{_id}% (%{-jjob::%{_wu}%::target}%)" to sender
+				jjLog("give %{_who}% %{_id}% by=%sender%")
+			else:
+				send "JJOBS refused: %{_why}%" to sender
+		else if {_sub} is "end":
+			if jjOf({_who}) is "":
+				send "JJOBS %{_who}% has no job" to sender
+				stop
+			jjEnd({_who}, "quiet", "staff")
+			send "JJOBS %{_who}%'s job ended" to sender
+		else if {_sub} is "ready":
+			loop {-cfg::jjob::ids::*}:
+				deleteData({_who}, "jjob-ready::%loop-value%")
+			deleteData({_who}, "jjob-ready::donut")
+			send "JJOBS %{_who}%'s cooldowns cleared" to sender
+			jjLog("ready %{_who}% by=%sender%")
+		else:
+			send {_usage} to sender
+
+on tab complete of "/djailjobs" and "/skript:djailjobs":
+	set tab completions for position 1 to "setup", "info", "give", "end" and "ready"
+	if tab arg-1 is not "setup":
+		set {_l::*} to tabPlayerNames(player)
+		if {_l::*} is set:
+			set tab completions for position 2 to {_l::*}
+	if tab arg-1 is "give":
+		set {_ids::*} to {-cfg::jjob::ids::*}
+		add "donut" to {_ids::*}
+		set tab completions for position 3 to {_ids::*}

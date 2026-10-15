@@ -6,7 +6,7 @@
 # and a first car job at the Scrap Yard (contracts.sk's starter job: the money for a bag), the Gym Bag, a store or a
 # heist, the sale, a knife (guns need level 5), a crate and level 5. The GPS leads the way at every step.
 # This file only greets them once (data "tutorial": "welcomed", then "done" with their first bag) and keeps /tutorial.
-#   /tutorial                          the first steps again
+#   /tutorial [confirm]                the first steps again; in the prison, the course step (confirm: back to it)
 #   /dtutorial <player> reset|done     staff (reset: the welcome again at the next join)
 
 function tutorialLog(text: text):
@@ -41,6 +41,8 @@ on join:
 	getData(player, "tutorial") is not set
 	setData(player, "tutorial", "welcomed")
 	tutorialLog("start %player% %uuid of player%")
+	# While the prison runs, the city's welcome waits for the first escape (prison.sk calls tutorialWelcome then).
+	jailOn() is false
 	# After the welcome title (join-quit.sk).
 	wait 5 seconds
 	player is online
@@ -54,10 +56,20 @@ every second:
 				setData(loop-player, "tutorial", "done")
 				tutorialLog("done %loop-player% %uuid of loop-player%")
 
-command /tutorial:
-	description: The first steps again.
+command /tutorial [<text>]:
+	description: Your tutorial step; /tutorial confirm takes you back to it.
 	executable by: players
 	trigger:
+		# While the prison runs, /tutorial is the prison course (jailcourse.sk); the city's first steps follow once out.
+		if jailOn() is true:
+			set {_a} to ""
+			if arg-1 is set:
+				set {_a} to arg-1
+			jcTutorial(player, {_a})
+			if {_a} is "confirm":
+				stop
+			if jailState(player) is "course":
+				stop
 		tutorialSteps(player)
 
 command /dtutorial <offline player> <text>:

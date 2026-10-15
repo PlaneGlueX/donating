@@ -834,10 +834,12 @@ function ctEnd(u: text, why: text):
 		if {_tcd} is set:
 			if {_p} is online:
 				setData({_p}, "ctready::%{_t}%", progUnix() + {_tcd} / 1 second)
+	# Locked up (prison.sk: a death sends the player to the prison): the job can't be finished, so no cooldown.
 	if {_why} is not "done":
-		set {_cd} to now
-		add cfg("contract::cooldown") to {_cd}
-		set {ctcd::%{_u}%} to {_cd}
+		if {_why} is not "jailed":
+			set {_cd} to now
+			add cfg("contract::cooldown") to {_cd}
+			set {ctcd::%{_u}%} to {_cd}
 	else if {_tcd} is not set:
 		# The tutorial's first job (no tier cooldown): the short one.
 		set {_cd} to now
@@ -858,6 +860,8 @@ function ctEnd(u: text, why: text):
 		msg({_p}, "&7You dropped the %{_car}% job. &7Next job in %formatClock(cfg("contract::cooldown") / 1 second)%.")
 	else if {_why} is "staff":
 		msg({_p}, "&7Staff ended your %{_car}% job.")
+	else if {_why} is "jailed":
+		msg({_p}, "&7You got locked up: the %{_car}% job is off.")
 
 # Throws everyone out of a car and deletes it from MTVehicles.
 function ctScrap(plate: text):

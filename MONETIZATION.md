@@ -29,7 +29,7 @@ A player has one rank at a time. Buying a higher rank replaces the lower one, an
 
 ### Valet (Elite and Legend)
 
-Everyone owns and drives cars the same way. Cars come out at garages: one at every respawn point, one at the Car Dealer and one at the Scrap Yard. Elite and Legend can also call their car from anywhere with /garage or the phone's Garage app, with the same limits: never inside a heist, never in combat or while wanted, one car out at a time, once every 20 seconds. It saves the walk to a garage; it gives no car, speed or protection.
+Everyone owns and drives cars the same way. Cars come out at garages: one at every respawn point, one at the Car Dealer and one at the Scrap Yard. Elite and Legend can also call their car from anywhere with /garage or the phone's Garage app, with the same limits: never inside a heist, never in combat or while wanted, one car out at a time, once every 20 seconds. It saves the walk to a garage; it gives no car, speed or protection. It doesn't work inside the prison (added 2026-10-14: every new player starts there and every death sends you back): "No cars in the prison: break out first."
 
 ### Gun skins (added 2026-10-06)
 
@@ -233,7 +233,8 @@ Wraps: Common (Matte Black, Primer, Two-Tone, Racing Stripes, Checkered), Rare (
 - **The bag tiers are the same for everyone,** unlocked and bought with in-game money. A rank adds its percentage to whichever tier the player carries. For example, the top bag (the Vault Bag) holds $100,000, or $125,000 for a Legend.
 - **Gun skins are looks only** (added 2026-10-06): a skin changes a gun's colors, never its damage, fire rate, reload, sights or sound, and it's never sold directly (only from crate keys, at random, and two from robber levels).
 - **Never sold directly:** guns, gun skins, helmets, vests, bags, loot, robber levels, access to heists, trap or cop protection. In-game money, ammo, Stims and heist tools only come from paid items at random, through crate keys (the chances are above and in game).
-- **Valet only saves a walk.** Taking a car out anywhere is blocked in heists, in combat and while wanted, like any car call.
+- **Valet only saves a walk.** Taking a car out anywhere is blocked in heists, in combat and while wanted, like any car call, and inside the prison.
+- **No paid perk shortens or skips the prison** (added 2026-10-14). Every new player starts in a prison cell and every death sends everyone back, ranks included; the way out is the same for everyone (a keycard through the police station, C4 on the vehicle gate or the parkour, then the front gate). There's no bail. The Prison Gun Shop sells nothing (it only takes out melee weapons a player already owns), Valet and the Grappler (a crate reward) don't work inside, and keys can't be opened there (crate stands are only in the city's safe zones). A rank's bigger bag and boosters change nothing inside (there's no loot to sell in the prison).
 - **Heist Refresh helps everyone.** A refreshed heist opens for the whole server, with no head start for the player who refreshed it.
 - **Boosters are server-wide.**
   - Everyone online gets the multiplier. A money or XP booster's buyer gets a bit more (2× instead of 1.5×); Heist Rush gives its buyer nothing extra.

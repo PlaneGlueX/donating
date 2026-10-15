@@ -596,6 +596,9 @@ function carEnsure(p: offline player, plate: text) :: text:
 
 # "" when a player may call a car now, else why not.
 function carCallBlock(p: player) :: text:
+	# Valet would drive Elite and Legend players out of the prison walls (prison.sk).
+	if prisonIn({_p}) is true:
+		return "No cars in the prison: break out first."
 	if {_p} is not alive:
 		return "You can't call a car right now."
 	if heistOf({_p}) is not "":

@@ -93,6 +93,10 @@ function hudBossSet(p: player, title: text, color: text, progress: number):
 			set color of {_b} to green
 		else if {_color} is "purple":
 			set color of {_b} to purple
+		else if {_color} is "blue":
+			set color of {_b} to blue
+		else if {_color} is "pink":
+			set color of {_b} to pink
 		else:
 			set color of {_b} to white
 	set {_last} to {-hud::bosslast::%{_p}%::progress}
@@ -113,6 +117,9 @@ function hudBossOff(p: player):
 	delete {-hud::bosslast::%{_p}%::*}
 
 function hudBoss(p: player):
+	# The prison (prison.sk) comes first: the course, the guards, the cell, the C4, the lot.
+	if prisonHud({_p}) is true:
+		stop
 	set {_h} to heistOf({_p})
 	if {_h} is not "":
 		set {_name} to heistName({_h})
