@@ -2169,8 +2169,15 @@ function loadSettings():
 	set {-cfg::jailcop::notice::time} to 1 second
 	# An act (a reader, a punch, a search hold, a plant, the stash, the console, hitting an inmate) stays visible this long.
 	set {-cfg::jailcop::notice::act-window} to 4 seconds
-	# Carried contraband is spotted this close (with line of sight); a held C4 at the notice range.
+	# Carried contraband (jailcop::contraband) is spotted this close with line of sight, in any direction (the pockets).
 	set {-cfg::jailcop::notice::frisk} to 4
+	# Contraband held out in the main hand (from any hotbar slot) in front of a cop (owner, 2026-10-15: "cops target you
+	# if you hold out contraband in front of them"): within held::cone degrees of its facing, held::range blocks (never
+	# past the notice range: notice::sneak while sneaking) and line of sight, for notice::time. PROPOSAL numbers. Not the
+	# note or the donut (Whisper's and Rusty's errands: an inmate may carry those) or the course card (B1 only).
+	set {-cfg::jailcop::held::kinds::*} to "keycard", "putty", "wires", "timer", "c4" and "stash"
+	set {-cfg::jailcop::held::range} to 16
+	set {-cfg::jailcop::held::cone} to 65
 	set {-cfg::jailcop::lose::time} to 20 seconds
 	set {-cfg::jailcop::lose::range} to 32
 	set {-cfg::jailcop::keycard-chance} to 1

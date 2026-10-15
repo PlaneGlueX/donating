@@ -258,7 +258,8 @@ module.exports = async ({ check }) => {
     await sleep(900)
     s = await info(E1)
     const c4slot = Number((field(s, 'items').match(/c4:(\d+)/) || [])[1])
-    check('the three parts to Lefty: a C4 into hotbar 1-5, the parts gone, "Give me those"', c4slot >= 0 && c4slot <= 4 && !/putty|wires|timer/.test(field(s, 'items')) && said(e1, /Give me those/, since) && logs.prison.has(new RegExp(`c4 ${E1} by=lefty`)), s)
+    // Not into the slot the bot holds (review fix, 2026-10-15: a C4 put into the hand is held out in front of the guards).
+    check('the three parts to Lefty: a C4 into hotbar 1-5 (not the held slot), the parts gone, "Give me those"', c4slot >= 0 && c4slot <= 4 && c4slot !== e1.quickBarSlot && !/putty|wires|timer/.test(field(s, 'items')) && said(e1, /Give me those/, since) && logs.prison.has(new RegExp(`c4 ${E1} by=lefty`)), `${s} held=${e1.quickBarSlot}`)
     e1.setQuickBarSlot(c4slot >= 0 && c4slot <= 4 ? c4slot : 0)
     // An inmate at 1 heart next to the gate, and a free bot at 2 blocks while it blows.
     await into(E2, 179.5, 65, 319.9, 0)

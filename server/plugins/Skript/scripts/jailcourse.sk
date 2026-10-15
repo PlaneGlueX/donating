@@ -65,7 +65,7 @@ function jcPrompt(p: player, s: text):
 	else if {_s} is "vent":
 		set {_t} to "Use the keycard"
 		set {_sub} to "&7Right-click the vent's &cred reader"
-		set {_c} to "Keycards work from your pockets: right-click a red reader to open its door."
+		set {_c} to "Keycards and quest items sit in hotbar 6-8 and work from there: no need to hold one, right-click a red reader to open its door."
 	else if {_s} is "crawl":
 		set {_t} to "Through the vent"
 		set {_sub} to "&7Follow it to the other side"
@@ -203,6 +203,9 @@ function jcRusty(p: player):
 	storyText({_p}, "Rusty", "Took you long enough. Name's Rusty.")
 	wait 2 seconds
 	{_p} is online
+	# Still on this step of the course (a /tutorial stop in the 2 s ends it: no knife, no unlock, no prompt; review fix).
+	jailState({_p}) is "course"
+	jcStepOf({_p}) is "hotbar"
 	setData({_p}, "wpn::Combat_Knife", true)
 	if loadoutSlotOf({_p}, "wpn:Combat_Knife") < 0:
 		set {_s} to jcKnifeSlot({_p})
@@ -221,7 +224,7 @@ function jcPass(p: player):
 	if {_s} is not "sneak":
 		pvKill({_p}, "jcourse:card")
 		delete {-jc::unsneak::%{_u}%}
-	# A course death (staff /kill, the void) clears the pockets and hotbar 1-5 (death.sk): the card and the knife back.
+	# A course death (staff /kill, the void) takes the card (prison.sk's death strip) and hotbar 1-5 (death.sk): both back.
 	set {_n} to jcStepNum({_s})
 	if {_n} >= 3:
 		if jailCount({_p}, "coursecard") < 1:
@@ -307,6 +310,10 @@ function jcPass(p: player):
 		if jailZone("hallb", {_l}) is true:
 			pvKill({_p}, "jcourse:card")
 			jailCourseDone({_p})
+			# A replay that finishes: what /tutorial stop would have put back goes (you're an inmate now).
+			if {data::%{_p}%::jail-replay::state} is set:
+				delete {data::%{_p}%::jail-replay::*}
+				jcLog("course-replay-done %{_p}% %{_u}%")
 
 # Every 5 ticks: the course steps, the inside exits and the vent lids.
 every 5 ticks:
@@ -406,7 +413,8 @@ on right click on interaction:
 		delete {-jc::unsneak::%uuid of player%}
 		jcSet(player, "vent")
 		play sound "item.armor.equip_leather" with volume 0.8 to player
-		msg(player, "&7The card is in your pockets (E). Readers find it there.")
+		set {_where} to jailWhere(player, "coursecard")
+		msg(player, "&7The card: &f%{_where}%&7. Readers find it there, no need to hold it.")
 
 # ---------- The course readers (jailescape.sk calls this for T_VENT_READER, T_SO_READER_OUT, T_SO_READER_IN) ----------
 
@@ -457,6 +465,13 @@ on join:
 		jailCellWait(player, cfg("prison::join-open") / 1 second)
 	jcLog("course-rejoin %player% %{_s}% at=%{_cp}%")
 
+# A replay's saved data left from a course that ended another way (staff /dprison course skip or state): it's gone.
+on join:
+	jailState(player) is not "course"
+	{data::%player%::jail-replay::state} is set
+	delete {data::%player%::jail-replay::*}
+	jcLog("course-replay-stale %player% %uuid of player%")
+
 on quit:
 	set {_u} to "%uuid of player%"
 	delete {-jc::unsneak::%{_u}%}
@@ -493,13 +508,26 @@ function jcTutorialBlock(p: player) :: text:
 
 function jcTutorial(p: player, arg: text):
 	set {_st} to jailState({_p})
+	# A replay's saved data left from a course that ended another way (staff): gone before anything reads it.
+	if {_st} is not "course":
+		if {data::%{_p}%::jail-replay::state} is set:
+			delete {data::%{_p}%::jail-replay::*}
+			jcLog("course-replay-stale %{_p}% %uuid of {_p}%")
+	if {_arg} is "stop":
+		jcStop({_p})
+		stop
 	if {_arg} is not "confirm":
 		if {_st} is "course":
 			set {_bar} to jcBar({_p}, jcStepOf({_p}))
 			msg({_p}, "%{_bar}%")
 			msg({_p}, "&7Lost? &f/tutorial confirm &7takes you back to this step.")
+			if jcReplaying({_p}) is true:
+				msg({_p}, "&7Done replaying? &f/tutorial stop &7puts you back where you were.")
 		else:
-			msg({_p}, "&7You've done the course. &f/tutorial confirm &7runs it again from a cell. You keep your money, level and unlocks (no rewards twice), but &cyou'll be a prisoner again &7and have to break out.")
+			set {_pre} to "&f/tutorial confirm &7runs the course from a cell."
+			if getData({_p}, "jail-course") is "done":
+				set {_pre} to "&7You've done the course. &f/tutorial confirm &7runs it again from a cell."
+			msg({_p}, "%{_pre}% You keep your money, level and unlocks (no rewards twice); finish it and &cyou're a prisoner again &7(you have to break out). &f/tutorial stop &7ends the replay any time and puts you back where you were.")
 		stop
 	set {_why} to jcTutorialBlock({_p})
 	if {_why} is not "":
@@ -507,6 +535,9 @@ function jcTutorial(p: player, arg: text):
 		stop
 	set {_u} to "%uuid of {_p}%"
 	if {_st} is not "course":
+		# What /tutorial stop puts back: anyone not on the course yet (a first-timer is already "course", so has no replay to
+		# stop). Also an inmate or free player who never finished it (they joined before the prison ran; review fix).
+		jcReplaySave({_p}, {_st})
 		jailStrip({_p})
 		setData({_p}, "jail", "course")
 		setData({_p}, "jail-step", "cell")
@@ -525,3 +556,254 @@ function jcTutorial(p: player, arg: text):
 	else:
 		jcPrompt({_p}, {_s})
 	jcLog("course-back %{_p}% %{_s}% at=%{_cp}%")
+
+# ---------- /tutorial stop (owner, 2026-10-15: "have a /tutorial stop command if you already completed it before") ----------
+# A replay (/tutorial confirm after the course) saves what it changes in data jail-replay::* (saved: a logout keeps it):
+# the state (in, out, off; none = unset), where you stood (world, x, y, z, yaw, pitch), your jail items by slot
+# ("kind|n"; "off" = the offhand), whether the Combat Knife sat in hotbar 1-5 (knife) and was unlocked (wpn), your cell
+# and its wait, the hotbar slot held. Saved for anyone not on the course (also an inmate or free player who never finished
+# it). The items go back to their slots, never into a hand that didn't hold them before (the C4 included); a job's own
+# item (the stash, the note) only while that job still runs. /tutorial stop puts it all back, no rewards either way: the course card, a knife Rusty handed out, the
+# course's bar, checkpoint, prompts and cell go. The old spot only if it still holds you (its world loaded, nothing solid
+# at the eyes, no lava or fire at the feet, ground within 3 blocks) and fits the state (an inmate's inside the walls of the
+# prison world, a free player's outside them); else the hallway (R_SPAWN) for an inmate, the lot exit (LOT_EXIT) for a
+# free player. A replay that finishes (jcPass) clears it; so does a course that ended any other way (the join, jcTutorial).
+
+function jcReplaySave(p: player, st: text):
+	set {_u} to "%uuid of {_p}%"
+	delete {data::%{_p}%::jail-replay::*}
+	set {_s} to {_st}
+	if {_s} is "":
+		set {_s} to "none"
+	set {_l} to location of {_p}
+	setData({_p}, "jail-replay::state", {_s})
+	setData({_p}, "jail-replay::world", "%world of {_l}%")
+	setData({_p}, "jail-replay::x", x-coordinate of {_l})
+	setData({_p}, "jail-replay::y", y-coordinate of {_l})
+	setData({_p}, "jail-replay::z", z-coordinate of {_l})
+	setData({_p}, "jail-replay::yaw", yaw of {_l})
+	setData({_p}, "jail-replay::pitch", pitch of {_l})
+	# The hotbar slot held then: stop only puts an item back into the hand when it was in the hand before.
+	setData({_p}, "jail-replay::held", index of {_p}'s current hotbar slot)
+	set {_n} to 0
+	loop integers from 0 to 35:
+		set {_i} to slot loop-value of {_p}'s inventory
+		if {_i} is not air:
+			set {_id} to itemId({_i})
+			if {_id} starts with "jail:":
+				set {_a::*} to {_id} split at ":"
+				setData({_p}, "jail-replay::item::%loop-value%", "%{_a::2}%|%item amount of {_i}%")
+				add 1 to {_n}
+	set {_o} to offhand tool of {_p}
+	if {_o} is not air:
+		set {_id} to itemId({_o})
+		if {_id} starts with "jail:":
+			set {_a::*} to {_id} split at ":"
+			setData({_p}, "jail-replay::item::off", "%{_a::2}%|%item amount of {_o}%")
+			add 1 to {_n}
+	set {_k} to false
+	if loadoutSlotOf({_p}, "wpn:Combat_Knife") >= 0:
+		set {_k} to true
+	setData({_p}, "jail-replay::knife", {_k})
+	set {_w} to false
+	if getData({_p}, "wpn::Combat_Knife") is true:
+		set {_w} to true
+	setData({_p}, "jail-replay::wpn", {_w})
+	set {_c} to {-jail::cell::%{_u}%}
+	if {_c} is set:
+		setData({_p}, "jail-replay::cell", "%{_c}%")
+	set {_d} to {-jail::cellopen::%{_u}%}
+	if {_d} is set:
+		if {_d} > now:
+			setData({_p}, "jail-replay::wait", ceil(jailSecsLeft({_d})))
+	setData({_p}, "jail-replay::at", unix timestamp of now)
+	jcLog("course-replay-save %{_p}% %{_u}% state=%{_s}% at=%{_l}% items=%{_n}% knife=%{_k}% wpn=%{_w}%")
+
+# Replaying the course now: a course player who finished it before (their saved data, or none: a replay from before
+# /tutorial stop, or a staff state change, which stops into the hallway as an inmate).
+function jcReplaying(p: player) :: boolean:
+	if jailState({_p}) is "course":
+		if getData({_p}, "jail-course") is "done":
+			return true
+		# Saved by /tutorial confirm: an inmate or free player who never finished the course (review fix).
+		if {data::%{_p}%::jail-replay::state} is set:
+			return true
+	return false
+
+# A spot still holds a player: nothing solid at the eyes, no lava or fire at the feet, ground within 3 blocks (or a
+# ladder, vine or water where they stood).
+function jcSpotOk(l: location) :: boolean:
+	if block at ({_l} ~ vector(0, 1.62, 0)) is solid:
+		return false
+	set {_b} to block at {_l}
+	if {_b} is lava or fire:
+		return false
+	if {_b} is solid:
+		return true
+	if {_b} is water or ladder or vine:
+		return true
+	loop 3 times:
+		set {_dn} to {_l} ~ vector(0, 0 - loop-number, 0)
+		if block at {_dn} is solid:
+			return true
+	return false
+
+# A free slot for a jail item that can't go back to its own: the C4 in hotbar 1-5 (prison.sk jailC4Slot: one not held
+# first), the rest a quest slot (hotbar 6-8) the player isn't holding, then the pockets. -1 = none.
+function jcFreeSlot(p: player, kind: text) :: number:
+	if {_kind} is "c4":
+		return jailC4Slot({_p})
+	set {_held} to index of {_p}'s current hotbar slot
+	loop 5, 6 and 7:
+		if loop-value is not {_held}:
+			if slot loop-value of {_p}'s inventory is air:
+				return loop-value
+	loop integers from 9 to 35:
+		if slot loop-value of {_p}'s inventory is air:
+			return loop-value
+	return -1
+
+function jcStop(p: player):
+	set {_u} to "%uuid of {_p}%"
+	if jailState({_p}) is not "course":
+		msg({_p}, "&7You're not replaying the course. &f/tutorial confirm &7starts a replay.")
+		stop
+	if jcReplaying({_p}) is false:
+		msg({_p}, "&cThe course is how everyone starts: finish it to get into the block. &f/tutorial confirm &7takes you back to your step.")
+		stop
+	set {_why} to jcTutorialBlock({_p})
+	if {_why} is not "":
+		msg({_p}, "&c%{_why}%")
+		stop
+	# Where to: the saved spot when it still holds you and fits the state, else the hallway or the lot exit.
+	set {_st} to getData({_p}, "jail-replay::state")
+	set {_saved} to true
+	if {_st} is not set:
+		set {_saved} to false
+		set {_st} to "in"
+	set {_st} to "%{_st}%"
+	if {_saved} is true:
+		set {_wn} to getData({_p}, "jail-replay::world")
+		if {_wn} is set:
+			set {_w} to world("%{_wn}%")
+			if {_w} is set:
+				set {_x} to getData({_p}, "jail-replay::x")
+				set {_y} to getData({_p}, "jail-replay::y")
+				set {_z} to getData({_p}, "jail-replay::z")
+				set {_yaw} to getData({_p}, "jail-replay::yaw")
+				set {_pitch} to getData({_p}, "jail-replay::pitch")
+				if {_z} is set:
+					if {_yaw} is not set:
+						set {_yaw} to 0
+					if {_pitch} is not set:
+						set {_pitch} to 0
+					set {_l} to location({_x}, {_y}, {_z}, {_w}, {_yaw}, {_pitch})
+					if jcSpotOk({_l}) is true:
+						if {_st} is "off":
+							set {_to} to {_l}
+						else if {_st} is "in":
+							if {_w} is jailWorld():
+								if jailInsideAt({_l}) is true:
+									set {_to} to {_l}
+						else if jailInsideAt({_l}) is false:
+							set {_to} to {_l}
+	set {_fb} to false
+	if {_to} is not set:
+		set {_fb} to true
+		if {_st} is "in":
+			set {_to} to jailPt("R_SPAWN")
+		else:
+			set {_to} to jailPt("LOT_EXIT")
+	if {_to} is not set:
+		msg({_p}, "&cThere's nowhere to put you back on this map.")
+		stop
+	# The state first: nothing waits before the teleport below (a force teleport), so no pass sees one without the other.
+	if {_st} is "none":
+		deleteData({_p}, "jail")
+	else:
+		setData({_p}, "jail", {_st})
+	deleteData({_p}, "jail-step")
+	delete {-jail::checkpoint::%{_u}%}
+	delete {-jail::coursebar::%{_u}%}
+	delete {-jail::cellopen::%{_u}%}
+	delete {-jail::cellwait::%{_u}%}
+	delete {-jc::unsneak::%{_u}%}
+	delete {-jc::sprintat::%{_u}%}
+	delete {-jc::wokeat::%{_u}%}
+	delete {-jc::knifeat::%{_u}%}
+	delete {-jc::cellprompt::%{_u}%}
+	pvKill({_p}, "jcourse:card")
+	jailCellFree({_p})
+	# Rusty's knife, when it wasn't in hotbar 1-5 before (and its unlock, when the replay gave it).
+	if getData({_p}, "jail-replay::knife") is false:
+		set {_ks} to loadoutSlotOf({_p}, "wpn:Combat_Knife")
+		if {_ks} >= 0:
+			set slot {_ks} of {_p}'s inventory to air
+	if getData({_p}, "jail-replay::wpn") is false:
+		deleteData({_p}, "wpn::Combat_Knife")
+	# The jail items: the course card goes, the ones you had come back (to their own slot when it's free).
+	jailStrip({_p})
+	set {_held} to index of {_p}'s current hotbar slot
+	set {_washeld} to getData({_p}, "jail-replay::held")
+	set {_job} to jjOf({_p})
+	loop {data::%{_p}%::jail-replay::item::*}:
+		set {_a::*} to "%loop-value%" split at "|"
+		set {_k} to {_a::1}
+		set {_n} to {_a::2} parsed as number
+		# A job's own item only while that job still runs (it ended during the replay: a logout, its clock; jailjobs.sk
+		# jjEnd would have taken it; review fix).
+		set {_drop} to false
+		if {_k} is "stash":
+			if {_job} is not "stash":
+				set {_drop} to true
+		else if {_k} is "note":
+			if {_job} is not "delivery":
+				set {_drop} to true
+		if {_drop} is true:
+			jcLog("course-stop-dropped %{_p}% %{_u}% %{_k}%x%{_n}% job=%{_job}%")
+		else if {_n} is set:
+			set {_slot} to loop-index parsed as number
+			set {_ok} to false
+			if {_slot} is set:
+				if slot {_slot} of {_p}'s inventory is air:
+					set {_ok} to true
+					# Not into the hand held now (in front of a guard), unless it was in the hand before.
+					if {_slot} is {_held}:
+						if {_washeld} is not {_slot}:
+							set {_ok} to false
+			if {_ok} is false:
+				set {_slot} to jcFreeSlot({_p}, {_k})
+			if {_slot} >= 0:
+				set slot {_slot} of {_p}'s inventory to jailItem({_k}, {_n})
+			else:
+				jcLog("course-stop-lost %{_p}% %{_u}% %{_k}%x%{_n}%")
+	if {_st} is "in":
+		set {_c} to getData({_p}, "jail-replay::cell")
+		if {_c} is set:
+			set {-jail::cell::%{_u}%} to "%{_c}%"
+			set {-jail::cellby::%{_c}%::%{_u}%} to true
+	force teleport {_p} to {_to}
+	# Back in a cell whose wait was still running: the rest of it (the door shut, like a catch).
+	if {_st} is "in":
+		set {_cell} to jailCellAt({_to})
+		if {_cell} is not "":
+			set {_wait} to getData({_p}, "jail-replay::wait")
+			if {_wait} is set:
+				if {_wait} > 0:
+					jailCellWait({_p}, {_wait})
+					delete {-jail::doorclose::cell_%{_cell}%}
+					jailDoor("cell_%{_cell}%", false)
+	delete {data::%{_p}%::jail-replay::*}
+	clear the title of {_p}
+	set {_what} to "free"
+	if {_st} is "in":
+		set {_what} to "an inmate"
+	if {_fb} is true:
+		if {_st} is "in":
+			msg({_p}, "&7Replay stopped. Your old spot isn't safe any more: you're back in the hallway, %{_what}% again.")
+		else:
+			msg({_p}, "&7Replay stopped. Your old spot isn't safe any more: you're back outside the front gate, %{_what}% again.")
+	else:
+		msg({_p}, "&7Replay stopped. You're back where you were, %{_what}% again.")
+	play sound "block.note_block.chime" with volume 0.7 to {_p}
+	jcLog("course-stop %{_p}% %{_u}% state=%{_st}% saved=%{_saved}% fallback=%{_fb}% to=%{_to}%")

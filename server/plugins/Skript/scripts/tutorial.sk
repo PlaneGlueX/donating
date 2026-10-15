@@ -6,7 +6,8 @@
 # and a first car job at the Scrap Yard (contracts.sk's starter job: the money for a bag), the Gym Bag, a store or a
 # heist, the sale, a knife (guns need level 5), a crate and level 5. The GPS leads the way at every step.
 # This file only greets them once (data "tutorial": "welcomed", then "done" with their first bag) and keeps /tutorial.
-#   /tutorial [confirm]                the first steps again; in the prison, the course step (confirm: back to it)
+#   /tutorial [confirm|stop]           the prison course: your step (confirm: back to it, or a replay after the course;
+#                                      stop: ends a replay, back to how you were before it: jailcourse.sk jcStop)
 #   /dtutorial <player> reset|done     staff (reset: the welcome again at the next join)
 
 function tutorialLog(text: text):
@@ -57,12 +58,13 @@ every second:
 				tutorialLog("done %loop-player% %uuid of loop-player%")
 
 command /tutorial [<text>]:
-	description: Your tutorial step; /tutorial confirm takes you back to it.
+	description: Your tutorial step; /tutorial confirm takes you back to it (or replays it); /tutorial stop ends a replay.
 	executable by: players
 	trigger:
 		# The prison course, also after it's done (owner, 2026-10-14: "/tutorial for people who want to go back to the
 		# tutorial even after they complete it (but they still keep their stats)"): jailcourse.sk jcTutorial. Never the
-		# city's welcome lines (tutorialSteps: the first join only).
+		# city's welcome lines (tutorialSteps: the first join only). "stop" (owner, 2026-10-15: "have a /tutorial stop command
+		# if you already completed it before") ends a replay: jcTutorial passes it to jcStop.
 		if jailOn() is false:
 			msg(player, "&7The prison tutorial is closed right now.")
 			stop

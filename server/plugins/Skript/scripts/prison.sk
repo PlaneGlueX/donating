@@ -272,12 +272,62 @@ function jailModsOff(p: player):
 	delete {-jail::lowhp::%{_u}%}
 	delete {-jail::stunmod::%{_u}%}
 
-# ---------- Jail items (upper inventory, slots 9-35; the C4 in hotbar 1-5) ----------
+# ---------- Jail items (the quest slots, hotbar 6-8 = slots 5-7, then the upper inventory 9-35; the C4 in hotbar 1-5) ----------
+# Owner, 2026-10-15: "allow the keycard and quest items to be in the last few locked spots in the hotbar". Counting,
+# taking and stripping look at slots 0-35 and the offhand, so an item is found wherever it is.
 
 function jailMax(kind: text) :: number:
 	if {_kind} is "donut":
 		return 3
 	return 1
+
+# A free quest slot (5-7) the player isn't holding, or -1. Never the held slot: a pickup would put contraband in their
+# hand in front of a guard (jailcops.sk).
+function jailQuestSlot(p: player) :: number:
+	set {_held} to index of {_p}'s current hotbar slot
+	loop 5, 6 and 7:
+		if loop-value is not {_held}:
+			if slot loop-value of {_p}'s inventory is air:
+				return loop-value
+	return -1
+
+# A free slot in hotbar 1-5 for the C4, or -1: one the player isn't holding first (a C4 put straight into the hand is held
+# out in front of any guard: jailcops.sk), the held one only when it's the last free one (review fix).
+function jailC4Slot(p: player) :: number:
+	set {_held} to index of {_p}'s current hotbar slot
+	set {_last} to -1
+	loop integers from 0 to 4:
+		if slot loop-value of {_p}'s inventory is air:
+			if loop-value is not {_held}:
+				return loop-value
+			set {_last} to loop-value
+	return {_last}
+
+# Pocket items move up into free quest slots (after a take: the C4's three parts leave a keycard in the pockets visible).
+function jailPack(p: player):
+	loop integers from 9 to 35:
+		set {_i} to slot loop-value of {_p}'s inventory
+		if {_i} is not air:
+			if itemId({_i}) starts with "jail:":
+				set {_s} to jailQuestSlot({_p})
+				if {_s} >= 0:
+					set slot {_s} of {_p}'s inventory to {_i}
+					set slot loop-value of {_p}'s inventory to air
+
+# Where the player's stack of a kind is, for messages: "hotbar 7", "your pockets: E", or "" (none).
+function jailWhere(p: player, kind: text) :: text:
+	set {_id} to "jail:%{_kind}%"
+	set {_at} to -1
+	loop integers from 0 to 35:
+		if {_at} is -1:
+			if itemId(slot loop-value of {_p}'s inventory) is {_id}:
+				set {_at} to loop-value
+	if {_at} is -1:
+		return ""
+	if {_at} < 9:
+		set {_k} to {_at} + 1
+		return "hotbar %{_k}%"
+	return "your pockets: E"
 
 # n of a jail item: brick, drawn by the pack (donating:jail_<kind>).
 function jailItem(kind: text, n: number) :: item:
@@ -307,7 +357,8 @@ function jailCount(p: player, kind: text) :: number:
 			add item amount of {_o} to {_n}
 	return {_n}
 
-# Gives up to n (one stack per kind, up to its max): the upper inventory, the C4 into hotbar 1-5. Returns how many fit.
+# Gives up to n (one stack per kind, up to its max, added to the stack wherever it is): a free quest slot the player
+# isn't holding, else the upper inventory; the C4 into hotbar 1-5. Returns how many fit.
 function jailGive(p: player, kind: text, n: number) :: number:
 	set {_have} to jailCount({_p}, {_kind})
 	set {_fit} to min({_n}, jailMax({_kind}) - {_have})
@@ -324,14 +375,12 @@ function jailGive(p: player, kind: text, n: number) :: number:
 						set {_slot} to loop-value
 	if {_slot} is -1:
 		if {_kind} is "c4":
-			loop integers from 0 to 4:
-				if {_slot} is -1:
-					if slot loop-value of {_p}'s inventory is air:
-						set {_slot} to loop-value
+			set {_slot} to jailC4Slot({_p})
 			if {_slot} is -1:
 				hudBar({_p}, "&cFree a slot in hotbar 1-5 for the C4", 2)
 				return 0
 		else:
+			set {_slot} to jailQuestSlot({_p})
 			loop integers from 9 to 35:
 				if {_slot} is -1:
 					if slot loop-value of {_p}'s inventory is air:
@@ -365,9 +414,10 @@ function jailTake(p: player, kind: text, n: number) :: boolean:
 		set {_o} to offhand tool of {_p}
 		if itemId({_o}) is {_id}:
 			set offhand tool of {_p} to air
+	jailPack({_p})
 	return true
 
-# The jail kind in the main hand, or "" (in practice only "c4" can be held).
+# The jail kind in the main hand, or "" (the C4 in hotbar 1-5, or any quest item the player selects in hotbar 6-8).
 function jailHeld(p: player) :: text:
 	set {_i} to tool of {_p}
 	if {_i} is not air:
@@ -439,7 +489,8 @@ on player attempt item pickup:
 		stop
 	kill {_e}
 	play sound "entity.item.pickup" with volume 1 to player
-	hudBar(player, "&a+ %{-cfg::jailitem::%{_k}%::name}% &7(in your pockets: E)", 1)
+	set {_where} to jailWhere(player, {_k})
+	hudBar(player, "&a+ %{-cfg::jailitem::%{_k}%::name}% &7(%{_where}%)", 1)
 	jailLog("pickup %player% %{_k}%")
 
 on inventory pickup:
@@ -1052,6 +1103,12 @@ on death of player with priority lowest:
 	jailState(victim) is "in"
 	jailInsideAt(location of victim) is true
 	set {-jail::diedin::%uuid of victim%} to true
+
+# Every death takes the jail items, as before (death.sk clears hotbar 1-5 and the pockets, not the quest slots 6-8 they
+# use now). Not tied to the switch: nobody keeps a keycard through a death.
+on death of player:
+	isNpc(victim) is false
+	jailStrip(victim)
 
 # ---------- Damage: downed instead of dying, shots through the fence, inmate PvP ----------
 

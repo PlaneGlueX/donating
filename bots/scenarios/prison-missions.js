@@ -7,7 +7,26 @@
 // (WELCOME TO THE CITY, the "broke out" brief); c1_knife completes silently for a bot holding the knife; Lefty's bar is
 // blue; each job (Yard Run, Special Delivery, The Stash, Distraction) pays once and then waits; Rusty's donut trade
 // through the bars (a keycard, then a C4 part); a calm /prison stuck keeps his wait, a catch clears it and fails a job.
+// The job menus' icons are drawn by the pack (owner, 2026-10-15: "feather placeholder for lefty mission").
+const fs = require('fs')
+const path = require('path')
 const { start, field, sleep } = require('../prisonlib')
+
+const PACK = path.join(__dirname, '..', '..', 'pack', 'assets')
+// A menu icon's look: its item and its custom model data string ("brick@donating:jail_yardrun"), else the item alone.
+const art = i => {
+  if (!i) return 'empty'
+  const c = (i.components || []).find(x => x.type === 'custom_model_data')
+  const s = c && c.data && c.data.strings ? c.data.strings[0] : ''
+  return s ? `${i.name}@${s}` : i.name
+}
+// That look is jail art the pack draws (a case in brick.json and its texture).
+const drawn = a => {
+  const m = /^brick@donating:(jail_[a-z0-9]+)$/.exec(a)
+  if (!m) return false
+  const brick = JSON.parse(fs.readFileSync(path.join(PACK, 'minecraft', 'items', 'brick.json'), 'utf8'))
+  return (brick.model.cases || []).some(c => c.when === `donating:${m[1]}`) && fs.existsSync(path.join(PACK, 'donating', 'textures', 'item', `${m[1]}.png`))
+}
 
 const M1 = 'PcMisA' // the whole chain, then Mara
 const M2 = 'PcMisB' // an escape during l_shop
@@ -48,6 +67,8 @@ module.exports = async ({ check }) => {
   const gps = async n => cmd(`dphone gps ${n}`)
   const escape = async (bot, n) => {
     await into(n, 260.5, 65, 392.5, 0)
+    // Shut first: an open gate ignores "open" (its clock keeps running), and the last escape's 15 s could end mid-walk.
+    await breach('front', 'close')
     await breach('front', 'cool')
     await breach('front', 'open')
     await sleep(1200)
@@ -87,6 +108,10 @@ module.exports = async ({ check }) => {
     await donut(m1, M1)
     await sleep(600)
     check('a donut from the cafeteria counter (into the pockets), "Hold right-click · Take a donut" next to it', /donut:/.test(field(await info(M1), 'items')) && said(m1, /Hold right-click . Take a donut/, since), `${await info(M1)} ${t.text(m1, since)}`)
+    // Review fix (2026-10-15): the pickup line says where it really went (a quest slot, hotbar 6-8, first).
+    const dSlot = Number((field(await info(M1), 'items').match(/donut:(\d+)x/) || [])[1])
+    const dWhere = dSlot < 9 ? `hotbar ${dSlot + 1}` : 'your pockets: E'
+    check(`...the line says where it went: "+ Donut (${dWhere})"`, said(m1, new RegExp(`\\+ Donut \\(${dWhere}\\)`), since), `slot ${dSlot} | ${t.text(m1, since)}`)
     await jtp(M1, ...LEFTY_STAND)
     await sleep(1500)
     b0 = await bal(M1)
@@ -205,7 +230,7 @@ module.exports = async ({ check }) => {
     await into(M3, ...LEFTY_STAND)
     await sleep(1500)
     let w = await menu(m3, LEFTY)
-    check('Lefty\'s job menu: the Yard Run', w && /Lefty/.test(JSON.stringify(w.title)) && w.slots[13] && w.slots[13].name === 'feather', w ? JSON.stringify(w.slots[13]).slice(0, 200) : 'no window')
+    check('Lefty\'s job menu: the Yard Run, a running shoe the pack draws (not a plain feather)', w && /Lefty/.test(JSON.stringify(w.title)) && art(w.slots[13]) === 'brick@donating:jail_yardrun' && drawn(art(w.slots[13])), w ? `${art(w.slots[13])} ${JSON.stringify(w.slots[13]).slice(0, 200)}` : 'no window')
     if (w) m3.clickWindow(13, 0, 0).catch(() => {})
     await sleep(1200)
     j = await jobs(M3)
@@ -227,6 +252,8 @@ module.exports = async ({ check }) => {
     await jtp(M3, ...WHISPER_STAND)
     await sleep(1500)
     w = await menu(m3, WHISPER)
+    const wa = w ? [art(w.slots[12]), art(w.slots[14])] : []
+    check('Whisper\'s job menu: Special Delivery the note, The Stash the stash (both drawn by the pack)', wa[0] === 'brick@donating:jail_note' && wa[1] === 'brick@donating:jail_stash' && wa.every(drawn), wa.join(' / ') || 'no window')
     if (w) m3.clickWindow(12, 0, 0).catch(() => {})
     await sleep(1200)
     j = await jobs(M3)

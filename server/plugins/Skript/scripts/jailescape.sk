@@ -473,7 +473,9 @@ function jeSpotClick(p: player, point: text):
 		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7· all three parts: bring them to Lefty in Hall B", 2)
 		msg({_p}, "&7You have the putty, the wires and a timer: &fLefty &7in Hall B puts them together.")
 	else:
-		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7(in your pockets: E)", 1)
+		# Where it landed: a quest slot (hotbar 6-8) first, else the pockets (prison.sk jailGive; review fix).
+		set {_where} to jailWhere({_p}, {_kind})
+		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7(%{_where}%)", 1)
 	jeLog("search %{_p}% %{_point}% %{_kind}%")
 
 # All three C4 parts carried (Lefty puts them together: jailjobs.sk jjC4).

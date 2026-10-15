@@ -35,8 +35,10 @@ module.exports = async ({ check }) => {
     await cmd(`wm give ${A} Combat_Knife 1 {slot:0}`)
     const plate = ((await cmd(`zzcarnew ${A} GKAH5U`)).match(/CARNEW (\S+)/) || [])[1]
     await cmd(`zzctfake ${A} street ${plate}`)
+    // A keycard in a quest slot (hotbar 6-8): death.sk doesn't clear those, prison.sk's death strip does.
+    await cmd(`zzjail ${A} give keycard`)
     await sleep(500)
-    check('setup: a free bot in the city with a car job and a knife', (await dim(A)) === 'minecraft:overworld' && /job=street/.test(await cmd(`zzctstate ${A}`)) && /Combat_Knife/.test(await cmd(`zzwm ${A}`)), await cmd(`zzctstate ${A}`))
+    check('setup: a free bot in the city with a car job, a knife and a keycard in hotbar 6-8', (await dim(A)) === 'minecraft:overworld' && /job=street/.test(await cmd(`zzctstate ${A}`)) && /Combat_Knife/.test(await cmd(`zzwm ${A}`)) && /keycard:[5-7]x1/.test(field(await info(A), 'items')), `${await cmd(`zzctstate ${A}`)} ${await info(A)}`)
     let since = Date.now()
     await cmd(`minecraft:kill ${A}`)
     await until(async () => (await dim(A)) === 'minecraft:jailbreak', 8000)
@@ -47,6 +49,7 @@ module.exports = async ({ check }) => {
     check('...as an inmate (state in), "Locked up again"', field(s, 'state') === 'in' && said(a, /Locked up again/, since), s)
     const dump = await cmd(`zzdump ${A}`)
     check('...with hotbar 1-5 empty (the knife gone)', !/(DUMP |\| )[0-4]=/.test(dump), dump)
+    check('...and the keycard in hotbar 6-8 gone (every death takes the jail items)', field(s, 'items') === '' && !/(DUMP |\| )[5-7]=/.test(dump), `${s} ${dump}`)
     const ct = await cmd(`zzctstate ${A}`)
     check('...the car job ended without a cooldown ("You got locked up")', /job=<none>/.test(ct) && /cd=0/.test(ct) && said(a, /You got locked up: the .* job is off/, since), ct)
     check('...protected for 30 s after the respawn', Number(field(s, 'shield')) >= 20, s)
@@ -145,10 +148,29 @@ module.exports = async ({ check }) => {
     await state(B, 'out')
     await sleep(1500)
     check('setup: a free bot outside the front gate in jailbreak', (await dim(B)) === 'minecraft:jailbreak' && field(await info(B), 'inside') === 'false', await info(B))
+
+    // ---- the quest slots (owner, 2026-10-15: "allow the keycard and quest items to be in the last few locked spots in
+    // the hotbar"): hotbar 6-8 first (never the held slot), then the pockets; a take frees a slot and a pocket item moves up
+    // (here jailjobs.sk's join clean-up of a job note with no job, at the rejoin below).
+    await cmd(`zzjail ${B} strip`)
+    b.setQuickBarSlot(5)
+    await sleep(500)
+    for (const k of ['note', 'keycard', 'putty', 'wires']) await cmd(`zzjail ${B} give ${k}`)
+    const qs = field(await info(B), 'items')
+    const slotOf = (items, k) => Number((items.match(new RegExp(`${k}:(\\d+)x`)) || [])[1])
+    check('jail items into hotbar 6-8 but not the held slot (6): the note on 7, the keycard on 8', slotOf(qs, 'note') === 6 && slotOf(qs, 'keycard') === 7, qs)
+    check('...hotbar 6-8 full (or held): the putty and the wires in the pockets (slots 9-35)', slotOf(qs, 'putty') >= 9 && slotOf(qs, 'wires') >= 9, qs)
+    b.setQuickBarSlot(0)
+    await sleep(500)
     await t.drop(B)
     await sleep(1500)
-    await t.newBot(B)
+    const b2 = await t.newBot(B)
     await sleep(4000)
+    const qs2 = field(await info(B), 'items')
+    check('...the note taken at the rejoin (no job): the pocket items move up into the free quest slots (putty 6, wires 7), the keycard stays on 8', b2.quickBarSlot === 0 && !/note:/.test(qs2) && slotOf(qs2, 'putty') === 5 && slotOf(qs2, 'wires') === 6 && slotOf(qs2, 'keycard') === 7, `${qs2} held=${b2.quickBarSlot}`)
+    const dumpQ = await cmd(`zzdump ${B}`)
+    check('...the inventory dump agrees (bricks tagged jail:<kind> in slots 5-7)', /5=brick x1 \[jail:putty\]/.test(dumpQ) && /6=brick x1 \[jail:wires\]/.test(dumpQ) && /7=brick x1 \[jail:keycard\]/.test(dumpQ), dumpQ)
+    await cmd(`zzjail ${B} strip`)
     const pB = await pos(B)
     check('a free bot rejoining in the prison world stays where it was, still free (no teleport to the city)', (await dim(B)) === 'minecraft:jailbreak' && pB && Math.abs(pB[0] - 260.5) < 1 && Math.abs(pB[2] - 404.5) < 1 && field(await info(B), 'state') === 'out', `${await dim(B)} ${pB} ${await info(B)}`)
 

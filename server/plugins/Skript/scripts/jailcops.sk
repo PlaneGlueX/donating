@@ -11,9 +11,10 @@
 #   2.5-8, a grab and arrest up close. No projectiles (nothing can hit a bystander). Generic damage has no attacker: it
 #   never combat-tags, and a lethal one downs the prisoner (prison.sk).
 # - Only hostile prisoners are hunted ({-jail::hostile::<u>}), and only by the cops that saw it (5.3): a hit on a cop, a
-#   C4, or being seen in a restricted area, holding a C4, doing an act (a reader, a punch, a search...), or carrying
-#   contraband right past a cop. Out of every hunting cop's sight for jailcop::lose::time (the clock stops in the no-lose
-#   zones) = lost them.
+#   C4, or being seen in a restricted area, holding contraband out in front of a cop (jailcop::held::*, owner,
+#   2026-10-15: "cops target you if you hold out contraband in front of them"), doing an act (a reader, a punch, a
+#   search...), or carrying contraband right past a cop. Out of every hunting cop's sight for jailcop::lose::time (the
+#   clock stops in the no-lose zones) = lost them.
 # - Known = alive: {-jailcop::id::<npc id>} = route while Citizens still has the NPC (dead and respawning, or despawned
 #   in an unloaded chunk). Only our own "npc remove" forgets one (idle, stale, staff). The saved {jailcops::ids::<id>}
 #   are removed when this script loads after a restart (memory is empty then); a /sk reload keeps the cops.
@@ -439,8 +440,16 @@ every 60 seconds:
 # ---------- Hostility ----------
 
 # A cop sees a player: eye to eye within notice::range (notice::sneak while sneaking), within notice::cone of the cop's
-# facing (traps.sk's camera math: dot > 0 and dot² >= cos²(cone) × d²), and line of sight (glass, bars and doors stop it).
+# facing, and line of sight (glass, bars and doors stop it).
 function jcopSees(e: entity, p: player) :: boolean:
+	set {_r} to cfg("jailcop::notice::range")
+	if {_p} is sneaking:
+		set {_r} to cfg("jailcop::notice::sneak")
+	return jcopSeesIn({_e}, {_p}, {_r}, cfg("jailcop::notice::cone"))
+
+# The same within r blocks and a cone of the given half-angle (traps.sk's camera math: dot > 0 and dot² >= cos²(cone) ×
+# d²). An unset r or cone sees nothing.
+function jcopSeesIn(e: entity, p: player, r: number, cone: number) :: boolean:
 	set {_ok} to false
 	if world of {_e} is world of {_p}:
 		set {_ce} to eye location of {_e}
@@ -455,20 +464,44 @@ function jcopSees(e: entity, p: player) :: boolean:
 		set {_vy} to {_py} - {_cy}
 		set {_vz} to {_pz} - {_cz}
 		set {_d2} to {_vx} * {_vx} + {_vy} * {_vy} + {_vz} * {_vz}
-		set {_r} to cfg("jailcop::notice::range")
-		if {_p} is sneaking:
-			set {_r} to cfg("jailcop::notice::sneak")
 		if {_d2} <= {_r} * {_r}:
 			set {_yaw} to yaw of {_e}
 			set {_fx} to 0 - sin({_yaw})
 			set {_fz} to cos({_yaw})
 			set {_dot} to {_vx} * {_fx} + {_vz} * {_fz}
 			if {_dot} > 0:
-				set {_c} to cos(cfg("jailcop::notice::cone"))
+				set {_c} to cos({_cone})
 				if {_dot} * {_dot} >= {_c} * {_c} * {_d2}:
 					if {_e} has line of sight to {_p}:
 						set {_ok} to true
 	return {_ok}
+
+# The contraband kind held out in the main hand (jailcop::held::kinds, from any hotbar slot), or "".
+function jcopHeldContraband(p: player) :: text:
+	set {_k} to jailHeld({_p})
+	if {_k} is not "":
+		if {-cfg::jailcop::held::kinds::*} contains {_k}:
+			return {_k}
+	return ""
+
+# A jail item's name for messages ("Keycard").
+function jcopItemName(k: text) :: text:
+	set {_n} to {-cfg::jailitem::%{_k}%::name}
+	if {_n} is set:
+		return "%{_n}%"
+	return {_k}
+
+# How far a cop sees what's in the hand: held::range, never past its notice range (notice::sneak while sneaking), so
+# cops that notice nothing (a test's copsBlind) see nothing in a hand either.
+function jcopHeldRange(p: player) :: number:
+	set {_h} to cfg("jailcop::held::range")
+	set {_n} to cfg("jailcop::notice::range")
+	if {_p} is sneaking:
+		set {_n} to cfg("jailcop::notice::sneak")
+	if {_h} is set:
+		if {_n} is set:
+			return min({_h}, {_n})
+	return 0
 
 # Cop id hunts the player: a Sentinel target and the hunts flag; the first hunter makes the player hostile. Never in
 # the 3 s after a catch or an escape (jcopFresh): a hit on the arresting cop in the second before the catch moves them
@@ -487,7 +520,16 @@ function jcopHunt(p: player, id: text, why: text):
 		# hostility itself) arrested at once.
 		delete {-jail::grab::%{_u}%}
 		delete {-jail::notice::%{_u}%::*}
-		send title colored "&c&lSPOTTED" with subtitle colored "&7The guards are after you" to {_p} for 2 seconds
+		# What gave contraband away, so the rule is learned (held out in front of a cop, or found right past one).
+		set {_sub} to "&7The guards are after you"
+		set {_k} to {_why}
+		if {_why} starts with "seen-held-":
+			replace all "seen-held-" with "" in {_k}
+			set {_sub} to "&7A guard saw the %jcopItemName({_k})% in your hand"
+		else if {_why} starts with "frisk-":
+			replace all "frisk-" with "" in {_k}
+			set {_sub} to "&7A guard found the %jcopItemName({_k})% on you"
+		send title colored "&c&lSPOTTED" with subtitle colored {_sub} to {_p} for 2 seconds
 		play sound "block.bell.use" with volume 1 to {_p}
 		jcopLog("hostile %{_p}% %{_u}% why=%{_why}% by=%{_id}%")
 	set {-jail::hunters::%{_u}%} to jcopHunterCount({_u})
@@ -538,18 +580,26 @@ function jcopNoticePass(p: player):
 		stop
 	if jcopFresh({_u}) is true:
 		stop
-	# Suspicious: in a restricted area, holding a C4, or an act within notice::act-window.
+	# Suspicious: in a restricted area or an act within notice::act-window (seen in the notice cone), or contraband held
+	# out in the main hand (seen in the narrower held::cone within jcopHeldRange: in front of the cop, never behind its
+	# back). Kept in that order when more than one is seen; each needs notice::time of sight from the same cop.
 	set {_why} to ""
 	if jailInZones(location of {_p}, {-cfg::jailcop::restricted::*}) is true:
 		set {_why} to "restricted"
-	else if jailHeld({_p}) is "c4":
-		set {_why} to "c4"
 	else:
 		set {_win} to cfg("jailcop::notice::act-window")
 		loop {-jail::act::%{_u}%::*}:
 			if {_why} is "":
 				if difference between loop-value and now < {_win}:
 					set {_why} to "act:%loop-index%"
+	set {_any} to false
+	if {_why} is not "":
+		set {_any} to true
+	set {_held} to jcopHeldContraband({_p})
+	if {_held} is not "":
+		set {_any} to true
+		set {_hr} to jcopHeldRange({_p})
+		set {_hc} to cfg("jailcop::held::cone")
 	set {_need} to max(1, round((cfg("jailcop::notice::time") / 1 second) * 2))
 	set {_frisk} to cfg("jailcop::notice::frisk")
 	set {_cb} to "?"
@@ -557,12 +607,24 @@ function jcopNoticePass(p: player):
 		set {_id} to loop-value
 		set {_e} to jcopEnt({_id})
 		if {_e} is set:
-			if {_why} is not "":
-				if jcopSees({_e}, {_p}) is true:
+			if {_any} is true:
+				set {_saw} to ""
+				if {_why} is "restricted":
+					if jcopSees({_e}, {_p}) is true:
+						set {_saw} to {_why}
+				if {_saw} is "":
+					if {_held} is not "":
+						if jcopSeesIn({_e}, {_p}, {_hr}, {_hc}) is true:
+							set {_saw} to "held-%{_held}%"
+				if {_saw} is "":
+					if {_why} starts with "act:":
+						if jcopSees({_e}, {_p}) is true:
+							set {_saw} to {_why}
+				if {_saw} is not "":
 					add 1 to {-jail::notice::%{_u}%::%{_id}%}
 					if {-jail::notice::%{_u}%::%{_id}%} >= {_need}:
 						delete {-jail::notice::%{_u}%::%{_id}%}
-						jcopHunt({_p}, {_id}, "seen-%{_why}%")
+						jcopHunt({_p}, {_id}, "seen-%{_saw}%")
 				else:
 					delete {-jail::notice::%{_u}%::%{_id}%}
 			# Contraband in the pockets: only a close look finds it (no cone: the cop is right there).
@@ -577,7 +639,7 @@ function jcopNoticePass(p: player):
 					if {_cb} is not "":
 						if {_e} has line of sight to {_p}:
 							jcopHunt({_p}, {_id}, "frisk-%{_cb}%")
-	if {_why} is "":
+	if {_any} is false:
 		delete {-jail::notice::%{_u}%::*}
 
 every 10 ticks:

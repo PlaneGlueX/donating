@@ -66,6 +66,13 @@
           "type": "minecraft:model",
           "model": "donating:item/jail_stash"
         }
+      },
+      {
+        "when": "donating:jail_yardrun",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_yardrun"
+        }
       }
     ],
     "fallback": {

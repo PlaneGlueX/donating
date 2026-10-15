@@ -1,7 +1,8 @@
 // The prison guards (jailcops.sk; ESCAPE-SPEC 5 and 7.2-5; owner, 2026-10-14: "If the cop is in range, they try to taze
 // then arrest you when closer, if too far they shoot you until they get closer ... Prison cops are level 1 so not that
 // good aim"): 10 Citizens + Sentinel cops spawn while someone is in the prison and patrol; only rule-breakers are hunted
-// (seen in a restricted place (the police station, the lot), an act in view (a search), contraband right past a cop,
+// (seen in a restricted place (the police station, the lot), an act in view (a search), contraband held out in front
+// of a cop (not behind its back; not the note), contraband right past a cop,
 // a hit on a cop), and only by the cops that saw it; the lot is no hiding place, the closed gatehouse is; out of sight
 // for 20 s = lost them (not in B1); gunshots at range (1 heart, some miss, never a bystander), the taser's stun, the
 // arrest; Sentinel's own hits never land; two knife hits down a cop (staggered meanwhile), a keycard drops, it's back
@@ -194,6 +195,47 @@ module.exports = async ({ check }) => {
     check('carrying a keycard 10 blocks from a cop: not hostile', !far, await info(A))
     check('...3 blocks from it: hostile (frisked)', frisk && logs.cops.has(/why=frisk-keycard/), logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / '))
     await calm(A)
+    await cmd(`zzjail ${A} strip`)
+
+    // ---------- contraband held out (owner, 2026-10-15: "cops target you if you hold out contraband in front of them"):
+    // a keycard in the hand 8 blocks behind a cop's back is safe, the note in the hand in front of it too, the keycard
+    // in the hand in front of it isn't (the quest slots, hotbar 6-8) ----------
+    const questBrick = () => [5, 6, 7].filter(i => { const it = a.inventory.slots[36 + i]; return it && it.name === 'brick' })
+    const giveQuest = async kind => {
+      const before = questBrick()
+      await cmd(`zzjail ${A} give ${kind}`)
+      const got = await until(() => { const s = questBrick().find(i => !before.includes(i)); return s === undefined ? false : { s } }, 2000, 100)
+      return got ? got.s : -1
+    }
+    await state(A, 'off')
+    a.setQuickBarSlot(0)
+    await sleep(300)
+    const noteSlot = await giveQuest('note')
+    const cardSlot = await giveQuest('keycard')
+    check('setup: the note and the keycard land in the quest slots (hotbar 6-8), not the held one', noteSlot >= 5 && cardSlot >= 5, `note ${noteSlot} card ${cardSlot} ${(await cmd(`zzjail ${A} info`))}`)
+    await copTo('poldesk', 205.5, 65, 160.5)
+    await until(async () => /loaded=yes at=20/.test(await cop('poldesk')), 12000, 500)
+    const pd = await copAt('poldesk')
+    await rotate('poldesk', 90) // facing -x: A (+x) is behind its back
+    await jtp(A, (pd[0] + 8).toFixed(1), 65, pd[2].toFixed(1), 90)
+    if (cardSlot >= 5) a.setQuickBarSlot(cardSlot)
+    await sleep(300)
+    await state(A, 'in')
+    await calm(A)
+    logs.cops.mark()
+    await sleep(2500)
+    check('the keycard in the hand 8 blocks behind a cop\'s back: not hostile', !(await hostile(A)) && !logs.cops.has(/why=seen-held/), `${await cop('poldesk')} ${await info(A)}`)
+    if (noteSlot >= 5) a.setQuickBarSlot(noteSlot)
+    await rotate('poldesk', -90) // facing +x: A in front of it
+    await sleep(2500)
+    check('...the note in the hand in front of it (the keycard in a quest slot): not hostile (the note isn\'t contraband)', !(await hostile(A)), `${await cop('poldesk')} ${await info(A)}`)
+    logs.cops.mark()
+    since = Date.now()
+    if (cardSlot >= 5) a.setQuickBarSlot(cardSlot)
+    const heldH = await until(() => hostile(A), 3000)
+    check('...the keycard in the hand in front of it: hostile (why=seen-held-keycard), SPOTTED "saw the Keycard in your hand"', heldH && logs.cops.has(/why=seen-held-keycard/) && said(a, /saw the Keycard in your hand/, since), `${logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / ')} | ${t.text(a, since)}`)
+    await calm(A)
+    a.setQuickBarSlot(0)
     await cmd(`zzjail ${A} strip`)
     await copTo('poldesk', 220.5, 65, 304.5)
 

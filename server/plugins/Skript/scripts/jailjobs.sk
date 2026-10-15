@@ -433,16 +433,17 @@ function jjIcon(p: player, id: text) :: item:
 		else:
 			add "&aReady" to {_l::*}
 	set {_name} to "&6%jjName({_id})%"
-	if {_id} is "yardrun":
-		set {_i} to feather named {_name} with lore {_l::*}
-	else if {_id} is "distraction":
+	if {_id} is "distraction":
 		set {_i} to bell named {_name} with lore {_l::*}
 	else:
-		# The note and the stash drawn by the pack (prison.sk's jail art), without the jail item's tag.
+		# Drawn by the pack (make-item-art.js's jail art), without the jail item's tag: the Yard Run a running shoe (a
+		# plain feather until 2026-10-15), Special Delivery the note, The Stash the stash.
 		set {_i} to brick named {_name} with lore {_l::*}
 		set {_art} to "note"
 		if {_id} is "stash":
 			set {_art} to "stash"
+		else if {_id} is "yardrun":
+			set {_art} to "yardrun"
 		set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:jail_%{_art}%"
 	if {_mine} is true:
 		set {_i} to glint({_i})

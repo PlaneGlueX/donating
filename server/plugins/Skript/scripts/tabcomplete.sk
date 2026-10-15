@@ -156,6 +156,14 @@ on tab complete of "/gps" and "/skript:gps":
 on tab complete of "/leaderboard", "/lb", "/skript:leaderboard" and "/skript:lb":
 	set tab completions for position 1 to {-cfg::season::boards::*}
 
+# /tutorial confirm (while the prison runs) and stop (only during a replay of the course: jailcourse.sk jcReplaying).
+on tab complete of "/tutorial" and "/skript:tutorial":
+	jailOn() is true
+	set {_t::*} to "confirm"
+	if jcReplaying(player) is true:
+		add "stop" to {_t::*}
+	set tab completions for position 1 to {_t::*}
+
 # ---------- Console only: nothing ----------
 
 on tab complete of "/dshop", "/gpspick", "/skript:dshop" and "/skript:gpspick":

@@ -65,7 +65,7 @@ function showCommands(p: player):
 	send colored "&6With others" to {_p}
 	helpLine({_p}, "/trade <player> &7(or &e/trade cancel&7)", "trade cars and crate cosmetics in person")
 	helpLine({_p}, "/season, /lb [board] &7(/leaderboard)", "the season's leaderboards and prizes")
-	helpLine({_p}, "/tutorial", "the first steps again")
+	helpLine({_p}, "/tutorial [confirm/stop]", "the prison course: confirm takes you back to it (or replays it), stop ends a replay")
 
 # ---------- The How to play page (the phone's How to play app) ----------
 # A phone page (ui.sk): 2 back to the phone, 6 Commands (closes the page and prints /help commands); one tile per topic

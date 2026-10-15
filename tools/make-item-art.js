@@ -674,7 +674,27 @@ for (const [type, a] of Object.entries(AMMO)) {
       '....kkkkkkkkk...',
       '................',
       '................'
-    ], { C: [168, 126, 80, 255], c: [126, 90, 56, 255], s: [230, 214, 170, 255], S: [190, 170, 130, 255] })
+    ], { C: [168, 126, 80, 255], c: [126, 90, 56, 255], s: [230, 214, 170, 255], S: [190, 170, 130, 255] }),
+    // Not an item: the Yard Run's icon in Lefty's job menu (jailjobs.sk jjIcon; a plain feather until 2026-10-15, owner:
+    // "feather placeholder for lefty mission"): a running shoe (a red heel and toe cap, zigzag laces) with speed lines.
+    yardrun: art([
+      '................',
+      '................',
+      '................',
+      '................',
+      '....kkkk........',
+      '...kRRWWk.......',
+      'ss.kRWWWWkk.....',
+      '...kRWWLWLWkk...',
+      'ss.kRWWWLWLWWkk.',
+      '...kRWWWWWWWWRRk',
+      'ss.kwwwwwwwwwRRk',
+      '..kGGGGGGGGGGGGk',
+      '..kghghghghghghk',
+      '...kkkkkkkkkkkk.',
+      '................',
+      '................'
+    ], { W: [246, 246, 242, 255], w: [206, 208, 216, 255], R: [222, 48, 48, 255], L: [96, 100, 114, 255], G: [228, 222, 208, 255], g: [52, 52, 58, 255], h: [96, 96, 104, 255], s: [176, 196, 226, 255] })
   }
   for (const [kind, png] of Object.entries(JAIL)) {
     sprite('jail_' + kind, png)

@@ -8,7 +8,9 @@
 // The guard wakes for a bot not sneaking within 5 blocks of him, also outside his post (owner, 2026-10-14). B1 has no
 // course instruction signs any more (only place names). Every step is told straight to the player (a title, a TUTORIAL
 // chat line); /tutorial confirm takes a player back to their step, and after the course back to the start as a
-// prisoner again.
+// prisoner again; /tutorial stop (owner, 2026-10-15) ends such a replay, also after a rejoin, and puts the player back as
+// they were (an inmate in Hall B with their jail items, or free outside the walls; the lot exit when the old spot is
+// blocked; the knife Rusty handed out gone); refused for a first-timer and with no replay running.
 // Bots can't crawl: they're teleported past the crawl, and the blocks are checked instead.
 const { start, field, sleep } = require('../prisonlib')
 
@@ -75,7 +77,9 @@ module.exports = async ({ check }) => {
     sneak(a, false)
     s = await info(A)
     const items = field(s, 'items')
-    check('sneaking and clicking the keycard: the coursecard in the pockets (slots 9-35), step vent', cb && field(s, 'step') === 'vent' && /coursecard:(9|[12]\d|3[0-5])x1/.test(items), s)
+    // Owner, 2026-10-15: "allow the keycard and quest items to be in the last few locked spots in the hotbar".
+    const cardSlot = Number((items.match(/coursecard:(\d+)x1/) || [])[1])
+    check('sneaking and clicking the keycard: the coursecard in a quest slot (hotbar 6-8, slots 5-7, not the held one), "The card: hotbar N", step vent', cb && field(s, 'step') === 'vent' && cardSlot >= 5 && cardSlot <= 7 && cardSlot !== a.quickBarSlot && said(a, new RegExp(`The card: hotbar ${cardSlot + 1}`)), `${s} held=${a.quickBarSlot}`)
     check('the vent step told: "Use the keycard"', said(a, /Use the keycard/))
     const dump0 = await cmd(`zzdump ${A}`)
     check('...hotbar 1-5 still empty', !/(DUMP |\| )[0-4]=/.test(dump0), dump0)
@@ -170,14 +174,114 @@ module.exports = async ({ check }) => {
     const lefty = await until(async () => /id=l_meet/.test(await cmd(`dstory info ${A} lefty`)), 8000)
     check('Lefty\'s chain starts (l_meet)', lefty, await cmd(`dstory info ${A} lefty`))
 
-    // ---- /tutorial after the course: the offer, then confirm puts A back in a course cell as a prisoner again
+    // ---- /tutorial after the course: the offer, then confirm puts A back in a course cell as a prisoner again. Before
+    // it, A stands in Hall B with 2 donuts (a jail item not seen as contraband) and the knife out of hotbar 1-5, so
+    // /tutorial stop has something to put back and a knife from Rusty to take away.
+    await t.jtp(A, 90.5, 65, 117.5, 90)
+    for (let i = 0; i < 5; i++) await cmd(`minecraft:item replace entity ${A} hotbar.${i} with minecraft:air`)
+    await cmd(`zzjail ${A} give donut 2`)
+    await sleep(1200)
+    const before = await pos(A)
+    const beforeItems = field(await info(A), 'items')
     since = Date.now()
     a.chat('/tutorial')
-    check('/tutorial after the course offers the replay', await until(() => said(a, /tutorial confirm/, since), 3000))
+    check('/tutorial after the course offers the replay and says /tutorial stop ends it', await until(() => said(a, /tutorial confirm/, since) && said(a, /tutorial stop/, since), 3000), t.text(a, since))
     a.chat('/tutorial confirm')
     const replay = await until(async () => { const r = await info(A); return field(r, 'state') === 'course' && field(r, 'step') === 'cell' }, 4000)
     s = await info(A)
     check('/tutorial confirm after the course: state course, step cell, in a course cell', replay && COURSE_CELLS.includes(field(s, 'cell')), s)
+    check('...the replay saved what /tutorial stop puts back (state in), the donuts taken for the course', /donut:\d+x2/.test(beforeItems) && /= in$/.test(await cmd(`zzdata ${A} jail-replay::state`)) && !/donut/.test(field(s, 'items')), `${beforeItems} | ${s}`)
+
+    // ---- /tutorial stop (owner, 2026-10-15: "have a /tutorial stop command if you already completed it before"): a
+    // logout keeps the replay; at the hotbar step Rusty hands A a knife; stop puts A back as before the confirm.
+    await t.drop(A)
+    await sleep(1500)
+    const a2 = await t.newBot(A)
+    await sleep(2500)
+    s = await info(A)
+    check('A rejoins mid-replay: still in the course, the saved data kept', field(s, 'state') === 'course' && /= in$/.test(await cmd(`zzdata ${A} jail-replay::state`)), s)
+    since = Date.now()
+    a2.chat('/tutorial')
+    check('/tutorial during a replay offers /tutorial stop', await until(() => said(a2, /tutorial stop/, since), 3000), t.text(a2, since))
+    await cmd(`zzjail ${A} step hotbar`)
+    const knifeBack = await until(async () => /Combat_Knife/.test(await cmd(`zzwm ${A}`)), 4000)
+    check('the replay at the hotbar step hands A a knife (hotbar 1-5)', knifeBack, await cmd(`zzwm ${A}`))
+    since = Date.now()
+    a2.chat('/tutorial stop')
+    const stopped = await until(async () => field(await info(A), 'state') === 'in', 3000)
+    s = await info(A)
+    const ps = await pos(A)
+    const atBefore = ps && before && Math.hypot(ps[0] - before[0], ps[2] - before[2]) < 0.6 && Math.abs(ps[1] - before[1]) < 0.6
+    check('/tutorial stop: an inmate again where A stood before the replay, the step and checkpoint gone', stopped && atBefore && field(s, 'step') === '' && field(s, 'cp') === '' && said(a2, /Replay stopped/, since), `${s} at ${ps} was ${before}`)
+    check('...the donuts back in their slot, no course card, the knife Rusty handed out gone (still unlocked)', field(s, 'items') === beforeItems && !/Combat_Knife/.test(await cmd(`zzwm ${A}`)) && /= true/.test(await cmd(`zzdata ${A} wpn::Combat_Knife`)), `${s} | ${await cmd(`zzwm ${A}`)}`)
+    check('...the saved replay data cleared', /= <none>/.test(await cmd(`zzdata ${A} jail-replay::state`)), await cmd(`zzdata ${A} jail-replay::state`))
+    since = Date.now()
+    a2.chat('/tutorial stop')
+    check('/tutorial stop with no replay running: refused', await until(() => said(a2, /not replaying the course/, since), 3000) && field(await info(A), 'state') === 'in', t.text(a2, since))
+
+    // ---- a free player's replay: stop puts A back outside the walls, still free; an old spot that isn't safe any
+    // more (a block where the head was): the lot exit (LOT_EXIT)
+    await t.state(A, 'off')
+    await t.jtp(A, 260.5, 65, 410.5, 0)
+    await sleep(300)
+    await t.state(A, 'out')
+    await sleep(1500)
+    const outAt = await pos(A)
+    check('A free outside the front gate (not pushed: outside the walls)', outAt && Math.abs(outAt[2] - 410.5) < 0.6 && field(await info(A), 'inside') === 'false', `${outAt} ${await info(A)}`)
+    a2.chat('/tutorial confirm')
+    await until(async () => field(await info(A), 'state') === 'course', 3000)
+    since = Date.now()
+    a2.chat('/tutorial stop')
+    const freed = await until(async () => field(await info(A), 'state') === 'out', 3000)
+    const po = await pos(A)
+    check('a free player\'s /tutorial stop: free again at the same spot outside the walls', freed && po && Math.abs(po[0] - 260.5) < 0.6 && Math.abs(po[2] - 410.5) < 0.6 && (await t.dim(A)) === 'minecraft:jailbreak', `${po} ${await info(A)}`)
+
+    // ---- review fixes (2026-10-15): a free player who never finished the course (joined before the prison ran) can
+    // stop a replay too; a stop in the 2 s while Rusty talks gives no knife after it; the C4 comes back, but not into the
+    // hand held now (it wasn't held then); a job's stash whose job is gone (it ended during the replay) stays gone.
+    await cmd(`zzdata ${A} jail-course none`)
+    a2.setQuickBarSlot(1)
+    await sleep(400)
+    await cmd(`zzjail ${A} give c4 1`)
+    await cmd(`zzjail ${A} give stash 1`)
+    await sleep(300)
+    const items3 = field(await info(A), 'items')
+    check('...setup: the C4 in hotbar 1 (slot 0, not the held slot 1), a stash with no job', /c4:0x1/.test(items3) && /stash:/.test(items3), items3)
+    since = Date.now()
+    a2.chat('/tutorial')
+    check('/tutorial for a free player who never did the course: the confirm and stop offer, not "You\'ve done the course"', await until(() => said(a2, /tutorial stop/, since), 3000) && !said(a2, /You've done the course/, since), t.text(a2, since))
+    a2.chat('/tutorial confirm')
+    const rp3 = await until(async () => field(await info(A), 'state') === 'course', 3000)
+    check('...confirm saves the replay for them (state out)', rp3 && /= out$/.test(await cmd(`zzdata ${A} jail-replay::state`)), await cmd(`zzdata ${A} jail-replay::state`))
+    await cmd(`zzjail ${A} step boiler`)
+    since = Date.now()
+    await tp(A, 76.5, 58, 77.5, -90)
+    const rusty3 = await until(() => said(a2, /Took you long enough/, since), 3000, 50)
+    const rustyAt = Date.now()
+    a2.setQuickBarSlot(0)
+    a2.chat('/tutorial stop')
+    const freed3 = await until(async () => field(await info(A), 'state') === 'out', 1500, 100)
+    const stopAt = Date.now()
+    check('...Rusty starts talking, and /tutorial stop inside his 2 s works for them: free again', rusty3 && freed3 && stopAt - rustyAt < 1700, `${stopAt - rustyAt} ms | ${t.text(a2, since)} ${await info(A)}`)
+    await sleep(3000)
+    const wm3 = await cmd(`zzwm ${A}`)
+    check('...no knife or "Hold the knife" after the stop (Rusty\'s wait ended without it)', !/Combat_Knife/.test(wm3) && !said(a2, /Here, a knife|Hold the knife/, stopAt), `${wm3} | ${t.text(a2, stopAt)}`)
+    const items4 = field(await info(A), 'items')
+    check('...the C4 back in hotbar 1-5 but not slot 0, now held (it wasn\'t held at confirm)', /c4:[1-4]x1/.test(items4) && a2.quickBarSlot === 0, `${items4} held=${a2.quickBarSlot}`)
+    check('...the stash not back (its job isn\'t running)', !/stash/.test(items4), items4)
+    await cmd(`zzjail ${A} strip`)
+    a2.setQuickBarSlot(1)
+    a2.chat('/tutorial confirm')
+    await until(async () => field(await info(A), 'state') === 'course', 3000)
+    await cmd('execute in minecraft:jailbreak run forceload add 256 400 271 415')
+    await cmd('execute in minecraft:jailbreak run setblock 260 66 410 minecraft:stone')
+    since = Date.now()
+    a2.chat('/tutorial stop')
+    const freed2 = await until(async () => field(await info(A), 'state') === 'out', 3000)
+    const pu = await pos(A)
+    await cmd('execute in minecraft:jailbreak run setblock 260 66 410 minecraft:air')
+    await cmd('execute in minecraft:jailbreak run forceload remove 256 400 271 415')
+    check('...with a block where its head was: free again at the lot exit, told the old spot isn\'t safe', freed2 && pu && Math.abs(pu[0] - 260.5) < 0.6 && Math.abs(pu[2] - 404.5) < 0.6 && said(a2, /isn't safe any more/, since), `${pu} ${t.text(a2, since)}`)
     await t.drop(A)
 
     // ---- B: a course bot at step cell logs out and back: its door opens 3 s after the join
@@ -186,6 +290,9 @@ module.exports = async ({ check }) => {
     s = await info(B)
     const bcell = field(s, 'cell')
     check('B: a first join at step cell', field(s, 'step') === 'cell' && COURSE_CELLS.includes(bcell), s)
+    since = Date.now()
+    b.chat('/tutorial stop')
+    check('/tutorial stop for a first-timer: refused (the course is how everyone starts), still in the course', await until(() => said(b, /how everyone starts/, since), 3000) && field(await info(B), 'state') === 'course', t.text(b, since))
     await t.drop(B)
     await sleep(1500)
     b = await t.newBot(B)
