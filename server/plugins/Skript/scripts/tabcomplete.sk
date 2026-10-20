@@ -13,6 +13,18 @@
 # Console-only commands suggest nothing; local test helpers (zz-*) have no completions. Every handler also answers the
 # namespaced label ("/skript:bounty"): SkBee compares the typed label with each listed one, so both are listed.
 # /dphone completes in Java (DonatingPhone).
+#
+# Permissions (owner, 2026-10-19: "if the player has permission for the command make sure it has the tab fill option so
+# they can see all command arguments"): a command with a permission: line is left out of the command list Paper sends a
+# player without it (so it isn't suggested after "/"), and Bukkit's command map never asks for its completions then (no
+# tab complete event: checked with bots). A player with it gets every argument at every position: subcommands, the
+# players they can see, ids and values the command takes now, and their own coordinates where coordinates go. Parts a
+# command refuses without a second permission (donating.quests.admin, donating.season.admin) are only listed, with their
+# arguments, for players who have it. Commands with no permission line that only some may use: /console (the owner's
+# UUIDs) and the console-only /dshop and /gpspick are taken out of everyone else's command list below.
+# Since then: /dpv, /dskins, /dsetup prison, /dquest addatw, coordinates, the add settings of /dtrap and /dloot, /djobs
+# post, /dhit's districts and windows (2026-10-19). The prison's handlers live with their scripts (prison.sk,
+# jailcops.sk, jailjobs.sk), /console's in owner.sk, /carcam's in carcam.sk.
 
 # ---------- Lists ----------
 
@@ -63,6 +75,61 @@ function tabIndices(kind: text) :: texts:
 		loop {contract::chop::*}:
 			add loop-index to {_out::*}
 	return {_out::*}
+
+# The viewer's own spot on one axis, for an argument that takes coordinates: "x", "y", "z" the block, "cx", "cz" the
+# middle of the block (where you'd stand), "yaw" in whole degrees.
+function tabPos(p: player, axis: text) :: text:
+	set {_l} to location of {_p}
+	if {_axis} is "x":
+		set {_v} to floor(x-coordinate of {_l})
+	else if {_axis} is "y":
+		set {_v} to floor(y-coordinate of {_l})
+	else if {_axis} is "z":
+		set {_v} to floor(z-coordinate of {_l})
+	else if {_axis} is "cx":
+		set {_b} to floor(x-coordinate of {_l})
+		set {_v} to {_b} + 0.5
+	else if {_axis} is "cz":
+		set {_b} to floor(z-coordinate of {_l})
+		set {_v} to {_b} + 0.5
+	else:
+		set {_v} to round(yaw of {_l})
+	return "%{_v}%"
+
+function tabWorlds() :: texts:
+	loop all worlds:
+		add "%loop-world%" to {_out::*}
+	return {_out::*}
+
+# The settings a loot spot of that kind takes (loot.sk lootKeyType).
+function tabLootKeys(kind: text) :: texts:
+	if {_kind} is "pile":
+		return "name", "value", "style", "behind", "piece", "take", "per-cell", "layers" and "lift"
+	if {_kind} is "smash":
+		return "name", "alarm" and "take"
+	if {_kind} is "safe":
+		return "name", "alarm", "digits" and "claim"
+	if {_kind} is "drill":
+		return "name", "alarm", "time", "mount", "claim" and "jams"
+	return "name"
+
+# A trap's key=value settings (traps.sk trapKeyType), effect=alarm only in an advanced heist.
+function tabTrapKeys(h: text) :: texts:
+	add "effect=damage" to {_out::*}
+	if heistIsAdvanced({_h}) is true:
+		add "effect=alarm" to {_out::*}
+	loop "damage", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "period" and "grace":
+		add "%loop-value%=" to {_out::*}
+	return {_out::*}
+
+# ---------- Who sees which commands ----------
+
+# /console is the owner's (owner.sk, by UUID: no permission line), /dshop and /gpspick the console's: nobody else gets
+# them suggested after "/" (the namespaced labels too).
+on send command list:
+	if ownerIs(player) is false:
+		remove "console" and "skript:console" from command list
+	remove "dshop", "skript:dshop", "gpspick" and "skript:gpspick" from command list
 
 # ---------- Players ----------
 
@@ -241,6 +308,21 @@ on tab complete of "/dheist" and "/skript:dheist":
 				set tab completions for position 4 to "default"
 		else if {_s} is "lock":
 			set tab completions for position 3 to "add", "list", "clear" and "test"
+			# lock <id> add x1 y1 z1 x2 y2 z2 [block]: your block as a start, then the block (iron bars by default).
+			if tab arg-3 is "add":
+				set tab completions for position 4 to tabPos(player, "x")
+				set tab completions for position 5 to tabPos(player, "y")
+				set tab completions for position 6 to tabPos(player, "z")
+				set tab completions for position 7 to tabPos(player, "x")
+				set tab completions for position 8 to tabPos(player, "y")
+				set tab completions for position 9 to tabPos(player, "z")
+				set tab completions for position 10 to "iron_bars", "glass" and "iron_block"
+		else if {_s} is "exit":
+			# exit <id> [x y z [yaw]]: where you stand (or type a spot).
+			set tab completions for position 3 to tabPos(player, "cx")
+			set tab completions for position 4 to tabPos(player, "y")
+			set tab completions for position 5 to tabPos(player, "cz")
+			set tab completions for position 6 to tabPos(player, "yaw")
 		else if {_s} is "holo":
 			set tab completions for position 3 to "remove"
 		else if {_s} is "delete":
@@ -275,9 +357,15 @@ on tab complete of "/dtrap" and "/skript:dtrap":
 			set tab completions for position 2 to {_l::*}
 		if {_s} is "add":
 			set tab completions for position 3 to "laser", "plate", "floor" and "camera"
-			if tab arg-3 is "laser":
-				set tab completions for position 4 to "here"
-				set tab completions for position 5 to "low", "mid" and "high"
+			# Then key=value settings (corners come from /dtrap pos1 and pos2, or typed numbers).
+			if tab arg-3 is set:
+				set {_kv::*} to tabTrapKeys(tab arg-2)
+				loop integers from 4 to 16:
+					set tab completions for position loop-value to {_kv::*}
+				if tab arg-3 is "laser":
+					set tab completions for position 4 to "here" and {_kv::*}
+					if tab arg-4 is "here":
+						set tab completions for position 5 to "low", "mid", "high" and {_kv::*}
 		else if {_s} is "clear":
 			set tab completions for position 3 to "confirm"
 		else if {_s} is "show":
@@ -311,14 +399,8 @@ on tab complete of "/dloot" and "/skript:dloot":
 			# The settings of that spot's kind (loot.sk lootKeyType).
 			set {_p::*} to (tab arg-2) split at "-"
 			set {_kind} to {loots::%{_p::1}%::%{_p::2}%}
-			if {_kind} is "pile":
-				set tab completions for position 3 to "name", "value", "style", "behind", "piece", "take", "per-cell", "layers" and "lift"
-			else if {_kind} is "smash":
-				set tab completions for position 3 to "name", "alarm" and "take"
-			else if {_kind} is "safe":
-				set tab completions for position 3 to "name", "alarm", "digits" and "claim"
-			else if {_kind} is "drill":
-				set tab completions for position 3 to "name", "alarm", "time", "mount", "claim" and "jams"
+			if {_kind} is set:
+				set tab completions for position 3 to tabLootKeys({_kind})
 			set {_key} to tab arg-3
 			if {_key} is "style":
 				set tab completions for position 4 to {-cfg::loot::styles::*} and "default"
@@ -346,16 +428,35 @@ on tab complete of "/dloot" and "/skript:dloot":
 			set tab completions for position 2 to {_l::*}
 		if {_s} is "add":
 			set tab completions for position 3 to "pile", "smash", "safe" and "drill"
+			# Then that kind's key=value settings (corners from /dloot pos1 and pos2, or typed numbers); a pile needs
+			# value=MIN-MAX.
+			set {_kind} to tab arg-3
+			if {_kind} is "pile" or "smash" or "safe" or "drill":
+				loop tabLootKeys({_kind}):
+					if loop-value is "value":
+						add "value=500-2000" to {_kv::*}
+					else if loop-value is "style":
+						loop {-cfg::loot::styles::*}:
+							add "style=%loop-value-2%" to {_kv::*}
+					else:
+						add "%loop-value%=" to {_kv::*}
+				loop integers from 4 to 16:
+					set tab completions for position loop-value to {_kv::*}
 		else if {_s} is "clear":
 			set tab completions for position 3 to "confirm"
 		else if {_s} is "show":
 			set tab completions for position 3 to "20" and "60"
 
+# /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump.
 on tab complete of "/dcops" and "/skript:dcops":
 	set {_l::*} to tabHeists()
 	if {_l::*} is set:
 		set tab completions for position 1 to {_l::*}
 	set tab completions for position 2 to "add", "list", "clear", "spawn", "removeall" and "dump"
+	if tab arg-2 is "add":
+		set tab completions for position 3 to tabPos(player, "cx")
+		set tab completions for position 4 to tabPos(player, "y")
+		set tab completions for position 5 to tabPos(player, "cz")
 
 on tab complete of "/dcrate" and "/skript:dcrate":
 	set tab completions for position 1 to "give", "take", "info", "place", "remove" and "list"
@@ -374,6 +475,28 @@ on tab complete of "/dcrate" and "/skript:dcrate":
 			set tab completions for position 4 to "1", "5" and "10"
 	else if {_s} is "place":
 		set tab completions for position 2 to {-cfg::crates::*}
+	else if {_s} is "remove":
+		# remove [x y z [world]]: the stands' blocks ({crateblock::<world>:<x>:<y>:<z>}), each word narrowing the next.
+		loop {crateblock::*}:
+			set {_k::*} to loop-index split at ":"
+			if {_xs::*} does not contain {_k::2}:
+				add {_k::2} to {_xs::*}
+			if {_k::2} is tab arg-2:
+				if {_ys::*} does not contain {_k::3}:
+					add {_k::3} to {_ys::*}
+				if {_k::3} is tab arg-3:
+					if {_zs::*} does not contain {_k::4}:
+						add {_k::4} to {_zs::*}
+					if {_k::4} is tab arg-4:
+						add {_k::1} to {_ws::*}
+		if {_xs::*} is set:
+			set tab completions for position 2 to {_xs::*}
+		if {_ys::*} is set:
+			set tab completions for position 3 to {_ys::*}
+		if {_zs::*} is set:
+			set tab completions for position 4 to {_zs::*}
+		if {_ws::*} is set:
+			set tab completions for position 5 to {_ws::*}
 
 on tab complete of "/dranks" and "/skript:dranks":
 	set tab completions for position 1 to "setup", "give", "take" and "list"
@@ -392,11 +515,14 @@ on tab complete of "/dbooster" and "/skript:dbooster":
 	if {_s} is "add":
 		set tab completions for position 2 to tabPlayerNames(player)
 		set tab completions for position 3 to {-cfg::booster::kinds::*}, "1.5" and "2"
+		# Then [count] (the store's {purchaseQuantity}).
 		if {-cfg::booster::kinds::*} contains tab arg-3:
 			set tab completions for position 4 to "1.5" and "2"
 			set tab completions for position 5 to "5", "30" and "60"
+			set tab completions for position 6 to "1", "2" and "10"
 		else:
 			set tab completions for position 4 to "5", "30" and "60"
+			set tab completions for position 5 to "1", "2" and "10"
 	else:
 		set tab completions for position 2 to {-cfg::booster::kinds::*}
 
@@ -407,6 +533,8 @@ on tab complete of "/dlevel" and "/skript:dlevel":
 		loop levelMilestones():
 			add "%loop-value%" to {_lv::*}
 		set tab completions for position 3 to {_lv::*}
+	else if tab arg-1 is "xp":
+		set tab completions for position 3 to "100", "1000" and "10000"
 
 on tab complete of "/dpoi" and "/skript:dpoi":
 	set tab completions for position 1 to "add", "remove", "list" and "dump"
@@ -419,7 +547,7 @@ on tab complete of "/dpoi" and "/skript:dpoi":
 			set tab completions for position 2 to {_l::*}
 
 on tab complete of "/dsetup" and "/skript:dsetup":
-	set tab completions for position 1 to "heists", "story", "places", "flags", "shops", "quests", "jobs", "crates", "cars", "server" and "phone"
+	set tab completions for position 1 to "all", "heists", "story", "places", "flags", "shops", "quests", "jobs", "crates", "cars", "server", "phone" and "prison"
 
 on tab complete of "/ddistrict" and "/skript:ddistrict":
 	set tab completions for position 1 to "name", "list", "here" and "dump"
@@ -430,10 +558,24 @@ on tab complete of "/ddistrict" and "/skript:ddistrict":
 		set tab completions for position 3 to "default"
 
 on tab complete of "/dquest" and "/skript:dquest":
-	set tab completions for position 1 to "add", "addat", "remove", "list", "dump" and "open"
+	set tab completions for position 1 to "add", "addat", "addatw", "remove", "list", "dump" and "open"
 	set {_s} to tab arg-1
-	if {_s} is "add" or "addat":
+	if {_s} is "add" or "addat" or "addatw":
 		set tab completions for position 2 to {-cfg::quests::*}
+		# add <kind> [place] | addat <kind> <x> <y> <z> <yaw> [place] | addatw <kind> <world> <x> <y> <z> <yaw> [place]:
+		# where you stand, and the kind's default place.
+		set {_k} to tab arg-2
+		set {_place} to {-cfg::quest::%{_k}%::place}
+		set {_at} to 3
+		if {_s} is "addatw":
+			set tab completions for position 3 to tabWorlds()
+			set {_at} to 4
+		if {_s} is not "add":
+			loop "cx", "y", "cz" and "yaw":
+				set tab completions for position {_at} to tabPos(player, loop-value)
+				add 1 to {_at}
+		if {_place} is set:
+			set tab completions for position {_at} to {_place}
 	else if {_s} is "remove":
 		set {_l::*} to tabIndices("giver")
 		if {_l::*} is set:
@@ -450,6 +592,10 @@ on tab complete of "/dseason" and "/skript:dseason":
 	else:
 		set tab completions for position 1 to "info", "finals", "rank" and "holo"
 	set {_s} to tab arg-1
+	# The admin parts' arguments only for season admins (seasons.sk refuses the rest).
+	if {_s} is "start" or "end" or "extend" or "approve" or "void" or "reset":
+		if player does not have permission "donating.season.admin":
+			stop
 	if {_s} is "holo":
 		set tab completions for position 2 to {-cfg::season::boards::*}
 	else if {_s} is "void" or "reset":
@@ -476,11 +622,21 @@ on tab complete of "/dseason" and "/skript:dseason":
 	else if {_s} is "start" or "extend":
 		set tab completions for position 2 to "7", "14" and "28"
 
+# set and reset need donating.quests.admin (story.sk).
 on tab complete of "/dstory" and "/skript:dstory":
-	set tab completions for position 1 to "info", "set", "reset" and "skip"
+	if player has permission "donating.quests.admin":
+		set tab completions for position 1 to "info", "set", "reset" and "skip"
+	else:
+		set tab completions for position 1 to "info" and "skip"
+		if tab arg-1 is "set" or "reset":
+			stop
 	set tab completions for position 2 to tabPlayerNames(player)
 	if tab arg-1 is "set":
-		set tab completions for position 3 to {-cfg::story::missions::*} and {-cfg::chain::vic::missions::*}
+		# Every chain's missions (Mara's, Vic's, Lefty's in the prison).
+		loop {-cfg::story::chains::*}:
+			add storyList(loop-value) to {_ms::*}
+		if {_ms::*} is set:
+			set tab completions for position 3 to {_ms::*}
 	else:
 		set tab completions for position 3 to {-cfg::story::chains::*}
 
@@ -508,6 +664,19 @@ on tab complete of "/dgarage" and "/skript:dgarage":
 		set tab completions for position 2 to tabPlayerNames(player)
 	if {_s} is "roll":
 		set tab completions for position 2 to "supercar" and "hypercar"
+	else if {_s} is "build":
+		# build <player> <model|color|wrap|engine|turbo|handling|neon|trail>: a stock build of each car to start from
+		# ("-" = none), in its first one-word color (a space would split the build into two arguments).
+		loop {-cfg::cars::*}:
+			set {_col} to ""
+			loop carColorLabels(loop-value-1):
+				if {_col} is "":
+					if loop-value-2 does not contain " ":
+						set {_col} to loop-value-2
+			if {_col} is not "":
+				add "%loop-value-1%|%{_col}%|-|0|0|0|-|-" to {_bt::*}
+		if {_bt::*} is set:
+			set tab completions for position 3 to {_bt::*}
 	else if {_s} is "give":
 		# Several of a model are fine now: every car, then that car's colors.
 		set tab completions for position 3 to {-cfg::cars::*}
@@ -533,6 +702,12 @@ on tab complete of "/dcontract" and "/skript:dcontract":
 			set {_l::*} to tabIndices({_s})
 			if {_l::*} is set:
 				set tab completions for position 3 to {_l::*}
+		else if tab arg-2 is "addat":
+			# addat <x> <y> <z> [yaw]: where you stand.
+			set tab completions for position 3 to tabPos(player, "cx")
+			set tab completions for position 4 to tabPos(player, "y")
+			set tab completions for position 5 to tabPos(player, "cz")
+			set tab completions for position 6 to tabPos(player, "yaw")
 	else if {_s} is "info":
 		set tab completions for position 2 to tabPlayerNames(player)
 	else if {_s} is "end":
@@ -543,14 +718,63 @@ on tab complete of "/dcontract" and "/skript:dcontract":
 		if {_j::*} is set:
 			set tab completions for position 2 to {_j::*}
 
+# met, post, unlock, empty, lock, clear and rep need donating.quests.admin (jobs.sk): only listed for players with it.
+# post <player> <contact> <slot> <template> <heist|tier> [bonus|-] [model].
 on tab complete of "/djobs" and "/skript:djobs":
-	set tab completions for position 1 to "info", "take", "fill", "unlock", "empty", "lock", "clear", "rep", "met", "post" and "stats"
-	if tab arg-1 is not "stats":
-		set tab completions for position 2 to tabPlayerNames(player)
-		set tab completions for position 3 to {-cfg::jobs::contacts::*}
+	set {_subs::*} to "info", "take", "fill" and "stats"
+	if player has permission "donating.quests.admin":
+		add "met", "post", "unlock", "empty", "lock", "clear" and "rep" to {_subs::*}
+	set tab completions for position 1 to {_subs::*}
+	set {_s} to tab arg-1
+	if {_s} is not set:
+		stop
+	if {_subs::*} does not contain {_s}:
+		stop
+	if {_s} is "stats":
+		stop
+	set tab completions for position 2 to tabPlayerNames(player)
+	set tab completions for position 3 to {-cfg::jobs::contacts::*}
+	set {_c} to tab arg-3
+	if {_s} is "met" or "post":
+		set {_slots} to {-cfg::jobs::slots-family}
+		loop {_slots} times:
+			add "%loop-number%" to {_n::*}
+		if {_n::*} is set:
+			set tab completions for position 4 to {_n::*}
+	else if {_s} is "rep":
+		set tab completions for position 4 to "10", "100" and "1000"
+	if {_s} is "post":
+		if {_c} is set:
+			set tab completions for position 5 to {-cfg::jobs::%{_c}%::templates::*}
+			if {_c} is "mara":
+				set {_hl::*} to tabHeists()
+				if {_hl::*} is set:
+					set tab completions for position 6 to {_hl::*}
+			else:
+				set tab completions for position 6 to {-cfg::contract::tiers::*}
+				# The model: a car of that tier's contract list.
+				set {_t} to tab arg-6
+				if {_t} is set:
+					set {_m::*} to {-cfg::contractcars::%{_t}%::*}
+					if {_m::*} is set:
+						set tab completions for position 8 to {_m::*}
+			set {_tpl} to tab arg-5
+			if {_tpl} is set:
+				set tab completions for position 7 to "-" and {-cfg::jobs::tpl::%{_tpl}%::bonuses::*}
 
+# roll [week] and reset need donating.quests.admin (fence.sk).
 on tab complete of "/dfence" and "/skript:dfence":
-	set tab completions for position 1 to "list", "roll", "info", "take" and "reset"
+	if player has permission "donating.quests.admin":
+		set tab completions for position 1 to "list", "roll", "info", "take" and "reset"
+		if tab arg-1 is "roll":
+			set {_w} to progWeek()
+			set {_w2} to {_w} + 1
+			set tab completions for position 2 to "%{_w}%" and "%{_w2}%"
+			stop
+	else:
+		set tab completions for position 1 to "list", "info" and "take"
+		if tab arg-1 is "roll" or "reset":
+			stop
 	if tab arg-1 is "info" or "take" or "reset":
 		set tab completions for position 2 to tabPlayerNames(player)
 
@@ -558,24 +782,55 @@ on tab complete of "/dtutorial" and "/skript:dtutorial":
 	set tab completions for position 1 to tabPlayerNames(player)
 	set tab completions for position 2 to "reset" and "done"
 
+# give, reset, window and week reroll need donating.quests.admin (hits.sk): only listed for players with it.
 on tab complete of "/dhit" and "/skript:dhit":
-	set tab completions for position 1 to "node", "route", "week", "window", "info", "give", "end" and "reset"
+	set {_adm} to false
+	if player has permission "donating.quests.admin":
+		set {_adm} to true
+	if {_adm} is true:
+		set tab completions for position 1 to "node", "route", "week", "window", "info", "give", "end" and "reset"
+	else:
+		set tab completions for position 1 to "node", "route", "week", "info" and "end"
+		if tab arg-1 is "give" or "reset" or "window":
+			stop
 	set {_s} to tab arg-1
+	set {_d::*} to districtIds()
 	if {_s} is "node":
 		set tab completions for position 2 to "add", "addat", "link", "unlink", "remove", "clear", "list", "dump" and "show"
-		if tab arg-2 is "remove" or "link" or "unlink":
+		set {_op} to tab arg-2
+		if {_op} is "remove" or "link" or "unlink":
 			loop {hit::node::*}:
 				add loop-index to {_n::*}
 			if {_n::*} is set:
 				set tab completions for position 3 to {_n::*}
 				set tab completions for position 4 to {_n::*}
+		else if {_op} is "add":
+			# add [district]: the district the node is in.
+			if {_d::*} is set:
+				set tab completions for position 3 to {_d::*}
+		else if {_op} is "addat":
+			# addat <x> <y> <z> [district]
+			set tab completions for position 3 to tabPos(player, "cx")
+			set tab completions for position 4 to tabPos(player, "y")
+			set tab completions for position 5 to tabPos(player, "cz")
+			if {_d::*} is set:
+				set tab completions for position 6 to {_d::*}
 	else if {_s} is "route":
 		set tab completions for position 2 to "on" and "off"
+		if tab arg-2 is "on":
+			if {_d::*} is set:
+				set tab completions for position 3 to {_d::*}
 	else if {_s} is "week":
-		set tab completions for position 2 to "reroll"
+		if {_adm} is true:
+			set tab completions for position 2 to "list" and "reroll"
+		else:
+			set tab completions for position 2 to "list"
 	else if {_s} is "window":
 		set tab completions for position 2 to {-cfg::hit::tiers::*}
 		set tab completions for position 3 to "open" and "close"
+		# open [seconds]
+		if tab arg-3 is "open":
+			set tab completions for position 4 to "300", "1800" and "3600"
 	else if {_s} is "info" or "give" or "end" or "reset":
 		set tab completions for position 2 to tabPlayerNames(player)
 		if {_s} is "give":
@@ -601,6 +856,24 @@ on tab complete of "/dgaragesite" and "/skript:dgaragesite":
 						add loop-index to {_ix::*}
 					if {_ix::*} is set:
 						set tab completions for position 4 to {_ix::*}
+		else if {_s} is "exitat" or "returnat" or "bayat":
+			# <site> <x> <y> <z> <yaw>: where you stand.
+			set tab completions for position 3 to tabPos(player, "cx")
+			set tab completions for position 4 to tabPos(player, "y")
+			set tab completions for position 5 to tabPos(player, "cz")
+			set tab completions for position 6 to tabPos(player, "yaw")
+
+# /dpv xray on|off | info <player> | reset (pv.sk).
+on tab complete of "/dpv" and "/skript:dpv":
+	set tab completions for position 1 to "xray", "info" and "reset"
+	if tab arg-1 is "xray":
+		set tab completions for position 2 to "on" and "off"
+	else if tab arg-1 is "info":
+		set tab completions for position 2 to tabPlayerNames(player)
+
+# /dskins [respawn] (skins.sk).
+on tab complete of "/dskins" and "/skript:dskins":
+	set tab completions for position 1 to "respawn"
 
 # /help and /adminhelp (help.sk).
 on tab complete of "/help" and "/skript:help":

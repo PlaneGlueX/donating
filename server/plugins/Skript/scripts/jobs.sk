@@ -484,9 +484,9 @@ function jobsTalk(p: player, c: text, menu: boolean):
 	set {_who} to {-cfg::jobs::%{_c}%::name}
 	if {_n} > 0:
 		if {_n} is 1:
-			storyText({_p}, {_who}, "One for you. Check /jobs.")
+			storySay({_p}, {_who}, "One for you. Check /jobs.")
 		else:
-			storyText({_p}, {_who}, "%{_n}% for you. Check /jobs.")
+			storySay({_p}, {_who}, "%{_n}% for you. Check /jobs.")
 		hudBar({_p}, "&e✉ %{_who}%: %{_n}% job(s) for you &7· /jobs", 1)
 	else:
 		set {_g} to {-cfg::jobs::%{_c}%::greet::%jobsTier({_p}, {_c})%}

@@ -24,9 +24,28 @@ command /console <text>:
 		execute console command {_c}
 		send colored "&7Console: &f/%{_c}%" to player
 
+# Nobody else gets completions (or the command in their command list: tabcomplete.sk). The owner gets every command the
+# server knows for the first word (owner, 2026-10-19: every command with tab fill for whoever may use it); the rest of
+# the line is the console command's own and isn't completed here.
 on tab complete of "/console" and "/skript:console":
-	ownerIs(player) is false
-	cancel event
+	if ownerIs(player) is false:
+		cancel event
+		stop
+	# Skript's list names its own commands only with their namespace (skript:dheist): the plain names, once each, worked
+	# out at most once a minute (about 2,500 entries).
+	if {-owner::cmdsat} is set:
+		if difference between {-owner::cmdsat} and now < 1 minute:
+			set tab completions for position 1 to {-owner::cmds::*}
+			stop
+	delete {-owner::cmds::*}
+	loop all registered commands:
+		set {_n} to loop-value
+		if {_n} contains ":":
+			set {_n} to last element of ({_n} split at ":")
+		set {-owner::cmds::%{_n}%} to {_n}
+	set {-owner::cmdsat} to now
+	if {-owner::cmds::*} is set:
+		set tab completions for position 1 to {-owner::cmds::*}
 
 # Nobody, not even the console, makes the owner run a command (owner, 2026-10-14: "disable /sudo command for my
 # username"). LuckPerms' essentials.sudo.exempt covers players; EssentialsX ignores it for the console. RCON commands

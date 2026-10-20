@@ -311,13 +311,13 @@ function jcopSetup(id: text, r: text):
 	jcopSentinel({_id}, "safeshot true")
 	jcopSentinel({_id}, "needammo false")
 	jcopSentinel({_id}, "deathxp 0")
-	# The police skin (core.sk cop::skin-*, signed once by MineSkin; cops.sk's).
-	set {_tex} to {-cfg::cop::skin-texture}
-	set {_sig} to {-cfg::cop::skin-signature}
-	if {_tex} is set:
-		if {_sig} is set:
-			if {_tex} is not "":
-				execute console command "npc skin -t police %{_tex}% %{_sig}% --id %{_id}%"
+	# The prison guard's skin (skins.sk jailGuardSkinId: the corrections officer, else the city police skin).
+	set {_sk} to jailGuardSkinId()
+	set {_tex} to skinTexture({_sk})
+	set {_sig} to skinSignature({_sk})
+	if {_tex} is not "":
+		if {_sig} is not "":
+			execute console command "npc skin -t %{_sk}% %{_tex}% %{_sig}% --id %{_id}%"
 
 # A one-point route's cop (the desk cop) faces the way its point says (ROUTE_<R>_1's yaw: the desk cop watches the
 # POLICE doors).

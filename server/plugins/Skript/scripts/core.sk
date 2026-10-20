@@ -385,6 +385,15 @@ function loadSettings():
 	# District names (districts.sk): a district's name shows again on entering it only after this long.
 	set {-cfg::district::repeat} to 30 seconds
 	set {-cfg::messages::keep} to 60
+	# 2026-10-19 (owner: "theres alot of spam when the quest messages get put into the phone messages"): within this
+	# many blocks of a contact's quest giver a line is said in person (chat only, never kept).
+	set {-cfg::messages::near} to 10
+	# Lines one contact sends within this long are one text (a mission's done line and the next brief).
+	set {-cfg::messages::join-window} to 1 second
+	# The same text from the same contact within this many seconds isn't kept again.
+	set {-cfg::messages::dedupe} to 1800
+	# A kept text shows in chat as one line of at most this many characters (its first words), the rest in /messages.
+	set {-cfg::messages::preview} to 60
 	set {-cfg::msgcontact::mara::skin} to "mara"
 	set {-cfg::msgcontact::mara::kind} to "story"
 	set {-cfg::msgcontact::boss::skin} to "boss"
@@ -2222,8 +2231,9 @@ function loadSettings():
 	set {-cfg::quest::whisper::npc} to "Whisper"
 	set {-cfg::quest::whisper::place} to "the Telephone Room"
 	set {-cfg::quest::whisper::hold} to "paper"
+	# Their Messages heads wear their skins (skins.sk, id = the kind: tools\skins\make-prison-skins.js).
 	loop "lefty", "rusty", "tank" and "whisper":
-		set {-cfg::msgcontact::%loop-value%::skin} to ""
+		set {-cfg::msgcontact::%loop-value%::skin} to loop-value
 		set {-cfg::msgcontact::%loop-value%::kind} to loop-value
 	# Lefty's chain: the one-time lessons for a new inmate. Any escape finishes it (finish-on).
 	set {-cfg::chain::lefty::giver} to "lefty"

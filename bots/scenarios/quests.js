@@ -96,8 +96,8 @@ module.exports = async ({ check }) => {
     check('a giver is a named NPC ("Quest Yard Boss", "Car contracts" under it) holding a lockpick', giverN !== '' && /Quest Yard Boss/.test(name) && /text: "Car contracts"/.test(desc) && /flint/.test(hand) && /lockpick_basic/.test(hand), `${r} | ${name} | ${desc} | ${hand}`)
     // An NPC summoned with an older look (before the description changed) is replaced by one with the new look.
     const uuid0 = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] UUID`)
-    await cmd(`tag @e[tag=questg_${giverN}] remove questlook_2`)
-    await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN},tag=questlook_2]`)), 33000)
+    await cmd(`tag @e[tag=questg_${giverN}] remove questlook_3`)
+    await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN},tag=questlook_3]`)), 33000)
     const uuid1 = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] UUID`)
     const count1 = await cmd(`execute if entity @e[tag=questg_${giverN}]`)
     check('an NPC with an older look is replaced by one new NPC (within 30 s)', /\[I;/.test(uuid1) && uuid1 !== uuid0 && /Count: 1\b/.test(count1), `${uuid0} -> ${uuid1} | ${count1}`)

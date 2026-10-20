@@ -1260,20 +1260,47 @@ command /zzcarclimb <text>:
 				set {_l} to location of loop-entity
 		send "CLIMB %arg-1% at=%{_l}%"
 
-# A text from a contact, as story.sk's storyText sends it (and messages.sk keeps it): /zztext <player> <from> <text>
+# A text from a contact, as story.sk's storyText sends it (messages.sk msgPost: said in person, else kept a second later,
+# one text per burst): /zztext <player> <from> <text>. The reply is the inbox before the burst is kept (/zzinbox).
 command /zztext <player> <text> <text>:
 	executable by: console
 	trigger:
 		storyText(arg-1, arg-2, arg-3)
 		send "TEXT %arg-1% n=%msgNewest(arg-1)% unread=%msgUnreadAll(arg-1)%"
 
-# Forgets a player's texts: /zzinboxclear <player>
+# A line of a kind (say|text|keep), as msgPost takes it: /zzmsg <player> <kind> <from> <text>
+command /zzmsg <player> <text> <text> <text>:
+	executable by: console
+	trigger:
+		msgPost(arg-1, arg-3, arg-4, arg-2)
+		send "MSG %arg-1% %arg-2%"
+
+# The inbox: /zzinbox <player> [flush] (flush: the pending bursts kept now). One line: n, unread, the newest text.
+command /zzinbox <player> [<text>]:
+	executable by: console
+	trigger:
+		if arg-2 is "flush":
+			msgFlushAll(arg-1)
+		set {_n} to msgNewest(arg-1)
+		send "INBOX %arg-1% n=%{_n}% unread=%msgUnreadAll(arg-1)% v=%getData(arg-1, "inbox-v")% last=%msgFrom(arg-1, {_n})%|%msgText(arg-1, {_n})%"
+
+# An old-style text (before 2026-10-19 every line was kept): kept as is, sent <ago> seconds ago.
+# /zzinboxraw <player> <ago> <from> <text>
+command /zzinboxraw <player> <number> <text> <text>:
+	executable by: console
+	trigger:
+		set {_n} to msgSave(arg-1, arg-3, arg-4)
+		setData(arg-1, "inbox::%{_n}%::at", floor(unix timestamp of now) - arg-2)
+		send "RAW %arg-1% n=%{_n}%"
+
+# Forgets a player's texts: /zzinboxclear <player> (inbox-v 2: nothing old to tidy at the next join)
 command /zzinboxclear <player>:
 	executable by: console
 	trigger:
 		delete {data::%arg-1%::inbox::*}
 		delete {data::%arg-1%::inbox-seen::*}
 		deleteData(arg-1, "inbox-n")
+		setData(arg-1, "inbox-v", 2)
 		send "INBOX %arg-1% cleared"
 
 # Closes a player's open menu (computer-use playtests: synthetic keys can miss the game window).

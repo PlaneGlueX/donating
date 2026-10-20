@@ -136,9 +136,10 @@ function questPlaces() :: texts:
 
 # ---------- The NPC ----------
 
-# The look's version tag (2: the description is only what it gives, 2026-09-29).
+# The look's version tag (2: the description is only what it gives, 2026-09-29; 3: the inmates' skins, 2026-10-19).
+# Bump it when a giver's look or skin changes: every NPC with an older tag is replaced.
 function questLook() :: text:
-	return "questlook_2"
+	return "questlook_3"
 
 function questSpawn(n: text):
 	set {_l} to questLoc({_n})

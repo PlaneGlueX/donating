@@ -56,6 +56,8 @@ module.exports = async ({ check }) => {
       bots[name] = await join(name)
       await cmd(`gamemode survival ${name}`)
       await cmd(`zzclear ${name}`)
+      // An empty inbox: a brief kept in the last run would count as a repeat (messages::dedupe) and not be kept again.
+      await cmd(`zzinboxclear ${name}`)
       await cmd(`dlevel reset ${name}`)
       await cmd(`eco set ${name} 10000`)
       await cmd(`zzdata ${name} keys::daily none`)
@@ -76,7 +78,9 @@ module.exports = async ({ check }) => {
     await cmd(`zzdata ${A} story none`)
     await until(async () => (await id(A)) === 'c1_meet', 8000)
     await until(async () => /New in town/.test(text(A, t)), 3000)
-    check('after the tutorial the first mission starts: a text from Mara, the sidebar line', (await id(A)) === 'c1_meet' && /✉ Mara: New in town/.test(text(A, t)) && /Meet Mara at the Safehouse/.test(await papi(A, 'donating_mission')), `${await info(A)} | ${text(A, t).slice(0, 200)} | ${await papi(A, 'donating_mission')}`)
+    // A stands 2 blocks from Mara: her brief is said (no ✉ notice) and kept on the phone as read (messages.sk, 2026-10-19).
+    const ib0 = await cmd(`zzinbox ${A} flush`)
+    check('after the tutorial the first mission starts: Mara\'s brief said in person and kept on the phone (read), the sidebar line', (await id(A)) === 'c1_meet' && /(^| \| )Mara: New in town/.test(text(A, t)) && /last=Mara\|New in town/.test(ib0) && /Meet Mara at the Safehouse/.test(await papi(A, 'donating_mission')), `${await info(A)} | ${ib0} | ${text(A, t).slice(0, 200)} | ${await papi(A, 'donating_mission')}`)
     await until(async () => /active=quest/.test(await cmd(`dphone gps ${A}`)), 4000)
     const g = await cmd(`dphone gps ${A}`)
     check('the GPS leads to Mara', /active=quest/.test(g) && /label=Meet_Mara/.test(g) && /target=2205\.5,200/.test(g), g)
@@ -101,7 +105,9 @@ module.exports = async ({ check }) => {
     await until(async () => (await id(A)) !== 'c1_meet', 9000)
     const lines = text(A, t)
     check('talking to Mara in person plays her lines (not all at once), then the mission is done (no "<none>")', early === 'c1_meet' && /So you're the new face/.test(lines) && /No bag, no gun, no ride/.test(lines) && /Mission passed: Meet Mara/.test(lines) && !/<none>/.test(lines), `early=${early} ${lines.slice(0, 500)}`)
-    check('the next mission arrives as a text (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /first job/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
+    // The Boss isn't there: his brief is a text, its chat notice a second later (messages.sk's join window).
+    await until(async () => /✉ Boss: .*first job/.test(text(A, t)), 3000)
+    check('the next mission arrives as a text (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /✉ Boss: .*first job/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
     await set(A, 'c1_knife')
     t = Date.now()
     await cmd(`dshop unlock ${A} Combat_Knife`)

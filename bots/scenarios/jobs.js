@@ -101,7 +101,9 @@ module.exports = async ({ check }) => {
     close(A)
     let inf = await info(A)
     const maraJobs = inf.split('\n').filter(l => / mara:\d=waiting/.test(l))
-    check('Mara\'s board opens once her story is done: her text, and 3 jobs waiting', maraJobs.length === 3 && /I said I'd call/.test(text(A, t)), `${inf} | ${text(A, t).slice(0, 200)}`)
+    // Away from Mara her line is a text: its chat notice comes a second later (messages.sk's join window).
+    await until(async () => /✉ Mara: I said I'd call/.test(text(A, t)), 3000)
+    check('Mara\'s board opens once her story is done: her text, and 3 jobs waiting', maraJobs.length === 3 && /✉ Mara: I said I'd call/.test(text(A, t)), `${inf} | ${text(A, t).slice(0, 200)}`)
     const valid = maraJobs.every(l => ['jb2', 'jb3'].includes(field(l, 'h')) && (field(l, 'tpl') !== 'safe' || field(l, 'h') === 'jb3') && (field(l, 'tpl') !== 'getaway' || field(l, 'h') === 'jb3') && field(l, 'tpl') !== 'vault')
     check('Mara\'s jobs name heists the player can rob, with jobs they allow (a safe job only where a safe is, a getaway only in an advanced heist, no vault job without a vault)', valid, maraJobs.join(' / '))
     check('the Boss\'s board stays locked before the first delivered car job', w && /Deliver your first car job/.test(itemText(w.slots[20])), itemText(w && w.slots[20]).slice(0, 200))

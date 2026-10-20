@@ -1571,7 +1571,7 @@ function spawnKeeper(id: text):
 	set {_z} to z-coordinate of {_loc}
 	set {_yaw} to yaw of {_loc}
 	# "execute in": a keeper saved in another world (the Prison Gun Shop in the prison world) is summoned there.
-	execute console command "execute in %worldDim(world of {_loc})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b%skinProfile({_kind})%,Rotation:[%{_yaw}%f,0f]}"
+	execute console command "execute in %worldDim(world of {_loc})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_shop"",""shop_%{_kind}%"",""shopk_%{_id}%"",""%skinLook()%""],Invulnerable:1b,immovable:1b,hide_description:1b,PersistenceRequired:1b,CustomName:""%{_title}%"",CustomNameVisible:1b%skinProfile(keeperSkinId({_kind}, {_loc}))%,Rotation:[%{_yaw}%f,0f]}"
 
 every 30 seconds:
 	loop {shop::keepers::*}:
@@ -1581,7 +1581,17 @@ function keeperCheck(id: text):
 	set {_loc} to {shop::keeper::%{_id}%::loc}
 	{_loc} is set
 	chunk at {_loc} is loaded
+	# A keeper summoned with an older skin (no skins.sk skinLook tag) is replaced; extras go.
+	set {_look} to skinLook()
+	set {_found} to false
 	loop entities in radius 3 around {_loc}:
-		loop-entity has scoreboard tag "shopk_%{_id}%"
-		stop
-	spawnKeeper({_id})
+		if loop-entity has scoreboard tag "shopk_%{_id}%":
+			if {_found} is false:
+				if loop-entity has scoreboard tag {_look}:
+					set {_found} to true
+				else:
+					kill loop-entity
+			else:
+				kill loop-entity
+	if {_found} is false:
+		spawnKeeper({_id})

@@ -1788,7 +1788,8 @@ on tab complete of "/dprison" and "/skript:dprison":
 	if {_s} is "state":
 		set tab completions for position 3 to "course", "in", "out" and "off"
 	else if {_s} is "step":
-		set tab completions for position 3 to "cell", "sneak", "vent", "crawl", "boiler", "hotbar", "phone", "office" and "upstairs"
+		# The course's own steps (jailcourse.sk), so a new step shows up here too.
+		set tab completions for position 3 to jcSteps()
 	else if {_s} is "course":
 		set tab completions for position 3 to "skip"
 

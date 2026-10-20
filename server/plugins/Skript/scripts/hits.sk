@@ -176,7 +176,7 @@ function hitTake(p: player, t: text):
 	set {_name} to hitTargetName()
 	if {_was} is "":
 		# Once, here (the menu no longer repeats it): the target and the bodyguards are the hunter's alone.
-		storyText({_p}, "Broker", "%{_name}%. %{-cfg::hit::target::%hitTarget()%::crime}% Only you'll see them and their guards. I'll text you when they're seen.")
+		storyKeep({_p}, "Broker", "%{_name}%. %{-cfg::hit::target::%hitTarget()%::crime}% Only you'll see them and their guards. I'll text you when they're seen.")
 		hitLog("take %{_p}% %uuid of {_p}% %{_t}% W=%progWeek()% target=%hitTarget()%")
 	else:
 		hudBar({_p}, "&aYour contract is now %hitTierName({_t})%.", 1)

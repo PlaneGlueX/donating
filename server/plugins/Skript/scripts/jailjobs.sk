@@ -85,7 +85,8 @@ function jjIdsOf(kind: text) :: texts:
 			add loop-value to {_out::*}
 	return {_out::*}
 
-# A line from an inmate (story.sk's storyText: chat and the phone's Messages), never the same line twice in 3 s.
+# A line an inmate says in person (story.sk's storySay: chat only, never the phone's Messages; 2026-10-19), never the
+# same line twice in 3 s.
 function jjSay(p: player, from: text, line: text):
 	{_line} is not ""
 	set {_k} to "%{_from}%|%{_line}%"
@@ -94,7 +95,7 @@ function jjSay(p: player, from: text, line: text):
 			stop
 	set {-jj::said::%{_p}%} to {_k}
 	set {-jj::saidat::%{_p}%} to now
-	storyText({_p}, {_from}, {_line})
+	storySay({_p}, {_from}, {_line})
 
 # Where to walk to talk to an inmate of a kind (Rusty: the corridor in front of his bars).
 function jjGiverSpot(p: player, kind: text) :: location:

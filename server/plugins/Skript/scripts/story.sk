@@ -136,13 +136,18 @@ function storyFrom(id: text) :: text:
 		return {_f}
 	return "Mara"
 
-# A text from the mission's contact, like a phone message.
-# Every text is also kept in the phone's Messages app (messages.sk).
+# A line from a contact (messages.sk msgPost, 2026-10-19): standing with them it's said (chat only); away it's a text,
+# kept in the phone's Messages with one short chat notice (a contact's lines within a second are one text).
 function storyText(p: player, from: text, line: text):
-	{_line} is not ""
-	send colored "&d✉ %{_from}%: &f%{_line}%" to {_p}
-	play sound "block.note_block.bit" with volume 0.7 and pitch 1.6 to {_p}
-	msgSave({_p}, {_from}, {_line})
+	msgPost({_p}, {_from}, {_line}, "text")
+
+# Said in person only (talking to an NPC, Mara's talk lines, a call, the inmates, the course): chat, never kept.
+function storySay(p: player, from: text, line: text):
+	msgPost({_p}, {_from}, {_line}, "say")
+
+# A mission's (or a contract's) brief, one per start: kept on the phone either way (as read when said in person).
+function storyKeep(p: player, from: text, line: text):
+	msgPost({_p}, {_from}, {_line}, "keep")
 
 # ---------- What the map has (needs) ----------
 
@@ -513,9 +518,9 @@ function storyStartText(p: player, id: text, skipped: number):
 	set {_label} to {-cfg::story::%{_id}%::label}
 	set {_from} to storyFrom({_id})
 	if {_skipped} > 0:
-		storyText({_p}, {-cfg::chain::%{_c}%::from}, "Heard you know your way around. Skipping ahead to: %{_label}%.")
+		storyKeep({_p}, {-cfg::chain::%{_c}%::from}, "Heard you know your way around. Skipping ahead to: %{_label}%.")
 	else:
-		storyText({_p}, {_from}, storyBrief({_p}, {_id}))
+		storyKeep({_p}, {_from}, storyBrief({_p}, {_id}))
 		# A talk mission whose giver isn't on the map: how to reach them.
 		set {_k} to {-cfg::chain::%{_c}%::giver}
 		if storyObj({_id}) is "talk|%{_k}%":
@@ -979,7 +984,7 @@ function storyTalkKind(p: player, k: text):
 			stop
 		set {-story::talking::%{_p}%} to true
 		loop {-cfg::story::%{_id}%::talk::*}:
-			storyText({_p}, storyFrom({_id}), loop-value)
+			storySay({_p}, storyFrom({_id}), loop-value)
 			wait 2 seconds
 			if {_p} is not online:
 				delete {-story::talking::%{_p}%}

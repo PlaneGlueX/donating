@@ -494,7 +494,10 @@ final class Paths {
 
     // ---------- /dphone path ----------
 
-    List<String> complete(String[] a) {
+    /** Tab completion for /dphone path (args as /dphone gets them; me = the player asking, or null). Node ids for link,
+     *  unlink and remove are the 20 nearest to the player in their world (any 20 for the console); addat gets the
+     *  worlds, then the player's own block coordinates, then id=, nolink. */
+    List<String> complete(String[] a, Player me) {
         if (a.length == 2) return List.of("add", "addat", "link", "unlink", "remove", "list", "show", "near", "clear", "dump", "info");
         String sub = a[1].toLowerCase();
         if (a.length == 3 && (sub.equals("addat") || sub.equals("clear") || sub.equals("list") || sub.equals("dump"))) {
@@ -505,6 +508,22 @@ final class Paths {
         if (a.length == 3 && sub.equals("show")) return List.of("on", "off");
         if (a.length == 3 && sub.equals("add")) return List.of("--nolink");
         if (a.length == 4 && sub.equals("clear")) return List.of("confirm");
+        if ((a.length == 3 && sub.equals("remove")) || ((a.length == 3 || a.length == 4) && (sub.equals("link") || sub.equals("unlink")))) {
+            List<Node> list = new ArrayList<>();
+            for (Node d : nodes.values()) if (me == null || d.world.equals(me.getWorld().getName())) list.add(d);
+            if (me != null) {
+                Location l = me.getLocation();
+                list.sort(java.util.Comparator.comparingDouble(d -> (d.x - l.getX()) * (d.x - l.getX()) + (d.y - l.getY()) * (d.y - l.getY()) + (d.z - l.getZ()) * (d.z - l.getZ())));
+            }
+            List<String> out = new ArrayList<>();
+            for (Node d : list) { if (out.size() >= 20) break; out.add(String.valueOf(d.id)); }
+            return out;
+        }
+        if (sub.equals("addat") && me != null && a.length >= 4 && a.length <= 6) {
+            Location l = me.getLocation();
+            return List.of(String.valueOf(a.length == 4 ? l.getBlockX() : a.length == 5 ? l.getBlockY() : l.getBlockZ()));
+        }
+        if (sub.equals("addat") && a.length >= 7) return List.of("id=", "nolink");
         return List.of();
     }
 

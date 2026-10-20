@@ -18,7 +18,7 @@ const SKINS = path.join(ROOT, 'server', 'plugins', 'Citizens', 'skins')
 const SAVES = path.join(ROOT, 'server', 'plugins', 'Citizens', 'saves.yml')
 const LOG = path.join(ROOT, 'server', 'logs', 'latest.log')
 const SK = path.join(ROOT, 'server', 'plugins', 'Skript', 'scripts', 'skins.sk')
-const IDS = ['mara', 'boss', 'vic', 'broker', 'gun', 'gear', 'bag', 'tools', 'cars', 'garage', 'vinnie', 'dmitri', 'sal', 'rico', 'pike', 'lena', 'guard']
+const IDS = ['mara', 'boss', 'vic', 'broker', 'gun', 'gear', 'bag', 'tools', 'cars', 'garage', 'vinnie', 'dmitri', 'sal', 'rico', 'pike', 'lena', 'guard', 'lefty', 'rusty', 'tank', 'whisper', 'jailguard', 'jailshop']
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 // A minimal PNG decoder (8-bit RGB or RGBA, not interlaced): the pixels as RGBA.

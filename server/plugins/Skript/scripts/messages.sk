@@ -1,6 +1,18 @@
-# messages.sk: the phone's Messages app (2026-09-28; CLAUDE.md's ideas: "a phone Messages app"). Every text a contact
-# sends (story.sk's storyText: Mara's missions, the Boss's and Mara's side jobs, Vic, the Broker) is kept in the player's
-# inbox, so a text that scrolled away in chat can be read again.
+# messages.sk: the phone's Messages app (2026-09-28; CLAUDE.md's ideas: "a phone Messages app"). Reworked 2026-10-19
+# (owner: "redo the message system, theres alot of spam when the quest messages get put into the phone messages"): the
+# phone keeps only what a contact would really text (story.sk's storyText / storySay / storyKeep call msgPost):
+#   - "say": said in person (talking to an NPC, Mara's talk lines, a call, the inmates, the course): the whole line in
+#     chat ("Mara: ..."), never kept.
+#   - "text" (storyText): said in person while the player stands within messages::near (10) blocks of that contact's
+#     quest giver (core.sk msgcontact::<key>::kind); else a text: kept, and chat gets one short notice
+#     ("✉ Mara: <first words>… · /messages").
+#   - "keep" (a mission's brief or "Skipping ahead", a hit contract's brief: one per start): like "text", but said in
+#     person it's also kept, as read (unless an older text from that contact is still unread: then it's new too), so
+#     every mission has its text on the phone.
+#   - One contact's lines within messages::join-window (1 s) are ONE text (a mission's done line and the next brief;
+#     a job's done line and the rep line), a line already in it is left out; the same text from the same contact within
+#     messages::dedupe (30 min) isn't kept again (its notice still shows). So the unread count is per text, not per line.
+#   - Old inboxes (every line was kept before) are tidied once at a join (msgCompact, data inbox-v 2).
 #   - Saved per player: data inbox-n (the newest text's number), inbox::<n>::at (unix), ::from, ::text; only the newest
 #     cfg messages::keep (60) are kept. data inbox-seen::<contact> = the newest number read from that contact (a
 #     contact's key is its name in lower case without spaces: "mara", "boss").
@@ -37,8 +49,8 @@ function msgNewest(p: player) :: number:
 function msgOldest(p: player) :: number:
 	return max(1, msgNewest({_p}) - msgKeep() + 1)
 
-# story.sk's storyText: one text from a contact, saved.
-function msgSave(p: player, from: text, line: text):
+# One text kept in the inbox (msgFlush; the oldest past messages::keep goes). Returns its number.
+function msgSave(p: player, from: text, line: text) :: number:
 	set {_n} to msgNewest({_p}) + 1
 	setData({_p}, "inbox-n", {_n})
 	setData({_p}, "inbox::%{_n}%::at", floor(unix timestamp of now))
@@ -49,6 +61,250 @@ function msgSave(p: player, from: text, line: text):
 		deleteData({_p}, "inbox::%{_old}%::at")
 		deleteData({_p}, "inbox::%{_old}%::from")
 		deleteData({_p}, "inbox::%{_old}%::text")
+	return {_n}
+
+# ---------- Sending (story.sk's storyText, storySay, storyKeep) ----------
+
+# Whether the player stands with the contact (within messages::near blocks of a quest giver of the contact's kind).
+function msgInPerson(p: player, key: text) :: boolean:
+	if {_p} is not online:
+		return false
+	set {_kind} to {-cfg::msgcontact::%{_key}%::kind}
+	if {_kind} is not set:
+		return false
+	set {_r} to {-cfg::messages::near}
+	if {_r} is not set:
+		set {_r} to 10
+	set {_w} to "%world of {_p}%"
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_kind}:
+			if {_a::2} is {_w}:
+				set {_l} to questLoc(loop-index)
+				if {_l} is set:
+					if distance between (location of {_p}) and {_l} <= {_r}:
+						return true
+	return false
+
+# A line said in person: the whole line in chat, nothing kept.
+function msgSpeak(p: player, from: text, line: text):
+	send colored "&d%{_from}%&7: &f%{_line}%" to {_p}
+	play sound "block.note_block.bit" with volume 0.7 and pitch 1.6 to {_p}
+
+# A text's first words for its chat notice (messages::preview characters at most).
+function msgPreview(t: text) :: text:
+	set {_max} to {-cfg::messages::preview}
+	if {_max} is not set:
+		set {_max} to 60
+	if length of {_t} <= {_max}:
+		return {_t}
+	set {_out} to ""
+	set {_full} to false
+	loop {_t} split at " ":
+		if {_full} is false:
+			set {_try} to loop-value
+			if {_out} is not "":
+				set {_try} to "%{_out}% %loop-value%"
+			if length of {_try} > {_max} - 1:
+				set {_full} to true
+			else:
+				set {_out} to {_try}
+	if {_out} is "":
+		set {_out} to first ({_max} - 1) characters of {_t}
+	# A color code cut in half.
+	if {_out} ends with "&":
+		set {_out} to first (length of {_out} - 1) characters of {_out}
+	return "%{_out}%…"
+
+# The one chat line a kept text gets.
+function msgNotice(p: player, from: text, t: text):
+	send colored "&d✉ %{_from}%: &f%msgPreview({_t})% &7· /messages" to {_p}
+	play sound "block.note_block.bit" with volume 0.7 and pitch 1.6 to {_p}
+
+# Whether the contact sent this text within messages::dedupe seconds (it isn't kept again).
+function msgRecent(p: player, key: text, t: text) :: boolean:
+	set {_win} to {-cfg::messages::dedupe}
+	if {_win} is not set:
+		set {_win} to 1800
+	set {_since} to floor(unix timestamp of now) - {_win}
+	set {_last} to msgNewest({_p})
+	if {_last} < 1:
+		return false
+	loop integers from msgOldest({_p}) to {_last}:
+		if msgAt({_p}, loop-value) >= {_since}:
+			if msgKey(msgFrom({_p}, loop-value)) is {_key}:
+				if msgText({_p}, loop-value) is {_t}:
+					return true
+	return false
+
+# A line from a contact: kind "say" (in person only), "text" (in person: said; else kept, with a notice) or "keep"
+# (kept either way: as read when said in person). Kept lines wait messages::join-window so a burst is one text.
+function msgPost(p: player, from: text, line: text, kind: text):
+	{_line} is not ""
+	set {_k} to msgKey({_from})
+	if {_kind} is "say":
+		msgSpeak({_p}, {_from}, {_line})
+		stop
+	set {_near} to msgInPerson({_p}, {_k})
+	if {_near} is true:
+		msgSpeak({_p}, {_from}, {_line})
+		if {_kind} is not "keep":
+			stop
+	set {_u} to "%uuid of {_p}%"
+	# A burst whose flush never came (a script reload drops its wait): kept now, this line starts a new one.
+	set {_b} to {-msg::bufat::%{_u}%::%{_k}%}
+	if {_b} is set:
+		if difference between {_b} and now > 5 seconds:
+			msgFlush({_p}, {_k})
+	loop {-msg::buf::%{_u}%::%{_k}%::*}:
+		if loop-value is {_line}:
+			stop
+	add {_line} to {-msg::buf::%{_u}%::%{_k}%::*}
+	set {-msg::buffrom::%{_u}%::%{_k}%} to {_from}
+	if {_near} is false:
+		set {-msg::bufnew::%{_u}%::%{_k}%} to true
+	{-msg::bufat::%{_u}%::%{_k}%} is not set
+	set {-msg::bufat::%{_u}%::%{_k}%} to now
+	msgFlushLater({_p}, {_k})
+
+function msgFlushLater(p: player, key: text):
+	set {_w} to {-cfg::messages::join-window}
+	if {_w} is not set:
+		set {_w} to 1 second
+	wait {_w}
+	msgFlush({_p}, {_key})
+
+# The contact's pending lines as one text: kept (unless a repeat), a notice when any line came while away.
+function msgFlush(p: player, key: text):
+	set {_u} to "%uuid of {_p}%"
+	{-msg::bufat::%{_u}%::%{_key}%} is set
+	delete {-msg::bufat::%{_u}%::%{_key}%}
+	set {_lines::*} to {-msg::buf::%{_u}%::%{_key}%::*}
+	set {_from} to {-msg::buffrom::%{_u}%::%{_key}%}
+	set {_new} to {-msg::bufnew::%{_u}%::%{_key}%}
+	delete {-msg::buf::%{_u}%::%{_key}%::*}
+	delete {-msg::buffrom::%{_u}%::%{_key}%}
+	delete {-msg::bufnew::%{_u}%::%{_key}%}
+	{_from} is set
+	size of {_lines::*} > 0
+	set {_t} to join {_lines::*} with " "
+	if msgRecent({_p}, {_key}, {_t}) is true:
+		if {_new} is true:
+			msgNotice({_p}, {_from}, {_t})
+		stop
+	set {_n} to msgSave({_p}, {_from}, {_t})
+	if {_new} is true:
+		msgNotice({_p}, {_from}, {_t})
+	else:
+		# Said in person (a brief): kept, already read, but only when nothing older from that contact is unread
+		# (inbox-seen is a high-water mark: moving it would mark those read too; then the brief shows new with them).
+		if msgUnread({_p}, {_key}) is 1:
+			setData({_p}, "inbox-seen::%{_key}%", {_n})
+
+# Every pending text out now (quitting; tests).
+function msgFlushAll(p: player):
+	set {_u} to "%uuid of {_p}%"
+	loop {-msg::bufat::%{_u}%::*}:
+		add loop-index to {_keys::*}
+	loop {_keys::*}:
+		msgFlush({_p}, loop-value)
+
+# ---------- Old inboxes (before 2026-10-19 every line was kept) ----------
+
+# Once per player (data inbox-v 2): lines that were only ever said in person go (Mara's talk lines, "N for you. Check
+# /jobs.", the inmates' own lines: Lefty keeps his missions' texts), one contact's texts within 5 s of each other become
+# one text, and a text the same contact sent within messages::dedupe before is dropped. What was read stays read.
+function msgCompact(p: player):
+	set {_v} to getData({_p}, "inbox-v")
+	if {_v} is set:
+		if {_v} >= 2:
+			stop
+	setData({_p}, "inbox-v", 2)
+	set {_last} to msgNewest({_p})
+	if {_last} < 1:
+		stop
+	set {_win} to {-cfg::messages::dedupe}
+	if {_win} is not set:
+		set {_win} to 1800
+	# What was said in person, and what a mission texts.
+	loop {-cfg::story::chains::*}:
+		loop storyList(loop-value):
+			set {_id} to loop-value-2
+			loop {-cfg::story::%{_id}%::talk::*}:
+				set {_said::%loop-value-3%} to true
+			loop "brief", "brief-escaped" and "done":
+				set {_x} to {-cfg::story::%{_id}%::%loop-value-3%}
+				if {_x} is set:
+					set {_mission::%{_x}%} to true
+	set {_m} to 0
+	loop integers from msgOldest({_p}) to {_last}:
+		set {_i} to loop-value
+		set {_f} to msgFrom({_p}, {_i})
+		set {_t} to msgText({_p}, {_i})
+		set {_ok} to true
+		if {_f} is "":
+			set {_ok} to false
+		else if {_t} is "":
+			set {_ok} to false
+		else if {_said::%{_t}%} is true:
+			set {_ok} to false
+		else if {_t} ends with "for you. Check /jobs.":
+			set {_ok} to false
+		set {_k} to msgKey({_f})
+		if {_ok} is true:
+			if {_k} is "lefty", "rusty", "tank" or "whisper":
+				if {_mission::%{_t}%} is not true:
+					set {_ok} to false
+		if {_ok} is true:
+			set {_at} to msgAt({_p}, {_i})
+			set {_read} to false
+			if {_i} <= msgSeen({_p}, {_k}):
+				set {_read} to true
+			set {_merged} to false
+			if {_m} > 0:
+				if {_ck::%{_m}%} is {_k}:
+					if {_at} - {_cat::%{_m}%} <= 5:
+						set {_merged} to true
+						set {_prev} to {_ct::%{_m}%}
+						if {_prev} does not contain {_t}:
+							set {_ct::%{_m}%} to "%{_prev}% %{_t}%"
+						set {_cat::%{_m}%} to {_at}
+						if {_read} is false:
+							set {_cread::%{_m}%} to false
+			if {_merged} is false:
+				set {_dup} to false
+				loop {_m} times:
+					set {_j} to loop-value-2
+					if {_ck::%{_j}%} is {_k}:
+						if {_ct::%{_j}%} is {_t}:
+							if {_at} - {_cat::%{_j}%} <= {_win}:
+								set {_dup} to true
+				if {_dup} is false:
+					add 1 to {_m}
+					set {_ck::%{_m}%} to {_k}
+					set {_cf::%{_m}%} to {_f}
+					set {_ct::%{_m}%} to {_t}
+					set {_cat::%{_m}%} to {_at}
+					set {_cread::%{_m}%} to {_read}
+	delete {data::%{_p}%::inbox::*}
+	delete {data::%{_p}%::inbox-seen::*}
+	setData({_p}, "inbox-n", {_m})
+	loop {_m} times:
+		set {_j} to loop-number
+		setData({_p}, "inbox::%{_j}%::at", {_cat::%{_j}%})
+		setData({_p}, "inbox::%{_j}%::from", {_cf::%{_j}%})
+		setData({_p}, "inbox::%{_j}%::text", {_ct::%{_j}%})
+		# A contact's texts are read up to the first unread one.
+		set {_kk} to {_ck::%{_j}%}
+		if {_unread::%{_kk}%} is not set:
+			if {_cread::%{_j}%} is true:
+				setData({_p}, "inbox-seen::%{_kk}%", {_j})
+			else:
+				set {_unread::%{_kk}%} to true
+	msgLog("compact %{_p}% %uuid of {_p}% %{_last}% -> %{_m}%")
+
+function msgLog(line: text):
+	log {_line} to "messages"
 
 # One text's parts (keys built in a local first: a quoted text with its own %...% can't sit inside %...%).
 function msgAt(p: player, n: number) :: number:
@@ -323,11 +579,13 @@ on inventory close:
 	msgClear(player)
 
 on quit:
+	msgFlushAll(player)
 	msgClear(player)
 	delete {-msg::gen::%player%}
 
-# A reminder at a join when texts wait.
+# Old inboxes tidied once; a reminder at a join when texts wait.
 on join:
+	msgCompact(player)
 	wait 6 seconds
 	player is online
 	set {_n} to msgUnreadAll(player)

@@ -152,7 +152,7 @@ function jcBar(p: player, s: text) :: text:
 		set {_t} to "Out through the SECURITY door"
 	return "&e&lTUTORIAL&r &7· %{_t}%"
 
-# ---------- The sleeping guard (a mannequin, the police skin) ----------
+# ---------- The sleeping guard (a mannequin, the prison guard skin: skins.sk jailGuardSkinId) ----------
 
 function jcGuardCheck():
 	jailOn() is true
@@ -160,23 +160,22 @@ function jcGuardCheck():
 	{_l} is set
 	chunk at {_l} is loaded
 	set {_n} to 0
+	# One summoned with an older skin (no skins.sk skinLook tag) is replaced.
+	set {_look} to skinLook()
 	loop all entities in radius 3 around {_l}:
 		if loop-entity has scoreboard tag "jail_guard":
-			add 1 to {_n}
-			if {_n} > 1:
+			if loop-entity has scoreboard tag {_look}:
+				add 1 to {_n}
+				if {_n} > 1:
+					kill loop-entity
+			else:
 				kill loop-entity
 	{_n} is 0
-	set {_prof} to ""
-	set {_t} to {-cfg::cop::skin-texture}
-	set {_s} to {-cfg::cop::skin-signature}
-	if {_t} is set:
-		if {_s} is set:
-			if {_t} is not "":
-				set {_prof} to ",profile:{properties:[{name:""textures"",value:""%{_t}%"",signature:""%{_s}%""}]}"
+	set {_prof} to skinProfile(jailGuardSkinId())
 	set {_x} to x-coordinate of {_l}
 	set {_y} to y-coordinate of {_l}
 	set {_z} to z-coordinate of {_l}
-	execute console command "execute in %worldDim(world of {_l})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_jail"",""jail_guard""],Invulnerable:1b,immovable:1b,hide_description:1b,CustomName:""Guard"",CustomNameVisible:0b,pose:""crouching""%{_prof}%,Rotation:[0f,0f]}"
+	execute console command "execute in %worldDim(world of {_l})% run summon minecraft:mannequin %{_x}% %{_y}% %{_z}% {Tags:[""donating_jail"",""jail_guard"",""%{_look}%""],Invulnerable:1b,immovable:1b,hide_description:1b,CustomName:""Guard"",CustomNameVisible:0b,pose:""crouching""%{_prof}%,Rotation:[0f,0f]}"
 	jcLog("guard summoned")
 
 # ---------- The steps (every 5 ticks) ----------
@@ -200,7 +199,7 @@ function jcWake(p: player):
 function jcRusty(p: player):
 	jcSet({_p}, "hotbar")
 	set {-jc::knifeat::%uuid of {_p}%} to now
-	storyText({_p}, "Rusty", "Took you long enough. Name's Rusty.")
+	storySay({_p}, "Rusty", "Took you long enough. Name's Rusty.")
 	wait 2 seconds
 	{_p} is online
 	# Still on this step of the course (a /tutorial stop in the 2 s ends it: no knife, no unlock, no prompt; review fix).
@@ -211,7 +210,7 @@ function jcRusty(p: player):
 		set {_s} to jcKnifeSlot({_p})
 		if {_s} >= 0:
 			equipWeapon({_p}, "Combat_Knife", {_s})
-	storyText({_p}, "Rusty", "Here, a knife. Press %jcKnifeKey({_p})% to hold it.")
+	storySay({_p}, "Rusty", "Here, a knife. Press %jcKnifeKey({_p})% to hold it.")
 	jcPrompt({_p}, "hotbar")
 	jcLog("course-knife %{_p}% key=%jcKnifeKey({_p})%")
 
@@ -297,11 +296,11 @@ function jcPass(p: player):
 	else if {_s} is "hotbar":
 		if wmTitle(tool of {_p}) is "Combat_Knife":
 			jcSet({_p}, "phone")
-			storyText({_p}, "Rusty", "Your phone's in slot 9: press 9 and right-click to open the map. Out in the city it's your GPS; F opens the apps. The door opens from in here when you walk up to it.")
+			storySay({_p}, "Rusty", "Your phone's in slot 9: press 9 and right-click to open the map. Out in the city it's your GPS; F opens the apps. The door opens from in here when you walk up to it.")
 	else if {_s} is "phone":
 		if {_p} has scoreboard tag "donating_phone_open":
 			jcSet({_p}, "office")
-			storyText({_p}, "Rusty", "Good. The Security Office is down the hall, same keycard. Up the ladder and you're in the main block.")
+			storySay({_p}, "Rusty", "Good. The Security Office is down the hall, same keycard. Up the ladder and you're in the main block.")
 			jailDoorPulse("rusty", jailDoorSecs())
 	else if {_s} is "office":
 		if jailZone("soup", {_l}) is true:

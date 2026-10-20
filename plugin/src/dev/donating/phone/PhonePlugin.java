@@ -694,53 +694,118 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 eye.getZ() + Math.cos(yaw) * Math.cos(pitch) * far, LookAnchor.EYES);
     }
 
-    /** Tab completion for /dphone (owner, 2026-09-27: every command completes its arguments). */
+    /** Tab completion for /dphone (owner, 2026-09-27: every command completes its arguments; 2026-10-19: "if the player
+     *  has permission for the command make sure it has the tab fill option so they can see all command arguments").
+     *  Every part at every position: the players the sender can see, the worlds, the sender's own block coordinates
+     *  where a part takes coordinates, the ids that exist now (places, walls, path nodes nearest first, driven plates,
+     *  personal-view entities nearby). Bukkit never asks without donating.phone.admin (the command's permission). */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         List<String> options = new ArrayList<>();
         List<String> players = new ArrayList<>();
         // Only the players the sender can see (EssentialsX vanish), like Bukkit's own name completion.
         for (Player p : Bukkit.getOnlinePlayers()) if (!(sender instanceof Player viewer) || viewer.canSee(p)) players.add(p.getName());
-        if (args.length == 1) {
+        List<String> worlds = new ArrayList<>();
+        for (World w : Bukkit.getWorlds()) worlds.add(w.getName());
+        Player me = sender instanceof Player p ? p : null;
+        int n = args.length; // the word being typed
+        String a0 = n > 0 ? args[0].toLowerCase() : "", a1 = n > 1 ? args[1].toLowerCase() : "";
+        boolean markTarget = n > 2 && !args[2].equalsIgnoreCase("off") && !args[2].equalsIgnoreCase("status");
+        if (n == 1) {
             options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
-        } else if (args.length == 2) {
-            switch (args[0].toLowerCase()) {
+        } else if (n == 2) {
+            switch (a0) {
                 case "status", "gps", "mark", "nametag", "melee", "zoom" -> options.addAll(players);
                 case "roads" -> options.addAll(List.of("info", "scan", "cancel", "show"));
                 case "city" -> options.addAll(List.of("info", "scan", "cancel", "use", "pixel", "remove"));
                 case "wall" -> options.addAll(List.of("create", "remove", "repair", "list"));
                 case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
+                // The plates driven now (CarStats changes a driven car).
+                case "carstat" -> { for (Player p : Bukkit.getOnlinePlayers()) { String pl = CarSmooth.driverPlate(p); if (pl != null) options.add(pl); } }
+                // Personal-view entities around the sender (pv.sk's displays).
+                case "pv" -> { if (me != null) for (Entity e : me.getNearbyEntities(32, 32, 32)) if (e.getScoreboardTags().contains("donating_pv")) options.add(e.getUniqueId().toString()); }
                 default -> { }
             }
-        } else if (args.length == 3) {
-            if (args[0].equalsIgnoreCase("gps")) options.addAll(List.of("set", "clear", "active"));
-            else if (args[0].equalsIgnoreCase("nametag")) options.addAll(players);
-            else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) options.addAll(players);
-            else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("use")) options.addAll(List.of("scan", "maps"));
-            else if (args[0].equalsIgnoreCase("city") && args[1].equalsIgnoreCase("remove")) options.addAll(others.keySet());
-            else if (args[0].equalsIgnoreCase("zoom")) for (int z : bigZooms) options.add(String.valueOf(z));
-            else if (args[0].equalsIgnoreCase("wall") && (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("repair"))) options.addAll(wallMaps.names());
-        } else if (args.length == 4) {
-            if (args[0].equalsIgnoreCase("gps")) {
+        } else if (n == 3) {
+            if (a0.equals("gps")) options.addAll(List.of("set", "clear", "active"));
+            else if (a0.equals("nametag")) options.addAll(players);
+            else if (a0.equals("roads") && a1.equals("show")) options.addAll(players);
+            else if (a0.equals("roads") && a1.equals("scan")) options.addAll(at(me, 'x'));
+            else if (a0.equals("city") && a1.equals("use")) options.addAll(List.of("scan", "maps"));
+            else if (a0.equals("city") && a1.equals("remove")) options.addAll(others.keySet());
+            else if (a0.equals("city") && a1.equals("pixel")) options.addAll(at(me, 'x'));
+            else if (a0.equals("zoom")) for (int z : bigZooms) options.add(String.valueOf(z));
+            else if (a0.equals("wall") && (a1.equals("remove") || a1.equals("repair"))) options.addAll(wallMaps.names());
+            else if (a0.equals("place") && (a1.equals("remove") || a1.equals("set"))) options.addAll(places.keySet());
+            else if (a0.equals("mark")) {
+                // off, status, or the entity the sender looks at (its uuid).
+                options.addAll(List.of("off", "status"));
+                Entity t = me == null ? null : me.getTargetEntity(16);
+                if (t != null) options.add(t.getUniqueId().toString());
+            }
+        } else if (n == 4) {
+            if (a0.equals("gps")) {
                 if (args[2].equalsIgnoreCase("active")) options.addAll(List.of("pin", "quest", "loot", "none"));
                 else options.addAll(List.of("pin", "quest", "loot"));
-            } else if (args[0].equalsIgnoreCase("roads") && args[1].equalsIgnoreCase("show")) {
-                options.addAll(List.of("on", "off"));
-            }
-        } else if (args.length == 5 && args[0].equalsIgnoreCase("gps") && args[2].equalsIgnoreCase("set")) {
-            for (org.bukkit.World w : Bukkit.getWorlds()) options.add(w.getName());
+            } else if (a0.equals("roads") && a1.equals("show")) options.addAll(List.of("on", "off"));
+            else if (a0.equals("roads") && a1.equals("scan")) options.addAll(at(me, 'z'));
+            else if (a0.equals("city") && a1.equals("pixel")) options.addAll(at(me, 'z'));
+            else if (a0.equals("wall") && a1.equals("create")) options.addAll(List.of("1", "2", "3", "4", "5", "6", "7", "8"));
+            else if (a0.equals("place") && a1.equals("set")) options.addAll(List.of("base", "shop", "spawn", "landmark", "garage", "quest", "heist0", "heist1", "heist2", "heist3", "heist4"));
+            else if (a0.equals("mark") && markTarget) options.addAll(List.of("red", "yellow", "green", "blue", "white", "purple", "orange", "#FF3B30"));
+        } else if (n == 5) {
+            if (a0.equals("gps") && args[2].equalsIgnoreCase("set")) options.addAll(worlds);
+            else if (a0.equals("roads") && a1.equals("scan")) options.addAll(at(me, 'x'));
+            else if (a0.equals("city") && a1.equals("pixel")) options.addAll(worlds);
+            else if (a0.equals("wall") && a1.equals("create")) options.addAll(List.of("1", "2", "3", "4", "5", "6", "7", "8"));
+            else if (a0.equals("place") && a1.equals("set")) options.addAll(worlds);
+            else if (a0.equals("mark") && markTarget) options.addAll(List.of("64", "128", "256"));
+        } else if (n == 6) {
+            if (a0.equals("gps") && args[2].equalsIgnoreCase("set")) options.addAll(List.of("8", "12"));
+            else if (a0.equals("roads") && a1.equals("scan")) options.addAll(at(me, 'z'));
+            else if (a0.equals("wall") && a1.equals("create")) options.addAll(worlds);
+            else if (a0.equals("place") && a1.equals("set")) options.addAll(at(me, 'x'));
+        } else if (n == 7) {
+            if (a0.equals("gps") && args[2].equalsIgnoreCase("set") && me != null) {
+                Location l = me.getLocation();
+                options.add(l.getBlockX() + "," + l.getBlockY() + "," + l.getBlockZ()); // x,y,z[;x,y,z...]
+            } else if (a0.equals("wall") && a1.equals("create")) options.addAll(at(me, 'x'));
+            else if (a0.equals("place") && a1.equals("set")) options.addAll(at(me, 'z'));
+        } else if (n == 8 && a0.equals("wall") && a1.equals("create")) options.addAll(at(me, 'y'));
+        else if (n == 9 && a0.equals("wall") && a1.equals("create")) options.addAll(at(me, 'z'));
+        else if (n == 10 && a0.equals("wall") && a1.equals("create")) options.addAll(List.of("north", "south", "east", "west"));
+        // city scan [x1 z1 x2 z2] [scale 0-4] [world] [confirm]: what can come after the numbers typed so far.
+        if (n >= 3 && a0.equals("city") && a1.equals("scan")) {
+            int nums = 0;
+            boolean word = false;
+            for (int i = 2; i < n - 1; i++) { if (!word && args[i].matches("-?\\d+")) nums++; else word = true; }
+            List<String> scales = List.of("0", "1", "2", "3", "4");
+            if (word) options.add("confirm");
+            else if (nums == 0) { options.addAll(at(me, 'x')); options.addAll(scales); options.addAll(worlds); }
+            else if (nums == 1) { options.addAll(at(me, 'z')); options.addAll(worlds); options.add("confirm"); }
+            else if (nums == 2) options.addAll(at(me, 'x'));
+            else if (nums == 3) options.addAll(at(me, 'z'));
+            else if (nums == 4) { options.addAll(scales); options.addAll(worlds); options.add("confirm"); }
+            else if (nums == 5) { options.addAll(worlds); options.add("confirm"); }
         }
-        if (args.length >= 2 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) options.addAll(carSmooth.complete(args, players));
-        if (args.length >= 2 && args[0].equalsIgnoreCase("steer")) options.addAll(carSmooth.steer.complete(args, players));
-        if (args.length >= 2 && args[0].equalsIgnoreCase("cam")) options.addAll(carCam.complete(args, players));
-        if (args.length >= 2 && args[0].equalsIgnoreCase("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
-        if (args.length >= 2 && args[0].equalsIgnoreCase("path")) options.addAll(gps.paths.complete(args));
-        if (args.length == 2 && args[0].equalsIgnoreCase("gunfx")) options.add("spin");
-        if (args.length == 3 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) options.addAll(players);
-        String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
-        List<String> out = new ArrayList<>();
+        if (n >= 2 && (a0.equals("carsmooth") || a0.equals("carprobe") || a0.equals("carbundle"))) options.addAll(carSmooth.complete(args, players));
+        if (n >= 2 && a0.equals("steer")) options.addAll(carSmooth.steer.complete(args, players));
+        if (n >= 2 && a0.equals("cam")) options.addAll(carCam.complete(args, players));
+        if (n >= 2 && a0.equals("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
+        if (n >= 2 && a0.equals("path")) options.addAll(gps.paths.complete(args, me));
+        if (n == 2 && a0.equals("gunfx")) options.add("spin");
+        if (n == 3 && a0.equals("gunfx") && a1.equals("spin")) options.addAll(players);
+        String typed = n == 0 ? "" : args[n - 1].toLowerCase();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
         for (String o : options) if (o.toLowerCase().startsWith(typed)) out.add(o);
-        return out;
+        return new ArrayList<>(out);
+    }
+
+    /** The sender's own block coordinate on one axis, for a part that takes coordinates (nothing for the console). */
+    private static List<String> at(Player me, char axis) {
+        if (me == null) return List.of();
+        Location l = me.getLocation();
+        return List.of(String.valueOf(axis == 'x' ? l.getBlockX() : axis == 'y' ? l.getBlockY() : l.getBlockZ()));
     }
 
     /** Car mods (CarStats), made at first use: MTVehicles may load after this plugin. */
