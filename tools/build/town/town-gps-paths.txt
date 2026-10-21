@@ -1,0 +1,142 @@
+# The town's GPS paths (45 nodes, 49 links), made by `node tools/build/town.js gps` from the town modules.
+# Run every line that isn't a comment, in order, AFTER tools/jail-gps-paths.txt: its first line clears the world's graph, and
+# the spine starts at the prison's node 187 (LOT_EXIT). The remove lines make a second run safe (an existing id is refused).
+dphone path remove 1001
+dphone path remove 1002
+dphone path remove 1003
+dphone path remove 1050
+dphone path remove 1004
+dphone path remove 1005
+dphone path remove 1006
+dphone path remove 1007
+dphone path remove 1008
+dphone path remove 1009
+dphone path remove 1010
+dphone path remove 1011
+dphone path remove 1012
+dphone path remove 1013
+dphone path remove 1014
+dphone path remove 1015
+dphone path remove 1016
+dphone path remove 1017
+dphone path remove 1018
+dphone path remove 1019
+dphone path remove 1020
+dphone path remove 1021
+dphone path remove 1022
+dphone path remove 1023
+dphone path remove 1024
+dphone path remove 1025
+dphone path remove 1026
+dphone path remove 1027
+dphone path remove 1028
+dphone path remove 1029
+dphone path remove 1030
+dphone path remove 1031
+dphone path remove 1040
+dphone path remove 1041
+dphone path remove 1042
+dphone path remove 1043
+dphone path remove 1044
+dphone path remove 1045
+dphone path remove 1046
+dphone path remove 1047
+dphone path remove 1048
+dphone path remove 1049
+dphone path remove 1051
+dphone path remove 1052
+dphone path remove 1053
+dphone path addat jailbreak 260.5 65 426.5 id=1001 nolink HIGHWAY_GATE
+dphone path addat jailbreak 448.5 65 426.5 id=1002 nolink JUNCTION
+dphone path addat jailbreak 448.5 65 490.5 id=1003 nolink APPROACH
+dphone path addat jailbreak 448.5 65 502.5 id=1050 nolink CLIMB
+dphone path addat jailbreak 448.5 71 550.5 id=1004 nolink TUNNEL_N
+dphone path addat jailbreak 448.5 71 614.5 id=1005 nolink TUNNEL_S
+dphone path addat jailbreak 448.5 65 688.5 id=1006 nolink BRIDGE_N
+dphone path addat jailbreak 448.5 65 730.5 id=1007 nolink MAIN_N
+dphone path addat jailbreak 448.5 65 790.5 id=1008 nolink MAIN_SHOPS
+dphone path addat jailbreak 448.5 65 853.5 id=1009 nolink MAIN_1ST
+dphone path addat jailbreak 448.5 65 925.5 id=1010 nolink MAIN_GAS
+dphone path addat jailbreak 448.5 65 997.5 id=1011 nolink MAIN_2ND
+dphone path addat jailbreak 448.5 65 1055.5 id=1012 nolink MAIN_DEALER
+dphone path addat jailbreak 448.5 65 1117.5 id=1013 nolink MAIN_HILL
+dphone path addat jailbreak 360.5 65 853.5 id=1014 nolink
+dphone path addat jailbreak 520.5 65 853.5 id=1015 nolink
+dphone path addat jailbreak 295 65 861 id=1016 nolink NW_CORNER
+dphone path addat jailbreak 561 65 861 id=1017 nolink NE_CORNER
+dphone path addat jailbreak 288 65 911.5 id=1018 nolink ELM_SAFEHOUSE
+dphone path addat jailbreak 288 65 997.5 id=1019 nolink ELM_2ND
+dphone path addat jailbreak 288 65 1060.5 id=1020 nolink
+dphone path addat jailbreak 295 65 1111 id=1021 nolink SW_CORNER
+dphone path addat jailbreak 337.5 65 1117.5 id=1022 nolink HILL_BIRCH
+dphone path addat jailbreak 520.5 65 1117.5 id=1023 nolink
+dphone path addat jailbreak 561 65 1111 id=1024 nolink SE_CORNER
+dphone path addat jailbreak 568 65 925.5 id=1025 nolink
+dphone path addat jailbreak 568 65 997.5 id=1026 nolink EAST_2ND
+dphone path addat jailbreak 568 65 1053.5 id=1027 nolink EAST_SCRAP
+dphone path addat jailbreak 360.5 65 997.5 id=1028 nolink
+dphone path addat jailbreak 520.5 65 997.5 id=1029 nolink
+dphone path addat jailbreak 337.5 65 1160.5 id=1030 nolink
+dphone path addat jailbreak 337.5 65 1176.5 id=1031 nolink BIRCH_CIRCLE
+dphone path addat jailbreak 476.5 65 802.5 id=1040 nolink GUN_SHOP
+dphone path addat jailbreak 431.5 65 804.5 id=1041 nolink DONUT
+dphone path addat jailbreak 352.5 65 830.5 id=1042 nolink GARAGE
+dphone path addat jailbreak 392.5 65 907.5 id=1043 nolink GAS
+dphone path addat jailbreak 468.5 65 885.5 id=1044 nolink GEAR_SHOP
+dphone path addat jailbreak 468.5 65 926.5 id=1045 nolink BAG_SHOP
+dphone path addat jailbreak 501.5 65 1072.5 id=1046 nolink DEALER
+dphone path addat jailbreak 267.5 65 911.5 id=1047 nolink SAFEHOUSE
+dphone path addat jailbreak 584.5 65 1053.5 id=1048 nolink SCRAP_YARD
+dphone path addat jailbreak 402.5 65 953.5 id=1049 nolink GAS_FORECOURT
+dphone path addat jailbreak 499.5 65 1117.5 id=1051 nolink HILL_STAIRS
+dphone path addat jailbreak 499.5 65 1128.5 id=1052 nolink STAIRS_FOOT
+dphone path addat jailbreak 499.5 85 1176.5 id=1053 nolink WATER_TOWER
+dphone path link 187 1001
+dphone path link 1001 1002
+dphone path link 1002 1003
+dphone path link 1003 1050
+dphone path link 1050 1004
+dphone path link 1004 1005
+dphone path link 1005 1006
+dphone path link 1006 1007
+dphone path link 1007 1008
+dphone path link 1008 1009
+dphone path link 1009 1010
+dphone path link 1010 1011
+dphone path link 1011 1012
+dphone path link 1012 1013
+dphone path link 1009 1014
+dphone path link 1014 1016
+dphone path link 1016 1018
+dphone path link 1018 1019
+dphone path link 1019 1020
+dphone path link 1020 1021
+dphone path link 1021 1022
+dphone path link 1022 1013
+dphone path link 1023 1024
+dphone path link 1024 1027
+dphone path link 1027 1026
+dphone path link 1026 1025
+dphone path link 1025 1017
+dphone path link 1017 1015
+dphone path link 1015 1009
+dphone path link 1011 1028
+dphone path link 1028 1019
+dphone path link 1011 1029
+dphone path link 1029 1026
+dphone path link 1022 1030
+dphone path link 1030 1031
+dphone path link 1040 1008
+dphone path link 1041 1008
+dphone path link 1042 1014
+dphone path link 1043 1049
+dphone path link 1049 1010
+dphone path link 1044 1010
+dphone path link 1045 1010
+dphone path link 1046 1012
+dphone path link 1047 1018
+dphone path link 1048 1027
+dphone path link 1013 1051
+dphone path link 1051 1023
+dphone path link 1051 1052
+dphone path link 1052 1053
