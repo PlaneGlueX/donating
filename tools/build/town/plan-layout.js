@@ -77,7 +77,7 @@ const CIRCLE = { cx: 338, cz: 1186, r: 16, walk: 3 } // Birch Court's turning ci
 // Curb cuts [x1, z1, x2, z2]: sidewalk cells with no curb slab where a lot or a driveway meets the street (the module
 // behind paves its side right up to the sidewalk there).
 const DRIVEWAYS = [
-  [433, 744, 436, 757], [433, 829, 436, 838], // donut: the lot, the drive-thru exit (Main, west side)
+  [433, 744, 436, 757], // donut: the lot (Main, west side)
   [433, 868, 436, 879], [433, 952, 436, 963], // gas station forecourt in and out
   [461, 744, 464, 757], // gun shop lot (Main, east side)
   [461, 1020, 464, 1031], [461, 1080, 464, 1091], // dealer lot

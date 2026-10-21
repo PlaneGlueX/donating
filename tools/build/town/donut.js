@@ -1,7 +1,7 @@
 'use strict'
-// donut: the Donut Shop (a store), its drive-thru, its lot, the menu board and the giant roof donut
-// (tools/build/town/PLAN.md section 6.2). Box x 386..432, z 730..842, every y; world `jailbreak`, ground y 64.
-// Looks from the wiki pictures donut_current, donut_front, donut_drivethru, donut_interior, donut_wide_with_garage.
+// donut: the Donut Shop (a store), its lot and the giant roof donut (tools/build/town/PLAN.md section 6.2). Box x 386..432,
+// z 730..842, every y; world `jailbreak`, ground y 64. Looks from the wiki pictures donut_current, donut_front,
+// donut_interior, donut_wide_with_garage. No drive-thru (owner, 2026-10-21: builds are practical; everyone walks in to rob it).
 //   node tools/build/town/donut.js                 -> blocks and bounds
 //   node tools/build/town/donut.js --render <dir>  -> preview PNGs (top, plans, iso, elevations; preview-only ground)
 // Ids are the 26.1.2 server's (no concrete or terracotta stairs or slabs). Nothing here reads blocks.
@@ -82,7 +82,7 @@ const CIRCLE = { cx: 338, cz: 1186, r: 16, walk: 3 } // Birch Court's turning ci
 // Curb cuts [x1, z1, x2, z2]: sidewalk cells with no curb slab where a lot or a driveway meets the street (the module
 // behind paves its side right up to the sidewalk there).
 const DRIVEWAYS = [
-  [433, 744, 436, 757], [433, 829, 436, 838], // donut: the lot, the drive-thru exit (Main, west side)
+  [433, 744, 436, 757], // donut: the lot (Main, west side)
   [433, 868, 436, 879], [433, 952, 436, 963], // gas station forecourt in and out
   [461, 744, 464, 757], // gun shop lot (Main, east side)
   [461, 1020, 464, 1031], [461, 1080, 464, 1091], // dealer lot
@@ -418,20 +418,15 @@ const RF = (x, y, z) => pick(x, y, z, ROOFMIX)
 
 // ---- the plan's numbers (PLAN 6.2) ----------------------------------------------------------------------------------
 const SHOP = { x1: 401, x2: 430, z1: 782, z2: 827 }        // walls y 64..73, floor y 64, ceiling y 73
-const ROOF = { x1: 400, x2: 432, z1: 781, z2: 842, y: 74 } // the deck over the shop and the drive-thru canopy (2 over the
-                                                            // storefront, 1 elsewhere; quartz soffit wherever it's outside)
-const LANE = { z1: 829, z2: 838 }                           // the drive-thru lane, x 386..432 (roofed over x 400..431)
-const PILLARS = [402, 412, 428]                             // the canopy's 2x2 pillars at x p..p+1, z 840..841 (the middle
-                                                            // one between the drive-thru windows' frames, x 410..414)
+const ROOF = { x1: 400, x2: 432, z1: 781, z2: 828, y: 74 } // the deck over the shop (2 over the storefront, 1 elsewhere;
+                                                            // quartz soffit wherever it's outside)
 const DOOR_Z = [804, 805], BACKDOOR = [401, 65, 812]
-// The storefront z 786..811: one glass block off-centre to the north (like donut_front, mirrored: our drive-thru is on
-// the south), 4 panes north of the door and 1 south of it; z 812..827 stays the plain striped wall toward the drive-thru.
+// The storefront z 786..811: one glass block off-centre to the north (like donut_front, mirrored), 4 panes north of the
+// door and 1 south of it; z 812..827 stays the plain striped wall.
 const MULLIONS = [786, 790, 794, 798, 803, 806, 811]
 const GLASS_Z = [786, 811]
-const DT_WINDOWS = [[405, 409], [415, 419]]                 // drive-thru windows in z 827: glass y 66..69, a mullion
-                                                            // in the middle (407, 417), frames x a-1..b+1, y 65..70
-const REGISTER = [[412, 65, 801], [412, 65, 802]]           // the front register's loot cells (the blocks it lies on)
-const TILL = [417, 65, 826]                                  // the drive-thru till's loot cell
+const WINDOWS = [[423, 427]]                                // the south wall's window (z 827) over the booths: glass
+                                                            // y 66..69, a mullion in the middle, frame x a-1..b+1, y 65..70
 // The roof torus, written facing north and turned to face east (TURN): the hole faces Main Street and the Gun Shop across
 // it, and up. Its lowest block is y 77 (heist_donut ends at y 76); a new tilt or cy must keep that (tilt 72 needs cy 88).
 const DONUT = { cx: 415.5, cy: 87, cz: 804.5, R: 7.5, r: 3.5, tilt: 60 }
@@ -442,32 +437,25 @@ const SPRINKLES = ['pink_concrete'] // a few deeper pink flecks in the frosting 
 const stripe = y => (y === 64 || y === 65 || y === 70 || y === 71) ? 'pink_concrete' : y === 68 ? 'pink_wool' : null
 
 // ---- the ground (y 64) -----------------------------------------------------------------------------------------------
-// shop = the footprint; asph = the lot, the queue strip and the lane; walk = paving with curbs; green = a planting strip;
+// shop = the footprint; asph = the lot and the west strip; walk = paving with curbs; green = a planting strip;
 // grass = the world's own grass (left unset).
 function ground (x, z) {
   if (x >= SHOP.x1 && x <= SHOP.x2 && z >= SHOP.z1 && z <= SHOP.z2) return 'shop'
-  if (z >= LANE.z1 && z <= LANE.z2) return 'asph'
-  if (x >= 401 && (z === 828 || z >= 839)) return 'walk'               // the curb along the drive-thru wall; the pillars' walk
+  if (x >= 401 && z === 828) return 'walk'                            // along the south wall
   if (x >= 399 && x <= 400 && z >= 780 && z <= 828) return 'walk'     // along the west wall (the back door)
   if (x >= 399 && z >= 780 && z <= 781) return 'walk'                 // along the north wall
   if (x >= 431 && z >= 781 && z <= 827) return 'walk'                 // the front apron (Main's sidewalk to the door)
+  if (x >= 399 && z >= 829) return 'grass'                            // the lawn south of the shop
   if (x >= 431) return (z >= 744 && z <= 757) ? 'asph' : z >= 731 ? 'green' : 'grass' // the driveway; a planting strip
   if (z <= 730) return 'grass'
   if (z <= 738) return 'plant'                                       // the lot's north row up to its fences (x 386, z 731): grass
                                                                      // and oaks, a curb on its south side (x 387..430)
-  if (z <= 779 || x <= 398 || (x <= 400 && z >= 829)) return 'asph'   // the lot; the west strip (the drive-thru queue)
+  if (z <= 779 || x <= 398) return 'asph'                            // the lot; the west strip (the lot's way to 1st Street)
   return 'grass'
 }
 const BX = BOX.donut[0]
 const inB = (x, z) => x >= BX[0] && x <= BX[2] && z >= BX[1] && z <= BX[3]
 const isAsph = (x, z) => inB(x, z) && ground(x, z) === 'asph'
-
-// A painted arrow (white concrete cells): pointing +z with its shaft centred on x c, or +x centred on z c; s = its start.
-function arrowZ (c, s) { for (let z = s; z <= s + 2; z++) S(c, 64, z, 'white_concrete')
-  for (let k = -2; k <= 2; k++) S(c + k, 64, s + 3, 'white_concrete')
-  for (let k = -1; k <= 1; k++) S(c + k, 64, s + 4, 'white_concrete'); S(c, 64, s + 5, 'white_concrete') }
-function arrowX (c, s) { for (let x = s; x <= s + 2; x++) S(x, 64, c, 'white_concrete')
-  for (let k = -1; k <= 1; k++) S(s + 3, 64, c + k, 'white_concrete'); S(s + 4, 64, c, 'white_concrete') }
 
 function groundLayer () {
   rect(BX[0], BX[1], BX[2], BX[3], (x, z) => {
@@ -492,11 +480,6 @@ function groundLayer () {
     const edge = x === x1 || x === x2 || z === 751 || z === 762
     S(x, 64, z, edge ? 'smooth_stone' : 'dirt'); S(x, 65, z, edge ? 'smooth_stone' : 'grass_block')
   })
-  // painted arrows: down the queue strip, along the order lane (in and under the canopy)
-  arrowZ(394, 790); arrowZ(394, 810)
-  arrowX(830, 387); arrowX(830, 422)
-  // the order lane's divider: a dashed line at z 832 under the canopy (the menu board's island is west of x 400)
-  for (let x = 401; x <= 430; x++) if (((x % 4) + 4) % 4 < 2) S(x, 64, 832, 'white_concrete')
 }
 
 // ---- the shop: walls, storefront, windows, doors ------------------------------------------------------------------------
@@ -526,12 +509,10 @@ function shell () {
   }
   door(DB, x2, 65, DOOR_Z[0], 'east', 'left', false, 'pale_oak_door'); door(DB, x2, 65, DOOR_Z[1], 'east', 'right', false, 'pale_oak_door')
   S(x2, 67, DOOR_Z[0], 'pink_concrete'); S(x2, 67, DOOR_Z[1], 'pink_concrete') // the transom bar over the doors
-  // the drive-thru windows (south, z 827): closed glass 5 x 4 with a mullion in the middle, in thick pink frames up to the
-  // band, a serving ledge under each (top slabs at z 828: they replace the curb there on purpose, as sills)
-  for (const [a, b] of DT_WINDOWS) {
+  // the south window (z 827): closed glass 5 x 4 with a mullion in the middle, in a thick pink frame up to the band
+  for (const [a, b] of WINDOWS) {
     const mid = (a + b) / 2
     for (let x = a - 1; x <= b + 1; x++) for (let y = 65; y <= 70; y++) S(x, y, z2, (x >= a && x <= b && x !== mid && y >= 66 && y <= 69) ? 'glass_pane' : 'pink_concrete')
-    for (let x = a; x <= b; x++) S(x, 65, z2 + 1, 'smooth_quartz_slab[type=top]')
   }
   // the back door (west): an iron door in a pink frame, a little awning and a light over it
   const [bx, , bz] = BACKDOOR
@@ -543,7 +524,7 @@ function shell () {
   F(x1, 72, 789, x1, 72, 791, 'iron_bars')
 }
 
-// ---- the roof deck and the drive-thru canopy --------------------------------------------------------------------------
+// ---- the roof deck ----------------------------------------------------------------------------------------------------
 function roof () {
   const { x1, x2, z1, z2, y } = ROOF
   rect(x1, z1, x2, z2, (x, z) => {
@@ -558,13 +539,8 @@ function roof () {
       S(x, y + 1, z, 'polished_deepslate_slab[type=bottom]')   // the parapet's inner step hides the light from above
     } else S(x, y, z, RF)
     const overShop = x >= SHOP.x1 && x <= SHOP.x2 && z >= SHOP.z1 && z <= SHOP.z2
-    if (!ring && !overShop) {                                  // the soffit wherever the deck is outside the walls (the
-      const led = z === SHOP.z2 + 1 && x >= 403 && x <= 428 && (x <= 411 || x >= 414) // canopy, the front overhang), with
-      S(x, y - 1, z, led ? 'ochre_froglight[axis=x]' : 'smooth_quartz') // a warm LED strip along the drive-thru wall
-    }
+    if (!ring && !overShop) S(x, y - 1, z, 'smooth_quartz')   // the soffit wherever the deck is outside the walls (the front overhang)
   })
-  // the canopy's pillars: white with the wall's pink bands
-  for (const p of PILLARS) rect(p, 840, p + 1, 841, (x, z) => { for (let yy = 65; yy <= 72; yy++) S(x, yy, z, stripe(yy) || WH) })
   // on the deck: two AC units with fan grilles, vent stacks over the kitchen, a roof hatch
   for (const [ax, az] of [[403, 785], [425, 821]]) {
     F(ax, 75, az, ax + 2, 76, az + 2, 'light_gray_concrete')
@@ -598,7 +574,6 @@ function inside () {
   F(402, 65, 819, 404, 70, 825, 'iron_block')                                       // the walk-in freezer (solid: no dark room)
   F(404, 66, 819, 404, 69, 825, 'light_gray_concrete'); door(DB, 404, 65, 822, 'west', 'left', false, 'iron_door')
   for (const [a, b] of [[788, 796], [800, 808]]) F(405, 65, a, 406, 65, b, 'smooth_quartz') // two prep islands
-  F(405, 65, 826, 409, 65, 826, 'smooth_quartz')                                     // the pick-up shelf at the west window
   F(409, 65, 795, 409, 65, 812, 'smooth_quartz')                                     // the back counter, coffee machines on it
   for (const z of [797, 809]) { S(409, 66, z, 'iron_block'); S(409, 67, z, 'polished_blackstone_slab[type=bottom]') }
   S(409, 66, 803, 'polished_blackstone'); screen(409.5, 803.5, -90)                       // the back register (faces the clerks' aisle)
@@ -607,7 +582,7 @@ function inside () {
   for (const z0 of [795, 808]) for (let k = 0; k < 6; k++) {
     S(410, 72, z0 + k, 'polished_blackstone'); S(410, 71, z0 + k, PANEL[k]); S(410, 70, z0 + k, PANEL[k])
   }
-  // the front counter (x 412, z 793..814): white, raised ends; the register cells stay bare with air above them
+  // the front counter (x 412, z 793..814): white, raised ends; the register cells (z 800..802) stay bare with air above
   F(412, 65, 793, 412, 65, 814, 'smooth_quartz')
   S(412, 66, 793, 'quartz_slab[type=bottom]'); S(412, 66, 814, 'quartz_slab[type=bottom]')
   S(412, 66, 803, 'polished_blackstone'); screen(412.5, 803.5, -90)                       // the decorative cash register (faces the customers)
@@ -620,11 +595,6 @@ function inside () {
   for (const z of [795, 796, 811]) { disp(412.5, 66.25, z + 0.5, 'pink_wool', 0.45, 90, 0); disp(412.5, 66.7, z + 0.5, 'pink_wool', 0.4, 75, 0) } // bakery boxes
   // the half wall that closes the clerks' side to the south (jumpable); the way behind is round the north end (z 792)
   F(412, 65, 815, 421, 65, 815, 'smooth_quartz'); F(421, 65, 816, 421, 65, 826, 'smooth_quartz')
-  // the drive-thru station: a counter under the east window with the till cell and an order screen
-  F(414, 65, 826, 420, 65, 826, 'smooth_quartz'); S(TILL[0], TILL[1], TILL[2], 'polished_blackstone')
-  S(419, 66, 826, 'polished_blackstone_slab[type=bottom]'); screen(419.5, 826.5, 180, 66.65)  // the order screen (faces the clerk)
-  disp(415.5, 66.3, 826.5, 'pink_wool', 0.4, 0, 0)
-  donutDisp(414.5, 66.05, 826.5, 0.45, 30)                                           // an order waiting at the window
   // seating: purpur tables (top slabs) with purpur-stair benches on light blue rugs, north and south of the aisle
   const seating = (rx1, rz1, rx2, rz2, sets) => {
     const used = new Set()
@@ -666,17 +636,18 @@ function inside () {
   S(sx, 69, sz + 3, 'pink_concrete'); S(sx, 70, sz + 3, 'white_concrete')            // the right arm up, waving
 }
 
-// ---- around the shop: fences, lamps, the menu board, the dumpster, plants, the ATM -----------------------------------------
+// ---- around the shop: fences, lamps, the dumpster, plants, the ATM ---------------------------------------------------------
 function yard () {
   for (let z = 731; z <= 842; z++) { S(386, 65, z, 'dark_oak_fence'); S(386, 66, z, 'dark_oak_fence') }
   for (let x = 386; x <= 432; x++) { S(x, 65, 731, 'dark_oak_fence'); S(x, 66, 731, 'dark_oak_fence') }
   // lamps: three in the north planter (the east one west of the pylon, so it never stands in front of its face), one on
-  // the east island, one by the queue strip
+  // the east island, one by the west strip
   for (const x of [398, 414, 425]) streetLamp(S, x, 732, 0, 1)
   streetLamp(S, 420, 756, -1, 0, 65)
   streetLamp(S, 387, 800, 1, 0)
   oak(S, 392, 756, 65)
   for (const x of [390, 406, 419]) oak(S, x, 735)           // the north planter's oaks, 4+ clear of the lamps
+  for (const x of [405, 414]) oak(S, x, 836)                // the south lawn's oaks, clear of the window and its label (x 421..428)
   shrub(S, 420, 752, 65); shrub(S, 420, 760, 65)
   // the DONUTS pole sign at the lot's north-east corner, its faces north (the bridge and the approach road) and south (the
   // lot): a pink pole and trim, a black panel 5 x 2 under a deepslate cap (no road block faces the sky)
@@ -694,18 +665,6 @@ function yard () {
   // beside the door (a lilac box in front of the mullion z 803; the door's spot (431.5, 804.5) stays clear)
   for (const [a, b] of [[782, 785], [821, 824]]) { F(431, 65, a, 432, 65, b, 'smooth_stone'); F(431, 66, a, 432, 66, b, 'azalea_leaves[persistent=true]') }
   S(431, 65, 803, 'purpur_block'); S(431, 66, 803, 'purpur_block'); S(431, 67, 803, 'purpur_slab[type=bottom]')
-  // the drive-thru menu board on its island, facing the order lane: 4 lit panels in a dark frame. The island stops at
-  // x 393, so the west strip (x 387..392) stays a 6-wide way between the 1st Street cut and the lot (nothing stands in it).
-  for (let x = 393; x <= 394; x++) { S(x, 64, 832, 'smooth_stone'); S(x, 65, 832, 'smooth_stone_slab[type=bottom]') }
-  S(393, 65, 832, 'yellow_terracotta'); S(393, 66, 832, 'yellow_terracotta')          // a bollard at the island's tip
-  S(396, 65, 832, 'polished_blackstone_wall'); S(399, 65, 832, 'polished_blackstone_wall')
-  for (let x = 395; x <= 400; x++) {
-    S(x, 68, 832, 'polished_deepslate_slab[type=bottom]')
-    if (x === 395 || x === 400) { S(x, 66, 832, 'polished_blackstone'); S(x, 67, 832, 'polished_blackstone') }
-    else { S(x, 66, 832, 'pearlescent_froglight[axis=y]'); S(x, 67, 832, 'pearlescent_froglight[axis=y]') }
-  }
-  S(394, 65, 832, 'polished_blackstone_wall'); S(394, 66, 832, 'polished_blackstone_wall') // the speaker post (from the
-  S(394, 67, 832, 'polished_deepslate')                                                    // island's base up)
   // the dumpster pen in the lot's north-west corner (x 387..391, z 740..746: out of the west strip's way), fenced on three
   // sides (the lot fence is the fourth)
   for (let x = 387; x <= 391; x++) for (const z of [740, 746]) { S(x, 65, z, 'dark_oak_fence'); S(x, 66, z, 'dark_oak_fence') }
@@ -809,12 +768,10 @@ module.exports.labels = [
   { x: 416.0, y: 72.05, z: 781.97, facing: 'north', text: 'DONUTS', color: '#e8387f', scale: 3.5 },   // the north wall's white over the band (the lot)
   { x: 431.03, y: 71.12, z: 805.0, facing: 'east', text: 'DONUTS', color: '#ffffff', scale: 2.5 },    // over the door (the pink head, y 71)
   { x: 431.03, y: 72.0, z: 820.0, facing: 'east', text: 'DONUTS', color: '#e8387f', scale: 4 },       // the plain front wall south of the glass (z 812..827, white, y 72)
-  { x: 424.0, y: 70.15, z: 828.03, facing: 'south', text: 'DONUTS', color: '#ffffff', scale: 4 },      // the drive-thru wall's band (bay x 420..427)
+  { x: 425.0, y: 70.15, z: 828.03, facing: 'south', text: 'DONUTS', color: '#ffffff', scale: 4 },      // the south wall's band over its window (toward 1st Street)
   { x: 402.03, y: 72.0, z: 805.0, facing: 'east', text: 'DONUTS', color: '#ff4f9a', scale: 3.5 },     // inside, the back wall over the band
   { x: 430.5, y: 70.5, z: 735.97, facing: 'north', text: 'DONUTS', color: '#ff6ec7', scale: 3.5 },     // the pole sign (panel x 428..432, y 70..72), toward the bridge
   { x: 430.5, y: 70.5, z: 737.03, facing: 'south', text: 'DONUTS', color: '#ff6ec7', scale: 3.5 },     // the pole sign, toward the lot
-  { x: 399.97, y: 73.52, z: 833.5, facing: 'west', text: 'DRIVE THRU', color: '#ffffff', scale: 1.8 }, // the canopy's fascia (its dark lower edge, y 73.5..74)
-  { x: 397.5, y: 68.12, z: 831.97, facing: 'north', text: 'ORDER HERE', color: '#ffffff', scale: 1 }, // the menu board's top slab
   { x: 400.97, y: 67.55, z: 812.5, facing: 'west', text: 'STAFF ONLY', color: '#ffffff', scale: 0.6 }, // the back door
   { x: 432.03, y: 66.3, z: 803.5, facing: 'east', text: 'ATM', color: '#ffffff', scale: 0.9 },        // the lilac box beside the door
   { x: 418.0, y: 69.3, z: 784.03, facing: 'south', text: 'FRESH', color: '#ffffff', scale: 1.2 },     // the posters over the
@@ -827,7 +784,7 @@ module.exports.points = {
   DONUT_HOLO: [431.5, 65, 811.5, -90],      // /dheist holo donut (the apron in front of the glass, clear of the door; it floats 2.5 up)
   DONUT_REGISTER_A: [412, 65, 801, 0],
   DONUT_REGISTER_B: [412, 65, 802, 0],
-  DONUT_TILL: [417, 65, 826, 0],
+  DONUT_REGISTER_C: [412, 65, 800, 0],
   DONUT_DOOR: [431.5, 65, 804.5, 90],       // outside the double door, facing in (GPS door node 1041)
   DONUT_BACKDOOR: [400.5, 65, 812.5, 90]
 }
@@ -836,11 +793,10 @@ module.exports.setup = {
   heists: [{
     id: 'donut', difficulty: 0, name: 'Donut Shop', exit: [435.5, 65, 804.5, -90], holo: [431.5, 65, 811.5],
     snapshot: 'with the front doors (430, 65, 804..805) closed',
+    // one register for the whole $3,000 pool: 3 cells (a register cell holds 12 bills of $100, so 2 cells top out at $2,400)
     loot: [
-      { name: 'Front_register', cells: [412, 65, 801, 412, 65, 802], value: '1500-2400', style: 'register',
-        cmd: 'dloot add donut pile 412 65 801 412 65 802 value=1500-2400 style=register name=Front_register' },
-      { name: 'Drive_thru_till', cells: [417, 65, 826, 417, 65, 826], value: '300-600', style: 'register',
-        cmd: 'dloot add donut pile 417 65 826 417 65 826 value=300-600 style=register name=Drive_thru_till' }
+      { name: 'Front_register', cells: [412, 65, 800, 412, 65, 802], value: '1800-3000', style: 'register',
+        cmd: 'dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register name=Front_register' }
     ]
   }],
   keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: []

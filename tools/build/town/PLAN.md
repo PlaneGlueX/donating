@@ -476,25 +476,23 @@ There is no glass toward the outside, which keeps bullets in (most bullets pass 
 
 ### 6.2 `donut`: Donut Shop (a store) and its lot
 
-Box x 386..432, z 730..842. Pictures: `donut_current`, `donut_front`, `donut_drivethru`, `donut_interior`, `donut_wide_with_garage`.
+Box x 386..432, z 730..842. Pictures: `donut_current`, `donut_front`, `donut_interior`, `donut_wide_with_garage`. No drive-thru (owner, 2026-10-21: builds are practical; everyone walks in to rob it).
 
 | Part | Box | Height | Facing / doors |
 |---|---|---|---|
-| Donut Shop | x 401..430, z 782..827 | walls y 64..73, roof deck y 74 over x 400..432, z 781..842 (an overhang of 1 west and north, 2 east over the front apron; the drive-thru canopy south) | east (Main); double `pale_oak_door` at x 430, z 804..805 (hinges on the outer sides; closed at the snapshot); back door `iron_door` x 401, z 812 |
-| Drive-thru lane under the roof | z 829..838, x 386..432 | canopy roof y 74 | from the lot (west), out to Main's driveway z 829..838; 3 pillars 2×2 at (402..403, 840..841), (412..413, 840..841), (428..429, 840..841) (the middle one between the windows' frames, x 410..414) |
-| Drive-thru windows | in the south wall z 827: glass x 405..409 and 415..419, y 66..69, a mullion in each middle (x 407, 417); frames x 404..410 and 414..420, y 65..70 | | `glass_pane` in `pink_concrete` frames (closed); a serving ledge (`smooth_quartz_slab` top) under each at z 828, in place of the curb there |
-| Lot | x 386..430, z 731..780 and x 386..400, z 781..842 | y 64 | Main driveway z 744..757; 1st Street cut x 388..399; `dark_oak_fence` 2 high on x 386 and z 731; a planting row (grass, oaks, lamps) z 731..738 with a curb on its south side (x 387..430); the dumpster pen in the north-west corner (x 387..391, z 740..746), so the west strip x 387..392 stays a clear way from the 1st Street cut to the lot |
-| Menu board | x 393..400 at z 832: an island x 393..394 (a bollard at 393, the speaker post at 394), posts at x 396 and 399, lit panels x 396..399, y 66..67 in a dark frame (x 395, 400), a slab top y 68 | | faces the order lane (north) |
+| Donut Shop | x 401..430, z 782..827 | walls y 64..73, roof deck y 74 over x 400..432, z 781..828 (an overhang of 1 west, north and south, 2 east over the front apron) | east (Main); double `pale_oak_door` at x 430, z 804..805 (hinges on the outer sides; closed at the snapshot); back door `iron_door` x 401, z 812 |
+| South window | in the south wall z 827 over the booths: glass x 423..427, y 66..69, a mullion in the middle (x 425); frame x 422..428, y 65..70 | | `glass_pane` in a `pink_concrete` frame (closed) |
+| Lot | x 386..430, z 731..780 and the west strip x 386..398, z 781..842 (the lot's way to the 1st Street cut) | y 64 | Main driveway z 744..757; 1st Street cut x 388..399; `dark_oak_fence` 2 high on x 386 and z 731; a planting row (grass, oaks, lamps) z 731..738 with a curb on its south side (x 387..430); the dumpster pen in the north-west corner (x 387..391, z 740..746), so the west strip x 387..392 stays a clear way from the 1st Street cut to the lot |
+| South lawn | x 399..432, z 829..842 (south of the walk round the shop, z 828) | y 64 | the world's grass with two oaks (x 405 and 414, z 836) |
 | Giant donut | torus, centre (415.5, 87, 804.5), major radius 7.5, tube 3.5, its ring plane tilted 60° from flat with the hole facing east (Main Street and the Gun Shop, like `donut_front`) and up; its lowest block y 77 | y 77..96 | on a slim pink truss from the roof deck (two A-frames with splayed legs, a strut up the back) |
 
 **Look:**
 - white walls (`MIX.white`), 1 thick, striped the same outside and in: a pink base course at y 64..65, a thin `pink_wool` line at y 68, a hot-pink band 2 high at y 70..71 (`pink_concrete`), white above it;
 - the roof deck dark (`polished_deepslate` with a few `smooth_basalt` patches: no road blocks, section 10.2's roof rule);
-- the fascia 2 high round the deck's edge, about a sixth of the wall like `donut_front`: a dark lower edge (`polished_deepslate_slab`, top half, y 73) with the white `smooth_quartz` soffit showing under it, a pink neon line (`pink_stained_glass` at y 74, `pearlescent_froglight` behind it) and a half-block `polished_deepslate_slab` parapet (y 75); a warm `ochre_froglight` LED strip in the canopy's soffit along the drive-thru wall;
-- pillars white with the wall's pink bands;
-- the storefront (east, x 430): one glass block off-centre to the north like `donut_front` (mirrored: our drive-thru is on the south), `glass_pane` in `pink_concrete` mullions at z 786, 790, 794, 798, 803, 806 and 811 (z 786..811, y 65..70, a pink head at y 71), the double door at z 804..805; z 812..827 a plain striped wall toward the drive-thru;
+- the fascia 2 high round the deck's edge, about a sixth of the wall like `donut_front`: a dark lower edge (`polished_deepslate_slab`, top half, y 73) with the white `smooth_quartz` soffit showing under it, a pink neon line (`pink_stained_glass` at y 74, `pearlescent_froglight` behind it) and a half-block `polished_deepslate_slab` parapet (y 75);
+- the storefront (east, x 430): one glass block off-centre to the north like `donut_front` (mirrored), `glass_pane` in `pink_concrete` mullions at z 786, 790, 794, 798, 803, 806 and 811 (z 786..811, y 65..70, a pink head at y 71), the double door at z 804..805; z 812..827 a plain striped wall;
 - on the front apron: a lilac box (an ATM look, `purpur_block` under a `purpur_slab`) at (431, 65..67, 803) beside the door, in front of the mullion (the door's spot 431.5 804.5 stays clear), and hedge planters against the solid wall (z 782..785, 821..824);
-- "DONUTS" labels on the roof sign box, the north wall (the lot), over the door, the plain front wall (z 820), the drive-thru wall, both faces of the pole sign and the back wall inside; "DRIVE THRU" on the canopy's west fascia.
+- "DONUTS" labels on the roof sign box, the north wall (the lot), over the door, the plain front wall (z 820), the south wall over its window, both faces of the pole sign and the back wall inside.
 
 **The donut:**
 - frosting (`pink_wool` with a few `pink_concrete` flecks and a `pearlescent_froglight` gloss streak) on the faces turned up and east, its lower edge in short drips;
@@ -512,7 +510,7 @@ Box x 386..432, z 730..842. Pictures: `donut_current`, `donut_front`, `donut_dri
 - a 6 tall pink donut-man statue by the north-east window (x 428, z 793..799, y 65..70: his ring z 794..798, the eyes behind the panes z 795..797, seen from Main), and pink arcade cabinets in two corners;
 - a kitchen at x 402..408 made of lookalikes only (no furnaces or smokers: no block with a menu within reach).
 
-**Gameplay:** see section 8. It's `heist_donut`, with the register on (412, 65, 801..802) and the till on (417, 65, 826).
+**Gameplay:** see section 8. It's `heist_donut`, with one register on (412, 65, 800..802): the whole $3,000 pool.
 
 ### 6.3 `garage`: the Town Garage (2 bays)
 
@@ -752,8 +750,7 @@ Players stand at y 65 unless noted. Yaw: 0 S, 90 W, 180 N, −90 E.
 
 | What | Where | Command (W = `jailbreak` now, `world` at launch) |
 |---|---|---|
-| Donut register (2 cells, the blocks the loot lies on) | 412 65 801 .. 412 65 802 | `/dloot add donut pile 412 65 801 412 65 802 value=1500-2400 style=register name=Front_register` |
-| Donut drive-thru till | 417 65 826 | `/dloot add donut pile 417 65 826 417 65 826 value=300-600 style=register name=Drive_thru_till` |
+| Donut register (3 cells, the blocks the loot lies on: a register cell holds 12 bills of $100) | 412 65 800 .. 412 65 802 | `/dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register name=Front_register` |
 | Donut exit spot | 435.5 65 804.5, yaw −90 | `/dheist exit donut` standing there |
 | Donut hologram (stand here; it floats 2.5 up) | 431.5 65 811.5 (the apron in front of the glass, clear of the doorway) | `/dheist holo donut` |
 | Gas register | 386 65 914 .. 386 65 915 | `/dloot add gas pile 386 65 914 386 65 915 value=1500-2400 style=register name=Register` |
@@ -960,7 +957,7 @@ const CIRCLE = { cx: 338, cz: 1186, r: 16, walk: 3 } // Birch Court's turning ci
 // Curb cuts [x1, z1, x2, z2]: sidewalk cells with no curb slab where a lot or a driveway meets the street (the module
 // behind paves its side right up to the sidewalk there).
 const DRIVEWAYS = [
-  [433, 744, 436, 757], [433, 829, 436, 838], // donut: the lot, the drive-thru exit (Main, west side)
+  [433, 744, 436, 757], // donut: the lot (Main, west side)
   [433, 868, 436, 879], [433, 952, 436, 963], // gas station forecourt in and out
   [461, 744, 464, 757], // gun shop lot (Main, east side)
   [461, 1020, 464, 1031], [461, 1080, 464, 1091], // dealer lot
@@ -1437,3 +1434,4 @@ Magenta in a render only means render.js has no texture for that name. `check-st
 - Deaths: every death respawns in the prison, free players in town too (current rule kept).
 - Q14: keep the walk, but add a small shop in front of the prison with a little parking lot where small vehicles (bikes) spawn; a player steals one with a quick-time event (like the car-theft lockpick minigame).
 - Q15: build Vic's Pawn Shop and the Broker's Pool Hall in town (with the dealer, houses, Safehouse and Scrap Yard).
+- Builds are practical, not roleplay: build for how players use a place (walking in to rob it), no props nobody uses. The Donut Shop's drive-thru is gone (its lane, windows, canopy, till, menu board and Main's driveway at z 829..838): a lawn, one south window and a single register holding the $3,000 pool (Q2's second till dropped there; the gas store keeps its lottery till).
