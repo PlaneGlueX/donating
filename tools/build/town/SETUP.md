@@ -96,7 +96,7 @@ Type `/dheist create` in game: it finds `heist_<id>` in the world you stand in. 
 (G) /dheist create donut 0
 (C) dheist set donut name Donut Shop
 (C) dheist exit donut 435.5 65 804.5 -90
-(C) dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register name=Front_register
+(C) dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register piece=125 name=Front_register
 (C) dloot check donut
 (C) dheist snapshot donut        (the front doors 430 65 804..805 closed)
 (C) dheist holo donut 431.5 67.5 811.5

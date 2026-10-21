@@ -795,10 +795,10 @@ module.exports.setup = {
   heists: [{
     id: 'donut', difficulty: 0, name: 'Donut Shop', exit: [435.5, 65, 804.5, -90], holo: [431.5, 65, 811.5],
     snapshot: 'with the front doors (430, 65, 804..805) closed',
-    // one register for the whole $3,000 pool: 3 cells (a register cell holds 12 bills of $100, so 2 cells top out at $2,400)
+    // one register for the whole $3,000 pool: 3 cells, $125 bills (a pile holds at most 24 pieces: core.sk loot::max-pieces)
     loot: [
-      { name: 'Front_register', cells: [412, 65, 800, 412, 65, 802], value: '1800-3000', style: 'register',
-        cmd: 'dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register name=Front_register' }
+      { name: 'Front_register', cells: [412, 65, 800, 412, 65, 802], value: '1800-3000', style: 'register', piece: 125,
+        cmd: 'dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register piece=125 name=Front_register' }
     ]
   }],
   keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: []

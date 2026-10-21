@@ -416,10 +416,12 @@ function lootPileState(h: text, n: text):
 
 function lootReg(c: text, e: entity):
 	set {-lootents::%{_c}%::%uuid of {_e}%} to {_e}
+	set {-lootall::%uuid of {_e}%} to true
 
 function lootUnreg(c: text, e: entity):
 	delete {-lootents::%{_c}%::%uuid of {_e}%}
 	delete {-lootent::%uuid of {_e}%}
+	delete {-lootall::%uuid of {_e}%}
 
 function lootKillOne(c: text, e: entity):
 	lootUnreg({_c}, {_e})
@@ -481,6 +483,7 @@ function lootDespawnSpot(h: text, n: text):
 	set {_c} to "%{_h}%::%{_n}%"
 	loop {-lootents::%{_c}%::*}:
 		delete {-lootent::%loop-index%}
+		delete {-lootall::%loop-index%}
 		if loop-value is valid:
 			kill loop-value
 	delete {-lootents::%{_c}%::*}
@@ -1764,6 +1767,27 @@ every 2 seconds:
 	loop {heists::*}:
 		lootReconcile(loop-index)
 
+# Orphans: loot entities no spot tracks. A spot respawned or disarmed while its chunk was loaded but
+# hidden (not valid: they can't be killed then) left its old copies, which came back with the chunk:
+# a second register whose clicks did nothing (found 2026-10-21 in the jailbreak world's Donut Shop).
+# Two passes apart, so a taken piece's 4-tick vanish (unregistered on purpose) ends by itself.
+every 10 seconds:
+	set {_n} to 0
+	loop all entities:
+		if loop-entity has scoreboard tag "donating_loot":
+			set {_u} to "%uuid of loop-entity%"
+			if {-lootall::%{_u}%} is not set:
+				if {-lootorph::%{_u}%} is set:
+					kill loop-entity
+					add 1 to {_n}
+				else:
+					set {_seen::%{_u}%} to true
+	delete {-lootorph::*}
+	loop {_seen::*}:
+		set {-lootorph::%loop-index%} to true
+	if {_n} > 0:
+		lootLog("orphans removed %{_n}%")
+
 # Armed exactly while open or active (/dheist reset from open never calls heistOnEnd); spots lost to a
 # chunk unload come back.
 function lootReconcile(h: text):
@@ -1927,6 +1951,8 @@ on death of player:
 on load:
 	execute console command "minecraft:kill @e[tag=donating_loot]"
 	delete {-lootent::*}
+	delete {-lootall::*}
+	delete {-lootorph::*}
 	delete {-lootents::*}
 	delete {-lootpd::*}
 	delete {-loothb::*}

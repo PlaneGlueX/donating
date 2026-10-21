@@ -750,7 +750,7 @@ Players stand at y 65 unless noted. Yaw: 0 S, 90 W, 180 N, −90 E.
 
 | What | Where | Command (W = `jailbreak` now, `world` at launch) |
 |---|---|---|
-| Donut register (3 cells, the blocks the loot lies on: a register cell holds 12 bills of $100) | 412 65 800 .. 412 65 802 | `/dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register name=Front_register` |
+| Donut register (3 cells, the blocks the loot lies on: a register cell holds 12 bills of $100) | 412 65 800 .. 412 65 802 | `/dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register piece=125 name=Front_register` |
 | Donut exit spot | 435.5 65 804.5, yaw −90 | `/dheist exit donut` standing there |
 | Donut hologram (stand here; it floats 2.5 up) | 431.5 65 811.5 (the apron in front of the glass, clear of the doorway) | `/dheist holo donut` |
 | Gas register | 386 65 914 .. 386 65 915 | `/dloot add gas pile 386 65 914 386 65 915 value=1500-2400 style=register name=Register` |
