@@ -293,9 +293,9 @@ on tab complete of "/dheist" and "/skript:dheist":
 		if {_l::*} is set:
 			set tab completions for position 2 to {_l::*}
 		if {_s} is "set":
-			set tab completions for position 3 to "name", "difficulty", "escape", "cooldown", "pool", "level", "advanced", "pvp" and "trap-damage"
+			set tab completions for position 3 to "name", "difficulty", "escape", "cooldown", "pool", "level", "advanced", "pvp", "police" and "trap-damage"
 			set {_k} to tab arg-3
-			if {_k} is "advanced" or "pvp":
+			if {_k} is "advanced", "pvp" or "police":
 				set tab completions for position 4 to "true", "false" and "default"
 			else if {_k} is "level":
 				loop levelMilestones():

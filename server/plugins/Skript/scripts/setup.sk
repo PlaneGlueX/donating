@@ -151,31 +151,36 @@ function setupHeists(s: command sender):
 		set {_lv} to heistLevel({_h})
 		if heistIsStore({_h}) is true:
 			add 1 to {_stores}
-			# The clerk (clerk.sk, 2026-10-21): without one the register is open to anyone and no police come.
+			# The clerk (clerk.sk, 2026-10-21): without one the register is open to anyone. Stores have no police unless
+			# set (heistPolice): only then the cop spots matter.
 			if clerkOn() is true:
 				set {_cl} to clerkSpot({_h})
 				if {_cl} is not set:
-					add "no clerk: the register is open to anyone and no police come (/dclerk %{_h}% set, behind the register)" to {_warn::*}
+					add "no clerk: the register is open to anyone (/dclerk %{_h}% set, behind the register)" to {_warn::*}
 				else if heistAt({_cl}) is not {_h}:
 					add "its clerk stands outside the store (/dclerk %{_h}% set, behind the register)" to {_bad::*}
 				else:
 					if size of {store::%{_h}%::shelf::*} is 0:
 						add "the clerk has no shelves to run to: it throws from the counter (/dclerk %{_h}% shelf add)" to {_warn::*}
-					if size of {heist::%{_h}%::cops::*} is 0:
-						add "no cop spots, the clerk's police come to the exit spot (/dcops %{_h}% add, a street corner away)" to {_warn::*}
+					if heistPolice({_h}) is true:
+						if size of {heist::%{_h}%::cops::*} is 0:
+							add "no cop spots, the clerk's police come to the exit spot (/dcops %{_h}% add, a street corner away)" to {_warn::*}
 		if {_lv} > cfg("level::max"):
 			add "its level %{_lv}% is above the highest level (/dheist set %{_h}% level <n>)" to {_bad::*}
 		if heistIsAdvanced({_h}) is true:
-			set {_spots::*} to copSpots({_h})
-			if size of {_spots::*} is 0:
-				add "no cops will come: no cop spot or exit spot outside safe zones (/dcops %{_h}% add)" to {_bad::*}
-			else if size of {heist::%{_h}%::cops::*} is 0:
-				add "no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)" to {_warn::*}
-			# Only a camera, a drill or a trap with effect=alarm trips it: without one, no cops and no getaway (review fix).
-			if {_alarms} + {_alarmtraps} is 0:
-				add "nothing trips its alarm, so no cops and no getaway (a camera, a drill, or a trap with effect=alarm)" to {_bad::*}
-			if size of {heist::%{_h}%::lock::*} is 0:
-				add "no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)" to {_warn::*}
+			if heistPolice({_h}) is not true:
+				add "advanced, but its police are off: no alarm, no cops, no getaway (/dheist set %{_h}% police default)" to {_warn::*}
+			else:
+				set {_spots::*} to copSpots({_h})
+				if size of {_spots::*} is 0:
+					add "no cops will come: no cop spot or exit spot outside safe zones (/dcops %{_h}% add)" to {_bad::*}
+				else if size of {heist::%{_h}%::cops::*} is 0:
+					add "no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)" to {_warn::*}
+				# Only a camera, a drill or a trap with effect=alarm trips it: without one, no cops and no getaway (review fix).
+				if {_alarms} + {_alarmtraps} is 0:
+					add "nothing trips its alarm, so no cops and no getaway (a camera, a drill, or a trap with effect=alarm)" to {_bad::*}
+				if size of {heist::%{_h}%::lock::*} is 0:
+					add "no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)" to {_warn::*}
 		else if {_alarmtraps} > 0:
 			add "%{_alarmtraps}% alarm trap(s) do nothing: the heist isn't advanced (/dheist set %{_h}% advanced true)" to {_warn::*}
 		set {_label} to "%heistName({_h})% (%{_h}%, difficulty %heistDifficulty({_h})%, level %{_lv}%, %{_piles}% piles)"

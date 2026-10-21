@@ -87,8 +87,8 @@ function loadSettings():
 	set {-cfg::alarm::heavy-every} to 3
 	set {-cfg::alarm::health-heavy} to 2
 	set {-cfg::alarm::heavy-model} to 5
-	# Stores (difficulty 0; the clerk's panic button, clerk.sk): a slower response, a few cops at a time, a short chase,
-	# no heavies.
+	# A store with its police on (/dheist set <id> police true; stores have none by default: below): a slower response,
+	# a few cops at a time, a short chase, no heavies.
 	set {-cfg::difficulty::0::alarm::warning} to 30 seconds
 	set {-cfg::difficulty::0::alarm::chase-radius} to 60
 	set {-cfg::difficulty::0::alarm::max-cops} to 3
@@ -673,7 +673,7 @@ function loadSettings():
 	set {-cfg::story::c1_rob::obj} to "ev|rob|1"
 	set {-cfg::story::c1_rob::gps} to "heist:store"
 	set {-cfg::story::c1_rob::needs} to "heist"
-	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Smack the clerk, grab the register, and be gone before the cops show."
+	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Smack the clerk, grab the register, and duck whatever they throw at you."
 	set {-cfg::story::c1_rob::done} to "That's the spirit. Now get out of there."
 	set {-cfg::story::c1_sell::chapter} to 1
 	set {-cfg::story::c1_sell::label} to "Sell your loot at the base"
@@ -1067,13 +1067,13 @@ function loadSettings():
 	set {-cfg::store::idle-close} to 10 minutes
 	set {-cfg::store::no-pvp} to true
 	# The clerk (clerk.sk, owner 2026-10-21: Payday's stores; ALL PROPOSALS): a store with a clerk spot (/dclerk) keeps
-	# its register shut until someone hits the clerk; then the register opens, the clerk hits the panic button
-	# (store::police: the store's alarm, difficulty::0::alarm::* above) and runs to the shelves to throw things (one
-	# throw every clerk::every at most, clerk::damage HP a hit that lands, clerk::spread blocks of miss, within
-	# clerk::range); another hit makes them duck for clerk::stun. clerk::give-up failed spawns open the register without
-	# a clerk. store::clerk false: stores without clerks (the register open to anyone, as before).
+	# its register shut until someone hits the clerk; then the register opens, the clerk hits the panic button if the
+	# store has police (none by default: difficulty::0::police below; the alarm's numbers are difficulty::0::alarm::*
+	# above) and runs to the shelves to throw things (one throw every clerk::every at most, clerk::damage HP a hit that
+	# lands, clerk::spread blocks of miss, within clerk::range); another hit makes them duck for clerk::stun.
+	# clerk::give-up failed spawns open the register without a clerk. store::clerk false: stores without clerks (the
+	# register open to anyone, as before).
 	set {-cfg::store::clerk} to true
-	set {-cfg::store::police} to true
 	set {-cfg::clerk::name} to "Clerk"
 	set {-cfg::clerk::skin-fallback} to "bag"
 	set {-cfg::clerk::speed} to 1.35
@@ -1093,7 +1093,9 @@ function loadSettings():
 	set {-cfg::clerk::prop-item::apple} to apple
 	set {-cfg::clerk::prop-item::melon_slice} to melon slice
 	set {-cfg::clerk::lines::panic::*} to "Okay, okay! Don't hurt me!", "Not again..." and "The money's not even mine!"
-	set {-cfg::clerk::lines::throw::*} to "Get out of my store!", "Take THIS!" and "I called the cops!"
+	set {-cfg::clerk::lines::throw::*} to "Get out of my store!", "Take THIS!" and "Get OUT!"
+	# Added to the throws in a store with police.
+	set {-cfg::clerk::lines::throw-police::*} to "I called the cops!" and "The cops are coming!"
 	set {-cfg::clerk::lines::duck::*} to "Ow! Stop it!" and "Okay! Okay!"
 	set {-cfg::difficulty::2::level} to 5
 	# Owner, 2026-09-28: heists 0 / 5 / 20 / 45 (difficulty 1-4).
@@ -1105,6 +1107,15 @@ function loadSettings():
 	set {-cfg::difficulty::2::advanced} to false
 	set {-cfg::difficulty::3::advanced} to false
 	set {-cfg::difficulty::4::advanced} to true
+	# Police (owner, 2026-10-21: "for low tier stores like donut shop and grocery store, no need for police"): stores
+	# (difficulty 0) have none: the clerk still opens the register and throws things, nobody is wanted. Per heist:
+	# /dheist set <id> police true|false|default. Off: no alarm at all (the clerk's panic button, traps, cameras, a
+	# drill, staff). On for 1-4: the alarm trips only in advanced heists, as before.
+	set {-cfg::difficulty::0::police} to false
+	set {-cfg::difficulty::1::police} to true
+	set {-cfg::difficulty::2::police} to true
+	set {-cfg::difficulty::3::police} to true
+	set {-cfg::difficulty::4::police} to true
 	# PvP heists: no crew rule inside, no passive players (per heist: /dheist set <id> pvp true).
 	set {-cfg::difficulty::0::pvp-only} to false
 	set {-cfg::difficulty::1::pvp-only} to false

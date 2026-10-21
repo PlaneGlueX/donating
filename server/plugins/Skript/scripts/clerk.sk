@@ -9,9 +9,11 @@
 # "shut": no hitbox; the prompt says "Hit the clerk"). Any hit on the clerk by a player (a punch, a melee weapon, a shot)
 # starts the robbery:
 #   - the register opens (loot.sk lootStoreUnlock) and the store's run starts (no clock, as before);
-#   - the clerk hits the panic button: the store's alarm (heists.sk heistTripAlarm "panic"): the robbers inside (and
-#     the hitter) are wanted at once, the police come after the store's response time and attack in assaults
-#     (heists.sk; a store's numbers are core.sk difficulty::0::alarm::*). store::police false: no alarm;
+#   - only in a store with its police on (heists.sk heistPolice: stores have none by default; owner, 2026-10-21: "for
+#     low tier stores like donut shop and grocery store, no need for police"; /dheist set <id> police true): the
+#     clerk hits the panic button, the store's alarm (heists.sk heistTripAlarm "panic"): the robbers inside (and the
+#     hitter) are wanted at once, the police come after the store's response time and attack in assaults (heists.sk;
+#     a store's numbers are core.sk difficulty::0::alarm::*);
 #   - the clerk panics: runs to a shelf (/dclerk <store> shelf add; none: they grab from under the counter), grabs
 #     something (clerk::props), finds a robber in sight within clerk::range and throws it at them (a snowball showing
 #     the prop, aimed with gravity and a little spread: clerk::damage a hit), then the next shelf, every clerk::every at
@@ -262,9 +264,9 @@ function clerkStart(h: text, p: player):
 	if {_e} is set:
 		play sound "entity.villager.hurt" with volume 1 and pitch 1.3 at location of {_e}
 	clerkSay({_h}, "panic")
-	# The panic button: the store's police (heists.sk: the robbers inside are wanted now, the cops come after the
-	# response time). The hitter too, if they hit from outside.
-	if {-cfg::store::police} is not false:
+	# The panic button, only in a store with police (heists.sk: the robbers inside are wanted now, the cops come after
+	# the response time). The hitter too, if they hit from outside.
+	if heistPolice({_h}) is true:
 		heistTripAlarm({_h}, "panic")
 		if heistOf({_p}) is not {_h}:
 			if heistHuntedBy({_p}) is "":
@@ -280,6 +282,9 @@ function clerkStart(h: text, p: player):
 # A line the clerk shouts, on the action bar of everyone in the store (clerk::lines::<kind>).
 function clerkSay(h: text, kind: text):
 	set {_l::*} to {-cfg::clerk::lines::%{_kind}%::*}
+	# A store with police adds its own lines ("I called the cops!": clerk::lines::<kind>-police).
+	if heistPolice({_h}) is true:
+		add {-cfg::clerk::lines::%{_kind}%-police::*} to {_l::*}
 	size of {_l::*} > 0
 	set {_t} to random element out of {_l::*}
 	set {_name} to cfg("clerk::name")

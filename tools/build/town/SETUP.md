@@ -124,7 +124,7 @@ Type `/dheist create` in game: it finds `heist_<id>` in the world you stand in. 
 ```
 
 - Each store is $1,800-3,000 a run, inside the store pool of $3,000.
-- The clerk (clerk.sk, 2026-10-21): it stands behind the register (the donut's in the aisle behind the counter, the gas station's on the mat behind the checkout), facing the door; the `shelfat` spots are where it runs for something to throw (the back counters, the aisles). The register stays shut until someone hits the clerk; the clerk then calls the police (they come to the exit spot, or to `/dcops <store> add` spots a street corner away).
+- The clerk (clerk.sk, 2026-10-21): it stands behind the register (the donut's in the aisle behind the counter, the gas station's on the mat behind the checkout), facing the door; the `shelfat` spots are where it runs for something to throw (the back counters, the aisles). The register stays shut until someone hits the clerk; the clerk then throws things at the robbers. No police come to either store (owner, 2026-10-21: "for low tier stores like donut shop and grocery store, no need for police"; stores have none by default). To give one its police later: `/dheist set <store> police true`, and `/dcops <store> add` a street corner away (else they come to the exit spot).
 - `dheist holo` with x y z puts the hologram exactly there. The donut's floats over the apron, clear of the doorway. The gas station's sits under the sign band.
 - `dheist enable` resets the room from the snapshot, then opens the store.
 

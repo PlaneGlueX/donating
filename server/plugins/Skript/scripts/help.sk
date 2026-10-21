@@ -10,7 +10,7 @@
 
 function showHelp(p: player):
 	send colored "%cfg("prefix")%&fHow to play" to {_p}
-	send colored "&7• &eHeists: &7rob buildings for loot; watch for traps (lasers, pressure plates, cameras, falling floors). New robbers start in the &fstores&7: hit the clerk to open the register, grab it and get out before the cops come. Alarms bring the cops in assaults with breaks in between. &f/heists" to {_p}
+	send colored "&7• &eHeists: &7rob buildings for loot; watch for traps (lasers, pressure plates, cameras, falling floors). New robbers start in the &fstores&7: hit the clerk to open the register, grab it and dodge what they throw (no cops in stores). Alarms in the big heists bring the cops in assaults with breaks in between. &f/heists" to {_p}
 	send colored "&7• &eYour bag &7(offhand) holds the loot. No bag yet? Your hands carry up to $1,000. Buy bags at the Bag Shop. &f/bag" to {_p}
 	send colored "&7• &eGet out &7before a heist's timer hits 0, or you lose what you took there." to {_p}
 	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
@@ -178,7 +178,7 @@ function showAdminHelp(s: command sender, topic: text):
 	if {_topic} is "heists":
 		ahTitle({_s}, "Staff: heists (build a heist in this order: CLAUDE.md, Heists)")
 		ahLine({_s}, "/dheist create <id> <0-4>", "a heist over the WorldGuard region heist_<id> (0 = a store)")
-		ahLine({_s}, "/dheist set <id> name/escape/cooldown/pool/level/advanced/pvp/trap-damage <value>", "its settings")
+		ahLine({_s}, "/dheist set <id> name/escape/cooldown/pool/level/advanced/pvp/police/trap-damage <value>", "its settings (police: stores have none by default)")
 		ahLine({_s}, "/dheist exit/holo <id>", "the exit spot / the hologram where you stand")
 		ahLine({_s}, "/dclerk <store> set | setat <x y z yaw> | shelf add | shelfat <x y z> | shelf remove <n> | remove | info | spawn | dump; /dclerk list", "a store's clerk and the shelves it runs to")
 		ahLine({_s}, "/dheist snapshot <id>", "save the room (while disabled) for resets")

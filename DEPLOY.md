@@ -155,15 +155,13 @@ Built and checked offline only: test it all on the local server first (handoff/2
 - The GPS paths: run every line of `tools/jail-gps-paths.txt` (it clears the world's graph first; ids kept, LOT_EXIT still 187), then `tools/build/town/town-gps-paths.txt` again.
 - MONETIZATION.md: unchanged (the Fuel Tank is bought with in-game money).
 
-### The city clock, store clerks and the police assaults (2026-10-21, a cloud session; PLAYTEST 249-253)
+### The city clock, store clerks and the police assaults (2026-10-21, a cloud session; PLAYTEST 249-254)
 
 Built and checked offline only: test it all on the local server first (handoff/2026-10-21/CLOCK-STORES.md), then:
 - Scripts, in one restart: the new `clock.sk` and `clerk.sk`, and `core.sk` (clock::*, alarm assaults, a store's alarm, clerk::*), `heists.sk`, `cops.sk`, `hud.sk`, `loot.sk`, `hits.sk`, `fence.sk`, `progress.sk`, `ui.sk`, `death.sk`, `combat-log.sk`, `setup.sk`, `help.sk`, `tabcomplete.sk`, `skins.sk` (once the clerk skin is signed); `plugins/TAB/config.yml` (the clock line). No jar or pack change.
 - The clock needs nothing on Minehut: it sets every world's clock speed (`time rate`) and time itself, from the console (ops see a "[Server: ...]" line at each start and after `/dclock set`). The Minehut dashboard's own time settings, if any, are overridden. The week (hits, Vic) turns with the game clock: running contracts end at the first week turn after the upload.
-- The clerk skin: `tools
-ode
-ode.exe tools\sign-skins.js clerk` locally (it writes skins.sk), then upload `skins.sk`. Without it the clerks wear the Bag Shop keeper's skin (`clerk::skin-fallback`).
-- Every store: its clerk and shelves (`town.js setup` prints the Donut Shop's and the Gas Station's `dclerk ... setat` / `shelfat` lines after their `dloot`; `/dheist dump <store>` prints them too) and a cop spot or two a street corner away (`/dcops <store> add`; else they come to the exit spot). `/dsetup heists` names a store without a clerk ("!": its register is open to anyone, no police). Citizens and Sentinel are already installed (the cops).
+- The clerk skin: `tools\node\node.exe tools\sign-skins.js clerk` locally (it writes skins.sk), then upload `skins.sk`. Without it the clerks wear the Bag Shop keeper's skin (`clerk::skin-fallback`).
+- Every store: its clerk and shelves (`town.js setup` prints the Donut Shop's and the Gas Station's `dclerk ... setat` / `shelfat` lines after their `dloot`; `/dheist dump <store>` prints them too). Stores have no police (owner, 2026-10-21: core.sk `difficulty::0::police` false): nothing else to set up. A store given police later (`/dheist set <store> police true`) wants a cop spot or two a street corner away (`/dcops <store> add`; else they come to the exit spot). `/dsetup heists` names a store without a clerk ("!": its register is open to anyone). Citizens and Sentinel are already installed (the cops).
 
 ### The prison (the Jailbreak map, 2026-10-14)
 

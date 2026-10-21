@@ -1,7 +1,9 @@
 // clerk.sk (owner, 2026-10-21: Payday's stores): a store with a clerk keeps its register shut until someone hits the
-// clerk; the hit starts the robbery (the register opens, the run starts), the clerk hits the panic button (the robbers
-// inside are wanted, the store's police come after its response time, in assaults) and runs to the shelves to throw
+// clerk; the hit starts the robbery (the register opens, the run starts) and the clerk runs to the shelves to throw
 // things at the robbers; another hit makes them duck. The clerk is never hurt, and goes when the store closes.
+// Stores have no police by default (owner, the same day: "for low tier stores like donut shop and grocery store, no
+// need for police"): nobody is wanted. With /dheist set <store> police true the clerk hits the panic button (the
+// robbers inside are wanted, the store's police come after its response time, in assaults).
 const fs = require('fs')
 const path = require('path')
 const conv = require('mineflayer/lib/conversions')
@@ -95,10 +97,13 @@ module.exports = async ({ check }) => {
     await sleep(1500) // Citizens puts the skin on (a new entity)
     let i = await info()
     check('the store opens with its clerk at the register (a Citizens NPC), the register shut', opened && spawned && field(i, 'st') === 'idle' && field(i, 'shut') === 'true', i)
+    check('...a store has no police by default', /police=false/.test(await cmd(`dheist info ${ID}`)), await cmd(`dheist info ${ID}`))
 
     // ---------- Before the hit: the register is shut ----------
     await sleep(5000) // bots can be hurt about 6 s after joining
+    t = Date.now()
     await place(A, 4407.5, 4408.5, 180) // in front of the counter, facing it (north)
+    check('entering: hit the clerk, then dodge what they throw (no word of cops)', /dodge what they throw/.test(text(A, t)) && !/call the cops/.test(text(A, t)), text(A, t).slice(0, 300))
     t = Date.now()
     await hold(A, 4407, Y + 1, 4406.5, 2000)
     await sleep(600)
@@ -117,8 +122,9 @@ module.exports = async ({ check }) => {
     if (!hit) { await cmd(`zzclerkhit ${ID} ${A}`); hit = await until(async () => field(await info(), 'hit') !== '<none>', 2000) }
     i = await info()
     check('a punch on the clerk (by the bot, else by /zzclerkhit) starts the robbery: the run, the clerk panics', Boolean(ce) && hit && field(await heist(), 'state') === 'active' && field(i, 'st') !== 'idle', `${Boolean(ce)} ${i} | ${await heist()}`)
-    check('...the panic button: the robber inside is wanted, the cops are coming (the store\'s response time)', /wanted=true/.test(await combat(A)) && field(await alarm(), 'stage') === 'warning' && /panic button/.test(text(A, t)), `${await combat(A)} | ${await alarm()} | ${text(A, t).slice(0, 300)}`)
-    check('...and the bystander outside isn\'t', /wanted=false/.test(await combat(B)), await combat(B))
+    check('...no police: nobody wanted, no alarm, "the register\'s open"', /wanted=false/.test(await combat(A)) && field(await alarm(), 'stage') === 'none' && /register's open/.test(text(A, t)) && !/panic button/.test(text(A, t)), `${await combat(A)} | ${await alarm()} | ${text(A, t).slice(0, 300)}`)
+    const staffAlarm = await cmd(`dheist alarm ${ID}`)
+    check('...and staff can\'t trip its alarm either', /police are off/.test(staffAlarm) && field(await alarm(), 'stage') === 'none', `${staffAlarm} | ${await alarm()}`)
     check('...the clerk isn\'t hurt (still there, same NPC)', /id=\d+/.test(await info()) && clerkEntity(bots[A]) !== undefined, await info())
     await hold(A, 4407, Y + 1, 4406.5, 2500)
     await sleep(500)
@@ -136,6 +142,24 @@ module.exports = async ({ check }) => {
     const back = await until(async () => field(await info(), 'st') !== 'stunned', 5000)
     check('...for a moment, then back to it', back, await info())
 
+    // ---------- A store with its police on (/dheist set <store> police true) ----------
+    await cmd(`dheist end ${ID}`)
+    const gone = await until(async () => !/id=\d+/.test(await info()), 4000)
+    check('the store closes: the clerk goes', gone, await info())
+    const pol = await cmd(`dheist set ${ID} police true`)
+    await cmd(`dheist open ${ID}`)
+    const again = await until(async () => /id=\d+/.test(await info()) && field(await info(), 'shut') === 'true', 15000)
+    check('it reopens with the clerk back at the register and the register shut again', again, await info())
+    await sleep(1500) // Citizens puts the skin on (a new entity)
+    t = Date.now()
+    await place(A, 4407.5, 4408.5, 180)
+    check('police on (/dheist set police true): entering says the clerk will call the cops', /police = true/.test(pol) && /call the cops/.test(text(A, t)), `${pol} | ${text(A, t).slice(0, 300)}`)
+    t = Date.now()
+    await cmd(`zzclerkhit ${ID} ${A}`)
+    await until(async () => field(await alarm(), 'stage') === 'warning', 2000)
+    check('...the hit: the panic button, the robber inside is wanted, the cops are coming (the store\'s response time)', /wanted=true/.test(await combat(A)) && field(await alarm(), 'stage') === 'warning' && /panic button/.test(text(A, t)), `${await combat(A)} | ${await alarm()} | ${text(A, t).slice(0, 300)}`)
+    check('...and the bystander outside isn\'t', /wanted=false/.test(await combat(B)), await combat(B))
+
     // ---------- The store's police ----------
     await cmd(`minecraft:effect give ${A} minecraft:resistance 60 4 true`)
     await cmd(`minecraft:effect give ${A} minecraft:regeneration 60 4 true`)
@@ -151,15 +175,10 @@ module.exports = async ({ check }) => {
     const ended = await until(async () => field(await alarm(), 'stage') === 'none', 4000)
     check('...the alarm ends and its cops go', ended && (await cmd(`zzcops ${ID}`)).includes('alive=0'), `${await alarm()} | ${await cmd(`zzcops ${ID}`)}`)
 
-    // ---------- The store closes: the clerk goes; it reopens with the clerk at the register ----------
+    // ---------- No clerk: the register is open to anyone ----------
     await cmd(`dheist end ${ID}`)
-    const gone = await until(async () => !/id=\d+/.test(await info()), 4000)
-    check('the store closes: the clerk goes', gone, await info())
     await cmd(`dheist open ${ID}`)
-    const again = await until(async () => /id=\d+/.test(await info()) && field(await info(), 'shut') === 'true', 15000)
-    check('it reopens with the clerk back at the register and the register shut again', again, await info())
-
-    // ---------- No clerk: the register is open to anyone, no police ----------
+    await until(async () => field(await heist(), 'state') === 'open', 15000)
     const removed = await cmd(`dclerk ${ID} remove`)
     i = await info()
     check('/dclerk remove: no clerk, the register open', /no clerk any more/.test(removed) && field(i, 'shut') === 'false' && !/id=\d+/.test(i), `${removed} | ${i}`)
