@@ -1585,7 +1585,7 @@ rear lot; E3's satellite-dish hill stays 30+ blocks east.
   (`glass` over `smooth_stone`, a `dark_oak_slab` top at y 66) with a gap at its north end; Vic behind it at (600.5, 65,
   962.5), yaw 90 (facing the door); shelving and a pegboard on the back wall (x 607) and the side walls with goods as
   item displays (`displays`: clocks, gold, jewels, a guitar look) and in both windows; hanging lanterns.
-- **Region:** `safe_pawnshop` 580 63 941 .. 614 85 985 (passthrough allow, weapon-shoot deny).
+- **Region:** `safe_pawnshop` 579 63 940 .. 614 85 985 (the whole box) (passthrough allow, weapon-shoot deny).
 - **Giver:** `dquest addatw fence W 600.5 65 962.5 90 Pawn Shop` (Vic, quest kind `fence`).
 - **GPS:** door node 1054 PAWN_SHOP (582.5, 65, 962.5) linked to 1055 EAST_PAWN (15.1).
 

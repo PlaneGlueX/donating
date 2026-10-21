@@ -609,7 +609,7 @@ function setupLines (W) {
   for (const p of S.pois) tag(now ? '(L)' : '(G)', `${goto(p.at)}   then   ${p.cmd}`)
   if (S.givers.length || S.crates.length || S.carSpots.length || S.chops.length || S.walls.length || S.holos.length) {
     L.push('', '## 6. Quest givers, crate stands, car spots, chop shops, wall maps, leaderboards')
-    for (const q of S.givers) tag('(C)', q.cmd)
+    for (const q of S.givers) tag('(C)', now ? q.cmd : (q.launchCmd || q.cmd)) // addatw <kind> jailbreak ... now, addat at launch
     for (const c of S.crates) tag('(G)', `look at ${c.at.join(' ')}, then ${c.cmd}`)
     for (const c of [...S.carSpots, ...S.chops]) tag('(G)', `${goto(c.at)}   then   ${c.cmd}`)
     for (const w of [...S.walls, ...S.holos]) tag(now ? '(L)' : '(G)', w.cmd)
