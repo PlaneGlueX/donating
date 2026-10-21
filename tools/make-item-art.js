@@ -1338,6 +1338,37 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   })
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 
+  // The pump's fuel nozzle (fuel.sk fuelNozzle: a stick with "donating:nozzle", hotbar 9 while it's out): held like the
+  // Drill, its spout toward -z with the tip bent down; a steel valve body under a red rubber boot, the lever inside its
+  // guard, the black grip raked back and the hose leaving its bottom through a steel ferrule.
+  solid('fuel_nozzle', [
+    [220, 224, 232], [168, 174, 186], [110, 116, 128], [34, 34, 38], // 0-3 steel light, steel, steel dark, grip
+    [60, 60, 66], [226, 70, 56], [184, 44, 36], [124, 28, 24], // 4-7 grip lit, boot light, boot, boot dark
+    [24, 24, 28] // 8 hose
+  ], [
+    { from: [6.6, 9, 7.2], to: [9.4, 12.2, 12.4], c: { all: 1, up: 0, down: 2 } }, // valve body
+    { from: [6.5, 10.4, 10.2], to: [9.5, 12.3, 12.5], c: { all: 6, up: 5, down: 7 } }, // rubber boot over its back
+    { from: [7.1, 9.8, 6.4], to: [8.9, 11.6, 7.2], c: 2 }, // spout collar
+    { from: [7.5, 10.2, 2.8], to: [8.5, 11.2, 6.4], c: { all: 1, up: 0, down: 2 } }, // spout
+    { from: [7.4, 10.1, 4.6], to: [8.6, 11.3, 5], c: 2 }, // its spring band
+    { from: [7.55, 10.25, 0.6], to: [8.45, 11.15, 2.9], c: { all: 1, up: 0, down: 2 }, rot: { angle: -22.5, axis: 'x', origin: [8, 10.7, 2.9] } }, // tip, bent down
+    { from: [7.3, 8, 7.8], to: [8.7, 8.7, 10.6], c: { all: 2, down: 1 } }, // lever
+    { from: [7.4, 7, 7.2], to: [8.6, 9.1, 7.7], c: 1 }, // guard: front post and bottom bar
+    { from: [7.4, 7, 7.2], to: [8.6, 7.4, 11.7], c: { all: 1, down: 2 } },
+    { from: [6.9, 4, 10.6], to: [9.1, 9.2, 12.8], c: { all: 3, up: 4, south: 4 }, rot: { angle: -22.5, axis: 'x', origin: [8, 9.2, 11.7] } }, // grip, raked back
+    { from: [6.8, 3.6, 10.5], to: [9.2, 4.4, 12.9], c: { all: 1, up: 0 }, rot: { angle: -22.5, axis: 'x', origin: [8, 9.2, 11.7] } }, // ferrule
+    { from: [7.1, 1.4, 10.8], to: [8.9, 3.6, 12.6], c: 8, rot: { angle: -22.5, axis: 'x', origin: [8, 9.2, 11.7] } } // hose stub
+  ], {
+    thirdperson_righthand: { translation: [0, 2.5, -1], scale: [0.7, 0.7, 0.7] },
+    thirdperson_lefthand: { translation: [0, 2.5, -1], scale: [0.7, 0.7, 0.7] },
+    firstperson_righthand: { rotation: [4, 28, 0], translation: [-1, 4.5, -1], scale: [0.75, 0.75, 0.75] },
+    firstperson_lefthand: { rotation: [4, 28, 0], translation: [-1, 4.5, -1], scale: [0.75, 0.75, 0.75] },
+    gui: { rotation: [20, -135, 0], translation: [0.5, 1.5, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { rotation: [0, 90, 0], scale: [0.8, 0.8, 0.8] }
+  })
+  addCase('stick', 'donating:nozzle', 'donating:item/fuel_nozzle')
+
   // The prison guards' handcuffs (owner, 2026-10-20: "make the guards hold hand cuffs while arresting you (make the
   // textures for the item too)"): two steel cuffs on a four-link chain, a lock case with a keyhole and a lock pin on
   // each; held by the top cuff with the chain and the bottom cuff hanging below. Art only (jailcops.sk's jcopHold puts

@@ -555,8 +555,11 @@ final class Paths {
                 add(who, me, a[2], x, y, z, id, noLink, String.join(" ", name));
             }
             case "link", "unlink" -> {
-                Node na = a.length > 3 ? node(a[2]) : null, nb = a.length > 3 ? node(a[3]) : null;
-                if (na == null || nb == null || na == nb) { who.sendMessage("PATH usage: /dphone path " + sub + " <a> <b> (two node ids)"); return true; }
+                if (a.length < 4) { who.sendMessage("PATH usage: /dphone path " + sub + " <a> <b> (two node ids)"); return true; }
+                Node na = node(a[2]), nb = node(a[3]);
+                if (na == null) { who.sendMessage(noNode(a[2])); return true; }
+                if (nb == null) { who.sendMessage(noNode(a[3])); return true; }
+                if (na == nb) { who.sendMessage("PATH #" + na.id + " can't " + sub + " to itself"); return true; }
                 if (!na.world.equals(nb.world)) { who.sendMessage("PATH #" + na.id + " and #" + nb.id + " are in different worlds"); return true; }
                 if (sub.equals("link")) { na.links.add(nb.id); nb.links.add(na.id); }
                 else { na.links.remove(nb.id); nb.links.remove(na.id); }
@@ -564,8 +567,9 @@ final class Paths {
                 who.sendMessage("PATH " + (sub.equals("link") ? "linked #" : "unlinked #") + na.id + " - #" + nb.id + " (" + num(dist(na, nb)) + " blocks)");
             }
             case "remove" -> {
-                Node d = a.length > 2 ? node(a[2]) : null;
-                if (d == null) { who.sendMessage("PATH usage: /dphone path remove <id>"); return true; }
+                if (a.length < 3) { who.sendMessage("PATH usage: /dphone path remove <id>"); return true; }
+                Node d = node(a[2]);
+                if (d == null) { who.sendMessage(noNode(a[2])); return true; }
                 for (int l : d.links) { Node o = nodes.get(l); if (o != null) o.links.remove(d.id); }
                 nodes.remove(d.id);
                 lastAdded.values().removeIf(v -> v == d.id);
@@ -668,6 +672,12 @@ final class Paths {
 
     private Node node(String s) {
         try { return nodes.get(Integer.parseInt(s.replace("#", ""))); } catch (NumberFormatException e) { return null; }
+    }
+
+    /** The reply for an id node() didn't find: not a number, or no such node. */
+    private static String noNode(String s) {
+        try { return "PATH no node #" + Integer.parseInt(s.replace("#", "")) + " (/dphone path list, near)"; }
+        catch (NumberFormatException e) { return "PATH " + s + " isn't a node id"; }
     }
 
     private static double dist(Node a, Node b) { return Math.sqrt(sq(a.x - b.x) + sq(a.y - b.y) + sq(a.z - b.z)); }

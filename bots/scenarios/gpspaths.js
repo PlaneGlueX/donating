@@ -139,6 +139,10 @@ module.exports = async ({ check }) => {
     const dump = await cmd(`dphone path dump ${W}`)
     const dumpFile = fs.existsSync(path.join(DP, 'paths-dump.txt')) ? fs.readFileSync(path.join(DP, 'paths-dump.txt'), 'utf8') : ''
     check('/dphone path dump: clear, every node with its id, then the links (also in paths-dump.txt)', /dphone path addat world 7930\.5 185\.0 7909\.5 id=9005 nolink Stairs top/.test(dumpFile) && /dphone path link 9004 9005/.test(dumpFile) && /dphone path clear world confirm/.test(dumpFile) && /paths-dump\.txt/.test(dump), dumpFile.slice(0, 300))
+    // An id that isn't there says so (it used to answer with the usage line).
+    const noRemove = await cmd('dphone path remove 9999')
+    const noLink = await cmd(`dphone path link ${ID(1)} 9999`)
+    check('/dphone path remove|link with a missing id: "no node #9999", not the usage line', /no node #9999/.test(noRemove) && /no node #9999/.test(noLink) && !/usage/.test(noRemove + noLink), `${noRemove} | ${noLink}`)
     await cmd(`dphone gps ${A} clear`)
 
     // ---------- The big map's zoom ----------

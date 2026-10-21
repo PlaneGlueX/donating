@@ -85,6 +85,8 @@ module.exports = async ({ check }) => {
     await place(B, 3309.5, 3318.5)
     await sleep(3000)
     check('staff make a store with difficulty 0; safes and vault doors are refused in one, piles are fine', /created/.test(created) && /piles and glass only/.test(safeRefused) && /added/.test(pile), `${created} | ${safeRefused} | ${pile}`)
+    const lootCheck = await cmd(`dloot check ${ID}`)
+    check('/dloot check on a store: "a store has no escape clock", no "half the clock" warning', /a store has no escape clock/.test(lootCheck) && !/half the clock/.test(lootCheck), lootCheck)
 
     let t = Date.now()
     await cmd(`dheist enable ${ID}`)

@@ -2544,6 +2544,10 @@ function dlootCheck(s: command sender, h: text):
 	set {_pool} to heistSetting({_h}, "loot-pool")
 	set {_e} to heistEscape({_h}) / 1 second
 	dlootReply({_s}, "LOOT %{_h}%: rolls %formatMoney({_smin})%-%formatMoney({_smax})%, about %formatMoney({_sev})% on average; pool setting %formatMoney({_pool})%")
+	# A store runs with no clock (heistStartRun), whatever its escape setting says.
+	if heistIsStore({_h}) is true:
+		dlootReply({_s}, "LOOT %{_h}%: one robber clears it all in about %formatClock({_g})%; a store has no escape clock")
+		stop
 	dlootReply({_s}, "LOOT %{_h}%: one robber clears it all in about %formatClock({_g})%; the escape clock is %formatClock({_e})%")
 	if {_g} > 0.5 * {_e}:
 		dlootReply({_s}, "LOOT warning: that's more than half the clock (fine for a heist meant for a crew)")
