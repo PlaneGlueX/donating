@@ -149,7 +149,7 @@ function fuelPumpAt(l: location) :: text:
 						if {_y} <= {_y2}:
 							if {_z} >= {_z1}:
 								if {_z} <= {_z2}:
-									return "%loop-index%"
+									return loop-index
 	return ""
 
 # Over the middle of the pump's box (the hose starts here; the meter floats a little higher).
@@ -170,7 +170,7 @@ function fuelPumpLabel(n: text) :: text:
 function fuelPumpNear(l: location) :: text:
 	set {_best} to ""
 	loop {fuel::pump::*}:
-		set {_n} to "%loop-index%"
+		set {_n} to loop-index
 		set {_t} to fuelPumpTop({_n})
 		if world of {_t} is world of {_l}:
 			set {_d} to distance between {_t} and {_l}
@@ -214,7 +214,8 @@ function fuelGrab(p: player, n: text):
 	set {_why} to fuelGrabBlock({_p}, {_n})
 	if {_why} is not "":
 		if {_why} is not "-":
-			hudBar({_p}, "&c%{_why}%", 2)
+			# 3: above the combat tag's own bar, which is why "Not in a fight" shows at all.
+			hudBar({_p}, "&c%{_why}%", 3)
 		stop
 	set {_u} to "%uuid of {_p}%"
 	if {-fuel::hold::%{_u}%} is set:
@@ -281,7 +282,7 @@ function fuelCarClick(p: player, plate: text):
 		stop
 	if {-fuel::fill::%{_u}%} is set:
 		fuelStop({_p}, "switch")
-	set {_cl} to vehicle location of license plate {_plate}
+	set {_cl} to carMainLoc({_plate}, location of {_p})
 	if {_cl} is not set:
 		stop
 	set {_t} to fuelPumpTop({_n})
@@ -338,7 +339,7 @@ function fuelFlow(p: player):
 	set {_plate} to {-fuel::fill::%{_u}%}
 	{_plate} is set
 	set {_n} to {-fuel::hold::%{_u}%}
-	set {_cl} to vehicle location of license plate {_plate}
+	set {_cl} to carMainLoc({_plate}, location of {_p})
 	if {_cl} is not set:
 		fuelStop({_p}, "gone")
 		stop

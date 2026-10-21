@@ -131,6 +131,11 @@ voertuigen:
         itemDamage: 1361
         uuid: 4MG4Z0
         price: 5000.0
+      - name: "Wrap Sportief Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1440
+        uuid: POOIDX
+        price: 5000.0
   - name: "Sedan"
     vehicleType: CAR
     skinItem: DIAMOND_HOE
@@ -274,6 +279,11 @@ voertuigen:
         itemDamage: 1316
         uuid: KL1Y3Z
         price: 5500.0
+      - name: "Wrap Sedan Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1437
+        uuid: WZ3A8R
+        price: 5500.0
       - name: "Wrap Sport Sedan Matte Black"
         SkinItem: DIAMOND_HOE
         itemDamage: 1317
@@ -348,6 +358,11 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1331
         uuid: 5CVEM2
+        price: 5500.0
+      - name: "Wrap Sport Sedan Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1438
+        uuid: V17RU2
         price: 5500.0
   - name: "Jeep"
     vehicleType: CAR
@@ -456,6 +471,11 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1346
         uuid: 6KCH1E
+        price: 6000.0
+      - name: "Wrap Jeep Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1439
+        uuid: BSUL1H
         price: 6000.0
   - name: "Hotrod"
     vehicleType: CAR
@@ -571,6 +591,11 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1376
         uuid: 2RINYZ
+        price: 5000.0
+      - name: "Wrap Hotrod Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1441
+        uuid: U4MSYF
         price: 5000.0
   - name: "SUV"
     vehicleType: CAR
@@ -690,6 +715,11 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1391
         uuid: 10F5GP
+        price: 9000.0
+      - name: "Wrap SUV Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1442
+        uuid: W1QT9Y
         price: 9000.0
   - name: "SUV Cabrio"
     # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the riviera): change it there.
@@ -825,6 +855,11 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1406
         uuid: 8C4HQJ
+        price: 9000.0
+      - name: "Wrap SUV Cabrio Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1443
+        uuid: FBTIH9
         price: 9000.0
   - name: "Racecar"
     # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the apex): change it there.
@@ -976,6 +1011,11 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1421
         uuid: 4J64ZR
+        price: 7000.0
+      - name: "Wrap Racecar Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1444
+        uuid: NWCD9K
         price: 7000.0
   - name: "Motor"
     # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the viper): change it there.
@@ -1137,4 +1177,9 @@ voertuigen:
         SkinItem: DIAMOND_HOE
         itemDamage: 1436
         uuid: G8TU64
+        price: 3000.0
+      - name: "Wrap Motor Scrapper"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1445
+        uuid: TYGRHV
         price: 3000.0

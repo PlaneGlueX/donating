@@ -22,7 +22,7 @@ module.exports = async ({ check }) => {
   try {
     const text = t => messagesSince(bot, t).map(m => m.text).join(' | ')
     const state = async () => cmd(`zzbike ${A}`)
-    const field = (s, k) => (s.match(new RegExp(`${k}=(\\S*)`)) || [])[1] || ''
+    const field = (s, k) => { const v = (s.match(new RegExp(`${k}=(\\S*)`)) || [])[1] || ''; return v === '<none>' ? '' : v }
     const until = async (fn, ms = 5000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(250) } return Boolean(await fn()) }
     const near = (kind, pos, d = 0.8) => Object.values(bot.entities).filter(e => e.name === kind && e.position.distanceTo(pos) < d)
     const box = () => near('interaction', new Vec3(...SPOT))[0]

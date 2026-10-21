@@ -112,7 +112,7 @@ function bikeWants(n: text) :: boolean:
 
 every 2 seconds:
 	loop {bike::spot::*}:
-		set {_n} to "%loop-index%"
+		set {_n} to loop-index
 		if bikeWants({_n}) is true:
 			if bikeParked({_n}) is false:
 				bikePark({_n})
@@ -163,7 +163,8 @@ function bikeClick(p: player, n: text):
 	set {_why} to bikeBlock({_p}, {_n})
 	if {_why} is not "":
 		if {_why} is not "-":
-			hudBar({_p}, "&c%{_why}%", 2)
+			# 3: the alarm's own line is 3, and this one follows it.
+			hudBar({_p}, "&c%{_why}%", 3)
 		stop
 	bkQteOpen({_p}, {_n})
 
@@ -452,7 +453,7 @@ on death of player:
 # (walking away, the bike gone).
 every second:
 	loop {-bike::plate::*}:
-		set {_plate} to "%loop-index%" in upper case
+		set {_plate} to loop-index in upper case
 		set {_p} to loop-value
 		if {_p} is not online:
 			bikeScrap({_plate}, "quit")
@@ -474,7 +475,7 @@ every second:
 			else if {_seat} starts with "driver:":
 				# in one of their own cars now
 				bikeScrap({_plate}, "car")
-			else if vehicle location of license plate {_plate} is not set:
+			else if carMainLoc({_plate}, location of {_p}) is not set:
 				bikeScrap({_plate}, "gone")
 			else if {-bike::idle::%{_plate}%} is not set:
 				set {-bike::idle::%{_plate}%} to now
@@ -494,7 +495,7 @@ every second:
 # Bikes from rides that ended without us (a restart or crash): scrapped.
 every 10 seconds:
 	loop {bike::plates::*}:
-		set {_plate} to "%loop-index%" in upper case
+		set {_plate} to loop-index in upper case
 		if {-bike::plate::%{_plate}%} is not set:
 			bikeScrap({_plate}, "restart")
 
@@ -523,7 +524,7 @@ command /dbike [<text>]:
 			# the same spot again (a second run of the setup lines) replaces it
 			loop {bike::spot::*}:
 				if distance between loop-value and {_l} < 0.5:
-					set {_old} to "%loop-index%"
+					set {_old} to loop-index
 			if {_old} is set:
 				bikeUnpark({_old})
 				set {bike::spot::%{_old}%} to {_l}
@@ -559,7 +560,7 @@ command /dbike [<text>]:
 		else if {_sub} is "list":
 			send "BIKE %size of {bike::spot::*}% spots, look %bikeVariant()%, %size of {-bike::plate::*}% out" to sender
 			loop {bike::spot::*}:
-				set {_n} to "%loop-index%"
+				set {_n} to loop-index
 				set {_st} to "parked"
 				if bikeParked({_n}) is false:
 					set {_st} to "empty"
@@ -574,7 +575,7 @@ command /dbike [<text>]:
 		else if {_sub} is "reset":
 			delete {-bike::next::*}
 			loop {bike::spot::*}:
-				set {_n} to "%loop-index%"
+				set {_n} to loop-index
 				if {-bike::out::%{_n}%} is not set:
 					if bikeWants({_n}) is true:
 						bikePark({_n})

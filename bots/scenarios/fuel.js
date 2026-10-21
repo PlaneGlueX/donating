@@ -28,7 +28,7 @@ module.exports = async ({ check }) => {
     const text = t => messagesSince(bot, t).map(m => m.text).join(' | ')
     const bal = async () => Number(((await cmd(`zzbal ${A}`)).match(/: (-?\d+)/) || [])[1])
     const state = async () => cmd(`zzfuel ${A}`)
-    const field = (s, k) => (s.match(new RegExp(`${k}=(\\S*)`)) || [])[1] || ''
+    const field = (s, k) => { const v = (s.match(new RegExp(`${k}=(\\S*)`)) || [])[1] || ''; return v === '<none>' ? '' : v }
     const fuelOf = async () => cmd(`dfuel car ${plate}`)
     const level = async () => Number(field(await fuelOf(), 'level'))
     const until = async (fn, ms = 5000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(250) } return Boolean(await fn()) }

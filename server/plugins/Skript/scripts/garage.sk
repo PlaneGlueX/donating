@@ -675,6 +675,21 @@ function carStands(plate: text) :: number:
 			add 1 to {_n}
 	return {_n}
 
+# Where a plate's car is (its MAIN stand), or nothing. MTVehicles' "vehicle location of license plate" only knows a car
+# while it's driven (VehicleData.autostand), so a parked one is found by its stand's name: near a spot first, then anywhere
+# loaded.
+function carMainLoc(plate: text, near: location) :: location:
+	set {_l} to vehicle location of license plate {_plate}
+	if {_l} is set:
+		return {_l}
+	set {_name} to "MTVEHICLES_MAIN_%{_plate}%"
+	loop all armor stands in radius 16 around {_near}:
+		if "%name of loop-entity%" is {_name}:
+			return location of loop-entity
+	loop all armor stands:
+		if "%name of loop-entity%" is {_name}:
+			return location of loop-entity
+
 # Brings a player's car next to them (sends another car of theirs back first).
 function carCall(p: player, plate: text):
 	set {_why} to carCallBlock({_p})
@@ -2096,6 +2111,12 @@ command /dgarage <text> [<offline player>] [<text>] [<text>]:
 			send "GARAGE %arg-2% %{_all}% outof=%{car::outof::%uuid of arg-2%}%" to sender
 		else if arg-1 is "store":
 			set {_plate} to {car::outof::%uuid of arg-2%}
+			if {_plate} is not set:
+				# A car out without a call (a test spawn, a contract-era leftover): any of theirs that's out.
+				loop {data::%uuid of arg-2%::cars::*}:
+					set {_c} to loop-index in upper case
+					if {car::out::%{_c}%} is set:
+						set {_plate} to {_c}
 			if {_plate} is not set:
 				send "GARAGE %arg-2% has no car out" to sender
 				stop
