@@ -1431,3 +1431,9 @@ Magenta in a render only means render.js has no texture for that name. `check-st
 | Q16 | The hills are hollow shells, and their dark insides spawn mobs whenever mob spawning is on. Keep `gamerule spawn_mobs false` in this world on Minehut too (the local test world already has it)? | off |
 | Q17 | Jailbreak's town has about 22 houses; this plan has 12 plus the Safehouse, on roomy plots. There's room for more later on Hill Road's south side (x 414..455) and around Birch Court's circle. Add them in a later run? | 12 |
 | Q18 | The Town Garage's red stripes: three (y 66, 68, 70: they stripe most of the wall), or two (y 68 and 70 only: garage_new's compact band at about 45-75% of the wall, plain brick under it)? | three |
+
+## 14. Owner's answers (2026-10-21)
+- Next: wire the 8 built parts first (shopkeepers, safe zones, GPS paths, stores), before building the rest.
+- Deaths: every death respawns in the prison, free players in town too (current rule kept).
+- Q14: keep the walk, but add a small shop in front of the prison with a little parking lot where small vehicles (bikes) spawn; a player steals one with a quick-time event (like the car-theft lockpick minigame).
+- Q15: build Vic's Pawn Shop and the Broker's Pool Hall in town (with the dealer, houses, Safehouse and Scrap Yard).
