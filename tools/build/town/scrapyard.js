@@ -594,7 +594,7 @@ module.exports.setup = {
   givers: [{ kind: 'contracts', at: SPOT.boss, cmd: 'dquest addatw contracts jailbreak 595.5 65 1028.5 0 Scrap Yard',
     launchCmd: 'dquest addat contracts 595.5 65 1028.5 0 Scrap Yard', note: 'behind the counter window, facing south' }],
   crates: [], carSpots: [],
-  chops: [{ at: SPOT.chop, cmd: '/dcontract chop add', note: 'the middle of the bay (a car within 6 of it is delivered)' }],
+  chops: [{ at: SPOT.chop, launch: true, cmd: '/dcontract chop add', note: 'the middle of the bay (a car within 6 of it is delivered)' }],
   garages: [], pois: [], walls: [], holos: [], pumps: []
 }
 module.exports.build = () => module.exports()

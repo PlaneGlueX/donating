@@ -11,7 +11,7 @@ tools/node/node.exe --max-old-space-size=6000 tools/build/town.js setup --world 
 
 If a module changes, print them again rather than trusting this page.
 
-**What's built:** 8 of the 12 modules are built: approach, streets, land, gunshop, donut, garage, gas and shops. Four aren't built yet: dealer, houses, safehouse and scrapyard. Their lines in part C come from PLAN 8.1 and 8.2. Check them with `town.js check` once those modules exist.
+**What's built:** all 14 town modules: approach, streets, land, gunshop, donut, garage, gas and shops (pasted locally by the local session), and dealer, houses, safehouse, scrapyard, pawnshop and poolhall (built 2026-10-21 by a cloud session, checked offline with `town.js check --seal --registry`, never pasted). The prison has a sixth module, the bike shop (`tools/build/jail/bikeshop.js`). Part C has what's new; `town.js setup` prints the lines of every module.
 
 **Tags on each line:**
 - **(G)**: type it in game, standing in that world.
@@ -344,69 +344,55 @@ Mara's GPS finds shops by "Gun", "Bag", "Gear" or "Car" in the POI's name, so ke
    The town's GPS paths cover every street within 24 blocks, so the grid only matters off the streets.
 5. Run `/dsetup` and fix every ✘ it lists.
 
-## C. For the modules not built yet (dealer, houses, safehouse, scrapyard)
+## C. The new parts (2026-10-21: the cloud session's builds, the fuel pumps, the bike shop)
 
-These come from PLAN 8.1 and 8.2. When each module is built, run `town.js check`, which then checks its regions and spots like the ones above. Add the module's `setup` export, so `town.js setup` prints these lines too.
+None of this has been pasted or run. `town.js setup` prints every line below except the bike spots (a prison module).
 
-### The 1M Dealership (`dealer`)
+### C0. The paste and the pack first
+1. Paste the six new town modules (with the owner's OK): `TOWN_ONLY=dealer,houses,safehouse,scrapyard,pawnshop,poolhall` and `town.js paste`, then `town.js labels` and `town.js displays` (the showroom cars, the safehouse's map and papers, the scrap yard's displays). The Pawn Shop and the Pool Hall clear the old land the first paste put in their boxes (each module carries the old land's blocks as air).
+2. Paste the prison's bike shop: `jail.js paste --box 304,398,347,415;316,416,321,418` (the module and the dropped curb across the sidewalk; it clears its box first: the first paste put an oak and a cypress there), then `jail.js labels`.
+3. The stolen bikes' look: `tools\node\node.exe tools\make-car-wraps.js` (it adds the Scrapper wrap's variants to vehicles.yml and carwraps.sk, keeping every existing variant), `tools\node\node.exe tools\build-pack.js`, a restart (MTVehicles reads vehicles.yml at start). Until then `/dsetup fuel` says the bikes have no look and none are parked.
+4. `tools\build-plugin.ps1` (DonatingPhone's `/dphone carfuel`), with the server stopped.
 
+### C1. Regions (G and C)
+`town.js setup` section 1: `safe_garage_dealer`, `safe_base_safehouse`, `safe_scrapyard`, `safe_pawnshop`, `safe_poolhall`, each with `passthrough allow` and `weapon-shoot deny`. The safehouse's id starts with `safe_base`: loot sells as you walk in. Crate stands only open in a safe zone, so define the regions before placing the stands.
+
+### C2. Shopkeepers, quest givers, crate stands (G, C)
 ```
-(G) //pos1 466,63,1010   //pos2 543,110,1105   /rg define safe_garage_dealer
-(C) rg flag -w <W> safe_garage_dealer passthrough allow
-(C) rg flag -w <W> safe_garage_dealer weapon-shoot deny
-(G) /minecraft:tp @s 516.5 65 1081.5 90 0   then   /dshopkeeper add cars           (now)
-(G) look at 508 65 1064: /dcrate place supercar;   look at 508 65 1100: /dcrate place hypercar   (now)
-at launch:
-(G) /minecraft:tp @s 516.5 65 1071.5 90 0   then   /dshopkeeper add garage
-(C) dgaragesite bayat dealer 528.5 65 1067.5 90
-(C) dgaragesite bayat dealer 528.5 65 1076.5 90
-(C) dgaragesite bayat dealer 528.5 65 1085.5 90
-(C) dgaragesite bayat dealer 528.5 65 1094.5 90
-(C) dgaragesite exitat dealer 484.5 65 1025.5 90
-(C) dgaragesite exitat dealer 484.5 65 1085.5 90
-(C) dgaragesite returnat dealer 490.5 65 1055.5 90     (PLAN gives no yaw; a return spot doesn't use it)
-(C) dgaragesite holo dealer
-(G) /minecraft:tp @s 501.5 65 1072.5 0 0   then   /dpoi add shop Car Dealer
-(G) /minecraft:tp @s 490.5 65 1055.5 0 0   then   /dpoi add garage Dealer Garage
+(G) /minecraft:tp @s 516.5 65 1081.5 90 0   then   /dshopkeeper add cars
+(C) dquest addatw story jailbreak 250.5 65 911.5 -90 Safehouse          (at launch: dquest addat story ...)
+(C) dquest addatw contracts jailbreak 595.5 65 1028.5 0 Scrap Yard
+(C) dquest addatw fence jailbreak 600.5 65 962.5 90 Pawn Shop
+(C) dquest addatw hits jailbreak 448.5 65.5 1161.5 180 Pool Hall       (the Broker stands on the hall's raised platform)
+(G) crate stands, looking at each block: 508 65 1064 supercar, 508 65 1100 hypercar (the dealer);
+    260 65 899 daily, 260 65 903 common, 260 65 907 uncommon, 260 65 915 rare,
+    265 65 901 epic, 265 65 905 legendary, 265 65 909 hacked, 265 65 913 season (the safehouse porch)   (/dcrate place <crate>)
 ```
+The `rare` stand moved from 260 911 (PLAN 8.2) to 260 915: at 260 911 it stood right in front of the safehouse's doorway.
 
-### Mara's Safehouse, the base (`safehouse`)
+### C3. Fuel pumps (C)
+The gas station's 12 pumps (`town.js setup` section 6b, `dfuel pumpat <W> 414 65 <z> 415 67 <z> <n>` for z 877, 882, 888, 893, 899, 904, 910, 915, 921, 926, 932, 937). Then `/dfuel list`. A car parked in a lane (x 413 or 416) is within the hose's 6 blocks.
 
+### C4. The bike shop's spots (C)
 ```
-(G) //pos1 213,63,881   //pos2 276,95,943   /rg define safe_base_safehouse
-(C) rg flag -w <W> safe_base_safehouse passthrough allow
-(C) rg flag -w <W> safe_base_safehouse weapon-shoot deny
-(C) dquest addatw story jailbreak 250.5 65 911.5 -90 Safehouse        (now; at launch: dquest addat story 250.5 65 911.5 -90 Safehouse)
-(G) crate stands, looking at each block: 260 65 899 daily, 260 65 903 common, 260 65 907 uncommon, 260 65 911 rare,
-    265 65 901 epic, 265 65 905 legendary, 265 65 909 hacked, 265 65 913 season           (/dcrate place <crate>)
-(G) leaderboards, standing at each: 242.5 65 885.5 /dseason holo earners, 252.5 65 885.5 /dseason holo heisters,
-    262.5 65 885.5 /dseason holo wheelmen
-at launch:
-(C) dphone wall create base 3 2 world 250 66 896 south      (it shows the main city)
-(G) /minecraft:tp @s 268.5 65 911.5 0 0   then   /dpoi add base Safehouse
+(C) dbike spotat jailbreak 310.5 65 406.5 0
+(C) dbike spotat jailbreak 315.5 65 406.5 0
+(C) dbike spotat jailbreak 320.5 65 406.5 0
+(C) dbike spotat jailbreak 325.5 65 406.5 0
+(C) the GPS: the new lines of tools/jail-gps-paths.txt (nodes 198 and 199: LOT_EXIT -> BIKE_SHOP)
 ```
 
-- The region's id starts with `safe_base`, so loot sells as you walk in. It's the town's base.
-- Crate stands open only in a safe zone, so the region must exist before you place them.
+### C5. At launch (L)
+- The City Garage site "dealer": its bays, exits and return, and its attendant (`town.js setup --world world` section 4 and 3).
+- POIs: shop "Car Dealer", garage "Dealer Garage", base "Safehouse", landmark "Gas Station" (section 5).
+- The safehouse's wall map: `dphone wall create base 3 2 world 250 66 896 south`; its leaderboards: `/dseason holo earners|heisters|wheelmen` at 242.5 / 252.5 / 262.5 65 885.5.
+- Car jobs (the main world only: `dcontract`'s addat and dump lines assume it): the 12 house driveways (`/dcontract spot add` at each `CARSPOT_H<n>`, facing the street) and the Scrap Yard's chop bay (`/dcontract chop add` at 632.5 65 1068.5).
+- The quest givers again with `dquest addat` (no world).
 
-### The Scrap Yard and the car-theft jobs (`scrapyard`, `houses`): at launch
-
-`dcontract spot add` takes the world you stand in, but its `addat` and dump lines assume the main world. Car jobs outside the main world are untested, so set all of this up at launch.
-
-```
-(G) //pos1 588,63,1018   //pos2 603,80,1031   /rg define safe_scrapyard
-(C) rg flag -w world safe_scrapyard passthrough allow
-(C) rg flag -w world safe_scrapyard weapon-shoot deny
-(C) dquest addat contracts 595.5 65 1028.5 0 Scrap Yard
-(G) /minecraft:tp @s 632.5 65 1068.5 0 0   then   /dcontract chop add
-(G) the house driveways, each: /minecraft:tp @s <x> 65 <z> <yaw> 0   then   /dcontract spot add
-    H1 303.5 907.5 90    H2 303.5 963.5 90     H3 340.5 1013.5 180   H4 405.5 1013.5 180
-    H5 340.5 1102.5 0    H6 389.5 1102.5 0     H7 272.5 984.5 -90    H8 272.5 1040.5 -90
-    H9 272.5 1068.5 -90  H10 322.5 1167.5 -90  H11 338.5 1209.5 180  H12 353.5 1167.5 90
-```
+### C6. Checks afterwards
+`/dsetup` (its new `fuel` section: pumps, bike spots, the bike look), then the bot scenarios `fuel` and `bikes` (written in the cloud, never run), then in the client: the wiki pictures against each building (PLAN 6.6-6.9, 7, 15.3-15.5).
 
 ## D. Not covered here
 
-- **Vic's Pawn Shop and the Broker's Pool Hall** aren't in the plan (Q15).
 - **Hit contracts** need street nodes (`/dhit node ...`). None are planned for the town yet.
 - **The volcano's site** is kept free; nothing is built there.

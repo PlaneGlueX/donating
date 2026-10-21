@@ -1471,8 +1471,9 @@ bar (a boss bar, "63% Fuel") shows while driving. Donating turns it on and adds 
 
 - **Switches:** MTVehicles `config.yml` `fuelEnabled: true` (`fuelMultiplier: 1`); every family in `vehicles.yml`
   `benzineEnabled: true` (make-car-wraps.js writes it for the families it adds). A car made before keeps its own
-  `benzineEnabled false` in vehicleData.yml: garage.sk turns it on (and sets the model's usage) every time its owner gets
-  in, through DonatingPhone `/dphone carfuel <plate> enabled true usage <u>`. core.sk `fuel::enabled` false stops all of
+  `benzineEnabled false` in vehicleData.yml: fuel.sk turns it on (and sets the model's usage) in the first second of
+  every ride (any car with a driver: garage cars, contract cars, bikes), through DonatingPhone `/dphone carfuel <plate>
+  enabled true usage <u> quiet` (built: its answer goes on the main world's metadata `donating_carfuel`). core.sk `fuel::enabled` false stops all of
   it in Donating's scripts (cars then run on MTVehicles' own setting).
 - **Tanks** (PROPOSAL, core.sk `car::<id>::tank` liters and `car::<id>::burn` minutes of pedal per full tank):
 
@@ -1623,3 +1624,17 @@ Built from 6.6..6.9, 7 and 8 as written, with the owner's "practical, not rolepl
 houses stay locked shells with blinds; the dealership's upper floors keep their car displays because players come to look at
 cars; the scrap yard keeps its wrecks because they're the yard). Their setup lines (regions, keepers, givers, crate stands,
 car spots, the chop shop, garages, POIs, the wall map, the leaderboards) are the modules' `setup` exports.
+
+**As built (2026-10-21, cloud; `town.js check --seal --registry` passes with all 14 modules):**
+- `dealer` (90,077 blocks): the plan's boxes. The stairs: per floor F, flight A climbs east along the tower's south wall
+  (stairs at F+1..F+6, x 534..539, z 1061..1062), a landing at F+6 (x 540..541), flight B climbs west (F+7..F+11, x
+  539..535, z 1065..1066, floating so the floor under it stays free), its last step in the next slab, the slab above B cut
+  (x 536..538) and railed. The 1M's top faces are gold block (yellow concrete is a road block). 17 showroom cars (item
+  displays at bay-lift and bay-scale, the Extreme cars on the top floor's podiums), BAY 1-4 labels on the floor.
+- `houses` (139,874): the kit draws PLAN 7's table (windows 2 x 2 every 5, a white frame, a blind behind; a mono-pitch
+  roof of 4 half-steps low at the street; garage doors on the driveway's face; fences behind the front line); H5's
+  periwinkle is light blue concrete (powder falls over a window). The car spots are tagged launch (car jobs: the main world).
+- `safehouse` (17,851): the `rare` crate stand moved from 260 911 to 260 915 (in front of the doorway). Mara behind her desk
+  (x 252) facing the doorway; the wall map's slots (x 250..252, y 66..67, z 897) kept clear.
+- `scrapyard` (10,241): the plan; road blocks with nothing over them are swapped for terracotta (`skyFix`).
+

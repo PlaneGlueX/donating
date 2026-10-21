@@ -1,5 +1,5 @@
 # fuel.sk: fuel for cars, and the gas station's pumps (tools/build/town/PLAN.md section 15.2, 2026-10-21). Written by a
-# cloud session (no server): untested in game (PLAYTEST 186).
+# cloud session (no server): untested in game (PLAYTEST 226).
 # The owner: "enable fuel for cars, and make adding fuel like an actual gas pump (grab pump, fill it into car, wait until
 # full, pay money, different cars have different size tanks)".
 #

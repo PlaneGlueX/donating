@@ -710,7 +710,7 @@ module.exports.displays = []
 module.exports.points = Object.fromEntries([...H, H6, H11].map(p => [`CARSPOT_${p.id}`, p.spot]))
 module.exports.setup = {
   regions: [], heists: [], keepers: [], givers: [], crates: [],
-  carSpots: [...H, H6, H11].sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1))).map(p => ({ at: p.spot, cmd: '/dcontract spot add', note: `${p.id}'s driveway, facing the street` })),
+  carSpots: [...H, H6, H11].sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1))).map(p => ({ at: p.spot, launch: true, cmd: '/dcontract spot add', note: `${p.id}'s driveway, facing the street` })),
   chops: [], garages: [], pois: [], walls: [], holos: [], pumps: []
 }
 module.exports.build = () => module.exports()
