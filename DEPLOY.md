@@ -147,6 +147,22 @@ Built and checked offline only: test it all on the local server first (handoff/2
 - The worlds: the town's six new modules and the prison's bike shop go with the jailbreak world after their paste (SETUP.md part C0).
 - Setup lines: `town.js setup --world <W>` (regions, the Car Dealer, the four quest givers, the crate stands, the 12 pumps `dfuel pumpat ...`, at launch the dealer's garage site, the POIs, the safehouse's wall map and leaderboards, the car-job spots and the chop shop), and the four `dbike spotat jailbreak ...` lines (SETUP.md C4). `/dsetup fuel` checks pumps, bike spots and the bike look.
 
+### The prison playtest notes and the city items (2026-10-21, a cloud session; PLAYTEST 232-248)
+
+Built and checked offline only: test it all on the local server first (handoff/2026-10-21/PLAYTEST-NOTES.md), then:
+- Upload together, in one restart: `DonatingPhone.jar` (the path wand, the car key's big map and the chase view's pause, the strip text); the pack (six sign fonts, about 1 MB more; the Messages app's bin icon; the map/key no longer dips) with its new URL in the dashboard; the scripts `core.sk`, `jailcops.sk`, `jailescape.sk`, `jailcourse.sk`, `jailjobs.sk`, `jailpoints.sk`, `prison.sk`, `story.sk`, `progress.sk`, `shop.sk`, `chat-extras.sk`, `join-quit.sk`, `placeholders.sk`, `heists.sk`, `bag.sk`, `ranks.sk`, `gps.sk`, `pvp.sk`, `setup.sk`, `garage.sk`, `fuel.sk`, `bikes.sk`, `messages.sk`, `phone.sk`, `carcam.sk`; `plugins/TAB/config.yml` (the compact sidebar). Never `zz-testkit.sk`.
+- The jailbreak world after the paste (`jail.js paste --box` the boxes in the handoff, then `jail.js labels` and `town.js labels`: the fonts and no HIGH VOLTAGE labels).
+- The GPS paths: run every line of `tools/jail-gps-paths.txt` (it clears the world's graph first; ids kept, LOT_EXIT still 187), then `tools/build/town/town-gps-paths.txt` again.
+- MONETIZATION.md: unchanged (the Fuel Tank is bought with in-game money).
+
+### The city clock, store clerks and the police assaults (2026-10-21, a cloud session; PLAYTEST 249-254)
+
+Built and checked offline only: test it all on the local server first (handoff/2026-10-21/CLOCK-STORES.md), then:
+- Scripts, in one restart: the new `clock.sk` and `clerk.sk`, and `core.sk` (clock::*, alarm assaults, a store's alarm, clerk::*), `heists.sk`, `cops.sk`, `hud.sk`, `loot.sk`, `hits.sk`, `fence.sk`, `progress.sk`, `ui.sk`, `death.sk`, `combat-log.sk`, `setup.sk`, `help.sk`, `tabcomplete.sk`, `skins.sk` (once the clerk skin is signed); `plugins/TAB/config.yml` (the clock line). No jar or pack change.
+- The clock needs nothing on Minehut: it sets every world's clock speed (`time rate`) and time itself, from the console (ops see a "[Server: ...]" line at each start and after `/dclock set`). The Minehut dashboard's own time settings, if any, are overridden. The week (hits, Vic) turns with the game clock: running contracts end at the first week turn after the upload.
+- The clerk skin: `tools\node\node.exe tools\sign-skins.js clerk` locally (it writes skins.sk), then upload `skins.sk`. Without it the clerks wear the Bag Shop keeper's skin (`clerk::skin-fallback`).
+- Every store: its clerk and shelves (`town.js setup` prints the Donut Shop's and the Gas Station's `dclerk ... setat` / `shelfat` lines after their `dloot`; `/dheist dump <store>` prints them too). Stores have no police (owner, 2026-10-21: core.sk `difficulty::0::police` false): nothing else to set up. A store given police later (`/dheist set <store> police true`) wants a cop spot or two a street corner away (`/dcops <store> add`; else they come to the exit spot). `/dsetup heists` names a store without a clerk ("!": its register is open to anyone). Citizens and Sentinel are already installed (the cops).
+
 ### The prison (the Jailbreak map, 2026-10-14)
 
 Every new player starts in a prison cell and every death sends you back (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk, jailjobs.sk, jailpoints.sk: all in `scripts/`, uploaded with the rest). It stays off until it's switched on (core.sk `prison::enabled` false: new players start in the city as before, and anyone left in the prison world is moved to the city spawn).

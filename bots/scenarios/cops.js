@@ -49,6 +49,12 @@ module.exports = async ({ check }) => {
     await cmd('zzcfgtime alarm::wave-interval 4 seconds')
     await cmd('zzcfgset alarm::max-cops 3')
     await cmd('zzcfgset cop::per-wave 2')
+    // The assaults (heists.sk, 2026-10-21) held open, so these checks see the waves refill as before: one long assault
+    // with a pool that doesn't run out (the phases have their own scenario: assault.js).
+    await cmd('zzcfgset alarm::per-wave 2')
+    await cmd('zzcfgset alarm::assault-time 600')
+    await cmd('zzcfgset alarm::assault-max 600')
+    await cmd('zzcfgset alarm::pool 99')
     await cmd(`zzregion ${REGION} 960 199 960 970 205 970`)
     await cmd(`dheist create ${ID} 4`)
     await cmd(`dheist set ${ID} name Cop Bank`)

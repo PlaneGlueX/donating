@@ -314,26 +314,17 @@ function duffelGrab(p: player, e: entity):
 		set {_v} to {_kv::2} parsed as number
 		if {_v} is set:
 			set {_got} to 0
-			# A store's loot is for new robbers: over its max level, it stays in the duffel.
-			set {_hp::*} to {_kv::1} split at "#"
-			set {_mx} to heistMaxLevel({_hp::1})
-			set {_over} to false
-			if {_mx} > 0:
-				if {_lvl} > {_mx}:
-					set {_over} to true
-					set {_keptmax} to {_mx}
-					add {_v} to {_kept}
-			if {_over} is false:
-				if {_took} < {_room}:
-					set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
-					add {_got} to {_took}
-					if {_got} > 0:
-						if {_hot} > {_now}:
-							set {_had} to getData({_p}, "hot::%{_kv::1}%")
-							if {_had} is not set:
-								setData({_p}, "hot::%{_kv::1}%", {_hot})
-							else if {_had} < {_hot}:
-								setData({_p}, "hot::%{_kv::1}%", {_hot})
+			# (A store's loot was for robbers up to its max level until 2026-10-21: the owner removed every maximum.)
+			if {_took} < {_room}:
+				set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
+				add {_got} to {_took}
+				if {_got} > 0:
+					if {_hot} > {_now}:
+						set {_had} to getData({_p}, "hot::%{_kv::1}%")
+						if {_had} is not set:
+							setData({_p}, "hot::%{_kv::1}%", {_hot})
+						else if {_had} < {_hot}:
+							setData({_p}, "hot::%{_kv::1}%", {_hot})
 			if {_v} > {_got}:
 				set {_line} to "%{_kv::1}%=%{_v} - {_got}%"
 				if {_rest} is "":
@@ -341,8 +332,6 @@ function duffelGrab(p: player, e: entity):
 				else:
 					set {_rest} to "%{_rest}%;%{_line}%"
 	if {_took} <= 0:
-		if {_kept} > 0:
-			duffelTell({_p}, "&7Store loot is for new robbers (up to level %{_keptmax}%): it stays in the duffel.")
 		stop
 	set {_id} to itemId({_i})
 	if {_rest} is "":

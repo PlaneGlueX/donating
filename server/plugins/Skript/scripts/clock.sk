@@ -1,0 +1,287 @@
+# clock.sk: the city's clock. Built 2026-10-21 (owner: "add a 12 hour clock system for the server (1min = 1sec irl) make
+# sure the day/night time cycle in game follows it (missions that take days like the hitlist mission will now follow the
+# new clock system)").
+#
+# Game time runs clock::rate game minutes a real second (1): a game hour is a real minute, a game day 24 real minutes, a
+# game week 168 real minutes (2.8 hours). It's worked out from the real time, so a restart, a crash or Minehut sleeping
+# never moves it:
+#   G = floor((unix + offset) × rate)   game minutes since the clock's start ({clock::offset} real seconds, /dclock set)
+#   the time of day m = G mod 1440 (0 = midnight), the day D = floor(G / 1440), the week = floor(G / 10080)
+# Shown as a 12-hour clock ("3:45 PM"): the sidebar's first line (%donating_clock%: "☀ Tue 3:45 PM", ☾ at night), the
+# phone's status bar (ui.sk phoneClock), /clock.
+# The sky (every world but the Nether and the End): Minecraft 26.1 gives each world a clock with a speed. At the first
+# pass the clock sends "time rate r" (r = rate × 1000 / 1200 = 0.833333 of vanilla's speed: 1000 ticks a game hour)
+# and "time set" (Minecraft's 0 ticks is 6:00 AM; the moon goes round once every 8 game days) into that world (execute
+# in <its dimension>: the main world is minecraft:overworld, any other minecraft:<its name>), so day and night run
+# smoothly at the game clock's pace on every client. Every second it compares the world's time with the clock and sets
+# it again when they're clock::drift game minutes apart (a lagging server falls behind; staff /time; a bed). Each set is
+# logged; a world that keeps running ahead after its rate was sent is logged once ("rate didn't take").
+# Beds don't let anyone sleep (the clock would put the night back a second later).
+# What follows the game clock: progress.sk's progWeek (the game week: the hit contracts' target and windows, Vic's Wanted
+# List, the heists' weekly heat) and the hit contracts' sightings by game day. Cooldowns and rewards that pace the
+# economy stay on real time (/daily, car job and contact job timers, seasons, boosters, cooldowns): on the game clock
+# they'd come 60 times as often.
+# Staff: /dclock info | set <h:mm> [am|pm] | sync | offset <seconds>. Log: plugins\Skript\logs\clock.log.
+
+function clockLog(text: text):
+	log {_text} to "clock"
+
+function clockRate() :: number:
+	set {_r} to {-cfg::clock::rate}
+	if {_r} is set:
+		if {_r} > 0:
+			return {_r}
+	return 1
+
+function clockOffset() :: number:
+	set {_o} to {clock::offset}
+	if {_o} is set:
+		return {_o}
+	return 0
+
+# Game minutes since the clock's start.
+function clockMinutes() :: number:
+	return floor((progUnix() + clockOffset()) * clockRate())
+
+# Game seconds since the clock's start (hits.sk's windows are kept in these).
+function clockSecs() :: number:
+	return floor((progUnix() + clockOffset()) * clockRate() * 60)
+
+function clockDay() :: number:
+	return floor(clockMinutes() / 1440)
+
+function clockWeek() :: number:
+	return floor(clockMinutes() / 10080)
+
+# The time of day in game minutes (0 = midnight, 1439 = 11:59 PM).
+function clockOfDay() :: number:
+	return mod(clockMinutes(), 1440)
+
+# Real seconds an amount of game seconds takes (a game time shown as a real countdown).
+function clockRealSecs(g: number) :: number:
+	return ceil({_g} / (60 * clockRate()))
+
+# Real seconds to the next game week.
+function clockWeekLeft() :: number:
+	set {_exact} to (progUnix() + clockOffset()) * clockRate()
+	return ceil(((clockWeek() + 1) * 10080 - {_exact}) / clockRate())
+
+# "3:45 PM" for a time of day in game minutes.
+function clockText(m: number) :: text:
+	set {_m} to mod(floor({_m}), 1440)
+	set {_h} to floor({_m} / 60)
+	set {_mm} to mod({_m}, 60)
+	set {_ap} to "AM"
+	if {_h} >= 12:
+		set {_ap} to "PM"
+	set {_h12} to mod({_h}, 12)
+	if {_h12} is 0:
+		set {_h12} to 12
+	set {_ms} to "%{_mm}%"
+	if {_mm} < 10:
+		set {_ms} to "0%{_mm}%"
+	return "%{_h12}%:%{_ms}% %{_ap}%"
+
+# The game day's name ("Tue"; core.sk clock::days, the first is day 0).
+function clockDayName(d: number) :: text:
+	set {_i} to mod(floor({_d}), 7) + 1
+	set {_n} to {-cfg::clock::days::%{_i}%}
+	if {_n} is set:
+		return "%{_n}%"
+	return "Day %{_i}%"
+
+# Night on the clock (the sky is dark from about 7 PM to 5 AM).
+function clockNight(m: number) :: boolean:
+	set {_m} to mod(floor({_m}), 1440)
+	if {_m} >= 1140:
+		return true
+	if {_m} < 300:
+		return true
+	return false
+
+# Minecraft's ticks for a time of day (0 ticks = 6:00 AM, 1000 an hour).
+function clockTicks(m: number) :: number:
+	return mod(round(({_m} - 360) * 1000 / 60), 24000)
+
+# A number written with six decimals (Skript's own text rounds to two: 0.83 would let the sky drift 4 ticks a minute).
+function clockDecimal(x: number) :: text:
+	set {_micro} to round({_x} * 1000000)
+	set {_int} to floor({_micro} / 1000000)
+	set {_frac} to mod({_micro}, 1000000)
+	set {_f} to "%{_frac}%"
+	set {_pad} to 6 - length of {_f}
+	loop {_pad} times:
+		set {_f} to "0%{_f}%"
+	return "%{_int}%.%{_f}%"
+
+# The worlds whose sky follows the clock: core.sk clock::worlds, or every world but the Nether and the End.
+function clockWorldOk(w: world) :: boolean:
+	set {_n} to "%{_w}%"
+	if size of {-cfg::clock::worlds::*} > 0:
+		if {-cfg::clock::worlds::*} contains {_n}:
+			return true
+		return false
+	if {_n} ends with "_nether":
+		return false
+	if {_n} ends with "_the_end":
+		return false
+	return true
+
+# The world's speed: rate game minutes a second = rate × 1000 / 60 ticks a second = that / 20 of vanilla's speed.
+function clockSendRate(w: world):
+	set {_r} to clockRate() * 1000 / 1200
+	execute console command "execute in %worldDim({_w})% run time rate %clockDecimal({_r})%"
+	set {-clock::rated::%{_w}%} to now
+	clockLog("rate %{_w}% %clockDecimal({_r})% dim=%worldDim({_w})%")
+
+# Sets the world to the clock now (the moon's phase follows the game day: once round every 8 days).
+function clockSet(w: world, why: text):
+	set {_g} to clockMinutes()
+	set {_mcday} to floor(({_g} - 360) / 1440)
+	set {_full} to mod({_mcday}, 8) * 24000 + clockTicks(mod({_g}, 1440))
+	execute console command "execute in %worldDim({_w})% run time set %{_full}%"
+	set {-clock::setat::%{_w}%} to now
+	clockLog("set %{_w}% %clockText(mod({_g}, 1440))% ticks=%{_full}% why=%{_why}%")
+
+# The world's time of day in game minutes ("6:30" read back from Skript's time: minute precision).
+function clockWorldMinute(w: world) :: number:
+	set {_t} to "%time in {_w}%"
+	set {_a::*} to {_t} split at ":"
+	set {_h} to {_a::1} parsed as number
+	set {_mm} to {_a::2} parsed as number
+	if {_mm} is not set:
+		return -1
+	return mod({_h} * 60 + {_mm}, 1440)
+
+function clockSync(w: world, m: number):
+	clockWorldOk({_w}) is true
+	if {-clock::rated::%{_w}%} is not set:
+		clockSendRate({_w})
+		clockSet({_w}, "start")
+		stop
+	set {_cur} to clockWorldMinute({_w})
+	{_cur} >= 0
+	# The gap, wrapped to -720..720 game minutes (positive = the world runs ahead).
+	set {_d} to mod({_cur} - {_m} + 720, 1440) - 720
+	set {_lim} to {-cfg::clock::drift}
+	if {_lim} is not set:
+		set {_lim} to 3
+	if abs({_d}) < {_lim}:
+		stop
+	if {_d} > 0:
+		# Ahead again within 5 minutes of the last set: the speed didn't take (sent once more, logged once).
+		if {-clock::setat::%{_w}%} is set:
+			if difference between {-clock::setat::%{_w}%} and now < 5 minutes:
+				if {-clock::warned::%{_w}%} is not set:
+					set {-clock::warned::%{_w}%} to true
+					clockLog("rate didn't take in %{_w}%: it ran %{_d}% minutes ahead (the clock sets it back each time)")
+				clockSendRate({_w})
+	clockSet({_w}, "drift %{_d}%")
+
+every second:
+	set {_m} to clockOfDay()
+	set {_day} to clockDayName(clockDay())
+	set {_icon} to "&e☀"
+	if clockNight({_m}) is true:
+		set {_icon} to "&9☾"
+	set {-ph::clock} to "%{_icon}% &f%{_day}% %clockText({_m})%"
+	set {-ph::clocktext} to clockText({_m})
+	if {-cfg::clock::sky} is not false:
+		loop all worlds:
+			clockSync(loop-world, {_m})
+
+on load:
+	# A reload sends the speed and the time again (a /sk reload after a staff /time).
+	delete {-clock::rated::*}
+	delete {-clock::warned::*}
+
+# No sleeping through the night: the clock would put it back a second later.
+on bed enter:
+	cancel event
+	hudBar(player, "&7No sleeping in this city. &7· It's %clockText(clockOfDay())%.", 1)
+
+# The sidebar's clock (TAB asks from its own thread: memory only).
+placeholderapi placeholder with the prefix "donating":
+	set {_i} to the placeholder identifier
+	if {_i} is "clock":
+		set the placeholder result to "&r"
+		if {-ph::clock} is set:
+			set the placeholder result to {-ph::clock}
+	else if {_i} is "clock_time":
+		set the placeholder result to "&r"
+		if {-ph::clocktext} is set:
+			set the placeholder result to {-ph::clocktext}
+
+command /clock:
+	description: The city's time.
+	trigger:
+		set {_m} to clockOfDay()
+		set {_txt} to "&7It's &f%clockText({_m})% &7on &f%clockDayName(clockDay())%&7. A game hour is a real minute (a day is 24 minutes)."
+		if clockNight({_m}) is true:
+			set {_dawn} to mod(300 - {_m} + 1440, 1440)
+			set {_txt} to "%{_txt}% &7Dawn in %formatClock(clockRealSecs({_dawn} * 60))%."
+		else:
+			set {_dusk} to mod(1140 - {_m} + 1440, 1440)
+			set {_txt} to "%{_txt}% &7Night falls in %formatClock(clockRealSecs({_dusk} * 60))%."
+		if sender is a player:
+			msg(player, {_txt})
+		else:
+			send colored {_txt} to sender
+
+command /dclock [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is not set:
+			set {_sub} to "info"
+		if {_sub} is "info":
+			set {_g} to clockMinutes()
+			send "CLOCK %clockText(mod({_g}, 1440))% %clockDayName(clockDay())% min=%{_g}% day=%clockDay()% week=%clockWeek()% weekleft=%clockWeekLeft()% secs=%clockSecs()% offset=%clockOffset()% rate=%clockRate()%" to sender
+			loop all worlds:
+				if clockWorldOk(loop-world) is true:
+					send "CLOCK %loop-world% %time in loop-world% minute=%clockWorldMinute(loop-world)% dim=%worldDim(loop-world)%" to sender
+		else if {_sub} is "set":
+			# /dclock set 7:30 pm: moves the clock forward to that time of day (the offset changes; the week may turn).
+			set {_t} to {_a::2}
+			if {_t} is not set:
+				send "CLOCK usage: /dclock set <h:mm> [am|pm]" to sender
+				stop
+			set {_hm::*} to {_t} split at ":"
+			set {_h} to {_hm::1} parsed as number
+			set {_mm} to 0
+			if {_hm::2} is set:
+				set {_mm} to {_hm::2} parsed as number
+			if {_h} is not set:
+				send "CLOCK set: a time like 7:30 pm" to sender
+				stop
+			if {_mm} is not set:
+				send "CLOCK set: a time like 7:30 pm" to sender
+				stop
+			if {_a::3} is "pm":
+				if {_h} < 12:
+					add 12 to {_h}
+			else if {_a::3} is "am":
+				if {_h} is 12:
+					set {_h} to 0
+			set {_want} to mod({_h} * 60 + {_mm}, 1440)
+			set {_step} to mod({_want} - clockOfDay() + 1440, 1440)
+			set {clock::offset} to clockOffset() + ceil({_step} / clockRate())
+			delete {-clock::rated::*}
+			clockLog("staff-set %sender% to %clockText({_want})% offset=%{clock::offset}%")
+			send "CLOCK now %clockText(clockOfDay())% (offset %{clock::offset}%)" to sender
+		else if {_sub} is "offset":
+			set {_o} to {_a::2} parsed as number
+			if {_o} is not set:
+				send "CLOCK usage: /dclock offset <seconds>" to sender
+				stop
+			set {clock::offset} to {_o}
+			delete {-clock::rated::*}
+			clockLog("staff-offset %sender% %{_o}%")
+			send "CLOCK offset %{_o}%: now %clockText(clockOfDay())%" to sender
+		else if {_sub} is "sync":
+			delete {-clock::rated::*}
+			send "CLOCK every world's speed and time are sent again within a second" to sender
+		else:
+			send "CLOCK usage: /dclock info | set <h:mm> [am|pm] | sync | offset <seconds>" to sender

@@ -326,6 +326,23 @@ function storyState(p: player, o: text) :: boolean:
 				if getData({_p}, "jail-course") is "done":
 					return true
 		return false
+	# Lefty's lessons (2026-10-21): a way out picked in his menu (state|leftyway); a jail item carried now
+	# (state|jailitem|<kind>: a needed item already in the inventory counts at once); in the lot this run (state|jaillot).
+	if {_a::2} is "leftyway":
+		set {_wk} to {-cfg::chain::lefty::way-key}
+		if {_wk} is set:
+			if getData({_p}, "%{_wk}%") is set:
+				return true
+		return false
+	if {_a::2} is "jailitem":
+		if jailCount({_p}, {_a::3}) >= 1:
+			return true
+		return false
+	if {_a::2} is "jaillot":
+		if prisonIn({_p}) is true:
+			if {-jail::lot::%uuid of {_p}%} is set:
+				return true
+		return false
 	# Mara's chain starts at the first escape; while the prison is off, and for players from before it, at once.
 	if {_a::2} is "escaped":
 		if jailOn() is false:
@@ -473,12 +490,36 @@ function storyClearOf(p: player, c: text):
 function storyClear(p: player):
 	storyClearOf({_p}, "story")
 
-# Makes id the player's mission in its chain ("" = the chain is done). Retired missions are passed over, missions the
-# map can't do are skipped with a line, a state already met is done at once (no text or reward): up to 12 in a row.
+# A chain's way (chain::<c>::way-key, Lefty's lessons: the way out picked in his menu) and whether a mission is for it
+# (story::<id>::way: "c4|keycard"; none = every way). "" = no way picked yet.
+function storyWayOf(p: player, c: text) :: text:
+	set {_k} to {-cfg::chain::%{_c}%::way-key}
+	if {_k} is set:
+		set {_w} to getData({_p}, "%{_k}%")
+		if {_w} is set:
+			return "%{_w}%"
+	return ""
+
+function storyWayFits(p: player, id: text) :: boolean:
+	set {_ways} to {-cfg::story::%{_id}%::way}
+	if {_ways} is not set:
+		return true
+	set {_w} to storyWayOf({_p}, storyChainOf({_id}))
+	if {_w} is "":
+		return false
+	set {_l::*} to "%{_ways}%" split at "|"
+	if {_l::*} contains {_w}:
+		return true
+	return false
+
+# Makes id the player's mission in its chain ("" = the chain is done). Retired missions are passed over, and so are
+# missions for another way out (storyWayFits; with no way picked yet the chain goes back to its way-pick mission),
+# missions the map can't do are skipped with a line, a state already met is done at once (no text or reward): up to
+# 16 in a row.
 function storyActivateOf(p: player, c: text, id: text):
 	set {_key} to storyKey({_c})
 	set {_skipped} to 0
-	loop 12 times:
+	loop 16 times:
 		if {_id} is "":
 			setData({_p}, {_key}, "done")
 			storyClearOf({_p}, {_c})
@@ -491,6 +532,18 @@ function storyActivateOf(p: player, c: text, id: text):
 			set {_need} to ""
 		if {-cfg::story::%{_id}%::retired} is true:
 			set {_id} to storyNextId({_id})
+		else if storyWayFits({_p}, {_id}) is false:
+			if storyWayOf({_p}, {_c}) is "":
+				set {_wp} to {-cfg::chain::%{_c}%::way-pick}
+				if {_wp} is set:
+					if {_wp} is not {_id}:
+						set {_id} to "%{_wp}%"
+					else:
+						set {_id} to storyNextId({_id})
+				else:
+					set {_id} to storyNextId({_id})
+			else:
+				set {_id} to storyNextId({_id})
 		else if storyNeedsMet({_p}, {_need}) is false:
 			storyLog("skip-needs %{_p}% %uuid of {_p}% %{_id}% needs=%{_need}%")
 			storyText({_p}, storyFrom({_id}), "That job fell through. On to the next one.")
@@ -661,6 +714,13 @@ function storyReplaySave(p: player):
 	set {_t} to getData({_p}, "quest-track")
 	if {_t} is set:
 		setData({_p}, "jail-replay::track", "%{_t}%")
+	# Lefty's way out (2026-10-21): the replay asks again; stop puts it back.
+	set {_wk} to {-cfg::chain::lefty::way-key}
+	if {_wk} is set:
+		set {_w} to getData({_p}, "%{_wk}%")
+		if {_w} is set:
+			setData({_p}, "jail-replay::way", "%{_w}%")
+		deleteData({_p}, "%{_wk}%")
 	loop {-cfg::story::chains::*}:
 		if storyIsTutorial(loop-value) is true:
 			storyReplaySaveOf({_p}, loop-value)
@@ -704,6 +764,13 @@ function storyReplayRestore(p: player):
 		setData({_p}, "quest-track", {_t})
 	else:
 		deleteData({_p}, "quest-track")
+	set {_wk} to {-cfg::chain::lefty::way-key}
+	if {_wk} is set:
+		set {_w} to getData({_p}, "jail-replay::way")
+		if {_w} is set:
+			setData({_p}, "%{_wk}%", "%{_w}%")
+		else:
+			deleteData({_p}, "%{_wk}%")
 	loop {-cfg::story::chains::*}:
 		if storyIsTutorial(loop-value) is true:
 			storyReplayRestoreOf({_p}, loop-value)
@@ -782,6 +849,11 @@ function storyPassOf(p: player, c: text):
 		stop
 	if {-cfg::story::%{_id}%::retired} is true:
 		storyActivateOf({_p}, {_c}, storyNextId({_id}))
+		stop
+	# A mission for another way out (the player changed their mind in Lefty's menu, or a save from before the ways):
+	# storyActivateOf finds the right one.
+	if storyWayFits({_p}, {_id}) is false:
+		storyActivateOf({_p}, {_c}, {_id})
 		stop
 	# Content can disappear (a heist disabled for a rebuild): checked every story::needs-check seconds, and the mission
 	# is only skipped once it has been missing for story::needs-grace seconds in a row (staff maintenance doesn't
@@ -1245,6 +1317,13 @@ function storyCard(p: player, id: text) :: item:
 	add "&7Progress: %{_prog}%" to {_l::*}
 	# The contact's words, in quotes, a few short lines (a long brief made one very wide tooltip).
 	add msgWrapIn("""%{_hint}%""", 38, "&7") to {_l::*}
+	# Lefty's lessons: the way picked and the prison's head start (2026-10-21, jailjobs.sk).
+	if {_c} is "lefty":
+		set {_w} to storyWayOf({_p}, {_c})
+		if {_w} is not "":
+			add "&7Your way out: &f%{_w}%" to {_l::*}
+		add "&eHead start &f%jjHeadCount({_p})%/%size of {-cfg::jhead::ids::*}%" to {_l::*}
+		add jjHeadLines({_p}) to {_l::*}
 	# Clicking a card to route isn't obvious: said while the GPS can show it; else what the GPS shows first.
 	if storyGpsSpots({_p}, {_id}) is not "":
 		if {-ctjob::%uuid of {_p}%} is set:

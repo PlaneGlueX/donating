@@ -13,7 +13,8 @@
 #   Lost balance disappears (a money sink).
 # Cop deaths: killed by a cop (Citizens NPC, metadata "NPC"), or a combat log credited to the cops.
 # Hit deaths: killed by a hit target's bodyguard (hits.sk), p = hit::death-p.
-# The cause is saved as data "last-death-cause": "player:<uuid>", "cop", "hit", "trap" (traps.sk) or "other"
+# The cause is saved as data "last-death-cause": "player:<uuid>", "cop", "hit", "clerk" (a store clerk's thrown prop:
+# the store's p, like a trap), "trap" (traps.sk) or "other"
 # (bounty.sk).
 #
 # Runs before inventory.sk's death handler (scripts load alphabetically), which keeps the inventory,
@@ -90,6 +91,9 @@ on death of player:
 			set {_cause} to "cop"
 			if hitHolderOfEntity(attacker) is not "":
 				set {_cause} to "hit"
+			else if clerkOfEntity(attacker) is not "":
+				# A store clerk's thrown prop (clerk.sk): like a trap, the store's own p.
+				set {_cause} to "clerk"
 		else if attacker is not victim:
 			set {_cause} to "player:%uuid of attacker%"
 	setData(victim, "last-death-cause", {_cause})

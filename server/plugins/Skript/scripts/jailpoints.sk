@@ -2,8 +2,8 @@
 # zones.js and the build). Do not edit it by hand: change the modules or zones.js and run the generator again
 # (ESCAPE-SPEC 2.3). jailPointsLoad() deletes and refills exactly these memory variables: {-jailpt::*},
 # {-jailroute::*}, {-jailzone::*}, {-jailwall::*}, {-jailinner::*}, {-jaildoor::*}, {-jailbreach::*},
-# {-jailrubble::*} and {-jailpts::*}.
-# 190 points, 10 routes, 56 zones, 25 + 37 outline vertices, 28 doors, 3 breaches.
+# {-jailrubble::*}, {-jailfence::*} and {-jailpts::*}.
+# 299 points, 30 routes, 58 zones, 25 + 37 outline vertices, 28 doors, 4 breaches, 677 fence cells.
 
 on load:
 	jailPointsLoad()
@@ -17,6 +17,7 @@ function jailPointsLoad():
 	delete {-jaildoor::*}
 	delete {-jailbreach::*}
 	delete {-jailrubble::*}
+	delete {-jailfence::*}
 	delete {-jailpts::*}
 	set {-jailpt::ASSEMBLE} to "49|65|51|0"
 	set {-jailpt::ASSEMBLE_STAND} to "49.5|65|52.5|180"
@@ -39,6 +40,9 @@ function jailPointsLoad():
 	set {-jailpt::CP_OFFICE} to "84.5|58|90.5|180"
 	set {-jailpt::CP_VENT} to "84.5|58|80.5|180"
 	set {-jailpt::DONUT_CAFE} to "100.5|66|137.5|0"
+	set {-jailpt::DUG_FACE} to "112.5|62|360.5|90"
+	set {-jailpt::DUG_IN} to "114.5|65|362.5|90"
+	set {-jailpt::DUG_OUT} to "105.5|65|362.5|90"
 	set {-jailpt::FRONT_IN} to "260.5|65|392.5|180"
 	set {-jailpt::FUSE_BOX} to "267|66|395|0"
 	set {-jailpt::FUSE_STAND} to "266.5|65|395.5|-90"
@@ -61,26 +65,92 @@ function jailPointsLoad():
 	set {-jailpt::POL_READER_N_IN} to "212|66|287|0"
 	set {-jailpt::POL_READER_N_OUT} to "209|66|284|0"
 	set {-jailpt::POL_READER_S_IN} to "209|66|320|0"
-	set {-jailpt::PUNCH_IN} to "340.5|65|264.5|-90"
-	set {-jailpt::PUNCH_READER} to "337|66|262|0"
-	set {-jailpt::PUNCH_STAND} to "335.5|65|254.5|90"
+	set {-jailpt::PUNCH_IN} to "340.5|65|272.5|-90"
+	set {-jailpt::PUNCH_READER} to "338|66|283|0"
+	set {-jailpt::PUNCH_STAND} to "335.5|65|282.5|0"
+	set {-jailpt::ROUTE_ANNEX_1} to "350.5|65|245.5|0"
+	set {-jailpt::ROUTE_ANNEX_2} to "370.5|65|260.5|0"
+	set {-jailpt::ROUTE_ANNEX_3} to "370.5|65|305.5|0"
+	set {-jailpt::ROUTE_ANNEX_4} to "350.5|65|315.5|0"
+	set {-jailpt::ROUTE_CAFER_1} to "124.5|65|140.5|0"
+	set {-jailpt::ROUTE_CAFER_2} to "124.5|65|186.5|0"
+	set {-jailpt::ROUTE_CAFER_3} to "107.5|65|186.5|0"
+	set {-jailpt::ROUTE_CAFER_4} to "107.5|65|140.5|0"
+	set {-jailpt::ROUTE_CAFE_1} to "107.5|65|140.5|0"
+	set {-jailpt::ROUTE_CAFE_2} to "107.5|65|186.5|0"
+	set {-jailpt::ROUTE_CAFE_3} to "124.5|65|186.5|0"
+	set {-jailpt::ROUTE_CAFE_4} to "124.5|65|140.5|0"
+	set {-jailpt::ROUTE_FIELDR_1} to "205.5|65|140.5|0"
+	set {-jailpt::ROUTE_FIELDR_2} to "205.5|65|226.5|0"
+	set {-jailpt::ROUTE_FIELDR_3} to "255.5|65|226.5|0"
+	set {-jailpt::ROUTE_FIELDR_4} to "255.5|65|133.5|0"
+	set {-jailpt::ROUTE_FIELDR_5} to "205.5|65|133.5|0"
+	set {-jailpt::ROUTE_FIELD_1} to "205.5|65|133.5|0"
+	set {-jailpt::ROUTE_FIELD_2} to "255.5|65|133.5|0"
+	set {-jailpt::ROUTE_FIELD_3} to "255.5|65|226.5|0"
+	set {-jailpt::ROUTE_FIELD_4} to "205.5|65|226.5|0"
+	set {-jailpt::ROUTE_FIELD_5} to "205.5|65|140.5|0"
+	set {-jailpt::ROUTE_GATER_1} to "308.5|65|389.5|0"
+	set {-jailpt::ROUTE_GATER_2} to "272.5|65|389.5|0"
+	set {-jailpt::ROUTE_GATER_3} to "236.5|65|389.5|0"
 	set {-jailpt::ROUTE_GATE_1} to "236.5|65|389.5|0"
 	set {-jailpt::ROUTE_GATE_2} to "272.5|65|389.5|0"
 	set {-jailpt::ROUTE_GATE_3} to "308.5|65|389.5|0"
+	set {-jailpt::ROUTE_HALLAR_1} to "124.5|65|197.5|0"
+	set {-jailpt::ROUTE_HALLAR_2} to "108.5|65|197.5|0"
+	set {-jailpt::ROUTE_HALLAR_3} to "92.5|65|197.5|0"
+	set {-jailpt::ROUTE_HALLA_1} to "92.5|65|197.5|0"
+	set {-jailpt::ROUTE_HALLA_2} to "108.5|65|197.5|0"
+	set {-jailpt::ROUTE_HALLA_3} to "124.5|65|197.5|0"
+	set {-jailpt::ROUTE_HALLBR_1} to "84.5|65|188.5|0"
+	set {-jailpt::ROUTE_HALLBR_2} to "84.5|65|155.5|0"
+	set {-jailpt::ROUTE_HALLBR_3} to "84.5|65|121.5|0"
 	set {-jailpt::ROUTE_HALLB_1} to "84.5|65|121.5|0"
 	set {-jailpt::ROUTE_HALLB_2} to "84.5|65|155.5|0"
 	set {-jailpt::ROUTE_HALLB_3} to "84.5|65|188.5|0"
+	set {-jailpt::ROUTE_LOTE_1} to "345.5|65|356.5|0"
+	set {-jailpt::ROUTE_LOTE_2} to "372.5|65|356.5|0"
+	set {-jailpt::ROUTE_LOTE_3} to "372.5|65|388.5|0"
+	set {-jailpt::ROUTE_LOTR_1} to "350.5|65|362.5|0"
+	set {-jailpt::ROUTE_LOTR_2} to "310.5|65|362.5|0"
+	set {-jailpt::ROUTE_LOTR_3} to "270.5|65|362.5|0"
+	set {-jailpt::ROUTE_LOTR_4} to "230.5|65|362.5|0"
+	set {-jailpt::ROUTE_LOTR_5} to "190.5|65|362.5|0"
+	set {-jailpt::ROUTE_LOTR_6} to "150.5|65|362.5|0"
+	set {-jailpt::ROUTE_LOTW_1} to "125.5|65|328.5|0"
+	set {-jailpt::ROUTE_LOTW_2} to "125.5|65|365.5|0"
+	set {-jailpt::ROUTE_LOTW_3} to "118.5|65|385.5|0"
 	set {-jailpt::ROUTE_LOT_1} to "150.5|65|362.5|0"
 	set {-jailpt::ROUTE_LOT_2} to "190.5|65|362.5|0"
 	set {-jailpt::ROUTE_LOT_3} to "230.5|65|362.5|0"
 	set {-jailpt::ROUTE_LOT_4} to "270.5|65|362.5|0"
 	set {-jailpt::ROUTE_LOT_5} to "310.5|65|362.5|0"
 	set {-jailpt::ROUTE_LOT_6} to "350.5|65|362.5|0"
+	set {-jailpt::ROUTE_PLAZAR_1} to "170.5|65|312.5|0"
+	set {-jailpt::ROUTE_PLAZAR_2} to "170.5|65|289.5|0"
+	set {-jailpt::ROUTE_PLAZAR_3} to "150.5|65|268.5|0"
+	set {-jailpt::ROUTE_PLAZAR_4} to "116.5|65|268.5|0"
+	set {-jailpt::ROUTE_PLAZA_1} to "116.5|65|268.5|0"
+	set {-jailpt::ROUTE_PLAZA_2} to "150.5|65|268.5|0"
+	set {-jailpt::ROUTE_PLAZA_3} to "170.5|65|289.5|0"
+	set {-jailpt::ROUTE_PLAZA_4} to "170.5|65|312.5|0"
 	set {-jailpt::ROUTE_POLDESK_1} to "220.5|65|304.5|0"
+	set {-jailpt::ROUTE_POLEAST_1} to "306.5|65|296.5|0"
+	set {-jailpt::ROUTE_POLEAST_2} to "332.5|65|296.5|0"
+	set {-jailpt::ROUTE_POLEAST_3} to "332.5|65|316.5|0"
+	set {-jailpt::ROUTE_POLEAST_4} to "306.5|65|316.5|0"
 	set {-jailpt::ROUTE_POLOFFICE_1} to "225.5|65|292.5|0"
 	set {-jailpt::ROUTE_POLOFFICE_2} to "225.5|65|296.5|0"
 	set {-jailpt::ROUTE_POLOFFICE_3} to "246.5|65|296.5|0"
 	set {-jailpt::ROUTE_POLOFFICE_4} to "246.5|65|293.5|0"
+	set {-jailpt::ROUTE_W5R_1} to "279.5|78|228.5|0"
+	set {-jailpt::ROUTE_W5R_2} to "279.5|78|203.5|0"
+	set {-jailpt::ROUTE_W5R_3} to "279.5|78|178.5|0"
+	set {-jailpt::ROUTE_W5R_4} to "283.5|78|175.5|0"
+	set {-jailpt::ROUTE_W5R_5} to "283.5|78|166.5|0"
+	set {-jailpt::ROUTE_W5R_6} to "279.5|78|163.5|0"
+	set {-jailpt::ROUTE_W5R_7} to "279.5|78|141.5|0"
+	set {-jailpt::ROUTE_W5R_8} to "279.5|78|120.5|0"
 	set {-jailpt::ROUTE_W5_1} to "279.5|78|120.5|0"
 	set {-jailpt::ROUTE_W5_2} to "279.5|78|141.5|0"
 	set {-jailpt::ROUTE_W5_3} to "279.5|78|163.5|0"
@@ -89,6 +159,18 @@ function jailPointsLoad():
 	set {-jailpt::ROUTE_W5_6} to "279.5|78|178.5|0"
 	set {-jailpt::ROUTE_W5_7} to "279.5|78|203.5|0"
 	set {-jailpt::ROUTE_W5_8} to "279.5|78|228.5|0"
+	set {-jailpt::ROUTE_W67R_1} to "381.5|78|340.5|0"
+	set {-jailpt::ROUTE_W67R_10} to "340.5|78|235.5|0"
+	set {-jailpt::ROUTE_W67R_11} to "310.5|78|235.5|0"
+	set {-jailpt::ROUTE_W67R_12} to "287.5|78|235.5|0"
+	set {-jailpt::ROUTE_W67R_2} to "381.5|78|310.5|0"
+	set {-jailpt::ROUTE_W67R_3} to "381.5|78|280.5|0"
+	set {-jailpt::ROUTE_W67R_4} to "377.5|78|277.5|0"
+	set {-jailpt::ROUTE_W67R_5} to "377.5|78|267.5|0"
+	set {-jailpt::ROUTE_W67R_6} to "381.5|78|264.5|0"
+	set {-jailpt::ROUTE_W67R_7} to "381.5|78|243.5|0"
+	set {-jailpt::ROUTE_W67R_8} to "377.5|78|240.5|0"
+	set {-jailpt::ROUTE_W67R_9} to "373.5|78|235.5|0"
 	set {-jailpt::ROUTE_W67_1} to "287.5|78|235.5|0"
 	set {-jailpt::ROUTE_W67_10} to "381.5|78|280.5|0"
 	set {-jailpt::ROUTE_W67_11} to "381.5|78|310.5|0"
@@ -101,6 +183,16 @@ function jailPointsLoad():
 	set {-jailpt::ROUTE_W67_7} to "381.5|78|264.5|0"
 	set {-jailpt::ROUTE_W67_8} to "377.5|78|267.5|0"
 	set {-jailpt::ROUTE_W67_9} to "377.5|78|277.5|0"
+	set {-jailpt::ROUTE_WALKR_1} to "336.5|65|258.5|0"
+	set {-jailpt::ROUTE_WALKR_10} to "180.5|65|310.5|0"
+	set {-jailpt::ROUTE_WALKR_2} to "336.5|65|265.5|0"
+	set {-jailpt::ROUTE_WALKR_3} to "330.5|65|271.5|0"
+	set {-jailpt::ROUTE_WALKR_4} to "295.5|65|271.5|0"
+	set {-jailpt::ROUTE_WALKR_5} to "265.5|65|271.5|0"
+	set {-jailpt::ROUTE_WALKR_6} to "235.5|65|271.5|0"
+	set {-jailpt::ROUTE_WALKR_7} to "205.5|65|271.5|0"
+	set {-jailpt::ROUTE_WALKR_8} to "180.5|65|271.5|0"
+	set {-jailpt::ROUTE_WALKR_9} to "180.5|65|290.5|0"
 	set {-jailpt::ROUTE_WALK_1} to "180.5|65|310.5|0"
 	set {-jailpt::ROUTE_WALK_10} to "336.5|65|258.5|0"
 	set {-jailpt::ROUTE_WALK_2} to "180.5|65|290.5|0"
@@ -111,12 +203,30 @@ function jailPointsLoad():
 	set {-jailpt::ROUTE_WALK_7} to "295.5|65|271.5|0"
 	set {-jailpt::ROUTE_WALK_8} to "330.5|65|271.5|0"
 	set {-jailpt::ROUTE_WALK_9} to "336.5|65|265.5|0"
+	set {-jailpt::ROUTE_YARDNR_1} to "263.5|65|118.5|0"
+	set {-jailpt::ROUTE_YARDNR_2} to "238.5|65|103.5|0"
+	set {-jailpt::ROUTE_YARDNR_3} to "205.5|65|103.5|0"
+	set {-jailpt::ROUTE_YARDNR_4} to "172.5|65|103.5|0"
+	set {-jailpt::ROUTE_YARDNR_5} to "156.5|65|122.5|0"
+	set {-jailpt::ROUTE_YARDNR_6} to "140.5|65|140.5|0"
 	set {-jailpt::ROUTE_YARDN_1} to "140.5|65|140.5|0"
 	set {-jailpt::ROUTE_YARDN_2} to "156.5|65|122.5|0"
 	set {-jailpt::ROUTE_YARDN_3} to "172.5|65|103.5|0"
 	set {-jailpt::ROUTE_YARDN_4} to "205.5|65|103.5|0"
 	set {-jailpt::ROUTE_YARDN_5} to "238.5|65|103.5|0"
 	set {-jailpt::ROUTE_YARDN_6} to "263.5|65|118.5|0"
+	set {-jailpt::ROUTE_YARDSR_1} to "140.5|65|165.5|0"
+	set {-jailpt::ROUTE_YARDSR_10} to "263.5|65|199.5|0"
+	set {-jailpt::ROUTE_YARDSR_11} to "263.5|65|172.5|0"
+	set {-jailpt::ROUTE_YARDSR_12} to "263.5|65|145.5|0"
+	set {-jailpt::ROUTE_YARDSR_2} to "140.5|65|189.5|0"
+	set {-jailpt::ROUTE_YARDSR_3} to "165.5|65|189.5|0"
+	set {-jailpt::ROUTE_YARDSR_4} to "190.5|65|189.5|0"
+	set {-jailpt::ROUTE_YARDSR_5} to "190.5|65|215.5|0"
+	set {-jailpt::ROUTE_YARDSR_6} to "190.5|65|240.5|0"
+	set {-jailpt::ROUTE_YARDSR_7} to "227.5|65|243.5|0"
+	set {-jailpt::ROUTE_YARDSR_8} to "263.5|65|245.5|0"
+	set {-jailpt::ROUTE_YARDSR_9} to "263.5|65|226.5|0"
 	set {-jailpt::ROUTE_YARDS_1} to "263.5|65|145.5|0"
 	set {-jailpt::ROUTE_YARDS_10} to "165.5|65|189.5|0"
 	set {-jailpt::ROUTE_YARDS_11} to "140.5|65|189.5|0"
@@ -208,14 +318,82 @@ function jailPointsLoad():
 	set {-jailpt::T_VENT_READER} to "80|59|85|0"
 	set {-jailpt::T_VENT_STAND} to "77.5|58|84.5|0"
 	set {-jailpt::WHISPER} to "108.5|65|209.5|0"
+	add "350.5|65|245.5" to {-jailroute::annex::*}
+	add "370.5|65|260.5" to {-jailroute::annex::*}
+	add "370.5|65|305.5" to {-jailroute::annex::*}
+	add "350.5|65|315.5" to {-jailroute::annex::*}
+	add "370.5|65|305.5" to {-jailroute::annex::*}
+	add "370.5|65|260.5" to {-jailroute::annex::*}
+	add "124.5|65|140.5" to {-jailroute::cafer::*}
+	add "124.5|65|186.5" to {-jailroute::cafer::*}
+	add "107.5|65|186.5" to {-jailroute::cafer::*}
+	add "107.5|65|140.5" to {-jailroute::cafer::*}
+	add "107.5|65|186.5" to {-jailroute::cafer::*}
+	add "124.5|65|186.5" to {-jailroute::cafer::*}
+	add "107.5|65|140.5" to {-jailroute::cafe::*}
+	add "107.5|65|186.5" to {-jailroute::cafe::*}
+	add "124.5|65|186.5" to {-jailroute::cafe::*}
+	add "124.5|65|140.5" to {-jailroute::cafe::*}
+	add "124.5|65|186.5" to {-jailroute::cafe::*}
+	add "107.5|65|186.5" to {-jailroute::cafe::*}
+	add "205.5|65|140.5" to {-jailroute::fieldr::*}
+	add "205.5|65|226.5" to {-jailroute::fieldr::*}
+	add "255.5|65|226.5" to {-jailroute::fieldr::*}
+	add "255.5|65|133.5" to {-jailroute::fieldr::*}
+	add "205.5|65|133.5" to {-jailroute::fieldr::*}
+	add "255.5|65|133.5" to {-jailroute::fieldr::*}
+	add "255.5|65|226.5" to {-jailroute::fieldr::*}
+	add "205.5|65|226.5" to {-jailroute::fieldr::*}
+	add "205.5|65|133.5" to {-jailroute::field::*}
+	add "255.5|65|133.5" to {-jailroute::field::*}
+	add "255.5|65|226.5" to {-jailroute::field::*}
+	add "205.5|65|226.5" to {-jailroute::field::*}
+	add "205.5|65|140.5" to {-jailroute::field::*}
+	add "205.5|65|226.5" to {-jailroute::field::*}
+	add "255.5|65|226.5" to {-jailroute::field::*}
+	add "255.5|65|133.5" to {-jailroute::field::*}
+	add "308.5|65|389.5" to {-jailroute::gater::*}
+	add "272.5|65|389.5" to {-jailroute::gater::*}
+	add "236.5|65|389.5" to {-jailroute::gater::*}
+	add "272.5|65|389.5" to {-jailroute::gater::*}
 	add "236.5|65|389.5" to {-jailroute::gate::*}
 	add "272.5|65|389.5" to {-jailroute::gate::*}
 	add "308.5|65|389.5" to {-jailroute::gate::*}
 	add "272.5|65|389.5" to {-jailroute::gate::*}
+	add "124.5|65|197.5" to {-jailroute::hallar::*}
+	add "108.5|65|197.5" to {-jailroute::hallar::*}
+	add "92.5|65|197.5" to {-jailroute::hallar::*}
+	add "108.5|65|197.5" to {-jailroute::hallar::*}
+	add "92.5|65|197.5" to {-jailroute::halla::*}
+	add "108.5|65|197.5" to {-jailroute::halla::*}
+	add "124.5|65|197.5" to {-jailroute::halla::*}
+	add "108.5|65|197.5" to {-jailroute::halla::*}
+	add "84.5|65|188.5" to {-jailroute::hallbr::*}
+	add "84.5|65|155.5" to {-jailroute::hallbr::*}
+	add "84.5|65|121.5" to {-jailroute::hallbr::*}
+	add "84.5|65|155.5" to {-jailroute::hallbr::*}
 	add "84.5|65|121.5" to {-jailroute::hallb::*}
 	add "84.5|65|155.5" to {-jailroute::hallb::*}
 	add "84.5|65|188.5" to {-jailroute::hallb::*}
 	add "84.5|65|155.5" to {-jailroute::hallb::*}
+	add "345.5|65|356.5" to {-jailroute::lote::*}
+	add "372.5|65|356.5" to {-jailroute::lote::*}
+	add "372.5|65|388.5" to {-jailroute::lote::*}
+	add "372.5|65|356.5" to {-jailroute::lote::*}
+	add "350.5|65|362.5" to {-jailroute::lotr::*}
+	add "310.5|65|362.5" to {-jailroute::lotr::*}
+	add "270.5|65|362.5" to {-jailroute::lotr::*}
+	add "230.5|65|362.5" to {-jailroute::lotr::*}
+	add "190.5|65|362.5" to {-jailroute::lotr::*}
+	add "150.5|65|362.5" to {-jailroute::lotr::*}
+	add "190.5|65|362.5" to {-jailroute::lotr::*}
+	add "230.5|65|362.5" to {-jailroute::lotr::*}
+	add "270.5|65|362.5" to {-jailroute::lotr::*}
+	add "310.5|65|362.5" to {-jailroute::lotr::*}
+	add "125.5|65|328.5" to {-jailroute::lotw::*}
+	add "125.5|65|365.5" to {-jailroute::lotw::*}
+	add "118.5|65|385.5" to {-jailroute::lotw::*}
+	add "125.5|65|365.5" to {-jailroute::lotw::*}
 	add "150.5|65|362.5" to {-jailroute::lot::*}
 	add "190.5|65|362.5" to {-jailroute::lot::*}
 	add "230.5|65|362.5" to {-jailroute::lot::*}
@@ -226,13 +404,45 @@ function jailPointsLoad():
 	add "270.5|65|362.5" to {-jailroute::lot::*}
 	add "230.5|65|362.5" to {-jailroute::lot::*}
 	add "190.5|65|362.5" to {-jailroute::lot::*}
+	add "170.5|65|312.5" to {-jailroute::plazar::*}
+	add "170.5|65|289.5" to {-jailroute::plazar::*}
+	add "150.5|65|268.5" to {-jailroute::plazar::*}
+	add "116.5|65|268.5" to {-jailroute::plazar::*}
+	add "150.5|65|268.5" to {-jailroute::plazar::*}
+	add "170.5|65|289.5" to {-jailroute::plazar::*}
+	add "116.5|65|268.5" to {-jailroute::plaza::*}
+	add "150.5|65|268.5" to {-jailroute::plaza::*}
+	add "170.5|65|289.5" to {-jailroute::plaza::*}
+	add "170.5|65|312.5" to {-jailroute::plaza::*}
+	add "170.5|65|289.5" to {-jailroute::plaza::*}
+	add "150.5|65|268.5" to {-jailroute::plaza::*}
 	add "220.5|65|304.5" to {-jailroute::poldesk::*}
+	add "306.5|65|296.5" to {-jailroute::poleast::*}
+	add "332.5|65|296.5" to {-jailroute::poleast::*}
+	add "332.5|65|316.5" to {-jailroute::poleast::*}
+	add "306.5|65|316.5" to {-jailroute::poleast::*}
+	add "332.5|65|316.5" to {-jailroute::poleast::*}
+	add "332.5|65|296.5" to {-jailroute::poleast::*}
 	add "225.5|65|292.5" to {-jailroute::poloffice::*}
 	add "225.5|65|296.5" to {-jailroute::poloffice::*}
 	add "246.5|65|296.5" to {-jailroute::poloffice::*}
 	add "246.5|65|293.5" to {-jailroute::poloffice::*}
 	add "246.5|65|296.5" to {-jailroute::poloffice::*}
 	add "225.5|65|296.5" to {-jailroute::poloffice::*}
+	add "279.5|78|228.5" to {-jailroute::w5r::*}
+	add "279.5|78|203.5" to {-jailroute::w5r::*}
+	add "279.5|78|178.5" to {-jailroute::w5r::*}
+	add "283.5|78|175.5" to {-jailroute::w5r::*}
+	add "283.5|78|166.5" to {-jailroute::w5r::*}
+	add "279.5|78|163.5" to {-jailroute::w5r::*}
+	add "279.5|78|141.5" to {-jailroute::w5r::*}
+	add "279.5|78|120.5" to {-jailroute::w5r::*}
+	add "279.5|78|141.5" to {-jailroute::w5r::*}
+	add "279.5|78|163.5" to {-jailroute::w5r::*}
+	add "283.5|78|166.5" to {-jailroute::w5r::*}
+	add "283.5|78|175.5" to {-jailroute::w5r::*}
+	add "279.5|78|178.5" to {-jailroute::w5r::*}
+	add "279.5|78|203.5" to {-jailroute::w5r::*}
 	add "279.5|78|120.5" to {-jailroute::w5::*}
 	add "279.5|78|141.5" to {-jailroute::w5::*}
 	add "279.5|78|163.5" to {-jailroute::w5::*}
@@ -247,6 +457,28 @@ function jailPointsLoad():
 	add "283.5|78|166.5" to {-jailroute::w5::*}
 	add "279.5|78|163.5" to {-jailroute::w5::*}
 	add "279.5|78|141.5" to {-jailroute::w5::*}
+	add "381.5|78|340.5" to {-jailroute::w67r::*}
+	add "381.5|78|310.5" to {-jailroute::w67r::*}
+	add "381.5|78|280.5" to {-jailroute::w67r::*}
+	add "377.5|78|277.5" to {-jailroute::w67r::*}
+	add "377.5|78|267.5" to {-jailroute::w67r::*}
+	add "381.5|78|264.5" to {-jailroute::w67r::*}
+	add "381.5|78|243.5" to {-jailroute::w67r::*}
+	add "377.5|78|240.5" to {-jailroute::w67r::*}
+	add "373.5|78|235.5" to {-jailroute::w67r::*}
+	add "340.5|78|235.5" to {-jailroute::w67r::*}
+	add "310.5|78|235.5" to {-jailroute::w67r::*}
+	add "287.5|78|235.5" to {-jailroute::w67r::*}
+	add "310.5|78|235.5" to {-jailroute::w67r::*}
+	add "340.5|78|235.5" to {-jailroute::w67r::*}
+	add "373.5|78|235.5" to {-jailroute::w67r::*}
+	add "377.5|78|240.5" to {-jailroute::w67r::*}
+	add "381.5|78|243.5" to {-jailroute::w67r::*}
+	add "381.5|78|264.5" to {-jailroute::w67r::*}
+	add "377.5|78|267.5" to {-jailroute::w67r::*}
+	add "377.5|78|277.5" to {-jailroute::w67r::*}
+	add "381.5|78|280.5" to {-jailroute::w67r::*}
+	add "381.5|78|310.5" to {-jailroute::w67r::*}
 	add "287.5|78|235.5" to {-jailroute::w67::*}
 	add "310.5|78|235.5" to {-jailroute::w67::*}
 	add "340.5|78|235.5" to {-jailroute::w67::*}
@@ -269,6 +501,24 @@ function jailPointsLoad():
 	add "373.5|78|235.5" to {-jailroute::w67::*}
 	add "340.5|78|235.5" to {-jailroute::w67::*}
 	add "310.5|78|235.5" to {-jailroute::w67::*}
+	add "336.5|65|258.5" to {-jailroute::walkr::*}
+	add "336.5|65|265.5" to {-jailroute::walkr::*}
+	add "330.5|65|271.5" to {-jailroute::walkr::*}
+	add "295.5|65|271.5" to {-jailroute::walkr::*}
+	add "265.5|65|271.5" to {-jailroute::walkr::*}
+	add "235.5|65|271.5" to {-jailroute::walkr::*}
+	add "205.5|65|271.5" to {-jailroute::walkr::*}
+	add "180.5|65|271.5" to {-jailroute::walkr::*}
+	add "180.5|65|290.5" to {-jailroute::walkr::*}
+	add "180.5|65|310.5" to {-jailroute::walkr::*}
+	add "180.5|65|290.5" to {-jailroute::walkr::*}
+	add "180.5|65|271.5" to {-jailroute::walkr::*}
+	add "205.5|65|271.5" to {-jailroute::walkr::*}
+	add "235.5|65|271.5" to {-jailroute::walkr::*}
+	add "265.5|65|271.5" to {-jailroute::walkr::*}
+	add "295.5|65|271.5" to {-jailroute::walkr::*}
+	add "330.5|65|271.5" to {-jailroute::walkr::*}
+	add "336.5|65|265.5" to {-jailroute::walkr::*}
 	add "180.5|65|310.5" to {-jailroute::walk::*}
 	add "180.5|65|290.5" to {-jailroute::walk::*}
 	add "180.5|65|271.5" to {-jailroute::walk::*}
@@ -287,6 +537,16 @@ function jailPointsLoad():
 	add "205.5|65|271.5" to {-jailroute::walk::*}
 	add "180.5|65|271.5" to {-jailroute::walk::*}
 	add "180.5|65|290.5" to {-jailroute::walk::*}
+	add "263.5|65|118.5" to {-jailroute::yardnr::*}
+	add "238.5|65|103.5" to {-jailroute::yardnr::*}
+	add "205.5|65|103.5" to {-jailroute::yardnr::*}
+	add "172.5|65|103.5" to {-jailroute::yardnr::*}
+	add "156.5|65|122.5" to {-jailroute::yardnr::*}
+	add "140.5|65|140.5" to {-jailroute::yardnr::*}
+	add "156.5|65|122.5" to {-jailroute::yardnr::*}
+	add "172.5|65|103.5" to {-jailroute::yardnr::*}
+	add "205.5|65|103.5" to {-jailroute::yardnr::*}
+	add "238.5|65|103.5" to {-jailroute::yardnr::*}
 	add "140.5|65|140.5" to {-jailroute::yardn::*}
 	add "156.5|65|122.5" to {-jailroute::yardn::*}
 	add "172.5|65|103.5" to {-jailroute::yardn::*}
@@ -297,6 +557,28 @@ function jailPointsLoad():
 	add "205.5|65|103.5" to {-jailroute::yardn::*}
 	add "172.5|65|103.5" to {-jailroute::yardn::*}
 	add "156.5|65|122.5" to {-jailroute::yardn::*}
+	add "140.5|65|165.5" to {-jailroute::yardsr::*}
+	add "140.5|65|189.5" to {-jailroute::yardsr::*}
+	add "165.5|65|189.5" to {-jailroute::yardsr::*}
+	add "190.5|65|189.5" to {-jailroute::yardsr::*}
+	add "190.5|65|215.5" to {-jailroute::yardsr::*}
+	add "190.5|65|240.5" to {-jailroute::yardsr::*}
+	add "227.5|65|243.5" to {-jailroute::yardsr::*}
+	add "263.5|65|245.5" to {-jailroute::yardsr::*}
+	add "263.5|65|226.5" to {-jailroute::yardsr::*}
+	add "263.5|65|199.5" to {-jailroute::yardsr::*}
+	add "263.5|65|172.5" to {-jailroute::yardsr::*}
+	add "263.5|65|145.5" to {-jailroute::yardsr::*}
+	add "263.5|65|172.5" to {-jailroute::yardsr::*}
+	add "263.5|65|199.5" to {-jailroute::yardsr::*}
+	add "263.5|65|226.5" to {-jailroute::yardsr::*}
+	add "263.5|65|245.5" to {-jailroute::yardsr::*}
+	add "227.5|65|243.5" to {-jailroute::yardsr::*}
+	add "190.5|65|240.5" to {-jailroute::yardsr::*}
+	add "190.5|65|215.5" to {-jailroute::yardsr::*}
+	add "190.5|65|189.5" to {-jailroute::yardsr::*}
+	add "165.5|65|189.5" to {-jailroute::yardsr::*}
+	add "140.5|65|189.5" to {-jailroute::yardsr::*}
 	add "263.5|65|145.5" to {-jailroute::yards::*}
 	add "263.5|65|172.5" to {-jailroute::yards::*}
 	add "263.5|65|199.5" to {-jailroute::yards::*}
@@ -341,9 +623,11 @@ function jailPointsLoad():
 	add "252|63|286|300|85|334" to {-jailzone::police::*}
 	add "340|63|237|380|95|348" to {-jailzone::annex::*}
 	add "43|64|88|78|72|119" to {-jailzone::staff::*}
-	add "334|65|252|334|67|256" to {-jailzone::punchbox::*}
-	add "336|64|262|338|68|267" to {-jailzone::punchapp::*}
-	add "338|64|262|340|71|267" to {-jailzone::punchhole::*}
+	add "333|65|284|337|67|284" to {-jailzone::punchbox::*}
+	add "335|64|260|338|68|283" to {-jailzone::punchapp::*}
+	add "338|64|260|340|72|284" to {-jailzone::punchhole::*}
+	add "108|61|360|111|64|360" to {-jailzone::dighole::*}
+	add "112|61|359|114|66|361" to {-jailzone::digapp::*}
 	add "344|64|327|368|80|354" to {-jailzone::parkour::*}
 	add "174|64|317|182|68|321" to {-jailzone::plantgate::*}
 	add "176|64|321|180|71|323" to {-jailzone::gatehole::*}
@@ -378,6 +662,683 @@ function jailPointsLoad():
 	add "103|57|65|108|62|71" to {-jailzone::cell_s103::*}
 	add "110|57|65|115|62|71" to {-jailzone::cell_s110::*}
 	add "117|57|65|122|62|71" to {-jailzone::cell_s117::*}
+	set {-jailfence::381|352} to "zp"
+	set {-jailfence::381|353} to "z"
+	set {-jailfence::381|354} to "z"
+	set {-jailfence::381|355} to "z"
+	set {-jailfence::381|356} to "zp"
+	set {-jailfence::381|357} to "z"
+	set {-jailfence::381|358} to "z"
+	set {-jailfence::381|359} to "z"
+	set {-jailfence::381|360} to "zp"
+	set {-jailfence::381|361} to "z"
+	set {-jailfence::381|362} to "z"
+	set {-jailfence::381|363} to "z"
+	set {-jailfence::381|364} to "zp"
+	set {-jailfence::381|365} to "z"
+	set {-jailfence::381|366} to "z"
+	set {-jailfence::381|367} to "z"
+	set {-jailfence::381|368} to "zp"
+	set {-jailfence::381|369} to "z"
+	set {-jailfence::381|370} to "z"
+	set {-jailfence::381|371} to "z"
+	set {-jailfence::381|372} to "zp"
+	set {-jailfence::381|373} to "z"
+	set {-jailfence::381|374} to "z"
+	set {-jailfence::381|375} to "z"
+	set {-jailfence::381|376} to "zp"
+	set {-jailfence::381|377} to "z"
+	set {-jailfence::381|378} to "z"
+	set {-jailfence::381|379} to "z"
+	set {-jailfence::381|380} to "zp"
+	set {-jailfence::381|381} to "z"
+	set {-jailfence::381|382} to "z"
+	set {-jailfence::381|383} to "z"
+	set {-jailfence::381|384} to "zp"
+	set {-jailfence::381|385} to "z"
+	set {-jailfence::381|386} to "z"
+	set {-jailfence::381|387} to "z"
+	set {-jailfence::381|388} to "zp"
+	set {-jailfence::381|389} to "z"
+	set {-jailfence::381|390} to "z"
+	set {-jailfence::381|391} to "zp"
+	set {-jailfence::115|396} to "xp"
+	set {-jailfence::116|396} to "x"
+	set {-jailfence::117|396} to "x"
+	set {-jailfence::118|396} to "x"
+	set {-jailfence::119|396} to "xp"
+	set {-jailfence::120|396} to "x"
+	set {-jailfence::121|396} to "x"
+	set {-jailfence::122|396} to "x"
+	set {-jailfence::123|396} to "xp"
+	set {-jailfence::124|396} to "x"
+	set {-jailfence::125|396} to "x"
+	set {-jailfence::126|396} to "x"
+	set {-jailfence::127|396} to "xp"
+	set {-jailfence::128|396} to "x"
+	set {-jailfence::129|396} to "x"
+	set {-jailfence::130|396} to "x"
+	set {-jailfence::131|396} to "xp"
+	set {-jailfence::132|396} to "x"
+	set {-jailfence::133|396} to "x"
+	set {-jailfence::134|396} to "x"
+	set {-jailfence::135|396} to "xp"
+	set {-jailfence::136|396} to "x"
+	set {-jailfence::137|396} to "x"
+	set {-jailfence::138|396} to "x"
+	set {-jailfence::139|396} to "xp"
+	set {-jailfence::140|396} to "x"
+	set {-jailfence::141|396} to "x"
+	set {-jailfence::142|396} to "x"
+	set {-jailfence::143|396} to "xp"
+	set {-jailfence::144|396} to "x"
+	set {-jailfence::145|396} to "x"
+	set {-jailfence::146|396} to "x"
+	set {-jailfence::147|396} to "xp"
+	set {-jailfence::148|396} to "x"
+	set {-jailfence::149|396} to "x"
+	set {-jailfence::150|396} to "x"
+	set {-jailfence::151|396} to "xp"
+	set {-jailfence::152|396} to "x"
+	set {-jailfence::153|396} to "x"
+	set {-jailfence::154|396} to "x"
+	set {-jailfence::155|396} to "xp"
+	set {-jailfence::156|396} to "x"
+	set {-jailfence::157|396} to "x"
+	set {-jailfence::158|396} to "x"
+	set {-jailfence::159|396} to "xp"
+	set {-jailfence::160|396} to "x"
+	set {-jailfence::161|396} to "x"
+	set {-jailfence::162|396} to "x"
+	set {-jailfence::163|396} to "xp"
+	set {-jailfence::164|396} to "x"
+	set {-jailfence::165|396} to "x"
+	set {-jailfence::166|396} to "x"
+	set {-jailfence::167|396} to "xp"
+	set {-jailfence::168|396} to "x"
+	set {-jailfence::169|396} to "x"
+	set {-jailfence::170|396} to "x"
+	set {-jailfence::171|396} to "xp"
+	set {-jailfence::172|396} to "x"
+	set {-jailfence::173|396} to "x"
+	set {-jailfence::174|396} to "x"
+	set {-jailfence::175|396} to "xp"
+	set {-jailfence::176|396} to "x"
+	set {-jailfence::177|396} to "x"
+	set {-jailfence::178|396} to "x"
+	set {-jailfence::179|396} to "xp"
+	set {-jailfence::180|396} to "x"
+	set {-jailfence::181|396} to "x"
+	set {-jailfence::182|396} to "x"
+	set {-jailfence::183|396} to "xp"
+	set {-jailfence::184|396} to "x"
+	set {-jailfence::185|396} to "x"
+	set {-jailfence::186|396} to "x"
+	set {-jailfence::187|396} to "xp"
+	set {-jailfence::188|396} to "x"
+	set {-jailfence::189|396} to "x"
+	set {-jailfence::190|396} to "x"
+	set {-jailfence::191|396} to "xp"
+	set {-jailfence::192|396} to "x"
+	set {-jailfence::193|396} to "x"
+	set {-jailfence::194|396} to "x"
+	set {-jailfence::195|396} to "xp"
+	set {-jailfence::196|396} to "x"
+	set {-jailfence::197|396} to "x"
+	set {-jailfence::198|396} to "x"
+	set {-jailfence::199|396} to "xp"
+	set {-jailfence::200|396} to "x"
+	set {-jailfence::201|396} to "x"
+	set {-jailfence::202|396} to "x"
+	set {-jailfence::203|396} to "xp"
+	set {-jailfence::204|396} to "x"
+	set {-jailfence::205|396} to "x"
+	set {-jailfence::206|396} to "x"
+	set {-jailfence::207|396} to "xp"
+	set {-jailfence::208|396} to "x"
+	set {-jailfence::209|396} to "x"
+	set {-jailfence::210|396} to "x"
+	set {-jailfence::211|396} to "xp"
+	set {-jailfence::212|396} to "x"
+	set {-jailfence::213|396} to "x"
+	set {-jailfence::214|396} to "x"
+	set {-jailfence::215|396} to "xp"
+	set {-jailfence::216|396} to "x"
+	set {-jailfence::217|396} to "x"
+	set {-jailfence::218|396} to "x"
+	set {-jailfence::219|396} to "xp"
+	set {-jailfence::220|396} to "x"
+	set {-jailfence::221|396} to "x"
+	set {-jailfence::222|396} to "x"
+	set {-jailfence::223|396} to "xp"
+	set {-jailfence::224|396} to "x"
+	set {-jailfence::225|396} to "x"
+	set {-jailfence::226|396} to "x"
+	set {-jailfence::227|396} to "xp"
+	set {-jailfence::228|396} to "x"
+	set {-jailfence::229|396} to "x"
+	set {-jailfence::230|396} to "x"
+	set {-jailfence::231|396} to "xp"
+	set {-jailfence::232|396} to "x"
+	set {-jailfence::233|396} to "x"
+	set {-jailfence::234|396} to "x"
+	set {-jailfence::235|396} to "xp"
+	set {-jailfence::236|396} to "x"
+	set {-jailfence::237|396} to "x"
+	set {-jailfence::238|396} to "x"
+	set {-jailfence::239|396} to "xp"
+	set {-jailfence::240|396} to "x"
+	set {-jailfence::241|396} to "x"
+	set {-jailfence::242|396} to "x"
+	set {-jailfence::243|396} to "xp"
+	set {-jailfence::301|396} to "xp"
+	set {-jailfence::302|396} to "x"
+	set {-jailfence::303|396} to "x"
+	set {-jailfence::304|396} to "x"
+	set {-jailfence::305|396} to "xp"
+	set {-jailfence::306|396} to "x"
+	set {-jailfence::307|396} to "x"
+	set {-jailfence::308|396} to "x"
+	set {-jailfence::309|396} to "xp"
+	set {-jailfence::310|396} to "x"
+	set {-jailfence::311|396} to "x"
+	set {-jailfence::312|396} to "x"
+	set {-jailfence::313|396} to "xp"
+	set {-jailfence::314|396} to "x"
+	set {-jailfence::315|396} to "x"
+	set {-jailfence::316|396} to "x"
+	set {-jailfence::317|396} to "xp"
+	set {-jailfence::318|396} to "x"
+	set {-jailfence::319|396} to "x"
+	set {-jailfence::320|396} to "x"
+	set {-jailfence::321|396} to "xp"
+	set {-jailfence::322|396} to "x"
+	set {-jailfence::323|396} to "x"
+	set {-jailfence::324|396} to "x"
+	set {-jailfence::325|396} to "xp"
+	set {-jailfence::326|396} to "x"
+	set {-jailfence::327|396} to "x"
+	set {-jailfence::328|396} to "x"
+	set {-jailfence::329|396} to "xp"
+	set {-jailfence::330|396} to "x"
+	set {-jailfence::331|396} to "x"
+	set {-jailfence::332|396} to "x"
+	set {-jailfence::333|396} to "xp"
+	set {-jailfence::334|396} to "x"
+	set {-jailfence::335|396} to "x"
+	set {-jailfence::336|396} to "x"
+	set {-jailfence::337|396} to "xp"
+	set {-jailfence::338|396} to "x"
+	set {-jailfence::339|396} to "x"
+	set {-jailfence::340|396} to "x"
+	set {-jailfence::341|396} to "xp"
+	set {-jailfence::342|396} to "x"
+	set {-jailfence::343|396} to "x"
+	set {-jailfence::344|396} to "x"
+	set {-jailfence::345|396} to "xp"
+	set {-jailfence::346|396} to "x"
+	set {-jailfence::347|396} to "x"
+	set {-jailfence::348|396} to "x"
+	set {-jailfence::349|396} to "xp"
+	set {-jailfence::350|396} to "x"
+	set {-jailfence::351|396} to "x"
+	set {-jailfence::352|396} to "x"
+	set {-jailfence::353|396} to "xp"
+	set {-jailfence::354|396} to "x"
+	set {-jailfence::355|396} to "x"
+	set {-jailfence::356|396} to "x"
+	set {-jailfence::357|396} to "xp"
+	set {-jailfence::358|396} to "x"
+	set {-jailfence::359|396} to "x"
+	set {-jailfence::360|396} to "x"
+	set {-jailfence::361|396} to "xp"
+	set {-jailfence::362|396} to "x"
+	set {-jailfence::363|396} to "x"
+	set {-jailfence::364|396} to "x"
+	set {-jailfence::365|396} to "xp"
+	set {-jailfence::366|396} to "x"
+	set {-jailfence::367|396} to "x"
+	set {-jailfence::368|396} to "x"
+	set {-jailfence::369|396} to "xp"
+	set {-jailfence::370|396} to "x"
+	set {-jailfence::371|396} to "x"
+	set {-jailfence::372|396} to "x"
+	set {-jailfence::373|396} to "xp"
+	set {-jailfence::374|396} to "x"
+	set {-jailfence::375|396} to "x"
+	set {-jailfence::376|396} to "xp"
+	set {-jailfence::110|297} to "zp"
+	set {-jailfence::110|298} to "z"
+	set {-jailfence::110|299} to "z"
+	set {-jailfence::110|300} to "z"
+	set {-jailfence::110|301} to "zp"
+	set {-jailfence::110|302} to "z"
+	set {-jailfence::110|303} to "z"
+	set {-jailfence::110|304} to "z"
+	set {-jailfence::110|305} to "zp"
+	set {-jailfence::110|306} to "z"
+	set {-jailfence::110|307} to "z"
+	set {-jailfence::110|308} to "z"
+	set {-jailfence::110|309} to "zp"
+	set {-jailfence::110|310} to "z"
+	set {-jailfence::110|311} to "z"
+	set {-jailfence::110|312} to "z"
+	set {-jailfence::110|313} to "zp"
+	set {-jailfence::110|314} to "z"
+	set {-jailfence::110|315} to "z"
+	set {-jailfence::110|316} to "z"
+	set {-jailfence::110|317} to "zp"
+	set {-jailfence::110|318} to "z"
+	set {-jailfence::110|319} to "z"
+	set {-jailfence::110|320} to "z"
+	set {-jailfence::110|321} to "zp"
+	set {-jailfence::110|322} to "z"
+	set {-jailfence::110|323} to "z"
+	set {-jailfence::110|324} to "z"
+	set {-jailfence::110|325} to "zp"
+	set {-jailfence::110|326} to "z"
+	set {-jailfence::110|327} to "z"
+	set {-jailfence::110|328} to "z"
+	set {-jailfence::110|329} to "zp"
+	set {-jailfence::110|330} to "z"
+	set {-jailfence::110|331} to "z"
+	set {-jailfence::110|332} to "z"
+	set {-jailfence::110|333} to "zp"
+	set {-jailfence::110|334} to "z"
+	set {-jailfence::110|335} to "z"
+	set {-jailfence::110|336} to "z"
+	set {-jailfence::110|337} to "zp"
+	set {-jailfence::110|338} to "z"
+	set {-jailfence::110|339} to "z"
+	set {-jailfence::110|340} to "z"
+	set {-jailfence::110|341} to "zp"
+	set {-jailfence::110|342} to "z"
+	set {-jailfence::110|343} to "z"
+	set {-jailfence::110|344} to "z"
+	set {-jailfence::110|345} to "zp"
+	set {-jailfence::110|346} to "z"
+	set {-jailfence::110|347} to "z"
+	set {-jailfence::110|348} to "z"
+	set {-jailfence::110|349} to "zp"
+	set {-jailfence::110|350} to "z"
+	set {-jailfence::110|351} to "z"
+	set {-jailfence::110|352} to "z"
+	set {-jailfence::110|353} to "zp"
+	set {-jailfence::110|354} to "z"
+	set {-jailfence::110|355} to "z"
+	set {-jailfence::110|356} to "z"
+	set {-jailfence::110|357} to "zp"
+	set {-jailfence::110|358} to "z"
+	set {-jailfence::110|359} to "z"
+	set {-jailfence::110|360} to "z"
+	set {-jailfence::110|361} to "zp"
+	set {-jailfence::110|362} to "z"
+	set {-jailfence::110|363} to "z"
+	set {-jailfence::110|364} to "z"
+	set {-jailfence::110|365} to "zp"
+	set {-jailfence::110|366} to "z"
+	set {-jailfence::110|367} to "z"
+	set {-jailfence::110|368} to "z"
+	set {-jailfence::110|369} to "zp"
+	set {-jailfence::110|370} to "z"
+	set {-jailfence::110|371} to "z"
+	set {-jailfence::110|372} to "z"
+	set {-jailfence::110|373} to "zp"
+	set {-jailfence::110|374} to "z"
+	set {-jailfence::110|375} to "z"
+	set {-jailfence::110|376} to "z"
+	set {-jailfence::110|377} to "zp"
+	set {-jailfence::110|378} to "z"
+	set {-jailfence::110|379} to "z"
+	set {-jailfence::110|380} to "z"
+	set {-jailfence::110|381} to "zp"
+	set {-jailfence::110|382} to "z"
+	set {-jailfence::110|383} to "z"
+	set {-jailfence::110|384} to "z"
+	set {-jailfence::110|385} to "zp"
+	set {-jailfence::110|386} to "z"
+	set {-jailfence::110|387} to "z"
+	set {-jailfence::110|388} to "z"
+	set {-jailfence::110|389} to "zp"
+	set {-jailfence::110|390} to "z"
+	set {-jailfence::110|391} to "zp"
+	set {-jailfence::115|292} to "xp"
+	set {-jailfence::116|292} to "x"
+	set {-jailfence::117|292} to "xp"
+	set {-jailfence::9|214} to "xp"
+	set {-jailfence::10|214} to "c"
+	set {-jailfence::10|215} to "c"
+	set {-jailfence::11|215} to "c"
+	set {-jailfence::11|216} to "zp"
+	set {-jailfence::11|217} to "c"
+	set {-jailfence::12|217} to "c"
+	set {-jailfence::12|218} to "c"
+	set {-jailfence::13|218} to "cp"
+	set {-jailfence::13|219} to "c"
+	set {-jailfence::14|219} to "c"
+	set {-jailfence::14|220} to "c"
+	set {-jailfence::15|220} to "cp"
+	set {-jailfence::15|221} to "c"
+	set {-jailfence::16|221} to "c"
+	set {-jailfence::16|222} to "z"
+	set {-jailfence::16|223} to "cp"
+	set {-jailfence::17|223} to "c"
+	set {-jailfence::17|224} to "c"
+	set {-jailfence::18|224} to "c"
+	set {-jailfence::18|225} to "cp"
+	set {-jailfence::19|225} to "c"
+	set {-jailfence::19|226} to "c"
+	set {-jailfence::20|226} to "c"
+	set {-jailfence::20|227} to "cp"
+	set {-jailfence::21|227} to "c"
+	set {-jailfence::21|228} to "z"
+	set {-jailfence::21|229} to "c"
+	set {-jailfence::22|229} to "cp"
+	set {-jailfence::22|230} to "c"
+	set {-jailfence::23|230} to "c"
+	set {-jailfence::23|231} to "c"
+	set {-jailfence::24|231} to "cp"
+	set {-jailfence::24|232} to "c"
+	set {-jailfence::25|232} to "c"
+	set {-jailfence::25|233} to "c"
+	set {-jailfence::26|233} to "cp"
+	set {-jailfence::26|234} to "z"
+	set {-jailfence::26|235} to "c"
+	set {-jailfence::27|235} to "c"
+	set {-jailfence::27|236} to "cp"
+	set {-jailfence::28|236} to "c"
+	set {-jailfence::28|237} to "c"
+	set {-jailfence::29|237} to "c"
+	set {-jailfence::29|238} to "cp"
+	set {-jailfence::30|238} to "c"
+	set {-jailfence::30|239} to "z"
+	set {-jailfence::30|240} to "c"
+	set {-jailfence::31|240} to "cp"
+	set {-jailfence::31|241} to "c"
+	set {-jailfence::32|241} to "c"
+	set {-jailfence::32|242} to "c"
+	set {-jailfence::33|242} to "cp"
+	set {-jailfence::33|243} to "c"
+	set {-jailfence::34|243} to "c"
+	set {-jailfence::34|244} to "c"
+	set {-jailfence::35|244} to "cp"
+	set {-jailfence::35|245} to "z"
+	set {-jailfence::35|246} to "c"
+	set {-jailfence::36|246} to "c"
+	set {-jailfence::36|247} to "cp"
+	set {-jailfence::37|247} to "c"
+	set {-jailfence::37|248} to "c"
+	set {-jailfence::38|248} to "c"
+	set {-jailfence::38|249} to "cp"
+	set {-jailfence::39|249} to "c"
+	set {-jailfence::39|250} to "c"
+	set {-jailfence::40|250} to "c"
+	set {-jailfence::40|251} to "zp"
+	set {-jailfence::40|252} to "c"
+	set {-jailfence::41|252} to "c"
+	set {-jailfence::41|253} to "c"
+	set {-jailfence::42|253} to "cp"
+	set {-jailfence::42|254} to "c"
+	set {-jailfence::43|254} to "c"
+	set {-jailfence::43|255} to "c"
+	set {-jailfence::44|255} to "cp"
+	set {-jailfence::44|256} to "c"
+	set {-jailfence::45|256} to "c"
+	set {-jailfence::45|257} to "z"
+	set {-jailfence::45|258} to "cp"
+	set {-jailfence::46|258} to "c"
+	set {-jailfence::46|259} to "c"
+	set {-jailfence::47|259} to "c"
+	set {-jailfence::47|260} to "cp"
+	set {-jailfence::48|260} to "c"
+	set {-jailfence::48|261} to "c"
+	set {-jailfence::49|261} to "c"
+	set {-jailfence::49|262} to "cp"
+	set {-jailfence::50|262} to "c"
+	set {-jailfence::50|263} to "z"
+	set {-jailfence::50|264} to "c"
+	set {-jailfence::51|264} to "cp"
+	set {-jailfence::51|265} to "c"
+	set {-jailfence::52|265} to "c"
+	set {-jailfence::52|266} to "c"
+	set {-jailfence::53|266} to "cp"
+	set {-jailfence::53|267} to "c"
+	set {-jailfence::54|267} to "c"
+	set {-jailfence::54|268} to "z"
+	set {-jailfence::54|269} to "cp"
+	set {-jailfence::55|269} to "c"
+	set {-jailfence::55|270} to "c"
+	set {-jailfence::56|270} to "c"
+	set {-jailfence::56|271} to "cp"
+	set {-jailfence::57|271} to "c"
+	set {-jailfence::57|272} to "c"
+	set {-jailfence::58|272} to "c"
+	set {-jailfence::58|273} to "cp"
+	set {-jailfence::59|273} to "c"
+	set {-jailfence::59|274} to "z"
+	set {-jailfence::59|275} to "c"
+	set {-jailfence::60|275} to "cp"
+	set {-jailfence::60|276} to "c"
+	set {-jailfence::61|276} to "c"
+	set {-jailfence::61|277} to "c"
+	set {-jailfence::62|277} to "cp"
+	set {-jailfence::62|278} to "c"
+	set {-jailfence::63|278} to "c"
+	set {-jailfence::63|279} to "c"
+	set {-jailfence::64|279} to "cp"
+	set {-jailfence::64|280} to "z"
+	set {-jailfence::64|281} to "c"
+	set {-jailfence::65|281} to "c"
+	set {-jailfence::65|282} to "cp"
+	set {-jailfence::66|282} to "c"
+	set {-jailfence::66|283} to "c"
+	set {-jailfence::67|283} to "c"
+	set {-jailfence::67|284} to "cp"
+	set {-jailfence::68|284} to "c"
+	set {-jailfence::68|285} to "c"
+	set {-jailfence::69|285} to "c"
+	set {-jailfence::69|286} to "zp"
+	set {-jailfence::69|287} to "c"
+	set {-jailfence::70|287} to "c"
+	set {-jailfence::70|288} to "zp"
+	set {-jailfence::88|246} to "zp"
+	set {-jailfence::88|247} to "c"
+	set {-jailfence::89|247} to "c"
+	set {-jailfence::89|248} to "z"
+	set {-jailfence::89|249} to "cp"
+	set {-jailfence::90|249} to "c"
+	set {-jailfence::90|250} to "z"
+	set {-jailfence::90|251} to "c"
+	set {-jailfence::91|251} to "cp"
+	set {-jailfence::91|252} to "z"
+	set {-jailfence::91|253} to "z"
+	set {-jailfence::91|254} to "c"
+	set {-jailfence::92|254} to "cp"
+	set {-jailfence::92|255} to "z"
+	set {-jailfence::92|256} to "c"
+	set {-jailfence::93|256} to "c"
+	set {-jailfence::93|257} to "zp"
+	set {-jailfence::93|258} to "c"
+	set {-jailfence::94|258} to "c"
+	set {-jailfence::94|259} to "z"
+	set {-jailfence::94|260} to "zp"
+	set {-jailfence::94|261} to "c"
+	set {-jailfence::95|261} to "c"
+	set {-jailfence::95|262} to "z"
+	set {-jailfence::95|263} to "cp"
+	set {-jailfence::96|263} to "c"
+	set {-jailfence::96|264} to "z"
+	set {-jailfence::96|265} to "c"
+	set {-jailfence::97|265} to "cp"
+	set {-jailfence::97|266} to "z"
+	set {-jailfence::97|267} to "z"
+	set {-jailfence::97|268} to "c"
+	set {-jailfence::98|268} to "cp"
+	set {-jailfence::98|269} to "z"
+	set {-jailfence::98|270} to "c"
+	set {-jailfence::99|270} to "c"
+	set {-jailfence::99|271} to "zp"
+	set {-jailfence::99|272} to "c"
+	set {-jailfence::100|272} to "c"
+	set {-jailfence::100|273} to "z"
+	set {-jailfence::100|274} to "zp"
+	set {-jailfence::100|275} to "c"
+	set {-jailfence::101|275} to "c"
+	set {-jailfence::101|276} to "z"
+	set {-jailfence::101|277} to "cp"
+	set {-jailfence::102|277} to "c"
+	set {-jailfence::102|278} to "z"
+	set {-jailfence::102|279} to "c"
+	set {-jailfence::103|279} to "cp"
+	set {-jailfence::103|280} to "z"
+	set {-jailfence::103|281} to "z"
+	set {-jailfence::103|282} to "c"
+	set {-jailfence::104|282} to "cp"
+	set {-jailfence::104|283} to "z"
+	set {-jailfence::104|284} to "c"
+	set {-jailfence::105|284} to "c"
+	set {-jailfence::105|285} to "zp"
+	set {-jailfence::105|286} to "c"
+	set {-jailfence::106|286} to "c"
+	set {-jailfence::106|287} to "zp"
+	set {-jailfence::339|237} to "zp"
+	set {-jailfence::339|238} to "z"
+	set {-jailfence::339|239} to "z"
+	set {-jailfence::339|240} to "z"
+	set {-jailfence::339|241} to "zp"
+	set {-jailfence::339|242} to "z"
+	set {-jailfence::339|243} to "z"
+	set {-jailfence::339|244} to "z"
+	set {-jailfence::339|245} to "zp"
+	set {-jailfence::339|246} to "z"
+	set {-jailfence::339|247} to "z"
+	set {-jailfence::339|248} to "z"
+	set {-jailfence::339|249} to "zp"
+	set {-jailfence::339|250} to "z"
+	set {-jailfence::339|251} to "z"
+	set {-jailfence::339|252} to "z"
+	set {-jailfence::339|253} to "zp"
+	set {-jailfence::339|254} to "z"
+	set {-jailfence::339|255} to "z"
+	set {-jailfence::339|256} to "z"
+	set {-jailfence::339|257} to "zp"
+	set {-jailfence::339|258} to "z"
+	set {-jailfence::339|259} to "zp"
+	set {-jailfence::339|285} to "zp"
+	set {-jailfence::339|286} to "z"
+	set {-jailfence::339|287} to "z"
+	set {-jailfence::339|288} to "z"
+	set {-jailfence::339|289} to "zp"
+	set {-jailfence::339|290} to "z"
+	set {-jailfence::339|291} to "z"
+	set {-jailfence::339|292} to "z"
+	set {-jailfence::339|293} to "zp"
+	set {-jailfence::339|294} to "z"
+	set {-jailfence::339|295} to "z"
+	set {-jailfence::339|296} to "z"
+	set {-jailfence::339|297} to "zp"
+	set {-jailfence::339|298} to "z"
+	set {-jailfence::339|299} to "z"
+	set {-jailfence::339|300} to "z"
+	set {-jailfence::339|301} to "zp"
+	set {-jailfence::339|302} to "z"
+	set {-jailfence::339|303} to "z"
+	set {-jailfence::339|304} to "z"
+	set {-jailfence::339|305} to "zp"
+	set {-jailfence::339|306} to "z"
+	set {-jailfence::339|307} to "z"
+	set {-jailfence::339|308} to "z"
+	set {-jailfence::339|309} to "zp"
+	set {-jailfence::339|310} to "z"
+	set {-jailfence::339|311} to "z"
+	set {-jailfence::339|312} to "z"
+	set {-jailfence::339|313} to "zp"
+	set {-jailfence::339|314} to "z"
+	set {-jailfence::339|315} to "z"
+	set {-jailfence::339|316} to "z"
+	set {-jailfence::339|317} to "zp"
+	set {-jailfence::339|318} to "z"
+	set {-jailfence::339|319} to "z"
+	set {-jailfence::339|320} to "z"
+	set {-jailfence::339|321} to "zp"
+	set {-jailfence::339|322} to "z"
+	set {-jailfence::339|323} to "z"
+	set {-jailfence::339|324} to "z"
+	set {-jailfence::339|325} to "zp"
+	set {-jailfence::339|326} to "z"
+	set {-jailfence::339|327} to "z"
+	set {-jailfence::339|328} to "z"
+	set {-jailfence::339|329} to "zp"
+	set {-jailfence::339|330} to "z"
+	set {-jailfence::339|331} to "z"
+	set {-jailfence::339|332} to "z"
+	set {-jailfence::339|333} to "zp"
+	set {-jailfence::339|334} to "z"
+	set {-jailfence::339|335} to "z"
+	set {-jailfence::339|336} to "z"
+	set {-jailfence::339|337} to "zp"
+	set {-jailfence::339|338} to "z"
+	set {-jailfence::339|339} to "z"
+	set {-jailfence::339|340} to "z"
+	set {-jailfence::339|341} to "zp"
+	set {-jailfence::339|342} to "z"
+	set {-jailfence::339|343} to "z"
+	set {-jailfence::339|344} to "z"
+	set {-jailfence::339|345} to "zp"
+	set {-jailfence::339|346} to "z"
+	set {-jailfence::339|347} to "z"
+	set {-jailfence::339|348} to "z"
+	set {-jailfence::339|349} to "zp"
+	set {-jailfence::340|349} to "xp"
+	set {-jailfence::341|349} to "x"
+	set {-jailfence::342|349} to "x"
+	set {-jailfence::343|349} to "x"
+	set {-jailfence::344|349} to "xp"
+	set {-jailfence::345|349} to "x"
+	set {-jailfence::346|349} to "x"
+	set {-jailfence::347|349} to "x"
+	set {-jailfence::348|349} to "xp"
+	set {-jailfence::349|349} to "x"
+	set {-jailfence::350|349} to "x"
+	set {-jailfence::351|349} to "x"
+	set {-jailfence::352|349} to "xp"
+	set {-jailfence::353|349} to "x"
+	set {-jailfence::354|349} to "x"
+	set {-jailfence::355|349} to "x"
+	set {-jailfence::356|349} to "xp"
+	set {-jailfence::357|349} to "x"
+	set {-jailfence::358|349} to "x"
+	set {-jailfence::359|349} to "x"
+	set {-jailfence::360|349} to "xp"
+	set {-jailfence::361|349} to "x"
+	set {-jailfence::362|349} to "x"
+	set {-jailfence::363|349} to "x"
+	set {-jailfence::364|349} to "xp"
+	set {-jailfence::365|349} to "x"
+	set {-jailfence::366|349} to "x"
+	set {-jailfence::367|349} to "x"
+	set {-jailfence::368|349} to "xp"
+	set {-jailfence::369|349} to "x"
+	set {-jailfence::370|349} to "x"
+	set {-jailfence::371|349} to "x"
+	set {-jailfence::372|349} to "xp"
+	set {-jailfence::373|349} to "x"
+	set {-jailfence::374|349} to "x"
+	set {-jailfence::375|349} to "x"
+	set {-jailfence::376|349} to "xp"
+	set {-jailfence::163|322} to "xp"
+	set {-jailfence::164|322} to "x"
+	set {-jailfence::165|322} to "x"
+	set {-jailfence::166|322} to "x"
+	set {-jailfence::167|322} to "xp"
+	set {-jailfence::168|322} to "x"
+	set {-jailfence::169|322} to "xp"
+	set {-jailfence::187|322} to "xp"
+	set {-jailfence::188|322} to "x"
+	set {-jailfence::189|322} to "x"
+	set {-jailfence::190|322} to "x"
+	set {-jailfence::191|322} to "xp"
+	set {-jailfence::192|322} to "xp"
 	add "8.5|73.5" to {-jailwall::*}
 	add "40.5|73.5" to {-jailwall::*}
 	add "42.5|73.5" to {-jailwall::*}
@@ -538,30 +1499,187 @@ function jailPointsLoad():
 	add "180|69|322|iron_bars" to {-jailbreach::gate::*}
 	add "180|70|322|iron_bars" to {-jailbreach::gate::*}
 	add "180|71|322|light_gray_concrete" to {-jailbreach::gate::*}
+	add "339|65|260|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|261|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|262|iron_bars" to {-jailbreach::punch::*}
 	add "339|65|263|iron_bars" to {-jailbreach::punch::*}
 	add "339|65|264|iron_bars" to {-jailbreach::punch::*}
 	add "339|65|265|iron_bars" to {-jailbreach::punch::*}
 	add "339|65|266|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|267|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|268|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|269|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|270|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|271|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|272|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|273|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|274|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|275|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|276|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|277|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|278|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|279|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|280|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|281|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|282|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|283|iron_bars" to {-jailbreach::punch::*}
+	add "339|65|284|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|260|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|261|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|262|iron_bars" to {-jailbreach::punch::*}
 	add "339|66|263|iron_bars" to {-jailbreach::punch::*}
 	add "339|66|264|iron_bars" to {-jailbreach::punch::*}
 	add "339|66|265|iron_bars" to {-jailbreach::punch::*}
 	add "339|66|266|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|267|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|268|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|269|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|270|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|271|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|272|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|273|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|274|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|275|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|276|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|277|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|278|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|279|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|280|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|281|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|282|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|283|iron_bars" to {-jailbreach::punch::*}
+	add "339|66|284|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|260|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|261|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|262|iron_bars" to {-jailbreach::punch::*}
 	add "339|67|263|iron_bars" to {-jailbreach::punch::*}
 	add "339|67|264|iron_bars" to {-jailbreach::punch::*}
 	add "339|67|265|iron_bars" to {-jailbreach::punch::*}
 	add "339|67|266|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|267|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|268|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|269|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|270|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|271|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|272|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|273|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|274|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|275|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|276|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|277|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|278|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|279|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|280|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|281|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|282|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|283|iron_bars" to {-jailbreach::punch::*}
+	add "339|67|284|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|260|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|261|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|262|iron_bars" to {-jailbreach::punch::*}
 	add "339|68|263|iron_bars" to {-jailbreach::punch::*}
 	add "339|68|264|iron_bars" to {-jailbreach::punch::*}
 	add "339|68|265|iron_bars" to {-jailbreach::punch::*}
 	add "339|68|266|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|267|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|268|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|269|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|270|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|271|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|272|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|273|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|274|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|275|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|276|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|277|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|278|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|279|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|280|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|281|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|282|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|283|iron_bars" to {-jailbreach::punch::*}
+	add "339|68|284|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|260|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|261|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|262|iron_bars" to {-jailbreach::punch::*}
 	add "339|69|263|iron_bars" to {-jailbreach::punch::*}
 	add "339|69|264|iron_bars" to {-jailbreach::punch::*}
 	add "339|69|265|iron_bars" to {-jailbreach::punch::*}
 	add "339|69|266|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|267|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|268|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|269|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|270|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|271|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|272|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|273|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|274|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|275|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|276|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|277|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|278|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|279|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|280|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|281|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|282|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|283|iron_bars" to {-jailbreach::punch::*}
+	add "339|69|284|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|260|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|261|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|262|iron_bars" to {-jailbreach::punch::*}
 	add "339|70|263|iron_bars" to {-jailbreach::punch::*}
 	add "339|70|264|iron_bars" to {-jailbreach::punch::*}
 	add "339|70|265|iron_bars" to {-jailbreach::punch::*}
 	add "339|70|266|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|267|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|268|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|269|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|270|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|271|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|272|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|273|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|274|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|275|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|276|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|277|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|278|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|279|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|280|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|281|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|282|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|283|iron_bars" to {-jailbreach::punch::*}
+	add "339|70|284|iron_bars" to {-jailbreach::punch::*}
+	add "339|71|260|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|261|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|262|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|263|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|264|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|265|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|266|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|267|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|268|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|269|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|270|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|271|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|272|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|273|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|274|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|275|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|276|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|277|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|278|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|279|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|280|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|281|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|282|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|283|light_gray_concrete" to {-jailbreach::punch::*}
+	add "339|71|284|light_gray_concrete" to {-jailbreach::punch::*}
+	add "109|62|360|coarse_dirt" to {-jailbreach::dig::*}
+	add "109|63|360|coarse_dirt" to {-jailbreach::dig::*}
+	add "110|62|360|coarse_dirt" to {-jailbreach::dig::*}
+	add "110|63|360|coarse_dirt" to {-jailbreach::dig::*}
+	add "111|62|360|coarse_dirt" to {-jailbreach::dig::*}
+	add "111|63|360|coarse_dirt" to {-jailbreach::dig::*}
 	add "253|65|396|light_gray_concrete" to {-jailbreach::front::*}
 	add "253|66|396|light_gray_concrete" to {-jailbreach::front::*}
 	add "253|67|396|light_gray_concrete" to {-jailbreach::front::*}
@@ -778,5 +1896,5 @@ function jailPointsLoad():
 	add "181|65|324|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "177|65|321|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "178|65|324|iron_bars" to {-jailrubble::gate::*}
-	set {-jailpts::count} to 190
+	set {-jailpts::count} to 299
 	set {-jailpts::loaded} to true

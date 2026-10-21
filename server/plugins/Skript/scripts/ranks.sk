@@ -392,10 +392,6 @@ command /heistrefresh [<text>]:
 		if levelOk(player, {_need}) is false:
 			msg(player, "&cThe %{_name}% needs level %{_need}% (%levelName({_need})%). &7/level")
 			stop
-		# A store is for new robbers: only one they could rob themselves (review 2026-09-28).
-		if heistLevelOk(player, {_h}) is false:
-			msg(player, "&cThe %{_name}% is for new robbers (up to level %heistMaxLevel({_h})%).")
-			stop
 		if heistRefresh({_h}) is not "":
 			msg(player, "&cThe %{_name}% can't be refreshed right now.")
 			stop

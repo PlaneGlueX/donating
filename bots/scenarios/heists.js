@@ -398,10 +398,10 @@ module.exports = async ({ check }) => {
     check('the alarm: warning, robbers inside hunted and told, nobody outside', /HEIST ztest alarm$/.test(alarm) && (await field('alarm')) === 'warning' && (await field('hunted')) === '1' && /ALARM/.test(text(A, t)) && !/Alarm|ALARM|Test Vault/.test(text(B, t)) && (await hunt(B)) === 'none', `${alarm}; ${await heist()}; ${text(B, t)}`)
     check('...and the windows lock (bars)', await isBlock(732, 201, 725, 'iron_bars'))
     check('a second alarm does nothing', /already running/.test(await cmd(`dheist alarm ${ID}`)))
-    // Waves are checked once a second: wave 1 at 3-4 s, wave 2 two seconds later.
-    const w1 = await until(async () => (await field('alarm')) === 'waves' && (await field('wave')) === '1', 5000)
+    // Waves are checked once a second: the first assault (2026-10-21) starts at 3-4 s with wave 1, wave 2 two seconds later.
+    const w1 = await until(async () => (await field('alarm')) === 'assault' && (await field('wave')) === '1', 5000)
     const w2 = await until(async () => (await field('wave')) === '2', 3500)
-    check('after the warning a wave, then one every interval', w1 && w2 && logged(/wave ztest 1/).length === 1 && logged(/wave ztest 2/).length === 1, `${w1} ${w2}; ${await heist()}`)
+    check('after the warning an assault: a wave, then one every interval', w1 && w2 && logged(/wave ztest 1 /).length === 1 && logged(/wave ztest 2 /).length === 1 && logged(/assault ztest n=1 /).length === 1, `${w1} ${w2}; ${await heist()}`)
     await walkOut(A)
     check('walking out keeps the cops on you while in range', (await member(A)) === 'none' && (await hunt(A)) === ID && (await field('hunted')) === '1', `${await member(A)} ${await hunt(A)}`)
     t = Date.now()

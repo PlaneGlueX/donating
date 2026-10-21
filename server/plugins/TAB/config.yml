@@ -102,21 +102,27 @@ scoreboard:
         - "&7Bag: &f%donating_bag% &7(%donating_bag_pct%)"
         - "&7At risk: &c%donating_heist_risk%"
         - "%donating_wanted%"
+    # Compact (owner, 2026-10-21: "more compact, or wrap long lines"): no blank lines, short labels, and the long lines
+    # (season, quest, jobs, hit) wrapped at 22 characters onto a second line; an empty one ("") is dropped. The first line
+    # is the city's clock (clock.sk, 2026-10-21: "☀ Tue 3:45 PM").
     main:
       title: "&6&lDONATING"
       lines:
-        - ""
-        - "&7Cash: &a%donating_balance%"
-        - "&7Level: &f%donating_level_num% %donating_level%"
-        - "&7Bag: &f%donating_bag%"
-        - "&7Area: %donating_district%"
-        - ""
-        - "&7Heists open: &f%donating_heists_open% &7/heists"
-        - "&7Daily: %donating_daily%"
-        - "%donating_season%"
-        - "%donating_mission%"
-        - "%donating_jobs%"
-        - "%donating_hit%"
+        - "%donating_clock%"
+        - "&7Cash &a%donating_balance%"
+        - "&7Lvl &f%donating_level_num% %donating_level%"
+        - "&7Bag &f%donating_bag%"
+        - "&7Area %donating_district%"
+        - "&7Heists &f%donating_heists_open% open"
+        - "&7Daily %donating_daily%"
+        - "%donating_season_a%"
+        - "%donating_season_b%"
+        - "%donating_mission_a%"
+        - "%donating_mission_b%"
+        - "%donating_jobs_a%"
+        - "%donating_jobs_b%"
+        - "%donating_hit_a%"
+        - "%donating_hit_b%"
         - "%donating_wanted%"
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout

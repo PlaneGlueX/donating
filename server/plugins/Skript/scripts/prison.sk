@@ -14,7 +14,8 @@
 # Also: jailExempt, jailEscapeCheck (the front gate's closing), jailCourseDone (jailcourse.sk and /dprison course skip),
 # jailCellAssign / jailCellFree, jailStrip, jailHold (loot.sk's hold mechanic), jailBox / jailBoxOff (interaction boxes,
 # maintained here), jailCopId (the prison cop an entity is, or ""), jailSecsLeft, jailFuture, jailCraftable /
-# jailHasParts / jailWeaponSlot (Sparks' makeshift weapons: core.sk craft::*).
+# jailHasParts / jailWeaponSlot (Sparks' makeshift weapons: core.sk craft::*), the fences' shock (2026-10-21,
+# {-jailfence::*} from jailpoints.sk).
 # Never calls jailcourse.sk, jailescape.sk, jailcops.sk or jailjobs.sk: those read and write the shared memory below.
 #
 # Saved data: jail, jail-step (jailcourse.sk), jail-quit-hostile, jail-course ("done" once the course is finished),
@@ -466,6 +467,28 @@ function jailStrip(p: player):
 	if itemId(offhand tool of {_p}) starts with "jail:":
 		set offhand tool of {_p} to air
 
+# A gun taken out at the yard's Gun Shop (owner, 2026-10-21: "owned guns can be taken out at the prison gun store and
+# used INSIDE the walls"; nothing is sold in here): its magazine comes loaded the first time in a stay (prison::gun-mags
+# magazines; one more than the first goes in the ammo slots), none after that until a catch, a death or an escape
+# ({-jail::gunmag::<u>::<title>}). The rounds to load.
+function jailGunMag(p: player, w: text) :: number:
+	set {_load} to 0
+	set {_u} to "%uuid of {_p}%"
+	set {_m} to {-cfg::wpn::%{_w}%::mag}
+	set {_n} to cfg("prison::gun-mags")
+	if {_m} is set:
+		if {_n} is set:
+			if {_n} >= 1:
+				if {-jail::gunmag::%{_u}%::%{_w}%} is not set:
+					set {-jail::gunmag::%{_u}%::%{_w}%} to now
+					set {_load} to {_m}
+					if {_n} > 1:
+						set {_type} to {-cfg::wpn::%{_w}%::ammo}
+						if {_type} is set:
+							addAmmo({_p}, "%{_type}%", ({_n} - 1) * {_m})
+					jailLog("gun-mag %{_p}% %{_u}% %{_w}% loaded=%{_load}%")
+	return {_load}
+
 # ---------- Drops (a cop's keycard on the ground: bag.sk's duffel pattern) ----------
 
 function jailDrop(l: location, kind: text, why: text):
@@ -763,12 +786,13 @@ function jailCatch(p: player, why: text):
 	delete {-jail::stun::%{_u}%}
 	delete {-jail::mark::%{_u}%}
 	delete {-jail::lot::%{_u}%}
+	delete {-jail::gunmag::%{_u}%::*}
 	jailModsOff({_p})
 	set {_armed} to false
 	if {_why} is not "stuck":
 		jailStrip({_p})
 		# Equipped weapons and consumables (hotbar 1-5) go too, like a death; they stay unlocked (owner, 2026-10-14: "getting
-		# arrested in prison takes away your weapons too"). With a keycard, the yard's Gun Shop gives back the melee you own;
+		# arrested in prison takes away your weapons too"). With a keycard, the yard's Gun Shop gives back the weapons you own;
 		# Sparks in the workshop makes new ones from junk (a makeshift weapon is never unlocked: it's gone with the catch).
 		loop integers from 0 to 4:
 			if slot loop-value of {_p}'s inventory is not air:
@@ -803,7 +827,7 @@ function jailCatch(p: player, why: text):
 	jailDoor("cell_%{_c}%", false)
 	msg({_p}, "&7Your cell opens in %{_secs}%s. The escape starts over.")
 	if {_armed} is true:
-		msg({_p}, "&7They took your weapons. Sparks in the workshop makes new ones from junk; with a keycard, the Gun Shop in the yard gives back the melee you own.")
+		msg({_p}, "&7They took your weapons. Sparks in the workshop makes new ones from junk; with a keycard, the Gun Shop in the yard gives back the weapons you own.")
 
 # ---------- The course's end (jailcourse.sk calls it; /dprison course skip too) ----------
 
@@ -843,6 +867,7 @@ function jailEscape(p: player):
 	set {-jail::escaped::%{_u}%} to now
 	delete {-jail::mark::%{_u}%}
 	delete {-jail::lot::%{_u}%}
+	delete {-jail::gunmag::%{_u}%::*}
 	jailStrip({_p})
 	jailCellFree({_p})
 	jailModsOff({_p})
@@ -853,6 +878,8 @@ function jailEscape(p: player):
 		set {_sub} to "Blew your way out"
 	else if {_m} is "parkour":
 		set {_sub} to "Over the fence"
+	else if {_m} is "dig":
+		set {_sub} to "Dug your way out"
 	send title colored "&a&lESCAPED" with subtitle colored "&7%{_sub}%" to {_p} for 4 seconds
 	play sound "ui.toast.challenge_complete" with volume 1 to {_p}
 	progEvent({_p}, "escape", 1, {_m})
@@ -1121,6 +1148,7 @@ on respawn with priority highest:
 		setData(player, "jail", "in")
 		delete {-jail::mark::%{_u}%}
 		delete {-jail::lot::%{_u}%}
+		delete {-jail::gunmag::%{_u}%::*}
 		msg(player, "&7Locked up again. Find a way out.")
 		jailLog("respawn-in %player% %{_u}%")
 	wait 1 tick
@@ -1171,12 +1199,8 @@ on damage:
 				cancel event
 				hudBar(attacker, "&7Not through the fence.", 3)
 				stop
-			if {_vin} is true:
-				set {_w} to wmTitle(attacker's tool)
-				if {_w} is not "":
-					if {-cfg::wpn::%{_w}%::kind} is not "Melee":
-						cancel event
-						stop
+			# Guns work inside since 2026-10-21 (owned ones from the yard's Gun Shop; owner: "used INSIDE the walls"): the
+			# same rules as melee below (no-fight spots, protection, the knockout cooldown).
 			# Inmate PvP: both real players inside.
 			victim is a player
 			isNpc(victim) is false
@@ -1257,7 +1281,9 @@ on damage of player with priority highest:
 
 # ---------- Rules inside ----------
 
-# No guns, consumables or tools inside (before WeaponMechanics' normal handler).
+# No consumables or tools inside (before WeaponMechanics' normal handler). Guns work since 2026-10-21 (owner: "owned
+# guns can be taken out at the prison gun store and used INSIDE the walls"); a guard who sees one in your hand comes for
+# you, with backup (jailcops.sk).
 on right click with priority lowest:
 	jailOn() is true
 	jailExempt(player) is false
@@ -1270,9 +1296,6 @@ on right click with priority lowest:
 		if {-cfg::con::%{_w}%::price} is set:
 			set {_bad} to true
 			set {_why} to "&cNot inside the walls."
-		else if {-cfg::wpn::%{_w}%::kind} is not "Melee":
-			set {_bad} to true
-			set {_why} to "&cNo guns inside the walls."
 	else if itemId({_i}) starts with "tool:":
 		set {_bad} to true
 		set {_why} to "&cNot inside the walls."
@@ -1344,6 +1367,100 @@ every 10 ticks:
 		else if {-jail::lowhp::%{_u}%} is set:
 			delete {-jail::lowhp::%{_u}%}
 			remove attribute modifier with key "donating:jail_lowhp" from {_p}
+
+# ---------- The fences shock (owner, 2026-10-21: "running into a fence gives a small shock (a little damage + a warning)") ----------
+
+# How near the player's middle is to a fence cell's mesh ({-jailfence::<x>|<z>}: "x" a mesh along x, "z" along z, "c"
+# both; "p" a post): the distance to the mesh's line through the cell's middle (a bar's plane stops a player 0.36 from it,
+# a post 0.55 from its middle). 99 = not near.
+function jailFenceDist(px: number, pz: number, x: number, z: number, ax: text) :: number:
+	set {_d} to 99
+	if {_px} >= {_x} - 0.4:
+		if {_px} <= {_x} + 1.4:
+			if {_ax} contains "x" or "c":
+				set {_d} to min({_d}, abs({_pz} - ({_z} + 0.5)))
+	if {_pz} >= {_z} - 0.4:
+		if {_pz} <= {_z} + 1.4:
+			if {_ax} contains "z" or "c":
+				set {_d} to min({_d}, abs({_px} - ({_x} + 0.5)))
+	return {_d}
+
+# Every 5 ticks for anyone not exempt in the prison world (both sides of the fence): touching a fence's mesh (within
+# 0.45 of it, a post 0.62) between y 64 and 73 gives prison::fence::damage hearts (never below one heart left), a spark,
+# a push away from it and a warning; at most once per prison::fence::every.
+every 5 ticks:
+	jailOn() is true
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_every} to cfg("prison::fence::every")
+	loop all players:
+		set {_p} to loop-player
+		if world of {_p} is {_w}:
+			if {_p} is alive:
+				if jailExempt({_p}) is false:
+					set {_l} to location of {_p}
+					set {_py} to y-coordinate of {_l}
+					if {_py} >= 64:
+						if {_py} <= 73:
+							set {_u} to "%uuid of {_p}%"
+							set {_ok} to true
+							if {-jail::shockat::%{_u}%} is set:
+								if difference between {-jail::shockat::%{_u}%} and now < {_every}:
+									set {_ok} to false
+							if {_ok} is true:
+								jailFenceTouch({_p}, {_l})
+
+function jailFenceTouch(p: player, l: location):
+	set {_px} to x-coordinate of {_l}
+	set {_pz} to z-coordinate of {_l}
+	set {_bx} to floor({_px})
+	set {_bz} to floor({_pz})
+	set {_best} to 99
+	# The 3 x 3 cells round the player (own counters: loop-number is ambiguous in nested number loops).
+	set {_i} to -1
+	loop 3 times:
+		set {_cx} to {_bx} + {_i}
+		set {_j} to -1
+		loop 3 times:
+			set {_cz} to {_bz} + {_j}
+			set {_v} to {-jailfence::%{_cx}%|%{_cz}%}
+			if {_v} is set:
+				set {_d} to jailFenceDist({_px}, {_pz}, {_cx}, {_cz}, "%{_v}%")
+				set {_lim} to 0.45
+				if "%{_v}%" contains "p":
+					set {_lim} to 0.62
+				if {_d} <= {_lim}:
+					if {_d} < {_best}:
+						set {_best} to {_d}
+						set {_fx} to {_cx} + 0.5
+						set {_fz} to {_cz} + 0.5
+			add 1 to {_j}
+		add 1 to {_i}
+	{_best} < 99
+	set {-jail::shockat::%uuid of {_p}%} to now
+	set {_dmg} to min(cfg("prison::fence::damage"), (health of {_p}) - 1)
+	if {_dmg} > 0:
+		set invulnerability time of {_p} to 0 ticks
+		damage {_p} by {_dmg}
+	# Away from the fence's middle, a little up.
+	set {_vx} to {_px} - {_fx}
+	set {_vz} to {_pz} - {_fz}
+	set {_len} to sqrt({_vx} * {_vx} + {_vz} * {_vz})
+	if {_len} < 0.05:
+		set {_vx} to 0 - sin(yaw of {_p})
+		set {_vz} to cos(yaw of {_p})
+		set {_vx} to 0 - {_vx}
+		set {_vz} to 0 - {_vz}
+		set {_len} to 1
+	set {_k} to cfg("prison::fence::push") / {_len}
+	set velocity of {_p} to vector({_vx} * {_k}, 0.25, {_vz} * {_k})
+	draw 8 electric spark particles with offset vector(0.2, 0.4, 0.2) with an extra value of 0 at location({_fx}, (y-coordinate of {_l}) + 1, {_fz}, world of {_l})
+	play sound "entity.bee.sting" with volume 0.6 and pitch 1.6 at {_l}
+	play sound "block.redstone_torch.burnout" with volume 0.5 and pitch 1.8 at {_l}
+	hudBar({_p}, "&e⚡ The fence is electrified", 2)
+
+on quit:
+	delete {-jail::shockat::%uuid of player%}
 
 # Food: 9 bars inside (natural regeneration, sprinting allowed).
 every 10 seconds:
@@ -1604,8 +1721,11 @@ command /prison [<text>]:
 		if {-jail::hostile::%{_u}%} is set:
 			set {_what} to "%{_what}% &c(the guards are after you)"
 		msg(player, "&7You're an inmate, %{_what}%&7.")
-		msg(player, "&6Ways out: &fa keycard &7(knock a guard down or trade Rusty a donut) through the police station, &fC4 &7(parts in the workshop, the supply closet and the infirmary: hold right-click to search; Lefty in Hall B puts it together) on the vehicle gate by the plaza, or &fthe fence by the Gun Shop &7(punch the box when no guard is near, or use a keycard) and over the boxes. &6Then the lot: &7the front gate opens from the gatehouse booth's console. A keycard opens the booth, or punch its fuse box when no guard is near.")
-		msg(player, "&6The yard's Gun Shop &7needs a keycard. Guards who see you in a restricted place (the police station, the annex, the staff rooms, the Gun Shop, the lot) come after you, through the windows too; inside a building they don't give up until you're out of it. Lose them with contraband on you and they stop searching you, until you're caught: just never hold it out in front of one.")
+		msg(player, "&6Ways out: &fa keycard &7(knock a guard down or trade Rusty a donut) through the police station, &fC4 &7(parts in the workshop, the supply closet and the infirmary: hold right-click to search; Lefty in Hall B puts it together) on the vehicle gate by the plaza, or &fthe fence by the Gun Shop &7(punch the box by the gate's police-station end when no guard is near, or use a keycard) and over the crates. &6Then the lot: &7the front gate opens from the gatehouse booth's console (a keycard opens the booth, or punch its fuse box when no guard is near), or dig under the lot's west fence.")
+		msg(player, "&6The yard's Gun Shop &7needs a keycard: take out the weapons you own (a gun's first magazine is loaded). Guards who see a weapon or contraband in your hand, or you in a restricted place (the police station, the annex, the staff rooms, the Gun Shop, the lot), come after you, through windows, gates and fences too; a gun brings backup. Lose them with contraband on you and they stop searching you, until you're caught: just never hold it out in front of one. The fences shock.")
+		if storyLive(storyIdOf(player, "lefty")) is true:
+			msg(player, "&6Lefty &7in Hall B walks you through your way out (talk to him to pick it).")
+		msg(player, "&eHead start &f%jjHeadCount(player)%/%size of {-cfg::jhead::ids::*}%&7: %join jjHeadLines(player) with "&7, "%")
 		msg(player, "&6Sparks &7in the workshop makes a weapon from two parts: scrap from the gym's weights, tape from the storage room, a mop handle from the laundry. Don't hold the scrap out in front of a guard.")
 		msg(player, "&7Stuck somewhere? &f/prison stuck &7(back to your cell; while the guards are after you it counts as a catch).")
 
@@ -1675,7 +1795,7 @@ command /dprison [<text>]:
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_sub} to {_a::1}
-		set {_usage} to "PRISON usage: /dprison info|catch|free <player> | state <player> course|in|out|off | step <player> <step> | course <player> skip | door <name> open|close | breach gate|punch|front open|close | setup | reload"
+		set {_usage} to "PRISON usage: /dprison info|catch|free <player> | state <player> course|in|out|off | step <player> <step> | course <player> skip | door <name> open|close | breach gate|punch|front|dig open|close | setup | reload"
 		if {_sub} is "reload":
 			jailPointsLoad()
 			delete {-jail::cellids::*}
@@ -1700,11 +1820,11 @@ command /dprison [<text>]:
 			stop
 		if {_sub} is "breach":
 			set {_id} to {_a::2}
-			if {_id} is not "gate" or "punch" or "front":
-				send "PRISON breach gate|punch|front open|close" to sender
+			if {_id} is not "gate" or "punch" or "front" or "dig":
+				send "PRISON breach gate|punch|front|dig open|close" to sender
 				stop
 			if {_a::3} is not "open" or "close":
-				send "PRISON breach gate|punch|front open|close" to sender
+				send "PRISON breach gate|punch|front|dig open|close" to sender
 				stop
 			# jailescape.sk runs the breaches: it picks the request up within a tick.
 			set {-jailbr::req::%{_id}%} to {_a::3}
@@ -1772,7 +1892,7 @@ function jailSetup(s: command sender):
 		send "PRISON the prison world %{-cfg::prison::world}% isn't loaded" to {_s}
 		stop
 	set {_doors} to jailDoorsReset()
-	loop "gate", "punch" and "front":
+	loop "gate", "punch", "front" and "dig":
 		set {-jailbr::req::%loop-value%} to "restore"
 	# A gun shopkeeper within 3 blocks of GUN_KEEPER in the prison world.
 	set {_gk} to jailPt("GUN_KEEPER")
@@ -1813,7 +1933,7 @@ on tab complete of "/dprison" and "/skript:dprison":
 		set tab completions for position 3 to "open" and "close"
 		stop
 	if {_s} is "breach":
-		set tab completions for position 2 to "gate", "punch" and "front"
+		set tab completions for position 2 to "gate", "punch", "front" and "dig"
 		set tab completions for position 3 to "open" and "close"
 		stop
 	if {_s} is "setup" or "reload":

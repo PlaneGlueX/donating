@@ -150,6 +150,8 @@ final class Paths {
     private final Map<String, Graph> graphs = new HashMap<>();
     private final Map<String, Integer> lastAdded = new HashMap<>(); // per sender: the node "add" links the next one to
     private final Map<UUID, Boolean> showing = new HashMap<>();
+    final Map<UUID, Integer> selected = new HashMap<>(); // the wand's selected node per player (PathWand)
+    PathWand wand; // set by PhonePlugin (the staff wand: right-click adds, left-click selects, a menu)
     private int nextId = 1, version = 1;
     private boolean saveQueued;
     private int ticks;
@@ -464,13 +466,22 @@ final class Paths {
     // ---------- Staff view: /dphone path show ----------
 
     void tick() {
-        if (++ticks % 10 != 0 || showing.isEmpty()) return;
-        Particle.DustOptions node = new Particle.DustOptions(Color.LIME, 1.6f), lone = new Particle.DustOptions(Color.RED, 1.6f), link = new Particle.DustOptions(Color.YELLOW, 0.9f);
+        if (++ticks % 10 != 0) return;
+        Particle.DustOptions node = new Particle.DustOptions(Color.LIME, 1.6f), lone = new Particle.DustOptions(Color.RED, 1.6f), link = new Particle.DustOptions(Color.YELLOW, 0.9f),
+                sel = new Particle.DustOptions(Color.AQUA, 2.2f);
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (!showing.getOrDefault(p.getUniqueId(), false)) continue;
+            // Shown with /dphone path show on, and always while the path wand is in hand.
+            boolean wandOut = wand != null && wand.holds(p);
+            if (!wandOut && !showing.getOrDefault(p.getUniqueId(), false)) continue;
             Graph g = graph(p.getWorld().getName());
-            if (g == null) continue;
             Location l = p.getLocation();
+            Node s = selectedOf(p);
+            if (s != null && s.world.equals(l.getWorld().getName()))
+                for (int k = 0; k < 8; k++) {
+                    double a = k * Math.PI / 4;
+                    p.spawnParticle(Particle.DUST, s.x + Math.cos(a) * 0.45, s.y + 0.15, s.z + Math.sin(a) * 0.45, 1, 0, 0, 0, 0, sel, true);
+                }
+            if (g == null) continue;
             double r2 = showRange * showRange;
             for (int i = 0; i < g.n; i++) {
                 if (sq(g.x[i] - l.getX()) + sq(g.y[i] - l.getY()) + sq(g.z[i] - l.getZ()) > r2) continue;
@@ -490,7 +501,108 @@ final class Paths {
         }
     }
 
-    void quit(Player p) { showing.remove(p.getUniqueId()); }
+    void quit(Player p) { showing.remove(p.getUniqueId()); selected.remove(p.getUniqueId()); }
+
+    // ---------- The wand's operations (PathWand; the same as the commands) ----------
+
+    Node byId(int id) { return nodes.get(id); }
+
+    /** The wand's selected node (null: none, or it was removed). */
+    Node selectedOf(Player p) {
+        Integer id = selected.get(p.getUniqueId());
+        Node d = id == null ? null : nodes.get(id);
+        if (id != null && d == null) selected.remove(p.getUniqueId());
+        return d;
+    }
+
+    /** The node the player aims at: the one nearest the look ray (within max(0.7, 4% of the way) of it), up to 48 blocks. */
+    Node aimed(Player p) {
+        Location eye = p.getEyeLocation();
+        Vector dir = eye.getDirection();
+        Node best = null;
+        double bestT = Double.MAX_VALUE;
+        for (Node d : nodes.values()) {
+            if (!d.world.equals(eye.getWorld().getName())) continue;
+            double vx = d.x - eye.getX(), vy = d.y + 0.4 - eye.getY(), vz = d.z - eye.getZ();
+            double t = vx * dir.getX() + vy * dir.getY() + vz * dir.getZ();
+            if (t <= 0 || t > 48) continue;
+            double off = Math.sqrt(Math.max(0, vx * vx + vy * vy + vz * vz - t * t));
+            if (off > Math.max(0.7, t * 0.04)) continue;
+            if (t < bestT) { bestT = t; best = d; }
+        }
+        return best;
+    }
+
+    /** A node at a spot (the wand's right-click), linked to linkTo when it's in the same world; the new one. */
+    Node addNode(String world, double x, double y, double z, Node linkTo) {
+        int nid = nextId++;
+        Node d = new Node(nid, world, x, y, z, "");
+        nodes.put(nid, d);
+        if (linkTo != null && linkTo.world.equals(world) && nodes.containsKey(linkTo.id)) { d.links.add(linkTo.id); linkTo.links.add(nid); }
+        changed();
+        return d;
+    }
+
+    /** Links a and b, or unlinks them when they are; true = linked now. */
+    boolean toggleLink(Node a, Node b) {
+        boolean on = !a.links.contains(b.id);
+        if (on) { a.links.add(b.id); b.links.add(a.id); }
+        else { a.links.remove(b.id); b.links.remove(a.id); }
+        changed();
+        return on;
+    }
+
+    /** The same node (id, name, links) at another spot. */
+    Node moveNode(Node d, String world, double x, double y, double z) {
+        Node m = new Node(d.id, world, x, y, z, d.name);
+        if (world.equals(d.world)) m.links.addAll(d.links);
+        else for (int l : d.links) { Node o = nodes.get(l); if (o != null) o.links.remove(d.id); }
+        nodes.put(d.id, m);
+        changed();
+        return m;
+    }
+
+    Node renameNode(Node d, String name) {
+        Node m = new Node(d.id, d.world, d.x, d.y, d.z, name);
+        m.links.addAll(d.links);
+        nodes.put(d.id, m);
+        changed();
+        return m;
+    }
+
+    int unlinkAll(Node d) {
+        int n = d.links.size();
+        for (int l : d.links) { Node o = nodes.get(l); if (o != null) o.links.remove(d.id); }
+        d.links.clear();
+        changed();
+        return n;
+    }
+
+    void removeNode(Node d) {
+        for (int l : d.links) { Node o = nodes.get(l); if (o != null) o.links.remove(d.id); }
+        nodes.remove(d.id);
+        lastAdded.values().removeIf(v -> v == d.id);
+        selected.values().removeIf(v -> v == d.id);
+        changed();
+    }
+
+    /** The nearest other node in its world it isn't linked to yet (within max blocks), or null. */
+    Node nearestUnlinked(Node d, double max) {
+        Node best = null;
+        double bd = max;
+        for (Node o : nodes.values()) {
+            if (o == d || !o.world.equals(d.world) || d.links.contains(o.id)) continue;
+            double x = dist(d, o);
+            if (x < bd) { bd = x; best = o; }
+        }
+        return best;
+    }
+
+    static String describe(Node d) {
+        return "#" + d.id + (d.name.isEmpty() ? "" : " " + d.name) + " at " + d.world + " " + num(d.x) + " " + num(d.y) + " " + num(d.z) + ", links " + join(d.links);
+    }
+
+    static double distance(Node a, Node b) { return dist(a, b); }
 
     // ---------- /dphone path ----------
 
@@ -498,7 +610,7 @@ final class Paths {
      *  unlink and remove are the 20 nearest to the player in their world (any 20 for the console); addat gets the
      *  worlds, then the player's own block coordinates, then id=, nolink. */
     List<String> complete(String[] a, Player me) {
-        if (a.length == 2) return List.of("add", "addat", "link", "unlink", "remove", "list", "show", "near", "clear", "dump", "info");
+        if (a.length == 2) return List.of("add", "addat", "link", "unlink", "remove", "move", "name", "select", "wand", "list", "show", "near", "clear", "dump", "info");
         String sub = a[1].toLowerCase();
         if (a.length == 3 && (sub.equals("addat") || sub.equals("clear") || sub.equals("list") || sub.equals("dump"))) {
             List<String> w = new ArrayList<>();
@@ -508,7 +620,8 @@ final class Paths {
         if (a.length == 3 && sub.equals("show")) return List.of("on", "off");
         if (a.length == 3 && sub.equals("add")) return List.of("--nolink");
         if (a.length == 4 && sub.equals("clear")) return List.of("confirm");
-        if ((a.length == 3 && sub.equals("remove")) || ((a.length == 3 || a.length == 4) && (sub.equals("link") || sub.equals("unlink")))) {
+        if ((a.length == 3 && (sub.equals("remove") || sub.equals("move") || sub.equals("name") || sub.equals("select")))
+                || ((a.length == 3 || a.length == 4) && (sub.equals("link") || sub.equals("unlink")))) {
             List<Node> list = new ArrayList<>();
             for (Node d : nodes.values()) if (me == null || d.world.equals(me.getWorld().getName())) list.add(d);
             if (me != null) {
@@ -566,14 +679,42 @@ final class Paths {
                 changed();
                 who.sendMessage("PATH " + (sub.equals("link") ? "linked #" : "unlinked #") + na.id + " - #" + nb.id + " (" + num(dist(na, nb)) + " blocks)");
             }
+            case "wand" -> {
+                if (!(who instanceof Player p)) { who.sendMessage("PATH wand is for players"); return true; }
+                if (wand == null) { who.sendMessage("PATH the wand isn't loaded"); return true; }
+                who.sendMessage(wand.give(p));
+            }
+            case "move" -> {
+                if (!(who instanceof Player p)) { who.sendMessage("PATH move is for players (console: remove, then addat with id=)"); return true; }
+                if (a.length < 3) { who.sendMessage("PATH usage: /dphone path move <id> (to your feet)"); return true; }
+                Node d = node(a[2]);
+                if (d == null) { who.sendMessage(noNode(a[2])); return true; }
+                Location l = p.getLocation();
+                Node m = moveNode(d, l.getWorld().getName(), l.getBlockX() + 0.5, Math.round(l.getY() * 100) / 100.0, l.getBlockZ() + 0.5);
+                who.sendMessage("PATH moved " + describe(m));
+            }
+            case "name" -> {
+                if (a.length < 3) { who.sendMessage("PATH usage: /dphone path name <id> [name...] (no name: none)"); return true; }
+                Node d = node(a[2]);
+                if (d == null) { who.sendMessage(noNode(a[2])); return true; }
+                String name = String.join(" ", Arrays.asList(a).subList(3, a.length));
+                if (name.contains("|")) { who.sendMessage("PATH a name can't have |"); return true; }
+                who.sendMessage("PATH named " + describe(renameNode(d, name)));
+            }
+            case "select" -> {
+                if (!(who instanceof Player p)) { who.sendMessage("PATH select is for players"); return true; }
+                if (a.length < 3) { selected.remove(p.getUniqueId()); who.sendMessage("PATH nothing selected"); return true; }
+                Node d = node(a[2]);
+                if (d == null) { who.sendMessage(noNode(a[2])); return true; }
+                selected.put(p.getUniqueId(), d.id);
+                lastAdded.put(p.getUniqueId().toString(), d.id);
+                who.sendMessage("PATH selected " + describe(d));
+            }
             case "remove" -> {
                 if (a.length < 3) { who.sendMessage("PATH usage: /dphone path remove <id>"); return true; }
                 Node d = node(a[2]);
                 if (d == null) { who.sendMessage(noNode(a[2])); return true; }
-                for (int l : d.links) { Node o = nodes.get(l); if (o != null) o.links.remove(d.id); }
-                nodes.remove(d.id);
-                lastAdded.values().removeIf(v -> v == d.id);
-                changed();
+                removeNode(d);
                 who.sendMessage("PATH removed #" + d.id + " (" + d.links.size() + " links with it)");
             }
             case "list" -> {
@@ -631,7 +772,7 @@ final class Paths {
                 List<String> out = new ArrayList<>();
                 for (Map.Entry<String, int[]> e : per.entrySet()) out.add(e.getKey() + "=" + e.getValue()[0] + "n/" + e.getValue()[1] / 2 + "l");
                 who.sendMessage("PATH " + (out.isEmpty() ? "no paths" : String.join(" ", out)) + " next-id=" + nextId + " range=" + num(range) + " vweight=" + num(vWeight)
-                        + " offcost=" + num(offCost) + " | /dphone path add [name] [--nolink] | addat <world> <x> <y> <z> [id=<n>] [nolink] [name] | link|unlink <a> <b> | remove <id> | list [world] | show [on|off] | near | clear <world> confirm | dump [world]");
+                        + " offcost=" + num(offCost) + " | /dphone path add [name] [--nolink] | addat <world> <x> <y> <z> [id=<n>] [nolink] [name] | link|unlink <a> <b> | remove <id> | move <id> | name <id> [name] | select [id] | wand | list [world] | show [on|off] | near | clear <world> confirm | dump [world]");
             }
         }
         return true;
@@ -654,6 +795,7 @@ final class Paths {
             linked = " linked to #" + prev.id + " (" + num(len) + " blocks" + (len > 48 ? ": a long link, add one between if it bends" : "") + ")";
         }
         lastAdded.put(me, nid);
+        if (who instanceof Player p) selected.put(p.getUniqueId(), nid);
         changed();
         who.sendMessage("PATH added #" + nid + " at " + world + " " + num(x) + " " + num(y) + " " + num(z) + linked);
     }

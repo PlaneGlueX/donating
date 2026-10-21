@@ -107,7 +107,7 @@ on damage of player:
 			set {_store} to true
 	{_store} is true
 	cancel event
-	hudBar(attacker, "&aNo fighting in stores: they're for new robbers.", 3)
+	hudBar(attacker, "&aNo fighting in stores.", 3)
 
 # ---------- Teleport immunity ----------
 # Owner, 2026-09-27: for cfg("pvp::teleport-immunity") (3 s) after a real teleport nobody hurts you and you hurt

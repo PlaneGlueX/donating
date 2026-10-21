@@ -9,6 +9,7 @@
 //   - The big map's zoom (sneak, or /dphone zoom): around the player, never past the city's edge; a pin dropped on the
 //     zoomed map lands where the cursor is (near the player), not in the city's middle.
 //   - Another world's own city (/dphone city scan ... <world>): players there see it, the main city stays for the rest.
+//   - The path wand (2026-10-21): right-click the floor adds linked nodes, left-click selects, the menu deletes.
 // The test platform is in the main world's sky at x 7898-7972, z 7898-7932 (y 179-190); the zoom spot in the local test
 // city's south-east corner (x 183-188, z -458..-452, y 199); the other world's city a 64x64 box of the jailbreak world at
 // x/z 600-663 (its cities/jailbreak.bin is put aside and back).
@@ -145,6 +146,58 @@ module.exports = async ({ check }) => {
     check('/dphone path remove|link with a missing id: "no node #9999", not the usage line', /no node #9999/.test(noRemove) && /no node #9999/.test(noLink) && !/usage/.test(noRemove + noLink), `${noRemove} | ${noLink}`)
     await cmd(`dphone gps ${A} clear`)
 
+    // ---------- The path wand (2026-10-21; untested (cloud)): right-click adds, left-click selects, the menu deletes ----------
+    const nodeIds = async () => [...(await cmd(`dphone path list ${W}`)).matchAll(/#(\d+)@/g)].map(m => Number(m[1]))
+    const before = new Set(await nodeIds())
+    await cmd(`op ${B}`)
+    await cmd(`gamemode creative ${B}`)
+    await cmd(`execute in minecraft:overworld run minecraft:tp ${B} 7908.5 180 7920.5 0 30`)
+    await sleep(800)
+    bots[B].setQuickBarSlot(0)
+    await sleep(300)
+    bots[B].chat('/dphone path wand')
+    await sleep(800)
+    const held = bots[B].heldItem
+    check('/dphone path wand: the wand in the empty hand (creative)', held && held.name === 'blaze_rod', JSON.stringify(held && held.name))
+    const clickFloor = async (x, z) => {
+      const b = bots[B].blockAt(new (require('vec3').Vec3)(x, 179, z))
+      try { await bots[B].lookAt(b.position.offset(0.5, 1, 0.5), true) } catch (e) {}
+      try { await bots[B].activateBlock(b) } catch (e) {}
+      await sleep(500)
+    }
+    await clickFloor(7910, 7922)
+    await clickFloor(7912, 7922)
+    const made = (await nodeIds()).filter(i => !before.has(i))
+    const list2 = await cmd(`dphone path list ${W}`)
+    check('right-clicking the floor twice: two nodes on it (y 180), the second linked to the first', made.length === 2 && new RegExp(`#${made[1]}@7912\\.5,180\\.0,7922\\.5->${made[0]}`).test(list2), `${made} | ${list2.slice(-300)}`)
+    // Left-click the first node: selected; sneak + right-click: its menu; Delete twice: gone.
+    try { await bots[B].lookAt(new (require('vec3').Vec3)(7910.5, 180.4, 7922.5), true) } catch (e) {}
+    bots[B].swingArm()
+    await sleep(600)
+    const menuOpen = new Promise(resolve => { const t = setTimeout(() => resolve(null), 4000); bots[B].once('windowOpen', w => { clearTimeout(t); resolve(w) }) })
+    bots[B].setControlState('sneak', true)
+    await sleep(200)
+    bots[B].activateItem()
+    await sleep(100)
+    bots[B].deactivateItem()
+    const menu = await menuOpen
+    bots[B].setControlState('sneak', false)
+    const menuTitle = menu ? JSON.stringify(menu.title) : ''
+    check('left-click a node selects it; sneak + right-click opens its menu', menu && menuTitle.includes(`GPS node #${made[0]}`), menuTitle)
+    if (menu) {
+      bots[B].clickWindow(5, 0, 0).catch(() => {})
+      await sleep(500)
+      const armedDel = bots[B].currentWindow && bots[B].currentWindow.slots[5] && bots[B].currentWindow.slots[5].name === 'red_concrete'
+      bots[B].clickWindow(5, 0, 0).catch(() => {})
+      await sleep(600)
+      const after = await nodeIds()
+      check('Delete needs a second click, then the node and its link are gone', armedDel && !after.includes(made[0]) && after.includes(made[1]) && !new RegExp(`#${made[1]}@\\S*->${made[0]}`).test(await cmd(`dphone path list ${W}`)), `armed=${armedDel} ${after}`)
+    }
+    for (const i of made) await cmd(`dphone path remove ${i}`)
+    await cmd(`zzclear ${B}`)
+    await cmd(`gamemode survival ${B}`)
+    await cmd(`deop ${B}`)
+
     // ---------- The big map's zoom ----------
     await cmd('fill 183 199 -458 188 199 -452 smooth_stone')
     await tp(ZOOM_AT)
@@ -206,6 +259,7 @@ module.exports = async ({ check }) => {
   } finally {
     if (ownMoved) { try { fs.renameSync(OWN_BAK, OWN) } catch (e) {} await rcon.cmd('dphone reload').catch(() => {}) }
     for (const k of Object.keys(N)) await rcon.cmd(`dphone path remove ${ID(k)}`).catch(() => {})
+    await rcon.cmd(`deop ${B}`).catch(() => {})
     for (const name of [A, B]) {
       await rcon.cmd(`dphone gps ${name} clear`).catch(() => {})
       await rcon.cmd(`zzclear ${name}`).catch(() => {})

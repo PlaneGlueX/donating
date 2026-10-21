@@ -93,7 +93,7 @@ function jcPrompt(p: player, s: text):
 		set {_c} to "There's a way into the next cell from the boiler room."
 	else if {_s} is "hotbar":
 		set {_sub} to "&7Press &f%jcKnifeKey({_p})%"
-		set {_c} to "Your hotbar is fixed: 1-5 weapons and items, 6-8 quest items, 9 your phone; your bag rides in the offhand. Inside the walls only melee works."
+		set {_c} to "Your hotbar is fixed: 1-5 weapons and items, 6-8 quest items, 9 your phone; your bag rides in the offhand. A weapon in your hand gets a guard's attention."
 	else if {_s} is "phone":
 		set {_sub} to "&7Press &f9&7, then &fright-click"
 		set {_c} to "Right-click with the phone: the map (your GPS in the city). F with the phone: the apps."
@@ -219,10 +219,15 @@ function jcRusty(p: player):
 	jailState({_p}) is "course"
 	jcStepOf({_p}) is "hotbar"
 	setData({_p}, "wpn::Combat_Knife", true)
-	if loadoutSlotOf({_p}, "wpn:Combat_Knife") < 0:
-		set {_s} to jcKnifeSlot({_p})
-		if {_s} >= 0:
-			equipWeapon({_p}, "Combat_Knife", {_s})
+	if loadoutSlotOf({_p}, "wpn:Combat_Knife") >= 0:
+		# Already carrying one (owner, 2026-10-21: "if a needed item is already in the inventory, skip the step or say so").
+		storySay({_p}, "Rusty", "You've got a knife already. Press %jcKnifeKey({_p})% to hold it.")
+		jcPrompt({_p}, "hotbar")
+		jcLog("course-knife %{_p}% had-one key=%jcKnifeKey({_p})%")
+		stop
+	set {_s} to jcKnifeSlot({_p})
+	if {_s} >= 0:
+		equipWeapon({_p}, "Combat_Knife", {_s})
 	storySay({_p}, "Rusty", "Here, a knife. Press %jcKnifeKey({_p})% to hold it.")
 	jcPrompt({_p}, "hotbar")
 	jcLog("course-knife %{_p}% key=%jcKnifeKey({_p})%")
@@ -277,6 +282,14 @@ function jcPass(p: player):
 			jcSet({_p}, "sneak")
 			play sound "block.iron_door.open" with volume 0.8 to {_p}
 	else if {_s} is "sneak":
+		# The guard's keycard already carried (a replay, a card left from a stop): the step is done, said once (owner,
+		# 2026-10-21: "if a needed item is already in the inventory, skip the step or say so").
+		if jailCount({_p}, "coursecard") >= 1:
+			pvKill({_p}, "jcourse:card")
+			delete {-jc::unsneak::%{_u}%}
+			jcSet({_p}, "vent")
+			msg({_p}, "&7You've got the guard's keycard already: on to the vent's red reader.")
+			stop
 		# The keycard on the desk, for this player only (pv.sk).
 		if pvGet({_p}, "jcourse:card") is not set:
 			set {_kl} to jailPt("T_KEYCARD")

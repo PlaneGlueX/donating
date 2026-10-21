@@ -1,10 +1,11 @@
 // The prison's first GPS path graph (DonatingPhone's /dphone path, 2026-10-14): walks the real build (tools/build/jail.js)
 // between the named points a prisoner goes to (the B1 course, Hall B, Hall A, the yard, the walk to the police station
-// and the Gun Shop, the parkour, the lot, the gatehouse and the front gate, Sparks' weapon parts), with every door and breach open (the GPS
+// and the Gun Shop, the parkour, the lot, the gatehouse and the front gate, Sparks' weapon parts, the lot fence's dugout), with every door and breach open (the GPS
 // shows the way out), and simplifies each walk into the corners a straight line can join without leaving the walkable
 // floor. Writes tools/jail-gps-paths.txt: the /dphone path lines that make it (local: RCON; Minehut: the console, or
 // upload the paths.yml they make).
-//   tools\node\node.exe tools\make-jail-gps-paths.js [--out <file>] [--check]   (--check: RCON spot checks of every node)
+//   tools\node\node.exe tools\make-jail-gps-paths.js [--out <file>] [--check] [--renumber]   (--check: RCON spot checks of
+//   every node; a node keeps the id it had in the file there before, unless --renumber)
 // The walk model is the escape checker's (tools/build/jail-escape-check.js, its strict mode: step 9/16, jump 20/16,
 // ladders, straight gap jumps of 2-3; standing room 29/16), copied here because that file runs its checks when loaded;
 // drops are capped at 3 blocks and every move has a cost (a jump or a gap jump only when it saves real walking).
@@ -259,7 +260,10 @@ const ROUTES = [
   ['SEARCH_TIMER', 'SEARCH_TAPE'],
   ['SEARCH_PUTTY', 'SEARCH_HANDLE'],
   // The bike shop in front of the prison (2026-10-21, tools/build/jail/bikeshop.js; last so the older nodes keep their ids)
-  ['LOT_EXIT', 'BIKE_SHOP']
+  ['LOT_EXIT', 'BIKE_SHOP'],
+  // The dugout under the west lot fence (2026-10-21, outdoors.js dugout: the plug dug out). Not on to the bike shop: the
+  // model has no ground outside the build, so that walk went back through the tunnel and out the front gate.
+  ['ROUTE_LOT_1', 'DUG_IN', 'DUG_OUT']
 ]
 const NAMES = new Map() // "x,z,f" of an anchor -> its point name
 const nodes = [] // {x, z, f, name}
@@ -315,15 +319,28 @@ for (let changed = true; changed;) {
 
 // ---- the lines -----------------------------------------------------------------------------------------------------------
 const num = v => String(Math.round(v * 100) / 100)
+// Ids: a node at the same spot as in the file written last time keeps its id (2026-10-21: the punch box moved and its walk
+// lost two corners, which renumbered everything after it, LOT_EXIT 187 among them, which the town's GPS file links to);
+// new spots get ids after the highest old one. --renumber starts from 1 again.
+const spotKey = n => `${n.x + 0.5}|${num(n.f / 16)}|${n.z + 0.5}`
+const oldIds = new Map()
+if (!process.argv.includes('--renumber') && fs.existsSync(OUT)) {
+  for (const m of fs.readFileSync(OUT, 'utf8').matchAll(/^dphone path addat \S+ (\S+) (\S+) (\S+) id=(\d+)/gm)) oldIds.set(`${m[1]}|${m[2]}|${m[3]}`, Number(m[4]))
+}
+const idOf = new Array(nodes.length)
+const usedIds = new Set()
+nodes.forEach((n, i) => { const o = oldIds.get(spotKey(n)); if (o && !usedIds.has(o)) { idOf[i] = o; usedIds.add(o) } })
+let nextFree = Math.max(0, ...oldIds.values())
+nodes.forEach((n, i) => { if (!idOf[i]) { while (usedIds.has(++nextFree)); idOf[i] = nextFree; usedIds.add(nextFree) } })
 const lines = [
   `# The prison's GPS paths (${nodes.length} nodes, ${links.size} links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.`,
   '# Run every line that isn\'t a comment, in order (local: tools\\rcon.ps1; Minehut: the console, or upload the paths.yml they make).',
   `dphone path clear ${WORLD} confirm`
 ]
-nodes.forEach((n, i) => lines.push(`dphone path addat ${WORLD} ${n.x + 0.5} ${num(n.f / 16)} ${n.z + 0.5} id=${i + 1} nolink${n.name ? ' ' + n.name : ''}`))
-for (const l of [...links].sort((p, q) => Number(p.split('-')[0]) - Number(q.split('-')[0]) || Number(p.split('-')[1]) - Number(q.split('-')[1]))) {
-  const [a, b] = l.split('-').map(Number)
-  lines.push(`dphone path link ${a + 1} ${b + 1}`)
+const order = nodes.map((n, i) => i).sort((a, b) => idOf[a] - idOf[b])
+for (const i of order) { const n = nodes[i]; lines.push(`dphone path addat ${WORLD} ${n.x + 0.5} ${num(n.f / 16)} ${n.z + 0.5} id=${idOf[i]} nolink${n.name ? ' ' + n.name : ''}`) }
+for (const [a, b] of [...links].map(l => l.split('-').map(Number)).map(([a, b]) => [Math.min(idOf[a], idOf[b]), Math.max(idOf[a], idOf[b])]).sort((p, q) => p[0] - q[0] || p[1] - q[1])) {
+  lines.push(`dphone path link ${a} ${b}`)
 }
 fs.writeFileSync(OUT, lines.join('\n') + '\n')
 for (const r of report) console.log(r)
@@ -344,7 +361,7 @@ if (process.argv.includes('--check')) {
       for (const yy of [by, feet, feet + 1]) {
         const w = want(yy)
         const ok = /_door$|_trapdoor$/.test(w) ? await test(yy, `#minecraft:doors`) || await test(yy, `#minecraft:trapdoors`) || await test(yy, 'minecraft:air') : await test(yy, w)
-        if (!ok) bad.push(`#${i + 1} at ${x} ${yy} ${z}: the build says ${w}`)
+        if (!ok) bad.push(`#${idOf[i]} at ${x} ${yy} ${z}: the build says ${w}`)
       }
     }
     rcon.close()

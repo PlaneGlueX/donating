@@ -2,8 +2,8 @@
 # quest research: a contact arc that unlocks a weekly business, GTA's story-then-loop pattern).
 #
 # Vic is a quest giver of the kind "fence" (the Pawn Shop). His arc is story.sk's chain "vic" (from level 3, next to
-# Mara's); its end (v6_end's reward "fence|list") hands over the first list. Every Thursday 00:00 UTC (progress.sk's
-# week) one list is rolled for everyone (saved, so a restart or Minehut sleep never re-rolls it):
+# Mara's); its end (v6_end's reward "fence|list") hands over the first list. Every week (progress.sk's week: the game
+# clock's since 2026-10-21, 168 real minutes; until then Thursday 00:00 UTC) one list is rolled for everyone (saved, so a restart or Minehut sleep never re-rolls it):
 #   1. a heist (the least robbed last week, difficulty 2+, level 3 or lower, with loot piles): +30% on up to
 #      L1 = min(cap::<d>, 0.5 x its pool) of loot you robbed yourself from it;
 #   2. a difficulty (3, 2, 4 in turn): +15% on up to cap::<d> of your own loot from heists that hard;
@@ -268,17 +268,18 @@ function fenceWantModel(p: player, t: text) :: text:
 
 # ---------- Vic's row in /jobs (jobs.sk jobsMenu, slots 27-30) ----------
 
+# Real seconds to the next (game) week.
 function fenceWeekLeft() :: number:
-	set {_off} to {-cfg::week::offset}
-	if {_off} is not set:
-		set {_off} to 0
-	return (progWeek() + 1) * 604800 - (progUnix() + {_off})
+	return clockWeekLeft()
 
 function fenceLeftText(s: number) :: text:
 	set {_d} to floor({_s} / 86400)
 	set {_h} to floor(mod({_s}, 86400) / 3600)
 	if {_d} > 0:
 		return "%{_d}%d %{_h}%h"
+	# Under an hour (the game clock's weeks and sightings are minutes away): "12m", "0m".
+	if {_h} <= 0:
+		return "%max(0, floor({_s} / 60))%m"
 	return "%{_h}%h %floor(mod({_s}, 3600) / 60)%m"
 
 # The jobs board's third row (a phone page, jobs.sk jobsMenu): his card at 29, his mission or the 3 orders at 30-32.

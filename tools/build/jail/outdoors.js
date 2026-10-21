@@ -113,27 +113,33 @@ const axisCells = (x1, z1, x2, z2) => { const c = []; for (let x = x1; x <= x2; 
 const lineCells = (x1, z1, x2, z2) => { const c = []; line4(x1, z1, x2, z2, (x, z) => c.push([x, z])); return c }
 const F6ALL = lineCells(88, 246, 106, 288)
 const FENCES = [
-  { name: 'F1', cells: axisCells(381, 352, 381, 391), out: [1, 0], plates: true },
-  { name: 'F2 west', cells: axisCells(115, 396, 243, 396), out: [0, 1], plates: true },
-  { name: 'F2 east', cells: axisCells(301, 396, 376, 396), out: [0, 1], plates: true },
-  { name: 'F3', cells: axisCells(110, 297, 110, 391), out: [-1, 0], plates: true },
+  { name: 'F1', cells: axisCells(381, 352, 381, 391), out: [1, 0] },
+  { name: 'F2 west', cells: axisCells(115, 396, 243, 396), out: [0, 1] },
+  { name: 'F2 east', cells: axisCells(301, 396, 376, 396), out: [0, 1] },
+  { name: 'F3', cells: axisCells(110, 297, 110, 391), out: [-1, 0] },
   { name: 'F4', cells: axisCells(115, 292, 117, 292), out: [0, 1] },
   { name: 'F5', cells: lineCells(9, 214, 71, 289).filter(([x, z]) => !inBase(x, z)), out: [-1, 1] },
   { name: 'F6', cells: F6ALL.filter(([x, z]) => !inBase(x, z)), out: [-1, 0] }, // one fence: the RELEASE gap is closed
-  { name: 'F7', cells: axisCells(339, 237, 339, 349), out: [1, 0], gate: [26, 29], plates: true },
-  { name: 'annex south', cells: axisCells(340, 349, 376, 349), out: [0, 1], plates: true },
+  // F7's punch gate spans the whole gap between the Gun Shop and the police station (owner, 2026-10-21: "as wide as the
+  // gap between the Gun Shop and the police station"): z 260..284, posts at z 259 and 285.
+  { name: 'F7', cells: axisCells(339, 237, 339, 349), out: [1, 0], gate: [23, 47] },
+  { name: 'annex south', cells: axisCells(340, 349, 376, 349), out: [0, 1] },
   { name: 'inner gate', cells: axisCells(163, 322, 192, 322), out: [0, 1], gate: [7, 23] }
 ]
-// HIGH VOLTAGE plates every 24 cells, each centred on a post (i % 4 === 0) and 5 cells wide (i-2..i+2), clear of gates
-const plateIndexes = f => {
-  const out = []
-  if (!f.plates) return out
-  for (let i = 16; i + 2 < f.cells.length; i += 24) {
-    if (f.gate && i + 2 >= f.gate[0] - 1 && i - 2 <= f.gate[1] + 1) continue
-    out.push(i)
-  }
+// The HIGH VOLTAGE plates are gone (owner, 2026-10-21: "remove the yellow high-voltage blocks"); the fences shock on
+// contact instead (prison.sk). Every fence cell but the gates goes to jailpoints.sk ({-jailfence::<x>|<z>} = its mesh's
+// axis, x / z / c for both, with "p" for a post): [x, z, axis, post].
+const fenceCells = () => FENCES.flatMap(f => {
+  const n = f.cells.length, out = []
+  f.cells.forEach(([x, z], i) => {
+    if (f.gate && i >= f.gate[0] && i <= f.gate[1]) return
+    const nb = [f.cells[i - 1], f.cells[i + 1]].filter(Boolean)
+    const ax = nb.some(c => c[0] !== x) ? (nb.some(c => c[1] !== z) ? 'c' : 'x') : 'z'
+    const post = i % 4 === 0 || i === n - 1 || (f.gate && (i === f.gate[0] - 1 || i === f.gate[1] + 1))
+    out.push([x, z, ax, post])
+  })
   return out
-}
+})
 
 // The old easy-escape route (7.3), removed by unroute(). The route and its 2-block margin are kept: greenery and the
 // pilasters stay off ROUTE_NEAR, so their output doesn't change.
@@ -356,8 +362,8 @@ function plazaAndPaths () {
   // walkway and plaza lamps
   for (const x of [199, 223, 247, 271, 295, 319]) lamp(x, 277)
   lamp(168, 300); lamp(187, 300)
-  // punch-box footprint decals (x 335..338, leading west to the box)
-  for (const [x, z] of [[338, 255], [337, 253], [336, 255], [335, 253]]) S(x, 64, z, 'gray_concrete')
+  // The old punch box's footprint decals (x 335..338) are grass again: the box moved to the gate's south end.
+  for (const [x, z] of [[338, 255], [337, 253], [336, 255], [335, 253]]) S(x, 64, z, 'grass_block')
 }
 
 function field () {
@@ -512,9 +518,30 @@ function parkour () {
   })
   const [vx1, vy1, vz, vx2, vy2] = PARKOUR_VENTS
   for (let x = vx1; x <= vx2; x++) for (let y = vy1; y <= vy2; y++) S(x, y, vz, 'iron_trapdoor[facing=north,half=bottom,open=true]')
-  // the punch gate's reader, on a red plate on a stub next to F7's gate post (339, 262)
-  S(338, 65, 262, 'polished_andesite'); S(338, 66, 262, 'red_concrete')
-  S(337, 66, 262, 'tripwire_hook[facing=west,attached=false,powered=false]')
+  // The punch gate's old reader (by the gate's old north post) is gone: the reader and the punch box stand at the gate's
+  // south end now, on the police station's apron (buildings.js). The paste is sparse: air.
+  S(338, 65, 262, 'air'); S(338, 66, 262, 'air'); S(337, 66, 262, 'air')
+}
+
+// The dugout (owner, 2026-10-21: "a ladder or dugout under one lot fence, a way out that bypasses the front gate for
+// players with no keycard, as easy as the gate"): inmates dug a shaft at the lot's west edge (x 113) and a 2-high tunnel
+// west under F3 (x 110) to a shaft up on the far side (x 105). Under the fence the tunnel is packed coarse dirt (breach
+// "dig", x 109..111, y 62..63): Skript digs it open (hold right-click) for a while, then it caves in again. Floor y 61
+// (the world's dirt: M1 owns y 62 up), roof y 64 (the lot's asphalt, the fence's base, the grass).
+const DUG_Z = 360
+function dugout () {
+  const z = DUG_Z
+  for (let x = 104; x <= 114; x++) for (const dz of [-1, 1]) for (let y = 62; y <= 63; y++) S(x, y, z + dz, (x + y) % 3 ? 'dirt' : 'coarse_dirt')
+  for (let x = 106; x <= 112; x++) for (let y = 62; y <= 63; y++) S(x, y, z, x >= 109 && x <= 111 ? 'coarse_dirt' : 'air')
+  // timber props where the tunnel starts on each side
+  for (const x of [108, 112]) { S(x, 63, z - 1, 'stripped_spruce_log[axis=y]'); S(x, 63, z + 1, 'stripped_spruce_log[axis=y]') }
+  // the shafts: a ladder each, on the side away from the tunnel; a rim of broken asphalt / dug-up dirt round each hole
+  for (let y = 62; y <= 64; y++) {
+    S(114, y, z, y === 64 ? pick(114, 64, z, MIX.asphalt) : 'dirt'); S(113, y, z, 'ladder[facing=west,waterlogged=false]')
+    S(104, y, z, y === 64 ? 'grass_block' : 'dirt'); S(105, y, z, 'ladder[facing=east,waterlogged=false]')
+  }
+  for (const [x, dz] of [[112, -1], [113, -1], [113, 1], [112, 1], [114, -1], [114, 1]]) S(x, 64, z + dz, h(x, 7, z + dz) < 50 ? 'gravel' : 'coarse_dirt')
+  for (const [x, dz] of [[104, -1], [105, -1], [106, -1], [104, 1], [105, 1], [106, 1], [106, 0]]) S(x, 64, z + dz, h(x, 8, z + dz) < 50 ? 'coarse_dirt' : 'rooted_dirt')
 }
 
 function waterTower (cx = 300, cz = 30) {
@@ -609,13 +636,9 @@ function fences () {
         if (o) S(o[0], 72, o[1], `iron_chain[axis=${ax}]`)
       }
     }
-    // HIGH VOLTAGE plates every 24: a 3x2 yellow face in a black border (5 wide, y 66..69), set into the mesh at a post
-    for (const i of plateIndexes(f)) for (let k = -2; k <= 2; k++) {
-      const [x, z] = cells[i + k]
-      for (let y = 66; y <= 69; y++) S(x, y, z, Math.abs(k) < 2 && (y === 67 || y === 68) ? 'yellow_concrete' : 'black_concrete')
-    }
   }
-  // F7's punch-box gate: posts were set at its ends; the panel is the gate range above.
+  // F7's punch gate: posts were set at its ends; the panel is the gate range above (Skript slides it open: breach
+  // "punch", a column every 2 ticks from the police station's end).
   // F6's old RELEASE arch is gone (F6 is one fence now): its sign plate's one block off the fence line goes too.
   S(97, 71, 264, 'air')
   // Front gate: closed sliding panels x 253..267 and x 277..291 meeting the booth (Skript slides them open: breach "front").
@@ -848,6 +871,7 @@ module.exports = (b) => {
   furniture()
   annex()
   parkour()
+  dugout()
   waterTower()
   manhole(424, 386)
   unroute()
@@ -868,37 +892,62 @@ const LABELS = [
   { x: 272.5, y: 68.5, z: 390.97, facing: 'north', text: 'GATEHOUSE', color: '#ffffff', scale: 0.8 }, // L_GATEHOUSE
   { x: 266.97, y: 66.5, z: 395.5, facing: 'west', text: 'FUSE BOX', color: '#ffd84d', scale: 0.5 } // L_FUSE
 ]
-for (const f of FENCES) for (const i of plateIndexes(f)) {
-  const [x, z] = f.cells[i]
-  if (f.out[1] !== 0) LABELS.push({ x: x + 0.5, y: 68.0, z: f.out[1] > 0 ? z + 1.03 : z - 0.03, facing: f.out[1] > 0 ? 'south' : 'north', text: 'HIGH VOLTAGE', color: '#000000', scale: 1 })
-  else LABELS.push({ x: f.out[0] > 0 ? x + 1.03 : x - 0.03, y: 68.0, z: z + 0.5, facing: f.out[0] > 0 ? 'east' : 'west', text: 'HIGH VOLTAGE', color: '#000000', scale: 1 })
-}
 module.exports.labels = LABELS
+module.exports.fenceCells = fenceCells
 
 // ---- points (7.2, 10; ESCAPE-SPEC Appendix B, M1) -----------------------------------------------------------------------
+// Cop patrol points (jailcops.sk walks each route there and back).
+const YARDN_PTS = [[140.5, 65, 140.5], [156.5, 65, 122.5], [172.5, 65, 103.5], [205.5, 65, 103.5], [238.5, 65, 103.5], [263.5, 65, 118.5]]
+const YARDS_PTS = [[263.5, 65, 145.5], [263.5, 65, 172.5], [263.5, 65, 199.5], [263.5, 65, 226.5], [263.5, 65, 245.5], [227.5, 65, 243.5],    [190.5, 65, 240.5], [190.5, 65, 215.5], [190.5, 65, 189.5], [165.5, 65, 189.5], [140.5, 65, 189.5], [140.5, 65, 165.5]]
+const WALK_PTS = [[180.5, 65, 310.5], [180.5, 65, 290.5], [180.5, 65, 271.5], [205.5, 65, 271.5], [235.5, 65, 271.5], [265.5, 65, 271.5],    [295.5, 65, 271.5], [330.5, 65, 271.5], [336.5, 65, 265.5], [336.5, 65, 258.5]]
+const W5_PTS = [[279.5, 78, 120.5], [279.5, 78, 141.5], [279.5, 78, 163.5], [283.5, 78, 166.5], [283.5, 78, 175.5], [279.5, 78, 178.5],    [279.5, 78, 203.5], [279.5, 78, 228.5]]
+const W67_PTS = [[287.5, 78, 235.5], [310.5, 78, 235.5], [340.5, 78, 235.5], [373.5, 78, 235.5], [377.5, 78, 240.5], [381.5, 78, 243.5],    [381.5, 78, 264.5], [377.5, 78, 267.5], [377.5, 78, 277.5], [381.5, 78, 280.5], [381.5, 78, 310.5], [381.5, 78, 340.5]]
+const GATE_PTS = [[236.5, 65, 389.5], [272.5, 65, 389.5], [308.5, 65, 389.5]]
+const LOT_PTS = [[150.5, 65, 362.5], [190.5, 65, 362.5], [230.5, 65, 362.5], [270.5, 65, 362.5], [310.5, 65, 362.5], [350.5, 65, 362.5]]
+const FIELD_PTS = [[205.5, 65, 133.5], [255.5, 65, 133.5], [255.5, 65, 226.5], [205.5, 65, 226.5], [205.5, 65, 140.5]]
+const PLAZA_PTS = [[116.5, 65, 268.5], [150.5, 65, 268.5], [170.5, 65, 289.5], [170.5, 65, 312.5]]
 const route = (name, pts) => Object.fromEntries(pts.map((p, i) => [`ROUTE_${name}_${i + 1}`, [...p, 0]]))
 module.exports.points = {
   R_SPAWN_OUT: [133.5, 65, 197.5, -90],
   // cop patrols (jailcops.sk walks them there and back)
-  ...route('YARDN', [[140.5, 65, 140.5], [156.5, 65, 122.5], [172.5, 65, 103.5], [205.5, 65, 103.5], [238.5, 65, 103.5], [263.5, 65, 118.5]]),
-  ...route('YARDS', [[263.5, 65, 145.5], [263.5, 65, 172.5], [263.5, 65, 199.5], [263.5, 65, 226.5], [263.5, 65, 245.5], [227.5, 65, 243.5],
-    [190.5, 65, 240.5], [190.5, 65, 215.5], [190.5, 65, 189.5], [165.5, 65, 189.5], [140.5, 65, 189.5], [140.5, 65, 165.5]]),
-  ...route('WALK', [[180.5, 65, 310.5], [180.5, 65, 290.5], [180.5, 65, 271.5], [205.5, 65, 271.5], [235.5, 65, 271.5], [265.5, 65, 271.5],
-    [295.5, 65, 271.5], [330.5, 65, 271.5], [336.5, 65, 265.5], [336.5, 65, 258.5]]),
-  ...route('W5', [[279.5, 78, 120.5], [279.5, 78, 141.5], [279.5, 78, 163.5], [283.5, 78, 166.5], [283.5, 78, 175.5], [279.5, 78, 178.5],
-    [279.5, 78, 203.5], [279.5, 78, 228.5]]),
-  ...route('W67', [[287.5, 78, 235.5], [310.5, 78, 235.5], [340.5, 78, 235.5], [373.5, 78, 235.5], [377.5, 78, 240.5], [381.5, 78, 243.5],
-    [381.5, 78, 264.5], [377.5, 78, 267.5], [377.5, 78, 277.5], [381.5, 78, 280.5], [381.5, 78, 310.5], [381.5, 78, 340.5]]),
-  ...route('GATE', [[236.5, 65, 389.5], [272.5, 65, 389.5], [308.5, 65, 389.5]]), // the lot's south strip, past the booth door
-  ...route('LOT', [[150.5, 65, 362.5], [190.5, 65, 362.5], [230.5, 65, 362.5], [270.5, 65, 362.5], [310.5, 65, 362.5], [350.5, 65, 362.5]]),
+  ...route('YARDN', YARDN_PTS),
+  ...route('YARDS', YARDS_PTS),
+  ...route('WALK', WALK_PTS),
+  ...route('W5', W5_PTS),
+  ...route('W67', W67_PTS),
+  ...route('GATE', GATE_PTS), // the lot's south strip, past the booth door
+  ...route('LOT', LOT_PTS),
+  // More guards (owner, 2026-10-21: "20 (2x) normally, 30 (3x) while more than 3 players are in the prison"; core.sk
+  // jailcop::roster and roster-busy): the old patrols the other way round (a second guard starting at the far end), the
+  // football field, the west plaza by the Visitors Building, the lot's west end (the dugout) and east end (the parkour's
+  // landing), the annex.
+  ...route('YARDNR', [...YARDN_PTS].reverse()),
+  ...route('YARDSR', [...YARDS_PTS].reverse()),
+  ...route('WALKR', [...WALK_PTS].reverse()),
+  ...route('W5R', [...W5_PTS].reverse()),
+  ...route('W67R', [...W67_PTS].reverse()),
+  ...route('GATER', [...GATE_PTS].reverse()),
+  ...route('LOTR', [...LOT_PTS].reverse()),
+  ...route('FIELD', FIELD_PTS),
+  ...route('FIELDR', [...FIELD_PTS].reverse()),
+  ...route('PLAZA', PLAZA_PTS),
+  ...route('PLAZAR', [...PLAZA_PTS].reverse()),
+  ...route('LOTW', [[125.5, 65, 328.5], [125.5, 65, 365.5], [118.5, 65, 385.5]]),
+  ...route('LOTE', [[345.5, 65, 356.5], [372.5, 65, 356.5], [372.5, 65, 388.5]]),
+  ...route('ANNEX', [[350.5, 65, 245.5], [370.5, 65, 260.5], [370.5, 65, 305.5], [350.5, 65, 315.5]]),
   TANK: [181.5, 65, 156.5, 90],
   // the C4 on the inner vehicle gate
   PLANT_GATE: [178.5, 65, 320.5, 0],
   C4_GATE: [178.5, 67.0, 321.9, 180],
-  // the punch box and the punch gate on F7
-  PUNCH_STAND: [335.5, 65, 254.5, 90],
-  PUNCH_READER: [337, 66, 262, 0],
-  PUNCH_IN: [340.5, 65, 264.5, -90],
+  // the punch box and the punch gate on F7 (2026-10-21: the gate spans z 260..284; the box and its reader stand at its
+  // south end on the police station's apron, buildings.js)
+  PUNCH_STAND: [335.5, 65, 282.5, 0],
+  PUNCH_READER: [338, 66, 283, 0],
+  PUNCH_IN: [340.5, 65, 272.5, -90],
+  // the dugout under F3 (2026-10-21): the lot side's stand, the plug's face in the tunnel, the far side's stand
+  DUG_IN: [114.5, 65, 362.5, 90],
+  DUG_FACE: [112.5, 62, 360.5, 90],
+  DUG_OUT: [105.5, 65, 362.5, 90],
   RUN_1: [172.5, 65, 103.5, 0],
   RUN_2: [238.5, 65, 103.5, 0],
   RUN_3: [227.5, 65, 243.5, 0],

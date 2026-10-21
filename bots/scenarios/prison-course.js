@@ -16,6 +16,7 @@ const { start, field, sleep } = require('../prisonlib')
 
 const A = 'PcCourseA'
 const B = 'PcCourseB'
+const C = 'PcCourseC' // 2026-10-21: a player off the course who chats while B is on it
 const COURSE_CELLS = ['n46', 'n53', 'n60', 'n67', 's46', 's53', 's60', 's67']
 
 module.exports = async ({ check }) => {
@@ -204,6 +205,12 @@ module.exports = async ({ check }) => {
     const lr = await cmd(`dstory info ${A} lefty`)
     const sideReplay = await until(async () => /Tutorial: .*Locked up .*1\/9/.test(await t.papi(A, 'donating_mission')), 3000)
     check('...Lefty\'s lessons start over (saved: l_meet), the sidebar on the course\'s first step ("Tutorial: Locked up 1/9")', /id= /.test(lr) && /= l_meet$/.test(await cmd(`zzdata ${A} jail-replay::chain::lefty::id`)) && sideReplay, `${lr} | ${await t.papi(A, 'donating_mission')}`)
+    // A needed item already carried skips its step (owner, 2026-10-21: "if a needed item is already in the inventory,
+    // skip the step or say so"; untested (cloud)): the guard's keycard in a quest slot when the sneak step comes.
+    await cmd(`zzjail ${A} give coursecard 1`)
+    since = Date.now()
+    const skipped = await until(async () => field(await info(A), 'step') === 'vent', 9000)
+    check('the guard\'s keycard already carried: the sneak step is skipped ("You\'ve got the guard\'s keycard already"), on to the vent', skipped && said(a, /keycard already/, since), `${await info(A)} | ${t.text(a, since).slice(0, 200)}`)
 
     // ---- /tutorial stop (owner, 2026-10-15: "have a /tutorial stop command if you already completed it before"): a
     // logout keeps the replay; at the hotbar step Rusty hands A a knife; stop puts A back as before the confirm.
@@ -306,6 +313,17 @@ module.exports = async ({ check }) => {
     s = await info(B)
     const bcell = field(s, 'cell')
     check('B: a first join at step cell', field(s, 'step') === 'cell' && COURSE_CELLS.includes(bcell), s)
+    // On the course the chat is the tutorial's (owner, 2026-10-21: "while on the course, hide every chat line not about
+    // the tutorial"; untested (cloud)): another player's join line, chat and a /broadcast don't reach B; C's own do.
+    since = Date.now()
+    const c = await t.newBot(C)
+    await cmd(`zzjail ${C} state off`)
+    await sleep(1500)
+    c.chat('hello from the yard')
+    await cmd('zzconsole broadcast Server news for everyone')
+    await sleep(1500)
+    check('a course player sees no other player\'s chat, join line or broadcast (the other player does)', !said(b, /hello from the yard/, since) && !said(b, /Server news/, since) && !said(b, new RegExp(C), since) && said(c, /hello from the yard/, since) && said(c, /Server news/, since), `B: ${t.text(b, since).slice(0, 300)} | C: ${t.text(c, since).slice(0, 200)}`)
+    await t.drop(C)
     since = Date.now()
     b.chat('/tutorial stop')
     check('/tutorial stop for a first-timer: refused (the course is how everyone starts), still in the course', await until(() => said(b, /how everyone starts/, since), 3000) && field(await info(B), 'state') === 'course', t.text(b, since))
@@ -348,7 +366,7 @@ module.exports = async ({ check }) => {
     check('...with the hint', said(b, /That stair is the guards' way/))
   } finally {
     await t.prisonRestore()
-    for (const n of [A, B]) {
+    for (const n of [A, B, C]) {
       if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     }
     await t.close()

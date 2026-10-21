@@ -70,6 +70,8 @@ function pointsSk (b) {
     for (const bx of boxes) L.push(`\tadd "${bx.join('|')}" to {-jailzone::${zone}::*}`)
     count('zones')
   }
+  // the chain-link fence cells without their gates (prison.sk's shock on contact): the mesh's axis, "p" for a post
+  for (const [x, z, ax, post] of require('./jail/outdoors.js').fenceCells()) { L.push(`\tset {-jailfence::${x}|${z}} to "${ax}${post ? 'p' : ''}"`); count('fences') }
   // the outline and the inner outline, vertices in order
   for (const [x, z] of Z.WALL) L.push(`\tadd "${num(x)}|${num(z)}" to {-jailwall::*}`)
   for (const [x, z] of Z.INNER) L.push(`\tadd "${num(x)}|${num(z)}" to {-jailinner::*}`)
@@ -106,8 +108,8 @@ function pointsSk (b) {
     '# zones.js and the build). Do not edit it by hand: change the modules or zones.js and run the generator again',
     '# (ESCAPE-SPEC 2.3). jailPointsLoad() deletes and refills exactly these memory variables: {-jailpt::*},',
     '# {-jailroute::*}, {-jailzone::*}, {-jailwall::*}, {-jailinner::*}, {-jaildoor::*}, {-jailbreach::*},',
-    '# {-jailrubble::*} and {-jailpts::*}.',
-    `# ${counts.points} points, ${counts.routes} routes, ${counts.zones} zones, ${Z.WALL.length} + ${Z.INNER.length} outline vertices, ${counts.doors} doors, ${counts.breaches} breaches.`,
+    '# {-jailrubble::*}, {-jailfence::*} and {-jailpts::*}.',
+    `# ${counts.points} points, ${counts.routes} routes, ${counts.zones} zones, ${Z.WALL.length} + ${Z.INNER.length} outline vertices, ${counts.doors} doors, ${counts.breaches} breaches, ${counts.fences} fence cells.`,
     '',
     'on load:',
     '\tjailPointsLoad()',
@@ -121,6 +123,7 @@ function pointsSk (b) {
     '\tdelete {-jaildoor::*}',
     '\tdelete {-jailbreach::*}',
     '\tdelete {-jailrubble::*}',
+    '\tdelete {-jailfence::*}',
     '\tdelete {-jailpts::*}'
   ]
   const tail = [`\tset {-jailpts::count} to ${counts.points}`, '\tset {-jailpts::loaded} to true', '']
@@ -159,7 +162,7 @@ async function placeLabels () {
     let n = 0
     for (const l of list) {
       const pitch = l.facing === 'up' ? -90 : 0
-      const nbtText = `{Tags:["jail_label"],text:{text:"${snbt(l.text)}",color:"${l.color}"},billboard:"fixed",Rotation:[${f(YAW[l.facing] ?? 0)},${f(pitch)}],background:0,` +
+      const nbtText = `{Tags:["jail_label"],text:${require('./signfonts').textNbt(l, 'jail', snbt)},billboard:"fixed",Rotation:[${f(YAW[l.facing] ?? 0)},${f(pitch)}],background:0,` +
         `transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[${f(l.scale)},${f(l.scale)},${f(l.scale)}]}}`
       let out = ''
       for (let t = 0; t < 40; t++) {

@@ -54,7 +54,9 @@ const ASSUME = {
   // Loot $ per second of holding right-click (the mix of pile styles each difficulty uses).
   rate: { 0: 125, 1: 150, 2: 225, 3: 300, 4: 420 },
   // Seconds per trip besides holding: walking in, around, out, to the base and selling (a car saves carSave of it).
-  overhead: { 0: 80, 1: 120, 2: 150, 3: 190, 4: 260 },
+  // A store's 80 s grew to 110 (2026-10-21, clerk.sk): hitting the clerk, dodging what they throw, and losing the store's
+  // police (60 blocks) before the base.
+  overhead: { 0: 110, 1: 120, 2: 150, 3: 190, 4: 260 },
   carSave: 0.25,
   // Opening safes and vault doors (seconds per trip, and the tool used up per trip on average).
   gate: { 0: 0, 1: 0, 2: 35, 3: 80, 4: 95 },
@@ -63,13 +65,15 @@ const ASSUME = {
   // The run's clock ends early (everything robbed) at about this share of the escape time.
   runShare: 0.6,
   // Chance to die on a trip (loot lost, the balance loss, a new bag and gear).
-  death: { 0: 0.02, 1: 0.03, 2: 0.05, 3: 0.08, 4: 0.12 },
+  // (a store's 0.02 to 0.04 since its police, 2026-10-21)
+  death: { 0: 0.04, 1: 0.03, 2: 0.05, 3: 0.08, 4: 0.12 },
   // A car contract takes this long (find the car, pick it, drive it to a chop shop), and succeeds this often.
   contractTime: 360, contractOk: 0.9,
   // Contact jobs: a waiting job gets done on a matching trip this often.
   jobMara: 0.5, jobBoss: 0.8,
-  // A hit contract a week at the best tier the level allows, this long.
-  hitTime: 1200,
+  // A hit contract a game week (clock.sk, 2026-10-21: 168 real minutes) at the best tier the level allows, this long
+  // (finding the target in a window and taking it down).
+  hitTime: 900,
   // Buying: keep this much of a price in reserve after a buy (bag losses, gear, ammo).
   reserve: 0.25,
   // Gear and guns bought as the heists need them.
@@ -259,12 +263,14 @@ const simulate = (profileName, days, seed, curve) => {
     }
     S.t = Math.max(S.t, start)
     const end = start + P.hours * 3600
-    if (Math.floor(day / 7) !== week) {
-      week = Math.floor(day / 7)
-      const h = [...hitTiers].reverse().find(x => S.level >= x.level)
-      if (h) { S.t += ASSUME.hitTime; S.play += ASSUME.hitTime; S.money += h.pay; S.earned.hit += h.pay; addXp(h.xp) }
-    }
     while (S.t < end) {
+      // A hit contract once a game week (10080 real seconds) while playing.
+      const gw = Math.floor(S.t / 10080)
+      if (gw !== week) {
+        week = gw
+        const h = [...hitTiers].reverse().find(x => S.level >= x.level)
+        if (h) { S.t += ASSUME.hitTime; S.play += ASSUME.hitTime; S.money += h.pay; S.earned.hit += h.pay; addXp(h.xp); continue }
+      }
       shopping()
       if (!starterDone) { doContract(starter); starterDone = true; shopping(); continue }
       // A car job whose cooldown is over comes first (it pays for the wait).

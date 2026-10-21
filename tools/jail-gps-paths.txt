@@ -1,4 +1,4 @@
-# The prison's GPS paths (199 nodes, 206 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
+# The prison's GPS paths (203 nodes, 210 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
 # Run every line that isn't a comment, in order (local: tools\rcon.ps1; Minehut: the console, or upload the paths.yml they make).
 dphone path clear jailbreak confirm
 dphone path addat jailbreak 48.5 58 59.5 id=1 nolink
@@ -126,7 +126,6 @@ dphone path addat jailbreak 295.5 65 271.5 id=122 nolink ROUTE_WALK_7
 dphone path addat jailbreak 330.5 65 271.5 id=123 nolink ROUTE_WALK_8
 dphone path addat jailbreak 336.5 65 265.5 id=124 nolink ROUTE_WALK_9
 dphone path addat jailbreak 336.5 65 258.5 id=125 nolink ROUTE_WALK_10
-dphone path addat jailbreak 335.5 65 254.5 id=126 nolink PUNCH_STAND
 dphone path addat jailbreak 308.5 65 260.5 id=127 nolink
 dphone path addat jailbreak 316.5 65 260.5 id=128 nolink
 dphone path addat jailbreak 316.5 65 254.5 id=129 nolink
@@ -151,10 +150,6 @@ dphone path addat jailbreak 218.5 65 308.5 id=147 nolink
 dphone path addat jailbreak 210.5 65 319.5 id=148 nolink
 dphone path addat jailbreak 210.5 65 326.5 id=149 nolink
 dphone path addat jailbreak 230.5 65 362.5 id=150 nolink ROUTE_LOT_3
-dphone path addat jailbreak 337.5 65 263.5 id=151 nolink
-dphone path addat jailbreak 340.5 65 264.5 id=152 nolink PUNCH_IN
-dphone path addat jailbreak 346.5 65 326.5 id=153 nolink
-dphone path addat jailbreak 347.5 65 327.5 id=154 nolink
 dphone path addat jailbreak 347.5 65 330.5 id=155 nolink
 dphone path addat jailbreak 349.5 66 332.5 id=156 nolink
 dphone path addat jailbreak 349.5 67 334.5 id=157 nolink
@@ -200,6 +195,15 @@ dphone path addat jailbreak 73.5 65 74.5 id=196 nolink
 dphone path addat jailbreak 85.5 65 62.5 id=197 nolink SEARCH_HANDLE
 dphone path addat jailbreak 298.5 65 410.5 id=198 nolink
 dphone path addat jailbreak 320.5 65 412.5 id=199 nolink BIKE_SHOP
+dphone path addat jailbreak 335.5 65 282.5 id=200 nolink PUNCH_STAND
+dphone path addat jailbreak 340.5 65 272.5 id=201 nolink PUNCH_IN
+dphone path addat jailbreak 346.5 65 305.5 id=202 nolink
+dphone path addat jailbreak 114.5 65 362.5 id=203 nolink DUG_IN
+dphone path addat jailbreak 114.5 65 361.5 id=204 nolink
+dphone path addat jailbreak 113.5 62 360.5 id=205 nolink
+dphone path addat jailbreak 105.5 62 360.5 id=206 nolink
+dphone path addat jailbreak 105.5 64 360.5 id=207 nolink
+dphone path addat jailbreak 105.5 65 362.5 id=208 nolink DUG_OUT
 dphone path link 1 2
 dphone path link 1 15
 dphone path link 1 24
@@ -337,8 +341,7 @@ dphone path link 122 123
 dphone path link 122 127
 dphone path link 123 124
 dphone path link 124 125
-dphone path link 125 126
-dphone path link 125 151
+dphone path link 124 200
 dphone path link 127 128
 dphone path link 128 129
 dphone path link 129 130
@@ -362,11 +365,8 @@ dphone path link 147 148
 dphone path link 148 149
 dphone path link 149 150
 dphone path link 150 176
-dphone path link 151 152
-dphone path link 152 153
-dphone path link 153 154
-dphone path link 154 155
 dphone path link 155 156
+dphone path link 155 202
 dphone path link 156 157
 dphone path link 157 158
 dphone path link 158 159
@@ -386,6 +386,7 @@ dphone path link 171 172
 dphone path link 172 173
 dphone path link 173 174
 dphone path link 174 177
+dphone path link 175 203
 dphone path link 176 177
 dphone path link 176 178
 dphone path link 178 181
@@ -406,3 +407,10 @@ dphone path link 193 194
 dphone path link 194 195
 dphone path link 196 197
 dphone path link 198 199
+dphone path link 200 201
+dphone path link 201 202
+dphone path link 203 204
+dphone path link 204 205
+dphone path link 205 206
+dphone path link 206 207
+dphone path link 207 208

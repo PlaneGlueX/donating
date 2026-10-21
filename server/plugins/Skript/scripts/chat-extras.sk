@@ -1,4 +1,5 @@
-# chat-extras.sk: chat cooldown, @mentions, staff chat, /broadcast and rotating tips.
+# chat-extras.sk: chat cooldown, @mentions, staff chat, /broadcast and rotating tips. Players on the prison's tutorial
+# course (core.sk chatQuiet) get neither other players' chat nor tips (owner, 2026-10-21).
 #
 # LPC formats chat at HIGHEST priority, after these handlers (Skript's default is high). LPC strips
 # & color codes from players without lpc.colorcodes but keeps § codes, so a mention is colored with
@@ -19,6 +20,12 @@ on quit:
 	delete {-chat::staff-mode::%player%}
 
 on chat:
+	# The tutorial course hears nothing but itself (owner, 2026-10-21: "while on the course, hide every chat line not
+	# about the tutorial"): course players don't see other players' chat (core.sk chatQuiet).
+	loop all players:
+		if loop-player is not player:
+			if chatQuiet(loop-player) is true:
+				remove loop-player from chat recipients
 	# Staff chat mode (/sc): the message goes to staff only.
 	if {-chat::staff-mode::%player%} is set:
 		if isStaff(player) is true:
@@ -58,6 +65,23 @@ on chat:
 	loop {_pinged::*}:
 		if loop-value is online:
 			play sound "entity.experience_orb.pickup" with volume 0.8 and pitch 1.5 to loop-value
+
+# A death message (whatever is left of it after every other handler: hit contracts and prison guards delete theirs) goes
+# to everyone but players on the tutorial course, and the console. Only while one is online (else the server's own
+# broadcast, unchanged).
+on death of player with priority monitor:
+	set {_quiet} to false
+	loop all players:
+		if chatQuiet(loop-player) is true:
+			set {_quiet} to true
+	{_quiet} is true
+	death message is set
+	set {_dm} to death message
+	delete death message
+	loop all players:
+		if chatQuiet(loop-player) is false:
+			send {_dm} to loop-player
+	send {_dm} to console
 
 # ---------- Staff chat ----------
 
@@ -125,7 +149,10 @@ function sendTip():
 	add 1 to {-tip::next}
 	if {-tip::next} > size of {-tips::*}:
 		set {-tip::next} to 1
-	send colored "&e&lTIP&r &7» &7%{-tips::%{-tip::next}%}%" to all players
+	# Not to players on the tutorial course (core.sk chatQuiet).
+	loop all players:
+		if chatQuiet(loop-player) is false:
+			send colored "&e&lTIP&r &7» &7%{-tips::%{-tip::next}%}%" to loop-player
 
 every 1 minute:
 	if number of all players is 0:

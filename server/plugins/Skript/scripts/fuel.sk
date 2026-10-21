@@ -77,6 +77,38 @@ function fuelBurn(m: text) :: number:
 function fuelUsage(m: text) :: number:
 	return 100 / (fuelBurn({_m}) * 1200)
 
+# A plate's own tank and burn, with its Fuel Tank upgrade (garage.sk carTankBuy; core.sk carmod::tank::*):
+# T' = T × (1 + t_n), B' = B × (1 + t_n) / (1 − e_n).
+function fuelTankOf(plate: text) :: number:
+	set {_t} to fuelTank(fuelModel({_plate}))
+	set {_n} to {car::mod::%{_plate}%::tank}
+	if {_n} is set:
+		if {_n} > 0:
+			set {_t} to {_t} * (1 + {-cfg::carmod::tank::%{_n}%})
+	return {_t}
+
+function fuelBurnOf(plate: text) :: number:
+	set {_b} to fuelBurn(fuelModel({_plate}))
+	set {_n} to {car::mod::%{_plate}%::tank}
+	if {_n} is set:
+		if {_n} > 0:
+			set {_b} to {_b} * (1 + {-cfg::carmod::tank::%{_n}%}) / (1 - {-cfg::carmod::tank::eff::%{_n}%})
+	return {_b}
+
+function fuelUsageOf(plate: text) :: number:
+	return 100 / (fuelBurnOf({_plate}) * 1200)
+
+# After a Fuel Tank stage: the liters in the tank stay (the level scales to the bigger tank: L' = L × T_old / T_new),
+# and the new usage reaches MTVehicles at once.
+function fuelTankChanged(plate: text, old: number):
+	delete {-fuel::set::%{_plate}%}
+	set {_lv} to fuelLevel({_plate})
+	if {_lv} >= 0:
+		set {_new} to fuelTankOf({_plate})
+		if {_new} > 0:
+			fuelCmd({_plate}, "level %fuelNum({_lv} * {_old} / {_new})%")
+	fuelPrepare({_plate})
+
 # A number with 6 decimals for the console (Skript prints only 2).
 function fuelNum(x: number) :: text:
 	return carNum({_x})
@@ -106,16 +138,15 @@ function fuelPrepare(plate: text):
 	if fuelOn() is true:
 		set {_want} to "on"
 	{-fuel::set::%{_plate}%} is not {_want}
-	set {_m} to fuelModel({_plate})
 	if {_want} is "on":
-		fuelCmd({_plate}, "usage %fuelNum(fuelUsage({_m}))% enabled true")
+		fuelCmd({_plate}, "usage %fuelNum(fuelUsageOf({_plate}))% enabled true")
 	else:
 		fuelCmd({_plate}, "enabled false")
 	set {-fuel::set::%{_plate}%} to {_want}
 
-# "18.4 / 50 L" for a level and a model.
-function fuelLitersText(level: number, m: text) :: text:
-	set {_t} to fuelTank({_m})
+# "18.4 / 50 L" for a level and a plate (its tank with the upgrade).
+function fuelLitersText(level: number, plate: text) :: text:
+	set {_t} to round(fuelTankOf({_plate}) * 10) / 10
 	set {_l} to round({_level} * {_t} / 10) / 10
 	return "%{_l}% / %{_t}% L"
 
@@ -352,8 +383,7 @@ function fuelFlow(p: player):
 	if fuelDriverIn({_plate}, {_cl}) is true:
 		fuelStop({_p}, "driver")
 		stop
-	set {_m} to fuelModel({_plate})
-	set {_tank} to fuelTank({_m})
+	set {_tank} to fuelTankOf({_plate})
 	set {_lv} to fuelLevel({_plate})
 	if {_lv} < 0:
 		fuelStop({_p}, "gone")
@@ -380,7 +410,7 @@ function fuelFlow(p: player):
 	set {_lt} to round({-fuel::liters::%{_u}%} * 10) / 10
 	set {_paid} to formatMoney({-fuel::paid::%{_u}%})
 	fuelMeter({_n}, "&6PUMP %fuelPumpLabel({_n})% &7· &f%{_lt}% L &7· &a%{_paid}%")
-	hudBar({_p}, "&6⛽ &f%fuelLitersText({_now}, {_m})% &7· &a%{_paid}% &7· right-click the car to stop", 1)
+	hudBar({_p}, "&6⛽ &f%fuelLitersText({_now}, {_plate})% &7· &a%{_paid}% &7· right-click the car to stop", 1)
 	play sound "block.bubble_column.upwards_ambient" with volume 0.4 and pitch 1.4 at {_cl}
 	if {_now} >= 99.95:
 		fuelStop({_p}, "full")
@@ -567,8 +597,7 @@ function fuelGaragePrice(plate: text) :: number:
 	set {_lv} to fuelLevel({_plate})
 	if {_lv} < 0:
 		return 0
-	set {_m} to fuelModel({_plate})
-	set {_l} to fuelTank({_m}) * (100 - {_lv}) / 100
+	set {_l} to fuelTankOf({_plate}) * (100 - {_lv}) / 100
 	if {_l} < 0.05:
 		return 0
 	return ceil({_l} * cfg("fuel::price") * cfg("fuel::garage-factor"))
@@ -581,8 +610,7 @@ function fuelGarageButton(p: player, gui: inventory, plate: text, why: text):
 	fuelOn() is true
 	set {_lv} to fuelLevel({_plate})
 	{_lv} >= 0
-	set {_m} to fuelModel({_plate})
-	set {_info} to "&7Tank: &f%floor({_lv})%%% &7· %fuelLitersText({_lv}, {_m})%"
+	set {_info} to "&7Tank: &f%floor({_lv})%%% &7· %fuelLitersText({_lv}, {_plate})%"
 	set {_pr} to fuelGaragePrice({_plate})
 	if {_pr} <= 0:
 		set slot 15 of {_gui} to gray dye named "&7Refuel" with lore {_info} and "&aFull"
@@ -633,9 +661,8 @@ command /fuel:
 			set {_plate} to subtext of {_seat} from characters 8 to (length of {_seat})
 			set {_lv} to fuelLevel({_plate})
 			if {_lv} >= 0:
-				set {_m} to fuelModel({_plate})
-				set {_pr} to ceil(fuelTank({_m}) * (100 - {_lv}) / 100 * cfg("fuel::price"))
-				msg(player, "&6⛽ &f%floor({_lv})%%% &7· %fuelLitersText({_lv}, {_m})% &7· a full tank at a pump: &a%formatMoney({_pr})%")
+				set {_pr} to ceil(fuelTankOf({_plate}) * (100 - {_lv}) / 100 * cfg("fuel::price"))
+				msg(player, "&6⛽ &f%floor({_lv})%%% &7· %fuelLitersText({_lv}, {_plate})% &7· a full tank at a pump: &a%formatMoney({_pr})%")
 		set {_n} to fuelPumpNear(location of player)
 		if {_n} is "":
 			msg(player, "&7No pumps in this world.")
@@ -745,7 +772,7 @@ command /dfuel [<text>]:
 				send "FUEL %{_plate}%: unknown (or MTVehicles missing)" to sender
 				stop
 			set {_m} to fuelModel({_plate})
-			send "FUEL %{_plate}% model=%{_m}% level=%{_r::2}% usage=%{_r::3}% enabled=%{_r::4}% driven=%{_r::5}% tank=%fuelTank({_m})%L burn=%fuelBurn({_m})%min" to sender
+			send "FUEL %{_plate}% model=%{_m}% level=%{_r::2}% usage=%{_r::3}% enabled=%{_r::4}% driven=%{_r::5}% tank=%fuelTankOf({_plate})%L burn=%fuelBurnOf({_plate})%min tankmod=%carMod({_plate}, "tank")%" to sender
 		else if {_sub} is "info":
 			set {_p} to {_a::2} parsed as player
 			if {_p} is not set:
