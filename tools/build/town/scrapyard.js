@@ -1,0 +1,605 @@
+'use strict'
+// scrapyard: the Scrap Yard (tools/build/town/PLAN.md section 6.9: car contracts, a Donating addition; built by a cloud
+// session 2026-10-21, section 15.6). Box x 579..662, z 1012..1100, every y; world `jailbreak`, ground y 64. A fenced yard
+// on East Street: the Scrap Yard Boss's booth with its counter window (quests.sk kind `contracts`), the chop bay under a
+// crusher frame (the chop shop), wrecks, crushed cubes, tyre stacks, oil drums and a crane. No server, no client here:
+// the local session renders it and checks it in the client (handoff/2026-10-21/README.md).
+// ---- COMMON (tools/build/town/PLAN.md section 9: copy verbatim into every town module) ----
+const h = (x, y, z) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 100
+const pick = (x, y, z, mix) => { const v = h(x, y, z); let a = 0; for (const [s, p] of mix) { a += p; if (v < a) return s } return mix[mix.length - 1][0] }
+const MIX = {
+  white: [['white_concrete', 70], ['smooth_quartz', 20], ['calcite', 10]],
+  brick: [['bricks', 85], ['polished_granite', 8], ['terracotta', 7]],
+  asphalt: [['black_concrete', 75], ['black_concrete_powder', 15], ['gray_concrete_powder', 10]],
+  darkstone: [['blackstone', 40], ['cobbled_deepslate', 35], ['polished_basalt', 25]],
+  navy: [['blue_terracotta', 80], ['blue_concrete', 20]],
+  // town additions
+  deck: [['black_concrete', 90], ['gray_concrete', 10]], // asphalt with no powder: bridge decks and anything over air
+  stonebrick: [['stone_bricks', 70], ['cracked_stone_bricks', 12], ['tuff_bricks', 18]],
+  riverbed: [['sand', 55], ['gravel', 25], ['clay', 20]],
+  bank: [['sand', 40], ['coarse_dirt', 35], ['red_sand', 25]],
+  orange: [['red_sand', 50], ['coarse_dirt', 30], ['orange_terracotta', 20]] // Jailbreak's orange ground patches
+}
+// both halves of a door; y = the lower half. Iron doors can't be opened by hand.
+const door = (b, x, y, z, facing, hinge = 'left', open = false, block = 'iron_door') => {
+  b.set(x, y, z, `${block}[facing=${facing},half=lower,hinge=${hinge},open=${open},powered=false]`)
+  b.set(x, y + 1, z, `${block}[facing=${facing},half=upper,hinge=${hinge},open=${open},powered=false]`) }
+// both parts of a bed; (x,y,z) = the head, the foot is one block opposite to facing. Beds are decoration only.
+const bed = (b, color, x, y, z, facing) => {
+  const d = { north: [0, 1], south: [0, -1], east: [-1, 0], west: [1, 0] }[facing]
+  b.set(x, y, z, `${color}_bed[facing=${facing},part=head,occupied=false]`)
+  b.set(x + d[0], y, z + d[1], `${color}_bed[facing=${facing},part=foot,occupied=false]`) }
+// a diagonal line rasterized 4-connected (an extra cell wherever x and z both change), for fences and bars
+const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Math.abs(z2 - z1)); let px = null, pz = null
+  for (let i = 0; i <= n; i++) { const x = Math.round(x1 + (x2 - x1) * i / n), z = Math.round(z1 + (z2 - z1) * i / n)
+    if (px !== null && x !== px && z !== pz) fn(x, pz); fn(x, z); px = x; pz = z } }
+const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
+
+// ---- the town's frame --------------------------------------------------------------------------------------------
+const WORLD = 'jailbreak'
+const TOWN = { x1: 120, z1: 471, x2: 770, z2: 1300, y1: 50, y2: 160 } // every block of the town lies in here
+const TOWN_Z = 729   // z < 729: the approach module; z >= 729: the town
+const WATER_Y = 60   // the river's and the lake's top water block
+const LABEL_TAG = 'town_label', DISPLAY_TAG = 'town_display' // the tags of the town's text displays and item displays
+// The building modules' column boxes [x1, z1, x2, z2] (all y). A street cell inside a box still belongs to the streets.
+const PLOTS = {
+  H1: [299, 866, 365, 925], H2: [299, 926, 365, 985], H3: [299, 1009, 365, 1057], H4: [366, 1009, 432, 1057],
+  H5: [299, 1058, 365, 1106], H6: [366, 1058, 432, 1106], H7: [212, 948, 276, 1000], H8: [212, 1004, 276, 1056],
+  H9: [212, 1060, 276, 1112], H10: [264, 1135, 326, 1170], H11: [300, 1205, 375, 1250], H12: [349, 1135, 413, 1170]
+}
+const BOX = {
+  gunshop: [[465, 730, 556, 842]],
+  donut: [[386, 730, 432, 842]],
+  garage: [[300, 730, 385, 842]],
+  gas: [[366, 865, 432, 986]],
+  shops: [[465, 865, 556, 986]],
+  dealer: [[465, 1009, 556, 1106]],
+  safehouse: [[212, 880, 276, 944]],
+  scrapyard: [[579, 1012, 662, 1100]],
+  pawnshop: [[579, 940, 614, 985]], // Vic's Pawn Shop (section 15.4, 2026-10-21)
+  poolhall: [[418, 1129, 479, 1172]], // the Broker's Pool Hall (section 15.5)
+  houses: Object.values(PLOTS)
+}
+const BUILDINGS = Object.keys(BOX)
+
+// ---- streets (z >= 729; the approach road and the bridge are the approach module's) ----------------------------------
+// Straight streets: the asphalt cells, the axis traffic runs along, the sidewalk width, and the lines: a cell is yellow
+// (white) when its centre is `yellow` (`white`) blocks from the asphalt's centre line.
+const STREETS = [
+  { id: 'main', name: 'Main Street', x1: 437, z1: 729, x2: 460, z2: 1109, axis: 'z', walk: 4, yellow: 0.5, white: 10.5 },
+  { id: 'first', name: '1st Street', x1: 312, z1: 846, x2: 543, z2: 861, axis: 'x', walk: 3, yellow: 0.5, white: 6.5 },
+  { id: 'second', name: '2nd Street', x1: 296, z1: 990, x2: 559, z2: 1005, axis: 'x', walk: 3, yellow: 0.5, white: 6.5 },
+  { id: 'hill', name: 'Hill Road', x1: 312, z1: 1110, x2: 543, z2: 1125, axis: 'x', walk: 3, yellow: 0.5, white: 6.5 },
+  { id: 'elm', name: 'Elm Road', x1: 280, z1: 878, x2: 295, z2: 1093, axis: 'z', walk: 3, yellow: 0.5, white: 6.5 },
+  { id: 'east', name: 'East Street', x1: 560, z1: 878, x2: 575, z2: 1093, axis: 'z', walk: 3, yellow: 0.5, white: 6.5 },
+  { id: 'birch', name: 'Birch Court', x1: 330, z1: 1126, x2: 345, z2: 1186, axis: 'z', walk: 3, yellow: 0.5, white: null }
+]
+// The loop's four rounded corners: the arc's centre and its quadrant (sx, sz: the side of the centre it lies on).
+// Asphalt where the distance r from the centre is 16..32 (centre line at 24), sidewalks 13..16 and 32..35.
+const CORNERS = [{ cx: 312, cz: 878, sx: -1, sz: -1 }, { cx: 544, cz: 878, sx: 1, sz: -1 },
+  { cx: 312, cz: 1094, sx: -1, sz: 1 }, { cx: 544, cz: 1094, sx: 1, sz: 1 }]
+const CORNER = { r: 24, half: 8, walk: 3 }
+const CIRCLE = { cx: 338, cz: 1186, r: 16, walk: 3 } // Birch Court's turning circle: asphalt r < 16, sidewalk 16..19
+// Curb cuts [x1, z1, x2, z2]: sidewalk cells with no curb slab where a lot or a driveway meets the street (the module
+// behind paves its side right up to the sidewalk there).
+const DRIVEWAYS = [
+  [433, 744, 436, 757], // donut: the lot (Main, west side)
+  [433, 868, 436, 879], [433, 952, 436, 963], // gas station forecourt in and out
+  [461, 744, 464, 757], // gun shop lot (Main, east side)
+  [461, 1020, 464, 1031], [461, 1080, 464, 1091], // dealer lot
+  [330, 843, 375, 845], [388, 843, 399, 845], // town garage apron, donut west strip (1st Street, north side)
+  [520, 862, 533, 864], [520, 987, 533, 989], [557, 920, 559, 933], // the shops' rear lot (1st, 2nd, East Street)
+  [576, 1050, 578, 1057], // scrap yard gate (East Street, east side)
+  [296, 905, 298, 909], [296, 961, 298, 965], // H1, H2 (Elm Road, east side)
+  [338, 1006, 342, 1008], [403, 1006, 407, 1008], // H3, H4 (2nd Street, south side)
+  [338, 1107, 342, 1109], [387, 1107, 391, 1109], // H5, H6 (Hill Road, north side)
+  [277, 932, 279, 936], [277, 982, 279, 986], [277, 1038, 279, 1042], [277, 1066, 279, 1070], // safehouse, H7, H8, H9
+  [327, 1165, 329, 1169], [336, 1202, 340, 1204], [346, 1165, 348, 1169] // H10, H11, H12 (Birch Court)
+]
+// What a column of the street network is: null, or { kind: 'asphalt' | 'walk', line: 'yellow' | 'white' | null, street }.
+// Asphalt wins over a sidewalk; a cell in two streets' asphalt (a junction) has no line. Pure: no blocks are read.
+function streetCell (x, z) {
+  if (z < TOWN_Z) return null
+  const px = x + 0.5, pz = z + 0.5
+  let asph = null, n = 0, walk = null
+  for (const s of STREETS) {
+    const inX = x >= s.x1 && x <= s.x2, inZ = z >= s.z1 && z <= s.z2
+    if (inX && inZ) {
+      n++
+      const o = s.axis === 'z' ? Math.abs(px - (s.x1 + s.x2 + 1) / 2) : Math.abs(pz - (s.z1 + s.z2 + 1) / 2)
+      asph = { kind: 'asphalt', line: o === s.yellow ? 'yellow' : o === s.white ? 'white' : null, street: s.id }
+    } else if (!walk && (s.axis === 'z' ? inZ : inX)) {
+      const d = s.axis === 'z' ? (x < s.x1 ? s.x1 - x : x - s.x2) : (z < s.z1 ? s.z1 - z : z - s.z2)
+      if (d >= 1 && d <= s.walk) walk = { kind: 'walk', line: null, street: s.id }
+    }
+  }
+  for (const c of CORNERS) {
+    const dx = px - c.cx, dz = pz - c.cz
+    if (dx * c.sx < 0 || dz * c.sz < 0) continue
+    const o = Math.hypot(dx, dz) - CORNER.r, f = Math.floor(o)
+    if (o >= -CORNER.half && o < CORNER.half) { n++; asph = { kind: 'asphalt', line: f === -1 || f === 0 ? 'yellow' : f === -7 || f === 6 ? 'white' : null, street: 'corner' } }
+    else if (!walk && Math.abs(o) < CORNER.half + CORNER.walk) walk = { kind: 'walk', line: null, street: 'corner' }
+  }
+  const rc = Math.hypot(px - CIRCLE.cx, pz - CIRCLE.cz)
+  if (rc < CIRCLE.r) { n++; asph = { kind: 'asphalt', line: null, street: 'birch' } } else if (!walk && rc < CIRCLE.r + CIRCLE.walk) walk = { kind: 'walk', line: null, street: 'birch' }
+  if (asph) { if (n > 1) asph.line = null; return asph }
+  return walk
+}
+const SC = new Int8Array((TOWN.x2 - TOWN.x1 + 1) * (TOWN.z2 - TOWN.z1 + 1)) // 0 unknown, 1 no street, 2 street
+const inStreet = (x, z) => {
+  if (x < TOWN.x1 || x > TOWN.x2 || z < TOWN.z1 || z > TOWN.z2) return false
+  const i = (x - TOWN.x1) * (TOWN.z2 - TOWN.z1 + 1) + (z - TOWN.z1)
+  if (!SC[i]) SC[i] = streetCell(x, z) ? 2 : 1
+  return SC[i] === 2
+}
+const inDriveway = (x, z) => DRIVEWAYS.some(([x1, z1, x2, z2]) => x >= x1 && x <= x2 && z >= z1 && z <= z2)
+// Which module owns a column: 'approach', 'streets', a building module, or 'land' (everything else in the town).
+const inBox = (x, z, boxes) => boxes.some(([x1, z1, x2, z2]) => x >= x1 && x <= x2 && z >= z1 && z <= z2)
+const ownerOf = (x, z) => {
+  if (x < TOWN.x1 || x > TOWN.x2 || z < TOWN.z1 || z > TOWN.z2) return null
+  if (z < TOWN_Z) return 'approach'
+  if (inStreet(x, z)) return 'streets'
+  for (const m of BUILDINGS) if (inBox(x, z, BOX[m])) return m
+  return 'land'
+}
+const ownFor = mod => (x, y, z) => y >= TOWN.y1 && y <= TOWN.y2 && ownerOf(x, z) === mod
+
+// ---- the approach road (z 471..728) ----------------------------------------------------------------------------------
+// Its surface in half blocks over y 64: L 0 = the road block at y 64; L even = the road block at y 64 + L/2; L odd = a
+// bottom slab at y 65 + (L-1)/2 on a full block. Half a block up every 4 blocks (z 503..550), level in the tunnel
+// (L 12, z 551..614: the road block at y 70), half a block down every 6 blocks (z 615..686), level over the bridge.
+const approachLevel = z => z <= 502 ? 0 : z <= 550 ? Math.floor((z - 503) / 4) + 1 : z <= 614 ? 12 : z <= 686 ? 11 - Math.floor((z - 615) / 6) : 0
+const levelTop = L => ({ full: 64 + Math.floor(L / 2), slab: L % 2 === 1, stand: 65 + L / 2 }) // stand: where feet are
+const TUNNEL = { z1: 551, z2: 614, x1: 434, x2: 463, floor: 70 } // the tunnel's inside (walls x 432..433 and 464..465)
+// The approach's cross-section outside the tunnel (x ranges): the road (lines as Main Street: white 438 and 459, yellow
+// 448 and 449), walkways, verges, the cutting's retaining walls. The bridge carries road and walkways over z 686..728.
+const APPROACH = { road: [437, 460], walk: [[433, 436], [461, 464]], verge: [[431, 432], [465, 466]], wall: [[429, 430], [467, 468]] }
+const BRIDGE = { z1: 686, z2: 728 }
+
+// ---- the river and the lake (shared by approach and land) ----------------------------------------------------------
+// The north branch (x 270..745, z <= 728) is generated from NORTH, the straight line it used to be: a point [x, z, half]
+// every 8 blocks, swinging up to 8 off that line with a half-width of 10..15 (northBend). It stays straight with half 13
+// under the bridge (|x + 0.5 - 449| <= 40), at the culvert (x 712 on) and into the bend (x 290 and west), and its south
+// bank never reaches z 729 (west of x 540 never past the straight line's: the town's lots keep their grass). From the bend
+// on it's [x, z] points with riverHalf(z), and the west branch meanders (z 856 on: [x, z, half], half 11..13) westward
+// only: its east bank stays at x 207 or less (x + half <= 201), clear of the safehouse and the plots at x 212.
+const NORTH = [[745, 701], [640, 704], [540, 707], [449, 708], [350, 706], [270, 711]]
+const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t)
+const northZ = x => { for (let i = 1; i < NORTH.length; i++) { const [ax, az] = NORTH[i - 1], [bx, bz] = NORTH[i]; if (x >= bx) return az + (bz - az) * (ax - x) / (ax - bx) } return NORTH[NORTH.length - 1][1] }
+const northBend = x => {
+  const env = smooth01((x - 290) / 40) * smooth01((712 - x) / 32) * smooth01((Math.abs(x + 0.5 - 449) - 40) / 30)
+  const lim = x < 540 ? 0 : (709.5 - northZ(x)) * smooth01((x - 540) / 60) // how far the south edge may pass the line's
+  let m = 8 * Math.sin(2 * Math.PI * (x - 237) / 150), w = 12.5 + 2.5 * Math.sin(2 * Math.PI * (x - 300) / 105)
+  const ex = m + w - 13 - lim // past the limit: narrower first, then farther north
+  if (ex > 0) { const dw = Math.min(ex, w - 10); w -= dw; m -= ex - dw }
+  return [x, northZ(x) + env * m, 13 + env * (w - 13)]
+}
+const RIVER = [...Array.from({ length: 60 }, (_, i) => northBend(745 - 8 * i)), [270, 711, 13], [228, 728], [203, 760],
+  [191, 800], [190, 856, 11], [180, 905, 12], [186, 960, 11], [176, 1010, 13], [184, 1065, 11], [178, 1120, 12],
+  [188, 1170, 11], [192, 1196, 11]]
+const LAKE = { cx: 192, cz: 1240, rx: 60, rz: 46 }
+const riverHalf = z => z <= 740 ? 13 : z >= 790 ? 11 : 13 - 2 * (z - 740) / 50 // half-width of the water
+const BANK = 6, BEACH = 14
+const RIVER_END_X = 739 // the river comes out of a culvert in the hill: no river east of x 739 (the headwall is x 739..741)
+const segT = (px, pz, a, b) => { const vx = b[0] - a[0], vz = b[1] - a[1]
+  return Math.max(0, Math.min(1, ((px - a[0]) * vx + (pz - a[1]) * vz) / (vx * vx + vz * vz))) }
+const segD = (px, pz, a, b) => { const t = segT(px, pz, a, b); return Math.hypot(px - a[0] - t * (b[0] - a[0]), pz - a[1] - t * (b[1] - a[1])) }
+// How far a point lies outside the river's water (<= 0 in it): the least, over the segments, of the distance minus the
+// half-width there (a [x, z, half] segment's own, else riverHalf).
+const riverE = (px, pz) => { let e = Infinity
+  for (let i = 1; i < RIVER.length; i++) {
+    const a = RIVER[i - 1], b = RIVER[i], t = segT(px, pz, a, b)
+    const w = a.length > 2 && b.length > 2 ? a[2] + t * (b[2] - a[2]) : riverHalf(pz)
+    e = Math.min(e, Math.hypot(px - a[0] - t * (b[0] - a[0]), pz - a[1] - t * (b[1] - a[1])) - w)
+  }
+  return e }
+// The same for the lake (<= 0 in it): an ellipse whose radius wobbles round the shore (up to about 11% in or out), so the
+// lake isn't a perfect oval.
+const lakeE = (px, pz) => { const u = (px - LAKE.cx) / LAKE.rx, v = (pz - LAKE.cz) / LAKE.rz, a = Math.atan2(v, u)
+  return (Math.hypot(u, v) - 1 - 0.07 * Math.sin(3 * a + 1) - 0.04 * Math.sin(5 * a + 2)) * Math.min(LAKE.rx, LAKE.rz) }
+// A column of the river or the lake: null (dry land), { water: true, bed } (the bed block at y bed, water from bed + 1 to
+// WATER_Y, air above to y 64), or { water: false, top, beach } (a bank or the beach: its top block at y top, air above).
+function riverAt (x, z) {
+  const px = x + 0.5, pz = z + 0.5
+  if (px < 110 || px > RIVER_END_X || pz < 664 || pz > 1300) return null
+  let e = riverE(px, pz)
+  const el = lakeE(px, pz)
+  const lake = el < e
+  if (lake) e = el
+  if (e <= 0) return { water: true, bed: WATER_Y - 2 - Math.min(3, Math.floor(-e / 4)) }
+  const beach = lake && px > LAKE.cx - 10 && pz > LAKE.cz - 30
+  const w = beach ? BEACH : BANK
+  if (e > w) return null
+  return { water: false, top: Math.min(64, WATER_Y + Math.ceil(4 * e / w)), beach }
+}
+// How far a column is beyond the river's banks (0 on a bank or in the water): hills keep h <= dryD - 2 near the river.
+// Behind the culvert (x 742 on) it rises 1:1 from the river's end, plus CULVERT_RISE behind the headwall (z 685..717) and
+// its wings (z 681..684, 718..721), so the hill there meets their top instead of leaving a ditch behind them.
+const CULVERT_RISE = z => z >= 685 && z <= 717 ? 7 : z >= 681 && z <= 684 ? z - 678 : z >= 718 && z <= 721 ? 724 - z : 0
+const dryD = (x, z) => { const px = x + 0.5, pz = z + 0.5; let e = Infinity
+  if (px > RIVER_END_X + 3) return dryD(RIVER_END_X + 2, z) + (x - RIVER_END_X - 2) + CULVERT_RISE(z) // behind the culvert
+  e = riverE(px, pz) - BANK
+  const el = lakeE(px, pz) - BEACH
+  return Math.max(0, Math.min(e, el)) }
+
+// ---- terrain helpers (approach and land) -----------------------------------------------------------------------------
+// A dome hill [cx, cz, r, H]: H blocks over y 64 at its centre, 0 at radius r.
+const dome = (x, z, p) => { const t = Math.hypot(x + 0.5 - p[0], z + 0.5 - p[1]) / p[2]; return t >= 1 ? 0 : Math.round(p[3] * Math.pow(1 - t * t, 1.3)) }
+const CLIFF = ['orange_terracotta', 'smooth_red_sandstone', 'orange_terracotta', 'red_sandstone', 'orange_terracotta', 'smooth_red_sandstone']
+// One hill column as a closed shell: blocks from max(65, minN - 2) up to top (minN = the lowest of the 4 neighbours'
+// tops; the inside of a big hill stays air, unseen). Grass on top, dirt under it; wherever the column stands 2+ above a
+// neighbour its exposed blocks are banded salmon orange (Jailbreak's cliffs). rim (hill(): a real cliff's top, or near a
+// riser) gives it orange ground on top instead: red sand, a quarter orange terracotta, coarse dirt where red sand would
+// sit over air (only a column 2+ under all its neighbours has nothing under its top). S = the clipped setter.
+function hillColumn (S, x, z, top, minN, rim = top - minN >= 4) {
+  const held = top - 1 <= 64 || top - 1 >= Math.max(65, minN - 2)
+  for (let y = Math.max(65, minN - 2); y <= top; y++) {
+    let s
+    if (y === top) { s = !rim ? 'grass_block' : h(x, y, z) < 75 ? 'red_sand' : 'orange_terracotta'; if (s === 'red_sand' && !held) s = 'coarse_dirt' }
+    else if (y > minN) s = CLIFF[Math.floor(y / 3) % CLIFF.length]
+    else s = y >= top - 3 ? 'dirt' : 'stone'
+    S(x, y, z, s)
+  }
+}
+// Jailbreak's orange ground: ragged blobs of red sand and coarse dirt in the grass (true = this column is one).
+const orangeAt = (x, z) => {
+  const gx = Math.floor(x / 24), gz = Math.floor(z / 24)
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const cx = gx + i, cz = gz + j
+    if (h(cx, 11, cz) >= 22) continue
+    const ox = cx * 24 + h(cx, 12, cz) % 24, oz = cz * 24 + h(cx, 13, cz) % 24, r = 3 + h(cx, 14, cz) % 6
+    if (Math.hypot(x - ox, (z - oz) * 1.6) < r + (h(x, 15, z) % 3) - 1) return true
+  }
+  return false
+}
+
+// ---- terrain heights: the ONE height of every hill column, for the approach and the land module alike -----------------
+// groundTop(x, z) = blocks over y 64 (0 = the world's own flat grass). Each module builds its hill columns with
+// hill(S, x, z), which takes minN from groundTop() of the 4 neighbours whichever module owns them, so a hollow hill always
+// closes across a module's edge (z 728/729 above all). Pure and memoized; reads no blocks.
+const RIDGE = [[449, 582, 95, 34], [565, 566, 115, 44], [345, 596, 100, 30], [668, 612, 85, 26], [748, 668, 55, 22],
+  [258, 616, 75, 16], [175, 650, 55, 10]] // R1..R7: the ridge between the prison and the town (section 3.4)
+// E2, E4, W1, W2 and S1 fit inside the town's box (2026-10-20: cut by its edge they ended in straight 1:1 ramps, which
+// will show once the map grows past it).
+const HILLS = [[660, 800, 70, 26], [700, 870, 70, 30], [650, 930, 60, 20], [715, 985, 55, 24], [700, 760, 60, 18],
+  [500, 1186, 50, 20], [152, 900, 32, 12], [150, 1060, 30, 14], [420, 1258, 42, 10]] // E1..E5, T1, W1, W2, S1 (section 5)
+const T1_TOP = { cx: 500, cz: 1186, r: 10, h: 20 } // the water tower hill's flat top: ground y 84
+const STAIRS = [498, 1129, 500, 1176] // the water tower's stair path [x1, z1, x2, z2]: its own even climb, 20 up over 48
+const KEEP_FREE = [[600, 1110, 770, 1300], [120, 843, 311, 864]] // the volcano's site; the future north-west road (flat)
+const PAD = [469, 674, 479, 686] // the welcome sign's levelled pad (section 3.7)
+const PORTAL_N = 548, PORTAL_S = 617 // the portals' outer faces (headwalls z 548..550 and 615..617)
+const standY = z => 65 + approachLevel(z) / 2 // where feet are on the approach road
+const portalD = z => z < PORTAL_N ? PORTAL_N - z : z > PORTAL_S ? z - PORTAL_S : 0
+const inCutting = z => (z >= 485 && z < PORTAL_N) || (z > PORTAL_S && z <= 686)
+// The cutting's cap (a y): 4 over the walkway, rising 2 a block over the last 14 blocks before a portal, so the retaining
+// walls and the hill behind them climb into the headwall with no step.
+const capY = z => Math.floor(standY(z)) + 4 + 2 * Math.max(0, 14 - portalD(z))
+let BUILT = null // steps (4-connected) from each town column to the nearest street, building box or the north-west strip
+const builtD = (x, z) => {
+  const W = TOWN.x2 - TOWN.x1 + 1, D = TOWN.z2 - TOWN.z1 + 1
+  if (!BUILT) {
+    BUILT = new Int16Array(W * D).fill(32767); const q = new Int32Array(W * D); let n = 0
+    for (let i = TOWN.x1; i <= TOWN.x2; i++) for (let k = TOWN.z1; k <= TOWN.z2; k++) {
+      const o = ownerOf(i, k)
+      if ((o !== 'land' && o !== 'approach') || inBox(i, k, [KEEP_FREE[1]])) { const j = (i - TOWN.x1) * D + (k - TOWN.z1); BUILT[j] = 0; q[n++] = j }
+    }
+    for (let r = 0; r < n; r++) {
+      const j = q[r], i = Math.floor(j / D), k = j % D, d = BUILT[j] + 1
+      if (i > 0 && BUILT[j - D] > d) { BUILT[j - D] = d; q[n++] = j - D }
+      if (i < W - 1 && BUILT[j + D] > d) { BUILT[j + D] = d; q[n++] = j + D }
+      if (k > 0 && BUILT[j - 1] > d) { BUILT[j - 1] = d; q[n++] = j - 1 }
+      if (k < D - 1 && BUILT[j + 1] > d) { BUILT[j + 1] = d; q[n++] = j + 1 }
+    }
+  }
+  return BUILT[(x - TOWN.x1) * D + (z - TOWN.z1)]
+}
+// A smooth field 0..1 (bilinear over a c x c grid of hashed values, smoothstepped): wide, gentle variation, never a bump.
+const fieldN = (x, z, c, salt) => { const gx = Math.floor(x / c), gz = Math.floor(z / c), fx = smooth01(x / c - gx), fz = smooth01(z / c - gz)
+  const v = (i, j) => h(gx + i, salt, gz + j) / 99
+  return (v(0, 0) * (1 - fx) + v(1, 0) * fx) * (1 - fz) + (v(0, 1) * (1 - fx) + v(1, 1) * fx) * fz }
+// The ridge's foot on the prison's side: 0 at z 482 (to 487 along a slow wave in x, so its contours don't run parallel
+// to the prison's fence), then 0.6 a block (a 1:1 ramp read as one straight bank from the prison).
+const ridgeFoot = (x, z) => Math.floor(0.6 * (z - 482) - 1.5 + 1.5 * Math.sin(x / 19 + 0.7) * Math.cos(x / 53))
+function groundCalc (x, z) {
+  if (z < 482 || riverAt(x, z) || inBox(x, z, KEEP_FREE) || inBox(x, z, [PAD])) return 0
+  if (inBox(x, z, [STAIRS])) return Math.min(T1_TOP.h, Math.floor((z - STAIRS[1] + 1) * T1_TOP.h / 48))
+  const tunnel = z >= PORTAL_N && z <= PORTAL_S && x >= 424 && x <= 473 // over the tunnel, its headwalls and their ends
+  if (!tunnel && z <= 728 && x >= 429 && x <= 468) return 0 // the approach road's corridor: approach builds it itself
+  let t = 0
+  for (const p of RIDGE) t = Math.max(t, dome(x, z, p))
+  for (const p of HILLS) t = Math.max(t, dome(x, z, p))
+  if (t > 0) { // the ridge (z < 709; none on the town's side): wavy contours and a wandering terrace line, not rings
+    const k = smooth01((TOWN_Z - 20 - z) / 20)
+    t = Math.round(t + k * 4 * (fieldN(x, z, 48, 61) - 0.5) * Math.min(1, t / 8))
+    if (t > 10 + Math.round(k * 6 * (fieldN(x, z, 40, 62) - 0.5))) t -= t % 2 // even terraces: steps of 2 with cliff bands
+  }
+  if (Math.hypot(x + 0.5 - T1_TOP.cx, z + 0.5 - T1_TOP.cz) <= T1_TOP.r) t = T1_TOP.h
+  if (tunnel) t = Math.max(t, 26) // the cover over the tunnel's lining reaches y 90
+  t = Math.min(t, ridgeFoot(x, z), x - TOWN.x1, TOWN.x2 - x, TOWN.z2 - z, Math.floor(dryD(x, z)) - 2, builtD(x, z) - 3)
+  if (inCutting(z) && (x < 429 || x > 468)) t = Math.min(t, capY(z) - 64 + (x < 429 ? 429 - x : x - 468))
+  return Math.max(0, t)
+}
+let GT = null
+const groundTop = (x, z) => {
+  if (x < TOWN.x1 || x > TOWN.x2 || z < TOWN.z1 || z > TOWN.z2) return 0
+  const D = TOWN.z2 - TOWN.z1 + 1, j = (x - TOWN.x1) * D + (z - TOWN.z1)
+  if (!GT) GT = new Int16Array((TOWN.x2 - TOWN.x1 + 1) * D).fill(-1)
+  if (GT[j] < 0) GT[j] = groundCalc(x, z)
+  return GT[j]
+}
+// A riser: a hill column standing 2+ over its lowest neighbour (a terrace's or a cliff's edge).
+const riserAt = (x, z) => { const t = groundTop(x, z)
+  return t > 0 && t - Math.min(groundTop(x + 1, z), groundTop(x - 1, z), groundTop(x, z + 1), groundTop(x, z - 1)) >= 2 }
+// Jailbreak's orange ground hugs its cliffs: a column within 2 steps (4-connected) of a riser, inside fieldN's
+// coherent patches (about half the ground near the risers: with every one of them orange, a dome's steep side read as
+// solid orange rings).
+const nearRiser = (x, z) => { if (fieldN(x, z, 14, 47) < 0.5) return false
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.abs(dx) + Math.abs(dz) <= 2 && riserAt(x + dx, z + dz)) return true
+  return false }
+// One hill column (false where groundTop is 0). Not for the portals' headwalls and wing walls, the cutting's walls or the
+// stair path: those are built solid from y 65 to 64 + groundTop by their own code.
+function hill (S, x, z) {
+  const t = groundTop(x, z)
+  if (t <= 0) return false
+  const n = Math.min(groundTop(x + 1, z), groundTop(x - 1, z), groundTop(x, z + 1), groundTop(x, z - 1))
+  hillColumn(S, x, z, 64 + t, 64 + n, t - n >= 4 || nearRiser(x, z))
+  return true
+}
+// The y of the top block of the cutting's retaining walls (x 429..430 west, 467..468 east; inCutting(z) only): as high as
+// the hill beside them, at least 1 over the walkway, never above capY.
+const retainY = (z, west) => Math.max(Math.floor(standY(z)) + 1, Math.min(capY(z), 64 + groundTop(west ? 428 : 469, z)))
+
+// ---- props shared by the modules (S = the module's clipped setter, y0 = the ground block's y) ------------------------
+// Town street lamp (a cobra-head): a diorite_wall post y0+1..y0+10, a smooth_quartz cap, an arm of top slabs reaching 3
+// cells toward (dx, dz) at y0+11, and a sea_lantern head hanging under the arm's end.
+function streetLamp (S, x, z, dx, dz, y0 = 64) {
+  for (let y = y0 + 1; y <= y0 + 10; y++) S(x, y, z, 'diorite_wall')
+  S(x, y0 + 11, z, 'smooth_quartz')
+  for (let k = 1; k <= 3; k++) S(x + dx * k, y0 + 11, z + dz * k, 'smooth_quartz_slab[type=top]')
+  S(x + dx * 3, y0 + 10, z + dz * 3, 'sea_lantern')
+}
+// The prison's lamp (the approach road keeps it): a polished_blackstone_wall pole, 3 ochre froglights under slabs.
+function prisonLamp (S, x, z, axis = 'x', y0 = 64) {
+  for (let y = y0 + 1; y <= y0 + 7; y++) S(x, y, z, 'polished_blackstone_wall')
+  for (let k = -1; k <= 1; k++) {
+    const lx = axis === 'x' ? x + k : x, lz = axis === 'x' ? z : z + k
+    S(lx, y0 + 8, lz, 'ochre_froglight[axis=y]'); S(lx, y0 + 9, lz, 'polished_blackstone_slab[type=bottom]')
+  }
+}
+// A Jailbreak pine: a spruce trunk and 3 stacked cones of persistent spruce leaves (radius 4, 3, 2), tall 12..18.
+function pine (S, x, z, tall = 14, y0 = 64) {
+  const t = Math.max(12, Math.min(18, tall)), tiers = [[0.25, 4], [0.5, 3], [0.72, 2]]
+  for (let y = y0 + 1; y <= y0 + t - 2; y++) S(x, y, z, 'spruce_log[axis=y]')
+  for (const [f, r0] of tiers) {
+    const yb = y0 + 1 + Math.round(t * f), hgt = Math.round(t * 0.32)
+    for (let k = 0; k < hgt; k++) {
+      const r = r0 * (1 - k / hgt) + 0.4
+      for (let dx = -r0; dx <= r0; dx++) for (let dz = -r0; dz <= r0; dz++) if ((dx || dz) && dx * dx + dz * dz <= r * r) S(x + dx, yb + k, z + dz, 'spruce_leaves[persistent=true]')
+    }
+  }
+  S(x, y0 + t - 1, z, 'spruce_leaves[persistent=true]'); S(x, y0 + t, z, 'spruce_leaves[persistent=true]')
+}
+// A round tree (the prison's oak): a trunk under a ball of persistent oak leaves.
+function oak (S, x, z, y0 = 64) {
+  for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) for (let dz = -3; dz <= 3; dz++) {
+    if (dx * dx + dy * dy + dz * dz > 10.5) continue
+    S(x + dx, y0 + 6 + dy, z + dz, 'oak_leaves[persistent=true]')
+  }
+  for (let y = y0 + 1; y <= y0 + 5; y++) S(x, y, z, 'oak_log[axis=y]')
+}
+function shrub (S, x, z, y0 = 64) {
+  const s = h(x, 1, z) < 50 ? 'oak_leaves[persistent=true]' : 'azalea_leaves[persistent=true]'
+  S(x, y0 + 1, z, s)
+  if (h(x, 2, z) < 50) S(x + 1, y0 + 1, z, s)
+  if (h(x, 3, z) < 50) S(x, y0 + 1, z + 1, s)
+  if (h(x, 4, z) < 40) S(x, y0 + 2, z, s)
+}
+// ---- end COMMON ----
+const MOD = 'scrapyard'
+const own = ownFor(MOD)
+let B = null
+const S = (x, y, z, s) => { if (own(x, y, z)) B.set(x, y, z, typeof s === 'function' ? s(x, y, z) : s) }
+const F = (x1, y1, z1, x2, y2, z2, s) => {
+  for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++)
+    for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) S(x, y, z, s) }
+
+// ---- the plan's numbers (PLAN 6.9 and 8.2) -------------------------------------------------------------------------
+// Box x 579..662, z 1012..1100 on East Street's east side. A fenced yard (x 580..661, z 1013..1099: dark oak fence and
+// iron bar panels, 2 high) with its gate on East Street (x 580, z 1050..1057, over the street's cut). The Scrap Yard
+// Boss's booth (x 590..601, z 1020..1029, a portakabin: corrugated walls y 64..71, roof y 72) faces south with a counter
+// window (z 1029, x 593..598, y 66..67) over a counter at y 65: he stands behind it, no door. The chop bay (a 9 x 9 pad at
+// 628..636, 1064..1072 with hazard stripes, the crusher's frame over it) is where a stolen car is delivered (the chop shop
+// spot 632.5 65 1068.5). Round them: wrecks, crushed cubes, tyre stacks, oil drums, a crane; coarse dirt and gravel.
+const YARD = { x1: 580, x2: 661, z1: 1013, z2: 1099 }
+const GATE = [1050, 1057]                      // the gate's z on x 580
+const BOOTH = { x1: 590, x2: 601, z1: 1020, z2: 1029, roof: 72 }
+const WINDOW = [593, 598]                      // the counter window's x (z 1029, y 66..67)
+const BAY = { x1: 628, x2: 636, z1: 1064, z2: 1072, cx: 632, cz: 1068 }
+const SPOT = { boss: [595.5, 65, 1028.5, 0], chop: [632.5, 65, 1068.5, 0] }
+const ROAD = new Set(['black_concrete', 'gray_concrete', 'white_concrete', 'yellow_concrete', 'black_concrete_powder', 'gray_concrete_powder'])
+const SKY_SWAP = { black_concrete: 'black_terracotta', gray_concrete: 'gray_terracotta', white_concrete: 'calcite', yellow_concrete: 'yellow_terracotta',
+  black_concrete_powder: 'black_terracotta', gray_concrete_powder: 'gray_terracotta' }
+const RUST = (x, y, z) => pick(x, y, z, [['orange_terracotta', 40], ['brown_concrete', 25], ['waxed_weathered_copper', 20], ['brown_terracotta', 15]])
+const WOOL = c => `${c}_wool`
+const FENCE_X = (w, e) => `dark_oak_fence[east=${e},north=false,south=false,waterlogged=false,west=${w}]`
+const FENCE_Z = (n, s) => `dark_oak_fence[east=false,north=${n},south=${s},waterlogged=false,west=false]`
+const BARS_X = 'iron_bars[east=true,north=false,south=false,waterlogged=false,west=true]'
+const BARS_Z = 'iron_bars[east=false,north=true,south=true,waterlogged=false,west=false]'
+
+// ---- the ground: coarse dirt with dirt and gravel patches, a gravel lane from the gate to the bay and the booth -------
+function ground () {
+  for (let x = 579; x <= 662; x++) for (let z = 1012; z <= 1100; z++) {
+    const inYard = x > YARD.x1 && x < YARD.x2 && z > YARD.z1 && z < YARD.z2
+    if (!inYard) { S(x, 64, z, 'grass_block'); continue }
+    const n = fieldN(x, z, 7, 11)
+    S(x, 64, z, n < 0.3 ? 'gravel' : n < 0.45 ? 'dirt' : n > 0.85 ? 'rooted_dirt' : 'coarse_dirt')
+  }
+  for (let x = YARD.x1; x <= BAY.x1; x++) for (let z = 1051; z <= 1056; z++) S(x, 64, z, 'gravel')        // gate → bay
+  for (let x = 594; x <= 597; x++) for (let z = BOOTH.z2 + 1; z <= 1050; z++) S(x, 64, z, 'gravel')        // lane → booth
+  F(BOOTH.x1 - 1, 64, BOOTH.z2 + 1, BOOTH.x2 + 1, 64, BOOTH.z2 + 3, 'packed_mud')                           // the yard in front
+}
+
+// ---- the fence: dark oak posts every 6 with iron bar panels between, 2 high; the gate open -------------------------
+function fence () {
+  const { x1, x2, z1, z2 } = YARD
+  const post = (x, z) => { S(x, 65, z, 'stripped_dark_oak_log[axis=y]'); S(x, 66, z, 'stripped_dark_oak_log[axis=y]'); S(x, 67, z, 'dark_oak_slab[type=bottom,waterlogged=false]') }
+  for (let x = x1; x <= x2; x++) for (const z of [z1, z2]) {
+    if ((x - x1) % 6 === 0 || x === x2) post(x, z); else { S(x, 65, z, BARS_X); S(x, 66, z, BARS_X) }
+  }
+  for (let z = z1 + 1; z < z2; z++) for (const x of [x1, x2]) {
+    if (x === x1 && z >= GATE[0] && z <= GATE[1]) continue
+    if ((z - z1) % 6 === 0 || (x === x1 && (z === GATE[0] - 1 || z === GATE[1] + 1))) post(x, z); else { S(x, 65, z, BARS_Z); S(x, 66, z, BARS_Z) }
+  }
+  // the gate's arch: two tall posts and a beam carrying the sign (clear under it to y 70 for cars)
+  for (const z of [GATE[0] - 1, GATE[1] + 1]) F(x1, 65, z, x1, 71, z, 'stripped_dark_oak_log[axis=y]')
+  for (let z = GATE[0] - 1; z <= GATE[1] + 1; z++) { S(x1, 72, z, 'dark_oak_log[axis=z]'); if (z >= GATE[0] && z <= GATE[1]) S(x1, 71, z, 'waxed_weathered_cut_copper') }
+}
+
+// ---- the Boss's booth --------------------------------------------------------------------------------------------------
+function booth () {
+  const { x1, x2, z1, z2, roof } = BOOTH
+  for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) {
+    const e = x === x1 || x === x2 || z === z1 || z === z2
+    S(x, 64, z, e ? 'stone_bricks' : 'spruce_planks')
+    for (let y = 65; y < roof; y++) {
+      if (!e) { S(x, y, z, 'air'); continue }
+      const u = x === x1 || x === x2 ? z : x
+      S(x, y, z, y === roof - 1 ? 'gray_terracotta' : u % 2 ? 'light_gray_terracotta' : 'white_terracotta') // corrugated
+    }
+    S(x, roof, z, 'gray_terracotta')
+    S(x, roof + 1, z, 'iron_trapdoor[facing=north,half=bottom,open=false,powered=false,waterlogged=false]')
+  }
+  // the counter window: open (y 66..67), the counter in the wall at y 65 with a slab top, an awning over it
+  for (let x = WINDOW[0]; x <= WINDOW[1]; x++) {
+    S(x, 65, z2, 'stripped_spruce_wood[axis=x]'); S(x, 66, z2, 'air'); S(x, 67, z2, 'air')
+    S(x, 68, z2 + 1, 'spruce_slab[type=top,waterlogged=false]')
+  }
+  for (const x of [WINDOW[0] - 1, WINDOW[1] + 1]) S(x, 68, z2 + 1, 'spruce_slab[type=top,waterlogged=false]')
+  // inside: a desk along the back, a chair, a lamp, the parts board (a wall of item displays would be clutter: blocks)
+  for (let x = 592; x <= 599; x++) S(x, 65, z1 + 1, 'stripped_spruce_wood[axis=x]')
+  S(596, 66, z1 + 1, 'black_carpet'); S(593, 66, z1 + 1, 'lantern[hanging=false,waterlogged=false]')
+  S(595, 65, 1027, 'spruce_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]')
+  F(x1 + 1, 66, 1023, x1 + 1, 68, 1026, 'waxed_exposed_copper_grate')
+  // a window on the east side (glass, so the room shows; the west wall has the shelves)
+  for (const z of [1023, 1024, 1025]) for (const y of [66, 67]) S(x2, y, z, 'glass_pane[east=false,north=true,south=true,waterlogged=false,west=false]')
+}
+
+// ---- the chop bay: the pad with hazard stripes and the crusher's frame -------------------------------------------------
+function chopBay () {
+  const { x1, x2, z1, z2 } = BAY
+  for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) {
+    const ring = x === x1 || x === x2 || z === z1 || z === z2
+    S(x, 64, z, ring ? ((x + z) % 2 ? 'yellow_terracotta' : 'black_terracotta') : 'polished_andesite')
+  }
+  // the crusher frame: four steel columns, copper beams round the top (y 74) and two across, the crusher plate (y 71)
+  // hanging on chains: clear under it up to y 70, so a car drives in under it
+  for (const [x, z] of [[x1, z1], [x1, z2], [x2, z1], [x2, z2]]) F(x, 65, z, x, 73, z, 'iron_block')
+  for (let x = x1; x <= x2; x++) for (const z of [z1, z2, z1 + 2, z2 - 2]) S(x, 74, z, 'waxed_exposed_copper')
+  for (let z = z1; z <= z2; z++) for (const x of [x1, x2]) S(x, 74, z, 'waxed_exposed_copper')
+  F(x1 + 2, 71, z1 + 2, x2 - 2, 71, z2 - 2, 'iron_block')
+  for (const [x, z] of [[x1 + 2, z1 + 2], [x1 + 2, z2 - 2], [x2 - 2, z1 + 2], [x2 - 2, z2 - 2]]) F(x, 72, z, x, 73, z, 'iron_chain[axis=y,waterlogged=false]')
+  // crushed cubes stacked beside the bay (each 1 block: rust, paint, glass)
+  const CUBE = ['red_terracotta', 'blue_terracotta', 'white_terracotta', 'green_terracotta', 'waxed_weathered_copper', 'orange_terracotta', 'cyan_terracotta']
+  for (let i = 0; i < 18; i++) { const x = 640 + (i % 3), z = 1064 + Math.floor(i / 3) % 3, y = 65 + Math.floor(i / 9); S(x, y, z, CUBE[h(x, y, z) % CUBE.length]) }
+  for (let i = 0; i < 12; i++) { const x = 640 + (i % 2), z = 1069 + Math.floor(i / 2) % 3, y = 65 + Math.floor(i / 6); S(x, y, z, CUBE[h(x, y + 3, z) % CUBE.length]) }
+}
+
+// a wreck: a car body of rust and paint 3 wide, 5 long (along x or z), a cabin of cracked glass, black wool tyres
+function wreck (x, z, alongZ, paint) {
+  const L = 5, W = 3
+  for (let i = 0; i < L; i++) for (let j = 0; j < W; j++) {
+    const bx = alongZ ? x + j : x + i, bz = alongZ ? z + i : z + j
+    const wheel = (i === 0 || i === L - 1) && (j === 0 || j === W - 1)
+    S(bx, 65, bz, wheel ? WOOL('black') : h(bx, 65, bz) < 55 ? paint : RUST)
+    if (i >= 1 && i <= 3) S(bx, 66, bz, (i === 2 && j === 1) ? 'waxed_weathered_cut_copper' : j === 1 || i === 2 ? 'gray_stained_glass' : paint)
+  }
+}
+function yard () {
+  // wrecks in rows along the north and south fences and by the crane
+  const W = [[606, 1016, true, 'red_terracotta'], [611, 1016, true, 'blue_terracotta'], [616, 1016, true, 'white_terracotta'],
+    [621, 1016, true, 'green_terracotta'], [626, 1016, true, 'light_blue_terracotta'],
+    [586, 1092, true, 'yellow_terracotta'], [591, 1092, true, 'red_terracotta'], [598, 1092, true, 'black_terracotta'],
+    [606, 1093, false, 'blue_terracotta'], [612, 1093, false, 'white_terracotta'],
+    [645, 1086, false, 'cyan_terracotta'], [652, 1080, true, 'red_terracotta'], [652, 1088, true, 'gray_terracotta'],
+    [610, 1072, false, 'brown_terracotta'], [612, 1078, false, 'light_gray_terracotta']]
+  for (const [x, z, a, p] of W) wreck(x, z, a, p)
+  // two wrecks stacked on each other by the back fence
+  wreck(645, 1015, false, 'red_terracotta'); for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) S(645 + i, 67, 1015 + j, j === 1 ? 'gray_stained_glass' : RUST)
+  // tyre stacks (black and gray wool, 1..3 high) and oil drums (polished basalt on a coloured band)
+  for (const [x, z, n] of [[585, 1018, 3], [586, 1018, 2], [585, 1019, 1], [603, 1040, 2], [604, 1040, 3], [655, 1060, 3], [656, 1061, 2],
+    [620, 1060, 2], [583, 1070, 3], [584, 1071, 1]]) for (let k = 0; k < n; k++) S(x, 65 + k, z, k % 2 ? WOOL('gray') : WOOL('black'))
+  for (const [x, z, c] of [[603, 1022, 'blue'], [604, 1022, 'blue'], [603, 1023, 'red'], [622, 1048, 'green'], [623, 1048, 'blue'],
+    [657, 1040, 'red'], [658, 1040, 'red'], [657, 1041, 'blue'], [633, 1058, 'blue'], [634, 1058, 'green']]) {
+    S(x, 65, z, `${c}_terracotta`); S(x, 66, z, 'polished_basalt[axis=y]')
+  }
+  // parts piles: anvils, grates, chains on the ground near the booth
+  S(604, 65, 1028, 'anvil[facing=north]'); S(605, 65, 1030, 'waxed_exposed_copper_grate'); S(605, 66, 1030, 'iron_chain[axis=x,waterlogged=false]')
+  // light: tall lamps along the lane (the town's street lamp)
+  for (const [x, z, dx] of [[600, 1049, 1], [618, 1049, 1], [622, 1060, -1], [640, 1060, -1]]) streetLamp(S, x, z, dx, 0)
+}
+
+// ---- the crane: a yellow lattice mast, a jib over the yard, its hook on a chain -------------------------------------
+function crane () {
+  const mx = 645, mz = 1036, top = 86
+  for (let y = 65; y <= top; y++) for (let dx = 0; dx <= 1; dx++) for (let dz = 0; dz <= 1; dz++) {
+    S(mx + dx * 2, y, mz + dz * 2, 'yellow_concrete')
+    if ((y - 65) % 3 === 0) { S(mx + 1, y, mz + dz * 2, 'yellow_concrete'); S(mx + dx * 2, y, mz + 1, 'yellow_concrete') }
+  }
+  F(mx - 1, 64, mz - 1, mx + 3, 64, mz + 3, 'smooth_stone')
+  // the jib (west over the yard to x 622) and the counter-jib (east to x 654 with its weight)
+  for (let x = 622; x <= 654; x++) { S(x, top + 1, mz, 'yellow_concrete'); S(x, top + 1, mz + 2, 'yellow_concrete'); if ((x - 622) % 2 === 0) S(x, top + 1, mz + 1, 'yellow_concrete') }
+  for (let x = 622; x <= 654; x += 4) S(x, top + 2, mz + 1, 'yellow_concrete')
+  F(651, top - 1, mz, 654, top, mz + 2, 'waxed_weathered_copper')
+  F(mx, top + 1, mz, mx + 2, top + 3, mz + 2, 'yellow_concrete'); for (let z = mz; z <= mz + 2; z++) S(mx, top + 2, z, 'glass') // the cab, its window west
+  // the hook: a chain from the jib down to y 74, a block of iron as the hook, a wreck hanging under it
+  for (let y = 75; y <= top; y++) S(628, y, mz + 1, 'iron_chain[axis=y,waterlogged=false]')
+  S(628, 74, mz + 1, 'iron_block')
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) { S(626 + i, 72, mz + j, RUST); if (i >= 1 && i <= 3) S(626 + i, 73, mz + j, j === 1 ? 'gray_stained_glass' : 'red_terracotta') }
+}
+
+// no road block may face the sky (PLAN 10.2): a road block with nothing over it becomes its terracotta (or calcite)
+function skyFix () {
+  for (const [k, s] of B.blocks) {
+    const name = s.replace(/^minecraft:/, '').replace(/\[.*$/, '')
+    if (!ROAD.has(name)) continue
+    const [x, y, z] = k.split(',').map(Number)
+    if (y <= 64) continue
+    const up = B.get(x, y + 1, z)
+    if (!up || /^(minecraft:)?air$/.test(up)) B.set(x, y, z, SKY_SWAP[name])
+  }
+}
+
+module.exports = (b = new (require('../mcstruct').Build)()) => {
+  B = b
+  ground(); fence(); booth(); chopBay(); yard(); crane(); skyFix()
+  B = null
+  return b
+}
+module.exports.labels = [
+  // the gate's sign (the copper band at y 71 under the beam, both faces)
+  { x: 579.97, y: 71.15, z: 1054.0, facing: 'west', text: 'SCRAP YARD', color: '#ffd54f', scale: 1.6, brightness: { sky: 15, block: 15 } },
+  { x: 581.03, y: 71.15, z: 1054.0, facing: 'east', text: 'SCRAP YARD', color: '#ffd54f', scale: 1.6, brightness: { sky: 15, block: 15 } },
+  { x: 595.5, y: 69.2, z: 1030.03, facing: 'south', text: 'CARS BOUGHT · NO QUESTIONS', color: '#ffffff', scale: 0.9 }, // over the awning
+  { x: 632.5, y: 65.02, z: 1066.0, facing: 'up', text: 'CHOP', color: '#ffd54f', scale: 2.4 }
+]
+module.exports.displays = [
+  { x: 596.5, y: 66.1, z: 1021.5, item: 'paper', yaw: 20, pitch: 90, scale: 0.5, note: 'papers on the Boss\'s desk' },
+  { x: 604.5, y: 66.2, z: 1028.5, item: 'iron_ingot', yaw: 40, pitch: 90, scale: 0.6, note: 'scrap on the anvil' }
+]
+module.exports.points = { SCRAP_BOSS: SPOT.boss, SCRAP_CHOP: SPOT.chop, SCRAP_GATE: [584.5, 65, 1053.5, -90] }
+module.exports.setup = {
+  regions: [{ id: 'safe_scrapyard', box: [588, 63, 1018, 603, 80, 1031], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+    note: 'the Boss\'s booth and the spot in front of its window only (the yard and the chop bay stay outside)' }],
+  heists: [], keepers: [],
+  givers: [{ kind: 'contracts', at: SPOT.boss, cmd: 'dquest addatw contracts jailbreak 595.5 65 1028.5 0 Scrap Yard',
+    launchCmd: 'dquest addat contracts 595.5 65 1028.5 0 Scrap Yard', note: 'behind the counter window, facing south' }],
+  crates: [], carSpots: [],
+  chops: [{ at: SPOT.chop, cmd: '/dcontract chop add', note: 'the middle of the bay (a car within 6 of it is delivered)' }],
+  garages: [], pois: [], walls: [], holos: [], pumps: []
+}
+module.exports.build = () => module.exports()
+
+if (require.main === module) {
+  const b = module.exports(), bd = b.bounds()
+  console.log(`${MOD}: ${b.blocks.size} blocks, box ${bd.x1},${bd.y1},${bd.z1} to ${bd.x2},${bd.y2},${bd.z2}; ${module.exports.labels.length} labels, ${module.exports.displays.length} displays`)
+}
