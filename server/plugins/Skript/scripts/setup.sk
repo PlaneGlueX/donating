@@ -6,7 +6,7 @@
 # stand, crate stands in safe zones, the plugins, the paid-rank groups, and the phone's city and GPS roads (DonatingPhone
 # publishes them as metadata on the main world).
 #   /dsetup            every section
-#   /dsetup <section>  heists | story | places | flags | shops | quests | jobs | crates | cars | server | phone | prison
+#   /dsetup <section>  heists | story | places | flags | shops | quests | jobs | crates | cars | fuel | server | phone | prison
 
 function setupLine(s: command sender, kind: text, text: text):
 	if {_kind} is "ok":
@@ -479,6 +479,26 @@ function setupCars(s: command sender):
 				if garageSiteOf({_l}) is "":
 					setupLine({_s}, "no", "garage POI %loop-index% (%{_a::6}%) isn't inside a garage site with an exit lane: ""Find a garage"" leads nowhere (/dpoi remove %loop-index%)")
 
+# Fuel and stolen bikes (2026-10-21, fuel.sk and bikes.sk).
+function setupFuel(s: command sender):
+	setupHead({_s}, "Fuel and bikes")
+	if fuelOn() is true:
+		set {_n} to size of {fuel::pump::*}
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%{_n}% fuel pump(s)")
+		else:
+			setupLine({_s}, "no", "fuel is on but no pump exists: cars run dry with nowhere to fill (the dfuel pumpat lines of town.js setup, or /dfuel pump add <label>)")
+	else:
+		setupLine({_s}, "warn", "fuel is off (core.sk fuel::enabled)")
+	set {_b} to size of {bike::spot::*}
+	if {_b} > 0:
+		if bikeVariant() is "":
+			setupLine({_s}, "no", "%{_b}% bike spot(s) but no bike look: run tools\make-car-wraps.js (the Scrapper wrap), build the pack, /sk reload carwraps")
+		else:
+			setupLine({_s}, "ok", "%{_b}% bike spot(s)")
+	else:
+		setupLine({_s}, "warn", "no bike spots: the bike shop has no bikes (/dbike spotat lines, PLAN 15.3)")
+
 # ---------- Server ----------
 
 function setupServer(s: command sender):
@@ -708,8 +728,8 @@ command /dsetup [<text>]:
 			set {_w} to "all"
 		set {_w} to {_w} in lower case
 		# A mistyped section would print an empty all-clear (review fix).
-		if {_w} is not "all" or "heists" or "story" or "places" or "flags" or "shops" or "quests" or "jobs" or "crates" or "cars" or "server" or "phone" or "prison":
-			send "/dsetup [heists | story | places | flags | shops | quests | jobs | crates | cars | server | phone | prison]: the launch checklist" to sender
+		if {_w} is not "all" or "heists" or "story" or "places" or "flags" or "shops" or "quests" or "jobs" or "crates" or "cars" or "fuel" or "server" or "phone" or "prison":
+			send "/dsetup [heists | story | places | flags | shops | quests | jobs | crates | cars | fuel | server | phone | prison]: the launch checklist" to sender
 			stop
 		set {-setup::missing} to 0
 		set {-setup::warn} to 0
@@ -732,6 +752,8 @@ command /dsetup [<text>]:
 			setupCrates(sender)
 		if {_w} is "all" or "cars":
 			setupCars(sender)
+		if {_w} is "all" or "fuel":
+			setupFuel(sender)
 		if {_w} is "all" or "server":
 			setupServer(sender)
 		if {_w} is "all" or "phone":

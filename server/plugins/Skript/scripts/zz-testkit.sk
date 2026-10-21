@@ -1662,3 +1662,28 @@ command /zzctfake <player> <text> <text>:
 		set {-ctjob::%{_u}%::misses} to 0
 		set {-ctplate::%arg-3%} to {_u}
 		send "CTFAKE %arg-1% job=%{-ctjob::%{_u}%}% plate=%arg-3% cd=%{ctcd::%{_u}%}%"
+
+# fuel.sk (2026-10-21): a player's pump state. "FUELSTATE <player> hold=<n> fill=<plate> liters= paid= pct= slot8= held="
+command /zzfuel <player>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		send "FUELSTATE %arg-1% hold=%{-fuel::hold::%{_u}%}% fill=%{-fuel::fill::%{_u}%}% liters=%{-fuel::liters::%{_u}%}% paid=%{-fuel::paid::%{_u}%}% pct=%{-fuel::pct::%{_u}%}% slot8=%itemId(slot 8 of arg-1's inventory)% held=%index of arg-1's current hotbar slot%"
+
+# bikes.sk (2026-10-21): a stand-in bike look while tools\make-car-wraps.js hasn't made the Scrapper variants (the
+# Viper's Black variant); "clear" puts the generated list back. "BIKELOOK <uuid=damage>"
+command /zzbikelook <text>:
+	executable by: console
+	trigger:
+		if arg-1 is "clear":
+			carWrapsLoad()
+		else if {-carwrap::viper::scrapper} is not set:
+			set {-carwrap::viper::scrapper} to "PQTCZK=1300"
+		send "BIKELOOK %bikeVariant()%"
+
+# bikes.sk: a player's bike and minigame. "BIKESTATE <player> of=<plate> qte=<spot> hits= fails="
+command /zzbike <player>:
+	executable by: console
+	trigger:
+		set {_u} to "%uuid of arg-1%"
+		send "BIKESTATE %arg-1% of=%{-bike::of::%{_u}%}% qte=%{-bkqte::%arg-1%}% hits=%{-bkqte::%arg-1%::hits}% fails=%{-bkqte::%arg-1%::fails}%"

@@ -1,0 +1,583 @@
+# bikes.sk: stolen bikes at the bike shop in front of the prison (tools/build/town/PLAN.md section 15.3, 2026-10-21).
+# Written by a cloud session (no server): untested in game (PLAYTEST 187).
+# The owner: "keep the walk, but add a small shop in front of the prison with a little parking lot where small vehicles
+# (bikes) spawn; a player steals one with a quick-time event (like the car-theft lockpick minigame)".
+#
+# Parked bikes: an item display of the bike (MTVehicles' motorbike, the Viper's shape, in the retired Scrapper wrap: never
+# a Viper anyone paid for) at each spot, with an unresponsive interaction box: right-click it to hotwire the bike
+# (contracts.sk's lock-picking minigame, "Hotwire the bike": bike::qte-hits in a row, the marker a slot every
+# bike::qte-step ticks; bike::max-fails misses sound the bike's alarm and lock that bike for that player for
+# bike::alarm-lock). No tool needed (escapees have nothing). Getting hurt or walking bike::reach blocks away closes it.
+# Until tools\make-car-wraps.js has made the Scrapper variants ({-carwrap::viper::scrapper}), no bike is parked.
+#
+# The ride: a real MTVehicles bike owned by the thief (only they drive), made at the spot, slowed to bike::stats, a tank of
+# bike::fuel-min .. bike::fuel-max percent (fuel.sk), the thief put on it. It's scrapped when it stands with no rider for
+# bike::abandon, after bike::max-ride ("The bike died"), when the thief logs out, dies, steals another bike or drives one
+# of their own cars, and when it's taken into a heist. The spot gets a new bike bike::respawn after the theft. A restart
+# scraps every stolen bike ({bike::plates::*}, saved).
+# Who: anyone free, wanted or not, passive or not; never builders (creative, spectator); never from inside a heist.
+# Staff: /dbike spotat <world> <x> <y> <z> <yaw> | spot add | remove <n> | list | dump | reset. Log: plugins\Skript\logs\bikes.log.
+#
+# Saved: {bike::spot::<n>} = the spot's location (its yaw: the way the bike faces), {bikespotcounter}; {bike::plates::<plate>}.
+# Memory: {-bike::disp::<n>} / {-bike::box::<n>} the parked bike's entities, {-bike::hit::<box uuid>} = n,
+#   {-bike::next::<n>} no bike before then, {-bike::out::<n>} = the plate stolen from n; per plate {-bike::plate::<plate>}
+#   = the thief, {-bike::spotof::<plate>}, {-bike::since::<plate>}, {-bike::idle::<plate>}; {-bike::of::<uuid>} = the
+#   thief's plate; {-bike::lock::<n>::<uuid>} the alarm's lock; the minigame {-bkqte::<player>::*}.
+
+function bikeLog(text: text):
+	log {_text} to "bikes"
+
+# The bike's MTVehicles variant "uuid=itemDamage", or "" before make-car-wraps.js has made it.
+function bikeVariant() :: text:
+	set {_m} to cfg("bike::model")
+	set {_w} to cfg("bike::wrap")
+	set {_v} to {-carwrap::%{_m}%::%{_w}%}
+	if {_v} is set:
+		return "%{_v}%"
+	return ""
+
+function bikeSpot(n: text) :: location:
+	return {bike::spot::%{_n}%}
+
+# ---------- Parked bikes ----------
+
+function bikeEntSetup(e: entity):
+	make {_e} not persistent
+	add "donating_bike" to scoreboard tags of {_e}
+
+function bikeParked(n: text) :: boolean:
+	set {_d} to {-bike::disp::%{_n}%}
+	set {_b} to {-bike::box::%{_n}%}
+	if {_d} is set:
+		if {_b} is set:
+			if {_d} is valid:
+				if {_b} is valid:
+					return true
+	return false
+
+function bikeUnpark(n: text):
+	set {_d} to {-bike::disp::%{_n}%}
+	if {_d} is set:
+		if {_d} is valid:
+			kill {_d}
+	set {_b} to {-bike::box::%{_n}%}
+	if {_b} is set:
+		delete {-bike::hit::%uuid of {_b}%}
+		if {_b} is valid:
+			kill {_b}
+	delete {-bike::disp::%{_n}%}
+	delete {-bike::box::%{_n}%}
+
+function bikePark(n: text):
+	bikeUnpark({_n})
+	set {_v::*} to bikeVariant() split at "="
+	set {_dmg} to {_v::2} parsed as number
+	{_dmg} is set
+	set {_l} to bikeSpot({_n})
+	set {_dl} to {_l} ~ vector(0, cfg("garage::bay-lift"), 0)
+	set {_s} to cfg("garage::bay-scale")
+	spawn an item display at {_dl}:
+		bikeEntSetup(event-display)
+		set item of event-display to carIconDamage({_dmg})
+		set display scale of event-display to vector({_s}, {_s}, {_s})
+	set {_d} to last spawned entity
+	set item transform of {_d} to head
+	spawn an interaction at {_l}:
+		bikeEntSetup(event-entity)
+		set interaction width of event-entity to 1.6
+		set interaction height of event-entity to 1.5
+		make event-entity unresponsive
+	set {_b} to last spawned entity
+	set {-bike::disp::%{_n}%} to {_d}
+	set {-bike::box::%{_n}%} to {_b}
+	set {-bike::hit::%uuid of {_b}%} to {_n}
+
+# A spot wants a bike: the look exists, nothing stolen from it is out, its wait is over, a player is near (its chunk is
+# loaded; nothing is made for nobody).
+function bikeWants(n: text) :: boolean:
+	if bikeVariant() is "":
+		return false
+	if {-bike::out::%{_n}%} is set:
+		return false
+	set {_next} to {-bike::next::%{_n}%}
+	if {_next} is set:
+		if {_next} > now:
+			return false
+	set {_l} to bikeSpot({_n})
+	if {_l} is not set:
+		return false
+	loop all players in radius 80 of {_l}:
+		return true
+	return false
+
+every 2 seconds:
+	loop {bike::spot::*}:
+		set {_n} to "%loop-index%"
+		if bikeWants({_n}) is true:
+			if bikeParked({_n}) is false:
+				bikePark({_n})
+		else if {-bike::disp::%{_n}%} is set:
+			bikeUnpark({_n})
+
+on load:
+	execute console command "minecraft:kill @e[tag=donating_bike]"
+	delete {-bike::disp::*}
+	delete {-bike::box::*}
+	delete {-bike::hit::*}
+
+# ---------- Hotwiring ----------
+
+on right click on interaction:
+	set {_n} to {-bike::hit::%uuid of event-entity%}
+	{_n} is set
+	cancel event
+	# The held item's own click right after (a gun, the phone) is cancelled too (quests.sk's guard).
+	set {-quest::guard::%player%} to now
+	if {-bike::clickat::%player%} is set:
+		if difference between {-bike::clickat::%player%} and now < 0.3 seconds:
+			stop
+	set {-bike::clickat::%player%} to now
+	bikeClick(player, "%{_n}%")
+
+# Why a player can't hotwire spot n's bike now, or "" ("-" = say nothing).
+function bikeBlock(p: player, n: text) :: text:
+	if gamemode of {_p} is creative:
+		return "-"
+	if gamemode of {_p} is spectator:
+		return "-"
+	if carSeatOf({_p}) is not "":
+		return "-"
+	if heistAt(location of {_p}) is not "":
+		return "-"
+	if bikeParked({_n}) is false:
+		return "-"
+	set {_lock} to {-bike::lock::%{_n}%::%uuid of {_p}%}
+	if {_lock} is set:
+		if {_lock} > now:
+			set {_s} to ceil((difference between now and {_lock}) / 1 second)
+			return "The alarm's still going: try again in %{_s}%s."
+	return ""
+
+function bikeClick(p: player, n: text):
+	{-bkqte::%{_p}%} is not set
+	set {_why} to bikeBlock({_p}, {_n})
+	if {_why} is not "":
+		if {_why} is not "-":
+			hudBar({_p}, "&c%{_why}%", 2)
+		stop
+	bkQteOpen({_p}, {_n})
+
+function bkQteOpen(p: player, n: text):
+	bkQteForget({_p})
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8Hotwire the bike"
+	set {-bkqte::%{_p}%} to {_n}
+	set {-bkqte::%{_p}%::p} to {_p}
+	set {-bkqte::%{_p}%::gui} to {_gui}
+	set {-bkqte::%{_p}%::need} to cfg("bike::qte-hits")
+	set {-bkqte::%{_p}%::step} to cfg("bike::qte-step")
+	set {-bkqte::%{_p}%::hits} to 0
+	set {-bkqte::%{_p}%::fails} to 0
+	set {-bkqte::%{_p}%::pos} to 0
+	set {-bkqte::%{_p}%::prev} to 0
+	set {-bkqte::%{_p}%::dir} to 1
+	set {-bkqte::%{_p}%::t} to 0
+	set {-bkqte::%{_p}%::target} to lootQteTarget(0)
+	bkQteDraw({_p})
+	open {_gui} to {_p}
+	play sound "block.iron_trapdoor.open" with volume 0.5 and pitch 1.6 to {_p}
+
+function bkQteDraw(p: player):
+	set {_gui} to {-bkqte::%{_p}%::gui}
+	{_gui} is set
+	set {_pos} to {-bkqte::%{_p}%::pos}
+	set {_target} to {-bkqte::%{_p}%::target}
+	loop integers from 0 to 8:
+		if loop-value is {_pos}:
+			if {_pos} is {_target}:
+				set slot loop-value of {_gui} to lime concrete named "&a&lNOW!"
+			else:
+				set slot loop-value of {_gui} to yellow concrete named "&e▼"
+		else if loop-value is {_target}:
+			set slot loop-value of {_gui} to lime stained glass pane named "&aGreen"
+		else:
+			set slot loop-value of {_gui} to gray stained glass pane named "&8-"
+	set {_need} to {-bkqte::%{_p}%::need}
+	set {_hits} to {-bkqte::%{_p}%::hits}
+	set {_first} to 13 - floor({_need} / 2)
+	loop {_need} times:
+		if loop-number <= {_hits}:
+			set slot {_first} + loop-number - 1 of {_gui} to green concrete named "&aWire %loop-number%/%{_need}%"
+		else:
+			set slot {_first} + loop-number - 1 of {_gui} to light gray concrete named "&7Wire %loop-number%/%{_need}%"
+	set {_fails} to {-bkqte::%{_p}%::fails}
+	set {_max} to cfg("bike::max-fails")
+	set slot 22 of {_gui} to tripwire hook named "&fClick when the marker is on green" with lore "&7%{_need}% in a row · a miss starts over" and "&7Misses: &c%{_fails}%/%{_max}%&7 · the alarm goes off at %{_max}%"
+
+every tick:
+	loop {-bkqte::*}:
+		bkQteTick(loop-index)
+
+function bkQteTick(k: text):
+	set {_p} to {-bkqte::%{_k}%::p}
+	if {_p} is not set:
+		delete {-bkqte::%{_k}%}
+		delete {-bkqte::%{_k}%::*}
+		stop
+	add 1 to {-bkqte::%{_k}%::t}
+	mod({-bkqte::%{_k}%::t}, {-bkqte::%{_k}%::step}) is 0
+	set {_pos} to {-bkqte::%{_k}%::pos}
+	set {-bkqte::%{_k}%::prev} to {_pos}
+	set {_pos} to {_pos} + {-bkqte::%{_k}%::dir}
+	if {_pos} >= 8:
+		set {_pos} to 8
+		set {-bkqte::%{_k}%::dir} to -1
+	if {_pos} <= 0:
+		set {_pos} to 0
+		set {-bkqte::%{_k}%::dir} to 1
+	set {-bkqte::%{_k}%::pos} to {_pos}
+	bkQteDraw({_p})
+
+on inventory click:
+	{-bkqte::%player%} is set
+	player's current inventory is {-bkqte::%player%::gui}
+	cancel event
+	event-inventory is {-bkqte::%player%::gui}
+	bkQteHit(player)
+
+on inventory drag:
+	{-bkqte::%player%} is set
+	player's current inventory is {-bkqte::%player%::gui}
+	cancel event
+
+on inventory close:
+	{-bkqte::%player%} is set
+	event-inventory is {-bkqte::%player%::gui}
+	bkQteForget(player)
+
+# Only a hit that lands (contracts.sk's rule: monitor skips cancelled hits).
+on damage of player with priority monitor:
+	{-bkqte::%victim%} is set
+	bkQteClose(victim, "hurt")
+
+function bkQteHit(p: player):
+	set {_n} to {-bkqte::%{_p}%}
+	if bikeParked("%{_n}%") is false:
+		bkQteClose({_p}, "gone")
+		stop
+	set {_lock} to {-bkqte::%{_p}%::lock}
+	if {_lock} is set:
+		if {_lock} > now:
+			stop
+	set {_target} to {-bkqte::%{_p}%::target}
+	set {_until} to now
+	if {-bkqte::%{_p}%::pos} is {_target}:
+		set {_hit} to true
+	else if {-bkqte::%{_p}%::prev} is {_target}:
+		set {_hit} to true
+	if {_hit} is true:
+		add 1 to {-bkqte::%{_p}%::hits}
+		add 1 tick * cfg("contract::qte-hit-lock") to {_until}
+		set {-bkqte::%{_p}%::lock} to {_until}
+		play sound "block.note_block.pling" with volume 0.8 and pitch (1 + 0.25 * {-bkqte::%{_p}%::hits}) to {_p}
+		if {-bkqte::%{_p}%::hits} >= {-bkqte::%{_p}%::need}:
+			bkQteClose({_p}, "done")
+			bikeSteal({_p}, "%{_n}%")
+			stop
+		set {-bkqte::%{_p}%::target} to lootQteTarget({-bkqte::%{_p}%::pos})
+	else:
+		set {-bkqte::%{_p}%::hits} to 0
+		add 1 to {-bkqte::%{_p}%::fails}
+		add 1 tick * cfg("contract::qte-miss-lock") to {_until}
+		set {-bkqte::%{_p}%::lock} to {_until}
+		play sound "block.note_block.bass" with volume 0.8 to {_p}
+		if {-bkqte::%{_p}%::fails} >= cfg("bike::max-fails"):
+			bkQteClose({_p}, "alarm")
+			set {_lk} to now
+			add cfg("bike::alarm-lock") to {_lk}
+			set {-bike::lock::%{_n}%::%uuid of {_p}%} to {_lk}
+			hudBar({_p}, "&cThe bike's alarm went off! &7Try again in %round(cfg("bike::alarm-lock") / 1 second)%s.", 3)
+			bikeLog("alarm %{_p}% %uuid of {_p}% spot=%{_n}%")
+			ctCarAlarm(bikeSpot("%{_n}%"))
+			stop
+	bkQteDraw({_p})
+
+function bkQteForget(p: player):
+	delete {-bkqte::%{_p}%}
+	delete {-bkqte::%{_p}%::*}
+
+function bkQteClose(p: player, why: text):
+	{-bkqte::%{_p}%} is set
+	set {_gui} to {-bkqte::%{_p}%::gui}
+	bkQteForget({_p})
+	if {_p}'s current inventory is {_gui}:
+		close {_p}'s inventory
+	if {_why} is "hurt":
+		hudBar({_p}, "&cYou got hurt: the wires slipped.", 2)
+	else if {_why} is "away":
+		hudBar({_p}, "&7You walked away from the bike.", 1)
+	else if {_why} is "gone":
+		hudBar({_p}, "&7Someone else rode off on it.", 2)
+
+# ---------- The ride ----------
+
+# Hotwired: the parked bike goes, a real one (the thief's) comes, the thief on it.
+function bikeSteal(p: player, n: text):
+	if bikeParked({_n}) is false:
+		hudBar({_p}, "&7Someone else rode off on it.", 2)
+		stop
+	set {_v::*} to bikeVariant() split at "="
+	set {_uuid} to {_v::1}
+	if {_uuid} is not set:
+		stop
+	set {_u} to "%uuid of {_p}%"
+	# One bike at a time: the last one is scrapped.
+	set {_old} to {-bike::of::%{_u}%}
+	if {_old} is set:
+		bikeScrap("%{_old}%", "another")
+	set {_spot} to bikeSpot({_n})
+	set {_car} to a new mtv vehicle with uuid {_uuid} and owner {_p}
+	if {_car} is not set:
+		bikeLog("create-failed %{_p}% %{_u}% spot=%{_n}% (MTVehicles refused %{_uuid}%)")
+		hudBar({_p}, "&cSomething went wrong. Tell staff.", 2)
+		stop
+	set {_plate} to vehicle license plate of {_car}
+	set {bike::plates::%{_plate}%} to {_u}
+	bikeUnpark({_n})
+	set {_next} to now
+	add cfg("bike::respawn") to {_next}
+	set {-bike::next::%{_n}%} to {_next}
+	spawn mtv vehicle with license plate {_plate} at {_spot}
+	if carStands({_plate}) < 1:
+		delete mtv vehicle {_car}
+		delete {bike::plates::%{_plate}%}
+		bikeLog("spawn-failed %{_p}% %{_u}% %{_plate}% spot=%{_n}%")
+		hudBar({_p}, "&cThe bike isn't there. Try again in a moment.", 2)
+		stop
+	set {-bike::plate::%{_plate}%} to {_p}
+	set {-bike::of::%{_u}%} to {_plate}
+	set {-bike::spotof::%{_plate}%} to {_n}
+	set {-bike::out::%{_n}%} to {_plate}
+	set {-bike::since::%{_plate}%} to now
+	delete {-bike::idle::%{_plate}%}
+	# Fuel: the bike's tank and usage (fuel.sk), part full.
+	if fuelOn() is true:
+		set {_lv} to random integer between cfg("bike::fuel-min") and cfg("bike::fuel-max")
+		fuelCmd({_plate}, "level %{_lv}% usage %fuelNum(fuelUsage("bike"))% enabled true")
+		set {-fuel::set::%{_plate}%} to "on"
+	bikeLog("steal %{_p}% %{_u}% %{_plate}% spot=%{_n}%")
+	send title colored "&6&lHOTWIRED" with subtitle colored "&7Ride! It won't last forever." to {_p} for 2 seconds
+	play sound "entity.minecart.riding" with volume 0.6 and pitch 1.6 to {_p}
+	set {_bike} to mtv vehicle with license plate {_plate}
+	if {_bike} is set:
+		make {_p} drive mtv vehicle {_bike}
+	bikeSeated({_p}, {_plate})
+
+# A moment after the thief sits down: the bike's own stats (MTVehicles copies a car's stats into memory as someone gets
+# in; DonatingPhone's carstat sets them for that plate until the next entry).
+function bikeSeated(p: player, plate: text):
+	wait 2 ticks
+	{_p} is online
+	if carSeatOf({_p}) is not "driver:%{_plate}%":
+		hudBar({_p}, "&eRight-click the bike to get on.", 2)
+		stop
+	delete {-bike::idle::%{_plate}%}
+	set {_st::*} to "%cfg("bike::stats")%" split at "|"
+	set {_max} to {_st::1} parsed as number
+	set {_acc} to {_st::2} parsed as number
+	set {_rot} to {_st::3} parsed as number
+	if {_rot} is set:
+		execute console command "dphone carstat %{_plate}% %carNum({_max})% %carNum({_acc})% %round({_rot})%"
+
+# Only the thief rides a stolen bike (MTVehicles checks the owner too); never in a heist.
+on mtv vehicle enter:
+	set {_plate} to event-text in upper case
+	set {_t} to {-bike::plate::%{_plate}%}
+	{_t} is set
+	if {_t} is not player:
+		cancel event
+		hudBar(player, "&7Someone else's ride.", 2)
+		stop
+	if heistOf(player) is not "":
+		cancel event
+		hudBar(player, "&cNo bikes in heists.", 2)
+		stop
+	bikeSeated(player, {_plate})
+
+# Scrapped: off it, gone from MTVehicles and the lists; its spot's wait (bike::respawn from the theft) still runs.
+function bikeScrap(plate: text, why: text):
+	set {_p} to {-bike::plate::%{_plate}%}
+	loop all players:
+		if carSeatOf(loop-player) ends with ":%{_plate}%":
+			make loop-player dismount
+	set {_car} to mtv vehicle with license plate {_plate}
+	if {_car} is set:
+		despawn mtv vehicle {_car}
+		delete mtv vehicle {_car}
+	set {_n} to {-bike::spotof::%{_plate}%}
+	if {_n} is set:
+		if {-bike::out::%{_n}%} is {_plate}:
+			delete {-bike::out::%{_n}%}
+	if {_p} is set:
+		if {-bike::of::%uuid of {_p}%} is {_plate}:
+			delete {-bike::of::%uuid of {_p}%}
+		if {_p} is online:
+			if {_why} is "time":
+				hudBar({_p}, "&cThe bike died.", 2)
+			else if {_why} is "abandoned":
+				hudBar({_p}, "&7You left the bike: it's gone.", 1)
+			else if {_why} is "heist":
+				hudBar({_p}, "&cNo bikes in heists: the bike's gone.", 3)
+	delete {-bike::plate::%{_plate}%}
+	delete {-bike::spotof::%{_plate}%}
+	delete {-bike::since::%{_plate}%}
+	delete {-bike::idle::%{_plate}%}
+	delete {-fuel::set::%{_plate}%}
+	delete {bike::plates::%{_plate}%}
+	bikeLog("scrap %{_plate}% why=%{_why}% thief=%{_p}%")
+
+on quit:
+	bkQteForget(player)
+	set {_plate} to {-bike::of::%uuid of player%}
+	{_plate} is set
+	bikeScrap("%{_plate}%", "quit")
+
+on death of player:
+	isNpc(victim) is false
+	set {_plate} to {-bike::of::%uuid of victim%}
+	{_plate} is set
+	bikeScrap("%{_plate}%", "death")
+
+# Every second: the stolen bikes (riders, abandoned bikes, the time, heists, a ride in one's own car), the open minigames
+# (walking away, the bike gone).
+every second:
+	loop {-bike::plate::*}:
+		set {_plate} to "%loop-index%" in upper case
+		set {_p} to loop-value
+		if {_p} is not online:
+			bikeScrap({_plate}, "quit")
+		else:
+			set {_seat} to carSeatOf({_p})
+			set {_since} to {-bike::since::%{_plate}%}
+			set {_end} to now
+			if {_since} is set:
+				set {_end} to {_since}
+				add cfg("bike::max-ride") to {_end}
+			if {_seat} is "driver:%{_plate}%":
+				delete {-bike::idle::%{_plate}%}
+				if heistAt(location of {_p}) is not "":
+					make {_p} dismount
+					bikeScrap({_plate}, "heist")
+				else if {_end} < now:
+					make {_p} dismount
+					bikeScrap({_plate}, "time")
+			else if {_seat} starts with "driver:":
+				# in one of their own cars now
+				bikeScrap({_plate}, "car")
+			else if vehicle location of license plate {_plate} is not set:
+				bikeScrap({_plate}, "gone")
+			else if {-bike::idle::%{_plate}%} is not set:
+				set {-bike::idle::%{_plate}%} to now
+			else if difference between {-bike::idle::%{_plate}%} and now >= cfg("bike::abandon"):
+				bikeScrap({_plate}, "abandoned")
+	loop {-bkqte::*}:
+		set {_p} to {-bkqte::%loop-index%::p}
+		if {_p} is set:
+			set {_l} to bikeSpot("%loop-value%")
+			if {_l} is not set:
+				bkQteClose({_p}, "gone")
+			else if world of {_l} is not world of {_p}:
+				bkQteClose({_p}, "away")
+			else if distance between {_l} and (location of {_p}) > cfg("bike::reach"):
+				bkQteClose({_p}, "away")
+
+# Bikes from rides that ended without us (a restart or crash): scrapped.
+every 10 seconds:
+	loop {bike::plates::*}:
+		set {_plate} to "%loop-index%" in upper case
+		if {-bike::plate::%{_plate}%} is not set:
+			bikeScrap({_plate}, "restart")
+
+# ---------- Staff ----------
+
+command /dbike [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "spotat":
+			set {_w} to world({_a::2})
+			set {_x} to {_a::3} parsed as number
+			set {_y} to {_a::4} parsed as number
+			set {_z} to {_a::5} parsed as number
+			set {_yaw} to {_a::6} parsed as number
+			if {_w} is not set:
+				send "BIKE usage: /dbike spotat <world> <x> <y> <z> <yaw>" to sender
+				stop
+			if {_yaw} is not set:
+				send "BIKE usage: /dbike spotat <world> <x> <y> <z> <yaw>" to sender
+				stop
+			set {_l} to location({_x}, {_y}, {_z}, {_w})
+			set yaw of {_l} to {_yaw}
+			# the same spot again (a second run of the setup lines) replaces it
+			loop {bike::spot::*}:
+				if distance between loop-value and {_l} < 0.5:
+					set {_old} to "%loop-index%"
+			if {_old} is set:
+				bikeUnpark({_old})
+				set {bike::spot::%{_old}%} to {_l}
+				send "BIKE spot %{_old}% moved to %{_x}% %{_y}% %{_z}% (yaw %{_yaw}%)" to sender
+				stop
+			add 1 to {bikespotcounter}
+			set {bike::spot::%{bikespotcounter}%} to {_l}
+			bikeLog("spot add %{bikespotcounter}% %{_a::2}% %{_x}% %{_y}% %{_z}% %{_yaw}% by=%sender%")
+			send "BIKE spot %{bikespotcounter}% at %{_a::2}% %{_x}% %{_y}% %{_z}% (yaw %{_yaw}%)" to sender
+			if bikeVariant() is "":
+				send "BIKE no bike look yet: run tools\make-car-wraps.js (the Scrapper wrap), build the pack, reload carwraps.sk" to sender
+		else if {_sub} is "spot":
+			if player is not set:
+				send "BIKE use spotat from the console" to sender
+				stop
+			if {_a::2} is not "add":
+				send "BIKE usage: /dbike spot add (where you stand, facing the way the bike should face)" to sender
+				stop
+			set {_bx} to x-coordinate of player
+			set {_by} to y-coordinate of player
+			set {_bz} to z-coordinate of player
+			set {_yaw} to round((yaw of player) / 45) * 45
+			execute player command "dbike spotat %world of player% %floor({_bx}) + 0.5% %floor({_by})% %floor({_bz}) + 0.5% %{_yaw}%"
+		else if {_sub} is "remove":
+			set {_n} to {_a::2}
+			if {bike::spot::%{_n}%} is not set:
+				send "BIKE no spot %{_n}%" to sender
+				stop
+			bikeUnpark({_n})
+			delete {bike::spot::%{_n}%}
+			bikeLog("spot remove %{_n}% by=%sender%")
+			send "BIKE spot %{_n}% removed" to sender
+		else if {_sub} is "list":
+			send "BIKE %size of {bike::spot::*}% spots, look %bikeVariant()%, %size of {-bike::plate::*}% out" to sender
+			loop {bike::spot::*}:
+				set {_n} to "%loop-index%"
+				set {_st} to "parked"
+				if bikeParked({_n}) is false:
+					set {_st} to "empty"
+				if {-bike::out::%{_n}%} is set:
+					set {_st} to "stolen (%{-bike::out::%{_n}%}%)"
+				send "  %{_n}%: %world of loop-value% %x-coordinate of loop-value% %y-coordinate of loop-value% %z-coordinate of loop-value% yaw %yaw of loop-value% · %{_st}%" to sender
+		else if {_sub} is "dump":
+			loop {bike::spot::*}:
+				set {_line} to "dbike spotat %world of loop-value% %x-coordinate of loop-value% %y-coordinate of loop-value% %z-coordinate of loop-value% %yaw of loop-value%"
+				send {_line} to sender
+				bikeLog("dump %{_line}%")
+		else if {_sub} is "reset":
+			delete {-bike::next::*}
+			loop {bike::spot::*}:
+				set {_n} to "%loop-index%"
+				if {-bike::out::%{_n}%} is not set:
+					if bikeWants({_n}) is true:
+						bikePark({_n})
+			send "BIKE every free spot has a bike now (players near it only)" to sender
+		else:
+			send "BIKE usage: /dbike spotat <world> <x> <y> <z> <yaw> | spot add | remove <n> | list | dump | reset" to sender

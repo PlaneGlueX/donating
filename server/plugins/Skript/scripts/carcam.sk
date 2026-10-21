@@ -62,7 +62,14 @@ function carcamHud(p: player):
 	set {_hp} to health of {_p}
 	set {_h} to (round({_hp} * 2)) / 2
 	set {_m} to max health of {_p}
-	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}% &7· Sneak: get out", -1)
+	# The car's fuel (fuel.sk keeps the driven car's level: {-fuel::pct::<uuid>}).
+	set {_fuel} to ""
+	set {_f} to {-fuel::pct::%uuid of {_p}%}
+	if {_f} is set:
+		set {_fuel} to " &7· &6⛽ &f%{_f}%%%"
+		if {_f} < cfg("fuel::low"):
+			set {_fuel} to " &7· &c⛽ %{_f}%%%"
+	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}%%{_fuel}% &7· Sneak: get out", -1)
 	if getData({_p}, "carcam-tip3") is not set:
 		setData({_p}, "carcam-tip3", true)
 		msg({_p}, "&7Chase camera: it follows your car. &f/carcam off &7for first person.")

@@ -1482,6 +1482,8 @@ function garageOptions(p: player, plate: text):
 	# The status bar only fits the model's name (carTitle can run past it).
 	set {_gui} to phonePage(carName({_id}))
 	carClearGui({_p})
+	# The screen, for carRedraw (the Refuel button's confirm, fuel.sk).
+	set {-car::screen::%{_p}%} to "options:%{_plate}%"
 	set {_i} to carIconOf({_plate}) named "&6%carTitle({_plate})%%carSerialText({_plate})%" with lore carLoreOf({_plate})
 	set slot 4 of {_gui} to {_i}
 	if carLocked({_plate}) is true:
@@ -1515,6 +1517,11 @@ function garageOptions(p: player, plate: text):
 		carButton({_p}, {_gui}, 13, piston named "&bTune" with lore {_now}, "tune:%{_plate}%")
 	if {car::out::%{_plate}%} is set:
 		carButton({_p}, {_gui}, 14, chest named "&eSend it back", "store:%{_plate}%")
+	# The tank service (fuel.sk, 2026-10-21): a car in the garage, at a garage when the map has one, like a repaint.
+	set {_fw} to {_now}
+	if {car::out::%{_plate}%} is set:
+		set {_fw} to "&cSend it back first"
+	fuelGarageButton({_p}, {_gui}, {_plate}, {_fw})
 	carButton({_p}, {_gui}, 2, phoneBackIcon("Garage"), "garage")
 	carButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	carOpen({_p}, {_gui})
@@ -1657,6 +1664,8 @@ function carAction(p: player, act: text, right: boolean):
 		garageTune({_p}, {_a::2})
 	else if {_k} is "tunebuy":
 		carTune({_p}, {_a::2}, {_a::3})
+	else if {_k} is "fill":
+		fuelGarageFill({_p}, {_a::2})
 	else if {_k} is "buy":
 		carBuy({_p}, {_a::2}, {_a::3})
 
@@ -1700,6 +1709,8 @@ function carRedraw(p: player):
 		garagePaintColors({_p}, {_s::2})
 	else if {_s::1} is "tune":
 		garageTune({_p}, {_s::2})
+	else if {_s::1} is "options":
+		garageOptions({_p}, {_s::2})
 
 # The armed button: what the second click pays for.
 function carArmedIcon(what: text, price: number) :: item:

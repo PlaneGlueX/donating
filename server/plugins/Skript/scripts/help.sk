@@ -52,6 +52,7 @@ function showCommands(p: player):
 	helpLine({_p}, "/gps clear", "remove your pin")
 	helpLine({_p}, "/garage &7(/cars)", "your cars: take out, lock, repaint, tune, send back")
 	helpLine({_p}, "/carcam [on/off]", "the camera behind your car while you drive")
+	helpLine({_p}, "/fuel", "your car's fuel; the nearest pump on your GPS")
 	send colored "&6Money and loot" to {_p}
 	helpLine({_p}, "/daily", "your free daily crate key")
 	helpLine({_p}, "/crates", "your keys, what each crate holds, buy keys")
@@ -196,6 +197,8 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dquest add <story/contracts/fence/hits> [place] | addat ... | remove <n> | list/dump", "Mara, the Boss, Vic, the Broker")
 		ahLine({_s}, "/dcontract spot/chop add/addat/remove/list | dump", "car-job spots and chop shops")
 		ahLine({_s}, "/dgaragesite exit/return/bay add | remove ... | list/show/dump/holo", "City Garage lanes and bays")
+		ahLine({_s}, "/dfuel pumpat <world> <x1 y1 z1 x2 y2 z2> <label> | pump add <label> | remove <n> | list/dump | car <plate> [level] | info <player>", "fuel pumps; a car's fuel")
+		ahLine({_s}, "/dbike spotat <world> <x y z yaw> | spot add | remove <n> | list/dump/reset", "the stolen-bike spots (the bike shop)")
 		ahLine({_s}, "/dhit node add/addat/link/remove/list | route on/off", "the hit targets' streets")
 		ahLine({_s}, "/dcrate place <crate> | remove [x y z] | list", "crate stands")
 		ahLine({_s}, "/dseason holo <board>", "a leaderboard hologram")

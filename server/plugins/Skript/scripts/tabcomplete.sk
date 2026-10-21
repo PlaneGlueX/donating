@@ -547,7 +547,7 @@ on tab complete of "/dpoi" and "/skript:dpoi":
 			set tab completions for position 2 to {_l::*}
 
 on tab complete of "/dsetup" and "/skript:dsetup":
-	set tab completions for position 1 to "all", "heists", "story", "places", "flags", "shops", "quests", "jobs", "crates", "cars", "server", "phone" and "prison"
+	set tab completions for position 1 to "all", "heists", "story", "places", "flags", "shops", "quests", "jobs", "crates", "cars", "fuel", "server", "phone" and "prison"
 
 on tab complete of "/ddistrict" and "/skript:ddistrict":
 	set tab completions for position 1 to "name", "list", "here" and "dump"
@@ -835,6 +835,42 @@ on tab complete of "/dhit" and "/skript:dhit":
 		set tab completions for position 2 to tabPlayerNames(player)
 		if {_s} is "give":
 			set tab completions for position 3 to {-cfg::hit::tiers::*}
+
+on tab complete of "/dfuel" and "/skript:dfuel":
+	set tab completions for position 1 to "pumpat", "pump", "remove", "list", "dump", "car" and "info"
+	set {_s} to tab arg-1
+	if {_s} is "pump":
+		set tab completions for position 2 to "add"
+	else if {_s} is "remove":
+		loop {fuel::pump::*}:
+			add loop-index to {_n::*}
+		if {_n::*} is set:
+			set tab completions for position 2 to {_n::*}
+	else if {_s} is "pumpat":
+		loop all worlds:
+			add "%loop-value%" to {_w::*}
+		set tab completions for position 2 to {_w::*}
+	else if {_s} is "info":
+		loop all players:
+			if player can see loop-player:
+				add name of loop-player to {_p::*}
+		if {_p::*} is set:
+			set tab completions for position 2 to {_p::*}
+
+on tab complete of "/dbike" and "/skript:dbike":
+	set tab completions for position 1 to "spotat", "spot", "remove", "list", "dump" and "reset"
+	set {_s} to tab arg-1
+	if {_s} is "spot":
+		set tab completions for position 2 to "add"
+	else if {_s} is "remove":
+		loop {bike::spot::*}:
+			add loop-index to {_n::*}
+		if {_n::*} is set:
+			set tab completions for position 2 to {_n::*}
+	else if {_s} is "spotat":
+		loop all worlds:
+			add "%loop-value%" to {_w::*}
+		set tab completions for position 2 to {_w::*}
 
 on tab complete of "/dgaragesite" and "/skript:dgaragesite":
 	set tab completions for position 1 to "exit", "return", "bay", "exitat", "returnat", "bayat", "remove", "list", "show", "dump" and "holo"

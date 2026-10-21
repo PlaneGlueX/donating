@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import io.papermc.paper.entity.LookAnchor;
@@ -712,7 +713,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         String a0 = n > 0 ? args[0].toLowerCase() : "", a1 = n > 1 ? args[1].toLowerCase() : "";
         boolean markTarget = n > 2 && !args[2].equalsIgnoreCase("off") && !args[2].equalsIgnoreCase("status");
         if (n == 1) {
-            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
+            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "carfuel", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
         } else if (n == 2) {
             switch (a0) {
                 case "status", "gps", "mark", "nametag", "melee", "zoom" -> options.addAll(players);
@@ -721,7 +722,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                 case "wall" -> options.addAll(List.of("create", "remove", "repair", "list"));
                 case "place" -> options.addAll(List.of("set", "remove", "clear", "list"));
                 // The plates driven now (CarStats changes a driven car).
-                case "carstat" -> { for (Player p : Bukkit.getOnlinePlayers()) { String pl = CarSmooth.driverPlate(p); if (pl != null) options.add(pl); } }
+                case "carstat", "carfuel" -> { for (Player p : Bukkit.getOnlinePlayers()) { String pl = CarSmooth.driverPlate(p); if (pl != null) options.add(pl); } }
                 // Personal-view entities around the sender (pv.sk's displays).
                 case "pv" -> { if (me != null) for (Entity e : me.getNearbyEntities(32, 32, 32)) if (e.getScoreboardTags().contains("donating_pv")) options.add(e.getUniqueId().toString()); }
                 default -> { }
@@ -826,6 +827,39 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             }
             return true;
         }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("carfuel")) {
+            // carfuel <plate> [level <0..100>] [add <points>] [usage <a pedal tick>] [enabled true|false]: fuel.sk (town
+            // PLAN 15.2). The answer also goes on the main world's metadata "donating_carfuel" ("plate|level|usage|enabled|driven",
+            // "" when unknown), which fuel.sk reads right after running the command.
+            if (carStats == null) carStats = new CarStats(carSmooth.steer);
+            // "quiet" (fuel.sk, once a second per driver and filler): the answer only goes on the metadata.
+            List<String> parts = new ArrayList<>();
+            for (String x : args) if (!x.isEmpty()) parts.add(x);
+            boolean quiet = parts.size() > 2 && parts.get(parts.size() - 1).equalsIgnoreCase("quiet");
+            if (quiet) parts.remove(parts.size() - 1);
+            Bukkit.getWorlds().get(0).setMetadata("donating_carfuel", new FixedMetadataValue(this, ""));
+            if (parts.size() < 2 || parts.size() % 2 != 0) { sender.sendMessage("CARFUEL usage: /dphone carfuel <plate> [level <n>] [add <n>] [usage <n>] [enabled true|false] [quiet]"); return true; }
+            Double level = null, add = null, usage = null;
+            Boolean enabled = null;
+            try {
+                for (int i = 2; i + 1 < parts.size(); i += 2) {
+                    switch (parts.get(i).toLowerCase(Locale.ROOT)) {
+                        case "level" -> level = Double.parseDouble(parts.get(i + 1));
+                        case "add" -> add = Double.parseDouble(parts.get(i + 1));
+                        case "usage" -> usage = Double.parseDouble(parts.get(i + 1));
+                        case "enabled" -> enabled = Boolean.parseBoolean(parts.get(i + 1));
+                        default -> { sender.sendMessage("CARFUEL: unknown part " + parts.get(i)); return true; }
+                    }
+                }
+            } catch (NumberFormatException ex) {
+                sender.sendMessage("CARFUEL: numbers please");
+                return true;
+            }
+            String reply = carStats.fuel(parts.get(1).toUpperCase(Locale.ROOT), level, add, usage, enabled);
+            Bukkit.getWorlds().get(0).setMetadata("donating_carfuel", new FixedMetadataValue(this, carStats.lastFuel));
+            if (!quiet) sender.sendMessage(reply);
+            return true;
+        }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
         if (args.length >= 2 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) { if (gunFx == null) { sender.sendMessage("GUNSPIN off (no WeaponMechanics)"); return true; } return gunFx.spin.command(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status() + (meleeFx == null ? "" : " " + meleeFx.summary())); return true; }
@@ -909,6 +943,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             sender.sendMessage("/dphone pv <entity-uuid>: who a personal-view entity is sent to (tests)");
             sender.sendMessage("/dphone nametag <viewer> <target>: whether TAB hides the target's name from the viewer (behind walls)");
             sender.sendMessage("/dphone carstat <plate> [<max speed> <acceleration> <steering>]: a driven car's stats in MTVehicles (garage.sk's mods)");
+            sender.sendMessage("/dphone carfuel <plate> [level <n>] [add <n>] [usage <n>] [enabled true|false]: a car's fuel in MTVehicles (fuel.sk)");
             sender.sendMessage("/dphone place set <id> <base|shop|spawn|landmark|garage|quest|heist0-4> <world> <x> <z> <name...> | remove <id> | clear | list: icons on the phone's map (nav.sk)");
             sender.sendMessage("/dphone carsmooth [off|sync|track|all | together on|off | bundle on|off | via-clock on|off] | carprobe <plate> [<ticks>] | carbundle [player]: smoother MTVehicles cars (car stands sent every tick, as far as their driver, resynced together, one bundle per car and tick) and a probe log");
             sender.sendMessage("/dphone cam <player> | cam tune [<key> <value>] | cam probe <player> <ticks>: the chase camera in cars (carcam.sk; the probe logs a row a tick to camprobe.log)");

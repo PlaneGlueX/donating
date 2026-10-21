@@ -201,11 +201,13 @@ function loadSettings():
 	set {-cfg::carwrap::tier::1} to "Common|&f"
 	set {-cfg::carwrap::tier::2} to "Rare|&9"
 	set {-cfg::carwrap::tier::3} to "Exotic|&d"
-	loop "matte|Matte Black|1", "primer|Primer|1", "twotone|Two-Tone|1", "stripes|Racing Stripes|1", "checker|Checkered|1", "camo|Woodland Camo|2", "arctic|Arctic Camo|2", "carbon|Carbon Fiber|2", "flames|Flames|2", "tiger|Tiger|2", "hacker|H4CK3R|3", "galaxy|Galaxy|3", "goldleaf|Gold Leaf|3", "neon|Neon Grid|3" and "inferno|Inferno|3":
+	loop "matte|Matte Black|1", "primer|Primer|1", "twotone|Two-Tone|1", "stripes|Racing Stripes|1", "checker|Checkered|1", "camo|Woodland Camo|2", "arctic|Arctic Camo|2", "carbon|Carbon Fiber|2", "flames|Flames|2", "tiger|Tiger|2", "hacker|H4CK3R|3", "galaxy|Galaxy|3", "goldleaf|Gold Leaf|3", "neon|Neon Grid|3", "inferno|Inferno|3" and "scrapper|Scrapper|1":
 		set {_cw::*} to loop-value split at "|"
 		add {_cw::1} to {-cfg::carwraps::*}
 		set {-cfg::carwrap::%{_cw::1}%::name} to {_cw::2}
 		set {-cfg::carwrap::%{_cw::1}%::tier} to {_cw::3} parsed as integer
+	# The stolen bikes' rusty look (bikes.sk, 2026-10-21): never rolled, never on a car anyone owns.
+	set {-cfg::carwrap::scrapper::retired} to true
 	# Hardware mods: a part's stage n (1-3) raises the model's stat by that share (engine: top speed, turbo: acceleration)
 	# or that many points (handling: steering). The tuning shop at a garage sells them for dealer cars (not extreme ones)
 	# at the model's price x share (at least min) per stage; crate cars come with theirs and can't be changed.
@@ -268,6 +270,53 @@ function loadSettings():
 	set {-cfg::car::lock-range} to 0
 	# Regions whose id starts with this are no-lock zones (car spawn areas): no locking there.
 	set {-cfg::car::nolock-prefix} to "nolock"
+
+	# ---------- Fuel (fuel.sk, 2026-10-21; town PLAN 15.2): PROPOSALS ----------
+	# The owner: "enable fuel for cars, and make adding fuel like an actual gas pump (grab pump, fill it into car, wait until
+	# full, pay money, different cars have different size tanks)". MTVehicles keeps a car's level (0..100) and takes its
+	# usage each tick the pedal is held; a tank of T liters lasts burn minutes of pedal: usage u = 100 / (burn x 1200).
+	# fuel::enabled false: fuel.sk turns fuel off on every car as it's driven (MTVehicles' own switch stays as set).
+	set {-cfg::fuel::enabled} to true
+	# $ a liter at a pump, liters a second, how far from the pump a car may stand, the nozzle goes back after this long
+	# with no fuel flowing, the low-fuel warning (percent), the garage's tank service (x the pump's price).
+	set {-cfg::fuel::price} to 25
+	set {-cfg::fuel::flow} to 4
+	set {-cfg::fuel::hose} to 6
+	set {-cfg::fuel::idle} to 60 seconds
+	set {-cfg::fuel::low} to 15
+	set {-cfg::fuel::garage-factor} to 2
+	# A model with no tank of its own: these.
+	set {-cfg::fuel::tank} to 60
+	set {-cfg::fuel::burn} to 10
+	# "car|tank liters|burn minutes" (the crate cars as their family).
+	loop "sedan|50|12", "sportsedan|55|11", "jeep|70|11", "sports|60|9", "hotrod|65|8", "suv|90|12", "viper|18|10", "riviera|75|10", "apex|80|7", "vandal|60|9", "specter|55|11" and "overclock|65|8":
+		set {_ft::*} to loop-value split at "|"
+		set {-cfg::car::%{_ft::1}%::tank} to {_ft::2} parsed as number
+		set {-cfg::car::%{_ft::1}%::burn} to {_ft::3} parsed as number
+
+	# ---------- Stolen bikes (bikes.sk, 2026-10-21; town PLAN 15.3): PROPOSALS ----------
+	# The owner: "a small shop in front of the prison with a little parking lot where small vehicles (bikes) spawn; a player
+	# steals one with a quick-time event". A bike is MTVehicles' motorbike (the Viper's shape) in the Scrapper wrap, never a
+	# Viper anyone paid for; slowed to its stats ("top speed|acceleration|steering").
+	set {-cfg::bike::model} to "viper"
+	set {-cfg::bike::wrap} to "scrapper"
+	set {-cfg::bike::stats} to "0.62|0.014|8"
+	set {-cfg::bike::tank} to 12
+	set {-cfg::bike::burn} to 8
+	set {-cfg::bike::fuel-min} to 40
+	set {-cfg::bike::fuel-max} to 100
+	# The hotwire minigame (contracts.sk's lock picking): hits in a row, the marker a slot every qte-step ticks, misses
+	# that sound the bike's alarm and lock that bike for that player for alarm-lock.
+	set {-cfg::bike::qte-hits} to 3
+	set {-cfg::bike::qte-step} to 3
+	set {-cfg::bike::max-fails} to 3
+	set {-cfg::bike::alarm-lock} to 15 seconds
+	# How far from the bike the minigame stays open; the bike is scrapped when it stands with no rider this long, or after
+	# max-ride; its spot gets a new bike respawn after it was stolen.
+	set {-cfg::bike::reach} to 4
+	set {-cfg::bike::abandon} to 60 seconds
+	set {-cfg::bike::max-ride} to 20 minutes
+	set {-cfg::bike::respawn} to 120 seconds
 	# The City Garage (citygarage.sk, PROPOSAL): sites are safe-zone regions whose id starts with region-prefix; a car
 	# comes out there every takeout-cooldown (Valet anywhere every car::call-cooldown) and goes back if nobody gets in
 	# within pickup-idle; driving within return-radius of a return spot parks it. A car standing unused waits while its

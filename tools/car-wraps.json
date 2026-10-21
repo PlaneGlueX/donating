@@ -98,6 +98,7 @@
     { "id": "galaxy", "name": "Galaxy", "tier": "exotic", "frames": 4, "frametime": 8, "pattern": { "type": "galaxy", "deep": [12, 8, 34], "colors": [[88, 34, 160], [36, 64, 178], [178, 56, 176], [30, 140, 200]], "star": [255, 252, 240] } },
     { "id": "goldleaf", "name": "Gold Leaf", "tier": "exotic", "pattern": { "type": "goldleaf", "gold": [226, 180, 62], "light": [255, 232, 140], "dark": [150, 102, 28], "ornament": [112, 72, 18], "tile": 8 } },
     { "id": "neon", "name": "Neon Grid", "tier": "exotic", "glow": true, "pattern": { "type": "neon", "base": [8, 6, 16], "haze": [48, 12, 70], "a": [40, 240, 255], "b": [255, 60, 210], "cell": 3.4 } },
-    { "id": "inferno", "name": "Inferno", "tier": "exotic", "glow": true, "frames": 8, "frametime": 5, "pattern": { "type": "inferno", "rock": [30, 12, 10], "crust": [66, 24, 14], "hot": [255, 110, 18], "core": [255, 232, 128], "cell": 2.3 } }
+    { "id": "inferno", "name": "Inferno", "tier": "exotic", "glow": true, "frames": 8, "frametime": 5, "pattern": { "type": "inferno", "rock": [30, 12, 10], "crust": [66, 24, 14], "hot": [255, 110, 18], "core": [255, 232, 128], "cell": 2.3 } },
+    { "id": "scrapper", "name": "Scrapper", "tier": "common", "pattern": { "type": "primer", "base": [172, 96, 46], "rust": [[110, 54, 26], [140, 72, 34], [70, 38, 22]], "amount": 0.4 } }
   ]
 }

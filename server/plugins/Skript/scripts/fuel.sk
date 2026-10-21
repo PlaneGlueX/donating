@@ -1,0 +1,756 @@
+# fuel.sk: fuel for cars, and the gas station's pumps (tools/build/town/PLAN.md section 15.2, 2026-10-21). Written by a
+# cloud session (no server): untested in game (PLAYTEST 186).
+# The owner: "enable fuel for cars, and make adding fuel like an actual gas pump (grab pump, fill it into car, wait until
+# full, pay money, different cars have different size tanks)".
+#
+# MTVehicles keeps each car's level (0..100) and, while a driver holds the pedal, takes its usage a tick; at under 1 the
+# car doesn't move (its own boss bar shows "63% Fuel" while driving). DonatingPhone's /dphone carfuel reads and sets a
+# car's level, usage and on/off switch (in MTVehicles' data, and in its driving maps when the car is out), and puts the
+# answer on the main world's metadata "donating_carfuel" ("plate|level|usage|enabled|driven"), read right after.
+#   Tanks: core.sk car::<id>::tank liters and car::<id>::burn minutes of pedal per full tank (usage = 100 / (burn x 1200));
+#   a contract car uses its model's, a stolen bike bike::tank / bike::burn. Liters in the tank = level / 100 x tank.
+#   Every car someone drives gets its model's usage and fuel switched on (or off with fuel::enabled false) in the first
+#   second of the ride, so cars made before fuel existed take fuel too.
+#
+# The pump (staff register each one: /dfuel pumpat <world> <x1> <y1> <z1> <x2> <y2> <z2> <label>, the town's
+# `town.js setup` prints the gas station's 12):
+#   1. Right-click a pump: hotbar 9 (the phone) becomes its nozzle, a hose of particles runs to you.
+#   2. With the nozzle in hand, right-click a car (any of its stands) within fuel::hose blocks of the pump with nobody in
+#      its driver's seat: fuel flows fuel::flow liters a second, paid as it flows (fuel::price a liter), a meter over the
+#      pump, the action bar.
+#   3. It clicks off when the tank is full, or when you right-click the car again, walk away from it, someone gets in or
+#      the money runs out.
+#   4. Right-click the pump again to hang up (the receipt). The nozzle also goes back by itself on another slot, walking
+#      off with it, getting into a car, combat, a death, a quit, a teleport, and after fuel::idle with no fuel flowing.
+# The garage's tank service: a car in the garage, its options page, "Refuel" at fuel::garage-factor x the pump's price.
+# Players: /fuel. Staff: /dfuel pumpat|pump add|remove|list|dump|car|info. Log: plugins\Skript\logs\fuel.log.
+#
+# Saved: {fuel::pump::<n>} = "world|x1|y1|z1|x2|y2|z2|label", {fuelpumpcounter}.
+# Memory: {-fuel::hold::<uuid>} = the pump n the player holds the nozzle of, {-fuel::who::<uuid>} the player,
+#   {-fuel::holder::<n>} = the player holding pump n's nozzle; {-fuel::fill::<uuid>} = the plate filling,
+#   {-fuel::liters::<uuid>} / {-fuel::cost::<uuid>} (exact) / {-fuel::paid::<uuid>} (whole dollars) this hold,
+#   {-fuel::flowat::<uuid>} the last second fuel flowed, {-fuel::meter::<n>} the pump's text display,
+#   {-fuel::set::<plate>} the switch given this server run, {-fuel::pct::<uuid>} the driven car's level (carcam.sk),
+#   {-fuel::warned::<uuid>} "<plate>:low|empty".
+
+function fuelLog(text: text):
+	log {_text} to "fuel"
+
+function fuelOn() :: boolean:
+	if {-cfg::fuel::enabled} is true:
+		return true
+	return false
+
+# ---------- Cars: model, tank, usage, the level ----------
+
+# A plate's model: a garage car's, a contract car's, "bike" for a stolen bike, else "".
+function fuelModel(plate: text) :: text:
+	set {_m} to carModelOf({_plate})
+	if {_m} is not "":
+		return {_m}
+	set {_u} to {-ctplate::%{_plate}%}
+	if {_u} is set:
+		set {_cm} to {-ctjob::%{_u}%::model}
+		if {_cm} is set:
+			return "%{_cm}%"
+	if {-bike::plate::%{_plate}%} is set:
+		return "bike"
+	return ""
+
+function fuelTank(m: text) :: number:
+	if {_m} is "bike":
+		return cfg("bike::tank")
+	set {_t} to {-cfg::car::%{_m}%::tank}
+	if {_t} is set:
+		return {_t}
+	return cfg("fuel::tank")
+
+function fuelBurn(m: text) :: number:
+	if {_m} is "bike":
+		return cfg("bike::burn")
+	set {_b} to {-cfg::car::%{_m}%::burn}
+	if {_b} is set:
+		return {_b}
+	return cfg("fuel::burn")
+
+# MTVehicles' usage a pedal tick: a full tank (100) in burn minutes (x 1200 ticks).
+function fuelUsage(m: text) :: number:
+	return 100 / (fuelBurn({_m}) * 1200)
+
+# A number with 6 decimals for the console (Skript prints only 2).
+function fuelNum(x: number) :: text:
+	return carNum({_x})
+
+# Runs /dphone carfuel and returns its answer split: 1 plate, 2 level, 3 usage, 4 enabled, 5 driven (nothing when the
+# plate is unknown or MTVehicles is missing). extra = "" or the parts to set ("level 100", "add 8.3", ...).
+function fuelCmd(plate: text, extra: text) :: texts:
+	execute console command "dphone carfuel %{_plate}% %{_extra}% quiet"
+	set {_v} to metadata value "donating_carfuel" of poiMainWorld()
+	if {_v} is not set:
+		return {_none::*}
+	if "%{_v}%" is "":
+		return {_none::*}
+	return "%{_v}%" split at "|"
+
+# The level (0..100) of a plate, or -1 when unknown.
+function fuelLevel(plate: text) :: number:
+	set {_a::*} to fuelCmd({_plate}, "")
+	set {_l} to {_a::2} parsed as number
+	if {_l} is set:
+		return {_l}
+	return -1
+
+# The model's usage and the switch, once per plate and server run (a ride's first second, a fill's start).
+function fuelPrepare(plate: text):
+	set {_want} to "off"
+	if fuelOn() is true:
+		set {_want} to "on"
+	{-fuel::set::%{_plate}%} is not {_want}
+	set {_m} to fuelModel({_plate})
+	if {_want} is "on":
+		fuelCmd({_plate}, "usage %fuelNum(fuelUsage({_m}))% enabled true")
+	else:
+		fuelCmd({_plate}, "enabled false")
+	set {-fuel::set::%{_plate}%} to {_want}
+
+# "18.4 / 50 L" for a level and a model.
+function fuelLitersText(level: number, m: text) :: text:
+	set {_t} to fuelTank({_m})
+	set {_l} to round({_level} * {_t} / 10) / 10
+	return "%{_l}% / %{_t}% L"
+
+# ---------- Pumps ----------
+
+function fuelPumpField(n: text, i: number) :: text:
+	set {_a::*} to "%{fuel::pump::%{_n}%}%" split at "|"
+	return {_a::%{_i}%}
+
+# The pump whose box holds a block (its n), or "".
+function fuelPumpAt(l: location) :: text:
+	set {_w} to "%world of {_l}%"
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_x} to floor({_x})
+	set {_y} to floor({_y})
+	set {_z} to floor({_z})
+	loop {fuel::pump::*}:
+		set {_a::*} to "%loop-value%" split at "|"
+		if {_a::1} is {_w}:
+			set {_x1} to {_a::2} parsed as number
+			set {_y1} to {_a::3} parsed as number
+			set {_z1} to {_a::4} parsed as number
+			set {_x2} to {_a::5} parsed as number
+			set {_y2} to {_a::6} parsed as number
+			set {_z2} to {_a::7} parsed as number
+			if {_x} >= {_x1}:
+				if {_x} <= {_x2}:
+					if {_y} >= {_y1}:
+						if {_y} <= {_y2}:
+							if {_z} >= {_z1}:
+								if {_z} <= {_z2}:
+									return "%loop-index%"
+	return ""
+
+# Over the middle of the pump's box (the hose starts here; the meter floats a little higher).
+function fuelPumpTop(n: text) :: location:
+	set {_a::*} to "%{fuel::pump::%{_n}%}%" split at "|"
+	set {_w} to world({_a::1})
+	set {_x1} to {_a::2} parsed as number
+	set {_x2} to {_a::5} parsed as number
+	set {_y2} to {_a::6} parsed as number
+	set {_z1} to {_a::4} parsed as number
+	set {_z2} to {_a::7} parsed as number
+	return location(({_x1} + {_x2} + 1) / 2, {_y2} + 1.1, ({_z1} + {_z2} + 1) / 2, {_w})
+
+function fuelPumpLabel(n: text) :: text:
+	return fuelPumpField({_n}, 8)
+
+# The nearest pump to a location (its n), "" when none in that world.
+function fuelPumpNear(l: location) :: text:
+	set {_best} to ""
+	loop {fuel::pump::*}:
+		set {_n} to "%loop-index%"
+		set {_t} to fuelPumpTop({_n})
+		if world of {_t} is world of {_l}:
+			set {_d} to distance between {_t} and {_l}
+			if {_bd} is not set:
+				set {_bd} to {_d}
+				set {_best} to {_n}
+			else if {_d} < {_bd}:
+				set {_bd} to {_d}
+				set {_best} to {_n}
+	return {_best}
+
+# ---------- The nozzle ----------
+
+function fuelNozzle(n: text) :: item:
+	set {_i} to stick named "&6Fuel nozzle &7· Pump %fuelPumpLabel({_n})%" with lore "&7Right-click a car: fill it" and "&7Right-click the pump: hang up"
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:nozzle"
+	return tagItem({_i}, "nozzle:%{_n}%")
+
+# Why a player can't take a pump's nozzle now, or "".
+function fuelGrabBlock(p: player, n: text) :: text:
+	if fuelOn() is false:
+		return "The pumps are closed."
+	if {_p} is not alive:
+		return "-"
+	if carSeatOf({_p}) is not "":
+		return "Get out of the car first."
+	if isWanted({_p}) is true:
+		return "Not with the cops after you."
+	if isCombatTagged({_p}) is true:
+		return "Not in a fight."
+	if heistAt(location of {_p}) is not "":
+		return "-"
+	set {_h} to {-fuel::holder::%{_n}%}
+	if {_h} is set:
+		if {_h} is not {_p}:
+			if {_h} is online:
+				return "Someone's using this pump."
+	return ""
+
+function fuelGrab(p: player, n: text):
+	set {_why} to fuelGrabBlock({_p}, {_n})
+	if {_why} is not "":
+		if {_why} is not "-":
+			hudBar({_p}, "&c%{_why}%", 2)
+		stop
+	set {_u} to "%uuid of {_p}%"
+	if {-fuel::hold::%{_u}%} is set:
+		fuelHangUp({_p}, "switch")
+	closePhoneMap({_p})
+	set {-fuel::hold::%{_u}%} to {_n}
+	set {-fuel::who::%{_u}%} to {_p}
+	set {-fuel::holder::%{_n}%} to {_p}
+	set {-fuel::liters::%{_u}%} to 0
+	set {-fuel::cost::%{_u}%} to 0
+	set {-fuel::paid::%{_u}%} to 0
+	set {-fuel::flowat::%{_u}%} to now
+	set slot 8 of {_p}'s inventory to fuelNozzle({_n})
+	set hotbar slot of {_p} to 8
+	fuelMeter({_n}, "&6PUMP %fuelPumpLabel({_n})% &7· &f0.0 L &7· &a$0")
+	play sound "block.iron_trapdoor.open" with volume 0.6 and pitch 1.3 at fuelPumpTop({_n})
+	hudBar({_p}, "&6⛽ Right-click a car to fill it &7· the pump again to hang up", 1)
+	if getData({_p}, "fuel-tip") is not set:
+		setData({_p}, "fuel-tip", true)
+		msg({_p}, "&7Fuel: right-click your car with the nozzle. It fills until full or you click again; you pay as it flows.")
+
+# The nozzle goes back: the filling stops, the receipt, the phone back in hotbar 9.
+function fuelHangUp(p: player, why: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_n} to {-fuel::hold::%{_u}%}
+	{_n} is set
+	if {-fuel::fill::%{_u}%} is set:
+		fuelStop({_p}, "hangup")
+	set {_l} to {-fuel::liters::%{_u}%}
+	set {_paid} to {-fuel::paid::%{_u}%}
+	delete {-fuel::hold::%{_u}%}
+	delete {-fuel::who::%{_u}%}
+	delete {-fuel::liters::%{_u}%}
+	delete {-fuel::cost::%{_u}%}
+	delete {-fuel::paid::%{_u}%}
+	delete {-fuel::flowat::%{_u}%}
+	if {-fuel::holder::%{_n}%} is {_p}:
+		delete {-fuel::holder::%{_n}%}
+	if itemId(slot 8 of {_p}'s inventory) starts with "nozzle:":
+		set slot 8 of {_p}'s inventory to phoneItem({_p})
+	fuelMeterDone({_n})
+	if {_l} > 0:
+		set {_lt} to round({_l} * 10) / 10
+		msg({_p}, "&6Pump %fuelPumpLabel({_n})%: &f%{_lt}% L&7, &a%formatMoney({_paid})%")
+		fuelLog("hangup %{_p}% %{_u}% pump=%{_n}% liters=%{_lt}% paid=%{_paid}% why=%{_why}%")
+	else if {_why} is not "pump":
+		hudBar({_p}, "&7The nozzle went back.", 1)
+
+# ---------- Filling ----------
+
+# Someone in a car's driver's seat (a player within 8 blocks whose seat is that car's driver's).
+function fuelDriverIn(plate: text, l: location) :: boolean:
+	loop all players in radius 8 of {_l}:
+		if carSeatOf(loop-player) is "driver:%{_plate}%":
+			return true
+	return false
+
+function fuelCarClick(p: player, plate: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_n} to {-fuel::hold::%{_u}%}
+	{_n} is set
+	if {-fuel::fill::%{_u}%} is {_plate}:
+		fuelStop({_p}, "click")
+		stop
+	if {-fuel::fill::%{_u}%} is set:
+		fuelStop({_p}, "switch")
+	set {_cl} to vehicle location of license plate {_plate}
+	if {_cl} is not set:
+		stop
+	set {_t} to fuelPumpTop({_n})
+	if world of {_cl} is not world of {_t}:
+		hudBar({_p}, "&cThe hose doesn't reach.", 2)
+		stop
+	if distance between {_cl} and {_t} > cfg("fuel::hose"):
+		hudBar({_p}, "&cThe hose doesn't reach: &7park within %cfg("fuel::hose")% blocks of the pump.", 2)
+		stop
+	if fuelDriverIn({_plate}, {_cl}) is true:
+		hudBar({_p}, "&cSomeone's in the driver's seat.", 2)
+		stop
+	fuelPrepare({_plate})
+	set {_a::*} to fuelCmd({_plate}, "")
+	if {_a::2} is not set:
+		hudBar({_p}, "&cThis one doesn't take fuel.", 2)
+		stop
+	if {_a::4} is not "true":
+		hudBar({_p}, "&cThis one doesn't take fuel.", 2)
+		stop
+	set {_lv} to {_a::2} parsed as number
+	if {_lv} >= 99.95:
+		hudBar({_p}, "&aThe tank is full.", 2)
+		stop
+	set {-fuel::fill::%{_u}%} to {_plate}
+	set {-fuel::fillat::%{_u}%} to {_cl}
+	set {-fuel::flowat::%{_u}%} to now
+	play sound "block.iron_door.open" with volume 0.5 and pitch 1.6 at {_cl}
+	fuelLog("fill %{_p}% %{_u}% pump=%{_n}% plate=%{_plate}% model=%fuelModel({_plate})% level=%{_lv}%")
+
+function fuelStop(p: player, why: text):
+	set {_u} to "%uuid of {_p}%"
+	set {_plate} to {-fuel::fill::%{_u}%}
+	{_plate} is set
+	delete {-fuel::fill::%{_u}%}
+	delete {-fuel::fillat::%{_u}%}
+	set {-fuel::flowat::%{_u}%} to now
+	if {_why} is "full":
+		send title colored "&a&lFULL" with subtitle colored "&7Right-click the pump to hang up" to {_p} for 2 seconds
+		play sound "block.note_block.pling" with volume 0.7 and pitch 1.5 to {_p}
+	else if {_why} is "money":
+		hudBar({_p}, "&cOut of money: the pump stopped.", 2)
+	else if {_why} is "away":
+		hudBar({_p}, "&7You walked away from the car: the pump stopped.", 2)
+	else if {_why} is "driver":
+		hudBar({_p}, "&7Someone got in: the pump stopped.", 2)
+	else if {_why} is "click":
+		hudBar({_p}, "&7Stopped. &fRight-click the pump to hang up.", 1)
+	fuelLog("stop %{_p}% %{_u}% plate=%{_plate}% why=%{_why}% liters=%{-fuel::liters::%{_u}%}%")
+
+# One second of fuel for a filler: the room left, the cost (whole dollars, all or nothing), the car's new level.
+function fuelFlow(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_plate} to {-fuel::fill::%{_u}%}
+	{_plate} is set
+	set {_n} to {-fuel::hold::%{_u}%}
+	set {_cl} to vehicle location of license plate {_plate}
+	if {_cl} is not set:
+		fuelStop({_p}, "gone")
+		stop
+	if world of {_cl} is not world of {_p}:
+		fuelStop({_p}, "away")
+		stop
+	if distance between {_cl} and (location of {_p}) > 4:
+		fuelStop({_p}, "away")
+		stop
+	if fuelDriverIn({_plate}, {_cl}) is true:
+		fuelStop({_p}, "driver")
+		stop
+	set {_m} to fuelModel({_plate})
+	set {_tank} to fuelTank({_m})
+	set {_lv} to fuelLevel({_plate})
+	if {_lv} < 0:
+		fuelStop({_p}, "gone")
+		stop
+	set {_room} to {_tank} * (100 - {_lv}) / 100
+	if {_room} < 0.05:
+		fuelStop({_p}, "full")
+		stop
+	set {_f} to min(cfg("fuel::flow"), {_room})
+	set {_cost} to {-fuel::cost::%{_u}%} + {_f} * cfg("fuel::price")
+	set {_due} to ceil({_cost}) - {-fuel::paid::%{_u}%}
+	if {_due} > 0:
+		if chargeMoney({_p}, {_due}) is not true:
+			fuelStop({_p}, "money")
+			stop
+		add {_due} to {-fuel::paid::%{_u}%}
+	set {-fuel::cost::%{_u}%} to {_cost}
+	add {_f} to {-fuel::liters::%{_u}%}
+	set {-fuel::flowat::%{_u}%} to now
+	set {_a::*} to fuelCmd({_plate}, "add %fuelNum({_f} * 100 / {_tank})%")
+	set {_now} to {_a::2} parsed as number
+	if {_now} is not set:
+		set {_now} to {_lv}
+	set {_lt} to round({-fuel::liters::%{_u}%} * 10) / 10
+	set {_paid} to formatMoney({-fuel::paid::%{_u}%})
+	fuelMeter({_n}, "&6PUMP %fuelPumpLabel({_n})% &7· &f%{_lt}% L &7· &a%{_paid}%")
+	hudBar({_p}, "&6⛽ &f%fuelLitersText({_now}, {_m})% &7· &a%{_paid}% &7· right-click the car to stop", 1)
+	play sound "block.bubble_column.upwards_ambient" with volume 0.4 and pitch 1.4 at {_cl}
+	if {_now} >= 99.95:
+		fuelStop({_p}, "full")
+
+# ---------- The meter over the pump (a text display everyone sees) ----------
+
+function fuelTextSetup(d: entity):
+	make {_d} not persistent
+	add "donating_fuel" to scoreboard tags of {_d}
+	set billboard of {_d} to center
+	set brightness override of {_d} to 15
+
+function fuelMeter(n: text, t: text):
+	set {_d} to {-fuel::meter::%{_n}%}
+	set {_ok} to false
+	if {_d} is set:
+		if {_d} is valid:
+			set {_ok} to true
+	if {_ok} is false:
+		set {_l} to fuelPumpTop({_n})
+		set {_l} to {_l} ~ vector(0, 0.6, 0)
+		spawn a text display at {_l}:
+			fuelTextSetup(event-display)
+		set {_d} to last spawned entity
+		set {-fuel::meter::%{_n}%} to {_d}
+	set text of {_d} to colored {_t}
+	delete {-fuel::meterend::%{_n}%}
+
+# The meter stays 5 seconds after the nozzle goes back (the total), then goes.
+function fuelMeterDone(n: text):
+	set {_until} to now
+	add 5 seconds to {_until}
+	set {-fuel::meterend::%{_n}%} to {_until}
+
+# ---------- Events ----------
+
+# A pump's blocks: take or hang up the nozzle (before phone.sk: the phone's big map doesn't open, a gun doesn't fire).
+on right click with priority low:
+	event-block is set
+	set {_n} to fuelPumpAt(location of event-block)
+	{_n} is not ""
+	cancel event
+	set {-quest::guard::%player%} to now
+	if {-fuel::clickat::%player%} is set:
+		if difference between {-fuel::clickat::%player%} and now < 0.3 seconds:
+			stop
+	set {-fuel::clickat::%player%} to now
+	if {-fuel::hold::%uuid of player%} is {_n}:
+		fuelHangUp(player, "pump")
+	else:
+		fuelGrab(player, {_n})
+
+# The nozzle on a car (any of its stands): fill it instead of getting in. Before garage.sk's and contracts.sk's handlers.
+on mtv vehicle enter with priority lowest:
+	{-fuel::hold::%uuid of player%} is set
+	itemId(player's tool) starts with "nozzle:"
+	cancel event
+	set {-quest::guard::%player%} to now
+	if {-fuel::clickat::%player%} is set:
+		if difference between {-fuel::clickat::%player%} and now < 0.3 seconds:
+			stop
+	set {-fuel::clickat::%player%} to now
+	fuelCarClick(player, event-text in upper case)
+
+on quit:
+	fuelHangUp(player, "quit")
+
+on death of player:
+	isNpc(victim) is false
+	fuelHangUp(victim, "death")
+
+on teleport:
+	{-fuel::hold::%uuid of player%} is set
+	fuelHangUp(player, "teleport")
+
+on load:
+	execute console command "minecraft:kill @e[type=minecraft:text_display,tag=donating_fuel]"
+	delete {-fuel::meter::*}
+	delete {-fuel::meterend::*}
+
+# Every second: the fills flow, the nozzles that should go back go back, the drivers' fuel (switches, warnings, the
+# chase camera's line), old meters go.
+every second:
+	loop {-fuel::who::*}:
+		set {_p} to loop-value
+		set {_n} to {-fuel::hold::%loop-index%}
+		if {_p} is not online:
+			delete {-fuel::who::%loop-index%}
+		else:
+			set {_why} to ""
+			set {_t} to fuelPumpTop({_n})
+			if itemId({_p}'s tool) is not "nozzle:%{_n}%":
+				set {_why} to "slot"
+			else if world of {_p} is not world of {_t}:
+				set {_why} to "away"
+			else if distance between (location of {_p}) and {_t} > cfg("fuel::hose") + 2:
+				set {_why} to "away"
+			else if carSeatOf({_p}) is not "":
+				set {_why} to "car"
+			else if isCombatTagged({_p}) is true:
+				set {_why} to "combat"
+			else if isWanted({_p}) is true:
+				set {_why} to "combat"
+			if {_why} is "":
+				if {-fuel::fill::%loop-index%} is set:
+					fuelFlow({_p})
+				else if difference between {-fuel::flowat::%loop-index%} and now > cfg("fuel::idle"):
+					set {_why} to "idle"
+			if {_why} is not "":
+				fuelHangUp({_p}, {_why})
+				if {_why} is "away":
+					hudBar({_p}, "&7The hose doesn't reach that far: the nozzle went back.", 2)
+	loop {-fuel::meterend::*}:
+		if loop-value < now:
+			set {_n} to loop-index
+			set {_d} to {-fuel::meter::%{_n}%}
+			if {_d} is set:
+				if {_d} is valid:
+					kill {_d}
+			delete {-fuel::meter::%{_n}%}
+			delete {-fuel::meterend::%{_n}%}
+	loop all players:
+		fuelDriverTick(loop-player)
+
+function fuelDriverTick(p: player):
+	set {_u} to "%uuid of {_p}%"
+	set {_seat} to carSeatOf({_p})
+	if {_seat} does not start with "driver:":
+		delete {-fuel::pct::%{_u}%}
+		delete {-fuel::warned::%{_u}%}
+		stop
+	set {_plate} to subtext of {_seat} from characters 8 to (length of {_seat})
+	fuelPrepare({_plate})
+	if fuelOn() is false:
+		delete {-fuel::pct::%{_u}%}
+		stop
+	set {_lv} to fuelLevel({_plate})
+	if {_lv} < 0:
+		stop
+	set {-fuel::pct::%{_u}%} to floor({_lv})
+	if {_lv} < 1:
+		if {-fuel::warned::%{_u}%} is not "%{_plate}%:empty":
+			set {-fuel::warned::%{_u}%} to "%{_plate}%:empty"
+			if fuelModel({_plate}) is "bike":
+				msg({_p}, "&cThe bike is out of fuel.")
+			else if carModelOf({_plate}) is not "":
+				msg({_p}, "&cOut of fuel. &7A pump, or &f/garage&7: send it back and refuel it there.")
+			else:
+				msg({_p}, "&cOut of fuel.")
+	else if {_lv} < cfg("fuel::low"):
+		if {-fuel::warned::%{_u}%} is not set:
+			set {-fuel::warned::%{_u}%} to "%{_plate}%:low"
+			hudBar({_p}, "&6⛽ Low fuel: %floor({_lv})%%% &7· &f/fuel", 2)
+			play sound "block.note_block.chime" with volume 0.8 and pitch 0.8 to {_p}
+
+# The hose: particles from the pump to the player (or the car while it fills), 4 times a second.
+every 5 ticks:
+	loop {-fuel::who::*}:
+		set {_p} to loop-value
+		if {_p} is online:
+			set {_n} to {-fuel::hold::%loop-index%}
+			set {_a} to fuelPumpTop({_n})
+			set {_b} to location of {_p}
+			set {_b} to {_b} ~ vector(0, 1, 0)
+			set {_cl} to {-fuel::fillat::%loop-index%}
+			if {_cl} is set:
+				set {_b} to {_cl} ~ vector(0, 0.8, 0)
+			if world of {_a} is world of {_b}:
+				set {_d} to distance between {_a} and {_b}
+				if {_d} <= cfg("fuel::hose") + 4:
+					set {_k} to max(2, ceil({_d} * 2))
+					loop {_k} + 1 times:
+						set {_f} to (loop-number - 1) / {_k}
+						set {_x} to (x-coordinate of {_a}) + ((x-coordinate of {_b}) - (x-coordinate of {_a})) * {_f}
+						set {_z} to (z-coordinate of {_a}) + ((z-coordinate of {_b}) - (z-coordinate of {_a})) * {_f}
+						# a hose sags: lowest in the middle
+						set {_y} to (y-coordinate of {_a}) + ((y-coordinate of {_b}) - (y-coordinate of {_a})) * {_f} - 0.8 * 4 * {_f} * (1 - {_f})
+						draw 1 rgb(24, 24, 26) dust particles of size 0.7 at location({_x}, {_y}, {_z}, world of {_a})
+
+# ---------- The garage's tank service (garage.sk's car options: "Refuel") ----------
+
+# What filling a car in the garage costs (0 when it's full or unknown).
+function fuelGaragePrice(plate: text) :: number:
+	set {_lv} to fuelLevel({_plate})
+	if {_lv} < 0:
+		return 0
+	set {_m} to fuelModel({_plate})
+	set {_l} to fuelTank({_m}) * (100 - {_lv}) / 100
+	if {_l} < 0.05:
+		return 0
+	return ceil({_l} * cfg("fuel::price") * cfg("fuel::garage-factor"))
+
+function fuelGarageKey(plate: text) :: text:
+	return "fill:%{_plate}%@%fuelGaragePrice({_plate})%"
+
+# The button (garage.sk garageOptions puts it at slot 15); why = "" or why not now (out, away from a garage).
+function fuelGarageButton(p: player, gui: inventory, plate: text, why: text):
+	fuelOn() is true
+	set {_lv} to fuelLevel({_plate})
+	{_lv} >= 0
+	set {_m} to fuelModel({_plate})
+	set {_info} to "&7Tank: &f%floor({_lv})%%% &7· %fuelLitersText({_lv}, {_m})%"
+	set {_pr} to fuelGaragePrice({_plate})
+	if {_pr} <= 0:
+		set slot 15 of {_gui} to gray dye named "&7Refuel" with lore {_info} and "&aFull"
+	else if {_why} is not "":
+		set slot 15 of {_gui} to gray dye named "&7Refuel" with lore {_info} and "&a%formatMoney({_pr})%" and {_why}
+	else if carArmed({_p}, fuelGarageKey({_plate})) is true:
+		carButton({_p}, {_gui}, 15, carArmedIcon("Refuel", {_pr}), "fill:%{_plate}%")
+	else:
+		carButton({_p}, {_gui}, 15, orange dye named "&6Refuel" with lore {_info} and "%carPriceColor({_p}, {_pr})%%formatMoney({_pr})%", "fill:%{_plate}%")
+
+# garage.sk carAction "fill": checks again, a second click from shop::confirm-above, then the money and a full tank.
+function fuelGarageFill(p: player, plate: text):
+	carOwns({_p}, {_plate}) is true
+	if fuelOn() is false:
+		stop
+	if {car::out::%{_plate}%} is set:
+		carFail({_p}, "Send it back first.")
+		stop
+	if garagesExist() is true:
+		if garageAt({_p}) is "":
+			carFail({_p}, "Only at a garage.")
+			stop
+	set {_pr} to fuelGaragePrice({_plate})
+	if {_pr} <= 0:
+		garageOptions({_p}, {_plate})
+		stop
+	if {_pr} >= cfg("shop::confirm-above"):
+		if carConfirm({_p}, fuelGarageKey({_plate})) is false:
+			stop
+	if chargeMoney({_p}, {_pr}) is not true:
+		carFail({_p}, "Not enough money.")
+		stop
+	fuelPrepare({_plate})
+	fuelCmd({_plate}, "level 100")
+	fuelLog("garage %{_p}% %uuid of {_p}% plate=%{_plate}% paid=%{_pr}%")
+	msg({_p}, "&aYour %carTitle({_plate})%'s tank is full. &7(%formatMoney({_pr})%)")
+	play sound "block.note_block.pling" with volume 0.7 and pitch 1.4 to {_p}
+	garageOptions({_p}, {_plate})
+
+# ---------- Commands ----------
+
+command /fuel:
+	description: Your car's fuel, and the way to the nearest pump.
+	executable by: players
+	trigger:
+		set {_seat} to carSeatOf(player)
+		if {_seat} starts with "driver:":
+			set {_plate} to subtext of {_seat} from characters 8 to (length of {_seat})
+			set {_lv} to fuelLevel({_plate})
+			if {_lv} >= 0:
+				set {_m} to fuelModel({_plate})
+				set {_pr} to ceil(fuelTank({_m}) * (100 - {_lv}) / 100 * cfg("fuel::price"))
+				msg(player, "&6⛽ &f%floor({_lv})%%% &7· %fuelLitersText({_lv}, {_m})% &7· a full tank at a pump: &a%formatMoney({_pr})%")
+		set {_n} to fuelPumpNear(location of player)
+		if {_n} is "":
+			msg(player, "&7No pumps in this world.")
+			stop
+		set {_t} to fuelPumpTop({_n})
+		gpsPin(player, {_t}, "Fuel pump")
+		msg(player, "&7The nearest pump is on your GPS: &f$%cfg("fuel::price")% a liter&7. The garage fills a tank for %cfg("fuel::garage-factor")%x that.")
+
+command /dfuel [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "pumpat":
+			# pumpat <world> <x1> <y1> <z1> <x2> <y2> <z2> <label>
+			set {_w} to world({_a::2})
+			set {_ok} to true
+			if {_w} is not set:
+				set {_ok} to false
+			loop 6 times:
+				set {_i} to loop-number + 2
+				set {_c::%loop-number%} to {_a::%{_i}%} parsed as integer
+				if {_c::%loop-number%} is not set:
+					set {_ok} to false
+			if {_a::9} is not set:
+				set {_ok} to false
+			if {_ok} is false:
+				send "FUEL usage: /dfuel pumpat <world> <x1> <y1> <z1> <x2> <y2> <z2> <label>" to sender
+				stop
+			set {_x1} to min({_c::1}, {_c::4})
+			set {_x2} to max({_c::1}, {_c::4})
+			set {_y1} to min({_c::2}, {_c::5})
+			set {_y2} to max({_c::2}, {_c::5})
+			set {_z1} to min({_c::3}, {_c::6})
+			set {_z2} to max({_c::3}, {_c::6})
+			# the same box again (a second run of the setup lines) replaces it
+			loop {fuel::pump::*}:
+				if "%loop-value%" starts with "%{_a::2}%|%{_x1}%|%{_y1}%|%{_z1}%|%{_x2}%|%{_y2}%|%{_z2}%|":
+					delete {fuel::pump::%loop-index%}
+			add 1 to {fuelpumpcounter}
+			set {fuel::pump::%{fuelpumpcounter}%} to "%{_a::2}%|%{_x1}%|%{_y1}%|%{_z1}%|%{_x2}%|%{_y2}%|%{_z2}%|%{_a::9}%"
+			fuelLog("pump add %{fuelpumpcounter}% %{fuel::pump::%{fuelpumpcounter}%}% by=%sender%")
+			send "FUEL pump %{fuelpumpcounter}% (%{_a::9}%) %{_a::2}% %{_x1}% %{_y1}% %{_z1}% .. %{_x2}% %{_y2}% %{_z2}%" to sender
+		else if {_sub} is "pump":
+			# pump add <label>: the block you look at
+			if player is not set:
+				send "FUEL use pumpat from the console" to sender
+				stop
+			if {_a::2} is not "add":
+				send "FUEL usage: /dfuel pump add <label> (looking at the pump)" to sender
+				stop
+			if {_a::3} is not set:
+				send "FUEL usage: /dfuel pump add <label> (looking at the pump)" to sender
+				stop
+			set {_b} to target block of player
+			if {_b} is not set:
+				send "FUEL look at the pump" to sender
+				stop
+			set {_x} to x-coordinate of {_b}
+			set {_y} to y-coordinate of {_b}
+			set {_z} to z-coordinate of {_b}
+			set {_x} to floor({_x})
+			set {_y} to floor({_y})
+			set {_z} to floor({_z})
+			execute player command "dfuel pumpat %world of {_b}% %{_x}% %{_y}% %{_z}% %{_x}% %{_y}% %{_z}% %{_a::3}%"
+		else if {_sub} is "remove":
+			set {_n} to {_a::2}
+			if {fuel::pump::%{_n}%} is not set:
+				send "FUEL no pump %{_n}%" to sender
+				stop
+			set {_h} to {-fuel::holder::%{_n}%}
+			if {_h} is set:
+				fuelHangUp({_h}, "removed")
+			fuelLog("pump remove %{_n}% %{fuel::pump::%{_n}%}% by=%sender%")
+			delete {fuel::pump::%{_n}%}
+			send "FUEL pump %{_n}% removed" to sender
+		else if {_sub} is "list":
+			send "FUEL %size of {fuel::pump::*}% pumps (fuel %fuelOn()%, $%cfg("fuel::price")% a liter, %cfg("fuel::flow")% L a second)" to sender
+			loop {fuel::pump::*}:
+				set {_h} to ""
+				if {-fuel::holder::%loop-index%} is set:
+					set {_h} to " (in use: %{-fuel::holder::%loop-index%}%)"
+				send "  %loop-index%: %loop-value%%{_h}%" to sender
+		else if {_sub} is "dump":
+			loop {fuel::pump::*}:
+				set {_f::*} to "%loop-value%" split at "|"
+				set {_line} to "dfuel pumpat %{_f::1}% %{_f::2}% %{_f::3}% %{_f::4}% %{_f::5}% %{_f::6}% %{_f::7}% %{_f::8}%"
+				send {_line} to sender
+				fuelLog("dump %{_line}%")
+		else if {_sub} is "car":
+			# car <plate> [level]
+			if {_a::2} is not set:
+				send "FUEL usage: /dfuel car <plate> [level 0-100]" to sender
+				stop
+			set {_plate} to {_a::2} in upper case
+			if {_a::3} is set:
+				set {_lv} to {_a::3} parsed as number
+				if {_lv} is not set:
+					send "FUEL a level 0-100" to sender
+					stop
+				fuelPrepare({_plate})
+				fuelCmd({_plate}, "level %{_lv}%")
+				fuelLog("set %{_plate}% level=%{_lv}% by=%sender%")
+			set {_r::*} to fuelCmd({_plate}, "")
+			if {_r::1} is not set:
+				send "FUEL %{_plate}%: unknown (or MTVehicles missing)" to sender
+				stop
+			set {_m} to fuelModel({_plate})
+			send "FUEL %{_plate}% model=%{_m}% level=%{_r::2}% usage=%{_r::3}% enabled=%{_r::4}% driven=%{_r::5}% tank=%fuelTank({_m})%L burn=%fuelBurn({_m})%min" to sender
+		else if {_sub} is "info":
+			set {_p} to {_a::2} parsed as player
+			if {_p} is not set:
+				send "FUEL usage: /dfuel info <player>" to sender
+				stop
+			set {_u} to "%uuid of {_p}%"
+			send "FUEL %{_p}% hold=%{-fuel::hold::%{_u}%}% fill=%{-fuel::fill::%{_u}%}% liters=%{-fuel::liters::%{_u}%}% paid=%{-fuel::paid::%{_u}%}% pct=%{-fuel::pct::%{_u}%}% warned=%{-fuel::warned::%{_u}%}%" to sender
+		else:
+			send "FUEL usage: /dfuel pumpat <world> <x1> <y1> <z1> <x2> <y2> <z2> <label> | pump add <label> | remove <n> | list | dump | car <plate> [level] | info <player>" to sender

@@ -10,7 +10,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1002
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 250.0
@@ -135,7 +135,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1003
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 300.0
@@ -353,7 +353,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1074
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 350.0
@@ -461,7 +461,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1006
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 250.0
@@ -576,7 +576,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1132
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 300.0
@@ -696,7 +696,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1198
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 300.0
@@ -831,7 +831,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1165
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 300.0
@@ -982,7 +982,7 @@ voertuigen:
     vehicleType: CAR
     skinItem: DIAMOND_HOE
     itemDamage: 1036
-    benzineEnabled: false
+    benzineEnabled: true
     kofferbakEnabled: false
     hornEnabled: true
     maxHealth: 200.0
