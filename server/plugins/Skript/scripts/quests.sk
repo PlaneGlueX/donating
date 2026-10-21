@@ -258,8 +258,8 @@ function questOpen(p: player, n: text):
 		# The Broker (hits.sk): this week's hit contract.
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.7 to {_p}
 		hitMenu({_p})
-	else if {_k} is "lefty" or "rusty" or "tank" or "whisper":
-		# The prison's inmates (jailjobs.sk): Lefty's lessons, their jobs, Rusty's donut trade.
+	else if {_k} is "lefty" or "rusty" or "tank" or "whisper" or "sparks":
+		# The prison's inmates (jailjobs.sk): Lefty's lessons, their jobs, Rusty's donut trade, Sparks' makeshift weapons.
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 1.0 to {_p}
 		jjobTalk({_p}, {_k}, {_n})
 	else:

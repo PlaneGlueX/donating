@@ -86,10 +86,12 @@ function msgInPerson(p: player, key: text) :: boolean:
 						return true
 	return false
 
-# A line said in person: the whole line in chat, nothing kept.
+# A line said in person: the whole line in chat, nothing kept. A recorded line (the inmates': voice.sk) plays instead
+# of the ping.
 function msgSpeak(p: player, from: text, line: text):
 	send colored "&d%{_from}%&7: &f%{_line}%" to {_p}
-	play sound "block.note_block.bit" with volume 0.7 and pitch 1.6 to {_p}
+	if voiceSay({_p}, {_from}, {_line}) is false:
+		play sound "block.note_block.bit" with volume 0.7 and pitch 1.6 to {_p}
 
 # A text's first words for its chat notice (messages::preview characters at most).
 function msgPreview(t: text) :: text:

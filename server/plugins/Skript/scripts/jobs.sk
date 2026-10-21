@@ -1000,7 +1000,9 @@ function jobsLine(p: player, key: text) :: text:
 		return ""
 	if jobsState({_p}, {_c}, {_k}) is not "taken":
 		return ""
-	return "&e✉ &f%jobsTitleOf({_p}, {_c}, {_k})% &7%jobsProgText({_p}, {_c}, {_k})%"
+	# "▶ Boss: Special Delivery 0/1" (the contact, the job, its progress: story.sk questShow's line).
+	set {_who} to {-cfg::jobs::%{_c}%::name}
+	return "&e▶ %{_who}%: &f%jobsTitleOf({_p}, {_c}, {_k})% &7%jobsProgText({_p}, {_c}, {_k})%"
 
 # The tracked job's boss bar (hud.sk, after the missions').
 function jobsHud(p: player) :: boolean:

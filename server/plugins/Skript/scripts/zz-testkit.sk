@@ -352,7 +352,13 @@ command /zzcfgtext <text> <text>:
 command /zzcfgreload:
 	executable by: console
 	trigger:
+		# The prison switch stays as it is (2026-10-20: loadSettings switched it off, and the master switch moved a real
+		# player in the prison to the city spawn; set back in the same tick, no pass sees it off). /sk reload core still
+		# resets it.
+		set {_prison} to {-cfg::prison::enabled}
 		loadSettings()
+		if {_prison} is true:
+			set {-cfg::prison::enabled} to true
 		send "CFGRELOAD"
 
 command /zzpapi <player> <text>:
@@ -1081,7 +1087,11 @@ command /zzseasonwipe:
 		delete {seasoncos::*}
 		delete {-lb::*}
 		delete {-ph::lb::*}
+		# The prison switch stays as it is, like /zzcfgreload (2026-10-20: menus.js's cleanup switched the prison off).
+		set {_prison} to {-cfg::prison::enabled}
 		loadSettings()
+		if {_prison} is true:
+			set {-cfg::prison::enabled} to true
 		send "SEASONWIPE"
 
 # Sets a heist's alarm wave number (a number, unlike /zzheistvar): /zzheistwave <heist> <n> (0 deletes it).
@@ -1275,6 +1285,18 @@ command /zzmsg <player> <text> <text> <text>:
 		msgPost(arg-1, arg-3, arg-4, arg-2)
 		send "MSG %arg-1% %arg-2%"
 
+# The voice lines (voice.sk): one line, on= (the setting) hears= (and the pack) clip= (the last played) left= (seconds
+# until the playing and waiting ones end) who= gen= told= (the course notice). /zzvoice <player> clip <speaker> <line...>:
+# the clip voicelines.sk finds for that line.
+command /zzvoice <player> [<text>] [<text>] [<text>]:
+	executable by: console
+	trigger:
+		if arg-2 is "clip":
+			send "VOICECLIP %voiceClip(arg-3, arg-4)%"
+			stop
+		set {_u} to "%uuid of arg-1%"
+		send "VOICE %arg-1% on=%voiceOn(arg-1)% hears=%voiceHears(arg-1)% clip=%{-voice::clip::%{_u}%}% left=%voiceLeft(arg-1)% who=%{-voice::who::%{_u}%}% gen=%{-voice::gen::%{_u}%}% told=%getData(arg-1, "voiceline-told")%"
+
 # The inbox: /zzinbox <player> [flush] (flush: the pending bursts kept now). One line: n, unread, the newest text.
 command /zzinbox <player> [<text>]:
 	executable by: console
@@ -1336,7 +1358,7 @@ command /zzcarcall <player> <text>:
 # ---------- The prison (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk; ESCAPE-SPEC 7.1) ----------
 
 # One line for the prison-* scenarios: "JAIL <p> state= step= cell= inside= lot= lotflag= hostile= hunters= stun=
-# shield= items=<kind:slotxn,...> mark= lowhp= course= ko=<other:secs,...> koby=<other:secs,...>".
+# grab=<secs|-> grace=<yes|no> shield= items=<kind:slotxn,...> mark= lowhp= course= ko=<other:secs,...> koby=<other:secs,...>".
 function zzJailInfo(p: player) :: text:
 	set {_u} to "%uuid of {_p}%"
 	set {_l} to location of {_p}
@@ -1380,7 +1402,26 @@ function zzJailInfo(p: player) :: text:
 	set {_cw} to 0
 	if jailFuture({-jail::cellopen::%{_u}%}) is true:
 		set {_cw} to ceil(jailSecsLeft({-jail::cellopen::%{_u}%}))
-	return "JAIL %{_p}% state=%jailState({_p})% step=%getData({_p}, "jail-step")% cell=%{-jail::cell::%{_u}%}% cellwait=%{_cw}% inside=%jailInsideAt({_l})% lot=%jailInLot({_l})% lotflag=%{-jail::lot::%{_u}%}% hostile=%{_h}% hunters=%{_hn}% stun=%{_st}% shield=%{_sh}% items=%jailItemsText({_p})% mark=%jailMarkOf({_p})% lowhp=%{_lo}% course=%getData({_p}, "jail-course")% cp=%{-jail::checkpoint::%{_u}%}% ko=%{_ko}% koby=%{_koby}%"
+	# The arrest clock's seconds so far (jailcops.sk), and the lose-cops grace.
+	set {_gr} to "-"
+	if {-jail::grab::%{_u}%} is set:
+		set {_gr} to "%round((difference between {-jail::grab::%{_u}%} and now) / 1 second * 10) / 10%"
+	set {_gc} to "no"
+	if jcopGraced({_u}) is true:
+		set {_gc} to "yes"
+	# The acts a guard could notice now (prison.sk jailAct, within notice::act-window), comma-separated ("-" = none).
+	set {_aw} to cfg("jailcop::notice::act-window")
+	set {_acts} to ""
+	loop {-jail::act::%{_u}%::*}:
+		if {_aw} is set:
+			if difference between loop-value and now < {_aw}:
+				if {_acts} is "":
+					set {_acts} to loop-index
+				else:
+					set {_acts} to "%{_acts}%,%loop-index%"
+	if {_acts} is "":
+		set {_acts} to "-"
+	return "JAIL %{_p}% state=%jailState({_p})% step=%getData({_p}, "jail-step")% cell=%{-jail::cell::%{_u}%}% cellwait=%{_cw}% inside=%jailInsideAt({_l})% lot=%jailInLot({_l})% lotflag=%{-jail::lot::%{_u}%}% hostile=%{_h}% hunters=%{_hn}% stun=%{_st}% grab=%{_gr}% grace=%{_gc}% shield=%{_sh}% items=%jailItemsText({_p})% mark=%jailMarkOf({_p})% lowhp=%{_lo}% course=%getData({_p}, "jail-course")% cp=%{-jail::checkpoint::%{_u}%}% ko=%{_ko}% koby=%{_koby}% acts=%{_acts}%"
 
 # /zzjail <player> state <course|in|out|off|none> | step <step> | give <kind> [n] | strip | info | catch | escape-check |
 # cellopen <secs> | ko <other> <secs|clear> (the player can't hurt the other for secs) | shield <secs|clear> | hostile |
@@ -1541,6 +1582,33 @@ command /zzjailcops:
 	executable by: console
 	trigger:
 		send jcopCounts()
+
+# What a prison cop sees of a player (jailcops.sk's restricted rule): "SEES <p> by=<route> zone=<the player's restricted
+# zone> cone=<in view: notice::range and restricted-cone> los=<vanilla line of sight> glass=<jcopClearView> win=<jcopSeesRz>"
+command /zzjailsees <text> <player>:
+	executable by: console
+	trigger:
+		set {_id} to jcopIdOf(arg-1)
+		set {_e} to {_none}
+		if {_id} is not "":
+			set {_e} to jcopEnt({_id})
+		if {_e} is not set:
+			send "SEES %arg-2% by=%arg-1% none"
+			stop
+		set {_p} to arg-2
+		set {_z} to jcopZoneAt(location of {_p})
+		set {_cone} to cfg("jailcop::notice::restricted-cone")
+		if {_cone} is not set:
+			set {_cone} to cfg("jailcop::notice::cone")
+		set {_iv} to jcopInView({_e}, {_p}, cfg("jailcop::notice::range"), {_cone})
+		set {_los} to false
+		if {_e} has line of sight to {_p}:
+			set {_los} to true
+		set {_gl} to jcopClearView(eye location of {_e}, eye location of {_p})
+		set {_win} to false
+		if {_z} is not "":
+			set {_win} to jcopSeesRz({_e}, {_p}, {_z})
+		send "SEES %{_p}% by=%arg-1% zone=%{_z}% cone=%{_iv}% los=%{_los}% glass=%{_gl}% win=%{_win}%"
 
 # Moves a prison cop (Citizens' moveto, through the real console: --id needs it).
 command /zzjailcopto <text> <number> <number> <number>:

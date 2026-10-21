@@ -24,7 +24,7 @@
 # UUIDs) and the console-only /dshop and /gpspick are taken out of everyone else's command list below.
 # Since then: /dpv, /dskins, /dsetup prison, /dquest addatw, coordinates, the add settings of /dtrap and /dloot, /djobs
 # post, /dhit's districts and windows (2026-10-19). The prison's handlers live with their scripts (prison.sk,
-# jailcops.sk, jailjobs.sk), /console's in owner.sk, /carcam's in carcam.sk.
+# jailcops.sk, jailjobs.sk), /console's in owner.sk, /carcam's in carcam.sk, /voiceline's in voice.sk.
 
 # ---------- Lists ----------
 

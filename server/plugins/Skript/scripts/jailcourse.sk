@@ -51,43 +51,56 @@ function jcSet(p: player, s: text):
 		if {_s} is not "hotbar":
 			jcPrompt({_p}, {_s})
 
+# A step's title (its prompt's title, the sidebar's line): "" for an unknown step.
+function jcTitle(s: text) :: text:
+	if {_s} is "cell":
+		return "Locked up"
+	if {_s} is "sneak":
+		return "Sneak past the guard"
+	if {_s} is "vent":
+		return "Use the keycard"
+	if {_s} is "crawl":
+		return "Through the vent"
+	if {_s} is "boiler":
+		return "Find a way through"
+	if {_s} is "hotbar":
+		return "Hold the knife"
+	if {_s} is "phone":
+		return "Your phone"
+	if {_s} is "office":
+		return "The Security Office"
+	if {_s} is "upstairs":
+		return "Up and out"
+	return ""
+
 # The step, straight to the player: a title with its key, a chat line, a ping (the boss bar keeps it after).
 function jcPrompt(p: player, s: text):
-	set {_t} to ""
+	set {_t} to jcTitle({_s})
 	if {_s} is "cell":
-		set {_t} to "Locked up"
 		set {_sub} to "&7Your cell opens in a moment"
 		set {_c} to "New inmates learn the ropes down here first. Your cell opens in a moment."
 	else if {_s} is "sneak":
-		set {_t} to "Sneak past the guard"
 		set {_sub} to "&7Hold &fShift&7 and take the keycard off his desk"
 		set {_c} to "Guards notice inmates who aren't sneaking: get near him without sneaking and he wakes up. Sneak into the guard post and take the keycard off the desk."
 	else if {_s} is "vent":
-		set {_t} to "Use the keycard"
 		set {_sub} to "&7Right-click the vent's &cred reader"
 		set {_c} to "Keycards and quest items sit in hotbar 6-8 and work from there: no need to hold one, right-click a red reader to open its door."
 	else if {_s} is "crawl":
-		set {_t} to "Through the vent"
 		set {_sub} to "&7Follow it to the other side"
 		set {_c} to "Follow the vent to the other side."
 	else if {_s} is "boiler":
-		set {_t} to "Find a way through"
 		set {_sub} to "&7Into the next cell"
 		set {_c} to "There's a way into the next cell from the boiler room."
 	else if {_s} is "hotbar":
-		set {_t} to "Hold the knife"
 		set {_sub} to "&7Press &f%jcKnifeKey({_p})%"
 		set {_c} to "Your hotbar is fixed: 1-5 weapons and items, 6-8 quest items, 9 your phone; your bag rides in the offhand. Inside the walls only melee works."
 	else if {_s} is "phone":
-		set {_t} to "Your phone"
 		set {_sub} to "&7Press &f9&7, then &fright-click"
 		set {_c} to "Right-click with the phone: the map (your GPS in the city). F with the phone: the apps."
 	else if {_s} is "office":
-		set {_t} to "The Security Office"
 		set {_sub} to "&7Down the hall: the same keycard"
 		set {_c} to "The Security Office is down the hall. Its reader takes the same keycard."
 	else if {_s} is "upstairs":
-		set {_t} to "Up and out"
 		set {_sub} to "&7Up the ladder, through the SECURITY door"
 		set {_c} to "Up the ladder and through the SECURITY door into the main block."
 	if {_t} is not "":
@@ -220,6 +233,8 @@ function jcPass(p: player):
 	set {_l} to location of {_p}
 	set {-jail::checkpoint::%{_u}%} to jcCheckpoint({_p}, {_s})
 	set {-jail::coursebar::%{_u}%} to jcBar({_p}, {_s})
+	# The sidebar's quest line (story.sk questShow): "▶ Tutorial: Sneak past the guard 2/9".
+	set {-jail::courseline::%{_u}%} to "&e▶ Tutorial: &f%jcTitle({_s})% &7%jcStepNum({_s})%/%size of jcSteps()%"
 	if {_s} is not "sneak":
 		pvKill({_p}, "jcourse:card")
 		delete {-jc::unsneak::%{_u}%}
@@ -308,10 +323,14 @@ function jcPass(p: player):
 	else if {_s} is "upstairs":
 		if jailZone("hallb", {_l}) is true:
 			pvKill({_p}, "jcourse:card")
-			jailCourseDone({_p})
-			# A replay that finishes: what /tutorial stop would have put back goes (you're an inmate now).
+			set {_rp} to false
 			if {data::%{_p}%::jail-replay::state} is set:
-				delete {data::%{_p}%::jail-replay::*}
+				set {_rp} to true
+			# A replay that finishes: what /tutorial stop would have put back goes (you're an inmate now; jailCourseDone
+			# clears it, and Lefty's lessons start over).
+			jailCourseDone({_p})
+			delete {-jail::courseline::%{_u}%}
+			if {_rp} is true:
 				jcLog("course-replay-done %{_p}% %{_u}%")
 
 # Every 5 ticks: the course steps, the inside exits and the vent lids.
@@ -464,12 +483,20 @@ on join:
 		jailCellWait(player, cfg("prison::join-open") / 1 second)
 	jcLog("course-rejoin %player% %{_s}% at=%{_cp}%")
 
-# A replay's saved data left from a course that ended another way (staff /dprison course skip or state): it's gone.
+# A replay's saved data left from a replay that ended another way (staff /dprison state or free, the prison switched off
+# and on): the quests it reset go back as they were (story.sk storyReplayRestore: Lefty's lessons, the tracked quest),
+# the rest is dropped (staff put the player where they are). Checked at a join, at /tutorial and every second (story.sk
+# storyPass, before a chain can start over). A course that finished (jcPass, /dprison course skip) clears it in
+# prison.sk jailCourseDone, so the lessons start over then (review fix, 2026-10-20: the backup was deleted unrestored).
+function jcReplayStale(p: player):
+	{data::%{_p}%::jail-replay::state} is set
+	jailState({_p}) is not "course"
+	storyReplayRestore({_p})
+	delete {data::%{_p}%::jail-replay::*}
+	jcLog("course-replay-stale %{_p}% %uuid of {_p}% (quests restored)")
+
 on join:
-	jailState(player) is not "course"
-	{data::%player%::jail-replay::state} is set
-	delete {data::%player%::jail-replay::*}
-	jcLog("course-replay-stale %player% %uuid of player%")
+	jcReplayStale(player)
 
 on quit:
 	set {_u} to "%uuid of player%"
@@ -479,6 +506,7 @@ on quit:
 	delete {-jc::knifeat::%{_u}%}
 	delete {-jc::cellprompt::%{_u}%}
 	delete {-jail::coursebar::%{_u}%}
+	delete {-jail::courseline::%{_u}%}
 
 on unload:
 	jailBoxOff("course_card")
@@ -486,8 +514,10 @@ on unload:
 # ---------- /tutorial (tutorial.sk's command calls this while the prison runs) ----------
 # Owner, 2026-10-14: "update the /tutorial and /tutorial confirm command to bring you back to the tutorial if you forget".
 # /tutorial: your step and the offer; /tutorial confirm: back to the step's spot with its prompt again. After the course:
-# the course from the start again (no rewards twice: Rusty's knife is already yours), as a prisoner again. Never as a way
-# out of a chase, a fight, a heist or with loot on you.
+# the course from the start again (no rewards twice: Rusty's knife is already yours), as a prisoner again; the tutorial's
+# quests start over with it (owner, 2026-10-20: "the tutorial npcs go back to the quests they give for the tutorial"):
+# Lefty's lessons begin again once the course is done, and a lesson paid before pays nothing (story.sk storyReplaySave).
+# Never as a way out of a chase, a fight, a heist or with loot on you.
 function jcTutorialBlock(p: player) :: text:
 	if {_p} is not alive:
 		return "Not while you're dead."
@@ -507,11 +537,8 @@ function jcTutorialBlock(p: player) :: text:
 
 function jcTutorial(p: player, arg: text):
 	set {_st} to jailState({_p})
-	# A replay's saved data left from a course that ended another way (staff): gone before anything reads it.
-	if {_st} is not "course":
-		if {data::%{_p}%::jail-replay::state} is set:
-			delete {data::%{_p}%::jail-replay::*}
-			jcLog("course-replay-stale %{_p}% %uuid of {_p}%")
+	# A replay's saved data left from a replay that ended another way (staff): restored and gone before anything reads it.
+	jcReplayStale({_p})
 	if {_arg} is "stop":
 		jcStop({_p})
 		stop
@@ -533,7 +560,9 @@ function jcTutorial(p: player, arg: text):
 		msg({_p}, "&c%{_why}%")
 		stop
 	set {_u} to "%uuid of {_p}%"
+	set {_replay} to false
 	if {_st} is not "course":
+		set {_replay} to true
 		# What /tutorial stop puts back: anyone not on the course yet (a first-timer is already "course", so has no replay to
 		# stop). Also an inmate or free player who never finished it (they joined before the prison ran; review fix).
 		jcReplaySave({_p}, {_st})
@@ -555,6 +584,9 @@ function jcTutorial(p: player, arg: text):
 	else:
 		jcPrompt({_p}, {_s})
 	jcLog("course-back %{_p}% %{_s}% at=%{_cp}%")
+	# Every replay says the inmates talk out loud (voice.sk; owner, 2026-10-20).
+	if {_replay} is true:
+		voiceNotice({_p})
 
 # ---------- /tutorial stop (owner, 2026-10-15: "have a /tutorial stop command if you already completed it before") ----------
 # A replay (/tutorial confirm after the course) saves what it changes in data jail-replay::* (saved: a logout keeps it):
@@ -562,11 +594,13 @@ function jcTutorial(p: player, arg: text):
 # ("kind|n"; "off" = the offhand), whether the Combat Knife sat in hotbar 1-5 (knife) and was unlocked (wpn), your cell
 # and its wait, the hotbar slot held. Saved for anyone not on the course (also an inmate or free player who never finished
 # it). The items go back to their slots, never into a hand that didn't hold them before (the C4 included); a job's own
-# item (the stash, the note) only while that job still runs. /tutorial stop puts it all back, no rewards either way: the course card, a knife Rusty handed out, the
+# item (the stash, the note) only while that job still runs. Lefty's lessons and the tracked quest are saved too
+# (jail-replay::chain::*, jail-replay::track: story.sk storyReplaySave/Restore). /tutorial stop puts it all back, no rewards either way: the course card, a knife Rusty handed out, the
 # course's bar, checkpoint, prompts and cell go. The old spot only if it still holds you (its world loaded, nothing solid
 # at the eyes, no lava or fire at the feet, ground within 3 blocks) and fits the state (an inmate's inside the walls of the
 # prison world, a free player's outside them); else the hallway (R_SPAWN) for an inmate, the lot exit (LOT_EXIT) for a
-# free player. A replay that finishes (jcPass) clears it; so does a course that ended any other way (the join, jcTutorial).
+# free player. A replay that finishes (jcPass, /dprison course skip: jailCourseDone) clears it; one that ended any other
+# way puts the quests back and clears it (jcReplayStale: the join, jcTutorial, story.sk's pass).
 
 function jcReplaySave(p: player, st: text):
 	set {_u} to "%uuid of {_p}%"
@@ -616,6 +650,8 @@ function jcReplaySave(p: player, st: text):
 		if {_d} > now:
 			setData({_p}, "jail-replay::wait", ceil(jailSecsLeft({_d})))
 	setData({_p}, "jail-replay::at", unix timestamp of now)
+	# The tutorial's quests (Lefty's lessons) start over for the replay; /tutorial stop puts them back (story.sk).
+	storyReplaySave({_p})
 	jcLog("course-replay-save %{_p}% %{_u}% state=%{_s}% at=%{_l}% items=%{_n}% knife=%{_k}% wpn=%{_w}%")
 
 # Replaying the course now: a course player who finished it before (their saved data, or none: a replay from before
@@ -724,6 +760,7 @@ function jcStop(p: player):
 	deleteData({_p}, "jail-step")
 	delete {-jail::checkpoint::%{_u}%}
 	delete {-jail::coursebar::%{_u}%}
+	delete {-jail::courseline::%{_u}%}
 	delete {-jail::cellopen::%{_u}%}
 	delete {-jail::cellwait::%{_u}%}
 	delete {-jc::unsneak::%{_u}%}
@@ -792,6 +829,8 @@ function jcStop(p: player):
 					jailCellWait({_p}, {_wait})
 					delete {-jail::doorclose::cell_%{_cell}%}
 					jailDoor("cell_%{_cell}%", false)
+	# The tutorial's quests (Lefty's lessons) and the tracked quest as they were before the replay (story.sk).
+	storyReplayRestore({_p})
 	delete {data::%{_p}%::jail-replay::*}
 	clear the title of {_p}
 	set {_what} to "free"

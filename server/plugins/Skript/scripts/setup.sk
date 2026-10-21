@@ -607,6 +607,29 @@ function setupPrison(s: command sender):
 			setupLine({_s}, "ok", "the front gate is closed")
 		else:
 			setupLine({_s}, "no", "the front gate has %{_off}% blocks out of place (/dprison setup)")
+	# The yard's Gun Shop is keycard-only (2026-10-20): its door shut as built (or open for a pulse right now).
+	set {_gopen} to false
+	if {-jail::doorclose::gunshop} is set:
+		if {-jail::doorclose::gunshop} > now:
+			set {_gopen} to true
+	set {_gbad} to 0
+	set {_gn} to 0
+	loop {-jaildoor::gunshop::*}:
+		add 1 to {_gn}
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		if "%block data of block at location({_x}, {_y}, {_z}, {_w})%" does not contain "open=false":
+			add 1 to {_gbad}
+	if {_gn} is 0:
+		setupLine({_s}, "no", "the Gun Shop's door has no blocks (regenerate jailpoints.sk)")
+	else if {_gopen} is true:
+		setupLine({_s}, "ok", "the Gun Shop is keycard-only (open for a keycard right now)")
+	else if {_gbad} is 0:
+		setupLine({_s}, "ok", "the Gun Shop is keycard-only")
+	else:
+		setupLine({_s}, "no", "the Gun Shop's door stands open: it's keycard-only (/dprison setup)")
 	set {_k} to 0
 	loop {shop::keepers::*}:
 		if loop-value is "gun":
@@ -618,7 +641,7 @@ function setupPrison(s: command sender):
 		setupLine({_s}, "ok", "the Prison Gun Shop has its keeper (%{_k}%)")
 	else:
 		setupLine({_s}, "no", "no gun shopkeeper in the prison world (/dprison setup)")
-	loop "lefty", "rusty", "tank" and "whisper":
+	loop "lefty", "rusty", "tank", "whisper" and "sparks":
 		set {_n} to 0
 		loop {quest::giver::*}:
 			set {_a::*} to loop-value-2 split at "|"

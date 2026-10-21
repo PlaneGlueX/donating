@@ -5,10 +5,12 @@
 # Every method ends in the lot (still the prison); the front gate, opened from the gatehouse booth's console, is the
 # last step. Here:
 #   - readers (red tripwire hooks) and keycard doors that open as a prisoner carrying a keycard walks up (the police
-#     station's yard and POLICE doors, the punch gate, the gatehouse door); the gatehouse door also opens from inside;
-#   - search spots (the C4's three parts, the cafeteria's donut) with loot.sk's hold mechanic, a glowing marker on each
-#     spot and a "Hold right-click" prompt next to it; Lefty puts the three parts together (jailjobs.sk jjC4), the old
-#     workshop bench only points to him;
+#     station's yard and POLICE doors, the punch gate, the gatehouse door, the yard's Gun Shop: keycard-only since
+#     2026-10-20); the gatehouse's and the Gun Shop's doors also open from inside;
+#   - search spots (the C4's three parts, the cafeteria's donut, Sparks' three weapon parts since 2026-10-20) with
+#     loot.sk's hold mechanic, a glowing marker on each spot and a "Hold right-click" prompt next to it; Lefty puts the
+#     three C4 parts together (jailjobs.sk jjC4); the old workshop bench opens Sparks' menu (he stands behind it). A
+#     weapon part's search isn't an act the guards notice;
 #   - the breach "gate" (the vehicle gate between the plaza and the lot): plant, a 5 s fuse, the blast, open 2 min,
 #     a 5 s warning, then rebuilt (nobody can hold a hole open);
 #   - the two punch boxes (the Gun Shop's: the punch gate to the parkour; the gatehouse fuse box: the booth door), both
@@ -274,7 +276,7 @@ on right click on tripwire hook with priority lowest:
 	set {_bx} to floor(x-coordinate of event-block)
 	set {_by} to floor(y-coordinate of event-block)
 	set {_bz} to floor(z-coordinate of event-block)
-	loop "T_VENT_READER", "T_SO_READER_OUT", "T_SO_READER_IN", "POL_READER_N_OUT", "POL_READER_N_IN", "POL_READER_S_IN", "PUNCH_READER" and "BOOTH_READER":
+	loop "T_VENT_READER", "T_SO_READER_OUT", "T_SO_READER_IN", "POL_READER_N_OUT", "POL_READER_N_IN", "POL_READER_S_IN", "PUNCH_READER", "BOOTH_READER" and "GUN_READER":
 		if {_name} is not set:
 			set {_l} to jeBlock(loop-value)
 			if {_l} is set:
@@ -325,6 +327,10 @@ function jeKeycard(p: player, name: text):
 		jailMark({_p}, "parkour")
 	else if {_name} is "BOOTH_READER":
 		jailDoorPulse("booth", {_secs})
+	else if {_name} is "GUN_READER":
+		# The yard's Gun Shop is keycard-only (owner, 2026-10-20); opening it in a guard's view is an act, like the
+		# police doors (the owner's answer, 2026-10-20).
+		jailDoorPulse("gunshop", {_secs})
 	else:
 		set {_ok} to false
 	{_ok} is true
@@ -350,9 +356,11 @@ every 5 ticks:
 				if jailState({_p}) is "in":
 					if jailExempt({_p}) is false:
 						set {_l} to location of {_p}
-						# The booth's inside exit: nobody is ever shut in the gatehouse.
+						# The booth's and the Gun Shop's inside exits: nobody is ever shut in either.
 						if jailZone("boothin", {_l}) is true:
 							jailDoorPulse("booth", {_secs})
+						if jailZone("gunshopin", {_l}) is true:
+							jailDoorPulse("gunshop", {_secs})
 						# Keycard doors open as you walk up (as in Jailbreak).
 						set {_app} to ""
 						if jailZone("polnout", {_l}) is true:
@@ -365,6 +373,8 @@ every 5 ticks:
 							set {_app} to "PUNCH_READER"
 						else if jailZone("boothapp", {_l}) is true:
 							set {_app} to "BOOTH_READER"
+						else if jailZone("gunshopapp", {_l}) is true:
+							set {_app} to "GUN_READER"
 						if {_app} is not "":
 							if jailCount({_p}, "keycard") >= 1:
 								jeKeycard({_p}, {_app})
@@ -454,7 +464,9 @@ function jeSpotClick(p: player, point: text):
 	set {_what} to "Searching"
 	if {_kind} is "donut":
 		set {_what} to "Taking a donut"
-	else:
+	else if {-cfg::craft::parts::*} does not contain {_kind}:
+		# Not for Sparks' weapon parts: searching for them isn't suspicious (the owner's answer, 2026-10-20); the Scrap
+		# Metal only once it's held out (jailcops.sk's held rule).
 		jailAct({_p}, "search")
 	if jailHold({_p}, "spot_%{_point}%", {_need}) is false:
 		jailHoldBar({_p}, {_what}, {_need})
@@ -469,9 +481,16 @@ function jeSpotClick(p: player, point: text):
 	set {_all} to false
 	if {_kind} is "putty" or "wires" or "timer":
 		set {_all} to jeC4Parts({_p})
+	set {_craft} to ""
+	if {-cfg::craft::parts::*} contains {_kind}:
+		set {_craft} to jailCraftable({_p})
 	if {_all} is true:
 		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7· all three parts: bring them to Lefty in Hall B", 2)
 		msg({_p}, "&7You have the putty, the wires and a timer: &fLefty &7in Hall B puts them together.")
+	else if {_craft} is not "":
+		# The part that completes a recipe says so.
+		set {_cn} to "%{-cfg::wpn::%{_craft}%::name}%"
+		hudBar({_p}, "&a+ %{-cfg::jailitem::%{_kind}%::name}% &7· Sparks in the workshop can make you a %{_cn}%", 2)
 	else:
 		# Where it landed: a quest slot (hotbar 6-8) first, else the pockets (prison.sk jailGive; review fix).
 		set {_where} to jailWhere({_p}, {_kind})
@@ -486,9 +505,13 @@ function jeC4Parts(p: player) :: boolean:
 	return true
 
 # The old workshop bench: Lefty puts the C4 together now (owner, 2026-10-14: "instead of going to the workbench, give it
-# to lefty and he will give you the completed item").
+# to lefty and he will give you the completed item"); Sparks works it since 2026-10-20, so a click opens his menu.
 function jeBenchClick(p: player):
-	hudBar({_p}, "&7Lefty puts C4 together: bring him the putty, the wires and a timer (Hall B).", 1)
+	set {_n} to questNear({_p}, "sparks")
+	if {_n} is not "":
+		questOpen({_p}, {_n})
+		stop
+	hudBar({_p}, "&7Sparks works this bench: makeshift weapons from junk.", 1)
 
 # Where a spot's marker goes: on the spot itself (owner, 2026-10-14: "dont put the glowing brick above the search area put
 # it on the same block"). A block with a facing (a barrel): just out of its front face; a trapdoor (a cabinet door): the

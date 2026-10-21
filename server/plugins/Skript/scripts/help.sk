@@ -20,7 +20,7 @@ function showHelp(p: player):
 	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Car crates give rare wraps and mods." to {_p}
 	send colored "&7• &eCrates: &7a free key every day (&f/daily&7), more in &f/crates&7; open them at crate stands. &f/cosmetics &7to wear what you won." to {_p}
 	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
-	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse. &f/prison" to {_p}
+	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse. The yard's Gun Shop needs a keycard; Sparks in the workshop makes weapons from junk. &f/prison" to {_p}
 	send colored "&7• &eTrading: &7stand next to someone and &f/trade &7their name: cars and crate cosmetics." to {_p}
 	send colored "&7• &ePhone &7(hotbar 9): hold it for the map, right-click for the whole city, &fF &7for the apps: Messages, GPS, Missions, Garage, Bag, Crates, Cosmetics, Season, Bounties, Passive mode (no PvP, lower pay)." to {_p}
 	send colored "&7• &eRanks &7(&f/ranks&7) support the server: a tag, a bag look and more bag room. Seasons: &f/season&7, &f/lb&7." to {_p}
@@ -34,6 +34,7 @@ function showCommands(p: player):
 	send colored "&6Prison" to {_p}
 	helpLine({_p}, "/prison", "how to break out (while you're inside)")
 	helpLine({_p}, "/prison stuck", "back to your cell (or the course step); a catch while the guards are after you")
+	helpLine({_p}, "/voiceline [on/off]", "the inmates talking out loud (with the server's resource pack)")
 	send colored "&6Robbing" to {_p}
 	helpLine({_p}, "/heists", "every heist and store, open or not")
 	helpLine({_p}, "/bag", "what's in your bag, per heist")

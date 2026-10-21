@@ -17,10 +17,13 @@
 //               a radio, black boots
 //   jailshop  - the Prison Gun Shop's keeper (shop.sk, a gun keeper inside the walls): an inmate in a grey
 //               canvas apron over the jumpsuit, a green eyeshade, sleeve garters, a screwdriver in the pocket
+//   sparks    - Sparks (the Workshop, 2026-10-20: makeshift weapons, jailjobs.sk): short messy hair singed at the
+//               tips, welding goggles pushed up on the forehead, soot on his face, a scorched leather welder's apron
+//               over the jumpsuit, a leather welding glove on the right hand, work boots
 // Each skin goes to server\plugins\Citizens\skins\<id>.png and tools\skins\<id>.png, plus
 // tools\skins\preview-<id>.png (front, back, both sides and the head's top at 8x, and a small 2x front), and
-// tools\skins\preview-prison.png (all six from the front, side by side).
-// Then: tools\node\node.exe tools\sign-skins.js lefty rusty tank whisper jailguard jailshop
+// tools\skins\preview-prison.png (all seven from the front, side by side).
+// Then: tools\node\node.exe tools\sign-skins.js lefty rusty tank whisper jailguard jailshop sparks
 // Usage: tools\node\node.exe tools\skins\make-prison-skins.js
 const fs = require('fs')
 const path = require('path')
@@ -929,8 +932,132 @@ const jailshop = () => {
   return S.c
 }
 
+// ---------- Sparks: the workshop's tinkerer (2026-10-20, prison round 3: makeshift weapons) ----------
+const sparks = () => {
+  const SKIN = [214, 166, 128, 255]
+  const S = newSkin({
+    S: SKIN, s: shade(SKIN, 0.87), t: shade(SKIN, 0.76), x: [164, 120, 92, 255], d: [86, 80, 76, 255],
+    H: [54, 42, 36, 255], h: [34, 26, 22, 255], b: [128, 84, 52, 255], E: WHITE, I: [92, 120, 76, 255], m: [128, 80, 66, 255],
+    ...suit(ORANGE), ...PATCH,
+    P: [78, 76, 74, 255], p: [56, 54, 52, 255], r: [44, 42, 40, 255],
+    G: [232, 168, 44, 255], g: [30, 30, 32, 255], L: [110, 74, 42, 255],
+    C: [150, 98, 56, 255], c: [112, 70, 38, 255],
+    X: [52, 40, 30, 255], n: [30, 28, 26, 255]
+  })
+  // Head: short messy dark hair singed at the tips, soot on the cheeks, stubble; welding goggles pushed up on the
+  // forehead (hat layer: amber lenses, a leather strap round the head).
+  S.art('head', 'top', [
+    'HHbHHHhH',
+    'HhHHbHHH',
+    'HHHhHHbH',
+    'bHHHHHHH',
+    'HHHbHHhH',
+    'HhHHHHHH',
+    'HHHHhHbH',
+    'HbHHHHHH'
+  ])
+  S.art('head', 'bottom', rep([3, 'xxxxxxxx'], [5, 'ssssssss']))
+  S.art('head', 'front', [
+    'HHbHHHhH',
+    'HhHHHHHH',
+    'SSSSSSSS',
+    'ShhSShhS',
+    'SEISSIES',
+    'SdSssSSS',
+    'SxSmmSdS',
+    'txxxxxxt'
+  ])
+  const side = [ // back -> front
+    'HHHHHHHH',
+    'HHHbHHHH',
+    'HHHHHHSS',
+    'HHHHHSSS',
+    'HHHHsSSS',
+    'HHHHsSdS',
+    'hHSSSSSx',
+    'tSSSSSxt'
+  ]
+  S.art('head', 'right', side)
+  S.art('head', 'left', flip(side))
+  S.art('head', 'back', [
+    'HHhHHbHH',
+    'HHHHHHHH',
+    'HbHHHhHH',
+    'HHHHHHHH',
+    'HHhHHHbH',
+    'hHHHHHHh',
+    'SSSSSSSS',
+    'tttttttt'
+  ])
+  S.art('head', 'front', ['........', 'gGGggGGg', 'gggLLggg'], true)
+  S.art('head', 'right', ['........', 'LLLLLLLg'], true)
+  S.art('head', 'left', ['........', 'gLLLLLLL'], true)
+  S.art('head', 'back', ['........', 'LLLLLLLL'], true)
+
+  // Body: a scorched leather welder's apron over the jumpsuit (straps to the neck, soot spots, the ties knotted at the
+  // back), his number on the back.
+  S.art('body', 'top', rep([4, 'OOOOOOOO']))
+  S.art('body', 'bottom', rep([4, 'OOOOOOOO']))
+  S.art('body', 'front', [
+    'OrOooOrO',
+    'OPPPPPPO',
+    'OPpdPPPO',
+    'OPPPPPPO',
+    'OPPPpPPO',
+    'OPdPPPPO',
+    'OPPPPPPO',
+    'rrrrrrrr',
+    'PPPPPPPP',
+    'PPpPPPdP',
+    'PPPPPPPP',
+    'pppppppp'
+  ])
+  S.art('body', 'right', rep([7, 'OOOO'], [1, 'rrrr'], [4, 'OOPP']))
+  S.art('body', 'left', rep([7, 'OOOO'], [1, 'rrrr'], [4, 'PPOO']))
+  S.art('body', 'back', [
+    'OOOOOOOO',
+    'OOOOOOOO',
+    'OkkOkkkO',
+    'OkOkOkOO',
+    'OOOOOOOO',
+    'OOOOOdOO',
+    'OOOOOOOO',
+    'rrrrrrrr',
+    'OOOrrOOO',
+    'OOrOOrOO',
+    'OOOOOOOO',
+    'OOOooOOO'
+  ])
+  S.lift('body', ['front', 'right', 'left'], 'Ppdr')
+
+  // Arms: sleeves rolled to the elbow; a leather welding glove to the forearm on the right, the left forearm bare and
+  // sooty.
+  const glove = rep([5, 'OOOO'], [1, 'qqqq'], [1, 'cccc'], [4, 'CCCC'], [1, 'cccc'])
+  S.limb('rarm', { top: rep([4, 'OOOO']), bottom: rep([4, 'cccc']), right: glove, front: glove, left: glove, back: glove })
+  S.lift('rarm', ['right', 'front', 'left', 'back'], 'qCc')
+  const bare = rep([5, 'OOOO'], [1, 'qqqq'], [5, 'SSSS'], [1, 'ssss'])
+  S.limb('larm', mirrorLimb({ top: rep([4, 'OOOO']), bottom: rep([4, 'ssss']), right: bare, front: bare, left: bare, back: bare }))
+  S.art('larm', 'front', ['.d..', '...d'], false, 0, 7)
+  S.lift('larm', ['right', 'front', 'left', 'back'], 'q')
+
+  // Legs: the apron's skirt over the thighs, the jumpsuit below (soot on a knee), worn leather work boots.
+  const leg = {
+    top: rep([4, 'OOOO']),
+    bottom: rep([4, 'nnnn']),
+    right: rep([4, 'OOOP'], [5, 'OOOO'], [1, 'oooo'], [1, 'XXXX'], [1, 'nnnn']),
+    front: rep([3, 'PPPP'], [1, 'pppp'], [1, 'OdOO'], [4, 'OOOO'], [1, 'oooo'], [1, 'XXXX'], [1, 'nnnn']),
+    left: rep([4, 'POOO'], [5, 'OOOO'], [1, 'oooo'], [1, 'XXXX'], [1, 'nnnn']),
+    back: rep([9, 'OOOO'], [1, 'oooo'], [1, 'XXXX'], [1, 'nnnn'])
+  }
+  S.limb('rleg', leg)
+  S.limb('lleg', mirrorLimb(leg))
+  S.lift('rleg', ['front'], 'Pp')
+  S.lift('lleg', ['front'], 'Pp')
+  return S.c
+}
+
 // ---------- Write ----------
-const SKINS = { lefty, rusty, tank, whisper, jailguard, jailshop }
+const SKINS = { lefty, rusty, tank, whisper, jailguard, jailshop, sparks }
 const citizens = path.join(__dirname, '..', '..', 'server', 'plugins', 'Citizens', 'skins')
 fs.mkdirSync(citizens, { recursive: true })
 const drawn = []

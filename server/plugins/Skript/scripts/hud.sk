@@ -8,8 +8,9 @@
 #     each change, so the bar shows while you shoot; the number above it always shows. Inside heists
 #     players receive no waypoints (nav.sk), so the bar is always there.
 #   - hudBar(p, text, prio): the action bar with priorities. A text with a lower priority than the last
-#     one is dropped for 1.5 s, so a loot prompt can't wipe a trap hit. Priorities: combat tag 3, trap
-#     hits and heist gates 2 (traps.sk), loot progress and results 1 (loot.sk), prompts 0.
+#     one is dropped for 1.5 s, so a loot prompt can't wipe a trap hit. Priorities: a prison guard's arrest
+#     clock 4 (jailcops.sk: CUFFING, broke free), combat tag 3, trap hits and heist gates 2 (traps.sk), loot
+#     progress and results 1 (loot.sk), prompts 0.
 #   - The boss bar (2026-09-26): the heist you're in and its escape clock; red with the alarm ("Cops in
 #     20s", then the wave and the next one's timer); while the cops chase you outside, how far you
 #     still have to go. See hudBoss.

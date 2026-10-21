@@ -312,3 +312,7 @@ meleefx:
     Brass_Knuckles: { swing: none, chain: 6 }
     Gold_Nunchucks: { swing: none, chain: 12 } # none: a whack drops the item below the screen and hides the twirl
     Dagger: { swing: none, chain: 10 } # the Katana's slash frames (a whack only tipped the blade aside)
+    # Sparks' makeshift weapons (the prison, 2026-10-20): plain box models with no glove, so the client's swing is fine.
+    Shiv: { swing: stab, ticks: 8 }
+    Mop_Spear: { swing: stab, ticks: 12 }
+    Taped_Club: { swing: whack, ticks: 16 }

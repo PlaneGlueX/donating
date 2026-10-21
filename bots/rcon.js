@@ -73,8 +73,16 @@ class Rcon {
     })
   }
 
-  // Runs a console command and returns its output with color codes stripped.
-  async cmd (command) {
+  // Runs a console command and returns its output with color codes stripped. One at a time: two commands sent
+  // together (a Promise.all over cmd) arrive as two packets in one read, the server drops the connection and every
+  // later command waits forever (found 2026-10-20: wm-melee hung there).
+  cmd (command) {
+    const run = (this.queue || Promise.resolve()).then(() => this._cmd(command))
+    this.queue = run.catch(() => {})
+    return run
+  }
+
+  async _cmd (command) {
     const id = (this.nextId += 2)
     // An unknown packet type makes the server reply "Unknown request" after the command's
     // own (possibly multi-packet) reply, which marks the end of the output.

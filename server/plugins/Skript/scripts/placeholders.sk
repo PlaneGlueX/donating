@@ -30,6 +30,9 @@
 #   %donating_heists_open%   heists open or running right now ("2")
 #   %donating_daily%         "&aready" or "in 5h 12m" (/daily, crates.sk)
 #   %donating_district%      the district you're in ("&fOld Town"), or "&7the outskirts" (districts.sk)
+#   %donating_jobs%, %donating_hit%  the contact jobs' and the hit contract's lines; nothing at all ("": TAB drops the
+#                            line) while the player is a prisoner (owner, 2026-10-20: "dont show /jobs in the leaderboard
+#                            until the player escapes from the jail"; a hit can't be worked inside either)
 
 every second:
 	loop all players:
@@ -62,6 +65,11 @@ every second:
 			set {-ph::daily::%loop-player%} to "&aready &7/daily"
 		else:
 			set {-ph::daily::%loop-player%} to dailyText(loop-player)
+		# A prisoner (prison.sk: on the course or in, the prison on): the city's job and hit lines are hidden.
+		if prisonIn(loop-player) is true:
+			set {-ph::jailed::%loop-player%} to true
+		else:
+			delete {-ph::jailed::%loop-player%}
 	set {_open} to 0
 	loop {heists::*}:
 		set {_s} to heistState(loop-index)
@@ -76,6 +84,7 @@ on quit:
 	delete {-ph::heistrobbers::%player%}
 	delete {-ph::wanted::%player%}
 	delete {-ph::daily::%player%}
+	delete {-ph::jailed::%player%}
 	delete {-ph::balance::%player%}
 	delete {-ph::bountymoney::%player%}
 	delete {-ph::bountyfancy::%player%}
@@ -135,12 +144,16 @@ placeholderapi placeholder with the prefix "donating":
 			set the placeholder result to {-ph::mission::%player%}
 	else if {_i} is "jobs":
 		set the placeholder result to "&r"
-		if {-ph::jobs::%player%} is set:
+		if {-ph::jailed::%player%} is set:
+			set the placeholder result to ""
+		else if {-ph::jobs::%player%} is set:
 			set the placeholder result to {-ph::jobs::%player%}
 	else if {_i} is "hit":
 		# hits.sk: the hunt's line (the target and the window's time left).
 		set the placeholder result to "&r"
-		if {-ph::hit::%player%} is set:
+		if {-ph::jailed::%player%} is set:
+			set the placeholder result to ""
+		else if {-ph::hit::%player%} is set:
 			set the placeholder result to {-ph::hit::%player%}
 	else if {_i} is "season_short":
 		set the placeholder result to "&r"

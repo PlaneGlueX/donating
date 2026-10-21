@@ -488,10 +488,14 @@ module.exports = (b) => {
     const fS = faceOf('S', X1, X2, Z1, Z2)
     win(fS, 293, 309, 65, 68); win(fS, 326, 331, 65, 68)
     for (const [a, c] of [[292, 310], [325, 332]]) for (let x = a; x <= c; x++) S(x, 64, Z2, 'blue_concrete')   // the base line runs on under the windows, as in the photo
-    clear(316, 65, 259, 316, 66, 259)
-    door(B, 316, 65, 258, 'south', 'left', true)
+    // the door is keycard-only (owner, 2026-10-20: "the gun shop is supposed to be keycard access only in the prison"):
+    // built closed, a reader outside on the frame's right post like the police station's (jailescape.sk opens it for a
+    // keycard and from inside for anyone). The paste is sparse: the opening is set to air.
+    F(316, 65, 259, 316, 66, 259, 'air')
+    door(B, 316, 65, 258, 'south', 'left', false)
     F(315, 65, 259, 315, 67, 259, 'light_gray_concrete'); F(317, 65, 259, 317, 67, 259, 'light_gray_concrete')
     S(316, 67, 259, 'light_gray_concrete'); S(316, 67, 258, 'light_gray_concrete')
+    S(317, 66, 259, 'red_concrete'); S(317, 66, 260, 'tripwire_hook[facing=south,attached=false,powered=false]')  // the reader outside
     const LOGO = ['WRRRW', 'RKKKR', 'RKCKR', 'RKKKR', 'WRRRW']                              // y 72 (top) .. 68
     LOGO.forEach((row, r) => [...row].forEach((c, i) => {
       const x = 314 + i, y = 72 - r
@@ -763,7 +767,8 @@ module.exports.labels = [
   { x: 139.0, y: 69.5, z: 321.03, facing: 'south', text: 'VISITORS', color: '#ffffff', scale: 4 },
   { x: 211.0, y: 70.5, z: 323.03, facing: 'south', text: 'POLICE', color: '#ffffff', scale: 3 },
   { x: 334.03, y: 66.0, z: 250.5, facing: 'east', text: "Don't Punch!", color: '#ff8f80', scale: 1.5 },
-  { x: 211.0, y: 69.5, z: 284.97, facing: 'north', text: 'POLICE · STAFF ONLY', color: '#ffffff', scale: 0.8 } // L_POLICE_N
+  { x: 211.0, y: 69.5, z: 284.97, facing: 'north', text: 'POLICE · STAFF ONLY', color: '#ffffff', scale: 0.8 }, // L_POLICE_N
+  { x: 316.5, y: 67.5, z: 260.03, facing: 'south', text: 'KEYCARD', color: '#ffffff', scale: 0.5 } // L_GUNSHOP, on the lintel
 ]
 // Skript spots (jail-spec 7 and 10): the Gun Shop's shopkeeper, facing the customers; the escape's police station
 // (ESCAPE-SPEC Appendix B, M5).
@@ -780,6 +785,12 @@ module.exports.points = {
   POL_READER_N_IN: [212, 66, 287, 0],
   POL_READER_S_IN: [209, 66, 320, 0],
   POL_IN: [210.5, 65, 288.5, 180],
-  L_POLICE_N: [211.0, 69.5, 284.97, 180]
+  L_POLICE_N: [211.0, 69.5, 284.97, 180],
+  // the keycard-only Gun Shop door (2026-10-20): the door, its reader outside, a spot outside and one inside
+  GUN_DOOR: [316, 65, 258, 0],
+  GUN_READER: [317, 66, 260, 0],
+  GUN_OUT: [316.5, 65, 261.5, 180],
+  GUN_IN: [316.5, 65, 256.5, 0],
+  L_GUNSHOP: [316.5, 67.5, 260.03, 0]
 }
 module.exports.strays = []

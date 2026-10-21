@@ -1,12 +1,19 @@
 # jailjobs.sk: the prison's inmates and their jobs (owner, 2026-10-14: "NPCs with small missions for money or items";
 # ESCAPE-SPEC revision 3, section 6). Built 2026-10-14.
 #
-# Four inmates are quest givers (quests.sk kinds lefty, rusty, tank, whisper; /djailjobs setup puts them at their
-# points): Lefty on the Hall B bench (his one-time lessons are the "lefty" chain in story.sk; after it, the Yard Run;
-# for anyone who brings him the three C4 parts, the C4: jjC4),
+# Five inmates are quest givers (quests.sk kinds lefty, rusty, tank, whisper, sparks; /djailjobs setup puts them at
+# their points): Lefty on the Hall B bench (his one-time lessons are the "lefty" chain in story.sk; after it, the Yard
+# Run; for anyone who brings him the three C4 parts, the C4: jjC4),
 # Rusty in his B1 cell (talked to through the bars: an interaction box in the corridor; donut trades), Tank in the
-# yard (the Distraction) and Whisper in the telephone room (deliveries and the stash). quests.sk's questOpen calls
-# jjobTalk for them.
+# yard (the Distraction), Whisper in the telephone room (deliveries and the stash) and Sparks behind the workshop's old
+# bench (2026-10-20, the owner: "an npc that allows you to collect a couple items around the prison and give it to him
+# to make a makeshift weapon (you can choose which one to make when interacting with him)": jjCraftMenu). quests.sk's
+# questOpen calls jjobTalk for them.
+#   Sparks: any two of the three parts (core.sk craft::*: the Scrap Metal from the gym's weights, the Duct Tape from the
+#     storage room, the Mop Handle from the laundry, jailescape.sk's search spots, 3 minutes a spot) make one of three
+#     WeaponMechanics melee weapons (Shiv, Mop Spear, Taped Club; prison.sk jailCraftable), into hotbar 1-5: the weapon
+#     first, then the parts. Never an unlock: the copy is the only one, kept until a death (a catch takes it like any
+#     hotbar 1-5 weapon; the escape doesn't). One of each at a time, in person, not while hunted.
 #
 # Jobs (core.sk jjob::*, PROPOSAL): one at a time, taken in person from the giver's menu. Each pays once (never while
 # AFK), then waits its cooldown (data jjob-ready::<id> = unix seconds); a failure or running out of time waits 2
@@ -273,7 +280,7 @@ function jjDone(p: player) :: boolean:
 	jjEnd({_p}, "done", "")
 	return true
 
-# ---------- Talking (quests.sk's questOpen: kinds lefty, rusty, tank, whisper) ----------
+# ---------- Talking (quests.sk's questOpen: kinds lefty, rusty, tank, whisper, sparks) ----------
 
 function jjobTalk(p: player, kind: text, n: text):
 	set {_u} to "%uuid of {_p}%"
@@ -293,7 +300,7 @@ function jjobTalk(p: player, kind: text, n: text):
 		if {-jjob::%{_u}%::target} is {_kind}:
 			if jailCount({_p}, "note") >= 1:
 				if jjDone({_p}) is true:
-					jjSay({_p}, {_who}, "Got it. Whisper sends her regards, huh.")
+					jjSay({_p}, {_who}, "Got it. Whisper sends his regards, huh.")
 				stop
 	if {_id} is "stash":
 		if {_kind} is "whisper":
@@ -328,6 +335,10 @@ function jjobTalk(p: player, kind: text, n: text):
 		if storyLive({_lid}) is true:
 			jjSay({_p}, {_who}, storyBrief({_p}, {_lid}))
 			stop
+	# Sparks: his menu of makeshift weapons (no jobs).
+	if {_kind} is "sparks":
+		jjCraftMenu({_p})
+		stop
 	if {_kind} is "rusty":
 		jjRusty({_p})
 		stop
@@ -470,6 +481,101 @@ function jjMenu(p: player, kind: text):
 		set {-jj::gen::%{_p}%} to 0
 	open {_gui} to {_p}
 
+# ---------- Sparks' menu (a plain 3-row chest: "Sparks · Makeshift"): the three weapons at 11, 13 and 15 ----------
+
+# One weapon: its parts (✔ carried, ✘ missing and where it's found), what a click does now, its own details
+# (weaponlore.sk). Glints when it can be made.
+function jjCraftIcon(p: player, w: text) :: item:
+	set {_name} to "%{-cfg::wpn::%{_w}%::name}%"
+	set {_need::*} to "%{-cfg::craft::%{_w}%::parts}%" split at "|"
+	loop {_need::*}:
+		set {_k} to "%loop-value%"
+		set {_pn} to "%{-cfg::jailitem::%{_k}%::name}%"
+		if jailCount({_p}, {_k}) >= 1:
+			add "&a✔ %{_pn}%" to {_l::*}
+		else:
+			set {_wh} to "%{-cfg::jailitem::%{_k}%::where}%"
+			add "&c✘ %{_pn}% &7· %{_wh}%" to {_l::*}
+	set {_can} to false
+	if jailWeaponSlot({_p}, {_w}) >= 0:
+		add "&7Carrying one" to {_l::*}
+	else if jailHasParts({_p}, {_w}) is true:
+		if freeLoadoutSlot({_p}) < 0:
+			add "&cHotbar 1-5 full" to {_l::*}
+		else:
+			add "&eClick: make it" to {_l::*}
+			set {_can} to true
+	set {_wl::*} to wpnLore({_w})
+	if {_wl::*} is set:
+		add "&r" to {_l::*}
+		add {_wl::*} to {_l::*}
+	set {_i} to wpnIcon({_w}) named "&6%{_name}%" with lore {_l::*}
+	if {_can} is true:
+		set {_i} to glint({_i})
+	return {_i}
+
+function jjCraftMenu(p: player):
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8%jjWho("sparks")% · Makeshift"
+	delete {-jj::act::%{_p}%::*}
+	set {_slot} to 11
+	loop {-cfg::craft::weapons::*}:
+		set {_w} to "%loop-value%"
+		set slot {_slot} of {_gui} to jjCraftIcon({_p}, {_w})
+		set {-jj::act::%{_p}%::%{_slot}%} to "craft:%{_w}%"
+		add 2 to {_slot}
+	set {-jj::gui::%{_p}%} to {_gui}
+	set {-jj::kind::%{_p}%} to "sparks"
+	if {-jj::gen::%{_p}%} is not set:
+		set {-jj::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+# Making weapon w at Sparks' (his menu; no wait). "" = made, else why not. The weapon first, then the parts: nothing is
+# taken until the weapon is in hotbar 1-5, so nothing ever needs refunding.
+function jjCraft(p: player, w: text) :: text:
+	set {_u} to "%uuid of {_p}%"
+	if prisonIn({_p}) is false:
+		return "&7Inmates only."
+	if jailState({_p}) is not "in":
+		return "&7Finish the course first."
+	if questNear({_p}, "sparks") is "":
+		return "&7Talk to Sparks in person."
+	if {-jail::hostile::%{_u}%} is set:
+		return "&7Not while the guards are after you."
+	# Fails closed: a weapon without the setting (or a missing core.sk line) is never made.
+	if {-cfg::wpn::%{_w}%::makeshift} is not true:
+		return "&7He can't make that."
+	set {_name} to "%{-cfg::wpn::%{_w}%::name}%"
+	if jailWeaponSlot({_p}, {_w}) >= 0:
+		return "&7You've got a %{_name}% already."
+	set {_need::*} to "%{-cfg::craft::%{_w}%::parts}%" split at "|"
+	if jailHasParts({_p}, {_w}) is false:
+		loop {_need::*}:
+			set {_k} to "%loop-value%"
+			if jailCount({_p}, {_k}) < 1:
+				add "the %{-cfg::jailitem::%{_k}%::name}%" to {_miss::*}
+		set {_m} to join {_miss::*} with " and "
+		return "&7Bring me %{_m}%."
+	set {_slot} to freeLoadoutSlot({_p})
+	if {_slot} < 0:
+		return "&cFree a slot in hotbar 1-5."
+	if equipWeapon({_p}, {_w}, {_slot}) is false:
+		jjLog("craft-failed %{_p}% %{_u}% %{_w}% slot=%{_slot}%")
+		return "&cSparks fumbled it. Try again."
+	# Counted in this same tick, so a part can't be missing now; logged if it ever is.
+	loop {_need::*}:
+		set {_k} to "%loop-value%"
+		if jailTake({_p}, {_k}, 1) is false:
+			jjLog("craft-short %{_p}% %{_u}% %{_w}% %{_k}%")
+	progEvent({_p}, "jailcraft", 1, {_w})
+	play sound "block.smithing_table.use" with volume 0.8 to {_p}
+	set {_line} to "%{-cfg::craft::%{_w}%::line}%"
+	jjSay({_p}, jjWho("sparks"), {_line})
+	set {_n} to {_slot} + 1
+	hudBar({_p}, "&a+ %{_name}% &7(hotbar %{_n}%)", 2)
+	jjLog("craft %{_p}% %{_u}% %{_w}% slot=%{_slot}%")
+	return ""
+
 # Taking a job from the menu. "" = taken, else why not.
 function jjAccept(p: player, id: text, kind: text) :: text:
 	if prisonIn({_p}) is false:
@@ -512,7 +618,12 @@ on inventory click:
 	add 1 to {-jj::gen::%player%}
 	set {_kind} to {-jj::kind::%player%}
 	{_kind} is set
-	set {_why} to jjAccept(player, "%{_id}%", "%{_kind}%")
+	set {_a} to "%{_id}%"
+	# Sparks' menu: "craft:<title>".
+	if {_a} starts with "craft:":
+		set {_why} to jjCraft(player, subtext of {_a} from characters 7 to (length of {_a}))
+	else:
+		set {_why} to jjAccept(player, {_a}, "%{_kind}%")
 	if {_why} is "":
 		close player's inventory
 	else:
@@ -561,44 +672,57 @@ function jjShow(p: player):
 		set {_l} to jailPt({-cfg::jjob::marks::%{_step}%})
 		if {_step} <= 1:
 			set {_t} to "Yard Run: to mark 1 · %{_clock}%"
+			set {_s} to "To mark 1"
 		else:
 			set {_t} to "Yard Run: mark %{_step}%/%{_n}% · %{_clock}%"
+			set {_s} to "Mark %{_step}%/%{_n}%"
 		if {_l} is set:
 			jjTarget({_p}, {_l}, "Mark %{_step}%", 3, "jjob:yardrun:%{_step}%")
 	else if {_id} is "delivery":
 		set {_who} to jjWho({_tg})
 		set {_t} to "Take the note to %{_who}% · %{_clock}%"
+		set {_s} to "Take the note to %{_who}%"
 		set {_l} to jjGiverSpot({_p}, {_tg})
 		if {_l} is set:
 			jjTarget({_p}, {_l}, {_who}, 3, "jjob:delivery:%{_tg}%")
 	else if {_id} is "stash":
 		if {_step} is "find":
 			set {_t} to "Find the stash in the yard · %{_clock}%"
+			set {_s} to "Find it in the yard"
 			set {_l} to jailPt({_tg})
 			if {_l} is set:
 				jjTarget({_p}, {_l}, "The stash", 6, "jjob:stash:find")
 		else:
 			set {_t} to "Bring the stash to Whisper · %{_clock}%"
+			set {_s} to "Bring it to Whisper"
 			set {_l} to jjGiverSpot({_p}, "whisper")
 			if {_l} is set:
 				jjTarget({_p}, {_l}, "Whisper", 3, "jjob:stash:back")
 	else if {_id} is "distraction":
 		if {_step} is "heat":
 			set {_t} to "Get the guards after you · %{_clock}%"
+			set {_s} to "Get the guards after you"
 		else:
 			set {_t} to "Now lose them · %{_clock}%"
+			set {_s} to "Now lose them"
 	else if {_id} is "donut":
 		if jailCount({_p}, "donut") >= 1:
 			set {_t} to "Bring Rusty the donut · %{_clock}%"
+			set {_s} to "Bring it to Rusty"
 			set {_l} to jjGiverSpot({_p}, "rusty")
 			if {_l} is set:
 				jjTarget({_p}, {_l}, "Rusty", 3, "jjob:donut:rusty")
 		else:
 			set {_t} to "Get a donut from the cafeteria · %{_clock}%"
+			set {_s} to "Get one at the cafeteria"
 			set {_l} to jailPt("DONUT_CAFE")
 			if {_l} is set:
 				jjTarget({_p}, {_l}, "Cafeteria counter", 3, "jjob:donut:cafe")
 	set {-jail::bar::%{_u}%} to "&3&lJOB&r &7· %{_t}%|blue|%{_prog}%"
+	# The sidebar's quest line (story.sk questLine): "▶ Yard Run: Mark 2/4 · 1:12".
+	if {_s} is not set:
+		set {_s} to "Go"
+	set {-jjob::%{_u}%::side} to "&3▶ %jjName({_id})%: &f%{_s}% &7· %{_clock}%"
 
 # The Yard Run's numbers over the marks still to touch (personal text displays: pv.sk), drawn again when lost.
 function jjRunMarks(p: player):
@@ -899,14 +1023,14 @@ function jjInfo(p: player) :: text:
 	set {_bar} to {-jail::bar::%{_u}%}
 	return "JJOBS %{_p}% job=%{_id}% step=%{_step}% target=%{_tg}% left=%{_left}% ready=%{_cd}% qt=%{_qt}% bar=%{_bar}%"
 
-# Puts the four inmates at their points (quests.sk's questAdd) unless one of that kind stands in the prison world.
+# Puts the five inmates at their points (quests.sk's questAdd) unless one of that kind stands in the prison world.
 function jjSetup(s: command sender):
 	set {_w} to jailWorld()
 	if {_w} is not set:
 		send "JJOBS the prison world (%{-cfg::prison::world}%) isn't loaded" to {_s}
 		stop
 	set {_wn} to "%{_w}%"
-	loop "lefty", "rusty", "tank" and "whisper":
+	loop "lefty", "rusty", "tank", "whisper" and "sparks":
 		set {_k} to loop-value
 		set {_have} to ""
 		loop {quest::giver::*}:
@@ -928,7 +1052,7 @@ function jjSetup(s: command sender):
 	jjLog("setup by=%{_s}%")
 
 command /djailjobs [<text>]:
-	description: Staff: the prison's inmates (Lefty, Rusty, Tank, Whisper) and their jobs.
+	description: Staff: the prison's inmates (Lefty, Rusty, Tank, Whisper, Sparks) and their jobs.
 	permission: donating.staff
 	permission message: &cStaff only.
 	trigger:

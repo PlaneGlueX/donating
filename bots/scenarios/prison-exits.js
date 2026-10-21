@@ -1,6 +1,7 @@
 // Veterans are never shut in (ESCAPE-SPEC 4.4, 4.5 and 7.2-2; the critique's points 2 and 3): an inmate ("in")
 // teleported into the course rooms walks out of each (the vent chamber's door, the Security Office's inside reader, the
-// SECURITY door from Hall C, Rusty's door, the boiler room through Rusty's cell); an east-wing cell whose wait is over
+// SECURITY door from Hall C, Rusty's door, the boiler room through Rusty's cell, the yard's keycard-only Gun Shop with no
+// keycard: its door opens from inside); an east-wing cell whose wait is over
 // opens within 5 ticks and stays open for an AFK inmate; /prison stuck: a calm inmate goes to their cell with
 // everything kept (again within 60 s refused), a hunted one is caught (the jail items taken).
 const { start, field, sleep } = require('../prisonlib')
@@ -53,6 +54,15 @@ module.exports = async ({ check }) => {
     check('...and the inmate walks out into the corridor', out && (await pos(A))[0] >= 80, `${await pos(A)}`)
     await sleep(3500)
 
+    // ---- the yard's Gun Shop (keycard-only since 2026-10-20): its door opens from inside for anyone
+    await into(A, 312.5, 65, 252.5, 0)
+    await sleep(500)
+    const gsShut = !(await doorOpen('gunshop'))
+    out = await walk(a, [[316.5, 256.8]])
+    const gsOpen = await until(() => doorOpen('gunshop'), 1500)
+    const gsOut = await walk(a, [[316.5, 261.5]], 3000)
+    check('an inmate in the Gun Shop with no keycard: the door opens from inside, and the inmate walks out', gsShut && out && gsOpen && gsOut && (await pos(A))[2] > 259, `${gsShut} ${gsOpen} ${await pos(A)} ${await door('gunshop')}`)
+
     // ---- the boiler room: through the broken wall into Rusty's cell, and out of his door
     await into(A, 72.5, 58, 77.5, -90)
     await sleep(500)
@@ -104,7 +114,7 @@ module.exports = async ({ check }) => {
     s = await info(B)
     check('/prison stuck while hunted: a catch (BACK TO YOUR CELL), the jail items taken', said(b, /BACK TO YOUR CELL/, since) && field(s, 'items') === '' && field(s, 'hostile') === 'no' && VET_CELLS.includes(field(s, 'cell')), s)
   } finally {
-    await t.prisonOff()
+    await t.prisonRestore()
     for (const n of [A, B]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()
   }

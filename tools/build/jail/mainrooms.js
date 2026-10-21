@@ -947,7 +947,14 @@ module.exports.points = {
   ASSEMBLE: [49, 65, 51, 0],
   ASSEMBLE_STAND: [49.5, 65, 52.5, 180],
   T_SO_HATCH: [64, 64, 88, 0],
-  SO_UP: [64.5, 65, 89.5, 0]
+  SO_UP: [64.5, 65, 89.5, 0],
+  // Sparks and his weapon parts (2026-10-20, prison round 3): he stands behind the old C4 bench facing south across it;
+  // the parts are searched at blocks already built: the gym's dumbbell rack (a heavy core), the storage room's east shelf
+  // barrel, a laundry cart (a barrel under a white carpet).
+  SPARKS: [49.5, 65, 49.5, 0],
+  SEARCH_SCRAP: [47, 66, 160, 0],
+  SEARCH_TAPE: [78, 65, 227, 0],
+  SEARCH_HANDLE: [86, 65, 63, 0]
 }
 module.exports._mine = mine
 module.exports._roomAt = (lvl, x, z) => { const r = roomAt(lvl, x, z); return r ? r.id : null }

@@ -176,7 +176,7 @@ module.exports = async ({ check }) => {
     const ds = await cmd('dsetup prison')
     check('/dprison setup, then /dsetup prison: nothing missing (no ✘), no monsters', /SETUP 0 missing/.test(ds) && !/^✘/m.test(ds) && /no monsters/.test(ds), `${ps} | ${ds}`)
   } finally {
-    await t.prisonOff()
+    await t.prisonRestore()
     for (const n of [A, B, C]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()
   }

@@ -5,8 +5,8 @@
 # clears). A skin that isn't here yet leaves that NPC with the default look.
 #   ids: mara, boss, vic, broker (quest givers); gun, gear, bag, tools, cars, garage (shopkeepers, by shop kind);
 #        vinnie, dmitri, sal, rico, pike, lena (hit targets, by target id); guard (the bodyguards);
-#        lefty, rusty, tank, whisper (the prison's inmates, quest givers by kind); jailguard (the prison guards and
-#        the course's sleeping guard); jailshop (the Prison Gun Shop's keeper: a gun keeper inside the walls);
+#        lefty, rusty, tank, whisper, sparks (the prison's inmates, quest givers by kind); jailguard (the prison
+#        guards and the course's sleeping guard); jailshop (the Prison Gun Shop's keeper: a gun keeper inside the walls);
 #        police (the city cops: core.sk cop::skin-*, tools\make-cop-skin.js).
 # Mannequins (shop.sk, quests.sk, jailcourse.sk) get it in their summon NBT (skinProfile) and a look tag (quests.sk
 # questLook, skinLook here): one summoned with an older look is replaced when its chunk is next checked, so bump
@@ -56,6 +56,8 @@ function skinsLoad():
 	set {-skin::rusty::signature} to "qlu2mZ8y5k9kk3EcY5Dh0enZsS07sxUaKHJeIgSD3FxfPwiXLzma94JcE/jTQy2NA67yPbnOkc2DYnUUEAonlwIFvvhSPX9jPlA1zfJ9zmdt3OZrl2mY5hCvda2cyyFhx19ffSZ+yluAPiZeB/Y5O7VNm6+SKrv7tLt0Kw0As6Nba+4kzLH9SBowiekVGm+gyKI13bJqxZ1exOBBbCKr1sjFcfcCqO1UvixMVgWMhz2E5PZKCOOweR5V6fnPJtn7FQy1SMt0L57Bb9ZztkodQeXdFMemMUniqcToWgPsRkkotxzj5GudKBPaClWwHQ7CkmVJEw3ew0NGC0piiyedWThPbF+TCiikC/XPO0Un9vHxxfcJI0GAkcQ8gVIiTXRPtgEulXqCzA2TsoMXQc9jBfUFwDynj+HMgyX1xMNSLOoWOQrsT52GlpLK9luNinmws8eECD34cWTeDZ9t3bteEjhmvQYDVU/eU1xt3ET/REUTK2Oc/tOfV9GDkDbeDVr+YBpl3kx+vf+sYdzSz2/IsZJqgCXVud4kgxpOwcF68rYSf8oeOmrLjumW98i0QsVEqqzjl0w5F1So2DXMFn8GnLEaRIDUa8FPt7y6ehr8TmgHsaGBSAFL4ev9YZ2hY/5GHbZPDtY0NBQufGEE5VmLh9cEYKZxnR3ftd6ch1kG3NE="
 	set {-skin::sal::texture} to "ewogICJ0aW1lc3RhbXAiIDogMTc5MDU0OTk4MTM1NiwKICAicHJvZmlsZUlkIiA6ICIxNzRjZmRiNGEzY2I0M2I1YmZjZGU0MjRjM2JiMmM2ZSIsCiAgInByb2ZpbGVOYW1lIiA6ICJtYXJhZWwxOCIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS84YzQyZWMxNmNlZjg0MDdmNWEwMmYyODFiOWRjMWJlM2NkYTg0ZWJhNTQ4NWFiOWNkY2Q5MTg1ZjhhYjJhNzhkIgogICAgfQogIH0KfQ=="
 	set {-skin::sal::signature} to "WvKpIeQmCYWhPoJgLtpSDbWDNuxh01Hgdtm5btLfPlApUfs+EGa8dnhlOfvMMZF5GmwP2fTznuI+SL2x/IxvE2d0JDtKAVG7KbOBmZlZdarWawyuy6xf4gmEb586NoXgbttthQNipNEITlOsW8n5rOJvROELGhJQ0wC3x2FmXjJze852ZjWtuyH9WgOtvO5FsMBQy4aevIbKJenGVoNnGwInNIB/9ud2Aq7VXiPJRdx5ulbwRkQfF+IAZcDLPdRbNp5afLFZ5287tNG5fFWMJ3K2Fyf+WE6jtag2nO1LzxDC7q0OWYEgHwpIAdN0rdKIyj2TsYOm8+sZ1fjonCddr8yBEkdPIRSS05o2mk3MDDw/N3+OTzAhdH8nzaeQAXSHycHZwp/dr059Kvyg4BbtWWFwbLCEnFrj6e0oeGTg3Uud01wWc/XvVK5P4Vd9OR3eVOg6ll49CwoH9ihZlkHMb6cD3tmxmy5fs03A7/ZsO3AL0P7+49jNHrz0lAKfb4+TEX7PTdPJ0OIbKyZQbfpvq9w6oa61dw2Xr69/1kmUkgTsNqrYz/Uo8oHTth3tk1WkZvVfKNEbnzNKhhne+Qyy1w1JC1qRNUuEbY99HuQ/0fkdh/gdkG1R3tXpMbH8fKITOYLy7Pw1Ev5KjaGEOo/tiv/6J5m2NOcl/RqxnXPWBLg="
+	set {-skin::sparks::texture} to "ewogICJ0aW1lc3RhbXAiIDogMTc5MjQ5Njc1MDI5MSwKICAicHJvZmlsZUlkIiA6ICI3MWU4ODU5ODVkOGM0ZDg2ODMxODYxNDU1NjE3MDY2YyIsCiAgInByb2ZpbGVOYW1lIiA6ICJKb3NoeV9XYXNoeSIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS83NjJjM2I4ZmJmMGJjNDU1NDZjNzE5MWVlMjcyYzViM2QyN2I0OTU5MTUxY2QyZTM0ZjliODY1YTFkYWJhZmIiCiAgICB9CiAgfQp9"
+	set {-skin::sparks::signature} to "oy2BQyUcI/jRuLgIAqGAKwtUhbq+VKFhJ/IFaN6zpqNfwuxZ6VuKa5hn5HsAIOZd5+g7JrrkVm34ciOyJgiXE5qQLAa7J7/5014eqPIDIwWKRcOp1ywei6Lx5/LC/4ovzGhdDB9gVCfUlZnxWDLRXL+BcPYDFI5TQQ7v5pfCwLKvNHgOgtBP9wTKq/gAKs8/uozzwS1Q7loLEpC5abJN0/52lMY0eQrUmMM/4wcxcrCYSUuvtba5wr0UR+k9E3tEi24feGHZfYQVKF19+W6rUIjNJeX2R59MJLpbfHtG+jQ7ZXsKDCFjFtuP7khKj3eh2SVEAs5ay8eTAw9GoaD0qbLZSSMX7dCcgqw7uctzktWsICteZh6yZbB1hibT0UgE19GktwvPiKMnJQsnNovlX5qv+Yzmxkqfa5WHzz50CTyTQa3JmL2dfsk6myF7qWcdJJJWwuBF+LM3sySZyT6426Ovb0qsmggtNXaGTcuZxicrEp1RzU9b+IGHprbxHB2FbfhbaDvKvNo9Dlngb2+kCJA28duGnxRIrLR9JQlvlCbsLi79xOGM7jJ/1vfjAUfn/uE2zwAhrUrzhNmylG7j95t2fVE0QxfV6J9lzzcEtA3D35mJ0Hh4xJT8qtgd5LwcYlCfETsnNEqibh9NpLfEH0klEkWka5GZVB1j+L0N1p8="
 	set {-skin::tank::texture} to "ewogICJ0aW1lc3RhbXAiIDogMTc5MjQ3MjI2MDQ2NywKICAicHJvZmlsZUlkIiA6ICJlOThhZTBlMTI5MDg0ZDA5OTk0MTg4N2Q2YTk0ZTI2NCIsCiAgInByb2ZpbGVOYW1lIiA6ICJTZXh5SGF1c2VNYXN0ZXIiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjlmMTkyZGIwZGFhZDA2OWU4NTMyNmVmODZjNzM3YjM0Y2JmYjNkYjY2MGU4ODgxNzQ0OTc5N2Q4MGQ4MzIxMSIKICAgIH0KICB9Cn0="
 	set {-skin::tank::signature} to "uJXjNPAFVFq3xlz0B1QCo/42SLcjFfECD3O38oYxyWXsF/nHXihPBmQuWXAEx6VNTzhFVmjeoU50Lb0nkaJNl2tNn/7H4fk/jEVuyMEadVyAoQX6UaVLtnfpIGr26VJUEEhJ1brdolBXOUWXE0d92n+4KoYxJoWxN3vnRWyoMUWe6WBLQvgOZEi6+yEQRRJw2cNXmR8quzze9tZ1dUMwCzPOXIkfxA6FxXkQ91II209G/f6yRD7SPS5mMmzs31yaf0Jv+aPWHAb7nztAlaN8N9O94OlBHE9OJIj1sn2J3bZbKTyw0fjUTS1iMfCoQSVTA6ura8QzRbED+q/NOUc1k74VNK1zD9gjvTjBoUi0isRJZvxwgO4w1h3KNLP85QPsQnMHBgUNPHS+9tniHXXz0Xsiwv+PP736CxHYn241hFTc7K9PjmJCwQUgXu/h8x35jdXC+SvMxVmp45F78XaUtkDdu4tmh9eBlums5FTNa01kDz+rmvOPOIy8R+8dYLh6TMUd1iRLWqkoS3Nc10LIPdUblSXA/czrVN+RBxTLh3wO29v2z0mazRMDlRm3LwbrhctONVzqV7cxZkYsYArCOMl1vcTFyoIWDBm5sYeM0X8fKrM+4EYMr1AZg+ZleNYX2DGs2ttI6qopxfN7mLtIYoOLfh0D5U+olrrcJSEWcqg="
 	set {-skin::tools::texture} to "ewogICJ0aW1lc3RhbXAiIDogMTc5MDU0OTkzODc0NiwKICAicHJvZmlsZUlkIiA6ICJkNjJlNmMwNDYwODc0M2IyOGQzYWM4YTA2NjFhZWFkZSIsCiAgInByb2ZpbGVOYW1lIiA6ICJDYXJ0aXpvbGwiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTAxMGEzZDk4Njk3OWYxNWFlOTNjYjg3YTU5ZTMzNzJjOWRkNjZmN2I4MWRlNDMxYmFkNGY5MmMwNWY4ZTQ1ZiIKICAgIH0KICB9Cn0="
@@ -99,7 +101,7 @@ function skinProfile(id: text) :: text:
 function skinLook() :: text:
 	return "skinlook_2"
 
-# A quest giver's skin by its kind (quests.sk). The prison's inmates (lefty, rusty, tank, whisper) by their kind.
+# A quest giver's skin by its kind (quests.sk). The prison's inmates (lefty, rusty, tank, whisper, sparks) by their kind.
 function questSkinId(kind: text) :: text:
 	if {_kind} is "story":
 		return "mara"
@@ -162,7 +164,7 @@ command /dskins [<text>]:
 						add 1 to {_g}
 			send "SKINS respawn: %{_n}% mannequins (shopkeepers, quest givers, the sleeping guard) replaced, %{_g}% prison guards re-skinned (%{_sk}%)" to sender
 			stop
-		loop "mara", "boss", "vic", "broker", "gun", "gear", "bag", "tools", "cars", "garage", "vinnie", "dmitri", "sal", "rico", "pike", "lena", "guard", "lefty", "rusty", "tank", "whisper", "jailguard", "jailshop" and "police":
+		loop "mara", "boss", "vic", "broker", "gun", "gear", "bag", "tools", "cars", "garage", "vinnie", "dmitri", "sal", "rico", "pike", "lena", "guard", "lefty", "rusty", "tank", "whisper", "sparks", "jailguard", "jailshop" and "police":
 			if skinTexture(loop-value) is not "":
 				add loop-value to {_have::*}
 			else:

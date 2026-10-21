@@ -370,6 +370,27 @@ const GUN_SOUND_FILES = ['pistols/50_GS.yml', 'sub_machine_guns/Uzi.yml', 'assau
   }
 }
 
+// ---------- The inmates' voice lines (tools\make-voice-lines.js, 2026-10-20) ----------
+// Every donating.voice.* event (voice.sk plays them by name) needs its OGG in the pack, streamed, with a valid name: a
+// missing file is silence and a client log line for every line said.
+{
+  const SND = 'assets/minecraft/sounds.json'
+  const all = entries.has(SND) ? parseJson(entries.get(SND).data) : {}
+  const voice = Object.keys(all).filter(k => k.startsWith('donating.voice.'))
+  const bad = []
+  for (const ev of voice) {
+    for (const s of all[ev].sounds) {
+      const n = typeof s === 'string' ? s : s.name
+      const [ns, p] = n.includes(':') ? n.split(':') : ['minecraft', n]
+      if (!/^[a-z0-9_.-]+$/.test(ns) || !/^[a-z0-9_./-]+$/.test(p)) bad.push(`${ev}: "${n}" isn't a valid resource name`)
+      else if (!entries.has(`assets/${ns}/sounds/${p}.ogg`)) bad.push(`${ev}: assets/${ns}/sounds/${p}.ogg missing`)
+      if (typeof s !== 'object' || s.stream !== true) bad.push(`${ev}: not streamed`)
+    }
+  }
+  if (bad.length) throw new Error(`voice lines (run tools\\node\\node.exe tools\\make-voice-lines.js):\n  ${bad.join('\n  ')}`)
+  if (voice.length) console.log(`voice lines: ${voice.length} events, each with its OGG`)
+}
+
 // ---------- No hands under the car camera ----------
 // The chase camera (DonatingPhone CarCam) makes another entity the client's camera. The first-person
 // items are still drawn, with the local player as their holder, so minecraft:view_entity is false for

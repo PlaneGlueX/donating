@@ -4,8 +4,10 @@
 //   - ammo icons: light (pistol/SMG rounds), shells (shotgun), rifle
 //   - the XP bar as a brass ammo belt (the XP bar shows the held gun's ammo, hud.sk)
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
-//   - the prison's jail items on brick (keycards, the C4 and its parts, a donut, a note, the stash: prison.sk)
-//   - melee weapons and consumables (pipe wrench, throwing knife, energy drink, bandage) and the Grappler:
+//   - the prison's jail items on brick (keycards, the C4 and its parts, a donut, a note, the stash, Sparks' weapon
+//     parts: prison.sk), and the guards' handcuffs
+//   - melee weapons and consumables (pipe wrench, throwing knife, energy drink, bandage, the prison's makeshift
+//     shiv, mop spear and taped club) and the Grappler:
 //     3D models (in menus too), and the thrown knife in flight; the Katana, the Brass Knuckles and the Gold
 //     Nunchucks are pg-kit modules in tools\guns\ (katana.js, knuckles.js, nunchucks.js; amethyst_shard.json)
 //   - the sold WeaponMechanics guns (.50 GS, Uzi, AK-47, R9-0), the Combat Knife and the Stim, each in its
@@ -694,7 +696,65 @@ for (const [type, a] of Object.entries(AMMO)) {
       '...kkkkkkkkkkkk.',
       '................',
       '................'
-    ], { W: [246, 246, 242, 255], w: [206, 208, 216, 255], R: [222, 48, 48, 255], L: [96, 100, 114, 255], G: [228, 222, 208, 255], g: [52, 52, 58, 255], h: [96, 96, 104, 255], s: [176, 196, 226, 255] })
+    ], { W: [246, 246, 242, 255], w: [206, 208, 216, 255], R: [222, 48, 48, 255], L: [96, 100, 114, 255], G: [228, 222, 208, 255], g: [52, 52, 58, 255], h: [96, 96, 104, 255], s: [176, 196, 226, 255] }),
+    // Sparks' weapon parts (2026-10-20, prison round 3; jailjobs.sk): the Scrap Metal, a torn steel plate with a rivet
+    // hole and a rust spot (also what Sparks holds: core.sk quest::sparks::hold-model) ...
+    scrap: art([
+      '................',
+      '..kkk...........',
+      '..kHHkkk........',
+      '..kHHHHHkkk.....',
+      '..kHHSSSSSSkk...',
+      '..kHSSSSSSSSSk..',
+      '..kHSSkkSSSSSk..',
+      '..kHSk..kSSSdk..',
+      '..kHSk..kSSSdk..',
+      '..kSSSkkSSSddk..',
+      '..kSSSSSSSdddk..',
+      '...kSSSrSSddk...',
+      '...kSSSSSddk....',
+      '....kSSddkk.....',
+      '.....kddk.......',
+      '......kk........'
+    ], { H: [224, 228, 234, 255], S: [160, 166, 176, 255], d: [104, 108, 118, 255], r: [158, 94, 52, 255] }),
+    // ... the Duct Tape, a grey roll on its cardboard core with a torn strip pulled off ...
+    tape: art([
+      '................',
+      '................',
+      '....kkkkkk......',
+      '...kGGGGGGk.....',
+      '..kGGGGGGGGk....',
+      '..kGGkkkkGGk....',
+      '..kGkCCCCkGk....',
+      '..kGkC..CkGk....',
+      '..kGkC..CkGk....',
+      '..kGkCCCCkGk....',
+      '..kgGkkkkGgkkkk.',
+      '..kggGGGGggTTTTk',
+      '...kggggggTTkTk.',
+      '....kkkkkk.k.k..',
+      '................',
+      '................'
+    ], { G: [178, 182, 190, 255], g: [126, 130, 140, 255], C: [198, 166, 114, 255], T: [204, 208, 214, 255] }),
+    // ... and the Mop Handle, a pale stick with a blue clamp and the frayed grey stub of the mop.
+    handle: art([
+      '.............kk.',
+      '............kWWk',
+      '...........kWWwk',
+      '..........kWWwk.',
+      '.........kWWwk..',
+      '........kWWwk...',
+      '.......kWWwk....',
+      '......kWWwk.....',
+      '.....kBBBk......',
+      '....kMMMMk......',
+      '...kMmMmMMk.....',
+      '..kMmMMmMmk.....',
+      '.kmMkmMkmMk.....',
+      '.kmk.mk.mk......',
+      '..k..k..k.......',
+      '................'
+    ], { W: [234, 216, 172, 255], w: [192, 170, 124, 255], B: [60, 98, 172, 255], M: [178, 178, 172, 255], m: [128, 128, 124, 255] })
   }
   for (const [kind, png] of Object.entries(JAIL)) {
     sprite('jail_' + kind, png)
@@ -822,7 +882,9 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
 // title Dagger draws the Katana (tools\guns\katana.js; the Karambit before) and Baseball_Bat the Pipe Wrench
 // (titles kept, like the guns'), the new titles Brass_Knuckles (6) and Gold_Nunchucks (7) the Brass Knuckles and
 // the Gold Nunchucks (knuckles.js, nunchucks.js: first-person frames on DonatingPhone MeleeFx's clocks), and every
-// one of them is its 3D model everywhere, the shop and the hotbar too (a gui transform each, no 2D icons). The Grappler (grapple.sk, a heist tool like the Drill) is
+// one of them is its 3D model everywhere, the shop and the hotbar too (a gui transform each, no 2D icons). Shards 8-10
+// (2026-10-20) are the prison's makeshift weapons Sparks makes (Shiv.yml, Mop_Spear.yml, Taped_Club.yml); the plain
+// shard starts at 11. The Grappler (grapple.sk, a heist tool like the Drill) is
 // a breeze rod picked by the string donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its
 // hook (donating:grapple_hook) and a rope (donating:grapple_rope) are breeze rods too, for item displays.
 // A thrown knife in flight is the bullets' iron nugget with custom model data 7004 (see Bullets).
@@ -941,6 +1003,73 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     // edge shows along the top like the old sprite's; the model's middle is off (4.5, 4.5), hence the translation.
     gui: { rotation: [-158, -21, -86], translation: [4.75, 4.75, 0], scale: [1.35, 1.35, 1.35] }
   })
+
+  // Sparks' makeshift weapons (2026-10-20, prison round 3; WeaponMechanics weapons\melee\Shiv.yml, Mop_Spear.yml,
+  // Taped_Club.yml, shards 8-10): junk from around the prison, so scrap steel, grey duct tape and a pale mop handle.
+  // Built upright like the wrench (grip around y 0) and turned onto a sword's diagonal; plain boxes with no glove, so
+  // DonatingPhone's MeleeFx gives them the client's own swing (a stab for the shiv and the spear, a whack for the club).
+  // Lit faces are east and up.
+  const junk = [
+    ...steel, // 0-2 scrap light, mid, dark
+    [190, 194, 200], [150, 154, 162], [104, 108, 116], // 3-5 tape light, tape, tape dark
+    [234, 216, 172], [206, 184, 138], [164, 140, 98], // 6-8 mop handle light, mid, dark
+    [158, 94, 52], [60, 98, 172] // 9 rust, 10 the handle's blue clamp
+  ]
+  // fp = [y translation, scale] in first person (the short ones higher, so the blade or the head shows where the wrench's
+  // jaws do); gui and fixed centre the model's middle (its local y mid c: the diagonal puts it at 8 + 0.707 (c - 8)).
+  const junkDisplay = ([fy, fs], gui, fixed) => ({
+    ...HANDHELD,
+    firstperson_righthand: { rotation: [0, -90, 25], translation: [-1.5, fy, 0.5], scale: [fs, fs, fs] },
+    firstperson_lefthand: { rotation: [0, 90, -25], translation: [-1.5, fy, 0.5], scale: [fs, fs, fs] },
+    gui,
+    fixed
+  })
+  // The Shiv: a flat scrap blade torn into steps toward the point, a rust spot, the grip wrapped in dark tape with a loose
+  // end.
+  solid('shiv', junk, diag([
+    bar(0.62, 0.55, -3.6, 2.2, { all: 5, east: 4, up: 4 }), // the taped grip
+    ...[-2.8, -1.2, 0.4].map(y => bar(0.72, 0.65, y, y + 0.55, { all: 4, east: 3, down: 5 })), // its wraps
+    { from: [8.6, 0.6, 7.5], to: [9.5, 1.9, 8.5], c: 4 }, // the tape's loose end
+    bar(1.35, 0.2, 2.2, 5.0, { all: 1, south: 0, east: 0, west: 2 }), // the blade, wide at the grip (a bright flat)
+    { from: [7.1, 3.2, 8.2], to: [8.0, 4.1, 8.25], c: 9, dirs: ['south'] }, // rust on it
+    { from: [6.7, 5.0, 7.82], to: [8.9, 7.4, 8.18], c: { all: 1, south: 0, east: 0, west: 2 } }, // torn in steps
+    { from: [6.9, 7.4, 7.85], to: [8.4, 9.6, 8.15], c: { all: 1, south: 0, east: 0, west: 2 } },
+    { from: [7.1, 9.6, 7.88], to: [7.8, 11.0, 8.12], c: 0 } // the point
+  ]), junkDisplay([6.0, 0.6],
+    { rotation: [-22.2, -20.7, -4.1], translation: [3.6, 3.4, 0], scale: [1.2, 1.2, 1.2] },
+    { rotation: [0, 180, 0], translation: [-3.2, 3.2, 0], scale: [1.1, 1.1, 1.1] }))
+
+  // The Mop Spear: a long mop handle with a blue clamp, a taped-on scrap blade at the top and the mop's metal cap at the
+  // butt; a tape grip halfway. Long: smaller in first person.
+  solid('mop_spear', junk, diag([
+    bar(0.7, 0.7, -6.6, -5.8, { all: 1, up: 0, down: 2 }), // the butt cap
+    bar(0.55, 0.55, -5.8, 17.4, { all: 7, east: 6, up: 6, down: 8 }), // the handle
+    bar(0.68, 0.68, 1.0, 4.4, { all: 4, east: 3, up: 3 }), // the grip tape
+    bar(0.7, 0.7, -4.6, -3.9, 10), // the clamp
+    bar(0.78, 0.78, 15.6, 18.4, { all: 4, east: 3, up: 3, down: 5 }), // the blade's tape
+    ...[16.2, 17.4].map(y => bar(0.86, 0.86, y, y + 0.4, 5)),
+    bar(1.15, 0.2, 18.4, 21.4, { all: 1, east: 0, west: 2 }), // the blade
+    { from: [7.3, 19.3, 8.15], to: [8.0, 20.0, 8.25], c: 9, dirs: ['south'] }, // rust on it
+    bar(0.75, 0.18, 21.4, 23.2, { all: 1, east: 0, west: 2 }),
+    bar(0.35, 0.15, 23.2, 24.4, 0) // the point
+  ]), junkDisplay([0.4, 0.5],
+    { rotation: [-22.2, -20.7, -4.1], translation: [-0.45, -0.45, 0], scale: [0.68, 0.68, 0.68] },
+    { rotation: [0, 180, 0], translation: [0.45, -0.45, 0], scale: [0.68, 0.68, 0.68] }))
+
+  // The Taped Club: half a mop handle with its end wrapped thick in duct tape, wider toward the end (bands and a loose
+  // strip), tape on the grip.
+  solid('taped_club', junk, diag([
+    bar(0.6, 0.6, -3.6, 4.4, { all: 7, east: 6, up: 6, down: 8 }), // the handle
+    bar(0.7, 0.7, -3.0, -0.8, { all: 4, east: 3, up: 3, down: 5 }), // the grip tape
+    bar(1.1, 1.1, 4.0, 6.6, { all: 4, east: 3, up: 3, down: 5 }), // the taped head, wider in steps
+    bar(1.4, 1.4, 6.6, 10.0, { all: 4, east: 3, up: 3, down: 5 }),
+    bar(1.6, 1.6, 10.0, 12.6, { all: 4, east: 3, up: 3, down: 5 }),
+    ...[[5.6, 1.2], [8.0, 1.5], [11.0, 1.7]].map(([y, w]) => bar(w, w, y, y + 0.5, { all: 3, down: 5 })), // bands
+    bar(1.4, 1.4, 12.6, 13.2, { all: 5, up: 4 }), // the end
+    { from: [9.4, 7.0, 7.4], to: [9.75, 9.2, 8.6], c: 3 } // a loose strip
+  ]), junkDisplay([3.2, 0.6],
+    { rotation: [-22.2, -20.7, -4.1], translation: [2.6, 2.4, 0], scale: [1.1, 1.1, 1.1] },
+    { rotation: [0, 180, 0], translation: [-2.4, 2.4, 0], scale: [1.0, 1.0, 1.0] }))
 
   // Energy drink: a black can with a lime bolt. The label and lid are drawn on their own 32x32 texture
   // (2 texels per unit): the side at uv 0,0-6,11 (12x22), the lid at 6,0-12,6 (12x12). The side is shaded
@@ -1209,6 +1338,43 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   })
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 
+  // The prison guards' handcuffs (owner, 2026-10-20: "make the guards hold hand cuffs while arresting you (make the
+  // textures for the item too)"): two steel cuffs on a four-link chain, a lock case with a keyhole and a lock pin on
+  // each; held by the top cuff with the chain and the bottom cuff hanging below. Art only (jailcops.sk's jcopHold puts
+  // it in a guard's hand, core.sk jailcop::cuffs::item): never a jail item, never carried by players.
+  solid('jail_cuffs', [
+    [232, 236, 242], [178, 184, 196], [112, 118, 132], [70, 74, 86], // 0-3 steel light, mid, dark, case
+    [20, 20, 24], [150, 156, 168] // 4-5 keyhole, chain
+  ], [
+    { from: [5.25, 15, 7.4], to: [10.75, 16, 8.6], c: { all: 1, up: 0, down: 2 } }, // the top cuff: its bow
+    { from: [5.25, 12.5, 7.4], to: [6.25, 15, 8.6], c: { all: 1, west: 2 } },
+    { from: [9.75, 12.5, 7.4], to: [10.75, 15, 8.6], c: { all: 1, east: 0 } },
+    { from: [5, 10.8, 7], to: [11, 12.5, 9], c: { all: 3, up: 1, down: 2 } }, // its lock case
+    { from: [7.6, 11.2, 8.95], to: [8.4, 12, 9.05], c: 4 }, // the keyhole
+    { from: [9.3, 11.3, 8.95], to: [9.9, 11.9, 9.05], c: 0 }, // the lock pin
+    { from: [7.4, 9.6, 7.6], to: [8.6, 10.8, 8.4], c: { all: 5, up: 0 } }, // the chain, four links turned in turn
+    { from: [7.6, 8.4, 7.4], to: [8.4, 9.6, 8.6], c: { all: 5, east: 0 } },
+    { from: [7.4, 7.2, 7.6], to: [8.6, 8.4, 8.4], c: { all: 5, up: 0 } },
+    { from: [7.6, 6.2, 7.4], to: [8.4, 7.2, 8.6], c: { all: 5, east: 0 } },
+    { from: [5, 4.5, 7], to: [11, 6.2, 9], c: { all: 3, up: 1, down: 2 } }, // the bottom cuff's lock case
+    { from: [7.6, 4.9, 8.95], to: [8.4, 5.7, 9.05], c: 4 },
+    { from: [6.1, 5.0, 8.95], to: [6.7, 5.6, 9.05], c: 0 },
+    { from: [5.25, 1, 7.4], to: [6.25, 4.5, 8.6], c: { all: 1, west: 2 } }, // its bow
+    { from: [9.75, 1, 7.4], to: [10.75, 4.5, 8.6], c: { all: 1, east: 0 } },
+    { from: [5.25, 0, 7.4], to: [10.75, 1, 8.6], c: { all: 1, up: 0, down: 2 } }
+  ], {
+    // tuned with render-item.js (side, tp): the top cuff in the fist, turned 45 degrees so the rings show from the
+    // front and the side
+    thirdperson_righthand: { rotation: [90, 45, 0], translation: [0, -0.8, -1.8], scale: [0.55, 0.55, 0.55] },
+    thirdperson_lefthand: { rotation: [90, 45, 0], translation: [0, -0.8, -1.8], scale: [0.55, 0.55, 0.55] },
+    firstperson_righthand: { rotation: [10, -70, 0], translation: [1.5, 4.5, -1], scale: [0.55, 0.55, 0.55] },
+    firstperson_lefthand: { rotation: [10, -70, 0], translation: [1.5, 4.5, -1], scale: [0.55, 0.55, 0.55] },
+    gui: { rotation: [15, -30, 0], translation: [0, 0, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { scale: [0.8, 0.8, 0.8] }
+  })
+  addCase('brick', 'donating:jail_cuffs', 'donating:item/jail_cuffs')
+
   // The thrown knife in flight (iron_nugget.json, custom model data 7004, see Bullets): point first
   // along -z like the bullets, the blade upright, 10.5 units from the point (z = -3) to the ring (z =
   // 7.5, just ahead of the true position at z = 8), and no south (backward) faces, so the thrower sees
@@ -1361,11 +1527,12 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     for (const v of Object.values(m)) if (typeof v === 'object') Array.isArray(v) ? v.forEach(walkModels) : walkModels(v)
   }
   feather.forEach(e => walkModels(e.model))
-  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard (8 up, and
-  // the fallback for no number).
+  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard (11 up, and
+  // the fallback for no number). 8-10 are Sparks' makeshift weapons (2026-10-20). The plain entry must sit right after
+  // the last of ours, or the next number would draw the previous weapon.
   if (!only) {
     const model = n => ({ type: 'minecraft:model', model: `donating:item/${n}` })
-    const SHARD = { 1: melee[1], 2: model('pipe_wrench'), 3: model('throwing_knife'), 4: model('energy_drink'), 5: model('bandage'), 6: melee[6], 7: melee[7] }
+    const SHARD = { 1: melee[1], 2: model('pipe_wrench'), 3: model('throwing_knife'), 4: model('energy_drink'), 5: model('bandage'), 6: melee[6], 7: melee[7], 8: model('shiv'), 9: model('mop_spear'), 10: model('taped_club') }
     Object.values(SHARD).forEach(walkModels) // ours only: before the plain shard is added (checkModel refuses minecraft:)
     write('minecraft/items/amethyst_shard.json', {
       // A drink or a throw lowers the stack: no re-equip dip (like WeaponMechanics' feather.json).
@@ -1379,7 +1546,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
         index: 0,
         entries: [
           ...Object.entries(SHARD).map(([n, m]) => ({ threshold: Number(n), model: m })).sort((a, b) => a.threshold - b.threshold),
-          { threshold: 8, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
+          { threshold: 11, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
         ],
         fallback: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' }
       }

@@ -80,7 +80,7 @@ module.exports = async ({ check }) => {
     await until(async () => /New in town/.test(text(A, t)), 3000)
     // A stands 2 blocks from Mara: her brief is said (no ✉ notice) and kept on the phone as read (messages.sk, 2026-10-19).
     const ib0 = await cmd(`zzinbox ${A} flush`)
-    check('after the tutorial the first mission starts: Mara\'s brief said in person and kept on the phone (read), the sidebar line', (await id(A)) === 'c1_meet' && /(^| \| )Mara: New in town/.test(text(A, t)) && /last=Mara\|New in town/.test(ib0) && /Meet Mara at the Safehouse/.test(await papi(A, 'donating_mission')), `${await info(A)} | ${ib0} | ${text(A, t).slice(0, 200)} | ${await papi(A, 'donating_mission')}`)
+    check('after the tutorial the first mission starts: Mara\'s brief said in person and kept on the phone (read), the sidebar line', (await id(A)) === 'c1_meet' && /(^| \| )Mara: New in town/.test(text(A, t)) && /last=Mara\|New in town/.test(ib0) && /Mara: .*Meet Mara at the Safehouse/.test(await papi(A, 'donating_mission')), `${await info(A)} | ${ib0} | ${text(A, t).slice(0, 200)} | ${await papi(A, 'donating_mission')}`)
     await until(async () => /active=quest/.test(await cmd(`dphone gps ${A}`)), 4000)
     const g = await cmd(`dphone gps ${A}`)
     check('the GPS leads to Mara', /active=quest/.test(g) && /label=Meet_Mara/.test(g) && /target=2205\.5,200/.test(g), g)

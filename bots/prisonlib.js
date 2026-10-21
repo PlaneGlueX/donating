@@ -60,6 +60,9 @@ async function start () {
     return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null
   }
   const bal = async n => Number(((await cmd(`zzbal ${n}`)).match(/: (-?\d+)/) || [])[1])
+  // A placeholder for a player exactly as TAB gets it (PlaceholderAPI's /papi parse, in brackets so an empty result
+  // shows: "" = nothing at all, which TAB drops from the sidebar; "&r" = a blank line; colour codes as &x).
+  const papi = async (n, ph) => { const m = (await cmd(`papi parse ${n} [%${ph}%]`)).match(/\[(.*)\]/); return m ? m[1] : null }
   // A bot into the prison as an inmate: exempt while it moves (an "in" bot in the city is freed every second), a plugin
   // teleport, then "in". calm drops any hunt left from before.
   const into = async (n, x, y, z, yaw = 0, s = 'in') => {
@@ -71,6 +74,10 @@ async function start () {
   }
   const prisonOn = () => cmd('zzcfgbool prison::enabled true')
   const prisonOff = () => cmd('zzcfgbool prison::enabled false')
+  // The switch as it was before the scenario (a scenario's finally): switching it off when a real player had it on moved
+  // every real prisoner to the city spawn (the master switch; found 2026-10-20).
+  const prisonWas = /= true$/.test(await cmd('zzcfg prison::enabled'))
+  const prisonRestore = () => cmd(`zzcfgbool prison::enabled ${prisonWas ? 'true' : 'false'}`)
   const newBot = async (name, { fresh = false, pack } = {}) => {
     if (fresh) {
       await cmd(`zzforget ${name}`)
@@ -175,7 +182,7 @@ async function start () {
     rcon.close()
   }
   return {
-    rcon, cmd, bots, until, tp, jtp, isBlock, info, state, door, doorOpen, breach, dim, pos, bal, into, prisonOn, prisonOff,
+    rcon, cmd, bots, until, tp, jtp, isBlock, info, state, door, doorOpen, breach, dim, pos, bal, papi, into, prisonOn, prisonOff, prisonRestore,
     newBot, drop, said, text, barSince, near, playerEnt, hold, punch, walk, clickBlock, sneak, hit, cop, copAt, copTo, close, field,
     copsBlind, copsNormal,
     logs: { prison: logTail('prison'), cops: logTail('jailcops'), jobs: logTail('jailjobs') }, sleep, Vec3

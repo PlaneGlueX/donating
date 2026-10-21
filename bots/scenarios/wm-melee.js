@@ -16,11 +16,13 @@
 // custom model data 7004), then the same through the best gear. The pack draws the melees and consumables 3D in the
 // shop too (no 2D icons); the knuckles' and the nunchucks' first person are frames on their clocks. The Energy Drink
 // gives Speed II for 3 s (owner, 2026-09-28, after Speed III for 15 s was tested), the Bandage heals 6 over 4 s, and
-// both are used up with nothing left behind.
+// both are used up with nothing left behind. Sparks' makeshift weapons (the prison, 2026-10-20; shards 8-10, the plain shard
+// from 11): the Shiv 2.5 every 12 ticks (reach 3.3, a stab of 8 ticks), the Mop Spear 3 every 22 (reach 4.5, a stab of 12),
+// the Taped Club 4 every 26 (reach 3.5, a whack of 16), each under the Combat Knife's 5.0 a second, 3D in the shop too.
 // Balance numbers for the drink: sprint speed over 60 blocks with and without Speed III (and sprint
 // jumping), a Citizens NPC walking at the cops' 1.3 speed, and what those mean for a collapsing floor
 // and a chase (printed in the check details).
-// Usage: bots/run.js wm-melee [static] [melee] [fx] [throw] [drink] [bandage] [speed] [cop]  (default: all)
+// Usage: bots/run.js wm-melee [static] [melee] [fx] [makeshift] [throw] [drink] [bandage] [speed] [cop]  (default: all)
 //   fx = MeleeFx: the swing and chain components on the items, the chain clocks, /dphone melee
 const fs = require('fs')
 const path = require('path')
@@ -49,18 +51,26 @@ const ITEMS = [
   { w: 'Energy_Drink', file: 'weapons/consumables/Energy_Drink.yml', cmd: 4, model: 'energy_drink', consumable: true },
   { w: 'Bandage', file: 'weapons/consumables/Bandage.yml', cmd: 5, model: 'bandage', consumable: true },
   { w: 'Brass_Knuckles', file: 'weapons/melee/Brass_Knuckles.yml', cmd: 6, model: 'melee_knuckles_full', fp: 'hands', chain: 6 },
-  { w: 'Gold_Nunchucks', file: 'weapons/melee/Gold_Nunchucks.yml', cmd: 7, model: 'melee_nunchucks_full', fp: 'chain', chain: 12 }
+  { w: 'Gold_Nunchucks', file: 'weapons/melee/Gold_Nunchucks.yml', cmd: 7, model: 'melee_nunchucks_full', fp: 'chain', chain: 12 },
+  // Sparks' makeshift weapons (the prison, 2026-10-20): never sold, given by Sparks (here with wm give).
+  { w: 'Shiv', file: 'weapons/melee/Shiv.yml', cmd: 8, model: 'shiv', makeshift: true },
+  { w: 'Mop_Spear', file: 'weapons/melee/Mop_Spear.yml', cmd: 9, model: 'mop_spear', makeshift: true },
+  { w: 'Taped_Club', file: 'weapons/melee/Taped_Club.yml', cmd: 10, model: 'taped_club', makeshift: true }
 ]
-const PLAIN_SHARD = 8 // the threshold after ours: the plain amethyst shard
-const MELEE = ['Combat_Knife', 'Baseball_Bat', 'Brass_Knuckles', 'Dagger', 'Gold_Nunchucks']
-// Reach, hit delay and miss delay of the melees of 2026-10-13.
-const PACE = { Brass_Knuckles: [3.3, 12, 12], Gold_Nunchucks: [3.5, 9, 9], Dagger: [4.5, 16, 16] }
+const PLAIN_SHARD = 11 // the threshold after ours: the plain amethyst shard
+const MELEE = ['Combat_Knife', 'Baseball_Bat', 'Brass_Knuckles', 'Dagger', 'Gold_Nunchucks', 'Shiv', 'Mop_Spear', 'Taped_Club']
+const MAKESHIFT = ITEMS.filter(i => i.makeshift).map(i => i.w)
+// Reach, hit delay and miss delay of the melees of 2026-10-13 and the makeshift ones of 2026-10-20.
+const PACE = { Brass_Knuckles: [3.3, 12, 12], Gold_Nunchucks: [3.5, 9, 9], Dagger: [4.5, 16, 16], Shiv: [3.3, 12, 12], Mop_Spear: [4.5, 22, 22], Taped_Club: [3.5, 26, 26] }
 // DonatingPhone's meleefx list (plugin/resources/config.yml).
 const SWINGS = {
   Baseball_Bat: { swing: 'whack', ticks: '14' },
   Brass_Knuckles: { swing: 'none', chain: '6' },
   Gold_Nunchucks: { swing: 'none', chain: '12' },
-  Dagger: { swing: 'none', chain: '10' }
+  Dagger: { swing: 'none', chain: '10' },
+  Shiv: { swing: 'stab', ticks: '8' },
+  Mop_Spear: { swing: 'stab', ticks: '12' },
+  Taped_Club: { swing: 'whack', ticks: '16' }
 }
 const KNUCKLE_HANDS = ['donating:item/hands/melee_knuckles_rglove', 'donating:item/hands/melee_knuckles_arm']
 const GOLD = [[255, 212, 64], [214, 158, 30]] // items.sk's two gold dusts
@@ -100,12 +110,19 @@ module.exports = async ({ check, args = [] }) => {
       }
     })
     check('every melee does at most 5.0 a hit with its bonuses, and keeps no keys WeaponMechanics never reads (nor Arm_Swing_Animation)', melee.every(x => x.top <= 5 && !x.dead), melee.map(x => `${x.w} ${x.top}${x.dead ? ' (dead keys)' : ''}`).join(', '))
-    check('the new melees\' reach and pace: Brass Knuckles 3.3 blocks / 12 ticks, Gold Nunchucks 3.5 / 9, Katana (Dagger) 4.5 / 16 (the miss delay the same)',
+    check('the new melees\' reach and pace: Brass Knuckles 3.3 blocks / 12 ticks, Gold Nunchucks 3.5 / 9, Katana (Dagger) 4.5 / 16, Shiv 3.3 / 12, Mop Spear 4.5 / 22, Taped Club 3.5 / 26 (the miss delay the same)',
       Object.entries(PACE).every(([w, [r, h, m]]) => { const x = melee.find(y => y.w === w); return x && x.range === r && x.hit === h && x.miss === m }),
       melee.map(x => `${x.w} ${x.range}/${x.hit}/${x.miss}`).join(', '))
     check('each melee\'s attack_speed matches its pace (4 + attack_speed = 20 / Melee_Hit_Delay hits a second, within 0.02)', melee.every(x => Math.abs(4 + x.speed - 20 / x.hit) <= 0.02),
       melee.map(x => `${x.w} ${(4 + x.speed).toFixed(2)} vs ${(20 / x.hit).toFixed(3)}`).join(', '))
     check('every melee reaches at least 3.3 blocks (3.0 exactly turns lag-edge hits into misses with a full miss lockout)', melee.every(x => x.range >= 3.3), melee.map(x => `${x.w} ${x.range}`).join(', '))
+    // Sparks' makeshift weapons stay weaker than the Combat Knife (5 a hit every 20 ticks = 5.0 a second), so a keycard into
+    // the Gun Shop is still worth it; each hit delay under a prison guard's 1.5 s stagger (30 ticks).
+    const knifeM = melee.find(x => x.w === 'Combat_Knife')
+    const dps = x => 20 * x.top / x.hit
+    const mk = melee.filter(x => MAKESHIFT.includes(x.w))
+    check('Sparks\' makeshift weapons (Shiv, Mop Spear, Taped Club): each under the Combat Knife\'s 5.0 damage a second, each hit delay under a guard\'s 30-tick stagger', mk.length === 3 && knifeM && mk.every(x => dps(x) < dps(knifeM) && x.hit < 30),
+      mk.map(x => `${x.w} ${dps(x).toFixed(2)}/s every ${x.hit}`).join(', ') + ` (knife ${knifeM ? dps(knifeM).toFixed(2) : '?'})`)
     const nun = melee.find(x => x.w === 'Gold_Nunchucks')
     const nunHit = ((nun ? nun.t : '').match(/^ {2}Damage:\n[\s\S]*?^ {4}Mechanics:\n((?: +- .*(?:\n|$))+)/m) || [])[1] || ''
     check('the Gold Nunchucks ring the till on a hit that lands (Damage.Mechanics: experience_orb.pickup, delayed)', /experience_orb\.pickup[^"\n]*delayBeforePlay=\d+/.test(nunHit), nunHit.trim() || 'no Damage.Mechanics')
@@ -196,7 +213,7 @@ module.exports = async ({ check, args = [] }) => {
       ['tool_grappler', 'grapple_hook', 'grapple_rope'].every(n => breeze.includes(`"when": "donating:${n}"`) && fs.existsSync(path.join(PACK, 'donating', 'models', 'item', `${n}.json`))) && grappler3d,
       `grappler ${grappler ? JSON.stringify(grappler.model) : 'missing'}`)
   }
-  if (!['melee', 'fx', 'throw', 'drink', 'bandage', 'speed', 'cop'].some(want)) return
+  if (!['melee', 'fx', 'makeshift', 'throw', 'drink', 'bandage', 'speed', 'cop'].some(want)) return
 
   const rcon = await rconLib.connect()
   const cmd = c => rcon.cmd(c)
@@ -656,6 +673,28 @@ module.exports = async ({ check, args = [] }) => {
       check('the Katana starts its 10-tick slash clock (donating:melee/dagger), the Pipe Wrench none (a whack only)', plain.length === 1 && plain[0].group === 'donating:melee/dagger' && plain[0].ticks === 10, JSON.stringify(plain))
       const k = await knucklesFx()
       check('...and after the fights the Brass Knuckles still carry no client swing and their group', k.ok, k.info)
+    }
+
+    // ---------- Sparks' makeshift weapons (2026-10-20): one measured hit each, the spear's reach, their client swings ----------
+    if (want('makeshift')) {
+      await give('Shiv', 1, 0)
+      await give('Mop_Spear', 1, 1)
+      await give('Taped_Club', 1, 2)
+      held = -1
+      await sleep(500)
+      const st = (await cmd('dphone melee')).trim()
+      const sw = await Promise.all([0, 1, 2].map(s => swingOf(s)))
+      check('MeleeFx gives them the client\'s own swing: the Shiv a stab of 8 ticks, the Mop Spear a stab of 12, the Taped Club a whack of 16 (/dphone melee lists them)',
+        /Shiv\{stab 8\}/.test(st) && /Mop_Spear\{stab 12\}/.test(st) && /Taped_Club\{whack 16\}/.test(st) && sw[0].type === 'stab' && sw[0].ticks === 8 && sw[1].type === 'stab' && sw[1].ticks === 12 && sw[2].type === 'whack' && sw[2].ticks === 16,
+        `${st} | ${sw.map(x => x.raw).join(' / ')}`)
+      for (const [slot, w, d, gap] of [[0, 'Shiv', 2.5, 700], [1, 'Mop Spear', 3, 1200], [2, 'Taped Club', 4, 1400]]) {
+        await place()
+        await heal()
+        const got = await hitsOf(slot, 1, gap)
+        check(`${w}: ${d} a hit (no armor)`, got.length === 1 && near(got, d), `drops ${got.join(', ')}`)
+      }
+      const spear = await swingOnly(1, 4.2)
+      check('...the Mop Spear lands a swing alone at 4.2 blocks (its reach is 4.5, like the Katana): 3', spear.length === 1 && near(spear, 3), `drops ${spear.join(', ')}`)
     }
 
     // ---------- The Energy Drink ----------

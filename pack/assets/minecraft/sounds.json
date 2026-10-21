@@ -452,5 +452,329 @@
         "name": "donating/gun/tommy_draw"
       }
     ]
+  },
+  "donating.voice.lefty_c4_assemble": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_c4_assemble",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_c4_brief": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_c4_brief",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_c4_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_c4_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_card_brief": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_card_brief",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_card_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_card_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_chocolate": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_chocolate",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_donut_brief": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_donut_brief",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_donut_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_donut_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_free_hand": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_free_hand",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_get_sorted": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_get_sorted",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_got_note": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_got_note",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_meet": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_meet",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_nobody_stays": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_nobody_stays",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_not_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_not_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_one_at_a_time": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_one_at_a_time",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_out_brief": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_out_brief",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_out_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_out_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_shop_brief": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_shop_brief",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_shop_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_shop_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_the_lot": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_the_lot",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_three_ways": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_three_ways",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.lefty_yardrun": {
+    "sounds": [
+      {
+        "name": "donating:voice/lefty_yardrun",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_do_what_i_said": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_do_what_i_said",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_donut_ask": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_donut_ask",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_got_note": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_got_note",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_knife": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_knife",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_phone": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_phone",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_security": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_security",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_took_long": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_took_long",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.rusty_trade": {
+    "sounds": [
+      {
+        "name": "donating:voice/rusty_trade",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.tank_distraction": {
+    "sounds": [
+      {
+        "name": "donating:voice/tank_distraction",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.tank_got_note": {
+    "sounds": [
+      {
+        "name": "donating:voice/tank_got_note",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.tank_not_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/tank_not_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.whisper_cut": {
+    "sounds": [
+      {
+        "name": "donating:voice/whisper_cut",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.whisper_not_done": {
+    "sounds": [
+      {
+        "name": "donating:voice/whisper_not_done",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "donating.voice.whisper_stash": {
+    "sounds": [
+      {
+        "name": "donating:voice/whisper_stash",
+        "stream": true,
+        "attenuation_distance": 24
+      }
+    ]
   }
 }

@@ -1,13 +1,23 @@
 // The prison's inmates and their missions (jailjobs.sk, story.sk's lefty chain, quests.sk; ESCAPE-SPEC 6 and 7.2-6;
 // owner, 2026-10-14: "NPCs with small missions for money or items: a one-time chain for new players, then short
-// repeatable jobs"). The four givers stand after /djailjobs setup; Lefty's lessons for a course graduate, each paying
-// once (meet him, the Prison Gun Shop, a donut ("Hold right-click · Take a donut" at the counter), a C4 with the GPS on
-// the nearest missing part and then on Lefty, who puts the three parts together, a keycard, the escape);
+// repeatable jobs"). The five givers stand after /djailjobs setup; Lefty's lessons for a course graduate, each paying
+// once (meet him, a weapon from Sparks (2026-10-20: the GPS on the nearest weapon part, then on Sparks), a donut ("Hold
+// right-click · Take a donut" at the counter), a C4 with the GPS on the nearest missing part and then on Lefty, who puts
+// the three parts together, a keycard, the Prison Gun Shop (keycard-only since 2026-10-20, so after the keycard), the
+// escape);
 // an escape mid-chain finishes it; a veteran sent in by a death never gets it; Mara's chain only after the first escape
 // (WELCOME TO THE CITY, the "broke out" brief); c1_knife completes silently for a bot holding the knife; Lefty's bar is
 // blue; each job (Yard Run, Special Delivery, The Stash, Distraction) pays once and then waits; Rusty's donut trade
 // through the bars (a keycard, then a C4 part); a calm /prison stuck keeps his wait, a catch clears it and fails a job.
 // The job menus' icons are drawn by the pack (owner, 2026-10-15: "feather placeholder for lefty mission").
+// Sparks (2026-10-20, the owner: "an npc that allows you to collect a couple items around the prison and give it to him
+// to make a makeshift weapon (you can choose which one to make when interacting with him)"; the owner's answers: a part
+// search isn't suspicious, a 3-minute wait a spot, kept until a death): his menu (the three weapons, each part ✔ or ✘
+// with where it's found), the three search spots (the prompt, a marker, the 2 s hold, the wait, no act), the part that
+// completes a recipe says so, a made Shiv (the weapon first, then the parts), refusals (one each, hotbar 1-5 full, from
+// afar, while hunted), the old bench opening his menu, a rejoin and the city keeping it (the audit), the Gun Shop's
+// hotbar mirror (throw away, moved aside, never in the Loadout tab), a catch taking it with the parts and the waits, an
+// escape and /dprison free keeping it, a death taking it, a course player turned away, and the pack's art.
 const fs = require('fs')
 const path = require('path')
 const { start, field, sleep } = require('../prisonlib')
@@ -31,6 +41,20 @@ const drawn = a => {
 const M1 = 'PcMisA' // the whole chain, then Mara
 const M2 = 'PcMisB' // an escape during l_shop
 const M3 = 'PcMisC' // a veteran (no course), the jobs
+const M5 = 'PcMisE' // Sparks and the makeshift weapons
+// The pack draws the item (a case in the item's definition) and the model or texture exists.
+const caseOf = (item, when) => {
+  const d = JSON.parse(fs.readFileSync(path.join(PACK, 'minecraft', 'items', `${item}.json`), 'utf8'))
+  return (d.model.cases || []).find(c => c.when === when)
+}
+const SPARKS = [49.5, 65, 49.5]
+const SPARKS_STAND = [49.5, 65, 52.5, 180] // across the old bench
+const BENCH = [49.5, 65, 51.5] // its click box (ASSEMBLE)
+const SPARKS_FAR = [53.5, 65, 59.5, 0] // 11 blocks from him (questNear's 6)
+// The weapon parts' search spots: their click boxes, where to stand, and where the glowing marker sits (jeMarkAt).
+const SCRAP = { box: [47.5, 66, 160.5], stand: [47.5, 65, 159.5, 0], mark: [47.5, 67.2, 160.5] } // the gym's dumbbell rack (a heavy core)
+const TAPE = { box: [78.5, 65, 227.5], stand: [77.5, 65, 227.5, -90], mark: [77.88, 65.5, 227.5] } // the storage room's east shelf barrel
+const HANDLE = { box: [86.5, 65, 63.5], stand: [85.5, 65, 63.5, -90], mark: [86.5, 66.2, 63.5] } // a laundry cart
 const LEFTY = [80.5, 65.5, 151.5]
 const LEFTY_STAND = [82.5, 65, 151.5, 90]
 const TANK = [181.5, 65, 156.5]
@@ -46,7 +70,7 @@ const STASH = { STASH_1: [273.5, 65, 180.5], STASH_2: [238.5, 65, 94.5], STASH_3
 
 module.exports = async ({ check }) => {
   const t = await start()
-  const { cmd, info, into, state, jtp, bal, said, until, hold, near, breach, walk } = t
+  const { cmd, info, into, state, jtp, bal, papi, said, until, hold, near, breach, walk } = t
   const story = async (n, c) => cmd(`dstory info ${n} ${c}`)
   const jobs = n => cmd(`djailjobs info ${n}`)
   const ready = (s, id) => Number((String(s).match(new RegExp(`${id}:(\\d+)`)) || [])[1] || -1)
@@ -81,7 +105,8 @@ module.exports = async ({ check }) => {
     // ---------- the givers ----------
     const setup = await cmd('djailjobs setup')
     const list = await cmd('dquest list')
-    check('/djailjobs setup: Lefty, Rusty, Tank and Whisper stand in the prison world', ['lefty', 'rusty', 'tank', 'whisper'].every(k => new RegExp(`${k}[^\\n]*jailbreak`, 'i').test(list) || new RegExp(`Lefty|Rusty|Tank|Whisper`).test(setup)), `${setup} | ${list.slice(0, 400)}`)
+    check('/djailjobs setup: Lefty, Rusty, Tank, Whisper and Sparks stand in the prison world', ['lefty', 'rusty', 'tank', 'whisper', 'sparks'].every(k => new RegExp(`${k}\\|jailbreak`, 'i').test(list)), `${setup} | ${list.slice(0, 500)}`)
+    const sparksN = (list.match(/QUEST (\d+): sparks\|jailbreak/) || [])[1]
 
     // ---------- M1: a course graduate gets Lefty's lessons; Mara waits for the first escape ----------
     const m1 = await t.newBot(M1, { fresh: true })
@@ -96,14 +121,31 @@ module.exports = async ({ check }) => {
     let b0 = await bal(M1)
     let since = Date.now()
     check('Lefty stands on the Hall B bench (a mannequin the bot sees)', await talk(m1, LEFTY))
-    const meet = await until(async () => /id=l_shop/.test(await story(M1, 'lefty')), 16000, 500)
-    check('talking to Lefty: his lines, l_meet passes (+$50, next l_shop)', meet && said(m1, /Nobody stays in here forever/, since) && (await bal(M1)) === b0 + 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    // (2026-10-20: the Gun Shop is keycard-only, so its visit comes after the keycard; a weapon from Sparks comes second.)
+    const meet = await until(async () => /id=l_craft/.test(await story(M1, 'lefty')), 16000, 500)
+    check('talking to Lefty: his lines, l_meet passes (+$50, next l_craft: a weapon from Sparks)', meet && said(m1, /Nobody stays in here forever/, since) && (await bal(M1)) === b0 + 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    // l_craft: the GPS on the nearest weapon part (the gym's weights, from Hall B), then on Sparks once two parts make
+    // something; his Shiv passes it.
+    for (const s of ['SEARCH_SCRAP', 'SEARCH_TAPE', 'SEARCH_HANDLE']) await cmd(`zzdata ${M1} jspot-ready::${s} none`)
+    await sleep(2500)
+    const gc1 = await gps(M1)
+    await cmd(`zzjail ${M1} give scrap`)
+    await cmd(`zzjail ${M1} give tape`)
+    await sleep(2500)
+    const gc2 = await gps(M1)
+    check('l_craft: the GPS leads to the nearest weapon part (the gym\'s weights), then, with two parts, to Sparks in the workshop', /target=47(\.\d+)?,66(\.\d+)?,160/.test(gc1) && /target=49(\.\d+)?,65(\.\d+)?,49/.test(gc2), `${gc1} | ${gc2}`)
     b0 = await bal(M1)
-    await cmd(`dshop open ${M1} gun`)
-    await sleep(1200)
+    await jtp(M1, ...SPARKS_STAND)
+    await until(() => !!near(m1, 'mannequin', SPARKS, 1.5), 6000)
+    await sleep(800)
+    const sw1 = await menu(m1, SPARKS)
+    if (sw1) m1.clickWindow(11, 0, 0).catch(() => {})
+    const crafted = await until(async () => /id=l_donut/.test(await story(M1, 'lefty')), 8000, 500)
+    const wmM1 = await cmd(`zzwm ${M1}`)
+    check('...Sparks makes a Shiv from the scrap and the tape: l_craft passes (+$50, next l_donut)', crafted && (await bal(M1)) === b0 + 50 && /=Shiv:/.test(wmM1), `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} ${wmM1}`)
     await closeWin(m1)
-    const shop = await until(async () => /id=l_donut/.test(await story(M1, 'lefty')), 8000, 500)
-    check('opening the Prison Gun Shop: l_shop passes (+$50)', shop && (await bal(M1)) === b0 + 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    // The Shiv out of hotbar 1-5 again (the C4 and the knife below need the room).
+    for (const s of [0, 1, 2, 3, 4]) await cmd(`minecraft:item replace entity ${M1} hotbar.${s} with minecraft:air`)
     since = Date.now()
     await donut(m1, M1)
     await sleep(600)
@@ -143,8 +185,14 @@ module.exports = async ({ check }) => {
     await cmd(`zzjail ${M1} strip`)
     b0 = await bal(M1)
     await cmd(`zzjail ${M1} give keycard`)
-    const card = await until(async () => /id=l_out/.test(await story(M1, 'lefty')), 8000, 500)
-    check('a keycard: l_card passes (+$100)', card && (await bal(M1)) === b0 + 100, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    const card = await until(async () => /id=l_shop/.test(await story(M1, 'lefty')), 8000, 500)
+    check('a keycard: l_card passes (+$100), next the Gun Shop (the keycard opens it)', card && (await bal(M1)) === b0 + 100, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
+    b0 = await bal(M1)
+    await cmd(`dshop open ${M1} gun`)
+    await sleep(1200)
+    await closeWin(m1)
+    const shop = await until(async () => /id=l_out/.test(await story(M1, 'lefty')), 8000, 500)
+    check('opening the Prison Gun Shop: l_shop passes (+$50), next the escape', shop && (await bal(M1)) === b0 + 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0}`)
     b0 = await bal(M1)
     const xp0 = Number(((await cmd(`zzdata ${M1} level-xp`)).match(/= (\d+)/) || [])[1] || 0)
     since = Date.now()
@@ -164,6 +212,55 @@ module.exports = async ({ check }) => {
     const knife = await until(async () => { const s = await story(M1, 'story'); return /id=\S+/.test(s) && !/id=c1_knife/.test(s) }, 10000, 500)
     check('c1_knife completes silently for a bot holding the knife', knife, await story(M1, 'story'))
 
+    // ---------- M1 replays the tutorial (owner, 2026-10-20: "when the player does the tutorial again, the tutorial npcs
+    // go back to the quests they give for the tutorial"): Lefty's lessons start over and pay nothing twice; the sidebar
+    // shows the quest that's on (Mara's out here, Lefty's inside: "make the active quest and step show up instead of the
+    // current 'Meet Mara'"); no Jobs line in the jail ("dont show /jobs in the leaderboard until the player escapes") ----------
+    await cmd(`djobs empty ${M1} boss`)
+    await sleep(1500)
+    const sideOut = await papi(M1, 'donating_mission')
+    const jobsOut = await papi(M1, 'donating_jobs')
+    check('free: the sidebar\'s quest line is Mara\'s mission ("▶ Mara: ..."), and the Jobs line shows', /Mara: /.test(sideOut) && /Jobs/.test(jobsOut), `${sideOut} | ${jobsOut}`)
+    since = Date.now()
+    m1.chat('/tutorial confirm')
+    const rp = await until(async () => field(await info(M1), 'state') === 'course', 4000)
+    check('M1 replays the course: Lefty\'s lessons start over (/tutorial stop would put back "done")', rp && /id= /.test(await story(M1, 'lefty')) && /= done$/.test(await cmd(`zzdata ${M1} jail-replay::chain::lefty::id`)), `${await info(M1)} | ${await story(M1, 'lefty')}`)
+    // Both lines are copied once a second by different passes: wait for both (the quest line came a pass later once).
+    const jobsIn = await until(async () => (await papi(M1, 'donating_jobs')) === '' && /Tutorial: /.test(await papi(M1, 'donating_mission')), 4000)
+    check('...a prisoner again: no Jobs line (empty: TAB drops it), the sidebar on the course', jobsIn, `${await papi(M1, 'donating_jobs')} | ${await papi(M1, 'donating_mission')}`)
+    await cmd(`dprison course ${M1} skip`)
+    await into(M1, ...LEFTY_STAND)
+    const again = await until(async () => /id=l_meet/.test(await story(M1, 'lefty')), 12000, 500)
+    check('the course done again: Lefty\'s lessons back at l_meet, told it\'s a replay that pays nothing', again && await until(() => said(m1, /Replay.*pays nothing this time/, since), 3000), `${await story(M1, 'lefty')} | ${t.text(m1, since).slice(0, 300)}`)
+    const sideJail = await until(async () => /Lefty: .*Hall B bench/.test(await papi(M1, 'donating_mission')), 3000)
+    check('...the sidebar shows Lefty\'s lesson, not Mara\'s mission (hers still runs), and still no Jobs line', sideJail && /id=c\d/.test(await story(M1, 'story')) && (await papi(M1, 'donating_jobs')) === '', `${await papi(M1, 'donating_mission')} | ${await story(M1, 'story')} | ${await papi(M1, 'donating_jobs')}`)
+    await sleep(1500)
+    b0 = await bal(M1)
+    since = Date.now()
+    await talk(m1, LEFTY)
+    const met = await until(async () => /id=l_craft/.test(await story(M1, 'lefty')), 16000, 500)
+    check('talking to Lefty again: his lines, l_meet passes with no money ("a replay: no rewards")', met && said(m1, /Nobody stays in here forever/, since) && (await bal(M1)) === b0 && said(m1, /a replay: no rewards/, since), `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} | ${t.text(m1, since).slice(0, 300)}`)
+    // Review fix (2026-10-20): freed without escaping (staff /dprison free) with a lesson still running and followed:
+    // the sidebar and the GPS skip Lefty's prison lesson (story.sk questFreeOk) and show Mara's mission.
+    await cmd(`zzdatatext ${M1} quest-track lefty`)
+    await cmd(`dprison free ${M1}`)
+    const sideFree = await until(async () => /Mara: /.test(await papi(M1, 'donating_mission')), 4000)
+    await sleep(1500)
+    const gFree = await gps(M1)
+    check('freed by staff mid-lesson (l_craft, tracked): the sidebar shows Mara\'s mission, the GPS isn\'t on Sparks or his parts', sideFree && /id=l_craft/.test(await story(M1, 'lefty')) && !/Make_a_weapon/.test(gFree), `${await papi(M1, 'donating_mission')} | ${await story(M1, 'lefty')} | ${gFree}`)
+    // Review fix (2026-10-20): a replay ended by staff (/dprison state in) instead of /tutorial stop or finishing puts the
+    // quests back (jailcourse.sk jcReplayStale, from the story pass): Lefty's lesson and the tracked quest as they were,
+    // never his lessons from the start ("New fish?").
+    since = Date.now()
+    m1.chat('/tutorial confirm')
+    const rp2 = await until(async () => field(await info(M1), 'state') === 'course', 4000)
+    const reset2 = /id= /.test(await story(M1, 'lefty')) && /= l_craft$/.test(await cmd(`zzdata ${M1} jail-replay::chain::lefty::id`))
+    await cmd(`dprison state ${M1} in`)
+    const back = await until(async () => /id=l_craft/.test(await story(M1, 'lefty')), 5000, 500)
+    await sleep(1500)
+    check('a replay ended by /dprison state in: Lefty\'s lesson back at l_craft (not l_meet), still followed, the saved data gone', rp2 && reset2 && back && /id=l_craft/.test(await story(M1, 'lefty')) && /= lefty$/.test(await cmd(`zzdata ${M1} quest-track`)) && /= <none>/.test(await cmd(`zzdata ${M1} jail-replay::state`)) && !said(m1, /New fish\?/, since), `${rp2} ${reset2} | ${await story(M1, 'lefty')} | ${await cmd(`zzdata ${M1} quest-track`)} | ${await cmd(`zzdata ${M1} jail-replay::state`)} | ${t.text(m1, since).slice(0, 300)}`)
+    await state(M1, 'off')
+
     // ---------- M2: an escape during l_shop finishes the chain (l_out paid) ----------
     const m2 = await t.newBot(M2, { fresh: true })
     await sleep(2500)
@@ -177,6 +274,20 @@ module.exports = async ({ check }) => {
     await escape(m2, M2)
     const fin = await until(async () => /id=done/.test(await story(M2, 'lefty')), 12000, 500)
     check('an escape during l_shop finishes Lefty\'s chain: l_out paid (+$250)', fin && (await bal(M2)) === b0 + 250, `${await story(M2, 'lefty')} bal ${await bal(M2)} vs ${b0}`)
+    // Replayed: l_meet, skipped (never paid: the staff set and the escape jumped past it), pays the first time.
+    await sleep(1500)
+    since = Date.now()
+    m2.chat('/tutorial confirm')
+    await until(async () => field(await info(M2), 'state') === 'course', 4000)
+    await cmd(`dprison course ${M2} skip`)
+    await into(M2, ...LEFTY_STAND)
+    await until(async () => /id=l_meet/.test(await story(M2, 'lefty')), 12000, 500)
+    await sleep(1500)
+    b0 = await bal(M2)
+    await talk(m2, LEFTY)
+    const m2met = await until(async () => /id=l_craft/.test(await story(M2, 'lefty')), 16000, 500)
+    check('M2 replays: l_meet (never paid before) pays the first time (+$50), with no "replay" note', m2met && (await bal(M2)) === b0 + 50 && !said(m2, /pays nothing this time|a replay: no rewards/, since), `${await story(M2, 'lefty')} bal ${await bal(M2)} vs ${b0} | ${t.text(m2, since).slice(0, 300)}`)
+    await state(M2, 'off')
 
     // ---------- M3: a veteran sent in by a death never gets the chain ----------
     const m3 = await t.newBot(M3)
@@ -235,6 +346,8 @@ module.exports = async ({ check }) => {
     await sleep(1200)
     j = await jobs(M3)
     check('...taken: the GPS on mark 1', field(j, 'job') === 'yardrun' && /^172\.5,65,103\.5/.test(field(j, 'qt')), j)
+    const sideJob = await until(async () => /Yard Run: .*To mark 1 .*\d:\d\d/.test(await papi(M3, 'donating_mission')), 3000)
+    check('...and the sidebar\'s quest line is the job: "▶ Yard Run: To mark 1 · 4:59"', sideJob, await papi(M3, 'donating_mission'))
     b0 = await bal(M3)
     for (const r of RUN) { await jtp(M3, ...r); await sleep(900) }
     await sleep(800)
@@ -330,10 +443,216 @@ module.exports = async ({ check }) => {
     await sleep(2500)
     j = await jobs(M3)
     check('a catch fails an active job ("The job\'s off"), no wait, the note gone', field(j, 'job') === '' && ready(j, 'delivery') === 0 && said(m3, /The job's off/, since) && !/note:/.test(field(await info(M3), 'items')), j)
+    await state(M3, 'off')
+
+    // ---------- M5: Sparks and the makeshift weapons (owner, 2026-10-20) ----------
+    const itemText = i => (i ? JSON.stringify(i) : '')
+    const comp = (i, type) => i && (i.components || []).find(x => x.type === type)
+    const floatOf = i => { const c = comp(i, 'custom_model_data'); return c && c.data && c.data.floats ? c.data.floats[0] : null }
+    const glints = i => Boolean(comp(i, 'enchantment_glint_override'))
+    const wm5 = () => cmd(`zzwm ${M5}`)
+    const shivSlot = s => Number((String(s).match(/(?:^WM |\| )([0-4])=Shiv:/) || [])[1] ?? -1)
+    const items5 = async () => field(await info(M5), 'items')
+    const sparksMenu = async () => { await closeWin(m5); const w = await menu(m5, SPARKS); await sleep(300); return w }
+    const readyIn = async s => Number(((await cmd(`zzdata ${M5} jspot-ready::${s}`)).match(/= (\d+)/) || [])[1] || 0) - Math.floor(Date.now() / 1000)
+    let m5 = await t.newBot(M5)
+    await sleep(1500)
+    await cmd(`zzclear ${M5}`)
+    for (const s of ['SEARCH_SCRAP', 'SEARCH_TAPE', 'SEARCH_HANDLE']) await cmd(`zzdata ${M5} jspot-ready::${s} none`)
+    await into(M5, ...SPARKS_STAND)
+    await until(() => !!near(m5, 'mannequin', SPARKS, 1.5), 6000)
+    check('Sparks stands behind the workshop\'s old bench (a mannequin the bot sees)', !!near(m5, 'mannequin', SPARKS, 1.5) && !!sparksN, `giver ${sparksN}`)
+    let sw = await sparksMenu()
+    const shards = sw ? [11, 13, 15].map(s => `${sw.slots[s] && sw.slots[s].name}@${floatOf(sw.slots[s])}`) : []
+    check('talking to Sparks: "Sparks · Makeshift", the Shiv, the Mop Spear and the Taped Club (amethyst shards 8, 9, 10) at 11, 13, 15', sw && /Sparks · Makeshift/.test(JSON.stringify(sw.title)) && shards.join() === 'amethyst_shard@8,amethyst_shard@9,amethyst_shard@10', sw ? `${JSON.stringify(sw.title)} ${shards.join()}` : 'no window')
+    const shiv0 = sw ? itemText(sw.slots[11]) : ''
+    check('...no parts: each one ✘ with where it\'s found (the Shiv: the gym\'s weights, the storage room), no "Click: make it", its details (Weapon Statistics)', /✘ Scrap Metal/.test(shiv0) && /the gym's weights/.test(shiv0) && /✘ Duct Tape/.test(shiv0) && /the storage room/.test(shiv0) && !/Click: make it/.test(shiv0) && /Weapon Statistics/.test(shiv0) && !glints(sw && sw.slots[11]), shiv0.slice(0, 600))
+    since = Date.now()
+    if (sw) m5.clickWindow(11, 0, 0).catch(() => {})
+    await sleep(1200)
+    check('...a click makes nothing ("Bring me the Scrap Metal and the Duct Tape.")', said(m5, /Bring me the Scrap Metal and the Duct Tape/, since) && shivSlot(await wm5()) < 0, `${t.text(m5, since).slice(0, 300)} | ${await wm5()}`)
+    await closeWin(m5)
+
+    // The parts: a 2 s hold at each spot; the wait is 3 minutes; not an act; the part that completes a recipe says so.
+    since = Date.now()
+    await jtp(M5, ...SCRAP.stand)
+    await until(async () => !!near(m5, 'interaction', SCRAP.box, 1.2), 4000)
+    await sleep(2000)
+    const prompt = said(m5, /Hold right-click . Search here/, since)
+    await hold(m5, SCRAP.box, 2800, 1.2)
+    await sleep(500)
+    let p5 = await info(M5)
+    const rs = await readyIn('SEARCH_SCRAP')
+    check('SEARCH_SCRAP (the gym\'s weights): "Hold right-click · Search here", a 2 s hold gives the Scrap Metal, the spot waits 3 minutes', prompt && /scrap:/.test(field(p5, 'items')) && rs >= 170 && rs <= 182, `prompt ${prompt} ready in ${rs}s | ${p5}`)
+    check('...searching for a weapon part isn\'t an act the guards notice (the owner\'s answer): no "search" act', !/search/.test(field(p5, 'acts')), p5)
+    await cmd(`zzjail ${M5} strip`)
+    since = Date.now()
+    await hold(m5, SCRAP.box, 600, 1.2)
+    await sleep(500)
+    check('...the same spot right away: refused ("Nothing here right now"), nothing given', said(m5, /Nothing here right now/, since) && !/scrap:/.test(await items5()), `${t.text(m5, since).slice(0, 300)} | ${await items5()}`)
+    await cmd(`zzjail ${M5} give scrap`)
+    since = Date.now()
+    await jtp(M5, ...TAPE.stand)
+    const tapeMark = await until(() => !!near(m5, 'item_display', TAPE.mark, 0.8), 6000)
+    await until(async () => !!near(m5, 'interaction', TAPE.box, 1.2), 4000)
+    await hold(m5, TAPE.box, 2800, 1.2)
+    await sleep(500)
+    check('SEARCH_TAPE (the storage room): its marker shows; a hold gives the Duct Tape, and with the scrap: "Sparks in the workshop can make you a Shiv"', tapeMark && /tape:/.test(await items5()) && said(m5, /Sparks in the workshop can make you a Shiv/, since), `marker ${tapeMark} | ${await items5()} | ${t.text(m5, since).slice(0, 300)}`)
+    await jtp(M5, ...HANDLE.stand)
+    const handleMark = await until(() => !!near(m5, 'item_display', HANDLE.mark, 0.8), 6000)
+    await until(async () => !!near(m5, 'interaction', HANDLE.box, 1.2), 4000)
+    await hold(m5, HANDLE.box, 2800, 1.2)
+    await sleep(500)
+    check('SEARCH_HANDLE (the laundry): its marker shows, a hold gives the Mop Handle', handleMark && /handle:/.test(await items5()), `marker ${handleMark} | ${await items5()}`)
+
+    // The Shiv: the weapon first, then the parts (the handle stays).
+    await jtp(M5, ...SPARKS_STAND)
+    await sleep(1500)
+    sw = await sparksMenu()
+    const shiv1 = sw ? itemText(sw.slots[11]) : ''
+    check('Sparks\' menu with the parts: the Shiv ✔ ✔, "Click: make it", glinting', /✔ Scrap Metal/.test(shiv1) && /✔ Duct Tape/.test(shiv1) && /Click: make it/.test(shiv1) && glints(sw && sw.slots[11]), shiv1.slice(0, 500))
+    t.logs.jobs.mark()
+    since = Date.now()
+    if (sw) m5.clickWindow(11, 0, 0).catch(() => {})
+    await sleep(1500)
+    let w5 = await wm5()
+    p5 = await info(M5)
+    check('...a click: a WeaponMechanics Shiv in hotbar 1-5, the scrap and the tape taken, the handle kept, "craft" in jailjobs.log, Sparks\' line', shivSlot(w5) >= 0 && !/scrap:|tape:/.test(field(p5, 'items')) && /handle:/.test(field(p5, 'items')) && t.logs.jobs.has(new RegExp(`craft ${M5} \\S+ Shiv slot=\\d`)) && said(m5, /Sharp end out/, since), `${w5} | ${p5} | ${t.logs.jobs.since().slice(-200)}`)
+    await cmd(`zzjail ${M5} give scrap`)
+    await cmd(`zzjail ${M5} give tape`)
+    sw = await sparksMenu()
+    const shiv2 = sw ? itemText(sw.slots[11]) : ''
+    since = Date.now()
+    if (sw) m5.clickWindow(11, 0, 0).catch(() => {})
+    await sleep(1200)
+    w5 = await wm5()
+    check('a second Shiv: the menu says "Carrying one", a click is refused ("You\'ve got a Shiv already"), the parts kept', /Carrying one/.test(shiv2) && said(m5, /You've got a Shiv already/, since) && /scrap:/.test(await items5()) && /tape:/.test(await items5()) && (w5.match(/=Shiv:/g) || []).length === 1, `${t.text(m5, since).slice(0, 300)} | ${w5} | ${await items5()}`)
+    // Hotbar 1-5 full: the Mop Spear (handle + scrap) can't be made.
+    const sh = shivSlot(w5)
+    const others = [0, 1, 2, 3, 4].filter(s => s !== sh)
+    const fillers = ['Combat_Knife', 'Baseball_Bat', 'Brass_Knuckles', 'Gold_Nunchucks']
+    for (let i = 0; i < 4; i++) await cmd(`wm give ${M5} ${fillers[i]} 1 {slot:${others[i]}}`)
+    sw = await sparksMenu()
+    const spearFull = sw ? itemText(sw.slots[13]) : ''
+    since = Date.now()
+    if (sw) m5.clickWindow(13, 0, 0).catch(() => {})
+    await sleep(1200)
+    check('hotbar 1-5 full: the Mop Spear says "Hotbar 1-5 full", a click is refused ("Free a slot in hotbar 1-5"), the parts kept', /Hotbar 1-5 full/.test(spearFull) && said(m5, /Free a slot in hotbar 1-5/, since) && /handle:/.test(await items5()) && /scrap:/.test(await items5()) && !/=Mop_Spear:/.test(await wm5()), `${spearFull.slice(0, 300)} | ${t.text(m5, since).slice(0, 200)} | ${await wm5()}`)
+    for (const s of others) await cmd(`minecraft:item replace entity ${M5} hotbar.${s} with minecraft:air`)
+    await closeWin(m5)
+    // Not from afar (a remote /dquest open), not while hunted.
+    await jtp(M5, ...SPARKS_FAR)
+    await sleep(800)
+    const far = windowOpen(m5)
+    await cmd(`dquest open ${M5} ${sparksN}`)
+    sw = await far
+    since = Date.now()
+    if (sw) m5.clickWindow(13, 0, 0).catch(() => {})
+    await sleep(1200)
+    check('his menu opened from 11 blocks away (/dquest open): a click is refused ("Talk to Sparks in person"), nothing made or taken', sw && said(m5, /Talk to Sparks in person/, since) && !/=Mop_Spear:/.test(await wm5()) && /handle:/.test(await items5()), `${sw ? 'menu' : 'no menu'} | ${t.text(m5, since).slice(0, 200)}`)
+    await closeWin(m5)
+    await jtp(M5, ...SPARKS_STAND)
+    await sleep(1000)
+    await cmd(`zzjail ${M5} hostile`)
+    sw = await sparksMenu()
+    since = Date.now()
+    if (sw) m5.clickWindow(13, 0, 0).catch(() => {})
+    await sleep(1200)
+    check('...while the guards are after him: refused ("Not while the guards are after you")', said(m5, /Not while the guards are after you/, since) && !/=Mop_Spear:/.test(await wm5()), t.text(m5, since).slice(0, 200))
+    await closeWin(m5)
+    await cmd(`djailcops calm ${M5}`)
+    await sleep(500)
+    // The old bench opens his menu.
+    const viaBench = windowOpen(m5)
+    await hold(m5, BENCH, 200, 1.2)
+    sw = await viaBench
+    check('a click on the old workshop bench opens Sparks\' menu', sw && /Sparks · Makeshift/.test(JSON.stringify(sw.title)), sw ? JSON.stringify(sw.title) : 'no window')
+    await closeWin(m5)
+    // Kept through a relog, and outside the prison (the shop's audit leaves it: kept until a death).
+    await t.drop(M5)
+    await sleep(1500)
+    m5 = await t.newBot(M5)
+    await sleep(3000)
+    check('a rejoin keeps the Shiv', shivSlot(await wm5()) >= 0, await wm5())
+    const shopLog = require('../prisonlib').logTail('shop')
+    await state(M5, 'out')
+    await sleep(2500)
+    await cmd(`zzjail ${M5} own Combat_Knife`)
+    const shopOpen = windowOpen(m5)
+    await cmd(`dshop open ${M5} gun`)
+    sw = await shopOpen
+    await sleep(500)
+    w5 = await wm5()
+    check('free and out of the prison, a shop opening (its audit) keeps the Shiv (never unlocked, kept until a death)', shivSlot(w5) >= 0 && !shopLog.has(/audit removed Shiv/), `${w5} | ${shopLog.since().slice(-200)}`)
+    // The Gun Shop's hotbar mirror: "Click: throw away" (a second click), moved aside, never in the Loadout tab.
+    const mirror = 11 + shivSlot(w5)
+    const hint = sw ? itemText(sw.slots[mirror]) : ''
+    const loadoutShiv = sw ? [19, 20, 21, 22, 23, 24, 25].some(s => /Shiv/.test(itemText(sw.slots[s]))) : true
+    check('the Gun Shop\'s hotbar mirror: the Shiv says "Click: throw away" (never "take out"); the Loadout tab lists the Combat Knife, never the Shiv', /Click: throw away/.test(hint) && !/take out/.test(hint) && !loadoutShiv && /Combat Knife/.test(itemText(sw && sw.slots[19])), `${hint.slice(0, 200)} | 19: ${itemText(sw && sw.slots[19]).slice(0, 120)}`)
+    m5.clickWindow(19, 0, 0).catch(() => {}) // select the Combat Knife
+    await sleep(700)
+    m5.clickWindow(mirror, 0, 0).catch(() => {}) // ...and put it on the Shiv's slot
+    await sleep(900)
+    w5 = await wm5()
+    const knifeAt = Number((w5.match(/(?:^WM |\| )([0-4])=Combat_Knife:/) || [])[1] ?? -1)
+    check('...the Combat Knife selected, a click on the Shiv\'s slot: the knife there, the Shiv moved aside (still in hotbar 1-5)', knifeAt === mirror - 11 && shivSlot(w5) >= 0 && shivSlot(w5) !== knifeAt, w5)
+    const mirror2 = 11 + shivSlot(w5)
+    m5.clickWindow(mirror2, 0, 0).catch(() => {})
+    await sleep(900)
+    const kept = shivSlot(await wm5()) >= 0
+    m5.clickWindow(mirror2, 0, 0).catch(() => {})
+    await sleep(900)
+    check('...one click on the Shiv keeps it ("Click again"), a second throws it away', kept && shivSlot(await wm5()) < 0, await wm5())
+    await closeWin(m5)
+
+    // A catch takes it (hotbar 1-5), the parts and the waits; an escape and /dprison free keep it; a death takes it.
+    await into(M5, ...SPARKS_STAND)
+    await cmd(`wm give ${M5} Shiv 1 {slot:0}`)
+    await cmd(`zzjail ${M5} give scrap`)
+    await cmd(`zzjail ${M5} give handle`)
+    const later = Math.floor(Date.now() / 1000) + 600
+    for (const s of ['SEARCH_SCRAP', 'SEARCH_TAPE', 'SEARCH_HANDLE']) await cmd(`zzdata ${M5} jspot-ready::${s} ${later}`)
+    await sleep(800)
+    await cmd(`dprison catch ${M5}`)
+    await sleep(2500)
+    w5 = await wm5()
+    const waits = []
+    for (const s of ['SEARCH_SCRAP', 'SEARCH_TAPE', 'SEARCH_HANDLE']) waits.push(await readyIn(s))
+    check('a catch: the Shiv gone (hotbar 1-5), the parts taken, every weapon part spot ready again', shivSlot(w5) < 0 && !/scrap:|handle:/.test(await items5()) && waits.every(x => x <= 0), `${w5} | ${await items5()} | waits ${waits.join(',')}`)
+    await cmd(`wm give ${M5} Shiv 1 {slot:0}`)
+    since = Date.now()
+    await escape(m5, M5)
+    w5 = await wm5()
+    check('an escape keeps the Shiv (the owner: kept until you die)', field(await info(M5), 'state') === 'out' && shivSlot(w5) >= 0 && !said(m5, /left the makeshift weapon/, since), `${await info(M5)} | ${w5}`)
+    await cmd(`minecraft:kill ${M5}`)
+    await until(async () => field(await info(M5), 'state') === 'in', 8000)
+    await sleep(2500)
+    check('...a death takes it (back in the prison, empty-handed)', shivSlot(await wm5()) < 0, await wm5())
+    await sleep(3000)
+    await cmd(`wm give ${M5} Shiv 1 {slot:0}`)
+    await cmd(`dprison free ${M5}`)
+    await sleep(1500)
+    check('/dprison free keeps it', field(await info(M5), 'state') === 'out' && shivSlot(await wm5()) >= 0, `${await info(M5)} | ${await wm5()}`)
+    // A course player is turned away.
+    await cmd(`zzjail ${M5} state course`)
+    since = Date.now()
+    await cmd(`dquest open ${M5} ${sparksN}`)
+    await sleep(1000)
+    check('a player still on the course: "You\'re not done down there yet." (no menu)', said(m5, /You're not done down there yet/, since) && !m5.currentWindow, t.text(m5, since).slice(0, 200))
+    await state(M5, 'off')
+    // The pack: shards 8-10 drawn as the three weapons (3D, the plain shard from 11), the parts and the guards' cuffs.
+    const shardDef = JSON.parse(fs.readFileSync(path.join(PACK, 'minecraft', 'items', 'amethyst_shard.json'), 'utf8'))
+    const entry = n => (shardDef.model.entries || []).find(e => e.threshold === n)
+    const modelOf = e => e && e.model && e.model.model
+    const models = [8, 9, 10].map(n => modelOf(entry(n)))
+    const art3d = ['shiv', 'mop_spear', 'taped_club'].every(m => fs.existsSync(path.join(PACK, 'donating', 'models', 'item', `${m}.json`)))
+    const parts = ['jail_scrap', 'jail_tape', 'jail_handle'].every(k => drawn(`brick@donating:${k}`))
+    const cuffs = !!caseOf('brick', 'donating:jail_cuffs') && fs.existsSync(path.join(PACK, 'donating', 'models', 'item', 'jail_cuffs.json'))
+    check('the pack: amethyst shards 8, 9, 10 draw the Shiv, the Mop Spear and the Taped Club (3D models), the plain shard from 11; the parts and the guards\' cuffs on brick', models.join() === 'donating:item/shiv,donating:item/mop_spear,donating:item/taped_club' && /amethyst_shard/.test(modelOf(entry(11)) || '') && art3d && parts && cuffs, `${models.join()} 11=${modelOf(entry(11))} 3d=${art3d} parts=${parts} cuffs=${cuffs}`)
   } finally {
     await breach('front', 'close')
-    await t.prisonOff()
-    for (const n of [M1, M2, M3]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
+    await t.prisonRestore()
+    for (const n of [M1, M2, M3, M5]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()
   }
 }

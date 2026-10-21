@@ -77,6 +77,9 @@ module.exports = async ({ check }) => {
     check('the plugins and the paid ranks\' LuckPerms groups are checked', /✔ every plugin is running/.test(all) && /✔ the paid ranks' groups exist/.test(all), line(all, /plugin/) + ' | ' + line(all, /paid ranks/))
     const phone = await cmd('dsetup phone')
     check('the phone\'s city and GPS roads as ✔/✘ lines (DonatingPhone\'s state on the main world)', /✔ the phones show the city: /.test(phone) && /(✔ the GPS follows the roads|✘ the GPS points straight at targets)/.test(phone), phone)
+    const prisonS = await cmd('dsetup prison')
+    check('/dsetup prison: the yard\'s Gun Shop door shut, it\'s keycard-only (2026-10-20)', /✔ the Gun Shop is keycard-only/.test(prisonS), line(prisonS, /Gun Shop/))
+    check('/dsetup prison: Sparks (the makeshift weapons, 2026-10-20) is checked with the other inmates', /✔ Sparks stands in the prison/.test(prisonS) && /✔ Lefty stands in the prison/.test(prisonS), line(prisonS, /Sparks/))
     const bogus = await cmd('dsetup heist')
     check('a mistyped section prints the usage, not an empty all-clear', /\/dsetup \[heists \| story/.test(bogus) && !/SETUP/.test(bogus), bogus)
 

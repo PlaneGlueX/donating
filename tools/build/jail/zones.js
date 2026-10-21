@@ -71,7 +71,13 @@ const ZONES = {
   boothapp: [[270, 64, 388, 274, 68, 391]],
   fusebox: [[267, 65, 395, 267, 66, 395]],
   fronthole: [[253, 64, 395, 267, 71, 397], [277, 64, 395, 291, 71, 397]],
-  chalk: [[277, 64, 128, 277, 72, 162]]
+  chalk: [[277, 64, 128, 277, 72, 162]],
+  // The keycard-only Prison Gun Shop (2026-10-20): its inside (inside the 2-thick walls; the punch box at x 334 and
+  // PUNCH_STAND stay outside) is restricted; the door opens for a keycard walking up (gunshopapp) and from inside for
+  // anyone (gunshopin).
+  gunshop: [[292, 64, 239, 331, 72, 257]],
+  gunshopapp: [[314, 64, 259, 318, 68, 262]],
+  gunshopin: [[314, 64, 255, 318, 68, 257]]
 }
 
 // Breaches (3.5): Skript turns their boxes to air (a blast, the punch box, the console) and puts the stored blocks back.
@@ -101,7 +107,8 @@ const DOORS = {
   stairgate: [[84, 65, 113], [85, 65, 113]],
   poln: [[210, 65, 286], [211, 65, 286]],
   pols: [[210, 65, 321], [211, 65, 321]],
-  booth: [[272, 65, 392]]
+  booth: [[272, 65, 392]],
+  gunshop: [[316, 65, 258]]
 }
 
 module.exports = { WALL, INNER, ZONES, BREACHES, RUBBLE, DOORS }

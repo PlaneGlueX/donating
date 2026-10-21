@@ -1,4 +1,4 @@
-# The prison's GPS paths (187 nodes, 193 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
+# The prison's GPS paths (197 nodes, 204 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
 # Run every line that isn't a comment, in order (local: tools\rcon.ps1; Minehut: the console, or upload the paths.yml they make).
 dphone path clear jailbreak confirm
 dphone path addat jailbreak 48.5 58 59.5 id=1 nolink
@@ -188,6 +188,16 @@ dphone path addat jailbreak 267.5 65.5 390.5 id=184 nolink
 dphone path addat jailbreak 266.5 65 395.5 id=185 nolink FUSE_STAND
 dphone path addat jailbreak 260.5 65 392.5 id=186 nolink FRONT_IN
 dphone path addat jailbreak 260.5 65 404.5 id=187 nolink LOT_EXIT
+dphone path addat jailbreak 80.5 65 141.5 id=188 nolink
+dphone path addat jailbreak 64.5 65 143.5 id=189 nolink
+dphone path addat jailbreak 47.5 65 159.5 id=190 nolink
+dphone path addat jailbreak 82.5 65 230.5 id=191 nolink
+dphone path addat jailbreak 80.5 65 235.5 id=192 nolink
+dphone path addat jailbreak 78.5 65 235.5 id=193 nolink
+dphone path addat jailbreak 77.5 65 230.5 id=194 nolink
+dphone path addat jailbreak 77.5 65 226.5 id=195 nolink SEARCH_TAPE
+dphone path addat jailbreak 73.5 65 74.5 id=196 nolink
+dphone path addat jailbreak 85.5 65 62.5 id=197 nolink SEARCH_HANDLE
 dphone path link 1 2
 dphone path link 1 15
 dphone path link 1 24
@@ -249,6 +259,7 @@ dphone path link 55 64
 dphone path link 56 57
 dphone path link 57 58
 dphone path link 57 61
+dphone path link 57 188
 dphone path link 58 59
 dphone path link 59 60
 dphone path link 59 79
@@ -263,7 +274,9 @@ dphone path link 67 68
 dphone path link 69 70
 dphone path link 70 71
 dphone path link 71 72
+dphone path link 71 196
 dphone path link 72 73
+dphone path link 72 78
 dphone path link 73 74
 dphone path link 74 75
 dphone path link 75 76
@@ -275,6 +288,7 @@ dphone path link 80 81
 dphone path link 82 83
 dphone path link 83 84
 dphone path link 84 85
+dphone path link 85 191
 dphone path link 86 87
 dphone path link 86 103
 dphone path link 86 104
@@ -381,3 +395,10 @@ dphone path link 181 186
 dphone path link 183 184
 dphone path link 184 185
 dphone path link 186 187
+dphone path link 188 189
+dphone path link 189 190
+dphone path link 191 192
+dphone path link 192 193
+dphone path link 193 194
+dphone path link 194 195
+dphone path link 196 197

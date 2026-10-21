@@ -3,11 +3,19 @@
 // good aim"): 10 Citizens + Sentinel cops spawn while someone is in the prison and patrol; only rule-breakers are hunted
 // (seen in a restricted place (the police station, the lot), an act in view (a search), contraband held out in front
 // of a cop (not behind its back; not the note), contraband right past a cop,
-// a hit on a cop), and only by the cops that saw it; the lot is no hiding place, the closed gatehouse is; out of sight
-// for 20 s = lost them (not in B1); gunshots at range (1 heart, some miss, never a bystander), the taser's stun, the
-// arrest; Sentinel's own hits never land; two knife hits down a cop (staggered meanwhile), a keycard drops, it's back
-// after 60 s, no death message; low health slows you; a hostile logout is a catch at the rejoin; strays go home; idle
-// cops are removed; an untracked "Prison Guard" is swept.
+// a hit on a cop), and only by the cops that saw it; the lot is no hiding place, the closed gatehouse keeps you safe
+// from shots; out of sight for 20 s = lost them (not in B1); gunshots at range (1 heart, some miss, never a bystander),
+// the taser's stun, the arrest; Sentinel's own hits never land; two knife hits down a cop (staggered meanwhile), a
+// keycard drops, it's back after 60 s, no death message; low health slows you; a hostile logout is a catch at the rejoin;
+// strays go home; idle cops are removed; an untracked "Prison Guard" is swept.
+// Round 3 (owner, 2026-10-20): the arrest is a clock with the red CUFFING bar (2 s, 2.5 s for a tased grab) and the
+// guard holds handcuffs meanwhile ("make the guards hold hand cuffs while arresting you ... show a status bar"); a
+// restricted place is one look anywhere in front of a cop, through its windows too ("if a cop sees you inside the area
+// while passing by, you get targeted"), SPOTTED names it; the yard's Gun Shop is keycard-only and restricted (seen
+// through its windows, its door an act, a hiding place for nobody: no-lose, guards that end up inside go home); the
+// lose-cops grace ("once the player loses the cops after getting the keycard, the other cops wont arrest if they see the
+// player again, unless he is actively holding contraband in his hand"); Sparks' Scrap Metal held out is contraband, his
+// Duct Tape isn't.
 const { start, field, sleep } = require('../prisonlib')
 
 const A = 'PcCopA'
@@ -74,7 +82,7 @@ module.exports = async ({ check }) => {
     let since = Date.now()
     await into(A, 220.5, 65, 313.5, 180)
     const seen = await until(() => hostile(A), 5000)
-    check('in the lobby in front of the desk cop: hostile (seen in a restricted place), SPOTTED', seen && said(a, /SPOTTED/, since) && logs.cops.has(/why=seen-restricted/), logs.cops.since().split('\n').filter(x => /hostile|hunt/.test(x)).join(' / '))
+    check('in the lobby in front of the desk cop: hostile (seen in a restricted place), SPOTTED "A guard saw you in the police station", zone=police', seen && said(a, /SPOTTED/, since) && said(a, /saw you in the police station/, since) && logs.cops.has(/why=seen-restricted by=\d+ zone=police/), `${logs.cops.since().split('\n').filter(x => /hostile|hunt/.test(x)).join(' / ')} | ${t.text(a, since).slice(0, 200)}`)
     check('...only the cop that saw it hunts (the desk cop, not the yard cop)', await hunts('poldesk', A) && !(await hunts('yardn', A)), `${await cop('poldesk')} | ${await cop('yardn')}`)
     await calm(A)
 
@@ -147,6 +155,7 @@ module.exports = async ({ check }) => {
     const tq = Date.now()
     const quiet = await until(async () => !(await hostile(A)), 30000, 500)
     check('out of every hunter\'s sight for 20 s: calm, the targets removed', quiet && Date.now() - tq > 15000 && !(await hunts('yardn', A)), `${Date.now() - tq} ms ${await cop('yardn')}`)
+    check('...lost them empty-handed: no lose-cops grace (it needs contraband on you)', field(await info(A), 'grace') === 'no' && !allLog.has(new RegExp(`grace ${A} `)), await info(A))
 
     // ---------- B1 doesn't lose them ----------
     await cmd(`zzjail ${A} hostile`)
@@ -196,6 +205,15 @@ module.exports = async ({ check }) => {
     check('...3 blocks from it: hostile (frisked)', frisk && logs.cops.has(/why=frisk-keycard/), logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / '))
     await calm(A)
     await cmd(`zzjail ${A} strip`)
+    // Sparks' Scrap Metal (2026-10-20, the owner's answer): contraband only held out in front of a guard, never frisked.
+    await sleep(1000)
+    logs.cops.mark()
+    await cmd(`zzjail ${A} give scrap`)
+    await sleep(3000)
+    const scrapPocket = await info(A)
+    check('...the Scrap Metal in the pockets 3 blocks from it: not hostile (never frisked)', /scrap:/.test(field(scrapPocket, 'items')) && !(await hostile(A)) && !logs.cops.has(/why=frisk/), `${scrapPocket} | ${logs.cops.since().split('\n').filter(x => /hostile|frisk/.test(x)).join(' / ')}`)
+    await calm(A)
+    await cmd(`zzjail ${A} strip`)
 
     // ---------- contraband held out (owner, 2026-10-15: "cops target you if you hold out contraband in front of them"):
     // a keycard in the hand 8 blocks behind a cop's back is safe, the note in the hand in front of it too, the keycard
@@ -219,6 +237,9 @@ module.exports = async ({ check }) => {
     await rotate('poldesk', 90) // facing -x: A (+x) is behind its back
     await jtp(A, (pd[0] + 8).toFixed(1), 65, pd[2].toFixed(1), 90)
     if (cardSlot >= 5) a.setQuickBarSlot(cardSlot)
+    // Turned again just before A counts (a cop that chased A a moment ago turned back to it once: 2026-10-20).
+    await sleep(1200)
+    await rotate('poldesk', 90)
     await sleep(300)
     await state(A, 'in')
     await calm(A)
@@ -237,6 +258,245 @@ module.exports = async ({ check }) => {
     await calm(A)
     a.setQuickBarSlot(0)
     await cmd(`zzjail ${A} strip`)
+    // Sparks' weapon parts (2026-10-20, the owner's answer: the sharp/metal ones are contraband in the hand): the Duct Tape
+    // held out in front of the cop is fine, the Scrap Metal isn't.
+    const tapeSlot = await giveQuest('tape')
+    const scrapSlot = await giveQuest('scrap')
+    await rotate('poldesk', -90)
+    if (tapeSlot >= 5) a.setQuickBarSlot(tapeSlot)
+    await sleep(300)
+    await calm(A)
+    logs.cops.mark()
+    await sleep(2500)
+    check('Sparks\' parts: the Duct Tape in the hand in front of a cop: not hostile (not contraband)', tapeSlot >= 5 && !(await hostile(A)) && !logs.cops.has(/why=seen-held/), `tape ${tapeSlot} scrap ${scrapSlot} ${await cop('poldesk')} ${await info(A)}`)
+    logs.cops.mark()
+    since = Date.now()
+    if (scrapSlot >= 5) a.setQuickBarSlot(scrapSlot)
+    const heldS = await until(() => hostile(A), 3000)
+    check('...the Scrap Metal in the hand in front of it: hostile (why=seen-held-scrap), "saw the Scrap Metal in your hand"', scrapSlot >= 5 && heldS && logs.cops.has(/why=seen-held-scrap/) && said(a, /saw the Scrap Metal in your hand/, since), `${logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / ')} | ${t.text(a, since)}`)
+    await calm(A)
+    a.setQuickBarSlot(0)
+    await cmd(`zzjail ${A} strip`)
+    await copTo('poldesk', 220.5, 65, 304.5)
+
+    // ---------- the yard's Gun Shop: keycard-only and restricted (owner, 2026-10-20: "the gun shop is supposed to be
+    // keycard access only in the prison, and if a cop sees you inside the area while passing by, you get targeted").
+    // The WALK guard (its walkway passes the windows) is off the roster for the first parts, the desk guard is the
+    // watcher there, and the stray time is long meanwhile (it stands far from its desk) ----------
+    await cmd('zzjailroster yardn yards w5 w67 hallb poldesk poloffice gate lot')
+    await cmd('zzcfgtime jailcop::stray::time 120 seconds')
+    const pdId = await copId('poldesk')
+    const watchFrom = async (x, z, yaw) => {
+      await copTo('poldesk', x, 65, z)
+      await until(async () => { const p = await copAt('poldesk'); return p && Math.hypot(p[0] - x, p[2] - z) < 1.5 }, 8000, 300)
+      await rotate('poldesk', yaw)
+      await sleep(500)
+    }
+    await state(A, 'off')
+    await cmd(`zzjail ${A} strip`)
+    a.setQuickBarSlot(0)
+    await state(L, 'off')
+    await jtp(L, 300.5, 65, 274.5, 0) // keeps the shop's chunks loaded
+    await jtp(A, 301.5, 65, 252.5, 0)
+    await watchFrom(301.5, 268.5, 180)
+    const sw1 = await cmd(`zzjailsees poldesk ${A}`)
+    check('the Gun Shop through its window, straight on: vanilla line of sight blocked, only glass between (los=false glass=true win=true), the door shut', /zone=gunshop/.test(sw1) && /los=false/.test(sw1) && /glass=true/.test(sw1) && /win=true/.test(sw1) && !(await t.doorOpen('gunshop')), `${sw1} | ${await t.door('gunshop')}`)
+    await jtp(A, 313.5, 65, 252.5, 0)
+    await watchFrom(313.5, 268.5, 180)
+    const sw2 = await cmd(`zzjailsees poldesk ${A}`)
+    check('...behind its wall (not a window): hidden (glass=false win=false)', /glass=false/.test(sw2) && /win=false/.test(sw2), sw2)
+    // Live: facing away, then turned to the window.
+    await jtp(A, 301.5, 65, 252.5, 0)
+    await watchFrom(301.5, 268.5, 0)
+    await state(A, 'in')
+    await calm(A)
+    logs.cops.mark()
+    since = Date.now()
+    await sleep(1800)
+    const awayH = await hostile(A)
+    await rotate('poldesk', 180)
+    const winH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${pdId} zone=gunshop`)), 2500, 100)
+    check('...live: the guard facing away 1.8 s: not hostile; turned to the window: hostile at once (zone=gunshop), SPOTTED "in the Gun Shop", the door still shut', !awayH && winH && said(a, /saw you in the Gun Shop/, since) && !(await t.doorOpen('gunshop')), `${awayH} ${winH} | ${logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / ')} | ${t.text(a, since).slice(0, 200)}`)
+    // Anywhere in front (owner, 2026-10-20: "while passing by"): the guard facing along the walkway (west), the inmate 85
+    // degrees to its side through the window, outside the old 75-degree cone.
+    await rotate('poldesk', 0)
+    await calm(A)
+    await state(A, 'off')
+    await jtp(A, 300.1, 65, 252.5, 0)
+    await sleep(400)
+    await rotate('poldesk', 90)
+    await sleep(500)
+    await state(A, 'in')
+    await calm(A)
+    logs.cops.mark()
+    const sideH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${pdId} zone=gunshop`)), 3000, 100)
+    check('...85 degrees to the side of a guard facing along the walkway (outside the old 75-degree cone): hostile at one look', sideH, `${await cop('poldesk')} ${await cmd(`zzjailsees poldesk ${A}`)}`)
+    await rotate('poldesk', 0)
+    await calm(A)
+    await jtp(A, 301.5, 65, 252.5, 0)
+    // One look: the guard glancing at the window 300 ms of every second.
+    await rotate('poldesk', 0)
+    await calm(A)
+    await sleep(800)
+    await calm(A)
+    let flickH = false
+    for (let i = 0; i < 6 && !flickH; i++) {
+      await rotate('poldesk', 180)
+      await sleep(300)
+      await rotate('poldesk', 0)
+      await sleep(700)
+      flickH = await hostile(A)
+    }
+    check('...one look: a guard glancing at the window (300 ms of every second) spots the inmate inside', flickH, await info(A))
+    await calm(A)
+    // The control: contraband held out needs two looks in a row, so the same glances never spot a keycard in the hand.
+    await state(A, 'off')
+    const cardG = await giveQuest('keycard')
+    if (cardG >= 5) a.setQuickBarSlot(cardG)
+    await jtp(A, 305.5, 65, 266.5, 0)
+    const toA = yawTo([316.5, 65, 268.5], [305.5, 65, 266.5])
+    await watchFrom(316.5, 268.5, toA + 180)
+    await state(A, 'in')
+    await calm(A)
+    await sleep(800)
+    let flickHeld = false
+    for (let i = 0; i < 6 && !flickHeld; i++) {
+      await rotate('poldesk', toA)
+      await sleep(300)
+      await rotate('poldesk', toA + 180)
+      await sleep(700)
+      flickHeld = await hostile(A)
+    }
+    check('...the control: the keycard held out on the walkway, the same glances: not hostile (held contraband still needs two looks in a row)', !flickHeld && cardG >= 5, `${cardG} ${await info(A)}`)
+    // The door opened with a keycard in a guard's view is an act (the owner's answer, 2026-10-20), like the police doors.
+    a.setQuickBarSlot(0)
+    await state(A, 'off')
+    await jtp(A, 319.5, 65, 261.5, 90)
+    await watchFrom(316.5, 268.5, 180)
+    await state(A, 'in')
+    await calm(A)
+    await sleep(1200)
+    const preAct = await hostile(A)
+    logs.cops.mark()
+    await t.walk(a, [[316.5, 260.5]], 3000)
+    const gOpen = await until(() => t.doorOpen('gunshop'), 1500)
+    const actH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-act:reader by=${pdId}`)), 3000, 100)
+    check('...opening its door with a keycard in a guard\'s view: the door opens, and it\'s an act (why=seen-act:reader)', !preAct && gOpen && actH, `${preAct} ${gOpen} | ${logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / ')}`)
+    await calm(A)
+    await state(A, 'off')
+    await cmd(`zzjail ${A} strip`)
+    await copTo('poldesk', 220.5, 65, 304.5)
+    // The WALK guard back on the roster. (An inmate in the prison first: the WALK guard is only made while someone is
+    // in. L by its first point, then by the shop or on the walkway's middle: simulation distance 6 chunks.)
+    await into(A, 305.5, 65, 250.5, 0)
+    await cmd('zzjailroster yardn yards walk w5 w67 hallb poldesk poloffice gate lot')
+    await jtp(L, 182.5, 65, 308.5, 0)
+    const walkUp = await until(async () => /loaded=yes/.test(await cop('walk')), 45000, 1000)
+    // A calm guard that ends up inside goes home (out of place: jcopOutOfPlace's Gun Shop rule). Checked first, while
+    // this WALK guard is new: after a chase (the hunt below) Sentinel teleports a stuck guard back to its path itself,
+    // which would stand in for the stray rule. The spot is in the shop's east end, 7.6 blocks from the route's east leg
+    // (WALK_10 at 336.5, 258.5), inside the route's 12-block radius: only the Gun Shop rule makes it out of place there.
+    // The guard is held there (Citizens' navigator speed 0.01; back to 1 after): left to walk, it heads for its next
+    // waypoint along the shop's front wall and leaves that radius by itself (found 2026-10-20: then the radius rule
+    // moved it home with the Gun Shop rule removed, and the check couldn't tell).
+    const inShop = p => p && p[0] >= 292 && p[0] < 332 && p[2] >= 239 && p[2] < 258
+    const walkCop = await copId('walk')
+    await state(A, 'off')
+    await cmd('zzcfgtime jailcop::stray::time 20 seconds')
+    await cmd(`zzconsole npc speed 0.01 --id ${walkCop}`)
+    await sleep(1500)
+    logs.cops.mark()
+    const tMove = Date.now()
+    await copTo('walk', 329.5, 65, 255.5)
+    await jtp(L, 330.5, 65, 271.5, 0) // on the walkway by the shop, so its east end ticks
+    const inW = await until(async () => { const p = await copAt('walk'); return inShop(p) ? p : null }, 8000, 500)
+    let farW = 0 // the farthest it got from where it was put (it must stay inside the route's radius)
+    const strayW = await until(async () => {
+      if (logs.cops.has(/stray walk /)) return true
+      const p = await copAt('walk')
+      if (inShop(p)) farW = Math.max(farW, Math.hypot(p[0] - 329.5, p[2] - 255.5))
+      return false
+    }, 35000, 500)
+    const strayS = (Date.now() - tMove) / 1000
+    await jtp(L, 182.5, 65, 308.5, 0) // the route's first point, where the stray rule sends it
+    const homeW = await until(async () => { const p = await copAt('walk'); return p && !inShop(p) }, 12000, 500)
+    await cmd(`zzconsole npc speed 1 --id ${walkCop}`)
+    check('a calm guard held in the Gun Shop\'s east end (inside its route\'s radius) is out of place: the stray rule takes it home in 15-30 s (`stray walk`)', inShop(inW) && farW < 2 && strayW && strayS >= 15 && strayS <= 30 && homeW, `${inW} (moved ${farW.toFixed(1)} while inside) -> ${await copAt('walk')}; stray logged=${strayW} after ${strayS.toFixed(1)} s | ${logs.cops.since().split('\n').filter(x => /stray|walk/.test(x)).join(' / ')}`)
+    // Hunted in the closed shop, the WALK guard outside it: it never gets in, and nobody loses the guards in there (a
+    // no-lose zone).
+    await into(A, 305.5, 65, 250.5, 0)
+    await copTo('walk', 316.5, 65, 264.5)
+    await sleep(1000)
+    await jtp(L, 240.5, 65, 275.5, 0)
+    await cmd(`djailcops hostile ${A}`)
+    await sleep(500)
+    const walkHunts = await hunts('walk', A)
+    let walkIn = false
+    const t6 = Date.now()
+    while (Date.now() - t6 < 12000) {
+      const p = await copAt('walk')
+      if (p && p[0] >= 292 && p[0] < 332 && p[2] >= 239 && p[2] < 258) walkIn = true
+      await sleep(500)
+    }
+    check('hunted in the closed Gun Shop: the WALK guard hunting outside never gets in (12 s)', walkUp && walkHunts && !walkIn, `${walkUp} ${walkHunts} ${await cop('walk')}`)
+    await sleep(13000)
+    check('...and the inmate is still hunted 25 s later (no losing them in the Gun Shop)', await hostile(A), await info(A))
+    await calm(A)
+    await state(A, 'off')
+    // The owner's scenario: the WALK guard on its real patrol passing the windows.
+    const walkId = await copId('walk')
+    await into(A, 301.5, 65, 252.5, 0)
+    logs.cops.mark()
+    const t8 = Date.now()
+    const byWalk = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${walkId} zone=gunshop`)), 120000, 1000)
+    check('the WALK guard on its patrol spots an inmate standing in the Gun Shop through its window ("while passing by")', byWalk, `${Date.now() - t8} ms ${await cop('walk')}`)
+    await calm(A)
+    await state(A, 'off')
+
+    // ---------- the lose-cops grace (owner, 2026-10-20: "once the player loses the cops after getting the keycard, the
+    // other cops wont arrest if they see the player again, unless he is actively holding contraband in his hand while in
+    // vision of the cop"); lose::time is 3 s here ----------
+    await cmd('zzcfgtime jailcop::lose::time 3 seconds')
+    await state(L, 'off')
+    await jtp(L, 215.5, 65, 165.5, 0)
+    await copTo('poldesk', 205.5, 65, 160.5)
+    await until(async () => /loaded=yes at=20/.test(await cop('poldesk')), 12000, 500)
+    await rotate('poldesk', 0) // facing +z
+    a.setQuickBarSlot(0)
+    const cardR = await giveQuest('keycard')
+    await jtp(A, 225.5, 65, 160.5, 90)
+    await state(A, 'in')
+    await calm(A)
+    logs.cops.mark()
+    since = Date.now()
+    await cmd(`zzjail ${A} hostile`)
+    const graced = await until(async () => field(await info(A), 'grace') === 'yes', 8000, 300)
+    check('hunted with a keycard on, then lost the guards: the grace ("They won\'t search you for the Keycard now", logged)', graced && !(await hostile(A)) && said(a, /won't search you for the Keycard/, since) && logs.cops.has(new RegExp(`grace ${A} \\S+ kinds=keycard`)), `${await info(A)} | ${t.text(a, since).slice(0, 200)}`)
+    logs.cops.mark()
+    await jtp(A, 207.5, 65, 160.5, 90) // 2 blocks beside the guard (not in front of it)
+    await sleep(2500)
+    check('...graced: the keycard in the pockets 2 blocks from a guard is not searched (frisk-skip, not hostile)', !(await hostile(A)) && logs.cops.has(new RegExp(`frisk-skip ${A} \\S+ keycard grace`)) && !logs.cops.has(/why=frisk/), logs.cops.since().split('\n').filter(x => /frisk|hostile/.test(x)).join(' / '))
+    if (cardR >= 5) a.setQuickBarSlot(cardR)
+    await jtp(A, 205.5, 65, 168.5, 0) // 8 blocks in front of it
+    const heldG = await until(() => hostile(A), 3000)
+    check('...but the keycard held out in front of a guard still gets you hunted (why=seen-held-keycard)', heldG && logs.cops.has(/why=seen-held-keycard/), logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / '))
+    await calm(A)
+    a.setQuickBarSlot(0)
+    const stillG = field(await info(A), 'grace') === 'yes'
+    await cmd(`dprison catch ${A}`)
+    await sleep(2000)
+    check('...a staff calm keeps it; a catch ends it (grace=no)', stillG && field(await info(A), 'grace') === 'no', await info(A))
+    await sleep(1500) // past the 3 s after a catch
+    await state(A, 'off')
+    await giveQuest('keycard')
+    await jtp(A, 207.5, 65, 160.5, 90)
+    logs.cops.mark()
+    await state(A, 'in')
+    const frAgain = await until(() => hostile(A), 3000)
+    check('...after the catch the keycard in the pockets is found again (why=frisk-keycard)', frAgain && logs.cops.has(/why=frisk-keycard/), logs.cops.since().split('\n').filter(x => /hostile|frisk/.test(x)).join(' / '))
+    await calm(A)
+    await cmd(`zzjail ${A} strip`)
+    await cmd('zzcfgtime jailcop::lose::time 20 seconds')
     await copTo('poldesk', 220.5, 65, 304.5)
 
     // ---------- gunshots at range: 1 heart, some miss, never the calm inmate next to the target ----------
@@ -296,12 +556,86 @@ module.exports = async ({ check }) => {
       await sleep(250)
     }
     check('a taser hit at ~5 blocks: stunned (the movement modifier -0.6)', /-0\.6/.test(mod), `${mod} ${logs.cops.since().split('\n').filter(x => /taser/.test(x)).join(' / ')}`)
-    const arrested = await until(() => logs.cops.has(new RegExp(`arrest ${A} .*stunned=true`)), 3000, 100)
+    // A tased grab is a 2.5 s clock within 2.5 blocks (the owner's numbers, 2026-10-20), the CUFFING bar meanwhile. The
+    // bot stays next to the cop for it (a standing bot, a cop that moves: it got 2.6 away once and the grab broke).
+    const ta = Date.now()
+    while (Date.now() - ta < 6000 && !logs.cops.has(new RegExp(`arrest ${A} `))) { await keep(1.4); await sleep(200) }
+    const arrested = logs.cops.has(new RegExp(`arrest ${A} .*stunned=true`))
     await sleep(1600)
     let s = await info(A)
     check('...stunned within 2.5 blocks of the cop: arrested (ARRESTED, a cell, no money lost)', arrested && said(a, /ARRESTED/, since) && VET_CELLS.includes(field(s, 'cell')) && (await t.bal(A)) === b0 && a.health > 0, `${s} ${logs.cops.since().split('\n').filter(x => /arrest/.test(x)).join(' / ')}`)
+    check('...the stunned grab shows the bar (CUFFING) and takes ~2.5 s (grab= in the log)', said(a, /CUFFING/, since) && logs.cops.has(new RegExp(`arrest ${A} .*stunned=true grab=(2\\.[5-9]|3(\\.\\d)?)(\\s|$)`)), `${logs.cops.since().split('\n').filter(x => /grab|arrest/.test(x)).join(' / ')}`)
     check('...the stun modifier gone after the arrest', !/-0\.6/.test(await stunMod(A)), await stunMod(A))
     await calm(B)
+
+    // ---------- the arrest clock and the handcuffs (owner, 2026-10-20: "make the guards hold hand cuffs while arresting
+    // you ... and show a status bar (like how it shows when picking something up) on the timer while the guard is
+    // arresting you"); a 4 s clock here so each part shows ----------
+    await cmd('zzcfgset jailcop::taser::min 99')
+    await cmd('zzcfgset jailcop::gun::range 0')
+    await cmd('zzcfgtime jailcop::arrest::grab 4 seconds')
+    await sleep(3500) // nothing makes a prisoner hostile in the 3 s after a catch
+    const equip = []
+    const onEquip = p => equip.push({ t: Date.now(), id: p.entityId, s: JSON.stringify(p.equipments) })
+    a._client.on('entity_equipment', onEquip)
+    // The guard's entity as the bot sees it: the player-type entity nearest its spot (never by username).
+    const copEntId = async route => {
+      const at = await copAt(route)
+      if (!at) return null
+      const e = Object.values(a.entities).filter(x => x.type === 'player' && ![A, B, L].includes(x.username))
+        .sort((p, q) => p.position.distanceTo(new t.Vec3(...at)) - q.position.distanceTo(new t.Vec3(...at)))[0]
+      return e ? e.id : null
+    }
+    const hc = await copHere('hallb', 86.5, 140.5)
+    await into(A, hc[0].toFixed(1), 65, (hc[2] + 1.2).toFixed(1), 180)
+    await cmd(`zzhp ${A} 20`)
+    await sleep(800)
+    logs.cops.mark()
+    since = Date.now()
+    await cmd(`djailcops hostile ${A}`)
+    const grabbed = await until(() => logs.cops.has(new RegExp(`grab ${A} \\S+ by=\\d+`)), 3000, 100)
+    const cuffs = await until(async () => /held=cuffs/.test(await cop('hallb')), 1500, 100)
+    const hcEnt = await copEntId('hallb')
+    const sentCuffs = await until(() => equip.some(x => x.id === hcEnt && /jail_cuffs/.test(x.s)), 1500, 100)
+    check('a hostile inmate within 2 blocks: the grab starts, the guard holds handcuffs (the client is sent them)', grabbed && cuffs && sentCuffs, `${grabbed} ${await cop('hallb')} ent=${hcEnt} ${equip.filter(x => x.id === hcEnt).map(x => x.s.slice(0, 160)).join(' / ')}`)
+    await sleep(2200)
+    const frames = new Set()
+    for (const m of t.text(a, since).split(' | ')) { const f = /CUFFING.*?([▮▯]{5})/.exec(m); if (f) frames.add(f[1]) }
+    check('...the bar fills (CUFFING, 3+ meter frames, a countdown in seconds)', frames.size >= 3 && said(a, /CUFFING.*get away!.*\d(\.\d)?s/, since), `${[...frames].join(' ')} | ${t.text(a, since).slice(0, 200)}`)
+    // A knife hit on the cuffing guard staggers it: no other hunter in reach, so the grab breaks. The ranges go to 0 at
+    // once, so no new grab starts when the stagger ends.
+    logs.cops.mark()
+    since = Date.now()
+    await hitCop(await copAt('hallb'), A, 1)
+    await cmd('zzcfgset jailcop::arrest::range 0')
+    await cmd('zzcfgset jailcop::arrest::grab-range 0')
+    const broke = await until(() => said(a, /broke free/, since), 2000, 100)
+    check('...a melee hit on the cuffing guard (staggered): "You broke free!", no arrest', broke && logs.cops.has(new RegExp(`grab-break ${A} \\S+ why=none`)) && !logs.cops.has(new RegExp(`arrest ${A}`)), logs.cops.since().split('\n').filter(x => /grab|arrest|hit id/.test(x)).join(' / '))
+    const tGun = Date.now()
+    const gunBack = await until(async () => /held=gun/.test(await cop('hallb')), 4000, 200)
+    const gunMs = Date.now() - tGun
+    await sleep(600)
+    const hcEnt2 = await copEntId('hallb')
+    const sentGun = equip.some(x => x.t >= tGun - 200 && x.id === hcEnt2 && /floats/.test(x.s) && !/jail_cuffs/.test(x.s))
+    check('...out of reach: the guard puts the cuffs away (its gun again within ~2.5 s)', gunBack && gunMs < 3000 && sentGun, `${gunMs} ms ${await cop('hallb')} ${equip.filter(x => x.id === hcEnt2).map(x => x.s.slice(0, 120)).join(' / ')}`)
+    // Back in reach for the whole clock: arrested.
+    await cmd('zzcfgset jailcop::arrest::range 2.5')
+    await cmd('zzcfgset jailcop::arrest::grab-range 2')
+    const hc2 = await copAt('hallb')
+    await jtp(A, hc2[0].toFixed(1), 65, (hc2[2] + 1.2).toFixed(1), 180)
+    logs.cops.mark()
+    since = Date.now()
+    const arr3 = await until(() => logs.cops.has(new RegExp(`arrest ${A} \\S+ .*grab=4(\\.\\d)?(\\s|$)`)), 8000, 100)
+    const arrAt = Date.now()
+    const keptCuffs = /held=cuffs/.test(await cop('hallb'))
+    await sleep(1600)
+    check('...back in reach for the whole clock: arrested (ARRESTED), grab=4 in the log', arr3 && said(a, /ARRESTED/, since), logs.cops.since().split('\n').filter(x => /grab|arrest/.test(x)).join(' / '))
+    const gun3 = await until(async () => /held=gun/.test(await cop('hallb')), 4000, 200)
+    check('...the guard keeps the cuffs through the catch, then its gun again', keptCuffs && gun3 && Date.now() - arrAt < 5800, `${keptCuffs} ${gun3} ${await cop('hallb')}`)
+    a._client.removeListener('entity_equipment', onEquip)
+    await cmd('zzcfgset jailcop::taser::min 2.5')
+    await cmd('zzcfgset jailcop::gun::range 24')
+    await cmd('zzcfgtime jailcop::arrest::grab 2 seconds')
 
     // ---------- Sentinel's own hits never land ----------
     await cmd('zzcfgset jailcop::arrest::range 0')
@@ -363,6 +697,22 @@ module.exports = async ({ check }) => {
     await cmd(`zzhp ${A} 20`)
     const fast = await until(async () => !/-0\.2/.test(await lowMod(A)), 1500, 150)
     check('...above it: gone', fast, await lowMod(A))
+    // The lose-cops grace ends at a rejoin (lost with a keycard, calm, out and back in).
+    await state(A, 'off')
+    await cmd(`zzjail ${A} give keycard`)
+    await jtp(A, ...HIDE, 0)
+    await state(A, 'in')
+    await calm(A)
+    await cmd('zzcfgtime jailcop::lose::time 3 seconds')
+    await cmd(`zzjail ${A} hostile`)
+    const gR = await until(async () => field(await info(A), 'grace') === 'yes', 8000, 300)
+    await cmd('zzcfgtime jailcop::lose::time 20 seconds')
+    await t.drop(A)
+    await sleep(1500)
+    await t.newBot(A)
+    await sleep(2500)
+    check('the lose-cops grace ends at a rejoin (grace=no after logging back in)', gR && field(await info(A), 'grace') === 'no', await info(A))
+    await cmd(`zzjail ${A} strip`)
     const hb2 = await copHere('hallb', 86.5, 160.5)
     await into(A, hb2[0].toFixed(1), 65, (hb2[2] + 6).toFixed(1), 180)
     await cmd(`djailcops hostile ${A}`)
@@ -423,12 +773,19 @@ module.exports = async ({ check }) => {
     check('nobody in the prison for the idle time: every cop removed', gone, await cmd('zzjailcops'))
     console.error(`prison-cops took ${Math.round((Date.now() - start0) / 1000)} s`)
   } finally {
+    const walkLeft = await copId('walk') // the Gun Shop stray check slows it: never leave it slowed
+    if (walkLeft) await cmd(`zzconsole npc speed 1 --id ${walkLeft}`)
     await cmd('zzcfgtime jailcop::idle-despawn 10 minutes')
+    await cmd('zzcfgtime jailcop::arrest::grab 2 seconds')
+    await cmd('zzcfgtime jailcop::arrest::stun-grab 2.5 seconds')
+    await cmd('zzcfgtime jailcop::lose::time 20 seconds')
+    await cmd('zzcfgtime jailcop::stray::time 20 seconds')
+    await cmd('zzjailroster yardn yards walk w5 w67 hallb poldesk poloffice gate lot')
     await cmd('zzcfgset jailcop::arrest::range 2.5')
     await cmd('zzcfgset jailcop::arrest::grab-range 2')
     await cmd('zzcfgset jailcop::taser::min 2.5')
     await cmd('zzcfgset jailcop::gun::range 24')
-    await t.prisonOff()
+    await t.prisonRestore()
     for (const n of [A, B, L]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()
   }

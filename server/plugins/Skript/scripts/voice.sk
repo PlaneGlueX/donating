@@ -1,0 +1,177 @@
+# voice.sk: the inmates talk out loud (owner, 2026-10-20: "give lefty, rusty, tank and whisper some voice lines for the
+# tutorial", with /voiceline off mentioned on the first join and on a tutorial redo). The clips are recordings
+# (server\voicelines\*.mp3, made with ElevenLabs): tools\make-voice-lines.js puts them in the pack as the sound events
+# donating.voice.<clip> and writes voicelines.sk, the lookup (voiceClip(speaker, line), voiceTicks(clip)).
+#
+# One hook: messages.sk's msgSpeak (every line said in person: storySay, the inmates' jjSay, Rusty's course lines, a
+# mission's brief or done line said at the NPC) calls voiceSay. A line with a clip plays:
+#   - to that player only (Player#playSound: nobody standing next to them hears it), from where the NPC stands (the
+#     nearest quest giver of the speaker's kind in the player's world, at head height, within voice::range blocks; else
+#     from the player), in the voice category (the client's Voice/Speech slider), heard up to 24 blocks away (the pack);
+#   - never two at once: a line from the same speaker while their last clip still plays, said within voice::chain
+#     seconds of the last one (a mission's done line and the next brief come in the same tick; Rusty's two lines 2 s
+#     apart), waits for it to end; any other line stops the playing clip first and plays at once. story.sk's talk lines
+#     (Lefty's l_meet) wait for each clip to end (voiceLeft) instead of 2 s, so the chat keeps up with the voice;
+#   - instead of the chat ping (msgSpeak plays the ping only for a line with no clip);
+#   - only for players whose server pack loaded (the clips are in it) and with /voiceline on (data voiceline "off";
+#     unset = on).
+# The notice "Inmates talk out loud here. Don't want it? /voiceline off": once, the first time a player is on the
+# course (a first join into the prison: data voiceline-told), and at every /tutorial confirm replay (jailcourse.sk's
+# jcTutorial calls voiceNotice).
+# Memory per player (uuid): {-voice::until::<u>} (unix seconds when the last clip played or waiting ends), ::who (its
+# speaker's key), ::at (when its line was said), ::gen (a stop adds 1: a clip waiting with an older number never plays),
+# ::clip (the last clip played).
+
+function voiceOn(p: player) :: boolean:
+	if getData({_p}, "voiceline") is "off":
+		return false
+	return true
+
+# Whether a clip can reach the player: /voiceline on and the server pack loaded (a client without it has no such sound).
+function voiceHears(p: player) :: boolean:
+	if voiceOn({_p}) is true:
+		if {_p} has a resource pack loaded:
+			return true
+	return false
+
+# Seconds until the player's voice lines end (0: none playing or waiting).
+function voiceLeft(p: player) :: number:
+	set {_end} to {-voice::until::%uuid of {_p}%}
+	if {_end} is set:
+		set {_left} to {_end} - (unix timestamp of now)
+		if {_left} > 0:
+			return {_left}
+	return 0
+
+# Where a speaker's voice comes from: the nearest quest giver of the speaker's kind (core.sk msgcontact::<key>::kind,
+# else the key itself: "sparks") in the player's world within voice::range blocks, at head height; else the player.
+function voiceFrom(p: player, key: text) :: location:
+	set {_kind} to {-cfg::msgcontact::%{_key}%::kind}
+	if {_kind} is not set:
+		set {_kind} to {_key}
+	set {_r} to {-cfg::voice::range}
+	if {_r} is not set:
+		set {_r} to 24
+	set {_w} to "%world of {_p}%"
+	set {_pl} to location of {_p}
+	set {_best} to {_r} + 1
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is {_kind}:
+			if {_a::2} is {_w}:
+				set {_l} to questLoc(loop-index)
+				if {_l} is set:
+					set {_d} to distance between {_pl} and {_l}
+					if {_d} < {_best}:
+						set {_best} to {_d}
+						set {_at} to {_l}
+	if {_at} is set:
+		return {_at} ~ vector(0, 1.6, 0)
+	return {_pl} ~ vector(0, 1.6, 0)
+
+# Stops the player's voice line and every one waiting for it.
+function voiceStop(p: player):
+	set {_u} to "%uuid of {_p}%"
+	add 1 to {-voice::gen::%{_u}%}
+	if voiceLeft({_p}) > 0:
+		stop all sounds in voice category for {_p}
+	delete {-voice::until::%{_u}%}
+
+function voicePlay(p: player, key: text, clip: text):
+	set {_l} to voiceFrom({_p}, {_key})
+	play sound "donating.voice.%{_clip}%" in voice category with volume 1 at {_l} to {_p}
+	set {-voice::clip::%uuid of {_p}%} to {_clip}
+
+# A clip that waits for the one before it (the same speaker, voice::chain): not if a stop came meanwhile.
+function voiceLater(p: player, key: text, clip: text, gen: number, w: timespan):
+	wait {_w}
+	{_p} is online
+	{-voice::gen::%uuid of {_p}%} is {_gen}
+	voiceHears({_p}) is true
+	voicePlay({_p}, {_key}, {_clip})
+
+# A line said in person (messages.sk's msgSpeak): true when its clip plays now or waits for the one before it.
+function voiceSay(p: player, from: text, line: text) :: boolean:
+	if voiceHears({_p}) is false:
+		return false
+	set {_key} to msgKey({_from})
+	set {_clip} to voiceClip({_key}, {_line})
+	if {_clip} is "":
+		return false
+	set {_len} to voiceTicks({_clip})
+	if {_len} <= 0:
+		return false
+	set {_u} to "%uuid of {_p}%"
+	if {-voice::gen::%{_u}%} is not set:
+		set {-voice::gen::%{_u}%} to 0
+	set {_chain} to {-cfg::voice::chain}
+	if {_chain} is not set:
+		set {_chain} to 2.5
+	set {_left} to voiceLeft({_p})
+	set {_queue} to false
+	if {_left} > 0:
+		if {-voice::who::%{_u}%} is {_key}:
+			if {-voice::at::%{_u}%} is set:
+				if (unix timestamp of now) - {-voice::at::%{_u}%} <= {_chain}:
+					set {_queue} to true
+	set {-voice::who::%{_u}%} to {_key}
+	set {-voice::at::%{_u}%} to unix timestamp of now
+	if {_queue} is true:
+		set {-voice::until::%{_u}%} to {-voice::until::%{_u}%} + {_len} / 20
+		set {_w} to 1 tick * ceil({_left} * 20)
+		voiceLater({_p}, {_key}, {_clip}, {-voice::gen::%{_u}%}, {_w})
+		return true
+	if {_left} > 0:
+		voiceStop({_p})
+	voicePlay({_p}, {_key}, {_clip})
+	set {-voice::until::%{_u}%} to (unix timestamp of now) + {_len} / 20
+	return true
+
+function voiceNotice(p: player):
+	setData({_p}, "voiceline-told", true)
+	msg({_p}, "&7Inmates talk out loud here. Don't want it? &f/voiceline off")
+
+# The first time a player is on the course (a first join into the prison; or a course player from before this file).
+on join:
+	wait 4 seconds
+	player is online
+	jailOn() is true
+	jailState(player) is "course"
+	getData(player, "voiceline-told") is not set
+	voiceNotice(player)
+
+on quit:
+	set {_u} to "%uuid of player%"
+	add 1 to {-voice::gen::%{_u}%}
+	delete {-voice::until::%{_u}%}
+	delete {-voice::who::%{_u}%}
+	delete {-voice::at::%{_u}%}
+	delete {-voice::clip::%{_u}%}
+
+command /voiceline [<text>]:
+	description: The inmates' voice lines: on or off.
+	usage: /voiceline [on|off]
+	executable by: players
+	trigger:
+		set {_want} to "toggle"
+		if arg-1 is set:
+			set {_want} to arg-1 in lower case
+		if {_want} is "toggle":
+			if voiceOn(player) is true:
+				set {_want} to "off"
+			else:
+				set {_want} to "on"
+		if {_want} is "on":
+			deleteData(player, "voiceline")
+			msg(player, "&7Voice lines: &aon")
+			if player doesn't have a resource pack loaded:
+				msg(player, "&7You hear them with the server's resource pack.")
+		else if {_want} is "off":
+			setData(player, "voiceline", "off")
+			voiceStop(player)
+			msg(player, "&7Voice lines: &coff")
+		else:
+			msg(player, "&f/voiceline on &7or &f/voiceline off")
+
+on tab complete of "/voiceline" and "/skript:voiceline":
+	set tab completions for position 1 to "on" and "off"

@@ -73,6 +73,34 @@
           "type": "minecraft:model",
           "model": "donating:item/jail_yardrun"
         }
+      },
+      {
+        "when": "donating:jail_scrap",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_scrap"
+        }
+      },
+      {
+        "when": "donating:jail_tape",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_tape"
+        }
+      },
+      {
+        "when": "donating:jail_handle",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_handle"
+        }
+      },
+      {
+        "when": "donating:jail_cuffs",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/jail_cuffs"
+        }
       }
     ],
     "fallback": {

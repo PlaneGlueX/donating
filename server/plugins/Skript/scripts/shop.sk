@@ -27,7 +27,9 @@ using equippable components
 #     second click within cfg("shop::confirm-window").
 #   - No shopping while combat-tagged or wanted (shopkeepers stand in safe zones anyway).
 #   - auditWeapons() (on join and when a shop opens) removes weapons that shouldn't exist: outside
-#     hotbar 1-5, second copies, not unlocked, consumable stacks over the max.
+#     hotbar 1-5, second copies, not unlocked, consumable stacks over the max. Sparks' makeshift weapons
+#     (prison, jailjobs.sk: wpn::<W>::makeshift) are never unlocked and stay until a death; the hotbar
+#     mirror throws one away (a second click) or moves it aside, never takes it out; Save leaves it out.
 #   - The shop never touches slots 5-8 (quest items, phone/car key) or items it doesn't know.
 #   - Heist tools (loot.sk) are one stack per tool in hotbar 1-5, up to cfg tool::<t>::max, used up by
 #     their task, lost on death, thrown away from the hotbar mirror; not in Save/Restore.
@@ -233,6 +235,10 @@ function auditWeapons(p: player):
 				set item amount of {_i} to {_max}
 				set slot loop-value of {_p}'s inventory to {_i}
 				shopLog({_p}, "audit trimmed %{_w}% in slot %loop-value% to %{_max}%", 0)
+		else if {-cfg::wpn::%{_w}%::makeshift} is true:
+			# Sparks' makeshift weapons (jailjobs.sk) are never unlocked: the copy in hotbar 1-5 is the only one, kept until a
+			# death (owner, 2026-10-20), in the city too. One copy and hotbar 1-5 still apply (above).
+			set {_bad} to ""
 		else if getData({_p}, "wpn::%{_w}%") is not true:
 			set {_bad} to "not unlocked"
 		set {_seen::%{_w}%} to true
@@ -499,7 +505,8 @@ function openShop(p: player, kind: text):
 	renderShop({_p})
 	open {_gui} to {_p}
 	play sound "block.chest.open" with volume 0.5 to {_p}
-	# The Prison Gun Shop (prison.sk): Lefty's l_shop mission counts it.
+	# The Prison Gun Shop (prison.sk): Lefty's l_shop mission counts it. Its door is keycard-only (jailescape.sk); the
+	# menu itself doesn't check where you stand (/dshop open in tests).
 	if {_kind} is "gun":
 		if prisonInside({_p}) is true:
 			progEvent({_p}, "jailshop", 1, "gun")
@@ -627,6 +634,10 @@ function hotHint(p: player, n: number) :: text:
 	if {_i} is air:
 		return ""
 	if {_id} starts with "wpn:":
+		# A makeshift weapon (Sparks') can't be taken out: it's no unlock, so it's thrown away (a second click).
+		set {_w} to wmTitle({_i})
+		if {-cfg::wpn::%{_w}%::makeshift} is true:
+			return "&eClick: throw away"
 		return "&eClick: take out"
 	if {_id} is not "":
 		return "&eClick: throw away"
@@ -1116,12 +1127,17 @@ function selectWeapon(p: player, w: text, shift: boolean):
 function clickHotbar(p: player, n: number):
 	set {_i} to slot {_n} of {_p}'s inventory
 	set {_id} to loadoutId({_i})
-	# "con" or "tool": things that can be thrown away or moved aside.
+	# "con", "tool" or "makeshift" (Sparks' weapons: never unlocked, so never taken out): things that can be thrown away
+	# or moved aside.
 	set {_small} to ""
 	if {_id} starts with "con:":
 		set {_small} to "con"
 	else if itemId({_i}) starts with "tool:":
 		set {_small} to "tool"
+	else if {_id} starts with "wpn:":
+		set {_mw} to wmTitle({_i})
+		if {-cfg::wpn::%{_mw}%::makeshift} is true:
+			set {_small} to "makeshift"
 	set {_sel} to {-shop::sel::%{_p}%}
 	if {_sel} is set:
 		delete {-shop::sel::%{_p}%}
@@ -1159,17 +1175,17 @@ function clickHotbar(p: player, n: number):
 	if {_i} is air:
 		shopStatus({_p}, "&7Select a weapon in the Loadout tab first.")
 		stop
-	if {_id} starts with "wpn:":
-		set {_w} to wmTitle({_i})
-		set {_name} to cfg("wpn::%{_w}%::name")
-		# unequipGun replaces this with a warning if loaded rounds didn't fit.
-		shopOk({_p}, "Took the %{_name}% out.")
-		unequipGun({_p}, {_n})
-		stop
 	if {_small} is "":
+		if {_id} starts with "wpn:":
+			set {_w} to wmTitle({_i})
+			set {_name} to cfg("wpn::%{_w}%::name")
+			# unequipGun replaces this with a warning if loaded rounds didn't fit.
+			shopOk({_p}, "Took the %{_name}% out.")
+			unequipGun({_p}, {_n})
+			stop
 		shopFail({_p}, "The shop can't take that.")
 		stop
-	# Consumables and tools: thrown away, after a second click.
+	# Consumables, tools and makeshift weapons: thrown away, after a second click.
 	if needsConfirm({_p}, "hot:%{_n}%", 0, true) is true:
 		shopStatus({_p}, "&eClick again to throw it away.")
 		stop
@@ -1184,6 +1200,11 @@ function saveLoadout(p: player):
 		# One entry per consumable (Restore refills that one stack).
 		if {_id} starts with "con:":
 			if loadoutSlotOf({_p}, {_id}) < loop-value - 1:
+				set {_id} to ""
+		# Never a makeshift weapon (Sparks'): it's no unlock, Restore couldn't give it back.
+		if {_id} starts with "wpn:":
+			set {_mw} to wmTitle({_i})
+			if {-cfg::wpn::%{_mw}%::makeshift} is true:
 				set {_id} to ""
 		if {_id} is "":
 			deleteData({_p}, "loadout::%loop-value%")

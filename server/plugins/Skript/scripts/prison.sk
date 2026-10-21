@@ -13,7 +13,8 @@
 # jailCount, jailTake, jailHeld, jailDrop, jailDoor, jailDoorPulse, jailDoorReset, jailShielded, prisonHud.
 # Also: jailExempt, jailEscapeCheck (the front gate's closing), jailCourseDone (jailcourse.sk and /dprison course skip),
 # jailCellAssign / jailCellFree, jailStrip, jailHold (loot.sk's hold mechanic), jailBox / jailBoxOff (interaction boxes,
-# maintained here), jailCopId (the prison cop an entity is, or ""), jailSecsLeft, jailFuture.
+# maintained here), jailCopId (the prison cop an entity is, or ""), jailSecsLeft, jailFuture, jailCraftable /
+# jailHasParts / jailWeaponSlot (Sparks' makeshift weapons: core.sk craft::*).
 # Never calls jailcourse.sk, jailescape.sk, jailcops.sk or jailjobs.sk: those read and write the shared memory below.
 #
 # Saved data: jail, jail-step (jailcourse.sk), jail-quit-hostile, jail-course ("done" once the course is finished),
@@ -427,6 +428,34 @@ function jailHeld(p: player) :: text:
 			return {_a::2}
 	return ""
 
+# The first makeshift weapon (core.sk craft::weapons) whose two parts the player carries and that isn't already in hotbar
+# 1-5, or "" (Sparks' menu in jailjobs.sk, the pickup line in jailescape.sk, story.sk's jailcraft GPS).
+function jailCraftable(p: player) :: text:
+	loop {-cfg::craft::weapons::*}:
+		set {_w} to "%loop-value%"
+		if jailHasParts({_p}, {_w}) is true:
+			if jailWeaponSlot({_p}, {_w}) < 0:
+				return {_w}
+	return ""
+
+# Whether the player carries every part of makeshift weapon w (false when it has no recipe).
+function jailHasParts(p: player, w: text) :: boolean:
+	set {_parts} to {-cfg::craft::%{_w}%::parts}
+	if {_parts} is not set:
+		return false
+	set {_need::*} to "%{_parts}%" split at "|"
+	loop {_need::*}:
+		if jailCount({_p}, "%loop-value%") < 1:
+			return false
+	return true
+
+# The hotbar slot (0-4) holding WeaponMechanics title w, or -1.
+function jailWeaponSlot(p: player, w: text) :: number:
+	loop integers from 0 to 4:
+		if wmTitle(slot loop-value of {_p}'s inventory) is {_w}:
+			return loop-value
+	return -1
+
 # Every jail item out of the inventory (slots 0-35 and the offhand).
 function jailStrip(p: player):
 	loop integers from 0 to 35:
@@ -519,7 +548,7 @@ every second:
 # ---------- Doors (iron doors and trapdoors by name, from the build's states) ----------
 
 function jailDoorNames() :: texts:
-	loop "vent", "ventlids", "rusty", "sogate", "sohatch", "security", "stairgate", "poln", "pols" and "booth":
+	loop "vent", "ventlids", "rusty", "sogate", "sohatch", "security", "stairgate", "poln", "pols", "booth" and "gunshop":
 		add loop-value to {_out::*}
 	loop jailCells():
 		add "cell_%loop-value%" to {_out::*}
@@ -739,7 +768,8 @@ function jailCatch(p: player, why: text):
 	if {_why} is not "stuck":
 		jailStrip({_p})
 		# Equipped weapons and consumables (hotbar 1-5) go too, like a death; they stay unlocked (owner, 2026-10-14: "getting
-		# arrested in prison takes away your weapons too"). The yard's Gun Shop gives back the melee you own.
+		# arrested in prison takes away your weapons too"). With a keycard, the yard's Gun Shop gives back the melee you own;
+		# Sparks in the workshop makes new ones from junk (a makeshift weapon is never unlocked: it's gone with the catch).
 		loop integers from 0 to 4:
 			if slot loop-value of {_p}'s inventory is not air:
 				set {_armed} to true
@@ -773,12 +803,18 @@ function jailCatch(p: player, why: text):
 	jailDoor("cell_%{_c}%", false)
 	msg({_p}, "&7Your cell opens in %{_secs}%s. The escape starts over.")
 	if {_armed} is true:
-		msg({_p}, "&7They took your weapons. The Gun Shop in the yard gives back the melee you own.")
+		msg({_p}, "&7They took your weapons. Sparks in the workshop makes new ones from junk; with a keycard, the Gun Shop in the yard gives back the melee you own.")
 
 # ---------- The course's end (jailcourse.sk calls it; /dprison course skip too) ----------
 
 function jailCourseDone(p: player):
 	set {_u} to "%uuid of {_p}%"
+	# A /tutorial replay that finished (here or by /dprison course skip): nothing to put back, the lessons start over
+	# (jailcourse.sk jcReplayStale would otherwise restore them).
+	set {_rp} to false
+	if {data::%{_p}%::jail-replay::state} is set:
+		set {_rp} to true
+		delete {data::%{_p}%::jail-replay::*}
 	setData({_p}, "jail", "in")
 	setData({_p}, "jail-course", "done")
 	deleteData({_p}, "jail-step")
@@ -792,7 +828,7 @@ function jailCourseDone(p: player):
 	send title colored "&6&lYOU'RE IN THE BLOCK" with subtitle colored "&7Now find a way out. Lefty on the bench knows how." to {_p} for 4 seconds
 	play sound "ui.toast.challenge_complete" with volume 0.7 to {_p}
 	progEvent({_p}, "jailcourse", 1, "")
-	jailLog("course-done %{_p}% %{_u}%")
+	jailLog("course-done %{_p}% %{_u}% replay=%{_rp}%")
 
 # ---------- The escape ----------
 
@@ -1569,6 +1605,8 @@ command /prison [<text>]:
 			set {_what} to "%{_what}% &c(the guards are after you)"
 		msg(player, "&7You're an inmate, %{_what}%&7.")
 		msg(player, "&6Ways out: &fa keycard &7(knock a guard down or trade Rusty a donut) through the police station, &fC4 &7(parts in the workshop, the supply closet and the infirmary: hold right-click to search; Lefty in Hall B puts it together) on the vehicle gate by the plaza, or &fthe fence by the Gun Shop &7(punch the box when no guard is near, or use a keycard) and over the boxes. &6Then the lot: &7the front gate opens from the gatehouse booth's console. A keycard opens the booth, or punch its fuse box when no guard is near.")
+		msg(player, "&6The yard's Gun Shop &7needs a keycard. Guards who see you in a restricted place (the police station, the annex, the staff rooms, the Gun Shop, the lot) come after you, through the windows too; inside a building they don't give up until you're out of it. Lose them with contraband on you and they stop searching you, until you're caught: just never hold it out in front of one.")
+		msg(player, "&6Sparks &7in the workshop makes a weapon from two parts: scrap from the gym's weights, tape from the storage room, a mop handle from the laundry. Don't hold the scrap out in front of a guard.")
 		msg(player, "&7Stuck somewhere? &f/prison stuck &7(back to your cell; while the guards are after you it counts as a catch).")
 
 # ---------- /dprison (staff) ----------

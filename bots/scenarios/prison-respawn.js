@@ -174,17 +174,26 @@ module.exports = async ({ check }) => {
     const pB = await pos(B)
     check('a free bot rejoining in the prison world stays where it was, still free (no teleport to the city)', (await dim(B)) === 'minecraft:jailbreak' && pB && Math.abs(pB[0] - 260.5) < 1 && Math.abs(pB[2] - 404.5) < 1 && field(await info(B), 'state') === 'out', `${await dim(B)} ${pB} ${await info(B)}`)
 
-    // ---- the master switch off: an inmate in jailbreak is moved to the city, freed when it's on again
-    await into(A, 200.5, 65, 150.5, 0)
-    await sleep(1200)
-    await t.prisonOff()
-    const moved = await until(async () => (await dim(A)) === 'minecraft:overworld', 34000, 1000)
-    check('the prison switched off: an inmate in jailbreak is moved to the city within 30 s (state kept)', moved && field(await info(A), 'state') === 'in', `${await dim(A)} ${await info(A)}`)
-    await t.prisonOn()
-    const freed = await until(async () => field(await info(A), 'state') === 'out', 4000)
-    check('...switched on again: the inmate in the city is freed (state out)', freed, await info(A))
+    // ---- the master switch off: an inmate in jailbreak is moved to the city, freed when it's on again. Not while a real
+    // player is a prisoner (2026-10-20): the switch moves every prisoner, the owner too.
+    const real = []
+    for (const n of ((await cmd('minecraft:list')).split(':').slice(1).join(':')).split(',').map(x => x.trim()).filter(Boolean)) {
+      if (![A, B].includes(n) && /state=(in|course)/.test(await info(n))) real.push(n)
+    }
+    if (real.length) {
+      console.log(`prison-respawn: the master switch checks not run (${real.join(', ')} a prisoner online)`)
+    } else {
+      await into(A, 200.5, 65, 150.5, 0)
+      await sleep(1200)
+      await t.prisonOff()
+      const moved = await until(async () => (await dim(A)) === 'minecraft:overworld', 34000, 1000)
+      check('the prison switched off: an inmate in jailbreak is moved to the city within 30 s (state kept)', moved && field(await info(A), 'state') === 'in', `${await dim(A)} ${await info(A)}`)
+      await t.prisonOn()
+      const freed = await until(async () => field(await info(A), 'state') === 'out', 4000)
+      check('...switched on again: the inmate in the city is freed (state out)', freed, await info(A))
+    }
   } finally {
-    await t.prisonOff()
+    await t.prisonRestore()
     for (const n of [A, B]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()
   }

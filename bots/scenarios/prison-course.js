@@ -39,6 +39,12 @@ module.exports = async ({ check }) => {
     check('the Locked up prompt in the cell (title and a TUTORIAL chat line)', said(a, /Locked up/) && said(a, /TUTORIAL.*learn the ropes/i))
     check('the sneak step told straight away: "Sneak past the guard" and its TUTORIAL line', said(a, /Sneak past the guard/) && said(a, /TUTORIAL.*Guards notice inmates/))
     check('the boss bar says TUTORIAL', a.bars.some(b => /TUTORIAL/.test(b.text)), (a.bars.slice(-1)[0] || {}).text)
+    // The sidebar's quest line (owner, 2026-10-20: "make the active quest and step show up instead of the current 'Meet
+    // Mara'"): the course's step and its place; no Jobs or hit line for a prisoner ("dont show /jobs ... until the player
+    // escapes": nothing at all, so TAB drops the lines).
+    const side0 = await until(async () => /Tutorial: .*Sneak past the guard .*2\/9/.test(await t.papi(A, 'donating_mission')), 3000)
+    check('the sidebar\'s quest line on the course: "▶ Tutorial: Sneak past the guard 2/9"', side0, await t.papi(A, 'donating_mission'))
+    check('...and no Jobs or hit line while a prisoner (empty: TAB drops them)', (await t.papi(A, 'donating_jobs')) === '' && (await t.papi(A, 'donating_hit')) === '', `${await t.papi(A, 'donating_jobs')} | ${await t.papi(A, 'donating_hit')}`)
     await tp(A, 78.5, 58, 59.5, 180)
     await sleep(3200)
 
@@ -173,6 +179,8 @@ module.exports = async ({ check }) => {
     check('the YOU\'RE IN THE BLOCK title', said(a, /IN THE BLOCK/, since))
     const lefty = await until(async () => /id=l_meet/.test(await cmd(`dstory info ${A} lefty`)), 8000)
     check('Lefty\'s chain starts (l_meet)', lefty, await cmd(`dstory info ${A} lefty`))
+    const sideIn = await until(async () => /Lefty: .*Hall B bench/.test(await t.papi(A, 'donating_mission')), 3000)
+    check('in the block the sidebar shows Lefty\'s lesson ("▶ Lefty: Meet him on the Hall B bench 0/1")', sideIn, await t.papi(A, 'donating_mission'))
 
     // ---- /tutorial after the course: the offer, then confirm puts A back in a course cell as a prisoner again. Before
     // it, A stands in Hall B with 2 donuts (a jail item not seen as contraband) and the knife out of hotbar 1-5, so
@@ -191,6 +199,11 @@ module.exports = async ({ check }) => {
     s = await info(A)
     check('/tutorial confirm after the course: state course, step cell, in a course cell', replay && COURSE_CELLS.includes(field(s, 'cell')), s)
     check('...the replay saved what /tutorial stop puts back (state in), the donuts taken for the course', /donut:\d+x2/.test(beforeItems) && /= in$/.test(await cmd(`zzdata ${A} jail-replay::state`)) && !/donut/.test(field(s, 'items')), `${beforeItems} | ${s}`)
+    // Owner, 2026-10-20: "when the player does the tutorial again, the tutorial npcs go back to the quests they give for
+    // the tutorial": Lefty's lessons start over (they begin again once the course is done), saved for /tutorial stop.
+    const lr = await cmd(`dstory info ${A} lefty`)
+    const sideReplay = await until(async () => /Tutorial: .*Locked up .*1\/9/.test(await t.papi(A, 'donating_mission')), 3000)
+    check('...Lefty\'s lessons start over (saved: l_meet), the sidebar on the course\'s first step ("Tutorial: Locked up 1/9")', /id= /.test(lr) && /= l_meet$/.test(await cmd(`zzdata ${A} jail-replay::chain::lefty::id`)) && sideReplay, `${lr} | ${await t.papi(A, 'donating_mission')}`)
 
     // ---- /tutorial stop (owner, 2026-10-15: "have a /tutorial stop command if you already completed it before"): a
     // logout keeps the replay; at the hotbar step Rusty hands A a knife; stop puts A back as before the confirm.
@@ -215,6 +228,9 @@ module.exports = async ({ check }) => {
     check('/tutorial stop: an inmate again where A stood before the replay, the step and checkpoint gone', stopped && atBefore && field(s, 'step') === '' && field(s, 'cp') === '' && said(a2, /Replay stopped/, since), `${s} at ${ps} was ${before}`)
     check('...the donuts back in their slot, no course card, the knife Rusty handed out gone (still unlocked)', field(s, 'items') === beforeItems && !/Combat_Knife/.test(await cmd(`zzwm ${A}`)) && /= true/.test(await cmd(`zzdata ${A} wpn::Combat_Knife`)), `${s} | ${await cmd(`zzwm ${A}`)}`)
     check('...the saved replay data cleared', /= <none>/.test(await cmd(`zzdata ${A} jail-replay::state`)), await cmd(`zzdata ${A} jail-replay::state`))
+    const lb = await cmd(`dstory info ${A} lefty`)
+    const sideBack = await until(async () => /Lefty: .*Hall B bench/.test(await t.papi(A, 'donating_mission')), 3000)
+    check('...Lefty\'s lessons back as they were (l_meet, followed on the GPS), the sidebar on his lesson again', /id=l_meet/.test(lb) && /= lefty$/.test(await cmd(`zzdata ${A} quest-track`)) && sideBack, `${lb} | ${await cmd(`zzdata ${A} quest-track`)} | ${await t.papi(A, 'donating_mission')}`)
     since = Date.now()
     a2.chat('/tutorial stop')
     check('/tutorial stop with no replay running: refused', await until(() => said(a2, /not replaying the course/, since), 3000) && field(await info(A), 'state') === 'in', t.text(a2, since))
@@ -331,7 +347,7 @@ module.exports = async ({ check }) => {
     check('a course bot on B1\'s landing is pushed back to COURSE_PUSH', pushed, `${await pos(B)}`)
     check('...with the hint', said(b, /That stair is the guards' way/))
   } finally {
-    await t.prisonOff()
+    await t.prisonRestore()
     for (const n of [A, B]) {
       if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     }

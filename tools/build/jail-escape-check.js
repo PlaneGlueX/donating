@@ -5,7 +5,8 @@
 //     further; from the lot only the front gate leads out; the gatehouse booth opens only by its door;
 //   - every point of Appendix B stands where it should, on its side of the outlines; every cop route is walkable;
 //   - the controls course goes on from the crawl through the boiler room and Rusty's cell (10), the model does see a
-//     leak when one is put back (11), and no spot anyone reaches is in a block an outline runs through (12).
+//     leak when one is put back (11), and no spot anyone reaches is in a block an outline runs through (12);
+//   - the keycard-only Gun Shop (2026-10-20) is sealed with its door closed and its keeper reached with it open (13).
 //   node --max-old-space-size=6000 tools/build/jail-escape-check.js [--only <n,...>]   (or: node tools/build/jail.js check)
 // Steps 1-9 are ESCAPE-SPEC 3.8's assertions in its order. Exits 1 when an assertion fails. About two and a half minutes.
 //
@@ -213,7 +214,8 @@ const OPEN = {
   stair: ['stairgate'],
   course: ['vent', 'rusty', 'sogate', 'sohatch', 'security'],
   police: ['poln', 'pols'],
-  booth: ['booth']
+  booth: ['booth'],
+  gunshop: ['gunshop']
 }
 const AIR_DOORS = new Set(['sohatch']) // the hatch is opened as air (ESCAPE-SPEC 3.8)
 function overlay (open = {}, { noProps = false } = {}) {
@@ -421,7 +423,18 @@ const APPENDIX_B = [
   ['POL_DOOR_N', 210, 65, 286, 'block:iron_door'], ['POL_DOOR_S', 210, 65, 321, 'block:iron_door'],
   ['POL_READER_N_OUT', 209, 66, 284, 'block:tripwire_hook'], ['POL_READER_N_IN', 212, 66, 287, 'block:tripwire_hook'], ['POL_READER_S_IN', 209, 66, 320, 'block:tripwire_hook'],
   ['POL_IN', 210.5, 65, 288.5, 'stand', 'inner'],
-  ['L_POLICE_N', 211.0, 69.5, 284.97, 'label:north:face']
+  ['L_POLICE_N', 211.0, 69.5, 284.97, 'label:north:face'],
+  // the keycard-only Gun Shop (2026-10-20)
+  ['GUN_DOOR', 316, 65, 258, 'block:iron_door'],
+  ['GUN_READER', 317, 66, 260, 'block:tripwire_hook'],
+  ['GUN_OUT', 316.5, 65, 261.5, 'stand', 'inner'],
+  ['GUN_IN', 316.5, 65, 256.5, 'stand', 'inner'],
+  ['L_GUNSHOP', 316.5, 67.5, 260.03, 'label:south:face'],
+  // Sparks and his weapon parts (2026-10-20)
+  ['SPARKS', 49.5, 65, 49.5, 'stand', 'inner'],
+  ['SEARCH_SCRAP', 47, 66, 160, 'block:heavy_core'],
+  ['SEARCH_TAPE', 78, 65, 227, 'block:barrel'],
+  ['SEARCH_HANDLE', 86, 65, 63, 'block:barrel']
 ]
 const EXISTING = ['R_SPAWN', 'T_SPAWN', 'T_KEYCARD', 'T_GUARD_SEAT', 'T_DONUT', 'T_VENT_STAND', 'T_VENT_DOOR', 'T_VENT_READER', 'T_SO_GATE_A',
   'T_SO_GATE_B', 'T_SO_READER_OUT', 'T_SO_READER_IN', 'RUSTY', 'GUN_KEEPER',
@@ -477,7 +490,11 @@ if (step(7)) {
     ['BOOTH_IN in boothin, BOOTH_OUT in boothapp, BOOTH_STAND in booth', inZone('boothin', ...pz('BOOTH_IN')) && inZone('boothapp', ...pz('BOOTH_OUT')) && inZone('booth', ...pz('BOOTH_STAND'))],
     ['FUSE_BOX in fusebox', inZone('fusebox', ...pz('FUSE_BOX'))],
     ['PUNCH_IN in punchhole', inZone('punchhole', ...pz('PUNCH_IN'))],
-    ['POL_IN in polnin', inZone('polnin', ...pz('POL_IN'))]
+    ['POL_IN in polnin', inZone('polnin', ...pz('POL_IN'))],
+    ['GUN_OUT in gunshopapp, outside gunshop', inZone('gunshopapp', ...pz('GUN_OUT')) && !inZone('gunshop', ...pz('GUN_OUT'))],
+    ['GUN_IN in gunshopin and gunshop', inZone('gunshopin', ...pz('GUN_IN')) && inZone('gunshop', ...pz('GUN_IN'))],
+    ['GUN_KEEPER in gunshop', inZone('gunshop', ...pz('GUN_KEEPER'))],
+    ['PUNCH_STAND and the punch box (334, 66, 254) outside gunshop', !inZone('gunshop', ...pz('PUNCH_STAND')) && !inZone('gunshop', 334, 66, 254)]
   ]
   for (const [text, cond] of facts) ok(cond, text)
 }
@@ -562,6 +579,15 @@ if (step(11)) {
     return o
   }
   ok(t9(false).length === 0 && t9(true).some(k => { const [x, z] = xzOf(k); return x >= 381 && x <= 384 && z >= 344 && z <= 350 }), 'only the crouch pass finds the way into T9\'s hollow')
+}
+
+// 13. the keycard-only Gun Shop (2026-10-20): closed, nothing inside it is reached from the yard; open, the keeper is
+if (step(13)) {
+  console.log('13. The Gun Shop (keycard only)')
+  const inShop = r => [...r.seen.keys()].filter(k => { const [x, z, f] = xzOf(k); return x >= 292 && x <= 331 && z >= 239 && z <= 257 && f < 73 * 16 })
+  never('the Gun Shop from the yard, closed', {}, [node('GUN_OUT')], inShop, 'the closed Gun Shop is sealed (nothing inside it reached)')
+  const r = run('the Gun Shop open', { gunshop: true }, [node('GUN_OUT')], 'strict')
+  ok(r.seen.has(node('GUN_KEEPER').join(',')), 'the door open: GUN_KEEPER (311, 243) reached')
 }
 
 // 12. every run above: no spot anyone reached lies in a block an outline runs through (see "spots on an outline")

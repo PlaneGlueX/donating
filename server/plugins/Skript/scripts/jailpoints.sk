@@ -3,7 +3,7 @@
 # (ESCAPE-SPEC 2.3). jailPointsLoad() deletes and refills exactly these memory variables: {-jailpt::*},
 # {-jailroute::*}, {-jailzone::*}, {-jailwall::*}, {-jailinner::*}, {-jaildoor::*}, {-jailbreach::*},
 # {-jailrubble::*} and {-jailpts::*}.
-# 176 points, 10 routes, 53 zones, 25 + 37 outline vertices, 27 doors, 3 breaches.
+# 185 points, 10 routes, 56 zones, 25 + 37 outline vertices, 28 doors, 3 breaches.
 
 on load:
 	jailPointsLoad()
@@ -37,11 +37,16 @@ function jailPointsLoad():
 	set {-jailpt::FRONT_IN} to "260.5|65|392.5|180"
 	set {-jailpt::FUSE_BOX} to "267|66|395|0"
 	set {-jailpt::FUSE_STAND} to "266.5|65|395.5|-90"
+	set {-jailpt::GUN_DOOR} to "316|65|258|0"
+	set {-jailpt::GUN_IN} to "316.5|65|256.5|0"
 	set {-jailpt::GUN_KEEPER} to "311.5|65|243.5|0"
+	set {-jailpt::GUN_OUT} to "316.5|65|261.5|180"
+	set {-jailpt::GUN_READER} to "317|66|260|0"
 	set {-jailpt::LEFTY} to "80.5|65.5|151.5|-90"
 	set {-jailpt::LOT_EXIT} to "260.5|65|404.5|0"
 	set {-jailpt::L_FUSE} to "266.97|66.5|395.5|90"
 	set {-jailpt::L_GATEHOUSE} to "272.5|68.5|390.97|180"
+	set {-jailpt::L_GUNSHOP} to "316.5|67.5|260.03|0"
 	set {-jailpt::L_OFFICE} to "80.03|61|94|-90"
 	set {-jailpt::L_POLICE_N} to "211|69.5|284.97|180"
 	set {-jailpt::PLANT_GATE} to "178.5|65|320.5|0"
@@ -129,12 +134,16 @@ function jailPointsLoad():
 	set {-jailpt::RUSTY_TALK} to "80.25|58|77.5|90"
 	set {-jailpt::R_SPAWN} to "86.5|65|198.5|-90"
 	set {-jailpt::R_SPAWN_OUT} to "133.5|65|197.5|-90"
+	set {-jailpt::SEARCH_HANDLE} to "86|65|63|0"
 	set {-jailpt::SEARCH_PUTTY} to "61|65|53|0"
+	set {-jailpt::SEARCH_SCRAP} to "47|66|160|0"
+	set {-jailpt::SEARCH_TAPE} to "78|65|227|0"
 	set {-jailpt::SEARCH_TIMER} to "81|66|230|0"
 	set {-jailpt::SEARCH_WIRES} to "81|65|90|0"
 	set {-jailpt::SECURITY_DOOR} to "79|65|117|0"
 	set {-jailpt::SNEAK_BACK} to "78.5|58|59.5|-90"
 	set {-jailpt::SO_UP} to "64.5|65|89.5|0"
+	set {-jailpt::SPARKS} to "49.5|65|49.5|0"
 	set {-jailpt::STAIR_GATE_A} to "84|65|113|0"
 	set {-jailpt::STAIR_GATE_B} to "85|65|113|0"
 	set {-jailpt::STASH_1} to "273.5|65|180.5|0"
@@ -344,6 +353,9 @@ function jailPointsLoad():
 	add "253|64|395|267|71|397" to {-jailzone::fronthole::*}
 	add "277|64|395|291|71|397" to {-jailzone::fronthole::*}
 	add "277|64|128|277|72|162" to {-jailzone::chalk::*}
+	add "292|64|239|331|72|257" to {-jailzone::gunshop::*}
+	add "314|64|259|318|68|262" to {-jailzone::gunshopapp::*}
+	add "314|64|255|318|68|257" to {-jailzone::gunshopin::*}
 	add "46|57|48|51|62|54" to {-jailzone::cell_n46::*}
 	add "53|57|48|58|62|54" to {-jailzone::cell_n53::*}
 	add "60|57|48|65|62|54" to {-jailzone::cell_n60::*}
@@ -450,6 +462,8 @@ function jailPointsLoad():
 	add "211|66|321|iron_door[facing=south,half=upper,hinge=left,open=false,powered=false]" to {-jaildoor::pols::*}
 	add "272|65|392|iron_door[facing=north,half=lower,hinge=left,open=false,powered=false]" to {-jaildoor::booth::*}
 	add "272|66|392|iron_door[facing=north,half=upper,hinge=left,open=false,powered=false]" to {-jaildoor::booth::*}
+	add "316|65|258|iron_door[facing=south,half=lower,hinge=left,open=false,powered=false]" to {-jaildoor::gunshop::*}
+	add "316|66|258|iron_door[facing=south,half=upper,hinge=left,open=false,powered=false]" to {-jaildoor::gunshop::*}
 	add "48|58|55|iron_door[facing=south,half=lower,hinge=left,open=false,powered=false]" to {-jaildoor::cell_n46::*}
 	add "48|59|55|iron_door[facing=south,half=upper,hinge=left,open=false,powered=false]" to {-jaildoor::cell_n46::*}
 	add "55|58|55|iron_door[facing=south,half=lower,hinge=left,open=false,powered=false]" to {-jaildoor::cell_n53::*}
@@ -759,5 +773,5 @@ function jailPointsLoad():
 	add "181|65|324|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "177|65|321|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "178|65|324|iron_bars" to {-jailrubble::gate::*}
-	set {-jailpts::count} to 176
+	set {-jailpts::count} to 185
 	set {-jailpts::loaded} to true

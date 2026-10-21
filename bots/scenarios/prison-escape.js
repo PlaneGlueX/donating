@@ -9,8 +9,9 @@
 // the spots and "Hold right-click" prompts, Lefty putting them together (owner, 2026-10-14: "give it to lefty"), the
 // plant, the blast, the rubble path, the rebuild warning and the hole rule, the chalk hint on W5); the parkour (the punch box
 // refused near the WALK cop, the punch gate, the crates, over the fence); free players kept out; teleport commands and
-// guns refused inside; the Prison Gun Shop (melee you own only); combat-logging inside; a catch clears the method. The jail
-// items carry their icons (custom model data the pack draws).
+// guns refused inside; the Prison Gun Shop (melee you own only; its door keycard-only since 2026-10-20: the reader, the
+// door opening as a keycard holder walks up, shut again 3 s later); combat-logging inside; a catch clears the method.
+// The jail items carry their icons (custom model data the pack draws).
 // The cops are blinded for this scenario (prison-cops tests what they see); their positions still matter (the boxes).
 const fs = require('fs')
 const path = require('path')
@@ -70,7 +71,8 @@ module.exports = async ({ check }) => {
       ['the vehicle gate', [178.5, 65, 320.5, 0], [178.5, 326.5], p => p[2] < 322.5],
       ['the punch gate', [336.5, 65, 264.5, -90], [342.5, 264.5], p => p[0] < 339.5],
       ['the gatehouse door', [272.5, 65, 389.5, 0], [272.5, 395.5], p => p[2] < 392.9],
-      ['the front gate', [260.5, 65, 393.5, 0], [260.5, 400.5], p => p[2] < 396.5]
+      ['the front gate', [260.5, 65, 393.5, 0], [260.5, 400.5], p => p[2] < 396.5],
+      ['the Gun Shop door (keycard-only)', [316.5, 65, 262.5, 180], [316.5, 252.5], p => p[2] > 258.1]
     ]
     for (const [name, at, to, inside] of tries) {
       await jtp(E1, ...at)
@@ -90,7 +92,33 @@ module.exports = async ({ check }) => {
     await clickBlock(e1, 209, 66, 284)
     await sleep(800)
     check('no keycard: the police reader refuses ("You need a keycard"), the door stays shut', said(e1, /You need a keycard/, since) && !(await doorOpen('poln')), await door('poln'))
+    // ---------- the yard's Gun Shop: keycard-only (owner, 2026-10-20: "the gun shop is supposed to be keycard access only
+    // in the prison") ----------
+    await jtp(E1, 316.5, 65, 261.5, 180)
+    await sleep(900)
+    since = Date.now()
+    await clickBlock(e1, 317, 66, 260)
+    await sleep(800)
+    check('the Gun Shop with no keycard: its reader refuses ("You need a keycard"), the door stays shut', said(e1, /You need a keycard/, since) && !(await doorOpen('gunshop')), await door('gunshop'))
     await cmd(`zzjail ${E1} give keycard`)
+    await jtp(E1, 316.5, 65, 263.5, 180)
+    await sleep(900)
+    logs.prison.mark()
+    await walk(e1, [[316.5, 260.2]])
+    check('...with a keycard in the pockets, walking up opens it', await until(() => doorOpen('gunshop'), 1500), await door('gunshop'))
+    const inGs = await walk(e1, [[316.5, 256.5], [316.5, 250.5]], 5000)
+    check('...the inmate walks in (the reader logged: reader E1 GUN_READER)', inGs && logs.prison.has(new RegExp(`reader ${E1} GUN_READER`)), `${await pos(E1)} | ${logs.prison.since().slice(-300)}`)
+    await jtp(E1, 305.5, 65, 250.5, 0)
+    await sleep(3800)
+    check('...inside away from the door: it shuts 3 s after it last opened', !(await doorOpen('gunshop')), await door('gunshop'))
+    // Just outside the approach (z 263 and on), so only the click opens it.
+    await jtp(E1, 316.5, 65, 263.6, 180)
+    await sleep(2500)
+    logs.prison.mark()
+    await clickBlock(e1, 317, 66, 260)
+    check('...its reader clicked with the keycard opens it too (logged)', await until(() => doorOpen('gunshop'), 1500) && logs.prison.has(new RegExp(`reader ${E1} GUN_READER`)), `${await door('gunshop')} | ${logs.prison.since().slice(-200)}`)
+    await jtp(E1, 316.5, 65, 266.5, 180)
+    await sleep(3800)
     await jtp(E1, 210.5, 65, 281.5, 0)
     await sleep(900)
     await walk(e1, [[210.5, 283.6]])
@@ -237,10 +265,14 @@ module.exports = async ({ check }) => {
     await jtp(E1, 49.5, 65, 52.5, 180)
     await sleep(1500)
     since = Date.now()
+    // Sparks works the old bench since 2026-10-20 (his makeshift weapons): a click opens his menu, never the C4.
+    const benchWin = new Promise(resolve => { const tm = setTimeout(() => resolve(null), 3000); e1.once('windowOpen', w => { clearTimeout(tm); resolve(w) }) })
     await hold(e1, [49.5, 64.99, 51.5], 600, 1)
+    const bw = await benchWin
     await sleep(400)
+    if (e1.currentWindow) e1.closeWindow(e1.currentWindow)
     s = await info(E1)
-    check('the old workshop bench only points to Lefty, nothing made', said(e1, /Lefty puts C4 together/, since) && !/c4:/.test(field(s, 'items')) && /putty:/.test(s), s)
+    check('the old workshop bench opens Sparks\' menu (makeshift weapons), nothing made: the C4 parts kept', bw && /Sparks · Makeshift/.test(JSON.stringify(bw.title)) && !/c4:/.test(field(s, 'items')) && /putty:/.test(s), `${bw ? JSON.stringify(bw.title).slice(0, 200) : 'no window'} | ${s}`)
     await cmd('djailjobs setup')
     await jtp(E1, 82.5, 65, 151.5, 90)
     await cmd(`zzfill ${E1} 0 4`)
@@ -505,7 +537,7 @@ module.exports = async ({ check }) => {
     await cmd('zzjailbreach front close')
     await cmd('zzjailbreach gate close')
     await cmd('zzjailbreach front cool')
-    await t.prisonOff()
+    await t.prisonRestore()
     for (const n of [E1, E2, E3]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()
   }

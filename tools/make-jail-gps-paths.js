@@ -1,6 +1,6 @@
 // The prison's first GPS path graph (DonatingPhone's /dphone path, 2026-10-14): walks the real build (tools/build/jail.js)
 // between the named points a prisoner goes to (the B1 course, Hall B, Hall A, the yard, the walk to the police station
-// and the Gun Shop, the parkour, the lot, the gatehouse and the front gate), with every door and breach open (the GPS
+// and the Gun Shop, the parkour, the lot, the gatehouse and the front gate, Sparks' weapon parts), with every door and breach open (the GPS
 // shows the way out), and simplifies each walk into the corners a straight line can join without leaving the walkable
 // floor. Writes tools/jail-gps-paths.txt: the /dphone path lines that make it (local: RCON; Minehut: the console, or
 // upload the paths.yml they make).
@@ -251,7 +251,13 @@ const ROUTES = [
   ['ROUTE_LOT_4', 'ROUTE_GATE_2', 'BOOTH_IN', 'CONSOLE'],
   ['ROUTE_GATE_1', 'ROUTE_GATE_2', 'ROUTE_GATE_3'],
   ['BOOTH_IN', 'FUSE_STAND'],
-  ['ROUTE_GATE_1', 'FRONT_IN', 'LOT_EXIT']
+  ['ROUTE_GATE_1', 'FRONT_IN', 'LOT_EXIT'],
+  // Sparks' weapon parts (2026-10-20, last so the older nodes keep their ids): the gym's weights from Hall B, the storage
+  // room through the infirmary, the laundry through the workshop's door (Sparks himself stands 3 blocks from
+  // ASSEMBLE_STAND, walked above).
+  ['ROUTE_HALLB_2', [47.5, 65, 159.5]], // in front of the rack (the point itself is on its top, which no walk reaches)
+  ['SEARCH_TIMER', 'SEARCH_TAPE'],
+  ['SEARCH_PUTTY', 'SEARCH_HANDLE']
 ]
 const NAMES = new Map() // "x,z,f" of an anchor -> its point name
 const nodes = [] // {x, z, f, name}

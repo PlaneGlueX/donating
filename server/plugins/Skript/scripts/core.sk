@@ -362,8 +362,8 @@ function loadSettings():
 	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
 	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
 	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
-	# lefty, rusty, tank, whisper: the prison's inmates (jailjobs.sk; their settings are in the prison block below).
-	set {-cfg::quests::*} to "contracts", "story", "fence", "hits", "lefty", "rusty", "tank" and "whisper"
+	# lefty, rusty, tank, whisper, sparks: the prison's inmates (jailjobs.sk; their settings are in the prison block below).
+	set {-cfg::quests::*} to "contracts", "story", "fence", "hits", "lefty", "rusty", "tank", "whisper" and "sparks"
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
@@ -394,6 +394,12 @@ function loadSettings():
 	set {-cfg::messages::dedupe} to 1800
 	# A kept text shows in chat as one line of at most this many characters (its first words), the rest in /messages.
 	set {-cfg::messages::preview} to 60
+	# The inmates' voice lines (voice.sk, 2026-10-20): a line from the speaker whose clip still plays, said within this
+	# many seconds of their last one (a mission's done line and the next brief, Rusty's two lines), waits for it; any
+	# other line stops it first.
+	set {-cfg::voice::chain} to 2.5
+	# The voice comes from the nearest quest giver of the speaker's kind within this many blocks (else from the player).
+	set {-cfg::voice::range} to 24
 	set {-cfg::msgcontact::mara::skin} to "mara"
 	set {-cfg::msgcontact::mara::kind} to "story"
 	set {-cfg::msgcontact::boss::skin} to "boss"
@@ -445,6 +451,8 @@ function loadSettings():
 	set {-cfg::story::v1_meet::brief} to "Mara says you've got quick hands. I buy what nobody else can sell. Come to the Pawn Shop."
 	set {-cfg::story::v1_meet::talk::*} to "So you're Mara's kid.", "Jewels, cars, art. Things with a history." and "Show me you can bring me something worth my time."
 	set {-cfg::story::v2_appraisal::label} to "Sell $20,000 from difficulty 2+ heists"
+	# story::<id>::side: a shorter step for the sidebar (story.sk storyLine: the quest's name comes first, "▶ Vic: ...").
+	set {-cfg::story::v2_appraisal::side} to "Sell $20,000 from diff. 2+ heists"
 	set {-cfg::story::v2_appraisal::obj} to "ev|sell|20000|d2+"
 	set {-cfg::story::v2_appraisal::gps} to "heist:d2+"
 	set {-cfg::story::v2_appraisal::needs} to "d2+"
@@ -459,6 +467,7 @@ function loadSettings():
 	set {-cfg::story::v3_wheels::done} to "The buyer cried a little. Beautiful."
 	set {-cfg::story::v3_wheels::rewards::*} to "money|3000" and "xp|400"
 	set {-cfg::story::v4_collector::label} to "Crack a safe in a difficulty 3+ heist"
+	set {-cfg::story::v4_collector::side} to "Crack a safe in a diff. 3+ heist"
 	set {-cfg::story::v4_collector::obj} to "ev|crack|1|d3+"
 	set {-cfg::story::v4_collector::gps} to "heist:safe,d3+"
 	set {-cfg::story::v4_collector::needs} to "safe,d3+"
@@ -466,6 +475,7 @@ function loadSettings():
 	set {-cfg::story::v4_collector::done} to "The collector says you have a gift. I say you have a Safe Kit."
 	set {-cfg::story::v4_collector::rewards::*} to "money|4000" and "xp|500"
 	set {-cfg::story::v5_auction::label} to "Drill a vault and lose the cops, in one run"
+	set {-cfg::story::v5_auction::side} to "Vault and getaway in one run"
 	set {-cfg::story::v5_auction::obj} to "combo|adv|drill,getaway"
 	set {-cfg::story::v5_auction::gps} to "heist:adv,drill"
 	set {-cfg::story::v5_auction::needs} to "adv,drill"
@@ -682,6 +692,7 @@ function loadSettings():
 	set {-cfg::story::c4_pro::done} to "Now that's a car. Nice work."
 	set {-cfg::story::c4_big::chapter} to 4
 	set {-cfg::story::c4_big::label} to "Sell $40,000 from difficulty-4 heists"
+	set {-cfg::story::c4_big::side} to "Sell $40,000 from diff. 4 heists"
 	set {-cfg::story::c4_big::obj} to "ev|sell|40000|d4"
 	set {-cfg::story::c4_big::gps} to "heist:d4"
 	set {-cfg::story::c4_big::needs} to "d4"
@@ -1196,6 +1207,22 @@ function loadSettings():
 	set {-cfg::wpn::Gold_Nunchucks::model} to 7
 	set {-cfg::wpn::Gold_Nunchucks::item} to amethyst shard
 	set {-cfg::wpn::Gold_Nunchucks::level} to 15
+	# The prison's makeshift weapons (owner, 2026-10-20: "an npc that allows you to collect a couple items around the
+	# prison and give it to him to make a makeshift weapon (you can choose which one to make)"): Sparks in the workshop
+	# makes them from two parts (jailjobs.sk, the craft::* settings in the prison block). Never sold, never unlocked (no
+	# wpn::<W> data, not in shop::weapons): the copy in hotbar 1-5 is the only one, kept until a death (owner, 2026-10-20:
+	# "keep until you die"; a catch takes it like any weapon in hotbar 1-5). Shards 8-10 (the plain shard from 11). All
+	# weaker than the Combat Knife. PROPOSAL names and numbers (their WeaponMechanics files).
+	loop "Shiv", "Mop_Spear" and "Taped_Club":
+		set {-cfg::wpn::%loop-value%::kind} to "Melee"
+		set {-cfg::wpn::%loop-value%::item} to amethyst shard
+		set {-cfg::wpn::%loop-value%::makeshift} to true
+	set {-cfg::wpn::Shiv::name} to "Shiv"
+	set {-cfg::wpn::Shiv::model} to 8
+	set {-cfg::wpn::Mop_Spear::name} to "Mop Spear"
+	set {-cfg::wpn::Mop_Spear::model} to 9
+	set {-cfg::wpn::Taped_Club::name} to "Taped Club"
+	set {-cfg::wpn::Taped_Club::model} to 10
 	set {-cfg::wpn::50_GS::name} to "Classic Pistol"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
 	set {-cfg::wpn::50_GS::price} to 7500
@@ -2078,6 +2105,9 @@ function loadSettings():
 	set {-cfg::prison::search::hold} to 2 seconds
 	# Per search spot and player; every catch clears them (the escape starts over at once).
 	set {-cfg::prison::search::cooldown} to 10 minutes
+	# Sparks' weapon parts (the gym's weights, the storage room, the laundry): the same 2 s hold, a shorter wait per spot
+	# (owner, 2026-10-20: "3 minute wait per spot"); searching for them isn't suspicious (the owner's answer, 2026-10-20).
+	set {-cfg::prison::parts::cooldown} to 3 minutes
 	set {-cfg::prison::donut::hold} to 0.5 seconds
 	set {-cfg::prison::donut::cooldown} to 3 minutes
 	set {-cfg::prison::plant::hold} to 3 seconds
@@ -2116,11 +2146,11 @@ function loadSettings():
 	set {-cfg::prison::course::stuck} to 30 seconds
 	# Jail items (prison.sk jailItem): on brick, drawn by the pack (donating:jail_<kind>); one stack per kind in the
 	# upper inventory (slots 9-35), the C4 in hotbar 1-5.
-	set {-cfg::jailitem::kinds::*} to "coursecard", "keycard", "putty", "wires", "timer", "c4", "donut", "note" and "stash"
+	set {-cfg::jailitem::kinds::*} to "coursecard", "keycard", "putty", "wires", "timer", "c4", "donut", "note", "stash", "scrap", "tape" and "handle"
 	set {-cfg::jailitem::coursecard::name} to "Guard's Keycard"
 	set {-cfg::jailitem::coursecard::lore} to "The vent and the Security Office"
 	set {-cfg::jailitem::keycard::name} to "Keycard"
-	set {-cfg::jailitem::keycard::lore} to "The police station, the gate by the Gun Shop, the gatehouse"
+	set {-cfg::jailitem::keycard::lore} to "The police station, the Gun Shop, the gate by the Gun Shop, the gatehouse"
 	set {-cfg::jailitem::putty::name} to "C4 Putty"
 	set {-cfg::jailitem::putty::lore} to "C4 part 1 of 3: Lefty puts the three together"
 	set {-cfg::jailitem::wires::name} to "Detonator Wires"
@@ -2135,8 +2165,20 @@ function loadSettings():
 	set {-cfg::jailitem::note::lore} to "Don't read it"
 	set {-cfg::jailitem::stash::name} to "Stash"
 	set {-cfg::jailitem::stash::lore} to "Keep it out of sight"
+	# Sparks' weapon parts (craft::parts below); ::where = where a part is found (his menu's missing lines). The Scrap
+	# Metal is sharp: contraband held out in front of a guard (jailcop::held::kinds), never frisked (the owner's answer,
+	# 2026-10-20: the sharp/metal ones are contraband in the hand).
+	set {-cfg::jailitem::scrap::name} to "Scrap Metal"
+	set {-cfg::jailitem::scrap::lore} to "A weapon part: Sparks in the workshop"
+	set {-cfg::jailitem::scrap::where} to "the gym's weights"
+	set {-cfg::jailitem::tape::name} to "Duct Tape"
+	set {-cfg::jailitem::tape::lore} to "A weapon part: Sparks in the workshop"
+	set {-cfg::jailitem::tape::where} to "the storage room"
+	set {-cfg::jailitem::handle::name} to "Mop Handle"
+	set {-cfg::jailitem::handle::lore} to "A weapon part: Sparks in the workshop"
+	set {-cfg::jailitem::handle::where} to "the laundry"
 	# Search spots (jailescape.sk): point|kind|hold setting|cooldown setting
-	set {-cfg::prison::spots::*} to "SEARCH_PUTTY|putty|search|search", "SEARCH_WIRES|wires|search|search", "SEARCH_TIMER|timer|search|search" and "DONUT_CAFE|donut|donut|donut"
+	set {-cfg::prison::spots::*} to "SEARCH_PUTTY|putty|search|search", "SEARCH_WIRES|wires|search|search", "SEARCH_TIMER|timer|search|search", "DONUT_CAFE|donut|donut|donut", "SEARCH_SCRAP|scrap|search|parts", "SEARCH_TAPE|tape|search|parts" and "SEARCH_HANDLE|handle|search|parts"
 	# ---------- Prison cops (jailcops.sk): level 1 (owner: "not that good aim") ----------
 	set {-cfg::jailcop::name} to "Prison Guard"
 	# gate and lot guard the parking lot and the gatehouse (revision 3).
@@ -2171,11 +2213,41 @@ function loadSettings():
 	set {-cfg::jailcop::gun::damage} to 1
 	set {-cfg::jailcop::arrest::range} to 2.5
 	set {-cfg::jailcop::arrest::grab-range} to 2
-	set {-cfg::jailcop::arrest::grab} to 1 second
+	# Every arrest runs a clock, shown as the red CUFFING bar (owner, 2026-10-20: "show a status bar (like how it shows
+	# when picking something up) on the timer while the guard is arresting you"): grab for a plain grab, stun-grab for one
+	# that started while the taser's stun ran (to its end; 0 = the old instant arrest, no bar). Owner's numbers (2026-10-20).
+	set {-cfg::jailcop::arrest::grab} to 2 seconds
+	set {-cfg::jailcop::arrest::stun-grab} to 2.5 seconds
+	# A guard holds the handcuffs while it grabs and this long after its last grab pass (owner, 2026-10-20: "make the
+	# guards hold hand cuffs while arresting you").
+	set {-cfg::jailcop::arrest::cuffs-hold} to 1.5 seconds
+	# What a guard holds while cuffing (Citizens' npc setequipment; the pack draws it: make-item-art.js jail_cuffs).
+	set {-cfg::jailcop::cuffs::item} to "brick[custom_model_data={strings:['donating:jail_cuffs']}]"
 	set {-cfg::jailcop::notice::range} to 24
 	set {-cfg::jailcop::notice::sneak} to 12
 	set {-cfg::jailcop::notice::cone} to 75
 	set {-cfg::jailcop::notice::time} to 1 second
+	# Seen in a restricted area (owner, 2026-10-20: "if a cop sees you inside the area while passing by, you get
+	# targeted (same goes with any restricted area)"): one 10-tick pass in view is enough, anywhere in front of the cop
+	# (notice::time and notice::cone still count for contraband held out and acts). PROPOSAL
+	set {-cfg::jailcop::notice::restricted-time} to 0.5 seconds
+	set {-cfg::jailcop::notice::restricted-cone} to 90
+	# Restricted buildings whose windows don't hide you (owner, 2026-10-20: every restricted building's windows; iron bars
+	# still hide): these blocks (by type name: "glass" covers glass, stained glass and panes; never tinted) and open doors
+	# or trapdoors. Shots, the taser and the arrest still need a clear line (vanilla line of sight).
+	set {-cfg::jailcop::notice::window-zones::*} to "police", "annex", "staff", "gunshop" and "lot"
+	set {-cfg::jailcop::notice::see-through::*} to "glass"
+	# What SPOTTED calls each restricted zone ("A guard saw you in the Gun Shop").
+	set {-cfg::jailcop::zonename::police} to "the police station"
+	set {-cfg::jailcop::zonename::annex} to "the annex"
+	set {-cfg::jailcop::zonename::staff} to "a staff room"
+	set {-cfg::jailcop::zonename::lot} to "the lot"
+	set {-cfg::jailcop::zonename::gunshop} to "the Gun Shop"
+	# Lost the guards with contraband on you (owner, 2026-10-20: "once the player loses the cops after getting the
+	# keycard, the other cops wont arrest if they see the player again, unless he is actively holding contraband in his
+	# hand while in vision of the cop"): no frisk until a catch, a death, an escape or a rejoin. Held contraband,
+	# restricted areas and acts still count.
+	set {-cfg::jailcop::grace::enabled} to true
 	# An act (a reader, a punch, a search hold, a plant, the stash, the console, hitting an inmate) stays visible this long.
 	set {-cfg::jailcop::notice::act-window} to 4 seconds
 	# Carried contraband (jailcop::contraband) is spotted this close with line of sight, in any direction (the pockets).
@@ -2183,18 +2255,21 @@ function loadSettings():
 	# Contraband held out in the main hand (from any hotbar slot) in front of a cop (owner, 2026-10-15: "cops target you
 	# if you hold out contraband in front of them"): within held::cone degrees of its facing, held::range blocks (never
 	# past the notice range: notice::sneak while sneaking) and line of sight, for notice::time. PROPOSAL numbers. Not the
-	# note or the donut (Whisper's and Rusty's errands: an inmate may carry those) or the course card (B1 only).
-	set {-cfg::jailcop::held::kinds::*} to "keycard", "putty", "wires", "timer", "c4" and "stash"
+	# note or the donut (Whisper's and Rusty's errands: an inmate may carry those) or the course card (B1 only). The Scrap
+	# Metal (a sharp weapon part, the owner's answer, 2026-10-20) is, the tape and the mop handle aren't.
+	set {-cfg::jailcop::held::kinds::*} to "keycard", "putty", "wires", "timer", "c4", "stash" and "scrap"
 	set {-cfg::jailcop::held::range} to 16
 	set {-cfg::jailcop::held::cone} to 65
 	set {-cfg::jailcop::lose::time} to 20 seconds
 	set {-cfg::jailcop::lose::range} to 32
 	set {-cfg::jailcop::keycard-chance} to 1
 	set {-cfg::jailcop::idle-despawn} to 10 minutes
-	# Seen here = hostile. "lot" has no boxes: prison.sk's jailZone answers it from the outlines (jailInLot).
-	set {-cfg::jailcop::restricted::*} to "police", "annex", "staff" and "lot"
+	# Seen here = hostile. "lot" has no boxes: prison.sk's jailZone answers it from the outlines (jailInLot). The Gun Shop
+	# is keycard-only (owner, 2026-10-20).
+	set {-cfg::jailcop::restricted::*} to "police", "annex", "staff", "gunshop" and "lot"
 	# The lose clock doesn't run here (the lot isn't one: it's big and open, and a prisoner can lose the guards there).
-	set {-cfg::jailcop::nolose::*} to "police", "annex", "staff" and "b1"
+	# The Gun Shop too: guards can't open its iron door, so its walls would be a hiding place.
+	set {-cfg::jailcop::nolose::*} to "police", "annex", "staff", "gunshop" and "b1"
 	set {-cfg::jailcop::contraband::*} to "keycard", "c4" and "stash"
 	# The stray rule (5.5): a calm cop farther than its route's radius (horizontally) from the polyline of its route,
 	# or more than stray::dy blocks above or below it, for stray::time is moved back to its first point.
@@ -2231,6 +2306,23 @@ function loadSettings():
 	set {-cfg::quest::whisper::npc} to "Whisper"
 	set {-cfg::quest::whisper::place} to "the Telephone Room"
 	set {-cfg::quest::whisper::hold} to "paper"
+	# Sparks (2026-10-20): makeshift weapons from two parts found around the prison (jailjobs.sk jjCraftMenu). He never
+	# texts (no msgcontact): everything he says is in person.
+	set {-cfg::quest::sparks::name} to "Makeshift weapons"
+	set {-cfg::quest::sparks::npc} to "Sparks"
+	set {-cfg::quest::sparks::place} to "the Workshop"
+	set {-cfg::quest::sparks::hold} to "brick"
+	set {-cfg::quest::sparks::hold-model} to "donating:jail_scrap"
+	# His recipes: any two parts, one weapon each; the player picks which (owner: "you can choose which one to make").
+	# One text per weapon ("part|part"), so nothing here is a list with single values under it.
+	set {-cfg::craft::weapons::*} to "Shiv", "Mop_Spear" and "Taped_Club"
+	set {-cfg::craft::parts::*} to "scrap", "tape" and "handle"
+	set {-cfg::craft::Shiv::parts} to "scrap|tape"
+	set {-cfg::craft::Mop_Spear::parts} to "handle|scrap"
+	set {-cfg::craft::Taped_Club::parts} to "handle|tape"
+	set {-cfg::craft::Shiv::line} to "Sharp end out. You didn't get it from me."
+	set {-cfg::craft::Mop_Spear::line} to "Keep 'em at arm's length. Longer than that, even."
+	set {-cfg::craft::Taped_Club::line} to "Heavy. Swing it like you mean it."
 	# Their Messages heads wear their skins (skins.sk, id = the kind: tools\skins\make-prison-skins.js).
 	loop "lefty", "rusty", "tank" and "whisper":
 		set {-cfg::msgcontact::%loop-value%::skin} to loop-value
@@ -2244,28 +2336,47 @@ function loadSettings():
 	# Course graduates only (data jail-course "done"): a veteran sent in by a death never gets the chain (4.13).
 	set {-cfg::chain::lefty::start} to "state|jailcourse"
 	set {-cfg::chain::lefty::finish-on} to "escape"
-	set {-cfg::chain::lefty::missions::*} to "l_meet", "l_shop", "l_donut", "l_c4", "l_card" and "l_out"
-	loop "l_meet", "l_shop", "l_donut", "l_c4", "l_card" and "l_out":
+	# The tutorial's chain (owner, 2026-10-20: "when the player does the tutorial again, the tutorial npcs go back to the
+	# quests they give for the tutorial"): a /tutorial replay starts it over (jailcourse.sk jcReplaySave, story.sk
+	# storyReplaySave), and a lesson paid before pays nothing again (data lefty-paid::<id>). No combo objectives in it.
+	set {-cfg::chain::lefty::tutorial} to true
+	# Every id stays in the list once used (storyNextId walks it: a dropped id would end the chain for anyone saved on it).
+	set {-cfg::chain::lefty::missions::*} to "l_meet", "l_craft", "l_donut", "l_c4", "l_card", "l_shop" and "l_out"
+	loop "l_meet", "l_craft", "l_donut", "l_c4", "l_card", "l_shop" and "l_out":
 		set {-cfg::story::%loop-value%::chain} to "lefty"
 	set {-cfg::story::l_meet::label} to "Talk to Lefty on the Hall B bench"
+	set {-cfg::story::l_meet::side} to "Meet him on the Hall B bench"
 	set {-cfg::story::l_meet::obj} to "talk|lefty"
 	set {-cfg::story::l_meet::gps} to "lefty"
 	set {-cfg::story::l_meet::brief} to "New fish? Come sit with me in Hall B. Free advice."
 	set {-cfg::story::l_meet::talk::*} to "Nobody stays in here forever.", "Three ways past the fences: a keycard through the police station, C4 on the vehicle gate, or over the fence by the Gun Shop.", "Then the lot. The front gate opens from the gatehouse booth: a keycard gets you in, or punch its fuse box when the guards look away." and "First, get yourself sorted."
 	set {-cfg::story::l_meet::rewards::*} to "money|50"
-	set {-cfg::story::l_shop::label} to "Visit the Gun Shop in the yard"
+	# Second (2026-10-20, the owner's answer): a weapon from Sparks, since a catch takes the ones you carry. The GPS:
+	# Sparks once two parts are carried, else the nearest spot of a part the player doesn't carry (story.sk jailcraft).
+	set {-cfg::story::l_craft::label} to "Make a weapon with Sparks in the workshop"
+	set {-cfg::story::l_craft::side} to "Make a weapon with Sparks"
+	set {-cfg::story::l_craft::obj} to "ev|jailcraft|1"
+	set {-cfg::story::l_craft::gps} to "jailcraft"
+	set {-cfg::story::l_craft::brief} to "They take your weapons every time they catch you. Sparks in the workshop makes new ones from junk: scrap from the gym's weights, tape from the storage room, a mop handle from the laundry. Any two."
+	set {-cfg::story::l_craft::done} to "Now you can look after yourself."
+	set {-cfg::story::l_craft::rewards::*} to "money|50"
+	# After the keycard (2026-10-20: the Gun Shop is keycard-only).
+	set {-cfg::story::l_shop::label} to "Visit the Gun Shop (your keycard opens it)"
+	set {-cfg::story::l_shop::side} to "Visit the yard's Gun Shop"
 	set {-cfg::story::l_shop::obj} to "ev|jailshop|1"
 	set {-cfg::story::l_shop::gps} to "jail:GUN_KEEPER"
-	set {-cfg::story::l_shop::brief} to "The Gun Shop in the yard keeps your knives for when they lock you up again. Melee only in here."
-	set {-cfg::story::l_shop::done} to "Smart. Now the fun part."
+	set {-cfg::story::l_shop::brief} to "That card opens the Gun Shop in the yard too: it keeps your knives for when they lock you up again. The guards watch its windows: in and out."
+	set {-cfg::story::l_shop::done} to "Smart. Now get out of here."
 	set {-cfg::story::l_shop::rewards::*} to "money|50"
 	set {-cfg::story::l_donut::label} to "Bring Lefty a donut from the cafeteria"
+	set {-cfg::story::l_donut::side} to "Bring him a cafeteria donut"
 	set {-cfg::story::l_donut::obj} to "ev|jaildonut|1"
 	set {-cfg::story::l_donut::gps} to "jail:DONUT_CAFE"
 	set {-cfg::story::l_donut::brief} to "The cafeteria counter: hold right-click on it and grab me a donut. Everything in here runs on donuts."
 	set {-cfg::story::l_donut::done} to "Mm. You'll do."
 	set {-cfg::story::l_donut::rewards::*} to "money|75"
 	set {-cfg::story::l_c4::label} to "Bring Lefty the three C4 parts"
+	set {-cfg::story::l_c4::side} to "Bring him the three C4 parts"
 	set {-cfg::story::l_c4::obj} to "ev|jailc4|1"
 	# The nearest search spot whose part the player lacks, then Lefty (4.13 storyGpsSpots; he puts it together: jailjobs.sk).
 	set {-cfg::story::l_c4::gps} to "jailc4"
@@ -2276,7 +2387,7 @@ function loadSettings():
 	set {-cfg::story::l_card::obj} to "ev|jailcard|1"
 	set {-cfg::story::l_card::gps} to "rusty"
 	set {-cfg::story::l_card::brief} to "Knock a guard down, or ask Rusty in B1: he trades for donuts."
-	set {-cfg::story::l_card::done} to "The police station's yard door. Straight through, and the same card opens the gatehouse."
+	set {-cfg::story::l_card::done} to "The police station's yard door, the Gun Shop and the gatehouse all open for it."
 	set {-cfg::story::l_card::rewards::*} to "money|100"
 	set {-cfg::story::l_out::label} to "Break out"
 	set {-cfg::story::l_out::obj} to "ev|escape|1"
