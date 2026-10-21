@@ -257,7 +257,9 @@ const ROUTES = [
   // ASSEMBLE_STAND, walked above).
   ['ROUTE_HALLB_2', [47.5, 65, 159.5]], // in front of the rack (the point itself is on its top, which no walk reaches)
   ['SEARCH_TIMER', 'SEARCH_TAPE'],
-  ['SEARCH_PUTTY', 'SEARCH_HANDLE']
+  ['SEARCH_PUTTY', 'SEARCH_HANDLE'],
+  // The bike shop in front of the prison (2026-10-21, tools/build/jail/bikeshop.js; last so the older nodes keep their ids)
+  ['LOT_EXIT', 'BIKE_SHOP']
 ]
 const NAMES = new Map() // "x,z,f" of an anchor -> its point name
 const nodes = [] // {x, z, f, name}

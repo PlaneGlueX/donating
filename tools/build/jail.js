@@ -1,4 +1,5 @@
-// The Jailbreak prison (2026-10-14): the five modules in tools/build/jail/ run into one Build, M1 first (jail-spec 9.1).
+// The Jailbreak prison (2026-10-14): the modules in tools/build/jail/ run into one Build, M1 first (jail-spec 9.1); the
+// sixth, bikeshop (2026-10-21), is the bike shop in front of the prison (tools/build/town/PLAN.md 15.3).
 //   node tools/build/jail.js                     -> counts only
 //   node tools/build/jail.js paste [--box x1,z1,x2,z2[;...]]
 //                                                -> pastes it into the jailbreak world (--box: only those columns)
@@ -9,7 +10,7 @@
 const fs = require('fs')
 const path = require('path')
 const { Build, place } = require('./mcstruct')
-const MODULES = ['outdoors', 'mainbuilding', 'cellblock', 'mainrooms', 'buildings']
+const MODULES = ['outdoors', 'mainbuilding', 'cellblock', 'mainrooms', 'buildings', 'bikeshop'] // bikeshop: town PLAN 15.3
 const ROOT = path.join(__dirname, '..', '..')
 const WORLD = 'jailbreak'
 const POINTS_SK = path.join(ROOT, 'server', 'plugins', 'Skript', 'scripts', 'jailpoints.sk')

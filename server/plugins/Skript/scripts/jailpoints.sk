@@ -3,7 +3,7 @@
 # (ESCAPE-SPEC 2.3). jailPointsLoad() deletes and refills exactly these memory variables: {-jailpt::*},
 # {-jailroute::*}, {-jailzone::*}, {-jailwall::*}, {-jailinner::*}, {-jaildoor::*}, {-jailbreach::*},
 # {-jailrubble::*} and {-jailpts::*}.
-# 185 points, 10 routes, 56 zones, 25 + 37 outline vertices, 28 doors, 3 breaches.
+# 190 points, 10 routes, 56 zones, 25 + 37 outline vertices, 28 doors, 3 breaches.
 
 on load:
 	jailPointsLoad()
@@ -20,6 +20,11 @@ function jailPointsLoad():
 	delete {-jailpts::*}
 	set {-jailpt::ASSEMBLE} to "49|65|51|0"
 	set {-jailpt::ASSEMBLE_STAND} to "49.5|65|52.5|180"
+	set {-jailpt::BIKE_1} to "310.5|65|406.5|0"
+	set {-jailpt::BIKE_2} to "315.5|65|406.5|0"
+	set {-jailpt::BIKE_3} to "320.5|65|406.5|0"
+	set {-jailpt::BIKE_4} to "325.5|65|406.5|0"
+	set {-jailpt::BIKE_SHOP} to "320.5|65|412.5|0"
 	set {-jailpt::BOILER_IN} to "61.5|58|80.5|0"
 	set {-jailpt::BOOTH_DOOR} to "272|65|392|0"
 	set {-jailpt::BOOTH_IN} to "272.5|65|393.5|0"
@@ -773,5 +778,5 @@ function jailPointsLoad():
 	add "181|65|324|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "177|65|321|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "178|65|324|iron_bars" to {-jailrubble::gate::*}
-	set {-jailpts::count} to 185
+	set {-jailpts::count} to 190
 	set {-jailpts::loaded} to true

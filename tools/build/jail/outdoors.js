@@ -64,6 +64,7 @@ const inW23 = (x, z) => (x >= 8 && x <= 40 && z >= 72 && z <= 74) || (x >= 129 &
 const own = (x, y, z) => {
   if (y < 62 || y > 130 || x < -40 || x > 480 || z < -30 || z > 470) return false
   for (const r of M5) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return false
+  if (x >= 304 && x <= 347 && z >= 398 && z <= 415) return false // the bike shop's box (bikeshop.js, town PLAN 15.3)
   if (x >= -7 && x <= -3 && z >= 82 && z <= 86) return false
   if (inMain(x, z)) return false
   if (inApron(x, z)) return (inW23(x, z) && y <= 78) || (x === 88 && z === 246)
@@ -242,7 +243,7 @@ function roads () {
   // Back road, gate driveway, south road, highway.
   rect(82, 293, 103, 418, asphalt)
   rect(252, 397, 291, 418, asphalt)
-  const crossing = x => (x >= 82 && x <= 103) || (x >= 252 && x <= 291) || (x >= 431 && x <= 466)
+  const crossing = x => (x >= 82 && x <= 103) || (x >= 252 && x <= 291) || (x >= 316 && x <= 321) || (x >= 431 && x <= 466) // 316..321: the bike lot's mouth
   for (let x = -40; x <= 480; x++) {
     const jct = x >= 431 && x <= 466
     for (let z = 419; z <= 441; z++) {
@@ -263,6 +264,8 @@ function roads () {
       else asphalt(x, z)
     }
   }
+  rect(316, 416, 321, 418, asphalt) // the bike lot's dropped curb across the sidewalk (bikeshop.js)
+  for (let x = 316; x <= 321; x++) S(x, 65, 418, 'air') // the curb slab the first paste put there
   // Traffic lights at the junction's 4 corners: a pole, an arm over the road, a red/yellow/lime head.
   for (const [px, pz, dir] of [[429, 417, 1], [468, 417, -1], [429, 443, 1], [468, 443, -1]]) {
     for (let y = 65; y <= 72; y++) S(px, y, pz, 'polished_blackstone_wall')
@@ -802,9 +805,11 @@ const OAKS = [[-18, 110], [-16, 160], [-20, 205], [-17, 250], [-22, 300], [-18, 
   [275, 52], [318, 58], [332, 28], [284, 12], [350, 88], [312, 118], [300, 160], [296, 205], [340, 130], [365, 185], [392, 140],
   [412, 205], [402, 85], [362, 40], [420, 30], [440, 120], [455, 250], [470, 330], [395, 262], [402, 302], [396, 338], [408, 372], [418, 410],
   [0, 456], [62, 458], [132, 456], [198, 460], [278, 455], [352, 458], [418, 460], [470, 455],
-  [128, 406], [196, 408], [320, 406], [352, 409], [30, 320], [52, 362], [18, 400], [62, 408], [22, 262], [44, 292], [-2, 240],
+  [128, 406], [196, 408], [352, 409], // [320, 406] went for the bike lot (2026-10-21)
+  [30, 320], [52, 362], [18, 400], [62, 408], [22, 262], [44, 292], [-2, 240],
   [40, 20], [100, 0], [180, 10], [250, -15], [-25, 40], [10, -10], [140, -20], [220, -25]]
-const OUT_CYPRESS = [[230, 406], [310, 404], [372, 405], [160, 404], [-10, 430], [420, 290]]
+const OUT_CYPRESS = [[230, 406], [372, 405], // [310, 404] went for the bike lot (2026-10-21)
+  [160, 404], [-10, 430], [420, 290]]
 function greenery () {
   // cypresses along the facades (the two at the entrance first), the police strip and the pocket by the Visitors Building
   for (const [x, z] of [[131, 192], [131, 203], [131, 150], [131, 166], [131, 182], [131, 213], [131, 223],

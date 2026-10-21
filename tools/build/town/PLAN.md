@@ -1528,14 +1528,17 @@ leaves its box out):
 
 | Part | Box | Height | Facing / doors |
 |---|---|---|---|
-| Box | x 304..350, z 398..415 (between the front fence z 396 and the highway's sidewalk z 416..418, east of tower T11's deck x 290..302) | y 62..90 | |
-| Lot | x 305..332, z 399..414, asphalt | y 64 | open to the sidewalk on the south (z 415 meets z 416); 4 stalls 3 wide (white lines at x 308, 313, 318, 323, 328 over z 402..410), wheel stops at z 402 |
-| Shop | x 334..349, z 400..413 | walls y 64..71, roof y 72 | west onto the lot: an open doorway x 334, z 406..407 (iron doors held open); a roll-up door (iron trapdoors, closed) at x 334, z 409..412 |
+| Box | x 304..347, z 398..415 (between the front fence z 396 and the highway's sidewalk z 416..418, east of tower T11's deck x 290..302, west of the oak whose leaves reach x 348) | y 62..90 | |
+| Lot | x 305..331, z 399..414, asphalt | y 64 | open to the sidewalk on the south (z 415 meets z 416), a dropped curb across it at x 316..321 (outdoors.js `crossing`); 4 stalls (white lines at x 308, 313, 318, 323, 328 over z 402..410), wheel stops at z 402 |
+| Shop | x 333..346, z 400..413 (a walk at x 332) | walls y 64..71, roof y 72 | west onto the lot: an open doorway x 333, z 406..407 (iron doors held open); a roll-up door (iron trapdoors, closed) at x 333, z 409..412 |
 
 - **Look:** a small corrugated workshop: light grey walls (`light_gray_concrete` with `iron_trapdoor`-ribbed bands), an
   orange stripe at y 69, a dark roof (`polished_deepslate`), a "BIKES" sign (orange board, white label) over the
   doorway, a tyre sign on the corner. Inside: a workbench look (no blocks with a menu: `stripped_spruce_wood` and
   `iron_trapdoor`s), a tyre rack (`blackstone`), a parts wall.
+- **The prison's side:** outdoors.js leaves the box out of its own(), drops the oak at [320, 406] and the cypress at
+  [310, 404] (inside the box), and the module clears y 65..80 of its box (the first paste put them in the world).
+  `jail.js check` passes (2026-10-21).
 - **Spots:** the bikes stand at BIKE_1..4 = (310.5 | 315.5 | 320.5 | 325.5, 65, 406.5), yaw 0 (facing south, out to the
   highway). The GPS point BIKE_SHOP (320.5, 65, 412.5); tools/make-jail-gps-paths.js walks LOT_EXIT → BIKE_SHOP.
 - **Setup** (console): `dbike spotat jailbreak 310.5 65 406.5 0`, `... 315.5 ...`, `... 320.5 ...`, `... 325.5 ...`.
