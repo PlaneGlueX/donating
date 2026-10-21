@@ -199,6 +199,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(wallMaps, this);
         // Classic chest menus draw their vanilla top panel from the title (the pack's generic_54.png is see-through there).
         getServer().getPluginManager().registerEvents(new MenuPanels(this), this);
+        getServer().getPluginManager().registerEvents(new PathWand(this, gps.paths), this); // the GPS path wand (staff)
         getServer().getPluginManager().registerEvents(carSmooth, this);
         getServer().getPluginManager().registerEvents(carSmooth.bundle, this);
         getServer().getPluginManager().registerEvents(carCam, this);
@@ -600,7 +601,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
                     s.anchored = false;
                     s.tilted = false;
                     s.settle = 0;
-                    // (Drivers can't open it: phone.sk; passengers get the tilt too, or the cursor sits at the edge.)
+                    // (Drivers and passengers get the tilt too, or the cursor sits at the edge; CarCam pauses a driver's
+                    // chase view meanwhile.)
                     if (openPitch > 0) { lookDown(p); s.settle = 20; }
                 }
                 p.sendMap(v);
@@ -1031,9 +1033,9 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             // The GPS: its route on the map, the target's name and distance in the held phone's strip.
             Gps.Target gt = gps.target(p);
             boolean gpsHere = gt != null && gt.world.getName().equals(c.world);
-            // In a vehicle a right-click doesn't open the map (drivers can't; the car key locks): no "R:map".
-            boolean carKey = holdsKey(p), riding = p.isInsideVehicle();
-            String strip = !open && gt != null ? gpsStrip(gt, carKey || riding) : carKey ? "R-click: lock / unlock" : riding ? "" : hint;
+            // Drivers open the big map too since 2026-10-21 (the key's right-click; F locks the car: garage.sk).
+            boolean carKey = holdsKey(p);
+            String strip = !open && gt != null ? gpsStrip(gt, false) : carKey ? "R: map  F: lock" : hint;
             boolean grid = open && c == main && gps.showRoads(p);
             // Redraw only when the view, the route, the strip or the grid view changed (the held view already
             // redraws on every re-center, so the route follows you there; the big map every 4 screen pixels of the way).

@@ -1,5 +1,5 @@
 // Stores and hands (owner, 2026-09-27): a store is a heist of difficulty 0 ("easy money for people starting off"):
-// no escape clock, not announced, only robbers up to level 9, no fighting into or out of it (store::no-pvp), no safes or
+// no escape clock, not announced, any level (no maximum since 2026-10-21), no fighting into or out of it (store::no-pvp), no safes or
 // vault doors; it closes when cleaned out (the robbers inside keep their loot and are moved out after store::empty-grace)
 // or when nobody has been inside for store::idle-close. A robber with no bag carries up to $1,000 in their hands: the
 // cash shows in the offhand, "HANDS FULL" when it's full, it sells at the base, the phone's big map takes it off and
@@ -109,7 +109,7 @@ module.exports = async ({ check }) => {
     check('the first robbery starts the run, but there\'s no clock (still running seconds later)', field(h1, 'state') === 'active' && field(h2, 'state') === 'active' && field(h2, 'left') === '-1', `${h1} | ${h2}`)
     check('the boss bar says there\'s no clock and what\'s left', [...bars.values()].some(x => /Corner Store . no clock . \$500 left/.test(x.title || '')), JSON.stringify([...bars.values()]))
 
-    // ---------- Only new robbers; no fighting into it ----------
+    // ---------- Any level (owner, 2026-10-21: "level minimums only, no maximum anywhere"); no fighting into it ----------
     await cmd(`dlevel set ${B} 10`)
     t = Date.now()
     await bots[B].look(conv.fromNotchianYaw(180), 0, true) // north, into the store
@@ -117,7 +117,7 @@ module.exports = async ({ check }) => {
     await sleep(2500)
     bots[B].setControlState('forward', false)
     await sleep(700)
-    check('level 10 can\'t go in: "for new robbers (up to level 9)"', field(await cmd(`zzinheist ${B}`), 'hunt') !== undefined && !/zstore hunt/.test(await cmd(`zzinheist ${B}`)) && /for new robbers \(up to level 9\)/.test(text(B, t)), `${await cmd(`zzinheist ${B}`)} | ${text(B, t)}`)
+    check('level 10 goes in too: no maximum level, no "for new robbers"', /zstore hunt/.test(await cmd(`zzinheist ${B}`)) && !/for new robbers/.test(text(B, t)), `${await cmd(`zzinheist ${B}`)} | ${text(B, t)}`)
     await place(B, 3307.5, 3315.5)
     await place(A, 3307.5, 3313.5)
     await sleep(3500) // the teleports' immunity (pvp.sk, 3 s)

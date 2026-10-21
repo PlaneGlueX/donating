@@ -1477,20 +1477,23 @@ bar (a boss bar, "63% Fuel") shows while driving. Donating turns it on and adds 
   it in Donating's scripts (cars then run on MTVehicles' own setting).
 - **Tanks** (PROPOSAL, core.sk `car::<id>::tank` liters and `car::<id>::burn` minutes of pedal per full tank):
 
-  | Car | Tank | Burn | Usage a tick u = 100 / (burn × 1200) | A full tank at $25/L |
+  | Car | Tank | Burn (2026-10-21) | Usage a tick u = 100 / (burn × 1200) | A full tank at $25/L |
   |---|---|---|---|---|
-  | Sedan | 50 L | 12 min | 0.00694 | $1,250 |
-  | Sport Sedan | 55 L | 11 min | 0.00758 | $1,375 |
-  | Jeep | 70 L | 11 min | 0.00758 | $1,750 |
-  | Sports Car | 60 L | 9 min | 0.00926 | $1,500 |
-  | Hotrod | 65 L | 8 min | 0.01042 | $1,625 |
-  | SUV | 90 L | 12 min | 0.00694 | $2,250 |
-  | Viper | 18 L | 10 min | 0.00833 | $450 |
-  | Riviera | 75 L | 10 min | 0.00833 | $1,875 |
-  | Apex | 80 L | 7 min | 0.01190 | $2,000 |
+  | Sedan | 50 L | 48 min (4x) | 0.00174 | $1,250 |
+  | Sport Sedan | 55 L | 33 min (3x) | 0.00253 | $1,375 |
+  | Jeep | 70 L | 33 min (3x) | 0.00253 | $1,750 |
+  | Sports Car | 60 L | 18 min (2x) | 0.00463 | $1,500 |
+  | Hotrod | 65 L | 16 min (2x) | 0.00521 | $1,625 |
+  | SUV | 90 L | 36 min (3x) | 0.00231 | $2,250 |
+  | Viper | 18 L | 30 min (3x) | 0.00278 | $450 |
+  | Riviera | 75 L | 30 min (3x) | 0.00278 | $1,875 |
+  | Apex | 80 L | 14 min (2x) | 0.00595 | $2,000 |
   | Crate cars | as their family (Vandal = Sports Car, Specter = Sport Sedan, Overclock = Hotrod) | | | |
-  | Stolen bike (15.3) | 12 L | 8 min | 0.01042 | $300 |
+  | Stolen bike (15.3) | 12 L | 24 min (3x) | 0.00347 | $300 |
 
+  The owner, 2026-10-21: "cars burn fuel 2-4x slower than now depending on the car" (the burns were 12, 11, 11, 9, 8,
+  12, 10, 10, 7 and the bike 8). The Fuel Tank upgrade (garage.sk, the Tune page) gives stage n a tank T' = T × (1 + t_n)
+  and a full tank B' = B × (1 + t_n) / (1 − e_n), t = 0.2 / 0.4 / 0.6, e = 0.1 / 0.2 / 0.3.
   The level in liters is L = level / 100 × tank. A contract car uses its model's tank (it's scrapped within 10 minutes).
 - **The pump** (fuel.sk; the gas station's 12 pumps registered with `/dfuel pumpat`, lines from the gas module's
   `setup.pumps`):

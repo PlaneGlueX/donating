@@ -30,6 +30,8 @@
 #   %donating_heists_open%   heists open or running right now ("2")
 #   %donating_daily%         "&aready" or "in 5h 12m" (/daily, crates.sk)
 #   %donating_district%      the district you're in ("&fOld Town"), or "&7the outskirts" (districts.sk)
+#   %donating_season|mission|jobs|hit_a% and _b: those lines wrapped in two at 22 visible characters for the sidebar
+#                            (owner, 2026-10-21: "more compact, or wrap long lines"); "" drops a line
 #   %donating_jobs%, %donating_hit%  the contact jobs' and the hit contract's lines; nothing at all ("": TAB drops the
 #                            line) while the player is a prisoner (owner, 2026-10-20: "dont show /jobs in the leaderboard
 #                            until the player escapes from the jail"; a hit can't be worked inside either)
@@ -79,7 +81,71 @@ every second:
 			add 1 to {_open}
 	set {-ph::heistsopen} to "%{_open}%"
 
+	# The sidebar's long lines (owner, 2026-10-21: "more compact, or wrap long lines"): the season, the quest, the jobs and
+	# the hit line, wrapped at ph::wrap visible characters into a first line and a second one ("" = TAB drops the line).
+	loop all players:
+		loop "season", "mission", "jobs" and "hit":
+			set {_src} to {-ph::%loop-value-2%::%loop-player%}
+			set {_t} to ""
+			if {_src} is set:
+				set {_t} to "%{_src}%"
+			if {_t} is "&r":
+				set {_t} to ""
+			if loop-value-2 is "jobs" or "hit":
+				if {-ph::jailed::%loop-player%} is set:
+					set {_t} to ""
+			set {_w::*} to phWrap({_t}, 22)
+			set {-ph::w::%loop-value-2%::1::%loop-player%} to {_w::1}
+			set {-ph::w::%loop-value-2%::2::%loop-player%} to {_w::2}
+
+# A sidebar line in at most two: the first up to width visible characters (colour codes don't count), cut at a space,
+# the rest on the second (in the first part's last colour; cut with "…" past twice the width). "" for nothing.
+function phWrap(t: text, width: number) :: texts:
+	if {_t} is "":
+		return "" and ""
+	set {_plain} to {_t}
+	regex replace "(?i)[&§][0-9a-fk-or]" in {_plain} with ""
+	if length of {_plain} <= {_width}:
+		return {_t} and ""
+	# Walk the words, counting visible characters.
+	set {_words::*} to {_t} split at " "
+	set {_a} to ""
+	set {_b} to ""
+	set {_vis} to 0
+	set {_second} to false
+	loop {_words::*}:
+		set {_wd} to loop-value
+		set {_wv} to {_wd}
+		regex replace "(?i)[&§][0-9a-fk-or]" in {_wv} with ""
+		if {_second} is false:
+			if {_vis} > 0:
+				if {_vis} + 1 + length of {_wv} > {_width}:
+					set {_second} to true
+		if {_second} is false:
+			if {_a} is "":
+				set {_a} to {_wd}
+			else:
+				set {_a} to "%{_a}% %{_wd}%"
+			add 1 + length of {_wv} to {_vis}
+		else if {_b} is "":
+			set {_b} to {_wd}
+		else:
+			set {_b} to "%{_b}% %{_wd}%"
+	if {_b} is "":
+		return {_a} and ""
+	# The second line goes on in the first's last colour.
+	set {_col} to {_a}
+	regex replace "(?s)^.*([&§][0-9a-fA-F]).*$" in {_col} with "$1"
+	if {_col} is {_a}:
+		set {_col} to "&7"
+	set {_bv} to {_b}
+	regex replace "(?i)[&§][0-9a-fk-or]" in {_bv} with ""
+	if length of {_bv} > {_width}:
+		set {_b} to "%subtext of {_bv} from characters 1 to ({_width} - 1)%…"
+	return {_a} and "%{_col}%%{_b}%"
+
 on quit:
+	delete {-ph::w::*::*::%player%}
 	delete {-ph::heistdiff::%player%}
 	delete {-ph::heistrobbers::%player%}
 	delete {-ph::wanted::%player%}
@@ -155,6 +221,16 @@ placeholderapi placeholder with the prefix "donating":
 			set the placeholder result to ""
 		else if {-ph::hit::%player%} is set:
 			set the placeholder result to {-ph::hit::%player%}
+	else if {_i} is "season_a" or "mission_a" or "jobs_a" or "hit_a" or "season_b" or "mission_b" or "jobs_b" or "hit_b":
+		# The sidebar's long lines, wrapped in two (the every-second pass above: phWrap); "" (nothing) drops the line. The
+		# jobs and the hit line are "" for a prisoner (owner, 2026-10-20).
+		set {_k::*} to {_i} split at "_"
+		set {_part} to "1"
+		if {_k::2} is "b":
+			set {_part} to "2"
+		set the placeholder result to ""
+		if {-ph::w::%{_k::1}%::%{_part}%::%player%} is set:
+			set the placeholder result to {-ph::w::%{_k::1}%::%{_part}%::%player%}
 	else if {_i} is "season_short":
 		set the placeholder result to "&r"
 		if {season::state} is "live":

@@ -523,10 +523,6 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 		if isPassive({_p}) is true:
 			return "The %{_name}% is a PvP heist. Turn passive mode off first (phone)."
 	if heistLevelOk({_p}, {_h}) is not true:
-		set {_max} to heistMaxLevel({_h})
-		if {_max} > 0:
-			if levelOf({_p}) > {_max}:
-				return "The %{_name}% is for new robbers (up to level %{_max}%)."
 		set {_need} to heistLevel({_h})
 		return "You need level %{_need}% (%levelName({_need})%) for the %{_name}%. /level"
 	return ""
@@ -1021,8 +1017,6 @@ function heistRefreshText(h: text):
 	set {_r} to heistLevel({_h})
 	if {_r} > 0:
 		set {_info} to "%{_info}% &7· Level %{_r}%+"
-	if heistMaxLevel({_h}) > 0:
-		set {_info} to "%{_info}% &7· up to level %heistMaxLevel({_h})%"
 	if heistIsPvp({_h}) is true:
 		set {_info} to "%{_info}% &7· &cPvP"
 	if heistIsAdvanced({_h}) is true:
@@ -1553,20 +1547,10 @@ function dheistDelete(s: command sender, h: text):
 
 # ---------- Hooks for later scripts (replace the body; see CLAUDE.md, heists) ----------
 
-# levels.sk: may this player rob this heist?
+# levels.sk: may this player rob this heist? Level minimums only (owner, 2026-10-21: "no maximum anywhere"; a store's
+# max level is gone).
 function heistLevelOk(p: player, h: text) :: boolean:
-	set {_max} to heistMaxLevel({_h})
-	if {_max} > 0:
-		if levelOf({_p}) > {_max}:
-			return false
 	return levelOk({_p}, heistLevel({_h}))
-
-# The highest robber level that may enter (0 = no limit; a store's is 9).
-function heistMaxLevel(h: text) :: number:
-	set {_m} to heistSetting({_h}, "max-level")
-	if {_m} is set:
-		return {_m}
-	return 0
 
 # bag.sk: remove every loot line tagged "<h>#<run>" from the player's bag; return its value.
 function heistForfeit(p: player, h: text, run: number) :: number:

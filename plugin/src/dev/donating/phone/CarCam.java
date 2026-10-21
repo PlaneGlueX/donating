@@ -154,6 +154,13 @@ final class CarCam implements Listener {
     private final Map<UUID, Cam> cams = new HashMap<>();
     /** No new camera for a player before this tick (a spawn that failed: a plugin or a region cancelled it). */
     private final Map<UUID, Integer> retryAt = new HashMap<>();
+    /**
+     * The view paused for the phone's big map while driving (2026-10-21, the owner: "right-click shows the big map on
+     * screen if possible while still driving"): the slot from before the ride (-1: none), kept so the slot still goes back
+     * when the ride ends; the view starts again when the map closes, without picking the key again (a slot change that
+     * closed the map stays the player's choice).
+     */
+    private final Map<UUID, Integer> paused = new HashMap<>();
     private ScheduledTask task;
     private int tickNo;
     // /dphone cam probe <player> <ticks>: a row a tick into camprobe.log (for judging the turning offline).
@@ -226,6 +233,7 @@ final class CarCam implements Listener {
         int holds;         // times the look was put back
         int exactFor;      // head packets still to correct exactly after a re-send (whatever carcam.head says)
         int prevSlot = -1; // the hotbar slot held before the view picked the key (-1: nothing to put back)
+        boolean resumed;   // started again after the phone's big map (the key isn't picked again)
         Mannequin body;    // the driver's own body, sent to the driver only
         float bodyYaw = Float.NaN;
         int bodySpawns;    // bodies made in this ride
@@ -433,9 +441,17 @@ final class CarCam implements Listener {
             Cam c = cams.get(p.getUniqueId());
             try {
                 seatDistance(p);
-                if (!why(p).isEmpty()) {
-                    if (c != null) off(p);
+                String w = why(p);
+                if (!w.isEmpty()) {
+                    if (c != null && w.equals("phone-open")) {
+                        // The big map: first person (its two-handed map faces the camera), arms back, the sidebar back;
+                        // the slot to put back waits for the end of the ride.
+                        paused.put(p.getUniqueId(), off(p, false));
+                        sidebarBack(p);
+                    } else if (c != null) off(p);
                     else {
+                        Integer prev = w.equals("phone-open") ? null : paused.remove(p.getUniqueId());
+                        if (prev != null && prev >= 0 && p.isOnline() && p.getInventory().getHeldItemSlot() == KEY_SLOT) selectSlot(p, KEY_SLOT, prev);
                         mapKey(p); // a hook key left over (a reload mid-ride): the map again
                         if (flags.isOn(p)) flags.set(p, false);
                     }
@@ -453,6 +469,8 @@ final class CarCam implements Listener {
                     if (retryAt.getOrDefault(p.getUniqueId(), 0) > tickNo) continue;
                     c = new Cam();
                     c.prevSlot = carry;
+                    Integer was = paused.remove(p.getUniqueId());
+                    if (was != null) { c.prevSlot = carry >= 0 ? carry : was; c.resumed = true; }
                     c.plate = plate;
                     c.stand = wantStand;
                     c.headSetting = head;
@@ -467,6 +485,10 @@ final class CarCam implements Listener {
                     retryAt.remove(p.getUniqueId());
                     c.cam = e;
                     cams.put(p.getUniqueId(), c);
+                    // The key in hand now, a tick before the view switches (2026-10-21, the owner: "smoother when entering
+                    // with something other than the phone in hand"): the hand's swap runs while the view comes up, and the
+                    // minimap is up a tick sooner. Not after the big map (the player's slot then is their choice).
+                    if (!c.resumed && c.prevSlot < 0) pickKey(p, c);
                     // Before anyone is sent it: its first resync (the driver starting to track it) takes the car along.
                     if (c.stand) CarSmooth.likeCar(e, plate);
                     // The client's movement queue for it starts where the spawn packet puts it (this tick); the watcher
@@ -485,7 +507,7 @@ final class CarCam implements Listener {
                     if (!sendCamera(p, c.cam)) { off(p); continue; }
                     c.sent++;
                     p.setMetadata(META, new FixedMetadataValue(plugin, plate));
-                    if (c.sent == 1) { pickKey(p, c); sidebarOff(p); anchorLook(p, c); }
+                    if (c.sent == 1) { sidebarOff(p); anchorLook(p, c); }
                 }
                 Location at = spot(p, main, seat, c); // also this tick's eye (c.eye), which the camera's clip starts from
                 // The driver's head in a block (MTVehicles pushed the car's seat into a wall: nobody suffocates in a car,
@@ -1480,6 +1502,7 @@ final class CarCam implements Listener {
         // its board (remember-toggle-choice is false: a rejoin starts with the sidebar anyway).
         sidebarHidden.remove(e.getPlayer().getUniqueId());
         off(e.getPlayer());
+        paused.remove(e.getPlayer().getUniqueId());
         flags.remove(e.getPlayer());
     }
 

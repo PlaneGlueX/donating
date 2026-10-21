@@ -501,10 +501,7 @@ function gpsEntries(p: player, cat: text) :: texts:
 				if {_l} is set:
 					set {_lore} to "%{-heist::%{_h}%::status}%"
 					if heistLevelOk({_p}, {_h}) is false:
-						if heistIsStore({_h}) is true:
-							set {_lore} to "%{_lore}%;;&cUp to level %heistMaxLevel({_h})%"
-						else:
-							set {_lore} to "%{_lore}%;;&cLevel %heistLevel({_h})%"
+						set {_lore} to "%{_lore}%;;&cLevel %heistLevel({_h})%"
 					set {_lore} to "%{_lore}%;;&7%gpsDist({_p}, {_l})%"
 					add "heist_%heistDifficulty({_h})%|&f%heistName({_h})%|%{_lore}%|pin|%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%" to {_out::*}
 		return {_out::*}

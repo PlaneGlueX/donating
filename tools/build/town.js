@@ -668,7 +668,7 @@ const snbt = s => [...s].map(c => {
   return `\\u${code.toString(16).padStart(4, '0')}`
 }).join('')
 const fl = n => `${Math.round(n * 1000) / 1000}f`
-const labelNbt = l => `{Tags:["${common().LABEL_TAG}"],text:{text:"${snbt(l.text)}",color:"${l.color}"},billboard:"fixed",Rotation:[${fl(YAW[l.facing] ?? 0)},${fl(l.facing === 'up' ? -90 : 0)}],background:0,` +
+const labelNbt = l => `{Tags:["${common().LABEL_TAG}"],text:${require('./signfonts').textNbt(l, 'town', snbt)},billboard:"fixed",Rotation:[${fl(YAW[l.facing] ?? 0)},${fl(l.facing === 'up' ? -90 : 0)}],background:0,` +
   (l.brightness ? `brightness:{sky:${l.brightness.sky},block:${l.brightness.block}},` : '') +
   `transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[${fl(l.scale)},${fl(l.scale)},${fl(l.scale)}]}}`
 function displayNbt (d) {

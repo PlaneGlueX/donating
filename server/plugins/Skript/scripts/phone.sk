@@ -5,6 +5,8 @@
 #     because a map only shows big and centered with an empty offhand. Right-click again, switch
 #     slots, press F, die or leave: it closes and the bag comes back.
 #   - F (swap-hand key): the apps menu below.
+#   - Driving (2026-10-21): the car key in hotbar 9 is the same map; its right-click opens the big map too (garage.sk),
+#     and F locks the car (garage.sk). The chase view pauses while the map is open.
 # The plugin reads the scoreboard tag "donating_phone_open" to know which view to draw.
 #
 # The home screen (6 rows, drawn as a phone: ui.sk, toolsmake-phone-ui.js; slots on its screen, columns 2-6):
@@ -13,8 +15,8 @@
 #   the dock: 38 messages   39 GPS (quests, heists, shops, places: gps.sk)   40 missions   41 garage   42 bag
 #   49 the home button (close)
 # Each app opens its script's menu (garage: garage.sk's garageMenu, your cars); every app's main page has "◀ Phone"
-# back here (the Back buttons section below). Bounties shows bounty.sk's list in chat. The big map doesn't open while
-# driving (a stolen car keeps the phone in slot 9); left-click on it drops a GPS pin (the plugin runs gps.sk's /gpspick).
+# back here (the Back buttons section below). Bounties shows bounty.sk's list in chat. The big map opens while driving
+# too (2026-10-21); left-click on it drops a GPS pin (the plugin runs gps.sk's /gpspick).
 #
 # Every click is cancelled while the menu is open, also for staff with the inventory bypass. This
 # runs at Skript's default priority, before inventory.sk's lock (CLAUDE.md: GUI menus).
@@ -65,10 +67,8 @@ function phoneHint(p: player, what: text):
 # The tag first, so inventory.sk's watchdog doesn't put the bag straight back. Only the bag leaves
 # the offhand: anything else there (staff with the inventory bypass) stays, and the map stays small.
 function openPhoneMap(p: player):
-	# Not while driving (a stolen car keeps the phone in slot 9): the held phone's GPS view still shows.
-	if carSeatOf({_p}) starts with "driver:":
-		hudBar({_p}, "&7Stop the car to open the big map.", 1)
-		stop
+	# Drivers too (owner, 2026-10-21: "right-click shows the big map on screen if possible while still driving"): the
+	# chase view pauses (DonatingPhone CarCam) and the camera tilts down to it; A/D still steer.
 	add "donating_phone_open" to scoreboard tags of {_p}
 	if itemId(offhand tool of {_p}) starts with "bag:":
 		set offhand tool of {_p} to air

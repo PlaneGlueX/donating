@@ -91,7 +91,7 @@ module.exports = async ({ check }) => {
     check('the bike is slowed to bike::stats (top speed 0.62)', /max=0\.62/.test(stat), stat)
     const fuel = await cmd(`dfuel car ${plate}`)
     const lv = Number(field(fuel, 'level'))
-    check('its tank is part full (40-100%) with the bike\'s usage (100 / (8 x 1200))', lv >= 40 && lv <= 100 && Math.abs(Number(field(fuel, 'usage')) - 0.01042) < 0.0001, fuel)
+    check('its tank is part full (40-100%) with the bike\'s usage (100 / (24 x 1200))', lv >= 40 && lv <= 100 && Math.abs(Number(field(fuel, 'usage')) - 0.003472) < 0.00002, fuel)
 
     // ---------- Leaving it ----------
     bot.setControlState('sneak', true)

@@ -334,12 +334,15 @@ function carSerialLore(plate: text) :: text:
 		return "&7#%{_n}% of %{_t}% %{_pl}% with this wrap"
 	return "&7#%{_n}% of %{_t}% %{_pl}% from crates"
 
-# The car's hardware mods as short texts ("Engine II", "Turbo I").
+# The car's hardware mods as short texts ("Engine II", "Turbo I", "Fuel Tank I").
 function carModTexts(plate: text) :: texts:
 	loop {-cfg::carmod::parts::*}:
 		set {_s} to carMod({_plate}, loop-value)
 		if {_s} > 0:
 			add "%carModName(loop-value)% %carRoman({_s})%" to {_out::*}
+	set {_s} to carMod({_plate}, "tank")
+	if {_s} > 0:
+		add "Fuel Tank %carRoman({_s})%" to {_out::*}
 	return {_out::*}
 
 # The car's looks beyond its paint ("Neon: Cyan", "Trail: Sparks").
@@ -555,6 +558,9 @@ function carRekey(old: text, new: text):
 		set {_s} to {car::mod::%{_old}%::%loop-value%}
 		if {_s} is set:
 			set {car::mod::%{_new}%::%loop-value%} to {_s}
+	set {_s} to {car::mod::%{_old}%::tank}
+	if {_s} is set:
+		set {car::mod::%{_new}%::tank} to {_s}
 	if {_o} is not "":
 		set {data::%{_o}%::cars::%{_new}%} to {data::%{_o}%::cars::%{_old}%}
 		delete {data::%{_o}%::cars::%{_old}%}
@@ -923,9 +929,9 @@ function carKey(p: player, plate: text) :: item:
 		set {_state} to "&clocked"
 	set {_cam} to metadata value "donating_carcam_hook" of {_p}
 	if {_cam} is set:
-		set {_i} to tripwire hook named "&6Car key &7· &f%carTitle({_plate})%" with lore "&7Right-click: lock/unlock" and "&7Doors: %{_state}%"
+		set {_i} to tripwire hook named "&6Car key &7· &f%carTitle({_plate})%" with lore "&7Right-click: the big map" and "&7F: lock/unlock" and "&7Doors: %{_state}%"
 	else:
-		set {_i} to filled map named "&6Car key &7· &f%carTitle({_plate})%" with lore "&7Right-click: lock/unlock" and "&7Doors: %{_state}%"
+		set {_i} to filled map named "&6Car key &7· &f%carTitle({_plate})%" with lore "&7Right-click: the big map" and "&7F: lock/unlock" and "&7Doors: %{_state}%"
 		set {_id} to metadata value "donating_phone_map" of {_p}
 		if {_id} is set:
 			set int tag "minecraft:map_id" of nbt of {_i} to {_id}
@@ -1158,17 +1164,39 @@ function carTrailFx(t: text, l: location):
 	else if {_t} is "sparks":
 		draw 6 electric spark particles with offset vector(0.3, 0.1, 0.3) with an extra value of 0 at {_l}
 
-# ---------- The key: lock and unlock ----------
-
+# ---------- The key: the big map, and F locks ----------
+# Owner, 2026-10-21: "while driving F locks/unlocks, right-click shows the big map on screen if possible while still
+# driving". Right-click with the key toggles the phone's big map like the phone (phone.sk openPhoneMap: the bag leaves
+# the offhand, the camera tilts down; DonatingPhone's CarCam pauses the chase view meanwhile, so the two-handed map
+# faces the camera; steering keeps working). F in your own car's driver's seat, whatever is in hand, locks or unlocks
+# (at the lowest priority: before WeaponMechanics, which then ignores the cancelled key). A stolen car (a contract,
+# a bike) has no lock: F does what it does on foot.
 on right click with priority lowest:
 	itemId(player's tool) starts with "carkey:"
 	cancel event
-	if {-car::keyat::%player%} is set:
-		difference between {-car::keyat::%player%} and now < 0.3 seconds
-		stop
+	# Like the phone: one right-click can arrive as two (block, then air) and holding repeats every 0.2 s; every click
+	# restarts the 0.3 s wait, so it toggles once.
+	set {_last} to {-car::keyat::%player%}
 	set {-car::keyat::%player%} to now
-	set {_id} to itemId(player's tool)
-	carToggleLock(player, subtext of {_id} from characters 8 to (length of {_id}))
+	if {_last} is set:
+		if difference between {_last} and now < 0.3 seconds:
+			stop
+	if player has scoreboard tag "donating_phone_open":
+		closePhoneMap(player)
+	else:
+		openPhoneMap(player)
+
+on swap hand items with priority lowest:
+	set {_seat} to carSeatOf(player)
+	{_seat} starts with "driver:"
+	set {_plate} to subtext of {_seat} from characters 8 to (length of {_seat})
+	carOwnerOf({_plate}) is "%uuid of player%"
+	cancel event
+	if {-car::lockat::%player%} is set:
+		if difference between {-car::lockat::%player%} and now < 0.4 seconds:
+			stop
+	set {-car::lockat::%player%} to now
+	carToggleLock(player, {_plate})
 
 function carToggleLock(p: player, plate: text):
 	if carOwnerOf({_plate}) is not "%uuid of {_p}%":
@@ -1523,9 +1551,13 @@ function garageOptions(p: player, plate: text):
 			carButton({_p}, {_gui}, 12, red dye named "&dRepaint" with lore "&a%{_price}%", "paint:%{_plate}%")
 		else:
 			carButton({_p}, {_gui}, 12, red dye named "&dRepaint" with lore "&a%{_price}%" and {_now}, "paint:%{_plate}%")
+	# Tuning (a crate or extreme car only takes the fuel tank: 2026-10-21).
 	set {_tb} to carTuneBlock({_plate})
 	if {_tb} is not "":
-		set slot 13 of {_gui} to gray dye named "&7Tune" with lore "&7%{_tb}%"
+		if {_now} is "":
+			carButton({_p}, {_gui}, 13, piston named "&bTune" with lore "&7%{_tb}%: the fuel tank only", "tune:%{_plate}%")
+		else:
+			carButton({_p}, {_gui}, 13, piston named "&bTune" with lore "&7%{_tb}%: the fuel tank only" and {_now}, "tune:%{_plate}%")
 	else if {_now} is "":
 		carButton({_p}, {_gui}, 13, piston named "&bTune", "tune:%{_plate}%")
 	else:
@@ -1557,12 +1589,18 @@ function garageTune(p: player, plate: text):
 	set {-car::screen::%{_p}%} to "tune:%{_plate}%"
 	set slot 4 of {_gui} to carIconOf({_plate}) named "&6%carTitle({_plate})%" with lore carLoreOf({_plate})
 	set {_slot} to 11
+	set {_tb} to carTuneBlock({_plate})
 	loop {-cfg::carmod::parts::*}:
 		set {_part} to loop-value
 		set {_s} to carMod({_plate}, {_part})
 		delete {_l::*}
 		set {_what} to {-cfg::carmod::%{_part}%::what}
-		if {_s} >= 3:
+		if {_tb} is not "":
+			set {_i} to gray dye named "&7%carModName({_part})%" with lore "&7%{_tb}%"
+			if {_s} > 0:
+				set {_i} to gray dye named "&7%carModName({_part})% %carRoman({_s})%" with lore "&7%{_tb}%"
+			set slot {_slot} of {_gui} to {_i}
+		else if {_s} >= 3:
 			set {_i} to lime concrete named "&b%carModName({_part})% III" with lore "&aMaxed out"
 			set slot {_slot} of {_gui} to {_i}
 		else:
@@ -1584,6 +1622,26 @@ function garageTune(p: player, plate: text):
 				set {_i} to piston named "&b%carModName({_part})% %carRoman({_n})%" with lore {_l::*}
 			carButton({_p}, {_gui}, {_slot}, {_i}, "tunebuy:%{_plate}%:%{_part}%")
 		add 1 to {_slot}
+	# The fuel tank (owner, 2026-10-21: "a new car upgrade for a bigger tank and slower burn"): every car, crate and
+	# extreme ones too (it changes no look, speed or grade).
+	set {_s} to carMod({_plate}, "tank")
+	if {_s} >= 3:
+		set slot 14 of {_gui} to lime concrete named "&bFuel Tank III" with lore "&aMaxed out" and "&7%carTankText(3)%"
+	else:
+		set {_n} to {_s} + 1
+		delete {_l::*}
+		if {_s} > 0:
+			add "&7Now: &bstage %carRoman({_s})% &7(%carTankText({_s})%)" to {_l::*}
+		else:
+			add "&7Now: &fstock" to {_l::*}
+		add "&7Stage %carRoman({_n})%: &f%carTankText({_n})%" to {_l::*}
+		set {_pr} to carTankPrice({_id}, {_n})
+		add "&7Price: %carPriceColor({_p}, {_pr})%%formatMoney({_pr})%" to {_l::*}
+		if carArmed({_p}, carTankKey({_plate})) is true:
+			set {_i} to carArmedIcon("Fuel Tank %carRoman({_n})%", {_pr})
+		else:
+			set {_i} to cauldron named "&bFuel Tank %carRoman({_n})%" with lore {_l::*}
+		carButton({_p}, {_gui}, 14, {_i}, "tankbuy:%{_plate}%")
 	carButton({_p}, {_gui}, 2, phoneBackIcon(carName({_id})), "options:%{_plate}%")
 	carButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	carOpen({_p}, {_gui})
@@ -1679,6 +1737,8 @@ function carAction(p: player, act: text, right: boolean):
 		garageTune({_p}, {_a::2})
 	else if {_k} is "tunebuy":
 		carTune({_p}, {_a::2}, {_a::3})
+	else if {_k} is "tankbuy":
+		carTankBuy({_p}, {_a::2})
 	else if {_k} is "fill":
 		fuelGarageFill({_p}, {_a::2})
 	else if {_k} is "buy":
@@ -1744,6 +1804,25 @@ function carTuneKey(plate: text, part: text) :: text:
 	set {_n} to carMod({_plate}, {_part}) + 1
 	set {_pr} to carModPrice(carModelOf({_plate}), {_n})
 	return "tune:%{_plate}%:%{_part}%:%{_n}%@%{_pr}%"
+
+function carTankKey(plate: text) :: text:
+	set {_n} to carMod({_plate}, "tank") + 1
+	set {_pr} to carTankPrice(carModelOf({_plate}), {_n})
+	return "tank:%{_plate}%:%{_n}%@%{_pr}%"
+
+# The fuel tank's stage n: "+40% tank, 20% less fuel a minute" (core.sk carmod::tank::<n> and carmod::tank::eff::<n>).
+function carTankText(n: number) :: text:
+	set {_t} to round({-cfg::carmod::tank::%{_n}%} * 100)
+	set {_e} to round({-cfg::carmod::tank::eff::%{_n}%} * 100)
+	return "+%{_t}%%% tank, %{_e}%%% less fuel a minute"
+
+# Its price: max(carmod::tank::min::<n>, floor(the model's price × carmod::tank::share::<n>)); a car with no dealer price
+# (a crate car) pays the minimum.
+function carTankPrice(id: text, n: number) :: number:
+	set {_price} to {-cfg::car::%{_id}%::price}
+	if {_price} is not set:
+		return {-cfg::carmod::tank::min::%{_n}%}
+	return max({-cfg::carmod::tank::min::%{_n}%}, floor({_price} * {-cfg::carmod::tank::share::%{_n}%}))
 
 # ---------- Buying, repainting and tuning ----------
 
@@ -1888,6 +1967,38 @@ function carTune(p: player, plate: text, part: text):
 	set {car::mod::%{_plate}%::%{_part}%} to {_n}
 	carLog("tune %{_p}% %uuid of {_p}% %{_id}% %{_plate}% %{_part}%=%{_n}% price=%{_price}%")
 	msg({_p}, "&aFitted %carModName({_part})% %carRoman({_n})% on your %carTitle({_plate})%.")
+	play sound "block.anvil.use" with volume 0.6 to {_p}
+	garageTune({_p}, {_plate})
+
+# Buys the next fuel tank stage (any car; fuel.sk reads the stage: fuelTankOf, fuelBurnOf). The liters in the tank stay
+# the same (the level is scaled to the bigger tank), and the car's new usage reaches MTVehicles at once.
+function carTankBuy(p: player, plate: text):
+	set {_why} to carShopBlock({_p}, {_plate})
+	if {_why} is not "":
+		carFail({_p}, {_why})
+		if {_why} starts with "Repaints and tuning":
+			garageFind({_p})
+		stop
+	set {_s} to carMod({_plate}, "tank")
+	if {_s} >= 3:
+		carFail({_p}, "That's maxed out.")
+		stop
+	set {_n} to {_s} + 1
+	set {_id} to carModelOf({_plate})
+	set {_price} to carTankPrice({_id}, {_n})
+	if balance of {_p} < {_price}:
+		carFail({_p}, "Fuel Tank %carRoman({_n})% costs %formatMoney({_price})%.")
+		stop
+	if carConfirm({_p}, carTankKey({_plate})) is false:
+		stop
+	if chargeMoney({_p}, {_price}) is not true:
+		carFail({_p}, "Fuel Tank %carRoman({_n})% costs %formatMoney({_price})%.")
+		stop
+	set {_oldTank} to fuelTankOf({_plate})
+	set {car::mod::%{_plate}%::tank} to {_n}
+	fuelTankChanged({_plate}, {_oldTank})
+	carLog("tank %{_p}% %uuid of {_p}% %{_id}% %{_plate}% tank=%{_n}% price=%{_price}%")
+	msg({_p}, "&aFitted Fuel Tank %carRoman({_n})% on your %carTitle({_plate})%: %carTankText({_n})%.")
 	play sound "block.anvil.use" with volume 0.6 to {_p}
 	garageTune({_p}, {_plate})
 

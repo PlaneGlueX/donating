@@ -8,7 +8,8 @@
 // count; a conversation shows its texts (the unread ones "new") and reading it clears them; ◀ Messages back to the list,
 // ◀ Phone to the phone; "Find <contact>" when the map has that contact's quest giver (else "<contact> isn't in town
 // yet"); only the newest 60 texts are kept, 20 a page (Older / Newer); /messages <contact> opens one; /messages
-// tab-completes the contacts; an old inbox (every line kept) is tidied once at a join; a join says how many are unread.
+// tab-completes the contacts; an old inbox (every line kept) is tidied once at a join; a join says how many are unread;
+// a text or a whole conversation deleted on a second click (2026-10-21).
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -196,6 +197,29 @@ module.exports = async ({ check }) => {
     ib = await inbox()
     check('a brief said in person while an older Mara text is unread: kept, and the older one stays new (2 texts, 2 unread)', inboxN(ib) === 2 && unread(ib) === 2 && /last=Mara\|Next: crack a safe\./.test(ib) && lines(t).some(l => /^Mara: Next: crack a safe/.test(l)), `${ib} | ${text(t).slice(0, 200)}`)
     await cmd(`zzheisttp ${A} ${FAR}`)
+
+    // ---------- Deleting (2026-10-21; untested (cloud)): a text, then a whole conversation, each on a second click ----------
+    await cmd(`zzinboxclear ${A}`)
+    await cmd(`zzinboxraw ${A} 0 Mara Delete me.`)
+    await cmd(`zzinboxraw ${A} 0 Mara Keep me.`)
+    await cmd(`zzinboxraw ${A} 0 Vic Stay.`)
+    const conv = await chatOpen('/messages mara')
+    check('a conversation has "Clear chat" (slot 3) and each text says "Click twice: delete"', /Mara$/.test(title(conv)) && /Clear chat/.test(itemName(at(3))) && /Click twice: delete/.test(itemLore(at(11))), `"${itemName(at(3))}" (${itemLore(at(11))})`)
+    await click(11)
+    const armedText = at(11) && at(11).name === 'red_concrete' && /Delete\?/.test(itemName(at(11)))
+    const dataBefore = await cmd(`zzdata ${A} inbox::1::text`)
+    await click(11)
+    const gone1 = await cmd(`zzdata ${A} inbox::1::text`)
+    check('a click arms the text (a red "Delete?"), a second click deletes it: only "Keep me." is left', armedText && /Delete me\./.test(dataBefore) && /= <none>/.test(gone1) && /Keep me\./.test(itemLore(at(11))) && !at(12), `armed=${armedText} | ${gone1} | ${itemLore(at(11))}`)
+    await click(3)
+    const armedClear = at(3) && at(3).name === 'red_concrete'
+    const listAfter = await click(3)
+    check('"Clear chat" twice: every Mara text goes, back to Messages with only Vic', armedClear && /Messages$/.test(title(listAfter)) && /^Vic/.test(itemName(at(11))) && !at(12) && /= <none>/.test(await cmd(`zzdata ${A} inbox::2::text`)) && /Stay\./.test(await cmd(`zzdata ${A} inbox::3::text`)), `armed=${armedClear} ${title(listAfter)} "${itemName(at(11))}" "${itemName(at(12))}"`)
+    await chatOpen('/messages vic')
+    await click(11)
+    await sleep(5600)
+    check('an armed delete turns back after 5 s and deletes nothing', at(11) && at(11).name === 'paper' && /Stay\./.test(await cmd(`zzdata ${A} inbox::3::text`)), `${at(11) && at(11).name}`)
+    await closeAll()
 
     // ---------- An old inbox is tidied once at a join; a join says how many are unread ----------
     await cmd(`zzinboxclear ${A}`)

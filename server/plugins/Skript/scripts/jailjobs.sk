@@ -331,9 +331,10 @@ function jjobTalk(p: player, kind: text, n: text):
 					jjSay({_p}, {_who}, "Mm, chocolate.")
 					jjLog("donut-lefty %{_p}% %{_u}%")
 					stop
-		# During his lessons Lefty has no jobs: his mission's brief.
+		# During his lessons Lefty has no jobs: his mission's brief and his menu (the way out, the head start).
 		if storyLive({_lid}) is true:
 			jjSay({_p}, {_who}, storyBrief({_p}, {_lid}))
+			jjWayMenu({_p})
 			stop
 	# Sparks: his menu of makeshift weapons (no jobs).
 	if {_kind} is "sparks":
@@ -403,6 +404,7 @@ function jjRusty(p: player):
 	setData({_p}, "jjob-ready::donut", progUnix() + {_cd})
 	jjSay({_p}, "Rusty", "Ahh. Here.")
 	msg({_p}, "&6Rusty's trade: &7a donut for %{_got}%")
+	progEvent({_p}, "jailrusty", 1, "")
 	play sound "entity.item.pickup" with volume 1 to {_p}
 	jjLog("trade %{_p}% %{_u}% got=%{_got}%")
 	if jjOf({_p}) is "donut":
@@ -480,6 +482,134 @@ function jjMenu(p: player, kind: text):
 	if {-jj::gen::%{_p}%} is not set:
 		set {-jj::gen::%{_p}%} to 0
 	open {_gui} to {_p}
+
+# ---------- Lefty's menu during his lessons (a plain 3-row chest: "Lefty · Your way out") ----------
+# Owner, 2026-10-21: "talking to Lefty lets the player pick the escape way (C4, keycard, parkour, the new lot fence) and
+# his lessons follow it" and "show the optional prison missions for a head start as a checklist (0/5)". The four ways at
+# 10, 12, 14 and 16 (the picked one glints; a click picks it, his lessons follow: story.sk storyWayFits), the head
+# start's checklist at 22.
+
+# A way's icon: what it takes, in a line or two.
+function jjWayIcon(p: player, w: text) :: item:
+	set {_cur} to storyWayOf({_p}, "lefty")
+	if {_w} is "c4":
+		set {_i} to jailItem("c4", 1)
+		set {_n} to "&cC4 on the vehicle gate"
+		set {_l::*} to "&7Three parts (search the workshop, the" and "&7supply closet, the infirmary), Lefty puts" and "&7them together, blow the gate by the plaza" and "&7Then the front gate from the booth"
+	else if {_w} is "keycard":
+		set {_i} to jailItem("keycard", 1)
+		set {_n} to "&bA keycard through the police station"
+		set {_l::*} to "&7Knock a guard down, or trade Rusty a donut" and "&7The yard door, the lobby, the south door" and "&7Then the front gate from the booth"
+	else if {_w} is "parkour":
+		set {_i} to rabbit foot
+		set {_n} to "&aOver the fence by the Gun Shop"
+		set {_l::*} to "&7Punch the box by the gate (no guard near)" and "&7Up the annex's crates and over its fence" and "&7Then the front gate from the booth"
+	else:
+		set {_i} to iron shovel
+		set {_n} to "&6Dig under the lot's west fence"
+		set {_l::*} to "&7Into the lot the quiet way (the parkour)" and "&7A hole by the west fence: dig through" and "&7No front gate, no keycard"
+	if {_cur} is {_w}:
+		add "&r" to {_l::*}
+		add "&aYour way" to {_l::*}
+	else:
+		add "&r" to {_l::*}
+		add "&eClick: pick it" to {_l::*}
+	set {_i} to {_i} named {_n} with lore {_l::*}
+	if {_cur} is {_w}:
+		set {_i} to glint({_i})
+	return {_i}
+
+# The head start's checklist: "Head start 2/5" and a line per job, ✔ done or ✘ not yet (data jhead::<id>).
+function jjHeadCount(p: player) :: number:
+	set {_n} to 0
+	loop {-cfg::jhead::ids::*}:
+		if getData({_p}, "jhead::%loop-value%") is true:
+			add 1 to {_n}
+	return {_n}
+
+function jjHeadLines(p: player) :: texts:
+	loop {-cfg::jhead::ids::*}:
+		set {_lb} to "%{-cfg::jhead::%loop-value%::label}%"
+		if getData({_p}, "jhead::%loop-value%") is true:
+			add "&a✔ &7%{_lb}%" to {_l::*}
+		else:
+			add "&c✘ &f%{_lb}%" to {_l::*}
+	return {_l::*}
+
+function jjHeadIcon(p: player) :: item:
+	set {_l::*} to jjHeadLines({_p})
+	add "&r" to {_l::*}
+	add "&7Optional: each one helps your escape" to {_l::*}
+	return paper named "&eHead start &f%jjHeadCount({_p})%/%size of {-cfg::jhead::ids::*}%" with lore {_l::*}
+
+# A progress event that ticks a head-start job (progress.sk progEvent calls it): once for good, while a prisoner.
+function jjHeadEvent(p: player, ev: text, detail: text):
+	prisonIn({_p}) is true
+	loop {-cfg::jhead::ids::*}:
+		set {_id} to "%loop-value%"
+		if "%{-cfg::jhead::%{_id}%::ev}%" is {_ev}:
+			set {_ok} to true
+			set {_d} to {-cfg::jhead::%{_id}%::detail}
+			if {_d} is set:
+				if "%{_d}%" is not {_detail}:
+					set {_ok} to false
+			if {_ok} is true:
+				if getData({_p}, "jhead::%{_id}%") is not true:
+					setData({_p}, "jhead::%{_id}%", true)
+					set {_lb} to "%{-cfg::jhead::%{_id}%::label}%"
+					msg({_p}, "&eHead start &f%jjHeadCount({_p})%/%size of {-cfg::jhead::ids::*}% &7· &a✔ &7%{_lb}%")
+					play sound "entity.experience_orb.pickup" with volume 0.6 to {_p}
+					jjLog("head %{_p}% %uuid of {_p}% %{_id}%")
+
+function jjWayMenu(p: player):
+	closePhoneMap({_p})
+	set {_gui} to chest inventory with 3 rows named "&8%jjWho("lefty")% · Your way out"
+	delete {-jj::act::%{_p}%::*}
+	set {_slot} to 10
+	loop {-cfg::chain::lefty::ways::*}:
+		set {_w} to "%loop-value%"
+		set slot {_slot} of {_gui} to jjWayIcon({_p}, {_w})
+		set {-jj::act::%{_p}%::%{_slot}%} to "way:%{_w}%"
+		add 2 to {_slot}
+	set slot 22 of {_gui} to jjHeadIcon({_p})
+	set {-jj::gui::%{_p}%} to {_gui}
+	set {-jj::kind::%{_p}%} to "lefty"
+	if {-jj::gen::%{_p}%} is not set:
+		set {-jj::gen::%{_p}%} to 0
+	open {_gui} to {_p}
+
+# Picking a way in Lefty's menu (no wait). "" = picked. His lessons go on with the new way's first one (the ones for
+# another way are passed over; one whose item is already carried is done at once: story.sk).
+function jjPickWay(p: player, w: text) :: text:
+	if prisonIn({_p}) is false:
+		return "&7Inmates only."
+	if jailState({_p}) is not "in":
+		return "&7Finish the course first."
+	if questNear({_p}, "lefty") is "":
+		return "&7Talk to Lefty in person."
+	if {-cfg::chain::lefty::ways::*} does not contain {_w}:
+		return "&7He doesn't know that one."
+	set {_wk} to "%{-cfg::chain::lefty::way-key}%"
+	set {_old} to storyWayOf({_p}, "lefty")
+	if {_old} is {_w}:
+		return "&7That's your way already."
+	setData({_p}, {_wk}, {_w})
+	set {_lid} to storyIdOf({_p}, "lefty")
+	# Already past picking (a change of mind): his lessons start again at the new way's first one.
+	if storyLive({_lid}) is true:
+		if {_lid} is not "%{-cfg::chain::lefty::way-pick}%":
+			if {_old} is not "":
+				storyActivateOf({_p}, "lefty", storyNextId("%{-cfg::chain::lefty::way-pick}%"))
+	if {_w} is "c4":
+		jjSay({_p}, jjWho("lefty"), "C4 it is. Find me the putty, the wires and a timer.")
+	else if {_w} is "keycard":
+		jjSay({_p}, jjWho("lefty"), "A card, then. Get one, and the police station's your door.")
+	else if {_w} is "parkour":
+		jjSay({_p}, jjWho("lefty"), "Over the fence. Watch for guards near that box.")
+	else:
+		jjSay({_p}, jjWho("lefty"), "Digging. Get into the lot first; the hole's by the west fence.")
+	jjLog("way %{_p}% %uuid of {_p}% %{_w}% was=%{_old}%")
+	return ""
 
 # ---------- Sparks' menu (a plain 3-row chest: "Sparks · Makeshift"): the three weapons at 11, 13 and 15 ----------
 
@@ -619,9 +749,11 @@ on inventory click:
 	set {_kind} to {-jj::kind::%player%}
 	{_kind} is set
 	set {_a} to "%{_id}%"
-	# Sparks' menu: "craft:<title>".
+	# Sparks' menu: "craft:<title>"; Lefty's: "way:<way>".
 	if {_a} starts with "craft:":
 		set {_why} to jjCraft(player, subtext of {_a} from characters 7 to (length of {_a}))
+	else if {_a} starts with "way:":
+		set {_why} to jjPickWay(player, subtext of {_a} from characters 5 to (length of {_a}))
 	else:
 		set {_why} to jjAccept(player, {_a}, "%{_kind}%")
 	if {_why} is "":

@@ -209,6 +209,14 @@ command /zzwm <player>:
 			set {_out} to "%{_out}%ammo %loop-value%=%ammoCount(arg-1, loop-value)% "
 		send "WM %{_out}%"
 
+# A gun shop action as if its button was clicked (the shop must be open: /dshop open <player> gun): buy:<W> takes out
+# or unlocks, ammo:<type>, tab:<tab> ... (2026-10-21, prison-rules: owned guns inside the walls).
+command /zzshopact <player> <text>:
+	executable by: console
+	trigger:
+		shopAction(arg-1, arg-2, false)
+		send "SHOPACT %arg-1% %arg-2% status=%{-shop::status::%arg-1%}%"
+
 command /zzammo <player> <text> <number>:
 	executable by: console
 	trigger:
@@ -1535,7 +1543,7 @@ command /zzjaildoor <text>:
 		set {_l} to location({_a::1} parsed as number, {_a::2} parsed as number, {_a::3} parsed as number, jailWorld())
 		send "DOOR %arg-1% %block data of block at {_l}% pulse=%ceil(jailSecsLeft({-jail::doorclose::%arg-1%}))%"
 
-# A breach or gate (gate, punch, front): its state, or open|close|due (an open one is due now)|cool (its cooldown ends).
+# A breach or gate (gate, punch, front, dig: the dugout): its state, or open|close|due (an open one is due now)|cool (its cooldown ends).
 command /zzjailbreach <text> [<text>]:
 	executable by: console
 	trigger:
@@ -1604,11 +1612,12 @@ command /zzjailsees <text> <player>:
 		set {_los} to false
 		if {_e} has line of sight to {_p}:
 			set {_los} to true
-		set {_gl} to jcopClearView(eye location of {_e}, eye location of {_p})
+		set {_gl} to jcopClearView(eye location of {_e}, eye location of {_p}, true)
+		set {_fe} to jcopClearView(eye location of {_e}, eye location of {_p}, false)
 		set {_win} to false
 		if {_z} is not "":
 			set {_win} to jcopSeesRz({_e}, {_p}, {_z})
-		send "SEES %{_p}% by=%arg-1% zone=%{_z}% cone=%{_iv}% los=%{_los}% glass=%{_gl}% win=%{_win}%"
+		send "SEES %{_p}% by=%arg-1% zone=%{_z}% cone=%{_iv}% los=%{_los}% glass=%{_gl}% fence=%{_fe}% win=%{_win}%"
 
 # Moves a prison cop (Citizens' moveto, through the real console: --id needs it).
 command /zzjailcopto <text> <number> <number> <number>:
@@ -1628,6 +1637,8 @@ command /zzjailroster <text>:
 	executable by: console
 	trigger:
 		delete {-cfg::jailcop::roster::*}
+		# The busy guards too (/zzjailbusy sets them): a test's roster is exactly what it names.
+		delete {-cfg::jailcop::roster-busy::*}
 		if arg-1 is not "none":
 			set {-cfg::jailcop::roster::*} to arg-1 split at " "
 		set {_n} to 0
@@ -1639,6 +1650,19 @@ command /zzjailroster <text>:
 			jcopRemove(loop-value, "zz-roster")
 			add 1 to {_n}
 		send "ROSTER %size of {-cfg::jailcop::roster::*}% routes, removed %{_n}%"
+
+# The busy guards' roster (2026-10-21; core.sk jailcop::roster-busy: made while more than jailcop::busy-players are in
+# the prison) and the threshold, until the next loadSettings: "/zzjailbusy <routes|none> [players]".
+command /zzjailbusy <text> [<number>]:
+	executable by: console
+	trigger:
+		delete {-cfg::jailcop::roster-busy::*}
+		if arg-1 is not "none":
+			set {-cfg::jailcop::roster-busy::*} to arg-1 split at " "
+		if arg-2 is set:
+			set {-cfg::jailcop::busy-players} to arg-2
+		delete {-jailcop::busyat}
+		send "BUSY %size of {-cfg::jailcop::roster-busy::*}% routes, over %{-cfg::jailcop::busy-players}% players, busy=%jcopBusy()% prisoners=%jcopPrisoners()%"
 
 # A car job with a real MTVehicles plate (from /zzcarnew) but no car in the world (prison-respawn: a death ends it as
 # "jailed", no cooldown). "CTFAKE <player> job=<tier> plate=<plate>"

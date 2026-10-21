@@ -17,7 +17,7 @@ function showHelp(p: player):
 	send colored "&7• &eLevels: &7selling loot, car jobs, hits and missions earn XP; each level takes a bit more. Levels open heists, guns, bags, cars and members-only places, and give rewards past 100. &f/level&7, &f/levels" to {_p}
 	send colored "&7• &eShops: &7buy a weapon once, equip it for free after that; melee first, guns from level 5. Ammo, Stims, drinks and heist tools are bought again." to {_p}
 	send colored "&7• &eQuests: &7Mara's missions, car contracts, side jobs, Vic's Wanted List and hits, all in the GPS. &f/gps quests" to {_p}
-	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Car crates give rare wraps and mods." to {_p}
+	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Driving: &fF &7locks your car, the key's right-click shows the big map. Car crates give rare wraps and mods." to {_p}
 	send colored "&7• &eCrates: &7a free key every day (&f/daily&7), more in &f/crates&7; open them at crate stands. &f/cosmetics &7to wear what you won." to {_p}
 	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
 	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse. The yard's Gun Shop needs a keycard; Sparks in the workshop makes weapons from junk. &f/prison" to {_p}
@@ -204,6 +204,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dseason holo <board>", "a leaderboard hologram")
 		ahLine({_s}, "/dskins [respawn]", "the NPC skins (respawn the NPCs to wear them)")
 		ahLine({_s}, "/dphone [reload] | roads scan/info/show/cancel | city scan/use/info/cancel | wall create/remove/list", "the phone map, the GPS roads, the city scan, wall maps")
+		ahLine({_s}, "/dphone path wand | add/addat/link/unlink/remove/move/name/select | list/near/show/dump", "GPS paths (the wand: right-click adds, left-click selects, sneak+right-click its menu)")
 		ahLine({_s}, "/ddistrict name <id> <name...>/default | list | here | dump", "district names (regions district_<id>)")
 		ahLine({_s}, "/dsetup [heists/story/places/flags/shops/quests/jobs/crates/cars/server/phone/prison]", "the launch checklist: what the map still needs")
 		send colored "&7Regions by name: &fsafe_&7<x> safe zone, &fsafe_base&7<x> sells loot, &fsafe_garage_&7<x> a garage, &fheist_&7<id> a heist, &fnolock&7<x> no car locks, &fnograpple&7<x> no Grappler, &flvl150_&7<x> level 150+ only (any number). Add &fpassthrough allow&7 to each." to {_s}

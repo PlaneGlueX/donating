@@ -72,6 +72,20 @@ module.exports = async ({ check }) => {
     await cmd(`zzheisttp ${A} 1015.5 ${Y} 1015.5`)
     const inside = await until(async () => /Medium/.test(await papi('donating_heist_diff')), 4000)
     check('inside a heist: its difficulty in its color, and the robbers inside', inside && (await papi('donating_heist_robbers')) === '1' && /\(amp\)e/.test(await papi('donating_heist_diff')), `${await papi('donating_heist_diff')} ${await papi('donating_heist_robbers')}`)
+    // The sidebar's long lines wrapped in two (2026-10-21, the owner: "more compact, or wrap long lines"; untested (cloud)):
+    // each _a part at most 22 visible characters (a single longer word aside), _a and _b together the whole line (a _b
+    // over 22 cut with "…").
+    const vis = x => x.replace(/\(amp\)./g, '').replace(/&r/g, '').trim()
+    const wrapBad = []
+    for (const k of ['season', 'mission', 'jobs', 'hit']) {
+      const full = vis(await papi(`donating_${k}`)), pa = vis(await papi(`donating_${k}_a`)), pb = vis(await papi(`donating_${k}_b`))
+      const cut = pb.endsWith('…') // a second line longer than 22 ends in "…"
+      const joined = [pa, cut ? pb.slice(0, -1) : pb].filter(Boolean).join(' ').replace(/\s+/g, ' ')
+      const whole = full.replace(/\s+/g, ' ')
+      if (cut ? !whole.startsWith(joined) : joined !== whole) wrapBad.push(`${k}: "${full}" vs "${pa}" + "${pb}"`)
+      else if (pa.length > 22 && pa.includes(' ')) wrapBad.push(`${k}: "${pa}" is ${pa.length} long`)
+    }
+    check('the sidebar\'s long lines wrap in two (season, mission, jobs, hit): _a at most 22 characters, _a + _b the whole line', wrapBad.length === 0, wrapBad.join(' / '))
 
     // ---------- /bag ----------
     const run = Number(((await cmd(`zzheist ${ID}`)).match(/run=(\d+)/) || [])[1])

@@ -519,16 +519,20 @@ module.exports = (b) => {
     for (const [x0, z] of [[302, 243], [316, 243], [296, 252], [310, 252], [324, 252]]) F(x0, 73, z, x0 + 4, 73, z, 'sea_lantern')
     // roof: an HVAC unit
     F(298, 74, 243, 300, 75, 245, 'light_gray_concrete'); S(299, 76, 244, 'iron_trapdoor[facing=north,half=bottom,open=false]')
-    // the punch box on the east face (apron x 334): cabinet, door decor, LED strip, conduits
-    // the cabinet: two diamond-plate doors meeting at a seam of open iron_trapdoors (flat on the face) at z 254; the
-    // conduits keep 3+ from them (jail-spec 1.8)
-    F(334, 65, 252, 334, 67, 256, 'iron_block')
-    S(334, 65, 254, 'iron_trapdoor[facing=west,half=bottom,open=true]'); S(334, 66, 254, 'iron_trapdoor[facing=west,half=bottom,open=true]')
-    for (let y = 65; y <= 67; y++) { S(334, y, 257, 'light_blue_stained_glass'); S(333, y, 257, 'sea_lantern') }
-    // conduits: waxed lightning rods (a plain copper rod weathers to green over time)
-    for (let y = 68; y <= 70; y++) { S(334, y, 253, 'waxed_lightning_rod[facing=up]'); S(334, y, 255, 'waxed_lightning_rod[facing=up]') }
-    // a brown sign plate in the wall behind the light-red "Don't Punch!" label (334.03, 66.0, 250.5), as in the game
-    F(333, 65, 249, 333, 66, 251, 'dark_oak_planks')
+    // The punch box moved to the widened punch gate's south end (owner, 2026-10-21: "punch box moved to the right of the
+    // gate"): its old spot on the east apron (x 334) is cleared (the paste is sparse; the wall loop above puts the
+    // plate's and the LED's wall cells back).
+    F(334, 65, 252, 334, 70, 257, 'air')
+    // On the police station's north apron (z 284), right of the gate seen from the yard: a cabinet (two diamond-plate
+    // doors meeting at a seam of open iron_trapdoors flat on its front), an LED strip, conduits, the "Don't Punch!" plate
+    // in the station's wall and the gate's reader on a stub at the gate post.
+    F(333, 65, 284, 337, 67, 284, 'iron_block')
+    S(335, 65, 284, 'iron_trapdoor[facing=south,half=bottom,open=true]'); S(335, 66, 284, 'iron_trapdoor[facing=south,half=bottom,open=true]')
+    for (let y = 65; y <= 67; y++) { S(332, y, 284, 'light_blue_stained_glass'); S(332, y, 285, 'sea_lantern') }
+    for (let y = 68; y <= 70; y++) { S(334, y, 284, 'waxed_lightning_rod[facing=up]'); S(336, y, 284, 'waxed_lightning_rod[facing=up]') }
+    F(328, 65, 285, 330, 66, 285, 'dark_oak_planks')
+    S(338, 65, 284, 'polished_andesite'); S(338, 66, 284, 'red_concrete')
+    S(338, 66, 283, 'tripwire_hook[facing=north,attached=false,powered=false]')
   }
 
   // ===================== 6.4 Maximum Security (MS-A, MS-B, MS-C; scenery shell) =====================
@@ -766,7 +770,7 @@ module.exports.labels = [
   { x: 139.0, y: 69.5, z: 276.97, facing: 'north', text: 'VISITORS', color: '#ffffff', scale: 4 },
   { x: 139.0, y: 69.5, z: 321.03, facing: 'south', text: 'VISITORS', color: '#ffffff', scale: 4 },
   { x: 211.0, y: 70.5, z: 323.03, facing: 'south', text: 'POLICE', color: '#ffffff', scale: 3 },
-  { x: 334.03, y: 66.0, z: 250.5, facing: 'east', text: "Don't Punch!", color: '#ff8f80', scale: 1.5 },
+  { x: 329.5, y: 66.0, z: 284.97, facing: 'north', text: "Don't Punch!", color: '#ff8f80', scale: 1.5 }, // the punch box (2026-10-21)
   { x: 211.0, y: 69.5, z: 284.97, facing: 'north', text: 'POLICE · STAFF ONLY', color: '#ffffff', scale: 0.8 }, // L_POLICE_N
   { x: 316.5, y: 67.5, z: 260.03, facing: 'south', text: 'KEYCARD', color: '#ffffff', scale: 0.5 } // L_GUNSHOP, on the lintel
 ]
@@ -779,6 +783,11 @@ module.exports.points = {
   ROUTE_POLOFFICE_2: [225.5, 65, 296.5, 0],
   ROUTE_POLOFFICE_3: [246.5, 65, 296.5, 0],
   ROUTE_POLOFFICE_4: [246.5, 65, 293.5, 0],
+  // A guard in the station's east wing (2026-10-21: 30 guards while the prison is busy, core.sk jailcop::roster-busy)
+  ROUTE_POLEAST_1: [306.5, 65, 296.5, 0],
+  ROUTE_POLEAST_2: [332.5, 65, 296.5, 0],
+  ROUTE_POLEAST_3: [332.5, 65, 316.5, 0],
+  ROUTE_POLEAST_4: [306.5, 65, 316.5, 0],
   POL_DOOR_N: [210, 65, 286, 0],
   POL_DOOR_S: [210, 65, 321, 0],
   POL_READER_N_OUT: [209, 66, 284, 0],

@@ -21,13 +21,23 @@ function rankedName(p: player) :: text:
 		return "%{_prefix}%&r&f%{_p}%"
 	return "%{_prefix}%&r &f%{_p}%"
 
+# A join or quit line for everyone but players on the prison's tutorial course (core.sk chatQuiet; owner, 2026-10-21:
+# "hide every chat line not about the tutorial"), and the console.
+function joinQuitLine(t: text):
+	set {_m} to colored {_t}
+	loop all players:
+		if chatQuiet(loop-player) is false:
+			send {_m} to loop-player
+	send {_m} to console
+
 on join:
+	delete join message
 	if getData(player, "first-join") is set:
-		set join message to colored "&7[&a+&7] %rankedName(player)%"
+		joinQuitLine("&7[&a+&7] %rankedName(player)%")
 		stop
 	setData(player, "first-join", now)
 	add 1 to {stats::unique-joins}
-	set join message to colored "&7[&a+&7] %rankedName(player)% &7joined for the first time &7(#%{stats::unique-joins}%)"
+	joinQuitLine("&7[&a+&7] %rankedName(player)% &7joined for the first time &7(#%{stats::unique-joins}%)")
 	set {_start} to cfg("money::start")
 	giveMoney(player, {_start})
 	# Let the client finish loading, or the title and sound get lost.
@@ -47,6 +57,7 @@ on join:
 	msg(player, "Type &e/help&7 to learn how heists work.")
 
 on quit:
-	set quit message to colored "&7[&c-&7] %rankedName(player)%"
+	delete quit message
+	joinQuitLine("&7[&c-&7] %rankedName(player)%")
 
 # /help and /adminhelp are in help.sk.

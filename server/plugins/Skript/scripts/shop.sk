@@ -195,7 +195,12 @@ function equipWeapon(p: player, w: text, slot: number) :: boolean:
 	set {_n} to name of {_p}
 	set {_data} to "{slot:%{_slot}%}"
 	if {-cfg::wpn::%{_w}%::ammo} is set:
-		set {_data} to "{slot:%{_slot}%,ammo:0}"
+		# Inside the prison (the yard's Gun Shop) a gun's magazine comes loaded once a stay: ammo can't be bought in
+		# there (prison.sk jailGunMag).
+		set {_load} to 0
+		if prisonInside({_p}) is true:
+			set {_load} to jailGunMag({_p}, {_w})
+		set {_data} to "{slot:%{_slot}%,ammo:%{_load}%}"
 	execute console command "wm give %{_n}% %{_w}% 1 %{_data}%"
 	if wmTitle(slot {_slot} of {_p}'s inventory) is {_w}:
 		return true
@@ -1009,7 +1014,7 @@ function shopAction(p: player, act: text, shift: boolean):
 		close {_p}'s inventory
 		msg({_p}, "&c%{_why}%")
 		stop
-	# Inside the prison walls: only taking out melee you own (shopJailBlock).
+	# Inside the prison walls: only taking out weapons you own (shopJailBlock).
 	set {_jw} to shopJailBlock({_p}, {_act})
 	if {_jw} is not "":
 		shopFail({_p}, {_jw})
@@ -1046,9 +1051,11 @@ function shopAction(p: player, act: text, shift: boolean):
 			delete {-shop::confirm::%{_p}%}
 	renderShop({_p})
 
-# Inside the prison walls (prison.sk): take out melee you own, nothing else. "" = allowed. "buy" would spend money
-# behind bars (the owner: re-arm, not shop; veterans neither), "save" would replace a veteran's real loadout with the
-# knife, and a hunted prisoner shouldn't hide in a menu. "hot" stays (clickHotbar refuses a slot holding a jail item).
+# Inside the prison walls (prison.sk): take out weapons you own, nothing else (owner, 2026-10-21: "owned guns can be
+# taken out at the prison gun store and used INSIDE the walls"; still no buying). "" = allowed. Buying would spend money
+# behind bars (the owner: re-arm, not shop; veterans neither), "save" would replace a veteran's real loadout, and a
+# hunted prisoner shouldn't hide in a menu. "hot" stays (clickHotbar refuses a slot holding a jail item). A gun comes
+# with one loaded magazine the first time in a stay (prison.sk jailGunMag).
 function shopJailBlock(p: player, act: text) :: text:
 	if prisonInside({_p}) is false:
 		return ""
@@ -1056,10 +1063,9 @@ function shopJailBlock(p: player, act: text) :: text:
 		return "Not while the guards are after you."
 	set {_a::*} to {_act} split at ":"
 	if {_a::1} is "buy":
-		return "Unlock weapons once you're out. In here you can take out melee you own."
-	if {_a::1} is "sel":
-		if {-cfg::wpn::%{_a::2}%::kind} is not "Melee":
-			return "No guns inside the walls: take them out once you're out."
+		# "buy" on a weapon you own takes it out (buyWeapon); unlocking one waits until you're out.
+		if getData({_p}, "wpn::%{_a::2}%") is not true:
+			return "Unlock weapons once you're out. In here you can take out the weapons you own."
 	if {_a::1} is "save":
 		return "Save it once you're out."
 	if {_a::1} is "ammo" or "con" or "tool" or "gear" or "bag" or "restore":

@@ -6,7 +6,8 @@
 //   - every point of Appendix B stands where it should, on its side of the outlines; every cop route is walkable;
 //   - the controls course goes on from the crawl through the boiler room and Rusty's cell (10), the model does see a
 //     leak when one is put back (11), and no spot anyone reaches is in a block an outline runs through (12);
-//   - the keycard-only Gun Shop (2026-10-20) is sealed with its door closed and its keeper reached with it open (13).
+//   - the keycard-only Gun Shop (2026-10-20) is sealed with its door closed and its keeper reached with it open (13);
+//   - the dugout under F3 (2026-10-21) leads out of the lot only while it's dug open, and nowhere else (14).
 //   node --max-old-space-size=6000 tools/build/jail-escape-check.js [--only <n,...>]   (or: node tools/build/jail.js check)
 // Steps 1-9 are ESCAPE-SPEC 3.8's assertions in its order. Exits 1 when an assertion fails. About two and a half minutes.
 //
@@ -379,9 +380,13 @@ const APPENDIX_B = [
   ['TANK', 181.5, 65, 156.5, 'stand', 'inner'],
   ['PLANT_GATE', 178.5, 65, 320.5, 'stand', 'inner'],
   ['C4_GATE', 178.5, 67.0, 321.9, 'display'],
-  ['PUNCH_STAND', 335.5, 65, 254.5, 'stand', 'inner'],
-  ['PUNCH_READER', 337, 66, 262, 'block:tripwire_hook'],
-  ['PUNCH_IN', 340.5, 65, 264.5, 'stand', 'inner'],
+  ['PUNCH_STAND', 335.5, 65, 282.5, 'stand', 'inner'],
+  ['PUNCH_READER', 338, 66, 283, 'block:tripwire_hook'],
+  ['PUNCH_IN', 340.5, 65, 272.5, 'stand', 'inner'],
+  // the dugout under F3 (2026-10-21)
+  ['DUG_IN', 114.5, 65, 362.5, 'stand', 'lot'],
+  ['DUG_FACE', 112.5, 62, 360.5, 'stand', 'lot'],
+  ['DUG_OUT', 105.5, 65, 362.5, 'stand', 'outside'],
   ['RUN_1', 172.5, 65, 103.5, 'stand', 'inner'], ['RUN_2', 238.5, 65, 103.5, 'stand', 'inner'], ['RUN_3', 227.5, 65, 243.5, 'stand', 'inner'], ['RUN_4', 140.5, 65, 240.5, 'stand', 'inner'],
   ['STASH_1', 273.5, 65, 180.5, 'stand', 'inner'], ['STASH_2', 238.5, 65, 94.5, 'stand', 'inner'], ['STASH_3', 162.5, 65, 245.5, 'stand', 'inner'], ['STASH_4', 190.5, 65, 318.5, 'stand', 'inner'],
   ['LOT_EXIT', 260.5, 65, 404.5, 'stand', 'outside'],
@@ -436,6 +441,14 @@ const APPENDIX_B = [
   ['SEARCH_TAPE', 78, 65, 227, 'block:barrel'],
   ['SEARCH_HANDLE', 86, 65, 63, 'block:barrel']
 ]
+// The guards added 2026-10-21 (20, and 30 while the prison is busy): every point stands, on its side.
+const NEW_ROUTES = { YARDNR: 'inner', YARDSR: 'inner', WALKR: 'inner', W5R: 'any', W67R: 'any', GATER: 'lot', LOTR: 'lot', FIELD: 'inner',
+  FIELDR: 'inner', PLAZA: 'inner', PLAZAR: 'inner', LOTW: 'lot', LOTE: 'lot', ANNEX: 'inner', HALLBR: 'inner', HALLA: 'inner',
+  HALLAR: 'inner', CAFE: 'inner', CAFER: 'inner', POLEAST: 'inner' }
+for (const [r, side] of Object.entries(NEW_ROUTES)) {
+  for (let i = 1; PTS[`ROUTE_${r}_${i}`]; i++) { const p = PTS[`ROUTE_${r}_${i}`]; APPENDIX_B.push([`ROUTE_${r}_${i}`, p[0], p[1], p[2], 'stand', side]) }
+  if (!PTS[`ROUTE_${r}_1`]) APPENDIX_B.push([`ROUTE_${r}_1`, 0, 0, 0, 'stand', side]) // reported missing
+}
 const EXISTING = ['R_SPAWN', 'T_SPAWN', 'T_KEYCARD', 'T_GUARD_SEAT', 'T_DONUT', 'T_VENT_STAND', 'T_VENT_DOOR', 'T_VENT_READER', 'T_SO_GATE_A',
   'T_SO_GATE_B', 'T_SO_READER_OUT', 'T_SO_READER_IN', 'RUSTY', 'GUN_KEEPER',
   ...CELLS.north.filter(x0 => x0 !== 60).map(x0 => `T_CELL_N${x0}`), ...CELLS.south.map(x0 => `T_CELL_S${x0}`)]
@@ -490,6 +503,8 @@ if (step(7)) {
     ['BOOTH_IN in boothin, BOOTH_OUT in boothapp, BOOTH_STAND in booth', inZone('boothin', ...pz('BOOTH_IN')) && inZone('boothapp', ...pz('BOOTH_OUT')) && inZone('booth', ...pz('BOOTH_STAND'))],
     ['FUSE_BOX in fusebox', inZone('fusebox', ...pz('FUSE_BOX'))],
     ['PUNCH_IN in punchhole', inZone('punchhole', ...pz('PUNCH_IN'))],
+    ['PUNCH_STAND in punchapp, outside punchhole; the punch box (333..337, 284) outside both', inZone('punchapp', ...pz('PUNCH_STAND')) && !inZone('punchhole', ...pz('PUNCH_STAND')) && !inZone('punchapp', 335, 66, 284) && !inZone('punchhole', 335, 66, 284)],
+    ['the dugout\'s plug inside dighole, DUG_FACE in digapp, DUG_IN and DUG_OUT outside dighole', Z.BREACHES.dig.every(([x1, y1, z1, x2, y2, z2]) => inZone('dighole', x1, y1, z1) && inZone('dighole', x2, y2, z2)) && inZone('digapp', ...pz('DUG_FACE')) && !inZone('dighole', ...pz('DUG_IN')) && !inZone('dighole', ...pz('DUG_OUT'))],
     ['POL_IN in polnin', inZone('polnin', ...pz('POL_IN'))],
     ['GUN_OUT in gunshopapp, outside gunshop', inZone('gunshopapp', ...pz('GUN_OUT')) && !inZone('gunshop', ...pz('GUN_OUT'))],
     ['GUN_IN in gunshopin and gunshop', inZone('gunshopin', ...pz('GUN_IN')) && inZone('gunshop', ...pz('GUN_IN'))],
@@ -588,6 +603,23 @@ if (step(13)) {
   never('the Gun Shop from the yard, closed', {}, [node('GUN_OUT')], inShop, 'the closed Gun Shop is sealed (nothing inside it reached)')
   const r = run('the Gun Shop open', { gunshop: true }, [node('GUN_OUT')], 'strict')
   ok(r.seen.has(node('GUN_KEEPER').join(',')), 'the door open: GUN_KEEPER (311, 243) reached')
+}
+
+// 14. the dugout under F3 (2026-10-21): closed, the lot stays sealed (step 5); open, the lot leads out through the tunnel
+// and nowhere else new; open alone, nothing beyond the inner outline from inside; from outside, never past the lot
+if (step(14)) {
+  console.log('14. The dugout under the lot fence')
+  const L = [[210, 330, 1040]]
+  const r = run('the lot, the dugout open', { dig: true }, L, 'strict')
+  const out = r.out.filter(k => { const [x, z] = xzOf(k); return x >= 100 && x <= 109 && z >= 355 && z <= 366 })
+  ok(out.length > 0 && r.seen.has(node('DUG_OUT').join(',')), 'out through the tunnel: DUG_OUT (105, 362) reached'); if (out.length) console.log(`       ${pathTo(r, out)}`)
+  never('the lot, the dugout open', { dig: true }, L, a => [...a.inner, ...a.booth], 'nothing inside the inner outline, not the booth\'s inside, with generous moves')
+  never('the dugout open alone, from R_SPAWN', { dig: true }, [R_SPAWN], beyondInner, 'nothing outside the inner outline')
+  never('from outside, the dugout open', { dig: true }, [[92, 350, 1040], [272, 425, 1040]], a => a.inner, 'nothing inside the inner outline (the lot only)')
+  for (const [label, open] of [['police doors + dugout open', { police: true, dig: true }], ['gate breach + dugout open', { gate: true, dig: true }], ['punch gate + dugout open', { punch: true, dig: true }]]) {
+    const q = run(`${label}, from R_SPAWN`, open, [R_SPAWN], 'strict')
+    ok(q.seen.has(node('DUG_OUT').join(',')), `${label}: out by the dugout`)
+  }
 }
 
 // 12. every run above: no spot anyone reached lies in a block an outline runs through (see "spots on an outline")

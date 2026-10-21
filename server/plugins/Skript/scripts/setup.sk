@@ -82,13 +82,10 @@ function setupRegionAt(l: location, prefix: text) :: boolean:
 			return true
 	return false
 
-# Can a robber of this level enter this heist (a store also has a max level)?
+# Can a robber of this level enter this heist (level minimums only since 2026-10-21)?
 function setupEnterable(h: text, lvl: number) :: boolean:
 	if heistLevel({_h}) > {_lvl}:
 		return false
-	if heistIsStore({_h}) is true:
-		if {_lvl} > heistMaxLevel({_h}):
-			return false
 	return true
 
 # How many enabled heists a robber of this level can enter that fit a story need ("" = any).
@@ -153,10 +150,7 @@ function setupHeists(s: command sender):
 			add "disabled (/dheist enable %{_h}% when it's ready)" to {_bad::*}
 		set {_lv} to heistLevel({_h})
 		if heistIsStore({_h}) is true:
-			if {_lv} > heistMaxLevel({_h}):
-				add "its level %{_lv}% is above a store's max level %heistMaxLevel({_h})%: nobody can enter (/dheist set %{_h}% level 0)" to {_bad::*}
-			else:
-				add 1 to {_stores}
+			add 1 to {_stores}
 		if {_lv} > cfg("level::max"):
 			add "its level %{_lv}% is above the highest level (/dheist set %{_h}% level <n>)" to {_bad::*}
 		if heistIsAdvanced({_h}) is true:
@@ -604,11 +598,11 @@ function setupPrison(s: command sender):
 	else:
 		setupLine({_s}, "no", "doors without blocks:%{_bad}% (regenerate jailpoints.sk)")
 	set {_bad} to ""
-	loop "gate", "punch" and "front":
+	loop "gate", "punch", "front" and "dig":
 		if size of {-jailbreach::%loop-value%::*} is 0:
 			set {_bad} to "%{_bad}% %loop-value%"
 	if {_bad} is "":
-		setupLine({_s}, "ok", "the breach and the gates have their blocks (gate, punch, front)")
+		setupLine({_s}, "ok", "the breach and the gates have their blocks (gate, punch, front, the dugout)")
 	else:
 		setupLine({_s}, "no", "breaches without blocks:%{_bad}% (regenerate jailpoints.sk)")
 	if {-jailbr::state::front} is "open":

@@ -5,6 +5,9 @@
 // ended by attacking; the knockout cooldown (one way, per pair, cleared by the victim's hit that lands, not by a swing
 // in a no-PvP zone); no damage through the fence; no hit from a non-prison NPC; beds are decoration; no Valet, no
 // Grappler, no hit contract for a prisoner; /dsetup prison all ✔ after /dprison setup.
+// 2026-10-21 (untested (cloud)): walking into a fence gives a small shock (a little damage, a warning, a push; no
+// HIGH VOLTAGE plates any more), and owned guns can be taken out at the yard's Gun Shop and used inside (one loaded
+// magazine a stay; nothing unlocked or bought in there).
 const { start, field, sleep } = require('../prisonlib')
 
 const A = 'PcRulA'
@@ -135,6 +138,62 @@ module.exports = async ({ check }) => {
     await sleep(800)
     since = Date.now()
     check('no damage through the fence (a free bot outside hits an inmate inside)', !(await lands(a, A, C)) && said(c, /Not through the fence/, since), `hp ${a.health}`)
+    // Walking into the fence: a small shock (half a heart), the warning, never below a heart.
+    await into(A, 151.5, 65, 395.9, 0)
+    await cmd(`zzhp ${A} 20`)
+    await sleep(300)
+    since = Date.now()
+    const hp0 = a.health
+    a.setControlState('forward', true)
+    await sleep(900)
+    a.setControlState('forward', false)
+    await sleep(400)
+    check('walking into the fence: a small shock (about half a heart) and "The fence is electrified"', a.health < hp0 && hp0 - a.health <= 2 && t.barSince(a, /fence is electrified/, since), `hp ${hp0} -> ${a.health}`)
+    await cmd(`zzhp ${A} 2`)
+    await sleep(1700)
+    a.setControlState('forward', true)
+    await sleep(900)
+    a.setControlState('forward', false)
+    await sleep(300)
+    check('...never below one heart left', a.health >= 2, `hp ${a.health}`)
+    await cmd(`zzhp ${A} 20`)
+    // F2 west's first plate stood at x 130-132 (a yellow face at y 67-68): the fence's mesh again.
+    const plate = await cmd('execute in minecraft:jailbreak if block 131 67 396 minecraft:yellow_concrete')
+    check('no HIGH VOLTAGE plates in the fence any more', !/passed/i.test(plate), plate)
+
+    // ---------- owned guns inside: taken out at the yard's Gun Shop, one loaded magazine a stay ----------
+    await into(A, 205.5, 65, 160.5, 0)
+    await cmd(`zzjail ${A} own 50_GS`)
+    await cmd(`dshop open ${A} gun`)
+    await sleep(600)
+    await cmd(`zzshopact ${A} buy:50_GS`)
+    await sleep(600)
+    const wm1 = await cmd(`zzwm ${A}`)
+    check('an owned gun taken out inside the walls: in hotbar 1-5, its magazine loaded', /[0-4]=50_GS:([1-9]\d*)x1/.test(wm1), wm1)
+    since = Date.now()
+    await cmd(`zzshopact ${A} buy:AK_47`)
+    await cmd(`zzshopact ${A} ammo:light`)
+    await sleep(600)
+    check('...a gun not owned isn\'t unlocked in here, and no ammo is sold', !/AK_47/.test(await cmd(`zzwm ${A}`)) && said(a, /Unlock weapons once you're out/, since) && said(a, /Not inside the walls/, since), t.text(a, since).slice(0, 300))
+    await cmd(`zzjail ${A} strip`)
+    await cmd(`minecraft:clear ${A} minecraft:feather`)
+    await sleep(300)
+    await cmd(`zzshopact ${A} buy:50_GS`)
+    await sleep(600)
+    const wm2 = await cmd(`zzwm ${A}`)
+    check('...taken out again in the same stay: empty (one magazine a stay)', /[0-4]=50_GS:0x1/.test(wm2), wm2)
+    await cmd(`minecraft:clear ${A} minecraft:feather`)
+    await cmd(`zzjail ${A} catch`)
+    await sleep(2500)
+    await into(A, 205.5, 65, 160.5, 0)
+    await cmd(`dshop open ${A} gun`)
+    await sleep(600)
+    await cmd(`zzshopact ${A} buy:50_GS`)
+    await sleep(600)
+    check('...after a catch, a full magazine again', /[0-4]=50_GS:([1-9]\d*)x1/.test(await cmd(`zzwm ${A}`)), await cmd(`zzwm ${A}`))
+    await cmd(`minecraft:clear ${A} minecraft:feather`)
+    await cmd(`zzclear ${A}`)
+
     await into(A, 205.5, 65, 160.5, 0)
     await cmd('npc create Visitor Bob --at 206,65,162,jailbreak --type PLAYER')
     await sleep(1500)

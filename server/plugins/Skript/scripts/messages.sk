@@ -22,6 +22,10 @@
 #     page, each named by how long ago ("· new" while unread; the status bar is the contact). Opening it reads them.
 #     ◀ Messages; "Find <contact>" pins them on
 #     the GPS (quests.sk questFind, core.sk msgcontact::<key>::kind) when the map has one.
+#   - Deleting (owner, 2026-10-21: "clear a whole conversation or a single message"): in a conversation, slot 3 "Clear
+#     chat" (a red bin) and a click on a text arm a delete; a second click on the same button within 5 s deletes (the
+#     button shows a red "Delete?" block meanwhile). A deleted text's data goes; its number stays used (the 60 kept
+#     counts by number). Logged (messages.log `delete` / `clear`).
 # Menu texts (owner, 2026-09-29: "most people can use context clues"): names and state, no lore explaining a click.
 # Looking only: every click is cancelled; buttons run a tick later, once per drawn screen (like the other menus).
 
@@ -433,6 +437,60 @@ function msgClear(p: player):
 	delete {-msg::gui::%{_p}%}
 	delete {-msg::act::%{_p}%::*}
 
+# ---------- Deleting ----------
+
+# One text gone (its number stays used).
+function msgDelete(p: player, n: number):
+	deleteData({_p}, "inbox::%{_n}%::at")
+	deleteData({_p}, "inbox::%{_n}%::from")
+	deleteData({_p}, "inbox::%{_n}%::text")
+
+# Every text from one contact; returns how many went.
+function msgDeleteAll(p: player, key: text) :: number:
+	set {_c} to 0
+	loop integers from msgOldest({_p}) to msgNewest({_p}):
+		set {_f} to getData({_p}, "inbox::%loop-value%::from")
+		if {_f} is set:
+			if msgKey("%{_f}%") is {_key}:
+				add loop-value to {_ids::*}
+	loop {_ids::*}:
+		msgDelete({_p}, loop-value)
+		add 1 to {_c}
+	deleteData({_p}, "inbox-seen::%{_key}%")
+	return {_c}
+
+# A delete waits for a second click on the same button within 5 s (the key: "del:<n>" or "clear:<contact>").
+function msgArmed(p: player, key: text) :: boolean:
+	if {-msg::arm::%{_p}%} is {_key}:
+		if difference between {-msg::armat::%{_p}%} and now < 5 seconds:
+			return true
+	return false
+
+function msgArm(p: player, key: text):
+	set {-msg::arm::%{_p}%} to {_key}
+	set {-msg::armat::%{_p}%} to now
+	msgArmExpire({_p}, {_key}, "%{-msg::screen::%{_p}%}%")
+
+# The armed button turns back after the window (a function of its own: Skript runs on past a called function's wait).
+function msgArmExpire(p: player, key: text, screen: text):
+	wait 5.1 seconds
+	{_p} is online
+	{-msg::arm::%{_p}%} is {_key}
+	delete {-msg::arm::%{_p}%}
+	{-msg::gui::%{_p}%} is set
+	{-msg::screen::%{_p}%} is {_screen}
+	msgRedraw({_p})
+
+function msgRedraw(p: player):
+	set {_s::*} to "%{-msg::screen::%{_p}%}%" split at ":"
+	if {_s::1} is "thread":
+		msgThreadPage({_p}, {_s::2}, ({_s::3} parsed as number))
+	else:
+		msgMenu({_p})
+
+function msgDeleteIcon(what: text) :: item:
+	return red concrete named "&c&lDelete?" with lore "&7%{_what}%" and "&eClick again to delete"
+
 function msgButton(p: player, gui: inventory, slot: number, i: item, act: text):
 	set slot {_slot} of {_gui} to {_i}
 	set {-msg::act::%{_p}%::%{_slot}%} to {_act}
@@ -444,6 +502,7 @@ function msgMenu(p: player):
 	set {_gui} to phonePage("Messages")
 	msgClear({_p})
 	set {-msg::gui::%{_p}%} to {_gui}
+	set {-msg::screen::%{_p}%} to "list"
 	msgButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
 	set {_slots::*} to phoneSlots()
 	set {_k2} to 0
@@ -500,7 +559,12 @@ function msgThreadPage(p: player, key: text, page: number):
 	set {_gui} to phonePage("%{_from}%")
 	msgClear({_p})
 	set {-msg::gui::%{_p}%} to {_gui}
+	set {-msg::screen::%{_p}%} to "thread:%{_key}%:%{_page}%"
 	msgButton({_p}, {_gui}, 2, phoneBackIcon("Messages"), "list")
+	if msgArmed({_p}, "clear:%{_key}%") is true:
+		msgButton({_p}, {_gui}, 3, msgDeleteIcon("All %{_n}% text(s) from %{_from}%"), "clear:%{_key}%")
+	else:
+		msgButton({_p}, {_gui}, 3, appIcon("trash", "&cClear chat"), "clear:%{_key}%")
 	set {_kind} to {-cfg::msgcontact::%{_key}%::kind}
 	if {_kind} is set:
 		# Only when the map has one (a contact placed after launch: no dead-end button).
@@ -524,12 +588,15 @@ function msgThreadPage(p: player, key: text, page: number):
 		delete {_l::*}
 		add msgWrap(msgText({_p}, {_n2}), 34) to {_l::*}
 		set {_ago} to msgAgo(msgAt({_p}, {_n2}))
-		if {_n2} > {_seen}:
+		add "&7Click twice: delete" to {_l::*}
+		if msgArmed({_p}, "del:%{_n2}%") is true:
+			set {_i} to msgDeleteIcon("This text (%{_ago}%)")
+		else if {_n2} > {_seen}:
 			set {_i} to paper named "&7%{_ago}% &a· new" with lore {_l::*}
 			set {_i} to glint({_i})
 		else:
 			set {_i} to paper named "&7%{_ago}%" with lore {_l::*}
-		set slot {_slots::%{_s}%} of {_gui} to {_i}
+		msgButton({_p}, {_gui}, {_slots::%{_s}%}, {_i}, "del:%{_n2}%:%{_key}%")
 	msgButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	# Read now.
 	setData({_p}, "inbox-seen::%{_key}%", {_last})
@@ -551,6 +618,31 @@ function msgAction(p: player, act: text):
 		questFind({_p}, subtext of {_act} from characters 6 to (length of {_act}))
 	else if {_act} is "close":
 		close {_p}'s inventory
+	else if {_act} starts with "del:":
+		set {_a::*} to {_act} split at ":"
+		set {_n} to {_a::2} parsed as number
+		if msgArmed({_p}, "del:%{_n}%") is false:
+			msgArm({_p}, "del:%{_n}%")
+			msgRedraw({_p})
+			stop
+		delete {-msg::arm::%{_p}%}
+		if msgKey(msgFrom({_p}, {_n})) is {_a::3}:
+			msgDelete({_p}, {_n})
+			msgLog("delete %{_p}% %uuid of {_p}% %{_a::3}% #%{_n}%")
+		if msgLastOf({_p}, {_a::3}) is 0:
+			msgMenu({_p})
+		else:
+			msgRedraw({_p})
+	else if {_act} starts with "clear:":
+		set {_k} to subtext of {_act} from characters 7 to (length of {_act})
+		if msgArmed({_p}, "clear:%{_k}%") is false:
+			msgArm({_p}, "clear:%{_k}%")
+			msgRedraw({_p})
+			stop
+		delete {-msg::arm::%{_p}%}
+		set {_c} to msgDeleteAll({_p}, {_k})
+		msgLog("clear %{_p}% %uuid of {_p}% %{_k}% n=%{_c}%")
+		msgMenu({_p})
 
 on inventory click:
 	{-msg::gui::%player%} is set
@@ -584,6 +676,9 @@ on quit:
 	msgFlushAll(player)
 	msgClear(player)
 	delete {-msg::gen::%player%}
+	delete {-msg::arm::%player%}
+	delete {-msg::armat::%player%}
+	delete {-msg::screen::%player%}
 
 # Old inboxes tidied once; a reminder at a join when texts wait.
 on join:

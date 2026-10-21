@@ -183,6 +183,8 @@ function jbrOpen(id: text):
 		jePunchGateOpen()
 	else if {_id} is "front":
 		jeFrontOpen()
+	else if {_id} is "dig":
+		jbrDigOpen()
 
 # Closes it now (the hole rule first: nobody stays inside the blocks).
 function jbrClose(id: text):
@@ -192,6 +194,8 @@ function jbrClose(id: text):
 		jePunchGateClose()
 	else if {_id} is "front":
 		jeFrontClose()
+	else if {_id} is "dig":
+		jbrDigClose()
 
 # An open breach or gate is due now (a breach's 5 s warning then runs).
 function jbrDue(id: text):
@@ -205,10 +209,14 @@ function jbrCool(id: text):
 		delete {-jailbr::cool::fuse}
 	else if {_id} is "front":
 		delete {-jailbr::cool::front}
+	else if {_id} is "dig":
+		delete {-jailbr::cool::dig}
 
 # Closed as built, no cooldowns, no displays (on load and /dprison setup).
 function jbrRestore(id: text):
 	jeDispOff({_id})
+	if {_id} is "punch":
+		add 1 to {-jailbr::slidegen::punch}
 	jeBlocksRestore({_id})
 	if {_id} is "gate":
 		jeRubbleClear({_id})
@@ -225,17 +233,17 @@ function jbrRestore(id: text):
 on load:
 	wait 10 ticks
 	jailOn() is true
-	loop "gate", "punch" and "front":
+	loop "gate", "punch", "front" and "dig":
 		jbrRestore(loop-value)
 	jeBoxes()
 
 on unload:
-	loop "gate", "punch" and "front":
+	loop "gate", "punch", "front" and "dig":
 		jeDispOff(loop-value)
 	loop {-jail::boxes::*}:
 		if loop-index starts with "spot_" or "plant_":
 			add loop-index to {_k::*}
-		else if loop-index is "bench" or "console":
+		else if loop-index is "bench" or "console" or "dig":
 			add loop-index to {_k::*}
 	loop {_k::*}:
 		jailBoxOff(loop-value)
@@ -264,6 +272,10 @@ function jeBoxes():
 	set {_l} to jailPt("CONSOLE")
 	if {_l} is set:
 		jailBox("console", {_l}, 3.02, 1.6)
+	# The dugout's packed dirt: the plug's east block (x 111, y 62..63), clicked from the tunnel (DUG_FACE).
+	set {_l} to jailPt("DUG_FACE")
+	if {_l} is set:
+		jailBox("dig", location((x-coordinate of {_l}) - 1, (y-coordinate of {_l}) - 0.01, z-coordinate of {_l}, {_w}), 1.02, 2.02)
 
 every 10 seconds:
 	jeBoxes()
@@ -316,7 +328,7 @@ function jeKeycard(p: player, name: text):
 		jailDoorPulse("pols", {_secs})
 		jailMark({_p}, "keycard")
 	else if {_name} is "PUNCH_READER":
-		if jbrState("punch") is "open":
+		if jbrState("punch") is "open" or "closing":
 			jailMark({_p}, "parkour")
 			stop
 		if jeLeft("cool::punch") > 0:
@@ -387,8 +399,14 @@ every 5 ticks:
 							if jbrState("gate") is "open" or "closing":
 								jailMark({_p}, "c4")
 						if jailZone("punchhole", {_l}) is true:
-							if jbrState("punch") is "open":
+							if jbrState("punch") is "open" or "closing":
 								jailMark({_p}, "parkour")
+						# The dugout: a way out of the lot, not an inner barrier (the method stays the one that got
+						# them into the lot, if any).
+						if jailZone("dighole", {_l}) is true:
+							if jbrState("dig") is "open" or "closing":
+								if jailMarkOf({_p}) is "":
+									jailMark({_p}, "dig")
 
 # ---------- Clicks on the boxes: search spots, the bench, planting, the console ----------
 
@@ -399,7 +417,7 @@ on right click on interaction:
 	set {_mine} to false
 	if {_k} starts with "spot_" or "plant_":
 		set {_mine} to true
-	else if {_k} is "bench" or "console":
+	else if {_k} is "bench" or "console" or "dig":
 		set {_mine} to true
 	{_mine} is true
 	cancel event
@@ -422,6 +440,8 @@ on right click on interaction:
 		jePlantClick(player, subtext of {_k} from characters 7 to (length of {_k}))
 	else if {_k} is "console":
 		jeConsoleClick(player)
+	else if {_k} is "dig":
+		jeDigClick(player)
 
 # The spot's line in prison::spots ("SEARCH_PUTTY|putty|search|search").
 function jeSpotLine(point: text) :: text:
@@ -578,6 +598,11 @@ function jePrompt(p: player):
 		if jbrState("front") is not "open":
 			if jeLeft("cool::front") <= 0:
 				hudBar({_p}, "&eHold right-click &7on the console · open the front gate", 0)
+		stop
+	if jailZone("digapp", {_l}) is true:
+		if jbrState("dig") is "closed":
+			if jeLeft("cool::dig") <= 0:
+				hudBar({_p}, "&eHold right-click &7on the dirt under the fence · dig through", 0)
 		stop
 	if jailHeld({_p}) is "c4":
 		loop {-cfg::prison::breaches::*}:
@@ -850,7 +875,7 @@ function jePunch(p: player, box: text, bl: location):
 		stop
 	delete {-jail::punch::%{_u}%::%{_box}%}
 	if {_box} is "gun":
-		if jbrState("punch") is "open":
+		if jbrState("punch") is "open" or "closing":
 			jailMark({_p}, "parkour")
 			stop
 		jePunchGateOpen()
@@ -866,21 +891,105 @@ function jePunch(p: player, box: text, bl: location):
 		hudBar({_p}, "&aThe gatehouse door's open.", 2)
 		jeLog("fuse-box %{_p}%")
 
-# ---------- The punch gate (F7's gate by the Gun Shop: the parkour's way in) ----------
+# ---------- The punch gate (F7's gate between the Gun Shop and the police station: the parkour's way in) ----------
 
+# Slides open (owner, 2026-10-21: "as wide as the gap between the Gun Shop and the police station, opens with a sliding
+# animation (counts toward its open time)"): a column every punch::slide-ticks from the police station's end north; the
+# every-second pass starts the slide shut so it's closed when punch::open is up.
 function jePunchGateOpen():
 	jbrState("punch") is not "open"
-	jeBlocksOpen("punch")
+	jbrState("punch") is not "closing"
 	set {-jailbr::state::punch} to "open"
 	set {-jailbr::opento::punch} to jailDate(jeSecs("prison::punch::open"))
 	set {-jailbr::cool::punch} to jailDate(jeSecs("prison::punch::cooldown"))
 	set {_l} to jailPt("PUNCH_IN")
 	if {_l} is set:
-		play sound "block.iron_door.open" with volume 1.5 at {_l}
+		play sound "block.piston.extend" with volume 1.5 at {_l}
 	jeLog("punch-gate open")
+	jePunchSlide(true)
 
-# Closes at once (its 8 s were counted down): prisoners in the gateway back to PUNCH_STAND, cops home.
+# How long one slide takes, in seconds (the columns × punch::slide-ticks).
+function jePunchSlideSecs() :: number:
+	set {_n} to 0
+	loop {-jailbreach::punch::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_zs::%{_a::3}%} to true
+	set {_n} to size of {_zs::*}
+	return {_n} * cfg("prison::punch::slide-ticks") / 20
+
+# The slide, a column at a time: open (from the police station's end, z high to low) or shut (the other way). A newer
+# slide or an instant close stops an older one ({-jailbr::slidegen::punch}). Shutting, a column is cleared first: a
+# prisoner in it goes to the side of the gate they're on (past the middle: the annex side), a guard home.
+function jePunchSlide(open: boolean):
+	set {_w} to jailWorld()
+	{_w} is set
+	add 1 to {-jailbr::slidegen::punch}
+	set {_gen} to {-jailbr::slidegen::punch}
+	set {_tk} to cfg("prison::punch::slide-ticks")
+	set {_zmin} to 999999
+	set {_zmax} to -999999
+	loop {-jailbreach::punch::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_z} to {_a::3} parsed as number
+		set {_zmin} to min({_zmin}, {_z})
+		set {_zmax} to max({_zmax}, {_z})
+	{_zmax} >= {_zmin}
+	set {_cols} to {_zmax} - {_zmin} + 1
+	loop {_cols} times:
+		{-jailbr::slidegen::punch} is {_gen}
+		if {_open} is true:
+			set {_cz} to {_zmax} - loop-number + 1
+		else:
+			set {_cz} to {_zmin} + loop-number - 1
+			jePunchColumnClear({_cz})
+		loop {-jailbreach::punch::*}:
+			set {_a::*} to loop-value-2 split at "|"
+			if ({_a::3} parsed as number) is {_cz}:
+				set {_bl} to location({_a::1} parsed as number, {_a::2} parsed as number, {_cz}, {_w})
+				if {_open} is true:
+					update block at {_bl} as air[]
+				else:
+					set {_bd} to {_a::4} parsed as block data
+					if {_bd} is set:
+						update block at {_bl} as {_bd}
+		if mod(loop-number, 4) is 1:
+			set {_sl} to location(339.5, 66, {_cz} + 0.5, {_w})
+			play sound "block.chain.step" with volume 1 and pitch 0.7 at {_sl}
+		wait 1 tick * {_tk}
+	{-jailbr::slidegen::punch} is {_gen}
+	if {_open} is false:
+		set {-jailbr::state::punch} to "closed"
+		delete {-jailbr::opento::punch}
+		set {_l} to jailPt("PUNCH_IN")
+		if {_l} is set:
+			play sound "block.piston.contract" with volume 1.5 at {_l}
+		jeLog("punch-gate closed")
+
+# Before a column of the gate comes back: whoever stands in it moves to their side (a prisoner past the gate's middle,
+# x 339.5, to the annex side), a guard home.
+function jePunchColumnClear(cz: number):
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_c} to location(339.5, 66, {_cz} + 0.5, {_w})
+	loop all players in radius 3 around {_c}:
+		set {_pl} to location of loop-player
+		if floor(z-coordinate of {_pl}) is {_cz}:
+			if abs((x-coordinate of {_pl}) - 339.5) < 0.8:
+				if jailExempt(loop-player) is false:
+					set {_x} to 338.2
+					if x-coordinate of {_pl} >= 339.5:
+						set {_x} to 340.8
+					teleport loop-player to location({_x}, y-coordinate of {_pl}, z-coordinate of {_pl}, {_w}, yaw of loop-player, pitch of loop-player)
+	loop all entities in radius 3 around {_c}:
+		if jailCopId(loop-entity) is not "":
+			if floor(z-coordinate of loop-entity) is {_cz}:
+				if abs((x-coordinate of loop-entity) - 339.5) < 0.8:
+					jeCopHome(loop-entity)
+
+# Closes at once (staff, /dprison breach, tests; the slide stops): prisoners in the gateway back to PUNCH_STAND, cops
+# home.
 function jePunchGateClose():
+	add 1 to {-jailbr::slidegen::punch}
 	set {_to} to jailPt("PUNCH_STAND")
 	set {_w} to jailWorld()
 	loop all players:
@@ -891,7 +1000,7 @@ function jePunchGateClose():
 						teleport loop-player to {_to}
 	set {_l} to jailPt("PUNCH_IN")
 	if {_l} is set:
-		loop all entities in radius 8 around {_l}:
+		loop all entities in radius 16 around {_l}:
 			if jailCopId(loop-entity) is not "":
 				if jailZone("punchhole", location of loop-entity) is true:
 					jeCopHome(loop-entity)
@@ -900,6 +1009,86 @@ function jePunchGateClose():
 	set {-jailbr::state::punch} to "closed"
 	delete {-jailbr::opento::punch}
 	jeLog("punch-gate closed")
+
+# ---------- The dugout (under the lot's west fence: a way out that skips the front gate) ----------
+
+# Owner, 2026-10-21: "a ladder or dugout under one lot fence, a way out that bypasses the front gate for players with no
+# keycard, as easy as the gate". Down the shaft at the lot's west edge, hold right-click on the packed dirt under the
+# fence (prison::dig::hold, an act the guards notice): it's open prison::dig::open, then caves in (a warning
+# prison::dig::warn before) and can't be dug again for prison::dig::cooldown.
+function jeDigClick(p: player):
+	if jbrState("dig") is "open":
+		hudBar({_p}, "&7It's open. Go!", 1)
+		stop
+	if jeLeft("cool::dig") > 0:
+		set {_cl} to ceil(jeLeft("cool::dig"))
+		hudBar({_p}, "&7It just caved in. Try again in %{_cl}%s.", 1)
+		stop
+	jailAct({_p}, "dig")
+	set {_need} to jeSecs("prison::dig::hold")
+	if jailHold({_p}, "dig", {_need}) is false:
+		jailHoldBar({_p}, "Digging under the fence", {_need})
+		stop
+	jbrDigOpen()
+	jailMark({_p}, "dig")
+	hudBar({_p}, "&a&lDUG THROUGH &7· it won't hold long", 2)
+	jeLog("dig %{_p}% %uuid of {_p}%")
+
+function jbrDigOpen():
+	jbrState("dig") is not "open"
+	jeBlocksOpen("dig")
+	set {-jailbr::state::dig} to "open"
+	set {-jailbr::opento::dig} to jailDate(jeSecs("prison::dig::open"))
+	set {_l} to jailPt("DUG_FACE")
+	if {_l} is set:
+		play sound "block.rooted_dirt.break" with volume 1.5 at {_l}
+		draw 20 poof particles with offset vector(0.6, 0.6, 0.3) at {_l}
+	jeLog("dig open")
+
+# Due: "caving in" to whoever is near, then it closes (the hole rule first: a prisoner past the fence's line escapes,
+# the rest go back to the lot side of the tunnel, free players out, guards home).
+function jbrDigWarn():
+	jbrState("dig") is "open"
+	set {-jailbr::state::dig} to "closing"
+	set {_ws} to jeSecs("prison::dig::warn")
+	set {_l} to jailPt("DUG_FACE")
+	if {_l} is set:
+		play sound "block.gravel.break" with volume 1.5 at {_l}
+		loop all players:
+			if world of loop-player is world of {_l}:
+				if distance between loop-player and {_l} <= 12:
+					hudBar(loop-player, "&eThe tunnel's caving in: %{_ws}%s", 2)
+	wait 1 second * {_ws}
+	jbrState("dig") is "closing"
+	jbrDigClose()
+
+function jbrDigClose():
+	set {_w} to jailWorld()
+	{_w} is set
+	set {_in} to jailPt("DUG_FACE")
+	set {_out} to jailPt("DUG_OUT")
+	loop all players:
+		if world of loop-player is {_w}:
+			if jailZone("dighole", location of loop-player) is true:
+				jailEscapeCheck(loop-player)
+				set {_s} to jailState(loop-player)
+				if {_s} is "course" or "in":
+					if {_in} is set:
+						teleport loop-player to {_in}
+				else if jailExempt(loop-player) is false:
+					if {_out} is set:
+						teleport loop-player to {_out}
+	if {_in} is set:
+		loop all entities in radius 8 around {_in}:
+			if jailCopId(loop-entity) is not "":
+				if jailZone("dighole", location of loop-entity) is true:
+					jeCopHome(loop-entity)
+		play sound "block.gravel.place" with volume 1.5 at {_in}
+	jeBlocksRestore("dig")
+	set {-jailbr::state::dig} to "closed"
+	delete {-jailbr::opento::dig}
+	set {-jailbr::cool::dig} to jailDate(jeSecs("prison::dig::cooldown"))
+	jeLog("dig closed")
 
 # ---------- The gatehouse console and the front gate ----------
 
@@ -999,11 +1188,16 @@ every second:
 			if {_due} is set:
 				if {_due} <= now:
 					jbrGateWarn(loop-value)
-	if jbrState("punch") is "open":
+	if jbrState("dig") is "open":
+		if jeLeft("opento::dig") <= 0:
+			jbrDigWarn()
+	if jbrState("punch") is "open" or "closing":
 		set {_left} to jeLeft("opento::punch")
-		if {_left} <= 0:
-			jePunchGateClose()
-		else:
+		if jbrState("punch") is "open":
+			if {_left} <= jePunchSlideSecs():
+				set {-jailbr::state::punch} to "closing"
+				jePunchSlide(false)
+		if {_left} > 0:
 			set {_g} to jailPt("PUNCH_IN")
 			if {_g} is set:
 				loop all players:

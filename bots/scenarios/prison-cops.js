@@ -16,6 +16,11 @@
 // lose-cops grace ("once the player loses the cops after getting the keycard, the other cops wont arrest if they see the
 // player again, unless he is actively holding contraband in his hand"); Sparks' Scrap Metal held out is contraband, his
 // Duct Tape isn't.
+// 2026-10-21 (the owner's prison playtest; untested (cloud)): 20 guards (twice the old 10), 30 while more than 3 players
+// are in the prison (the busy routes; here the threshold set to 0); guards see through bars and fences (a wall of iron
+// bars in the lot hides nobody, stone does); any weapon held out in front of a guard is like contraband; a gun seen makes
+// the prisoner ARMED: the hunting guards stronger (armed::health) and 3 extra guards spawn to hunt, all gone again once
+// the prisoner is calm. The rest of the checks run on the old 10 routes (they name them).
 const { start, field, sleep } = require('../prisonlib')
 
 const A = 'PcCopA'
@@ -53,14 +58,27 @@ module.exports = async ({ check }) => {
     for (const n of [A, B, L]) await cmd(`zzclear ${n}`)
     await cmd(`zzjail ${A} own Combat_Knife`)
 
-    // ---------- the roster: 10 cops once someone is in the prison ----------
+    // ---------- the roster: 20 cops once someone is in the prison, 30 while it's busy ----------
+    await cmd('zzcfgreload') // core.sk's rosters (a test before may have narrowed them)
     await cmd('djailcops removeall')
     await sleep(500)
     check('setup: no prison cops', /known=0/.test(await cmd('zzjailcops')), await cmd('zzjailcops'))
     await into(A, 205.5, 65, 150.5, 0)
     const t0 = Date.now()
-    const ten = await until(async () => /known=10/.test(await cmd('zzjailcops')), 90000, 2000)
-    check('an inmate in the prison: 10 cops known within 90 s', ten, `${await cmd('zzjailcops')} after ${Date.now() - t0} ms`)
+    const twenty = await until(async () => /known=20/.test(await cmd('zzjailcops')), 150000, 2000)
+    check('an inmate in the prison: 20 cops known within 150 s (twice the old 10)', twenty, `${await cmd('zzjailcops')} after ${Date.now() - t0} ms`)
+    // Busy: more prisoners than busy-players (0 here: the one inmate) -> the busy routes get theirs too.
+    const busyRoutes = 'fieldr hallar plazar cafer lotw lote annex lotr gater w67r'
+    const busySet = await cmd(`zzjailbusy ${busyRoutes} 0`)
+    const thirty = await until(async () => /known=30/.test(await cmd('zzjailcops')), 120000, 2000)
+    check('busy (more prisoners than busy-players): 30 cops known', /busy=true/.test(busySet) && thirty, `${busySet} | ${await cmd('zzjailcops')}`)
+    await cmd('zzjailbusy none 3')
+    const back20 = await until(async () => /known=20/.test(await cmd('zzjailcops')), 30000, 1000)
+    check('...not busy any more: the busy routes\' guards go (20 again)', back20, await cmd('zzjailcops'))
+    // The checks below name the old 10 routes.
+    await cmd('zzjailroster yardn yards walk w5 w67 hallb poldesk poloffice gate lot')
+    const ten = await until(async () => /known=10/.test(await cmd('zzjailcops')), 20000, 1000)
+    check('...a test roster of 10: the others removed', ten, await cmd('zzjailcops'))
     allLog.mark()
 
     // ---------- patrols; a calm inmate is left alone ----------
@@ -76,6 +94,45 @@ module.exports = async ({ check }) => {
     const hpA = a.health
     await sleep(4000)
     check('a calm inmate next to a cop: not hostile, not attacked', !(await hostile(A)) && a.health >= hpA, `${await info(A)} hp ${hpA} -> ${a.health}`)
+
+    // ---------- weapons in hand: like contraband; a gun makes you ARMED (stronger hunters, 3 more guards) ----------
+    const ynId = await copId('yardn')
+    await cmd(`zzconsole npc speed 0.01 --id ${ynId}`)
+    const yw = await copAt('yardn')
+    await rotate('yardn', 0) // facing south (+z)
+    await sleep(400)
+    await cmd(`wm give ${A} Combat_Knife 1 {slot:0}`)
+    a.setQuickBarSlot(1)
+    await jtp(A, yw[0].toFixed(1), 65, (yw[2] + 6).toFixed(1), 180)
+    await calm(A)
+    logs.cops.mark()
+    a.setQuickBarSlot(0)
+    const knifeH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-held-wpn:Combat_Knife by=${ynId}`)), 4000, 100)
+    check('a melee weapon held out in front of a guard: hostile (why=seen-held-wpn:Combat_Knife), not ARMED', knifeH && !logs.cops.has(new RegExp(`armed ${A}`)), logs.cops.since().split('\n').filter(x => /hostile|armed/.test(x)).join(' / '))
+    a.setQuickBarSlot(1)
+    await calm(A)
+    await cmd(`zzjail ${A} own 50_GS`)
+    await cmd(`wm give ${A} 50_GS 1 {slot:1}`)
+    await sleep(300)
+    const known0 = Number((await cmd('zzjailcops')).match(/known=(\d+)/)[1])
+    logs.cops.mark()
+    let since0 = Date.now()
+    a.setQuickBarSlot(1)
+    const gunH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-held-wpn:50_GS`)) && logs.cops.has(new RegExp(`armed ${A} \\S+ why=seen-gun`)), 4000, 100)
+    const buffed = await until(() => logs.cops.has(new RegExp(`buff id=${ynId}`)), 3000, 100)
+    check('a gun held out in front of a guard: hostile and ARMED (the title), the hunting guard stronger (buff)', gunH && buffed && said(a, /ARMED/, since0), logs.cops.since().split('\n').filter(x => /hostile|armed|buff/.test(x)).join(' / '))
+    const extra = await until(async () => Number((await cmd('zzjailcops')).match(/known=(\d+)/)[1]) >= known0 + 3, 30000, 1000)
+    check('...and 3 extra guards spawn to hunt them', extra && logs.cops.has(/spawn armed\d+ id=/), `${known0} -> ${await cmd('zzjailcops')} | ${logs.cops.since().split('\n').filter(x => /spawn/.test(x)).slice(-4).join(' / ')}`)
+    a.setQuickBarSlot(2)
+    await calm(A)
+    const extrasGone = await until(() => logs.cops.has(/armed-done/), 6000, 200)
+    const unbuffed = await until(() => logs.cops.has(new RegExp(`unbuff id=${ynId}`)), 4000, 200)
+    const knownBack = await until(async () => Number((await cmd('zzjailcops')).match(/known=(\d+)/)[1]) === known0, 15000, 1000)
+    check('...calm again: the extra guards go and the guard is back to its normal health', extrasGone && unbuffed && knownBack, `${await cmd('zzjailcops')} | ${logs.cops.since().split('\n').filter(x => /armed-done|unbuff/.test(x)).join(' / ')}`)
+    await cmd(`minecraft:clear ${A} minecraft:feather`)
+    await cmd(`minecraft:clear ${A} minecraft:amethyst_shard`)
+    await cmd(`zzconsole npc speed 1 --id ${ynId}`)
+    await calm(A)
 
     // ---------- restricted: the police station ----------
     logs.cops.mark()
@@ -105,6 +162,29 @@ module.exports = async ({ check }) => {
     const front = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${lotId}`)), 4000)
     check('in the lot behind the LOT cop: not hostile', !behind, `${lc} yaw ${ly}`)
     check('...in front of it: hostile (the lot is restricted)', front, logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / '))
+    await calm(A)
+    // Through bars (owner, 2026-10-21: guards see through gates, fences and bars): a wall of iron bars between the LOT
+    // guard and the inmate hides nobody; stone does.
+    await cmd(`zzconsole npc speed 0.01 --id ${lotId}`)
+    lc = await copAt('lot')
+    const bx = Math.round(lc[0] + fwd * 6)
+    const lz = Math.floor(lc[2])
+    await cmd(`execute in minecraft:jailbreak run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:iron_bars`)
+    await into(A, (lc[0] + fwd * 12).toFixed(1), 65, lc[2].toFixed(1), 0)
+    await calm(A)
+    logs.cops.mark()
+    const sb = await cmd(`zzjailsees lot ${A}`)
+    const barsH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${lotId}`)), 4000, 100)
+    check('through a wall of iron bars: still seen (los=false, fence=true) and hostile', /los=false/.test(sb) && /fence=true/.test(sb) && barsH, `${sb} | ${logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / ')}`)
+    await calm(A)
+    await cmd(`execute in minecraft:jailbreak run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:stone`)
+    logs.cops.mark()
+    const ss = await cmd(`zzjailsees lot ${A}`)
+    await sleep(2500)
+    const stoneH = logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${lotId}`))
+    check('...a stone wall there instead: hidden (fence=false), not hostile', /fence=false/.test(ss) && !stoneH, ss)
+    await cmd(`execute in minecraft:jailbreak run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:air`)
+    await cmd(`zzconsole npc speed 1 --id ${lotId}`)
     await calm(A)
     // Hunted in a far corner of the lot nobody sees: calm 20 s later (the lot isn't a no-lose zone).
     await into(A, 125.5, 65, 385.5, 0)
@@ -775,16 +855,17 @@ module.exports = async ({ check }) => {
   } finally {
     const walkLeft = await copId('walk') // the Gun Shop stray check slows it: never leave it slowed
     if (walkLeft) await cmd(`zzconsole npc speed 1 --id ${walkLeft}`)
+    for (const r of ['yardn', 'lot']) { const id = await copId(r); if (id) await cmd(`zzconsole npc speed 1 --id ${id}`) }
     await cmd('zzcfgtime jailcop::idle-despawn 10 minutes')
     await cmd('zzcfgtime jailcop::arrest::grab 2 seconds')
     await cmd('zzcfgtime jailcop::arrest::stun-grab 2.5 seconds')
     await cmd('zzcfgtime jailcop::lose::time 20 seconds')
     await cmd('zzcfgtime jailcop::stray::time 20 seconds')
-    await cmd('zzjailroster yardn yards walk w5 w67 hallb poldesk poloffice gate lot')
     await cmd('zzcfgset jailcop::arrest::range 2.5')
     await cmd('zzcfgset jailcop::arrest::grab-range 2')
     await cmd('zzcfgset jailcop::taser::min 2.5')
     await cmd('zzcfgset jailcop::gun::range 24')
+    await cmd('zzcfgreload') // core.sk's rosters (20, the busy 10) and numbers again (the prison switch stays)
     await t.prisonRestore()
     for (const n of [A, B, L]) if (t.bots[n]) await cmd(`zzjail ${n} state off`)
     await t.close()

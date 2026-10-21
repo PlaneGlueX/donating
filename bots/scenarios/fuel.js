@@ -4,6 +4,8 @@
 // 4 L a second, paid as it flows ($25 a liter), up to full (40 L = $1,000), the meter over the pump, the receipt and the
 // phone back on hanging up, the nozzle going back by itself (walking off), the money running out, the refusals (combat),
 // driving: the model's usage and the switch on, the level going down with the pedal, and the garage's Refuel button.
+// 2026-10-21: burns 2-4x slower (the Sedan 48 minutes a tank, was 12) and the Fuel Tank upgrade on the Tune page
+// (stage I: tank x 1.2, 10% less fuel a minute: 60 L, 64 minutes, the liters kept). Untested (cloud).
 const { Vec3 } = require('vec3')
 const fs = require('fs')
 const path = require('path')
@@ -85,7 +87,7 @@ module.exports = async ({ check }) => {
     await sleep(500)
     await cmd(`dfuel car ${plate} 20`)
     const f0 = await fuelOf()
-    check('a car takes fuel: /dfuel car turns it on with the Sedan\'s usage (100 / (12 x 1200)) and sets 20%', field(f0, 'enabled') === 'true' && Math.abs(Number(field(f0, 'level')) - 20) < 0.01 && Math.abs(Number(field(f0, 'usage')) - 0.00694) < 0.0001, f0)
+    check('a car takes fuel: /dfuel car turns it on with the Sedan\'s usage (100 / (48 x 1200)) and sets 20%', field(f0, 'enabled') === 'true' && Math.abs(Number(field(f0, 'level')) - 20) < 0.01 && Math.abs(Number(field(f0, 'usage')) - 0.0017361) < 0.00002, f0)
     await cmd(`eco set ${A} 5000`)
     await tp(7811.5, 7806.5)
 
@@ -147,7 +149,7 @@ module.exports = async ({ check }) => {
     await sleep(500)
     const after = await level()
     s = await state()
-    check('driving: the level goes down while the pedal is held (about 0.14% a second for a Sedan), and fuel.sk knows it (pct)', after < before && before - after < 3 && field(s, 'pct') !== '', `before=${before} after=${after} ${s}`)
+    check('driving: the level goes down while the pedal is held (about 0.035% a second for a Sedan), and fuel.sk knows it (pct)', after < before && before - after < 0.5 && field(s, 'pct') !== '', `before=${before} after=${after} ${s}`)
     t = Date.now()
     await cmd(`dfuel car ${plate} 10`)
     await sleep(2200)
@@ -184,6 +186,25 @@ module.exports = async ({ check }) => {
       bot.clickWindow(15, 0, 0).catch(() => {})
       await sleep(900)
       check('Refuel needs a second click from $1,000 up, then the tank is full and $1,250 paid', armed && Math.abs((await level()) - 100) < 0.05 && (await bal()) === 5000 - price, `armed=${armed} level=${await level()} bal=${await bal()}`)
+
+      // ---------- The Fuel Tank upgrade (Tune, slot 14): $2,000 for stage I (the minimum) ----------
+      const balBefore = await bal()
+      const tuneOpen = new Promise(resolve => { const timer = setTimeout(() => resolve(null), 4000); bot.once('windowOpen', x => { clearTimeout(timer); resolve(x) }) })
+      bot.clickWindow(13, 0, 0).catch(() => {})
+      const tune = await tuneOpen
+      await sleep(300)
+      const tb = tune && tune.slots[14]
+      const tbText = tb ? JSON.stringify(tb) : ''
+      check('the Tune page has the Fuel Tank I at slot 14 for $2,000', Boolean(tb) && /Fuel Tank I/.test(tbText) && /2,000/.test(tbText), tbText.slice(0, 300))
+      if (tune) {
+        bot.clickWindow(14, 0, 0).catch(() => {})
+        await sleep(700)
+        const armedT = bot.currentWindow && bot.currentWindow.slots[14] && bot.currentWindow.slots[14].name === 'lime_concrete'
+        bot.clickWindow(14, 0, 0).catch(() => {})
+        await sleep(900)
+        const f1 = await fuelOf()
+        check('Fuel Tank I: a second click, $2,000 paid, 60 L and 64 minutes a tank, the 50 L kept (83.33%)', armedT && (await bal()) === balBefore - 2000 && /tank=60(\.0+)?L/.test(f1) && /burn=64(\.0+)?min/.test(f1) && Math.abs(Number(field(f1, 'level')) - 83.33) < 0.1 && Math.abs(Number(field(f1, 'usage')) - 100 / (64 * 1200)) < 0.00002, `armed=${armedT} bal=${await bal()} ${f1}`)
+      }
     }
   } finally {
     if (bot) { try { bot._client.write('player_input', { inputs: { forward: false, backward: false, left: false, right: false, jump: false, shift: false, sprint: false } }) } catch (e) { } }

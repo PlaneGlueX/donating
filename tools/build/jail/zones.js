@@ -56,9 +56,15 @@ const ZONES = {
   police: [[195, 63, 285, 338, 85, 322], [252, 63, 286, 300, 85, 334]],
   annex: [[340, 63, 237, 380, 95, 348]],
   staff: [[43, 64, 88, 78, 72, 119]],
-  punchbox: [[334, 65, 252, 334, 67, 256]],
-  punchapp: [[336, 64, 262, 338, 68, 267]],
-  punchhole: [[338, 64, 262, 340, 71, 267]],
+  // The punch gate spans the gap between the Gun Shop and the police station (2026-10-21, z 260..284); its punch box
+  // and reader stand at its south end on the police station's apron.
+  punchbox: [[333, 65, 284, 337, 67, 284]],
+  punchapp: [[335, 64, 260, 338, 68, 283]],
+  punchhole: [[338, 64, 260, 340, 72, 284]],
+  // The dugout under F3 (2026-10-21): the plug (breach "dig") and the tunnel's cells next to it (dighole: the cave-in
+  // moves whoever is there; a pass while it's open marks the method), the lot-side shaft and tunnel end (digapp).
+  dighole: [[108, 61, 360, 111, 64, 360]],
+  digapp: [[112, 61, 359, 114, 66, 361]],
   parkour: [[344, 64, 327, 368, 80, 354]],
   plantgate: [[174, 64, 317, 182, 68, 321]],
   gatehole: [[176, 64, 321, 180, 71, 323]],
@@ -84,7 +90,8 @@ const ZONES = {
 // The rubble a blast leaves: walkable slabs (and one bar) on air cells with ground under them, so it never blocks the hole.
 const BREACHES = {
   gate: [[176, 65, 322, 180, 71, 322]], // the inner vehicle gate between the plaza and the lot (the C4 target)
-  punch: [[339, 65, 263, 339, 70, 266]], // F7's punch gate by the Gun Shop (the parkour's way in)
+  punch: [[339, 65, 260, 339, 71, 284]], // F7's punch gate between the Gun Shop and the police station (the parkour's way in)
+  dig: [[109, 62, 360, 111, 63, 360]], // the dugout's plug under F3 (a way out of the lot that skips the front gate)
   front: [[253, 65, 396, 267, 71, 396], [277, 65, 396, 291, 71, 396]] // the front gate's two panels (the y 64 track stays)
 }
 const RUBBLE = {

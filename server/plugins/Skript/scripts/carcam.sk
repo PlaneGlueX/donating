@@ -69,7 +69,11 @@ function carcamHud(p: player):
 		set {_fuel} to " &7· &6⛽ &f%{_f}%%%"
 		if {_f} < cfg("fuel::low"):
 			set {_fuel} to " &7· &c⛽ %{_f}%%%"
-	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}%%{_fuel}% &7· Sneak: get out", -1)
+	# F locks your own car (garage.sk, 2026-10-21); a stolen one has no lock.
+	set {_keys} to "Sneak: get out"
+	if itemId(slot 8 of {_p}'s inventory) starts with "carkey:":
+		set {_keys} to "R: map · F: lock · Sneak: out"
+	hudBar({_p}, "&c❤ &f%{_h}%&7/%{_m}%%{_fuel}% &7· %{_keys}%", -1)
 	if getData({_p}, "carcam-tip3") is not set:
 		setData({_p}, "carcam-tip3", true)
 		msg({_p}, "&7Chase camera: it follows your car. &f/carcam off &7for first person.")

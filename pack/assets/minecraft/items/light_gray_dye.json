@@ -290,6 +290,13 @@
           "type": "minecraft:model",
           "model": "donating:item/app/stats"
         }
+      },
+      {
+        "when": "donating:app_trash",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/app/trash"
+        }
       }
     ],
     "fallback": {

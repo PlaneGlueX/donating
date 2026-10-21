@@ -47,6 +47,9 @@ function progEvent(p: player, ev: text, n: number, detail: text):
 		set {_own} to progOwnTake({_p}, {_detail}, {_n})
 	seasonEvent({_p}, {_ev}, {_n}, {_detail})
 	storyEvent({_p}, {_ev}, {_n}, {_detail})
+	# The prison's head start (jailjobs.sk: Sparks, Rusty, Whisper, Tank, the Gun Shop; 2026-10-21).
+	if {_ev} starts with "jail" or "jjob":
+		jjHeadEvent({_p}, {_ev}, {_detail})
 	jobsEvent({_p}, {_ev}, {_n}, {_detail}, {_own})
 	fenceEvent({_p}, {_ev}, {_n}, {_detail}, {_own})
 

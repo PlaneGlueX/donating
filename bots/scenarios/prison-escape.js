@@ -72,7 +72,8 @@ module.exports = async ({ check }) => {
       ['the punch gate', [336.5, 65, 264.5, -90], [342.5, 264.5], p => p[0] < 339.5],
       ['the gatehouse door', [272.5, 65, 389.5, 0], [272.5, 395.5], p => p[2] < 392.9],
       ['the front gate', [260.5, 65, 393.5, 0], [260.5, 400.5], p => p[2] < 396.5],
-      ['the Gun Shop door (keycard-only)', [316.5, 65, 262.5, 180], [316.5, 252.5], p => p[2] > 258.1]
+      ['the Gun Shop door (keycard-only)', [316.5, 65, 262.5, 180], [316.5, 252.5], p => p[2] > 258.1],
+      ['the dugout\'s dirt plug (2026-10-21)', [112.5, 62, 360.5, 90], [106.5, 360.5], p => p[0] > 111.2]
     ]
     for (const [name, at, to, inside] of tries) {
       await jtp(E1, ...at)
@@ -366,21 +367,27 @@ module.exports = async ({ check }) => {
     await cmd(`zzjail ${E2} strip`)
 
     // ---------- the parkour ----------
+    // Since 2026-10-21 (the owner's playtest): the gate fills the gap between the Gun Shop and the police station (x 339,
+    // z 260-284, 25 columns), opens with a slide from the police end (a column every 2 ticks, inside its 12 s), and the
+    // punch box stands on the police apron to the right of it (PUNCH_STAND 335.5 65 282.5, the box at z 284). Untested (cloud).
     await cmd(`zzhp ${E2} 20`)
-    await jtp(E2, 335.5, 65, 254.5, 90)
-    await t.copTo('walk', 336.5, 65, 258.5)
+    await jtp(E2, 335.5, 65, 282.5, 0)
+    await t.copTo('walk', 334.5, 65, 274.5)
     await sleep(1500)
     hp0 = e2.health
     since = Date.now()
-    for (let i = 0; i < 3; i++) { punch(e2, 334, 66, 254, 5); await sleep(250) }
+    for (let i = 0; i < 3; i++) { punch(e2, 335, 66, 284, 2); await sleep(250) }
     await sleep(500)
     check('the punch box with the WALK cop next to it: "A guard\'s watching", no shock', said(e2, /A guard's watching/, since) && e2.health >= hp0, `hp ${hp0} -> ${e2.health}`)
     await t.copTo('walk', 180.5, 65, 310.5)
     await sleep(1500)
     hp0 = e2.health
-    for (let i = 0; i < 10; i++) { punch(e2, 334, 66, 254, 5); await sleep(250) }
+    for (let i = 0; i < 10; i++) { punch(e2, 335, 66, 284, 2); await sleep(250) }
     const pg = await until(async () => /state=open/.test(await breach('punch')), 1500)
-    check('the WALK cop away: 10 punches shock and open the punch gate', pg && e2.health <= hp0 - 2 && /air=24/.test(await breach('punch')), `hp ${hp0} -> ${e2.health} ${await breach('punch')}`)
+    const pg1 = await breach('punch')
+    const partly = Number(field(pg1, 'air')) < Number((pg1.match(/built=\d+\/(\d+)/) || [])[1])
+    const slid = await until(async () => { const b = await breach('punch'); const m = b.match(/built=\d+\/(\d+) air=(\d+)/); return m && m[1] === m[2] }, 4000, 200)
+    check('the WALK cop away: 10 punches shock and open the punch gate, sliding open (not all at once, all of it within 4 s)', pg && e2.health <= hp0 - 2 && partly && slid && /\/175 /.test(pg1), `hp ${hp0} -> ${e2.health} | ${pg1} | ${await breach('punch')}`)
     await jtp(E2, 336.5, 65, 264.5, -90)
     await sleep(600)
     ok = await walk(e2, [[342.5, 264.5]], 3500)
@@ -416,6 +423,42 @@ module.exports = async ({ check }) => {
     await sleep(300)
     await state(E1, 'in')
     check('walking up to the punch gate with a keycard opens it too (method parkour)', await until(async () => /state=open/.test(await breach('punch')), 1500) && field(await info(E1), 'mark') === 'parkour', `${await breach('punch')} ${await info(E1)}`)
+    // It slides shut at its time (the slide inside the 12 s): "closing" first, closed with every block back.
+    await breach('punch', 'due')
+    const closingP = await until(async () => /state=closing/.test(await breach('punch')), 2500, 100)
+    const closedP = await until(async () => { const b = await breach('punch'); return /state=closed/.test(b) && /built=175\/175/.test(b) }, 6000, 200)
+    check('...and slides shut at its time ("closing", then every block back)', closingP && closedP, await breach('punch'))
+
+    // ---------- the dugout under the lot's west fence (2026-10-21; untested (cloud)): no keycard, no front gate ----------
+    await state(E1, 'off')
+    await cmd(`zzjail ${E1} strip`)
+    await breach('dig', 'cool')
+    const dg0 = await breach('dig')
+    check('the dugout: its dirt plug stands (state=closed, every block built)', /state=closed/.test(dg0) && /built=(\d+)\/\1 /.test(dg0), dg0)
+    await into(E1, 112.5, 62, 360.5, 90) // DUG_FACE: down the ladder, in the tunnel facing the plug
+    await sleep(1200)
+    since = Date.now()
+    await sleep(800)
+    check('in the tunnel: "Hold right-click on the dirt under the fence"', t.barSince(e1, /dirt under the fence/, since - 800), field(await info(E1), 'lot'))
+    logs.prison.mark()
+    await hold(e1, [111.5, 62.99, 360.5], 6800, 1.5)
+    const dug = await until(async () => /state=open/.test(await breach('dig')), 1500)
+    check('holding right-click 6 s: DUG THROUGH, the plug gone', dug && /air=(\d+)/.test(await breach('dig')) && field(await breach('dig'), 'air') !== '0', await breach('dig'))
+    await walk(e1, [[106.5, 360.5]], 4000)
+    await sleep(800)
+    check('...through the tunnel past the fence line: escaped, method dig', await until(() => logs.prison.has(new RegExp(`escape ${E1} \\S+ dig`)), 3000) && field(await info(E1), 'state') === 'out', `${logs.prison.since()} | ${await info(E1)}`)
+    // The hole rule: an inmate still in the tunnel on the lot side when it caves in goes back to the lot side.
+    await into(E2, 112.5, 62, 360.5, 90)
+    await sleep(600)
+    await breach('dig', 'due')
+    const caving = await until(async () => /state=closing/.test(await breach('dig')), 2500, 100)
+    const shut = await until(async () => /state=closed/.test(await breach('dig')), 6000, 200)
+    const pTun = await pos(E2)
+    check('...caving in: "closing", then shut; an inmate in the tunnel stays on the lot side, still in', caving && shut && pTun && pTun[0] > 111 && field(await info(E2), 'state') === 'in', `${await breach('dig')} ${pTun}`)
+    since = Date.now()
+    await hold(e2, [111.5, 62.99, 360.5], 1500, 1.5)
+    check('...and just after, it refuses ("It just caved in")', t.barSince(e2, /just caved in/, since), field(await breach('dig'), 'cool'))
+    await breach('dig', 'cool')
 
     // ---------- free players ----------
     await t.drop(E3)
