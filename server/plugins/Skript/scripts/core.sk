@@ -59,6 +59,48 @@ function loadSettings():
 	# their gun shows; the gun fires arrows (Sentinel treats it as a bow).
 	set {-cfg::alarm::cops-per-extra-robber} to 2
 	set {-cfg::cop::per-wave} to 2
+	# Assaults (heists.sk, owner 2026-10-21: "implement some aspects of the dynamic police waves", Payday's; ALL
+	# PROPOSALS): after the response time (alarm::warning) assault n sends its pool of
+	#   P = pool + (n - 1) × pool-step + max(0, R - 1) × pool-per-robber cops (R = the players hunted)
+	# per-wave at a time every wave-interval, never more alive than the cap C = max-cops + max(0, R - 3) ×
+	# cops-per-extra-robber + (n - 1) × cap-step, for T = min(assault-max, assault-time + (n - 1) × assault-step) seconds;
+	# it's repelled early once the pool is spent and none of its cops are left. Then a break with no reinforcements:
+	# B = max(break-min, break - (n - 1) × break-step) seconds. Cops of assault n have health × (1 + (n - 1) × health-step)
+	# and damage × (1 + (n - 1) × damage-step), aim better by accuracy-step a time (Sentinel: lower is better, at least
+	# half), and from assault heavy-from on every heavy-every-th cop is a heavy (health-heavy × the health, a helmet and
+	# a vest, the rifle). Each key can be set per difficulty: difficulty::<d>::alarm::<key> (stores below).
+	set {-cfg::alarm::per-wave} to 2
+	set {-cfg::alarm::pool} to 6
+	set {-cfg::alarm::pool-step} to 2
+	set {-cfg::alarm::pool-per-robber} to 2
+	set {-cfg::alarm::cap-step} to 1
+	set {-cfg::alarm::assault-time} to 45
+	set {-cfg::alarm::assault-step} to 15
+	set {-cfg::alarm::assault-max} to 90
+	set {-cfg::alarm::break} to 30
+	set {-cfg::alarm::break-step} to 5
+	set {-cfg::alarm::break-min} to 15
+	set {-cfg::alarm::health-step} to 0.15
+	set {-cfg::alarm::damage-step} to 0.1
+	set {-cfg::alarm::accuracy-step} to 0.1
+	set {-cfg::alarm::heavy-from} to 3
+	set {-cfg::alarm::heavy-every} to 3
+	set {-cfg::alarm::health-heavy} to 2
+	set {-cfg::alarm::heavy-model} to 5
+	# Stores (difficulty 0; the clerk's panic button, clerk.sk): a slower response, a few cops at a time, a short chase,
+	# no heavies.
+	set {-cfg::difficulty::0::alarm::warning} to 30 seconds
+	set {-cfg::difficulty::0::alarm::chase-radius} to 60
+	set {-cfg::difficulty::0::alarm::max-cops} to 3
+	set {-cfg::difficulty::0::alarm::cops-per-extra-robber} to 1
+	set {-cfg::difficulty::0::alarm::per-wave} to 1
+	set {-cfg::difficulty::0::alarm::pool} to 3
+	set {-cfg::difficulty::0::alarm::pool-step} to 1
+	set {-cfg::difficulty::0::alarm::pool-per-robber} to 1
+	set {-cfg::difficulty::0::alarm::assault-time} to 30
+	set {-cfg::difficulty::0::alarm::assault-step} to 10
+	set {-cfg::difficulty::0::alarm::assault-max} to 60
+	set {-cfg::difficulty::0::alarm::heavy-from} to 99
 	set {-cfg::cop::name} to "Cop"
 	set {-cfg::cop::range} to 30
 	set {-cfg::cop::chase} to 120
@@ -554,7 +596,7 @@ function loadSettings():
 	set {-cfg::story::v6_end::obj} to "talk|fence"
 	set {-cfg::story::v6_end::gps} to "fence"
 	set {-cfg::story::v6_end::brief} to "Come by the shop. I've got a proposition."
-	set {-cfg::story::v6_end::talk::*} to "You've got taste, and you don't get caught.", "Here's my list. New names every Thursday." and "Bring me what's on it and I pay over the odds."
+	set {-cfg::story::v6_end::talk::*} to "You've got taste, and you don't get caught.", "Here's my list. New names every week." and "Bring me what's on it and I pay over the odds."
 	set {-cfg::story::v6_end::rewards::*} to "cos|vic_guy", "key|season|1" and "fence|list"
 	# Vic's weekly Wanted List (fence.sk): 3 orders a week for everyone, picked up in person at the Pawn Shop.
 	# A heist order pays heist::rate on up to L1 = min(cap::<d>, pool-share x the pool) of your own loot from it; a
@@ -574,8 +616,17 @@ function loadSettings():
 	set {-cfg::fence::car::tiers::*} to "basic" and "pro"
 	set {-cfg::fence::car::basic::pay} to 6000
 	set {-cfg::fence::car::pro::pay} to 18000
-	# progress.sk: the week turns Thursday 00:00 UTC (seconds added to unix time move it), and run notes are kept
-	# 14 days at most.
+	# clock.sk (owner, 2026-10-21: "a 12 hour clock system for the server (1min = 1sec irl)"): clock::rate game minutes a
+	# real second (a game hour is a real minute, a day 24 minutes, a week 168); the sky is set again once it's clock::drift
+	# game minutes off; clock::sky false leaves every world's time alone; clock::worlds (empty = every world but the
+	# Nether and the End). The game week is progress.sk's week (the hit contracts, Vic's list). Changing the rate moves
+	# the clock (and maybe the week) at once.
+	set {-cfg::clock::rate} to 1
+	set {-cfg::clock::drift} to 3
+	set {-cfg::clock::sky} to true
+	set {-cfg::clock::days::*} to "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" and "Sun"
+	# progress.sk: run notes are kept 14 days at most. (week::offset moved the real Thursday week; since 2026-10-21 the
+	# week is the game clock's: /dclock set or offset moves it.)
 	set {-cfg::week::offset} to 0
 	set {-cfg::progress::run-keep-days} to 14
 	set {-cfg::story::needs-check} to 30
@@ -622,7 +673,7 @@ function loadSettings():
 	set {-cfg::story::c1_rob::obj} to "ev|rob|1"
 	set {-cfg::story::c1_rob::gps} to "heist:store"
 	set {-cfg::story::c1_rob::needs} to "heist"
-	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Grab what fits in your bag and watch for traps."
+	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Smack the clerk, grab the register, and be gone before the cops show."
 	set {-cfg::story::c1_rob::done} to "That's the spirit. Now get out of there."
 	set {-cfg::story::c1_sell::chapter} to 1
 	set {-cfg::story::c1_sell::label} to "Sell your loot at the base"
@@ -1015,6 +1066,35 @@ function loadSettings():
 	set {-cfg::store::empty-grace} to 15 seconds
 	set {-cfg::store::idle-close} to 10 minutes
 	set {-cfg::store::no-pvp} to true
+	# The clerk (clerk.sk, owner 2026-10-21: Payday's stores; ALL PROPOSALS): a store with a clerk spot (/dclerk) keeps
+	# its register shut until someone hits the clerk; then the register opens, the clerk hits the panic button
+	# (store::police: the store's alarm, difficulty::0::alarm::* above) and runs to the shelves to throw things (one
+	# throw every clerk::every at most, clerk::damage HP a hit that lands, clerk::spread blocks of miss, within
+	# clerk::range); another hit makes them duck for clerk::stun. clerk::give-up failed spawns open the register without
+	# a clerk. store::clerk false: stores without clerks (the register open to anyone, as before).
+	set {-cfg::store::clerk} to true
+	set {-cfg::store::police} to true
+	set {-cfg::clerk::name} to "Clerk"
+	set {-cfg::clerk::skin-fallback} to "bag"
+	set {-cfg::clerk::speed} to 1.35
+	set {-cfg::clerk::range} to 14
+	set {-cfg::clerk::every} to 1.5 seconds
+	set {-cfg::clerk::stun} to 3 seconds
+	set {-cfg::clerk::throw-speed} to 1.0
+	set {-cfg::clerk::spread} to 0.6
+	set {-cfg::clerk::damage} to 1.5
+	set {-cfg::clerk::give-up} to 3
+	# What they throw: a Citizens item id (in their hand) and the item the thrown snowball shows.
+	set {-cfg::clerk::props::*} to "honey_bottle", "glass_bottle", "cookie", "bread", "apple" and "melon_slice"
+	set {-cfg::clerk::prop-item::honey_bottle} to honey bottle
+	set {-cfg::clerk::prop-item::glass_bottle} to glass bottle
+	set {-cfg::clerk::prop-item::cookie} to cookie
+	set {-cfg::clerk::prop-item::bread} to bread
+	set {-cfg::clerk::prop-item::apple} to apple
+	set {-cfg::clerk::prop-item::melon_slice} to melon slice
+	set {-cfg::clerk::lines::panic::*} to "Okay, okay! Don't hurt me!", "Not again..." and "The money's not even mine!"
+	set {-cfg::clerk::lines::throw::*} to "Get out of my store!", "Take THIS!" and "I called the cops!"
+	set {-cfg::clerk::lines::duck::*} to "Ow! Stop it!" and "Okay! Okay!"
 	set {-cfg::difficulty::2::level} to 5
 	# Owner, 2026-09-28: heists 0 / 5 / 20 / 45 (difficulty 1-4).
 	set {-cfg::difficulty::3::level} to 20
@@ -2053,7 +2133,7 @@ function loadSettings():
 	# number of chances to catch the target changes. Pay is never boosted and gives no season points.
 	set {-cfg::hit::tiers::*} to "easy", "medium" and "hard"
 	set {-cfg::hit::easy::name} to "Easy contract"
-	set {-cfg::hit::easy::when} to "In town twice a day, an hour each time"
+	set {-cfg::hit::easy::when} to "In town twice a day, 5 hours each time"
 	set {-cfg::hit::easy::windows} to 14
 	set {-cfg::hit::easy::level} to 15
 	set {-cfg::hit::easy::pay} to 10000
@@ -2062,7 +2142,7 @@ function loadSettings():
 	set {-cfg::hit::easy::rmin} to 30
 	set {-cfg::hit::easy::tip} to 60
 	set {-cfg::hit::medium::name} to "Medium contract"
-	set {-cfg::hit::medium::when} to "In town once a day, for an hour"
+	set {-cfg::hit::medium::when} to "In town once a day, for 5 hours"
 	set {-cfg::hit::medium::windows} to 7
 	set {-cfg::hit::medium::level} to 30
 	set {-cfg::hit::medium::pay} to 25000
@@ -2071,7 +2151,7 @@ function loadSettings():
 	set {-cfg::hit::medium::rmin} to 40
 	set {-cfg::hit::medium::tip} to 90
 	set {-cfg::hit::hard::name} to "Hard contract"
-	set {-cfg::hit::hard::when} to "In town 5 times a week, an hour each time"
+	set {-cfg::hit::hard::when} to "In town 5 days a week, 5 hours each time"
 	set {-cfg::hit::hard::windows} to 5
 	set {-cfg::hit::hard::level} to 50
 	set {-cfg::hit::hard::pay} to 60000
@@ -2080,13 +2160,17 @@ function loadSettings():
 	set {-cfg::hit::hard::r0} to 200
 	set {-cfg::hit::hard::rmin} to 50
 	set {-cfg::hit::hard::tip} to 120
-	# A window: its length in active seconds, and up to overtime seconds more while the hunter is fighting.
-	set {-cfg::hit::window-length} to 3600
+	# A window: its length in active REAL seconds (clock.sk, 2026-10-21: the days and weeks are the game clock's, a game
+	# hour is a real minute, so 300 = 5 game hours; PROPOSAL, was 3600 real seconds), and up to overtime seconds more
+	# while the hunter is fighting.
+	set {-cfg::hit::window-length} to 300
 	set {-cfg::hit::overtime} to 300
 	# Dying to a bodyguard: L = min(B x death-p, C), C = the bag's capacity (like a death outside a heist).
 	set {-cfg::hit::death-p} to 0.03
-	# Streaks: each week in a row adds streak-bonus to the pay (at most streak-max weeks' worth; one missed week is
-	# forgiven); titles at 3, 6 and 10 weeks; "Hitman" after pro-at Hard takedowns.
+	# Streaks: each contract in a row adds streak-bonus to the pay (at most streak-max contracts' worth); "in a row" =
+	# at most streak-gap game weeks after the last one (8 game weeks = 22.4 real hours: a daily player keeps it; was
+	# one missed real week); titles at 3, 6 and 10 in a row; "Hitman" after pro-at Hard takedowns.
+	set {-cfg::hit::streak-gap} to 8
 	set {-cfg::hit::streak-bonus} to 0.05
 	set {-cfg::hit::streak-max} to 4
 	set {-cfg::hit::streak-titles::*} to "3|hit_streak_3", "6|hit_streak_6" and "10|hit_streak_10"

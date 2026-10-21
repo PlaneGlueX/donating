@@ -98,6 +98,10 @@ Type `/dheist create` in game: it finds `heist_<id>` in the world you stand in. 
 (C) dheist exit donut 435.5 65 804.5 -90
 (C) dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register piece=125 name=Front_register
 (C) dloot check donut
+(C) dclerk donut setat 411.5 65 801.5 -90
+(C) dclerk donut shelfat 410.5 65 796.5
+(C) dclerk donut shelfat 410.5 65 808.5
+(C) dclerk donut shelfat 407.5 65 792.5
 (C) dheist snapshot donut        (the front doors 430 65 804..805 closed)
 (C) dheist holo donut 431.5 67.5 811.5
 (C) dheist enable donut
@@ -108,12 +112,19 @@ Type `/dheist create` in game: it finds `heist_<id>` in the world you stand in. 
 (C) dloot add gas pile 386 65 914 386 65 915 value=1500-2400 style=register name=Register
 (C) dloot add gas pile 380 65 890 380 65 890 value=300-600 style=register name=Lottery_till
 (C) dloot check gas
+(C) dclerk gas setat 384.5 65 915.5 -90
+(C) dclerk gas shelfat 383.5 65 912.5
+(C) dclerk gas shelfat 384.5 65 919.5
+(C) dclerk gas shelfat 377.5 65 909.5
+(C) dclerk gas shelfat 381.5 65 922.5
+(C) dclerk gas shelfat 380.5 65 896.5
 (C) dheist snapshot gas          (the front doors 391 65 907..908 and the staff door 380 65 885 closed)
 (C) dheist holo gas 392.5 69.6 907.5
 (C) dheist enable gas
 ```
 
 - Each store is $1,800-3,000 a run, inside the store pool of $3,000.
+- The clerk (clerk.sk, 2026-10-21): it stands behind the register (the donut's in the aisle behind the counter, the gas station's on the mat behind the checkout), facing the door; the `shelfat` spots are where it runs for something to throw (the back counters, the aisles). The register stays shut until someone hits the clerk; the clerk then calls the police (they come to the exit spot, or to `/dcops <store> add` spots a street corner away).
 - `dheist holo` with x y z puts the hologram exactly there. The donut's floats over the apron, clear of the doorway. The gas station's sits under the sign band.
 - `dheist enable` resets the room from the snapshot, then opens the store.
 
@@ -262,6 +273,7 @@ dphone city scan -40 -30 770 1300 0 jailbreak
 
 - `/dheist info donut` and `/dheist info gas`: both open, with their exits set.
 - `/dloot check donut` and `/dloot check gas`.
+- `/dclerk list`: both stores with a clerk spot and their shelves (3 and 5), and a clerk id once they're open.
 - `/dshopkeeper list`.
 - `dphone path info`, then pin the Gun Shop from the phone in the prison's lot: the route should follow the road through the tunnel.
 - In the client: rob both registers, buy at all four keepers, and shoot in the range (PLAN 12).

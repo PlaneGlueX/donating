@@ -1139,7 +1139,7 @@ command /zzweek [<text>]:
 			delete {-prog::weekoverride}
 		else if arg-1 is set:
 			set {-prog::weekoverride} to arg-1 parsed as number
-		send "WEEK %progWeek()% unix=%progUnix()%"
+		send "WEEK %progWeek()% unix=%progUnix()% min=%clockMinutes()% offset=%clockOffset()%"
 
 # progress.sk: a heist's heat; /zzheat <h> <week> <runs> sets that week's count.
 command /zzheat <text> [<number>] [<number>]:
@@ -1711,3 +1711,30 @@ command /zzbike <player>:
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		send "BIKESTATE %arg-1% of=%{-bike::of::%{_u}%}% qte=%{-bkqte::%arg-1%}% hits=%{-bkqte::%arg-1%::hits}% fails=%{-bkqte::%arg-1%::fails}%"
+
+# clerk.sk (2026-10-21): a hit on a store's clerk by that player (as if they punched them), and the clerk's state.
+# "CLERKHIT <store> st=<state> hit=<date>"
+command /zzclerkhit <text> <player>:
+	executable by: console
+	trigger:
+		clerkHit(arg-1, arg-2)
+		send "CLERKHIT %arg-1% st=%{-clerk::%arg-1%::st}% hit=%{-store::%arg-1%::hit}%"
+
+# heists.sk (2026-10-21): the alarm's phase. "ALARMSTATE <heist> stage= assault= pool= alive= pending= left= len= wave= cap="
+command /zzalarm <text> [<text>]:
+	executable by: console
+	trigger:
+		set {_h} to arg-1
+		# "/zzalarm <h> end": the phase ends now (the next tick moves on: warning/break -> assault, assault -> break).
+		if arg-2 is "end":
+			set {-heist::%{_h}%::phase-end} to now
+		send "ALARMSTATE %{_h}% stage=%heistAlarmStage({_h})% assault=%heistAssault({_h})% pool=%heistPool({_h})% alive=%copAlive({_h})% pending=%copPending({_h})% left=%heistPhaseLeft({_h})% len=%heistPhaseLength({_h})% wave=%heistWave({_h})% cap=%copCap({_h})%"
+
+# clock.sk (2026-10-21): the clock and one world's time. "CLOCKSTATE min= ofday= text= world= minute="
+command /zzclock [<text>]:
+	executable by: console
+	trigger:
+		set {_w} to first element of all worlds
+		if arg-1 is set:
+			set {_w} to world(arg-1)
+		send "CLOCKSTATE min=%clockMinutes()% ofday=%clockOfDay()% text=%clockText(clockOfDay())% day=%clockDayName(clockDay())% week=%clockWeek()% world=%{_w}% minute=%clockWorldMinute({_w})% ph=%{-ph::clock}%"

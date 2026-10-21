@@ -836,6 +836,41 @@ on tab complete of "/dhit" and "/skript:dhit":
 		if {_s} is "give":
 			set tab completions for position 3 to {-cfg::hit::tiers::*}
 
+on tab complete of "/dclerk" and "/skript:dclerk":
+	set {_l::*} to "list"
+	loop {heists::*}:
+		if heistIsStore(loop-index) is true:
+			add loop-index to {_l::*}
+	set tab completions for position 1 to {_l::*}
+	set {_h} to tab arg-1
+	if {_h} is not "list":
+		set tab completions for position 2 to "set", "setat", "shelf", "shelfat", "remove", "info", "spawn" and "dump"
+	set {_s} to tab arg-2
+	if {_s} is "shelf":
+		set tab completions for position 3 to "add", "remove" and "clear"
+		if tab arg-3 is "remove":
+			loop {store::%{_h}%::shelf::*}:
+				add loop-index to {_n::*}
+			if {_n::*} is set:
+				set tab completions for position 4 to {_n::*}
+	else if {_s} is "setat":
+		set tab completions for position 3 to tabPos(player, "cx")
+		set tab completions for position 4 to tabPos(player, "y")
+		set tab completions for position 5 to tabPos(player, "cz")
+		set tab completions for position 6 to tabPos(player, "yaw")
+	else if {_s} is "shelfat":
+		set tab completions for position 3 to tabPos(player, "cx")
+		set tab completions for position 4 to tabPos(player, "y")
+		set tab completions for position 5 to tabPos(player, "cz")
+
+on tab complete of "/dclock" and "/skript:dclock":
+	set tab completions for position 1 to "info", "set", "sync" and "offset"
+	if tab arg-1 is "set":
+		set tab completions for position 2 to "6:00", "9:00", "12:00" and "7:30"
+		set tab completions for position 3 to "am" and "pm"
+	else if tab arg-1 is "offset":
+		set tab completions for position 2 to "%clockOffset()%"
+
 on tab complete of "/dfuel" and "/skript:dfuel":
 	set tab completions for position 1 to "pumpat", "pump", "remove", "list", "dump", "car" and "info"
 	set {_s} to tab arg-1

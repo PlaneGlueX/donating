@@ -19,7 +19,11 @@
 # to the hunter only). Taking the target down pays at once (never boosted, no season points): the tier's pay, a streak
 # bonus for weeks in a row, XP, a Season key on Hard, bound titles for streaks. A death to them costs hit::death-p of
 # the balance (capped at the bag). A window ending mid-fight runs up to 5 minutes of overtime.
-# Saved: {hit::target::<W>}, {hit::win::<W>::<t>::<k>} (start, unix), {hit::used::<W>::<t>::<k>}, {hit::open::<t>}
+# The game clock (clock.sk, owner 2026-10-21: "missions that take days like the hitlist mission will now follow the new
+# clock system"): a week, a day and a window's start are the game clock's (a week is 168 real minutes, a day 24); the
+# windows' starts are kept in game seconds (clockSecs), a window lasts hit::window-length REAL seconds of active time
+# (300: 5 game hours), and a streak survives up to hit::streak-gap - 1 missed game weeks (about a real day).
+# Saved: {hit::target::<W>}, {hit::win::<W>::<t>::<k>} (start, game seconds), {hit::used::<W>::<t>::<k>}, {hit::open::<t>}
 # ("W|k|left"), {hit::node::<n>} ("world|x|y|z|district"), {hit::edge::<a>::<b>}, {hitnodecounter},
 # {hit::npcids::<id>}; per player data hit::week, tier, state (hunting | paying | done | ended: /dhit end), streak, streak-week,
 # hard-total. Memory {-hit::s::<uuid>::*} (the sighting), {-hit::npc::<id>} (holder uuid), {-hit::role::<id>}.
@@ -67,11 +71,12 @@ function hitRollWeek(w: number):
 		set {_pick} to random element out of {-cfg::hit::targets::*}
 	set {hit::target::%{_w}%} to {_pick}
 	delete {hit::target::%{_w} - 3%}
-	# The windows: random starts, shared by everyone.
-	set {_off} to {-cfg::week::offset}
-	if {_off} is not set:
-		set {_off} to 0
-	set {_w0} to {_w} * 604800 - {_off}
+	# The windows: random starts in game seconds, shared by everyone. A window lasts lg game seconds (its real length
+	# × 60 × the clock's rate), so it fits inside its half day or day.
+	set {_w0} to {_w} * 604800
+	set {_lg} to cfg("hit::window-length") * 60 * clockRate()
+	set {_half} to max(0, 43200 - {_lg})
+	set {_whole} to max(0, 86400 - {_lg})
 	delete {hit::win::%{_w} - 2%::*}
 	delete {hit::used::%{_w} - 2%::*}
 	loop hitTiers():
@@ -84,15 +89,15 @@ function hitRollWeek(w: number):
 				set {_dn} to loop-value-2
 				set {_d} to {_w0} + ({_dn} - 1) * 86400
 				add 1 to {_k}
-				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and 39600)
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and {_half})
 				add 1 to {_k}
-				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + 43200 + random number between 0 and 39600)
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + 43200 + random number between 0 and {_half})
 		else if {_n} >= 7:
 			loop 7 times:
 				set {_dn} to loop-value-2
 				set {_d} to {_w0} + ({_dn} - 1) * 86400
 				add 1 to {_k}
-				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and 82800)
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and {_whole})
 		else:
 			# n of the 7 days, one window each.
 			set {_days::*} to 1, 2, 3, 4, 5, 6 and 7
@@ -105,7 +110,7 @@ function hitRollWeek(w: number):
 				set {_dn} to loop-value-2
 				set {_d} to {_w0} + ({_dn} - 1) * 86400
 				add 1 to {_k}
-				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and 82800)
+				set {hit::win::%{_w}%::%{_t}%::%{_k}%} to floor({_d} + random number between 0 and {_whole})
 		delete {_chosen::*}
 	set {hit::week} to {_w}
 	hitLog("week W=%{_w}% target=%{_pick}%")
@@ -228,7 +233,7 @@ function hitWindowTick(t: text):
 		set {hit::open::%{_t}%} to "%{_a::1}%|%{_a::2}%|%{_left}%"
 		stop
 	# The latest window that came due and wasn't used: opens once the tier is active (older ones are dropped).
-	set {_now} to progUnix()
+	set {_now} to clockSecs()
 	set {_due} to ""
 	loop {hit::win::%{_w}%::%{_t}%::*}:
 		if loop-value <= {_now}:
@@ -248,10 +253,10 @@ function hitWindowTick(t: text):
 				storyText(loop-player, "Broker", "%hitTargetName()%'s in town. I'll text you what I hear.")
 				play sound "block.bell.use" with volume 0.6 to loop-player
 
-# The next window of a tier (unix, 0 = none left this week) for the menu.
+# The next window of a tier (game seconds, 0 = none left this week) for the menu.
 function hitNextWindow(t: text) :: number:
 	set {_w} to progWeek()
-	set {_now} to progUnix()
+	set {_now} to clockSecs()
 	set {_best} to 0
 	loop {hit::win::%{_w}%::%{_t}%::*}:
 		if {hit::used::%{_w}%::%{_t}%::%loop-index%} is not set:
@@ -714,7 +719,7 @@ function hitSecond(p: player):
 	# The sidebar line while not hunting now: done, the next sighting, or gone for the week.
 	set {_t} to hitTierOf({_p})
 	if hitStateOf({_p}) is "done":
-		set {-ph::hit::%{_p}%} to "&a◎ Target down &7· a new name Thursday"
+		set {-ph::hit::%{_p}%} to "&a◎ Target down &7· a new name in %fenceLeftText(fenceWeekLeft())%"
 	else if hitStateOf({_p}) is "ended":
 		delete {-ph::hit::%{_p}%}
 	else if hitNow({_p}) is false:
@@ -724,7 +729,7 @@ function hitSecond(p: player):
 		else if {_nx} <= 0:
 			set {-ph::hit::%{_p}%} to "&7◎ %hitTargetName()% · due soon"
 		else:
-			set {_in} to {_nx} - progUnix()
+			set {_in} to clockRealSecs({_nx} - clockSecs())
 			set {-ph::hit::%{_p}%} to "&7◎ %hitTargetName()% · next in %fenceLeftText({_in})%"
 	if hitNow({_p}) is false:
 		if {-hit::s::%{_u}%::overtime} is set:
@@ -1117,7 +1122,8 @@ function hitDown(p: player):
 	setData({_p}, "hit::state", "paying")
 	set {_t} to hitTierOf({_p})
 	set {_w} to progWeek()
-	# The streak: weeks in a row (one missed week is forgiven).
+	# The streak: contracts in game weeks close together (a gap of up to hit::streak-gap weeks: the game week is 168 real
+	# minutes, so a streak survives a night's sleep; until 2026-10-21 one missed real week was forgiven).
 	set {_last} to getData({_p}, "hit::streak-week")
 	set {_s} to getData({_p}, "hit::streak")
 	if {_s} is not set:
@@ -1125,8 +1131,14 @@ function hitDown(p: player):
 	set {_gap} to 99
 	if {_last} is set:
 		set {_gap} to {_w} - {_last}
-	if {_gap} is 1 or 2:
-		add 1 to {_s}
+	set {_maxgap} to cfg("hit::streak-gap")
+	if {_maxgap} is not set:
+		set {_maxgap} to 2
+	if {_gap} >= 1:
+		if {_gap} <= {_maxgap}:
+			add 1 to {_s}
+		else:
+			set {_s} to 1
 	else:
 		set {_s} to 1
 	setData({_p}, "hit::streak", {_s})
@@ -1158,7 +1170,7 @@ function hitDown(p: player):
 		set {_a::*} to loop-value split at "|"
 		if {_s} >= ({_a::1} parsed as number):
 			if cosGive({_p}, {_a::2}, "hit") is true:
-				msg({_p}, "&c★ %{_s}% weeks in a row: the title %cosColored({_a::2})% &7(/titles)")
+				msg({_p}, "&c★ %{_s}% contracts in a row: the title %cosColored({_a::2})% &7(/titles)")
 	hitLog("down %{_p}% %{_u}% %{_t}% W=%{_w}% streak=%{_s}% m=%{_m}% pay=%{_pay}% xp=%{_xp}% ip=%ip of {_p}%")
 	setData({_p}, "hit::state", "done")
 	hitEnd({_p}, "down")
@@ -1280,7 +1292,7 @@ function hitWindowText(t: text) :: text:
 		if hitWindowsLeft({_t}) > 0:
 			return "&eDue: shows up while 2+ players are on"
 		return "&7No more sightings this week"
-	set {_s} to {_nx} - progUnix()
+	set {_s} to clockRealSecs({_nx} - clockSecs())
 	return "&7Next sighting in %fenceLeftText({_s})%"
 
 # A phone page (ui.sk, 2026-09-29), however it opens (the GPS, /hits, the Broker): the toolbar 2 ◀ Quests, 4 the
@@ -1345,7 +1357,7 @@ function hitMenu(p: player):
 	if {_st} is "hunting":
 		set slot 22 of {_gui} to crossbow named "&cYour contract: %hitTierName({_mine})%" with lore hitWindowText({_mine})
 	else if {_st} is "done":
-		set slot 22 of {_gui} to lime dye named "&aTarget down this week" with lore "&7A new name on Thursday."
+		set slot 22 of {_gui} to lime dye named "&aTarget down this week" with lore "&7A new name in %fenceLeftText(fenceWeekLeft())%."
 	if {_near} is "":
 		hitButton({_p}, {_gui}, 6, compass named "&6Find the Broker", "find")
 	set {_s} to getData({_p}, "hit::streak")
@@ -1571,7 +1583,7 @@ command /dhit [<text>]:
 					set {_ran::%loop-value%} to size of {hit::used::%{_w}%::%loop-value%::*}
 				delete {hit::used::%{_w}%::*}
 				hitRollWeek({_w})
-				set {_now} to progUnix()
+				set {_now} to clockSecs()
 				loop hitTiers():
 					set {_t} to loop-value
 					set {_i} to 0
@@ -1589,10 +1601,10 @@ command /dhit [<text>]:
 				set {_n} to size of {hit::win::%{_w}%::%{_t}%::*}
 				send "HIT %{_t}% windows=%{_n}% left=%hitWindowsLeft({_t})% next=%hitNextWindow({_t})%" to sender
 				if {_a::2} is "list":
-					set {_now} to progUnix()
+					set {_now} to clockSecs()
 					loop {hit::win::%{_w}%::%{_t}%::*}:
 						set {_at} to loop-value-2
-						set {_in} to {_at} - {_now}
+						set {_in} to clockRealSecs({_at} - {_now})
 						set {_used} to "open"
 						if {hit::used::%{_w}%::%{_t}%::%loop-index-2%} is set:
 							set {_used} to "used"

@@ -112,16 +112,20 @@ module.exports = async ({ check }) => {
     check('pruning forgets an older run with no loot left in the bag, and keeps the current one', /own=100/.test(before) && /flag=<none>/.test(gone) && /own=1700/.test(kept), `${before} | ${gone} | ${kept}`)
 
     // ---------- The week ----------
+    // The game clock's week (clock.sk, 2026-10-21): floor(game minutes / 10080), game minutes = unix + offset (a game
+    // minute a real second); /dclock offset moves it (put back after).
     const w = await cmd('zzweek')
     const unix = Number(field(w, 'unix'))
+    const min = Number(field(w, 'min'))
+    const off0 = Number(field(w, 'offset'))
     const wk = Number((w.match(/WEEK (\d+)/) || [])[1])
-    await cmd('zzcfgset week::offset 604800')
+    await cmd(`dclock offset ${off0 + 10080}`)
     const w2 = Number(((await cmd('zzweek')).match(/WEEK (\d+)/) || [])[1])
-    await cmd('zzcfgset week::offset 0')
+    await cmd(`dclock offset ${off0}`)
     await cmd('zzweek 7')
     const w3 = Number(((await cmd('zzweek')).match(/WEEK (\d+)/) || [])[1])
     await cmd('zzweek off')
-    check('the week is floor(unix / 604800) (Thursday 00:00 UTC), week::offset moves it, a test override works', wk === Math.floor(unix / 604800) && w2 === wk + 1 && w3 === 7, `${w} ${w2} ${w3}`)
+    check('the week is the game clock\'s (floor(game minutes / 10080), a game minute a real second), the offset moves it, a test override works', wk === Math.floor(min / 10080) && Math.abs(min - (unix + off0)) <= 1 && w2 === wk + 1 && w3 === 7, `${w} ${w2} ${w3}`)
   } finally {
     await rcon.cmd('zzweek off').catch(() => {})
     await rcon.cmd('zzcfgreload').catch(() => {})

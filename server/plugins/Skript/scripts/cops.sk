@@ -2,10 +2,11 @@
 # Sentinel (2.9.4 build 534). heists.sk runs the alarm's timeline (the 20 s warning, a wave every 10 s,
 # who's hunted, the chase radius); this script only puts cops in the world for it.
 #
-# - Each wave (heistOnWave) brings cfg cop::per-wave cops, up to the heist's cap (copCap: alarm::max-cops,
-#   +alarm::cops-per-extra-robber for each hunted player above 3; no cap on the whole server, owner
-#   2026-09-26). They appear at the heist's cop spots (/dcops), else at its exit. How tough they are and
-#   which gun they carry follow the heist's difficulty (core.sk difficulty::<d>::cop-*).
+# - Each wave (heistOnWave, during an assault: heists.sk) brings per-wave cops from the assault's pool, up to the
+#   heist's cap (copCap: max-cops, +cops-per-extra-robber for each hunted player above 3, +cap-step per assault after
+#   the first; no cap on the whole server, owner 2026-09-26). They appear at the heist's cop spots (/dcops), else at its
+#   exit. How tough they are and which gun they carry follow the heist's difficulty (core.sk difficulty::<d>::cop-*),
+#   tougher each assault (health-step, damage-step, accuracy-step), with heavies from heavy-from on (2026-10-21).
 # - A cop is a Citizens NPC with Sentinel, made by console commands (Sentinel takes "--id <n>" from the
 #   real console only, never from RCON). Its gun is a feather showing a WeaponMechanics model (cfg
 #   cop::model) that Sentinel treats as a bow (weaponredirect): it shoots arrows, which the pack draws as
@@ -52,11 +53,19 @@ function copAlive(h: text) :: number:
 function copTotal() :: number:
 	return size of {-cop::heist::*}
 
-# How many cops a heist may have alive: C = max-cops + max(0, R - 3) × cops-per-extra-robber, R = the
-# players its alarm hunts.
+# How many cops a heist may have alive: C = max-cops + max(0, R - 3) × cops-per-extra-robber + (n - 1) × cap-step, R =
+# the players its alarm hunts, n = the assault (heists.sk heistAlarmNum: per difficulty).
 function copCap(h: text) :: number:
 	set {_r} to size of {-heist::%{_h}%::hunted::*}
-	return cfg("alarm::max-cops") + max(0, {_r} - 3) * cfg("alarm::cops-per-extra-robber")
+	set {_n} to max(1, heistAssault({_h}))
+	return heistAlarmNum({_h}, "max-cops") + max(0, {_r} - 3) * heistAlarmNum({_h}, "cops-per-extra-robber") + ({_n} - 1) * heistAlarmNum({_h}, "cap-step")
+
+# Cops asked for and not made yet (copSpawn waits its turn): an assault isn't repelled while one is on its way.
+function copPending(h: text) :: number:
+	set {_n} to {-cop::pending::%{_h}%}
+	if {_n} is set:
+		return max(0, {_n})
+	return 0
 
 # A cop setting for this heist's difficulty (core.sk difficulty::<d>::cop-<key>).
 function copStat(h: text, key: text) :: number:
@@ -66,11 +75,17 @@ function copStat(h: text, key: text) :: number:
 		return {_v}
 	return cfg("difficulty::4::cop-%{_key}%")
 
-# One wave: per-wave cops, topped up to the heist's cap. Cops are made one at a time (copSpawn waits
-# for each to appear), so a wave takes a few ticks.
+# One wave: per-wave cops from the assault's pool, topped up to the heist's cap. Cops are made one at a time (copSpawn
+# waits for each to appear), so a wave takes a few ticks; the pool pays for them when they're asked for.
 function copWave(h: text, wave: number):
-	set {_n} to min(cfg("cop::per-wave"), copCap({_h}) - copAlive({_h}))
-	copLog("wave %{_h}% %{_wave}% want=%{_n}% alive=%copAlive({_h})% total=%copTotal()%")
+	set {_per} to heistAlarmNum({_h}, "per-wave")
+	if {_per} is not set:
+		set {_per} to cfg("cop::per-wave")
+	set {_n} to min({_per}, copCap({_h}) - copAlive({_h}) - copPending({_h}), heistPool({_h}))
+	copLog("wave %{_h}% %{_wave}% assault=%heistAssault({_h})% want=%{_n}% alive=%copAlive({_h})% pending=%copPending({_h})% pool=%heistPool({_h})% total=%copTotal()%")
+	{_n} > 0
+	remove {_n} from {-heist::%{_h}%::pool}
+	add {_n} to {-cop::pending::%{_h}%}
 	loop {_n} times:
 		copSpawn({_h})
 
@@ -88,14 +103,18 @@ function copSpawn(h: text):
 		add 1 to {_waited}
 		if {_waited} > 80:
 			copLog("busy-timeout %{_h}%")
+			copDone({_h})
 			stop
 	if heistAlarmStage({_h}) is "none":
+		copDone({_h})
 		stop
 	if copAlive({_h}) >= copCap({_h}):
+		copDone({_h})
 		stop
 	set {_spots::*} to copSpots({_h})
 	if size of {_spots::*} is 0:
 		copLog("no-spot %{_h}%")
+		copDone({_h})
 		stop
 	set {-npc::busy} to now
 	add 1 to {-cop::next::%{_h}%}
@@ -126,12 +145,14 @@ function copSpawn(h: text):
 			if {_tries} > 40:
 				delete {-npc::busy}
 				copLog("spawn-failed %{_h}% at %{_x}% %{_y}% %{_z}% (the sweep removes it if it appears later)")
+				copDone({_h})
 				stop
 			wait 1 tick
 	set {cops::ids::%{_id}%} to {_h}
 	set {-cop::heist::%{_id}%} to {_h}
 	set {-cop::ids::%{_h}%::%{_id}%} to true
 	delete {-npc::busy}
+	copDone({_h})
 	copSetup({_id}, {_h})
 	copLog("spawn %{_h}% id=%{_id}% at %floor({_x})% %floor({_y})% %floor({_z})% after %{_tries}% ticks")
 	# The alarm may have ended while it was being made.
@@ -141,12 +162,32 @@ function copSpawn(h: text):
 	loop {-heist::%{_h}%::hunted::*}:
 		copTarget({_id}, loop-value, true)
 
+# One asked-for cop is made (or given up on).
+function copDone(h: text):
+	remove 1 from {-cop::pending::%{_h}%}
+	if {-cop::pending::%{_h}%} <= 0:
+		delete {-cop::pending::%{_h}%}
+
 function copSentinel(id: text, args: text):
 	execute console command "sentinel %{_args}% --id %{_id}%"
 
-# The gun and the numbers (core.sk cop::* and the heist's difficulty::<d>::cop-*).
+# The gun and the numbers (core.sk cop::* and the heist's difficulty::<d>::cop-*), tougher each assault (heists.sk):
+# health × (1 + (n - 1) × health-step), damage × (1 + (n - 1) × damage-step), accuracy × max(0.5, 1 - (n - 1) ×
+# accuracy-step); from assault heavy-from on every heavy-every-th cop of the heist is a heavy (health × health-heavy,
+# a helmet and a vest, the heavy gun).
 function copSetup(id: text, h: text):
+	set {_n} to max(1, heistAssault({_h}))
+	add 1 to {-cop::made::%{_h}%}
+	set {_heavy} to false
+	if {_n} >= heistAlarmNum({_h}, "heavy-from"):
+		if mod({-cop::made::%{_h}%}, heistAlarmNum({_h}, "heavy-every")) is 0:
+			set {_heavy} to true
 	set {_model} to copStat({_h}, "model")
+	if {_heavy} is true:
+		set {_model} to heistAlarmNum({_h}, "heavy-model")
+		set {-cop::heavy::%{_id}%} to true
+		execute console command "npc setequipment helmet iron_helmet --id %{_id}%"
+		execute console command "npc setequipment chestplate iron_chestplate --id %{_id}%"
 	execute console command "npc setequipment hand feather[custom_model_data={floats:[%{_model}%f]}] --id %{_id}%"
 	copSentinel({_id}, "weaponredirect feather bow")
 	# The police skin (tools/make-cop-skin.js, signed once by MineSkin: core.sk cop::skin-*). Without it Citizens
@@ -158,12 +199,14 @@ function copSetup(id: text, h: text):
 			if {_tex} is not "":
 				execute console command "npc skin -t police %{_tex}% %{_sig}% --id %{_id}%"
 	copSentinel({_id}, "respawntime -1")
-	set {_health} to copStat({_h}, "health")
-	set {_damage} to copStat({_h}, "damage")
+	set {_health} to round(copStat({_h}, "health") * (1 + ({_n} - 1) * heistAlarmNum({_h}, "health-step")))
+	if {_heavy} is true:
+		set {_health} to round({_health} * heistAlarmNum({_h}, "health-heavy"))
+	set {_damage} to round(10 * copStat({_h}, "damage") * (1 + ({_n} - 1) * heistAlarmNum({_h}, "damage-step"))) / 10
 	set {_rate} to copStat({_h}, "attack-rate")
 	set {_range} to cfg("cop::range")
 	set {_chase} to cfg("cop::chase")
-	set {_acc} to copStat({_h}, "accuracy")
+	set {_acc} to round(100 * copStat({_h}, "accuracy") * max(0.5, 1 - ({_n} - 1) * heistAlarmNum({_h}, "accuracy-step"))) / 100
 	set {_speed} to copStat({_h}, "speed")
 	copSentinel({_id}, "health %{_health}%")
 	copSentinel({_id}, "damage %{_damage}%")
@@ -179,6 +222,7 @@ function copSetup(id: text, h: text):
 	# Only hunted players: a cop never turns on someone who isn't (shooting one is free, it pays nothing).
 	copSentinel({_id}, "fightback false")
 	copSentinel({_id}, "deathxp 0")
+	copLog("setup id=%{_id}% heist=%{_h}% assault=%{_n}% heavy=%{_heavy}% health=%{_health}% damage=%{_damage}% accuracy=%{_acc}%")
 
 # Adds (on) or removes a hunted player as this cop's target.
 function copTarget(id: text, p: player, on: boolean):
@@ -193,12 +237,14 @@ function copRemove(id: text, why: text):
 	if {_h} is set:
 		delete {-cop::ids::%{_h}%::%{_id}%}
 	delete {cops::ids::%{_id}%}
+	delete {-cop::heavy::%{_id}%}
 	execute console command "npc remove %{_id}%"
 	copLog("remove id=%{_id}% heist=%{_h}% why=%{_why}%")
 
 function copRemoveAll(h: text, why: text):
 	loop indices of {-cop::ids::%{_h}%::*}:
 		copRemove(loop-value, {_why})
+	delete {-cop::made::%{_h}%}
 
 # A cop that dies: no drops, gone a tick later (Sentinel's respawn is off). At priority lowest: Citizens
 # despawns a dead NPC (and its metadata) in its own death handler. The killer's cop kills count toward
@@ -276,7 +322,7 @@ on damage with priority monitor:
 	heistHuntedBy(attacker) is ""
 	heistInRange(attacker, {_h}) is true
 	heistHunt(attacker, {_h})
-	set {_r} to cfg("alarm::chase-radius")
+	set {_r} to heistChaseRadius(attacker, {_h})
 	set {_hn} to heistName({_h})
 	heistNotify(attacker, "wanted", "&4&lWANTED&r &cYou shot a cop. Lose them: get %{_r}% blocks from the %{_hn}%.")
 	copLog("wanted %name of attacker% %uuid of attacker% shot id=%{_raw}% heist=%{_h}%")

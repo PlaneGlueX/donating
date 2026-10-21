@@ -411,6 +411,9 @@ function lootPileState(h: text, n: text):
 		if {_g} is set:
 			if {-lootst::%{_h}%::%{_g}%} is not "open":
 				set {-lootst::%{_c}%} to "locked"
+		else if storeShut({_h}) is true:
+			# A store's register before its clerk is hit (clerk.sk, 2026-10-21): shut, no hitbox, the prompt says so.
+			set {-lootst::%{_c}%} to "shut"
 
 # ---------- Entities ----------
 
@@ -680,6 +683,15 @@ function lootOpenGate(h: text, n: text, why: text):
 	heistStartRun({_h})
 	lootLog("open %{_h}%-%{_n}% %{-lootc::%{_c}%::kind}% why=%{_why}% run=%heistRun({_h})%")
 
+# A store's clerk was hit (clerk.sk): every shut pile opens (its hitboxes, its marker).
+function lootStoreUnlock(h: text):
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		if {-lootst::%{_h}%::%loop-index%} is "shut":
+			lootPileState({_h}, loop-index)
+			lootOpenPile({_h}, loop-index)
+	lootLog("store-unlock %{_h}% run=%heistRun({_h})%")
+
 function lootOpenPile(h: text, n: text):
 	set {_c} to "%{_h}%::%{_n}%"
 	{-lootup::%{_c}%} is true
@@ -826,6 +838,9 @@ function lootClickPile(p: player, h: text, n: text, i: number):
 	if {_st} is "locked":
 		set {_g} to {-lootc::%{_c}%::behind}
 		lootBar({_p}, "&7Locked: open the %{-lootc::%{_h}%::%{_g}%::name}% first.")
+		stop
+	if {_st} is "shut":
+		lootBar({_p}, "&7The register's shut: &fhit the clerk &7to start the robbery.")
 		stop
 	if {_st} is not "open":
 		lootBar({_p}, "&7Nothing left here.")
@@ -1865,6 +1880,8 @@ function lootPromptText(p: player, h: text, n: text) :: text:
 	set {_k} to {-lootc::%{_c}%::kind}
 	set {_st} to {-lootst::%{_c}%}
 	if {_k} is "pile":
+		if {_st} is "shut":
+			return "&eHit the clerk &7to start the robbery: the register opens"
 		set {_g} to {-lootc::%{_c}%::behind}
 		if {_g} is set:
 			set {_why} to lootClaimWhy({_p}, {_h}, {_g})

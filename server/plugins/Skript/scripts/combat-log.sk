@@ -81,6 +81,9 @@ on damage of player with priority monitor:
 		# A hit target's bodyguard (hits.sk) credits a combat log to the hit, not the cops.
 		if hitHolderOfEntity(attacker) is not "":
 			tagCombat(victim, "hit")
+		else if clerkOfEntity(attacker) is not "":
+			# A store clerk's thrown prop (clerk.sk): a combat log costs the store's p.
+			tagCombat(victim, "clerk")
 		else:
 			tagCombat(victim, "cop")
 	else:

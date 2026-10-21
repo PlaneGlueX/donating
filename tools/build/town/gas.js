@@ -860,6 +860,9 @@ module.exports.setup = {
     id: 'gas', difficulty: 0, name: 'Gas Station', exit: [397.5, 65, 907.5, -90], holo: [392.5, 69.6, 907.5],
     holoCmd: 'dheist holo gas 392.5 69.6 907.5', // the hologram's own location (not a spot to stand on)
     snapshot: 'with the front doors (391, 65, 907..908) and the staff door (380, 65, 885) closed',
+    // the clerk (clerk.sk, 2026-10-21): on the mat behind the checkout (x 383..385), facing the door; the spots it runs to
+    // for something to throw: the back counter's coffee and grill (x 382), the aisles between the gondolas, the north aisle
+    clerk: { at: [384.5, 65, 915.5, -90], shelves: [[383.5, 65, 912.5], [384.5, 65, 919.5], [377.5, 65, 909.5], [381.5, 65, 922.5], [380.5, 65, 896.5]] },
     loot: [
       { name: 'Register', cells: [386, 65, 914, 386, 65, 915], value: '1500-2400', style: 'register',
         cmd: 'dloot add gas pile 386 65 914 386 65 915 value=1500-2400 style=register name=Register' },

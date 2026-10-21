@@ -68,9 +68,11 @@ every 2 ticks:
 #   - inside an open heist: "Bank · the clock starts at the first robbery" (white, full).
 #   - inside an active heist: "Bank · Escape 3:42"; the bar is T / E (T = time left, E = the heist's
 #     escape time), green down to half, then yellow, red for the last minute.
-#   - the alarm (advanced heists), red: "ALARM · Cops in 17s · Escape 3:42" (the bar counts down to the
-#     first wave), then "WAVE 2 · next in 7s · Escape 3:42" (to the next wave).
-#   - hunted outside the heist (the cops chase you), red: "COPS · wave 2 · 42 blocks to lose them"; the
+#   - the alarm (advanced heists; a store once its clerk hit the panic button), red: "ALARM · Cops in 17s · Escape
+#     3:42" (the bar counts down the response time), then the assaults (heists.sk, 2026-10-21): "ASSAULT 2 · 0:34 · 7
+#     cops · Escape 3:42" (red; the bar is the assault's time left: the assault meter), "BREAK · assault 3 in 0:18 ·
+#     Escape 3:42" (yellow). A store shows its loot left instead of the escape clock.
+#   - hunted outside the heist (the cops chase you), red: "COPS · assault 2 · 42 blocks to lose them"; the
 #     bar is what's left of the chase radius R: (R − d) / R, d = your distance from the heist.
 #   - anything else: no bar.
 
@@ -134,22 +136,21 @@ function hudBoss(p: player):
 		if {_s} is not "active":
 			hudBossOff({_p})
 			stop
+		set {_alarm} to heistAlarmStage({_h})
 		# A store has no clock: what's left to grab instead.
 		if heistIsStore({_h}) is true:
 			set {_rolled} to max(1, heistLootPool({_h}))
 			set {_lootLeft} to lootLeft({_h})
+			if {_alarm} is not "none":
+				hudAlarmBar({_p}, {_h}, "&a%formatMoneyShort({_lootLeft})% &7left")
+				stop
 			hudBossSet({_p}, "&f%{_name}% &7· no clock · &a%formatMoneyShort({_lootLeft})% &7left", "white", min(1, {_lootLeft} / {_rolled}))
 			stop
 		set {_left} to heistSecondsLeft({_h})
 		set {_total} to max(1, heistEscape({_h}) / 1 second)
 		set {_clock} to formatClock({_left})
-		set {_alarm} to heistAlarmStage({_h})
-		if {_alarm} is "warning":
-			set {_n} to heistNextWaveIn({_h})
-			hudBossSet({_p}, "&4&lALARM&r &c· Cops in %{_n}%s &7· Escape %{_clock}%", "red", {_n} / max(1, cfg("alarm::warning") / 1 second))
-		else if {_alarm} is "waves":
-			set {_n} to heistNextWaveIn({_h})
-			hudBossSet({_p}, "&4&lWAVE %heistWave({_h})%&r &c· next in %{_n}%s &7· Escape %{_clock}%", "red", {_n} / max(1, cfg("alarm::wave-interval") / 1 second))
+		if {_alarm} is not "none":
+			hudAlarmBar({_p}, {_h}, "Escape %{_clock}%")
 		else if {_left} <= 60:
 			hudBossSet({_p}, "&f%{_name}% &7· Escape &c%{_clock}%", "red", {_left} / {_total})
 		else if {_left} <= {_total} / 2:
@@ -164,11 +165,14 @@ function hudBoss(p: player):
 			if world of {_c} is world of {_p}:
 				set {_r} to heistChaseRadius({_p}, {_h})
 				set {_away} to max(0, ceil({_r} - distance between (location of {_p}) and {_c}))
-				set {_n} to heistNextWaveIn({_h})
-				if heistAlarmStage({_h}) is "warning":
+				set {_n} to heistPhaseLeft({_h})
+				set {_st} to heistAlarmStage({_h})
+				if {_st} is "warning":
 					set {_what} to "cops in %{_n}%s"
+				else if {_st} is "break":
+					set {_what} to "break %formatClock({_n})%"
 				else:
-					set {_what} to "wave %heistWave({_h})% · next in %{_n}%s"
+					set {_what} to "assault %heistAssault({_h})%"
 				hudBossSet({_p}, "&4&lCOPS&r &c· %{_what}% &7· &f%{_away}% &7blocks to lose them", "red", {_away} / max(1, {_r}))
 				stop
 	# A hit contract (hits.sk): the target spotted, the search area, or overtime.
@@ -188,6 +192,22 @@ function hudBoss(p: player):
 		stop
 	hudBossOff({_p})
 
+# The alarm's bar (heists.sk's phases): the response time, an assault (its meter: the time left), a break. tail = the
+# escape clock, or a store's loot left.
+function hudAlarmBar(p: player, h: text, tail: text):
+	set {_st} to heistAlarmStage({_h})
+	set {_n} to heistPhaseLeft({_h})
+	set {_f} to {_n} / heistPhaseLength({_h})
+	set {_a} to heistAssault({_h})
+	if {_st} is "warning":
+		hudBossSet({_p}, "&4&lALARM&r &c· Cops in %{_n}%s &7· %{_tail}%", "red", {_f})
+	else if {_st} is "break":
+		set {_next} to {_a} + 1
+		hudBossSet({_p}, "&e&lBREAK&r &e· assault %{_next}% in %formatClock({_n})% &7· %{_tail}%", "yellow", {_f})
+	else:
+		set {_cops} to heistCopsAlive({_h}) + heistPool({_h})
+		hudBossSet({_p}, "&4&lASSAULT %{_a}%&r &c· %formatClock({_n})% · %{_cops}% cops &7· %{_tail}%", "red", {_f})
+
 every 5 ticks:
 	loop all players:
 		hudBoss(loop-player)
@@ -205,9 +225,21 @@ function hudNotify(p: player, kind: text, text: text):
 		play sound "block.note_block.bell" with volume 1 and pitch 0.7 to {_p}
 	else if {_kind} is "alarm":
 		# Owner, 2026-09-26: a big WANTED on screen the moment you become wanted.
+		set {_h} to heistHuntedBy({_p})
 		set {_warn} to cfg("alarm::warning") / 1 second
+		if {_h} is not "":
+			set {_warn} to heistPhaseLeft({_h})
 		send title colored "&4&lWANTED" with subtitle colored "&cAlarm! Cops in %{_warn}%s. Get out!" to {_p} for 3 seconds
 		play sound "block.bell.use" with volume 1 and pitch 0.8 to {_p}
+	else if {_kind} is "assault":
+		set {_h} to heistHuntedBy({_p})
+		set {_a} to 1
+		if {_h} is not "":
+			set {_a} to heistAssault({_h})
+		send title colored "&4&lASSAULT %{_a}%" with subtitle colored "&cThe cops are moving in" to {_p} for 2 seconds
+		play sound "event.raid.horn" with volume 0.5 and pitch 1.1 to {_p}
+	else if {_kind} is "break":
+		play sound "block.note_block.chime" with volume 0.8 and pitch 1.2 to {_p}
 	else if {_kind} is "wanted":
 		send title colored "&4&lWANTED" with subtitle colored "&cYou shot a cop" to {_p} for 3 seconds
 		play sound "block.bell.use" with volume 1 and pitch 0.8 to {_p}

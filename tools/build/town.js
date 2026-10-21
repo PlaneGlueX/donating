@@ -597,6 +597,11 @@ function setupLines (W) {
     tag('(C)', `dheist exit ${h.id} ${xyzs(h.exit)} ${yawOf(h.exit)}`)
     for (const l of h.loot) tag('(C)', l.cmd)
     tag('(C)', `dloot check ${h.id}`)
+    // the store's clerk (clerk.sk): its spot behind the register and the shelves it runs to
+    if (h.clerk) {
+      tag('(C)', `dclerk ${h.id} setat ${xyzs(h.clerk.at)} ${yawOf(h.clerk.at)}`)
+      for (const sh of h.clerk.shelves) tag('(C)', `dclerk ${h.id} shelfat ${xyzs(sh)}`)
+    }
     tag('(C)', `dheist snapshot ${h.id}`); L.push(`#      (the room clean: ${h.snapshot})`)
     tag('(C)', holo)
     tag('(C)', `dheist enable ${h.id}`)

@@ -1,4 +1,4 @@
-// Draws the shopkeepers' skins (group "keepers"): gun, gear, bag, tools, cars, garage.
+// Draws the shopkeepers' skins (group "keepers"): gun, gear, bag, tools, cars, garage, and a store's clerk (clerk).
 // Standard 64x64 player skin layout (classic, 4-pixel arms), like tools\make-cop-skin.js.
 // Each skin goes to server\plugins\Citizens\skins\<id>.png and tools\skins\<id>.png, and a preview
 // (front, back, both sides, the top of the head, the raw sheet) to tools\skins\preview-<id>.png.
@@ -504,8 +504,63 @@ const garage = (() => {
   }
 })()
 
+
+// ============================================================ clerk: a store's clerk (clerk.sk, 2026-10-21)
+// A red store polo with a white collar and a name badge, a red cap with the store's white dot, short brown hair,
+// khaki trousers with a black belt, black sneakers with white soles.
+const clerk = (() => {
+  const S = hex(228, 180, 142); const H = hex(92, 62, 40); const C = hex(196, 40, 44); const P = hex(206, 50, 54)
+  const K = hex(198, 172, 122)
+  const pal = {
+    S, s: shade(S, 0.86), n: shade(S, 0.78), m: hex(170, 92, 84),
+    H, h: shade(H, 1.2), b: shade(H, 0.8),
+    W: WHITE, i: hex(56, 86, 120),
+    C, c: shade(C, 0.78), B: shade(C, 0.62),
+    P, p: shade(P, 0.84), o: shade(P, 0.7), N: hex(70, 74, 82), w: hex(250, 250, 248),
+    K, k: shade(K, 0.84), x: hex(30, 30, 34), X: hex(44, 44, 48)
+  }
+  return {
+    id: 'clerk',
+    look: 'a red store polo with a white collar and a name badge, a red cap with a white dot, short brown hair, khaki trousers with a black belt, black sneakers with white soles',
+    pal,
+    head: {
+      top: rep(8, 'HHHHHHHH'),
+      bottom: rep(8, 'SSSSSSSS'),
+      front: ['HHHHHHHH', 'HHhHHHHH', 'HSSSSSSH', 'SbbSSbbS', 'SWiSSiWS', 'SSSnnSSS', 'SSmmmmSS', 'sSSSSSSs'],
+      side: ['HHHHHHHH', 'HHHHhHHH', 'HHHHHHSS', 'HHHsSSSS', 'HHHnSSSS', 'HHSSSSSS', 'HSSSSSSS', 'sSSSSSSS'],
+      back: ['HHHHHHHH', 'HHhHHHHH', 'HHHHHhHH', 'HHHHHHHH', 'HHhHHHHH', 'HHHHHHHH', 'HbHHHHbH', 'ssssssss']
+    },
+    hat: { // the cap: a white dot on the front, a dark brim, the strap at the back
+      top: ['CCCCCCCC', 'CCCCCCCC', 'CCcCCCCC', 'CCCCCCCC', 'CCCCCcCC', 'CCCCCCCC', 'CCCCCCCC', 'BBBBBBBB'],
+      front: ['CCCwwCCC', 'BBBBBBBB', ...rows(6, '........')],
+      side: ['CCCCCCCC', 'cccccBBB', ...rows(6, '........')],
+      back: ['CCCCCCCC', 'CCcwwcCC', ...rows(6, '........')]
+    },
+    body: {
+      top: rows(4, 'PPPPPPPP'), bottom: rows(4, 'KKKKKKKK'),
+      front: ['PwSSSSwP', 'PPwSSwPP', 'PPPPwPPP', 'PwwPPPPP', 'PNNPwPPP', 'PPPPPPpP', 'PpPPPPPP', 'PPPPPPPP', 'PPPpPPPP', 'PPPPPPPP', 'xxxxXxxx', 'KKKKKKKK'],
+      back: ['PwwwwwwP', 'PPPPPPPP', 'PPPpPPPP', 'PPPPPPPP', 'PPPPPpPP', 'PpPPPPPP', 'PPPPPPPP', 'PPPPpPPP', 'PPPPPPPP', 'PPPPPPPP', 'xxxxxxxx', 'KKKKKKKK'],
+      side: ['PPPP', 'PPPP', 'PpPP', 'PPPP', 'PPPP', 'PPpP', 'PPPP', 'PPPP', 'PPPP', 'PPPP', 'xxxx', 'KKKK']
+    },
+    arm: { // short polo sleeves with a darker hem
+      top: rep(4, 'PPPP'), bottom: rep(4, 'SSSS'),
+      outer: puts(rep(4, 'PPPoSSSSSSSs'), [[1, 1, 'p'], [2, 7, 'n']]),
+      front: puts(rep(4, 'PPPoSSSSSSSs'), [[2, 6, 's']]),
+      inner: rep(4, 'PPPossSSSSSs'),
+      back: puts(rep(4, 'PPPoSSSSSSSs'), [[1, 8, 's']])
+    },
+    leg: {
+      top: rep(4, 'KKKK'), bottom: rep(4, 'XXXX'),
+      outer: puts(rep(4, 'KKKKKKKKKXXw'), [[1, 4, 'kk']]),
+      front: puts(rep(4, 'KKKKKKKKKXXw'), [[3, 2, 'k'], [3, 3, 'k'], [0, 9, 'xx']]),
+      inner: rep(4, 'kKKKKKKKKXXw'),
+      back: puts(rep(4, 'KKKKKKKKKXXw'), [[1, 6, 'kk']])
+    }
+  }
+})()
+
 // ---------- Write everything ----------
-const cast = [gun, gear, bag, tools, cars, garage]
+const cast = [gun, gear, bag, tools, cars, garage, clerk]
 for (const dir of OUTS) fs.mkdirSync(dir, { recursive: true })
 for (const ch of cast) {
   const c = render(ch)

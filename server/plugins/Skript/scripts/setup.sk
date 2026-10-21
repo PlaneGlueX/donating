@@ -151,6 +151,18 @@ function setupHeists(s: command sender):
 		set {_lv} to heistLevel({_h})
 		if heistIsStore({_h}) is true:
 			add 1 to {_stores}
+			# The clerk (clerk.sk, 2026-10-21): without one the register is open to anyone and no police come.
+			if clerkOn() is true:
+				set {_cl} to clerkSpot({_h})
+				if {_cl} is not set:
+					add "no clerk: the register is open to anyone and no police come (/dclerk %{_h}% set, behind the register)" to {_warn::*}
+				else if heistAt({_cl}) is not {_h}:
+					add "its clerk stands outside the store (/dclerk %{_h}% set, behind the register)" to {_bad::*}
+				else:
+					if size of {store::%{_h}%::shelf::*} is 0:
+						add "the clerk has no shelves to run to: it throws from the counter (/dclerk %{_h}% shelf add)" to {_warn::*}
+					if size of {heist::%{_h}%::cops::*} is 0:
+						add "no cop spots, the clerk's police come to the exit spot (/dcops %{_h}% add, a street corner away)" to {_warn::*}
 		if {_lv} > cfg("level::max"):
 			add "its level %{_lv}% is above the highest level (/dheist set %{_h}% level <n>)" to {_bad::*}
 		if heistIsAdvanced({_h}) is true:

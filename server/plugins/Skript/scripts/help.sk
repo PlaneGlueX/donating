@@ -10,7 +10,7 @@
 
 function showHelp(p: player):
 	send colored "%cfg("prefix")%&fHow to play" to {_p}
-	send colored "&7• &eHeists: &7rob buildings for loot; watch for traps (lasers, pressure plates, cameras, falling floors). New robbers start in the &fstores&7: no clock, just empty the register. &f/heists" to {_p}
+	send colored "&7• &eHeists: &7rob buildings for loot; watch for traps (lasers, pressure plates, cameras, falling floors). New robbers start in the &fstores&7: hit the clerk to open the register, grab it and get out before the cops come. Alarms bring the cops in assaults with breaks in between. &f/heists" to {_p}
 	send colored "&7• &eYour bag &7(offhand) holds the loot. No bag yet? Your hands carry up to $1,000. Buy bags at the Bag Shop. &f/bag" to {_p}
 	send colored "&7• &eGet out &7before a heist's timer hits 0, or you lose what you took there." to {_p}
 	send colored "&7• &eSell &7by bringing your bag to the base; it sells automatically." to {_p}
@@ -20,7 +20,7 @@ function showHelp(p: player):
 	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Driving: &fF &7locks your car, the key's right-click shows the big map. Car crates give rare wraps and mods." to {_p}
 	send colored "&7• &eCrates: &7a free key every day (&f/daily&7), more in &f/crates&7; open them at crate stands. &f/cosmetics &7to wear what you won." to {_p}
 	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
-	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse. The yard's Gun Shop needs a keycard; Sparks in the workshop makes weapons from junk. &f/prison" to {_p}
+	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse, or dig under the lot's west fence. The yard's Gun Shop needs a keycard; Sparks in the workshop makes weapons from junk. &f/prison" to {_p}
 	send colored "&7• &eTrading: &7stand next to someone and &f/trade &7their name: cars and crate cosmetics." to {_p}
 	send colored "&7• &ePhone &7(hotbar 9): hold it for the map, right-click for the whole city, &fF &7for the apps: Messages, GPS, Missions, Garage, Bag, Crates, Cosmetics, Season, Bounties, Passive mode (no PvP, lower pay)." to {_p}
 	send colored "&7• &eRanks &7(&f/ranks&7) support the server: a tag, a bag look and more bag room. Seasons: &f/season&7, &f/lb&7." to {_p}
@@ -45,7 +45,7 @@ function showCommands(p: player):
 	helpLine({_p}, "/missions &7(/story)", "Mara's missions and Vic's")
 	helpLine({_p}, "/contracts", "car-theft jobs and lockpicks")
 	helpLine({_p}, "/jobs", "side jobs from Mara and the Boss")
-	helpLine({_p}, "/hits", "this week's hit contract")
+	helpLine({_p}, "/hits", "this week's hit contract (a game week: 2.8 hours)")
 	helpLine({_p}, "/messages &7(/texts)", "your texts from Mara, the Boss, Vic and the Broker")
 	send colored "&6Getting around" to {_p}
 	helpLine({_p}, "/gps [quests/heists/shops/places]", "where to go; click a place to pin it")
@@ -53,6 +53,7 @@ function showCommands(p: player):
 	helpLine({_p}, "/garage &7(/cars)", "your cars: take out, lock, repaint, tune, send back")
 	helpLine({_p}, "/carcam [on/off]", "the camera behind your car while you drive")
 	helpLine({_p}, "/fuel", "your car's fuel; the nearest pump on your GPS")
+	helpLine({_p}, "/clock", "the city's time (a game hour is a real minute)")
 	send colored "&6Money and loot" to {_p}
 	helpLine({_p}, "/daily", "your free daily crate key")
 	helpLine({_p}, "/crates", "your keys, what each crate holds, buy keys")
@@ -179,6 +180,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dheist create <id> <0-4>", "a heist over the WorldGuard region heist_<id> (0 = a store)")
 		ahLine({_s}, "/dheist set <id> name/escape/cooldown/pool/level/advanced/pvp/trap-damage <value>", "its settings")
 		ahLine({_s}, "/dheist exit/holo <id>", "the exit spot / the hologram where you stand")
+		ahLine({_s}, "/dclerk <store> set | setat <x y z yaw> | shelf add | shelfat <x y z> | shelf remove <n> | remove | info | spawn | dump; /dclerk list", "a store's clerk and the shelves it runs to")
 		ahLine({_s}, "/dheist snapshot <id>", "save the room (while disabled) for resets")
 		ahLine({_s}, "/dheist lock <id> add <x1 y1 z1 x2 y2 z2> [block] | test", "windows that lock on the alarm")
 		ahLine({_s}, "/dheist enable/disable/open/start/end/reset/alarm <id>", "run it by hand")
@@ -197,6 +199,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dquest add <story/contracts/fence/hits> [place] | addat ... | remove <n> | list/dump", "Mara, the Boss, Vic, the Broker")
 		ahLine({_s}, "/dcontract spot/chop add/addat/remove/list | dump", "car-job spots and chop shops")
 		ahLine({_s}, "/dgaragesite exit/return/bay add | remove ... | list/show/dump/holo", "City Garage lanes and bays")
+		ahLine({_s}, "/dclock info | set <h:mm> [am/pm] | sync | offset <seconds>", "the city's clock and the sky")
 		ahLine({_s}, "/dfuel pumpat <world> <x1 y1 z1 x2 y2 z2> <label> | pump add <label> | remove <n> | list/dump | car <plate> [level] | info <player>", "fuel pumps; a car's fuel")
 		ahLine({_s}, "/dbike spotat <world> <x y z yaw> | spot add | remove <n> | list/dump/reset", "the stolen-bike spots (the bike shop)")
 		ahLine({_s}, "/dhit node add/addat/link/remove/list | route on/off", "the hit targets' streets")

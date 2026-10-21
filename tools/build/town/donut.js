@@ -795,6 +795,9 @@ module.exports.setup = {
   heists: [{
     id: 'donut', difficulty: 0, name: 'Donut Shop', exit: [435.5, 65, 804.5, -90], holo: [431.5, 65, 811.5],
     snapshot: 'with the front doors (430, 65, 804..805) closed',
+    // the clerk (clerk.sk, 2026-10-21): behind the counter (the aisle x 410..411) at the register, facing the door; the
+    // spots it runs to for something to throw: both ends of the back counter (x 409), the kitchen counter (x 405..406)
+    clerk: { at: [411.5, 65, 801.5, -90], shelves: [[410.5, 65, 796.5], [410.5, 65, 808.5], [407.5, 65, 792.5]] },
     // one register for the whole $3,000 pool: 3 cells, $125 bills (a pile holds at most 24 pieces: core.sk loot::max-pieces)
     loot: [
       { name: 'Front_register', cells: [412, 65, 800, 412, 65, 802], value: '1800-3000', style: 'register', piece: 125,
