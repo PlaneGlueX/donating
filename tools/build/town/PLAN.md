@@ -932,6 +932,8 @@ const BOX = {
   dealer: [[465, 1009, 556, 1106]],
   safehouse: [[212, 880, 276, 944]],
   scrapyard: [[579, 1012, 662, 1100]],
+  pawnshop: [[579, 940, 614, 985]], // Vic's Pawn Shop (section 15.4, 2026-10-21)
+  poolhall: [[418, 1129, 479, 1172]], // the Broker's Pool Hall (section 15.5)
   houses: Object.values(PLOTS)
 }
 const BUILDINGS = Object.keys(BOX)
@@ -1291,6 +1293,8 @@ Each module owns exactly the columns `ownerOf(x, z)` gives it. Regions can't ove
 | `houses` | `town/houses.js` | `BOX.houses` (the 12 plots) | section 7 (one parametric kit, two specials) | ≤ 120K |
 | `safehouse` | `town/safehouse.js` | `BOX.safehouse` | 6.8 | ≤ 30K |
 | `scrapyard` | `town/scrapyard.js` | `BOX.scrapyard` | 6.9 | ≤ 40K |
+| `pawnshop` | `town/pawnshop.js` | `BOX.pawnshop` | 15.4 (2026-10-21) | ≤ 25K |
+| `poolhall` | `town/poolhall.js` | `BOX.poolhall` | 15.5 (2026-10-21) | ≤ 30K |
 
 The whole town is about 1.9M blocks at most, against 0.4M for the prison. At 48×48 a piece, that's about 250 pieces.
 
@@ -1435,3 +1439,184 @@ Magenta in a render only means render.js has no texture for that name. `check-st
 - Q14: keep the walk, but add a small shop in front of the prison with a little parking lot where small vehicles (bikes) spawn; a player steals one with a quick-time event (like the car-theft lockpick minigame).
 - Q15: build Vic's Pawn Shop and the Broker's Pool Hall in town (with the dealer, houses, Safehouse and Scrap Yard).
 - Builds are practical, not roleplay: build for how players use a place (walking in to rob it), no props nobody uses. The Donut Shop's drive-thru is gone (its lane, windows, canopy, till, menu board and Main's driveway at z 829..838): a lawn, one south window and a single register holding the $3,000 pool (Q2's second till dropped there; the gas store keeps its lottery till).
+
+## 15. The cloud run (2026-10-21): fuel, the bike shop, the Pawn Shop, the Pool Hall and the four unbuilt modules
+
+The owner, 2026-10-21, after the local session's list (wire the 8 built parts, the bike shop, the 6 missing buildings, the gas
+station's trim): "plans, scripts, builds, then local checks in the end"; on the gas station: "keep as built, enable fuel for
+cars, and make adding fuel like an actual gas pump (grab pump, fill it into car, wait until full, pay money, different cars
+have different size tanks)". A cloud session wrote everything in this section (plans, Skript, DonatingPhone Java, build
+modules); nothing of it has run on a server or in the client. The local session builds, pastes, wires and tests it
+(`handoff/2026-10-21/README.md`). The wiring of the 8 built parts (SETUP.md parts A and B) needs the server and stays the
+local session's.
+
+Offline checks the cloud ran: `town.js check --seal --registry` (a 26.1 block registry made from minecraft-data), each module's
+renders (block colours from the 26.1 textures), and the prison's `jail.js check`. The wiki pictures were out of reach
+(network policy), so the looks follow this plan's text and the wiki's descriptions; compare them with the local wiki pictures.
+
+### 15.1 COMMON changes (every town module's copy)
+
+- `BOX` gets `pawnshop: [[579, 940, 614, 985]]` and `poolhall: [[418, 1129, 479, 1172]]`.
+- Nothing else in COMMON changes. `ownerOf` gives those columns to the two new modules; `builtD` counts them, so the hills
+  near them (E3's west foot, T1's west flank) stay 3+ blocks away.
+- `town.js`: `MODULES` adds `pawnshop` and `poolhall`; `SETUP_KEYS` adds `pumps` (15.2) and setup prints them.
+- `streets` GPS: node 1055 EAST_PAWN (568.0, 65, 962.5) on East Street splits the link 1025-1026 (1025-1055-1026), for the
+  Pawn Shop's door.
+
+### 15.2 Fuel (fuel.sk, DonatingPhone CarStats, garage.sk, the gas station's pumps)
+
+MTVehicles 2.5.x keeps fuel per car as a level 0..100 and, while a driver holds the pedal, takes `fuelMultiplier ×
+fuelUsage` a tick (its VehicleMovement.putFuelUsage; checked in its source); at under 1 the car doesn't move. Its own fuel
+bar (a boss bar, "63% Fuel") shows while driving. Donating turns it on and adds tanks, pumps and prices:
+
+- **Switches:** MTVehicles `config.yml` `fuelEnabled: true` (`fuelMultiplier: 1`); every family in `vehicles.yml`
+  `benzineEnabled: true` (make-car-wraps.js writes it for the families it adds). A car made before keeps its own
+  `benzineEnabled false` in vehicleData.yml: garage.sk turns it on (and sets the model's usage) every time its owner gets
+  in, through DonatingPhone `/dphone carfuel <plate> enabled true usage <u>`. core.sk `fuel::enabled` false stops all of
+  it in Donating's scripts (cars then run on MTVehicles' own setting).
+- **Tanks** (PROPOSAL, core.sk `car::<id>::tank` liters and `car::<id>::burn` minutes of pedal per full tank):
+
+  | Car | Tank | Burn | Usage a tick u = 100 / (burn × 1200) | A full tank at $25/L |
+  |---|---|---|---|---|
+  | Sedan | 50 L | 12 min | 0.00694 | $1,250 |
+  | Sport Sedan | 55 L | 11 min | 0.00758 | $1,375 |
+  | Jeep | 70 L | 11 min | 0.00758 | $1,750 |
+  | Sports Car | 60 L | 9 min | 0.00926 | $1,500 |
+  | Hotrod | 65 L | 8 min | 0.01042 | $1,625 |
+  | SUV | 90 L | 12 min | 0.00694 | $2,250 |
+  | Viper | 18 L | 10 min | 0.00833 | $450 |
+  | Riviera | 75 L | 10 min | 0.00833 | $1,875 |
+  | Apex | 80 L | 7 min | 0.01190 | $2,000 |
+  | Crate cars | as their family (Vandal = Sports Car, Specter = Sport Sedan, Overclock = Hotrod) | | | |
+  | Stolen bike (15.3) | 12 L | 8 min | 0.01042 | $300 |
+
+  The level in liters is L = level / 100 × tank. A contract car uses its model's tank (it's scrapped within 10 minutes).
+- **The pump** (fuel.sk; the gas station's 12 pumps registered with `/dfuel pumpat`, lines from the gas module's
+  `setup.pumps`):
+  1. **Grab the nozzle:** right-click a pump (any block of its box). Hotbar slot 9 (the phone) becomes the nozzle (a
+     tagged item like the car key) and is selected; a hose of dust particles runs from the pump's holster to the player.
+     Refused: in a car, combat-tagged or wanted, the pump busy (someone holds its nozzle), dead, in a heist.
+  2. **Fill:** with the nozzle in hand, right-click a car (any of its stands) within the hose's reach (`fuel::hose` 6
+     blocks from the pump) that has nobody in the driver's seat and fuel turned on. The pump runs: `fuel::flow` 4 L a
+     second, paid as it flows (each second's liters × `fuel::price` $25, all or nothing: the pump stops when the money
+     runs out), a meter over the pump ("PUMP 5 · 23.4 L · $585.00", a text display everyone sees), a fill sound, the
+     action bar ("⛽ 38.2 / 50 L · $585 · right-click the car to stop").
+  3. **Full:** it clicks off by itself at 100% ("FULL"), or stops when the player right-clicks the car again, walks more
+     than 4 blocks from the car, someone gets into the car, or the nozzle goes back.
+  4. **Pay:** every second's fuel is paid as it flows (a real pump's meter); hanging up prints the receipt ("Pump 5:
+     23.4 L, $585").
+  5. **Hang up:** right-click the pump again. The nozzle also goes back by itself when the player selects another slot,
+     walks more than `fuel::hose` + 2 from the pump, gets into a car, is combat-tagged, dies, quits or teleports, and
+     after `fuel::idle` 60 s with no fuel flowing. Slot 9 is the phone again.
+- **The garage's tank service** (a car in the garage, not out): its options page gets "Refuel" at `fuel::garage-factor`
+  2× the pump's price, instant (a second click from $1,000 up), only at a garage site when the map has one (like
+  repaints). That's the way back for a car that ran dry: send it back (free), refuel it there, call it out again.
+- **Warnings:** at `fuel::low` 15% a chime and "Low fuel" on the action bar (once a ride); empty: "Out of fuel: /garage
+  can send it back and refuel it". The chase camera's action bar shows "⛽ 63%".
+- **New cars** come full (MTVehicles makes every new car at 100); crate cars and contract cars too.
+- **Players:** `/fuel` (the driven or nearest own car's fuel, liters, tank and the price to fill; pins the nearest pump on
+  the GPS). **Staff:** `/dfuel pumpat|remove|list|dump`, `/dfuel car <plate> [level]`, `/dfuel info <player>`. Log:
+  plugins/Skript/logs/fuel.log.
+
+### 15.3 The bike shop and stolen bikes (prison module `bikeshop`, bikes.sk)
+
+The owner, 2026-10-21 (Q14): "keep the walk, but add a small shop in front of the prison with a little parking lot where
+small vehicles (bikes) spawn; a player steals one with a quick-time event (like the car-theft lockpick minigame)".
+
+**The build** (`tools/build/jail/bikeshop.js`, a sixth prison module; jail.js `MODULES` adds it and outdoors.js's region
+leaves its box out):
+
+| Part | Box | Height | Facing / doors |
+|---|---|---|---|
+| Box | x 304..350, z 398..415 (between the front fence z 396 and the highway's sidewalk z 416..418, east of tower T11's deck x 290..302) | y 62..90 | |
+| Lot | x 305..332, z 399..414, asphalt | y 64 | open to the sidewalk on the south (z 415 meets z 416); 4 stalls 3 wide (white lines at x 308, 313, 318, 323, 328 over z 402..410), wheel stops at z 402 |
+| Shop | x 334..349, z 400..413 | walls y 64..71, roof y 72 | west onto the lot: an open doorway x 334, z 406..407 (iron doors held open); a roll-up door (iron trapdoors, closed) at x 334, z 409..412 |
+
+- **Look:** a small corrugated workshop: light grey walls (`light_gray_concrete` with `iron_trapdoor`-ribbed bands), an
+  orange stripe at y 69, a dark roof (`polished_deepslate`), a "BIKES" sign (orange board, white label) over the
+  doorway, a tyre sign on the corner. Inside: a workbench look (no blocks with a menu: `stripped_spruce_wood` and
+  `iron_trapdoor`s), a tyre rack (`blackstone`), a parts wall.
+- **Spots:** the bikes stand at BIKE_1..4 = (310.5 | 315.5 | 320.5 | 325.5, 65, 406.5), yaw 0 (facing south, out to the
+  highway). The GPS point BIKE_SHOP (320.5, 65, 412.5); tools/make-jail-gps-paths.js walks LOT_EXIT → BIKE_SHOP.
+- **Setup** (console): `dbike spotat jailbreak 310.5 65 406.5 0`, `... 315.5 ...`, `... 320.5 ...`, `... 325.5 ...`.
+
+**The bikes** (bikes.sk; PROPOSAL numbers in core.sk `bike::*`):
+- **Parked bikes** are item displays of the bike model at each free spot (tag `donating_bike`, not persistent, made again
+  when the chunk loads or after a restart), each with an unresponsive interaction box (right-click to steal). The model:
+  MTVehicles' motorbike (the Viper's shape) in its own wrap **Scrapper** (rusty orange primer; `tools/car-wraps.json`,
+  made by make-car-wraps.js, never rolled in crates: core.sk `carwrap::scrapper::retired` true), so a stolen bike never
+  looks like a Viper anyone paid for. Until make-car-wraps.js has run, bikes.sk has no bike look and parks none (/dsetup
+  says so).
+- **Stealing:** right-click a parked bike: the hotwire minigame (contracts.sk's lock-picking menu, "Hotwire the bike":
+  `bike::qte-hits` 3 in a row, the marker a slot every `bike::qte-step` 3 ticks). No tool needed (escapees have
+  nothing). `bike::max-fails` 3 misses sound the bike's alarm and lock that bike for that player for `bike::alarm-lock`
+  15 s. Getting hurt or walking 4 blocks away closes it.
+- **The ride:** the display goes; a real MTVehicles bike (the Scrapper motorbike variant) is made at the spot, owned by
+  the thief (only they drive; one seat), slowed to `bike::stats` "0.62|0.014|8" (top speed, acceleration, steering:
+  DonatingPhone `/dphone carstat`), with a tank of `bike::fuel-min` 40 .. `bike::fuel-max` 100% fuel (15.2), and the
+  thief is put in it.
+- **The end:** the bike is scrapped (despawned and deleted) when it stands with no rider for `bike::abandon` 60 s, after
+  `bike::max-ride` 20 min (the rider is put out: "The bike died"), when the thief logs out, dies, steals another bike or
+  gets into one of their own cars, and when it's taken into a heist (garage.sk's tow rules: not allowed). Its spot gets a
+  new bike `bike::respawn` 120 s after it was stolen. One bike at a time per player; a restart scraps every stolen bike
+  (`{bike::plates::*}`, saved).
+- **Who:** anyone free (escaped prisoners and free players), wanted or not (a getaway), passive or not; never staff in
+  creative; never from inside a heist.
+- **Staff:** `/dbike spotat <world> <x> <y> <z> <yaw>`, `spot add` (where you stand), `remove <n>`, `list`, `dump`,
+  `reset` (every spot gets a bike now). Log: plugins/Skript/logs/bikes.log.
+
+### 15.4 Vic's Pawn Shop (module `pawnshop`)
+
+Q15 answered (2026-10-21): build it in town. Box x 579..614, z 940..985, on East Street's east side, across from the shops'
+rear lot; E3's satellite-dish hill stays 30+ blocks east.
+
+| Part | Box | Height | Facing / doors |
+|---|---|---|---|
+| Forecourt | x 579..584, z 941..984, paved (`light_gray_concrete`, flush with East Street's sidewalk) | y 64 | |
+| Pawn Shop | x 585..608, z 948..978 | walls y 64..72, flat roof y 73 under a parapet y 74 | west; open doorway x 585, z 962..963, y 65..67 (iron doors held open inward), a transom y 68..69 |
+| Side and back yard | the rest of the box: grass, a fence on its east and south edges, trees | | |
+
+- **Look:** dark red brick (`bricks` 70, `red_nether_bricks` 15, `mud_bricks` 15) on a `polished_blackstone` base course; a
+  mustard sign band (`yellow_terracotta`) at y 70..71 with "PAWN" (big) and "VIC'S" over the door; two display windows
+  (x 585, z 951..958 and 967..975, y 66..69) behind `iron_bars` (x 584) with a roll-up shutter box over each
+  (`iron_trapdoor`s at y 70); the pawnbroker's three gold balls hanging from a bracket at the north-west corner; the roof
+  `gray_terracotta` with `polished_blackstone_brick_wall` parapets and an AC unit.
+- **Inside:** a checker floor (`polished_andesite` / `polished_basalt`); a glass-fronted counter at x 597, z 952..973
+  (`glass` over `smooth_stone`, a `dark_oak_slab` top at y 66) with a gap at its north end; Vic behind it at (600.5, 65,
+  962.5), yaw 90 (facing the door); shelving and a pegboard on the back wall (x 607) and the side walls with goods as
+  item displays (`displays`: clocks, gold, jewels, a guitar look) and in both windows; hanging lanterns.
+- **Region:** `safe_pawnshop` 580 63 941 .. 614 85 985 (passthrough allow, weapon-shoot deny).
+- **Giver:** `dquest addatw fence W 600.5 65 962.5 90 Pawn Shop` (Vic, quest kind `fence`).
+- **GPS:** door node 1054 PAWN_SHOP (582.5, 65, 962.5) linked to 1055 EAST_PAWN (15.1).
+
+### 15.5 The Broker's Pool Hall (module `poolhall`)
+
+Box x 418..479, z 1129..1172: across Hill Road from where Main Street ends, so the hall closes Main's view to the south.
+T1's stair path (x 498..500) stays 19 blocks east.
+
+| Part | Box | Height | Facing / doors |
+|---|---|---|---|
+| Forecourt | x 418..479, z 1129..1137: paving from Hill Road's sidewalk to the door, two planters, lamps | y 64 | |
+| Pool Hall | x 431..466, z 1138..1165 | walls y 64..74, roof y 75 under a parapet y 76 | north; open doorway x 447..450, z 1138, y 65..67 (iron doors held open inward at x 448..449, sidelights at 447 and 450), a transom y 68..69 |
+| Back | z 1166..1172: grass, the AC units, a fence | | |
+
+- **Look:** a night-club box in black and green: `polished_blackstone_bricks` walls with a `green_concrete` band at y 66
+  and a lit green neon line (`lime_stained_glass` over `verdant_froglight`) at y 72; a big sign over the door: an
+  8-ball (a black disc with a white circle and a black "8" label) beside "POOL" in lime letters; dark green awnings
+  (`green_terracotta` stairs) over the windows; tall windows (`green_stained_glass_pane`) either side of the door; a
+  `gray_terracotta` roof.
+- **Inside:** dark wood (`dark_oak_planks` floor, a `dark_oak_planks` wainscot to y 66, `green_terracotta` above); four
+  pool tables (3 × 6: a top slab of `dark_oak_slab` at y 65 with `green_carpet` on it, `black_carpet` pockets, fence
+  posts as legs) at x 435..437 and 460..462, z 1143..1148 and 1153..1158, each under a hanging lantern pair; the
+  Broker's corner at the back: a raised platform (`dark_oak_slab`, z 1159..1164, x 443..454) with a desk and two
+  armchairs, the Broker at (448.5, 65.5, 1161.5) yaw 180 (facing the door); a "WANTED" board on the back wall (labels).
+- **Region:** `safe_poolhall` 418 63 1129 .. 479 90 1172 (passthrough allow, weapon-shoot deny).
+- **Giver:** `dquest addatw hits W 448.5 65.5 1161.5 180 Pool Hall` (the Broker, quest kind `hits`).
+- **GPS:** door node 1056 POOL_HALL (448.5, 65, 1131.5) linked to 1013 MAIN_HILL.
+
+### 15.6 The four modules section 6 planned (dealer, houses, safehouse, scrapyard)
+
+Built from 6.6..6.9, 7 and 8 as written, with the owner's "practical, not roleplay" rule: no rooms or props nobody uses (the
+houses stay locked shells with blinds; the dealership's upper floors keep their car displays because players come to look at
+cars; the scrap yard keeps its wrecks because they're the yard). Their setup lines (regions, keepers, givers, crate stands,
+car spots, the chop shop, garages, POIs, the wall map, the leaderboards) are the modules' `setup` exports.

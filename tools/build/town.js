@@ -22,7 +22,8 @@ const path = require('path')
 const crypto = require('crypto')
 const { Build, place, parseState } = require('./mcstruct')
 
-const MODULES = ['approach', 'streets', 'land', 'gunshop', 'donut', 'garage', 'gas', 'shops', 'dealer', 'houses', 'safehouse', 'scrapyard']
+const MODULES = ['approach', 'streets', 'land', 'gunshop', 'donut', 'garage', 'gas', 'shops', 'dealer', 'houses', 'safehouse', 'scrapyard',
+  'pawnshop', 'poolhall'] // the last two: PLAN 15.4 and 15.5 (2026-10-21)
 const DIR = path.join(__dirname, 'town')
 const ROOT = path.join(__dirname, '..', '..')
 const PRISON = { x1: -40, z1: -30, x2: 480, z2: 470 } // the prison's box (jail.js): the town never writes in it
@@ -82,7 +83,7 @@ function points () {
   }
   return all
 }
-const SETUP_KEYS = ['regions', 'heists', 'keepers', 'givers', 'crates', 'carSpots', 'chops', 'garages', 'pois', 'walls', 'holos']
+const SETUP_KEYS = ['regions', 'heists', 'keepers', 'givers', 'crates', 'carSpots', 'chops', 'garages', 'pois', 'walls', 'holos', 'pumps']
 function setup () {
   const s = Object.fromEntries(SETUP_KEYS.map(k => [k, []]))
   for (const m of present()) for (const k of SETUP_KEYS) for (const v of (mod(m).setup || {})[k] || []) s[k].push({ ...v, module: m })
@@ -240,6 +241,11 @@ function check (opts) {
     const [x, y, z] = c.at.map(Math.floor)
     if (!solidAt(x, y, z)) fail(`crate stand ${c.crate}: no block at ${x} ${y} ${z}`)
     for (let d = 1; d <= 3; d++) if (solidAt(x, y + d, z)) fail(`crate stand ${c.crate}: ${at(x, y + d, z)} ${d} over it`)
+  }
+  for (const pu of S.pumps) { // fuel.sk's pumps (PLAN 15.2): every block of a pump's box is a block to click
+    const [x1, y1, z1, x2, y2, z2] = pu.box
+    for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) for (let z = z1; z <= z2; z++) if (!solidAt(x, y, z)) fail(`pump ${pu.label}: no block at ${x} ${y} ${z} (${at(x, y, z)})`)
+    if (!inSafe([x1, y1, z1]) && inHeist([x1, y1, z1])) fail(`pump ${pu.label} is inside ${inHeist([x1, y1, z1]).id}`)
   }
   const chops = S.chops.map(c => c.at)
   for (let i = 0; i < S.carSpots.length; i++) {
@@ -607,6 +613,10 @@ function setupLines (W) {
     for (const c of S.crates) tag('(G)', `look at ${c.at.join(' ')}, then ${c.cmd}`)
     for (const c of [...S.carSpots, ...S.chops]) tag('(G)', `${goto(c.at)}   then   ${c.cmd}`)
     for (const w of [...S.walls, ...S.holos]) tag(now ? '(L)' : '(G)', w.cmd)
+  }
+  if (S.pumps.length) {
+    L.push('', '## 6b. Fuel pumps (fuel.sk, PLAN 15.2: a box of blocks per pump, its number)')
+    for (const p of S.pumps) tag('(C)', `dfuel pumpat ${W} ${p.box.join(' ')} ${p.label}`)
   }
   L.push('', '## 7. GPS paths and the phone\'s map')
   tag('(C)', `the lines of tools/jail-gps-paths.txt (they clear the world's graph first), then tools/build/town/town-gps-paths.txt`)

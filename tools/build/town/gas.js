@@ -57,6 +57,8 @@ const BOX = {
   dealer: [[465, 1009, 556, 1106]],
   safehouse: [[212, 880, 276, 944]],
   scrapyard: [[579, 1012, 662, 1100]],
+  pawnshop: [[579, 940, 614, 985]], // Vic's Pawn Shop (section 15.4, 2026-10-21)
+  poolhall: [[418, 1129, 479, 1172]], // the Broker's Pool Hall (section 15.5)
   houses: Object.values(PLOTS)
 }
 const BUILDINGS = Object.keys(BOX)
@@ -865,7 +867,13 @@ module.exports.setup = {
         cmd: 'dloot add gas pile 380 65 890 380 65 890 value=300-600 style=register name=Lottery_till' }
     ]
   }],
-  keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: []
+  keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [],
+  // the Gas Station as a place on the locator bar and the GPS (nav.sk: only once the jailbreak map is the main world)
+  pois: [{ type: 'landmark', name: 'Gas Station', at: [402.5, 65, 953.5, 0], launch: true, cmd: '/dpoi add landmark Gas Station' }],
+  walls: [], holos: [],
+  // fuel.sk's pumps (PLAN 15.2, 2026-10-21): each pump's blocks (x 414..415, y 65..67: the body and the head) and its
+  // number, the same as its lane-face labels (PUMP_LABELS: 1 the north pump of the north island, 2 its south pump, ...)
+  pumps: PILLARS.flatMap((p, i) => PUMP_Z.map((dz, j) => ({ box: [414, 65, p + dz, 415, 67, p + dz], label: String(i * 2 + j + 1) })))
 }
 module.exports.build = () => module.exports()
 

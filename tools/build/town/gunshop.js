@@ -63,6 +63,8 @@ const BOX = {
   dealer: [[465, 1009, 556, 1106]],
   safehouse: [[212, 880, 276, 944]],
   scrapyard: [[579, 1012, 662, 1100]],
+  pawnshop: [[579, 940, 614, 985]], // Vic's Pawn Shop (section 15.4, 2026-10-21)
+  poolhall: [[418, 1129, 479, 1172]], // the Broker's Pool Hall (section 15.5)
   houses: Object.values(PLOTS)
 }
 const BUILDINGS = Object.keys(BOX)
