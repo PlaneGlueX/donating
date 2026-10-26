@@ -75,7 +75,7 @@ module.exports = async ({ check }) => {
     // The sidebar's long lines wrapped in two (2026-10-21, the owner: "more compact, or wrap long lines"; untested (cloud)):
     // each _a part at most 22 visible characters (a single longer word aside), _a and _b together the whole line (a _b
     // over 22 cut with "…").
-    const vis = x => x.replace(/\(amp\)./g, '').replace(/&r/g, '').trim()
+    const vis = x => (x === '<none>' ? '' : x).replace(/\(amp\)./g, '').replace(/&r/g, '').trim() // zzpapi shows "" as <none>
     const wrapBad = []
     for (const k of ['season', 'mission', 'jobs', 'hit']) {
       const full = vis(await papi(`donating_${k}`)), pa = vis(await papi(`donating_${k}_a`)), pb = vis(await papi(`donating_${k}_b`))

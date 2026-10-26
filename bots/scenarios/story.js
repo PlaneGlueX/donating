@@ -7,7 +7,7 @@
 // missing only after a grace period; a mission already done is skipped (veterans); a chapter's end pays money, XP and
 // a tool (cash when the level is too low); without Mara on the map a talk mission waits for a call from /missions;
 // /missions shows it; staff only.
-const { join, sleep, quit, messagesSince } = require('../lib')
+const { join, sleep, quit, messagesSince, stashGivers, restoreGivers } = require('../lib')
 const rconLib = require('../rcon')
 
 const A = 'StoryA'
@@ -26,7 +26,10 @@ module.exports = async ({ check }) => {
   let ctGiver = ''
   let spotN = ''
   let chopN = ''
+  let stashed = []
   try {
+    // The town's own givers (Mara, the Boss, Vic, the Broker) off the map for the test; back in the finally.
+    stashed = await stashGivers(cmd, ['story', 'contracts', 'fence', 'hits'])
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const until = async (fn, ms = 5000) => {
       const end = Date.now() + ms
@@ -217,6 +220,7 @@ module.exports = async ({ check }) => {
     await until(async () => (await id(B)) === 'c1_meet', 9000)
     check('a new robber\'s story starts at once, with no bag yet (the first car job pays for it)', (await id(B)) === 'c1_meet', await info(B))
   } finally {
+    await restoreGivers(cmd, stashed).catch(() => {})
     await rcon.cmd('zzcfgreload').catch(() => {})
     if (giverN) await rcon.cmd(`dquest remove ${giverN}`).catch(() => {})
     if (ctGiver) await rcon.cmd(`dquest remove ${ctGiver}`).catch(() => {})

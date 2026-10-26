@@ -174,8 +174,8 @@ module.exports = async ({ check }) => {
     const gone = await until(async () => (await alive()) === 0 && /total=0/.test(await cops()), 6000)
     c = await combat(A)
     check('getting away: the alarm ends, every cop is removed, no longer wanted', gone && /wanted=false/.test(c) && /alarm=none/.test(await heist()), `${await cops()} / ${c} / ${await heist()}`)
-    // The prison's guards (jailcops.sk, "Prison Guard") stay up to 10 minutes after the last inmate leaves: not heist cops.
-    const heistNpcs = s => s.replace(/^NPCS \d+ ?/, '').split(' | ').filter(x => /^id=/.test(x) && !/ Prison Guard at /.test(x)).length
+    // The prison's guards (jailcops.sk, "Prison Guard": up to 10 minutes after the last inmate) and the stores' clerks (clerk.sk) aren't heist cops.
+    const heistNpcs = s => s.replace(/^NPCS \d+ ?/, '').split(' | ').filter(x => /^id=/.test(x) && !/( Prison Guard| Clerk) at /.test(x)).length
     check('...and no cop NPC is left in the world', heistNpcs(await npcs()) === 0, await npcs())
     await cmd(`forceload remove 960 1080 970 1100`)
 

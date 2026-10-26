@@ -17,7 +17,7 @@ const B = 'HeistB'
 const Y = 200
 const ID = 'ztest'
 const REGION = 'heist_ztest'
-const SAFE = 'safe_zheist'
+const SAFE = 'safe_base_zheist'
 const CHUNKS = '720 720 750 740'
 const PLATFORM = `720 ${Y - 1} 720 750 ${Y - 1} 740`
 const EDGE = 730
@@ -407,6 +407,7 @@ module.exports = async ({ check }) => {
     t = Date.now()
     await cmd(`minecraft:tp ${A} ${FAR}`)
     const lost = await until(async () => (await field('alarm')) === 'none', 3000)
+    await until(() => /You lost the cops/.test(text(A, t)), 2000) // the chat line can trail the RCON reply
     check('leaving the chase radius loses the cops, and the alarm ends with nobody hunted', lost && (await field('hunted')) === '0' && /You lost the cops/.test(text(A, t)) && logged(/alarm-end ztest/).length === 1, `${await heist()}; ${text(A, t)}`)
     await walkIn(A)
     await cmd(`dheist alarm ${ID}`)

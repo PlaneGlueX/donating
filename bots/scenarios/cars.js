@@ -13,7 +13,7 @@ const B = 'CarsB'
 const Y = 200
 const CHUNKS = '4000 4000 4040 4030'
 const PLATFORM = `4000 ${Y - 1} 4000 4040 ${Y - 1} 4030`
-const SAFE = 'safe_cars_test'
+const SAFE = 'safe_base_cars_test'
 const STAND = [4010, Y, 4020]
 
 module.exports = async ({ check }) => {

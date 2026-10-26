@@ -71,7 +71,7 @@ const ASSUME = {
   contractTime: 360, contractOk: 0.9,
   // Contact jobs: a waiting job gets done on a matching trip this often.
   jobMara: 0.5, jobBoss: 0.8,
-  // A hit contract a game week (clock.sk, 2026-10-21: 168 real minutes) at the best tier the level allows, this long
+  // A hit contract a game week (clock.sk, 2026-10-21: 140 real minutes, vanilla days of 20) at the best tier the level allows, this long
   // (finding the target in a window and taking it down).
   hitTime: 900,
   // Buying: keep this much of a price in reserve after a buy (bag losses, gear, ammo).
@@ -264,8 +264,8 @@ const simulate = (profileName, days, seed, curve) => {
     S.t = Math.max(S.t, start)
     const end = start + P.hours * 3600
     while (S.t < end) {
-      // A hit contract once a game week (10080 real seconds) while playing.
-      const gw = Math.floor(S.t / 10080)
+      // A hit contract once a game week (8400 real seconds: 7 vanilla days) while playing.
+      const gw = Math.floor(S.t / 8400)
       if (gw !== week) {
         week = gw
         const h = [...hitTiers].reverse().find(x => S.level >= x.level)

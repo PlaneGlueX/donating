@@ -172,7 +172,10 @@ module.exports = async ({ check }) => {
     check('right-clicking the floor twice: two nodes on it (y 180), the second linked to the first', made.length === 2 && new RegExp(`#${made[1]}@7912\\.5,180\\.0,7922\\.5->${made[0]}`).test(list2), `${made} | ${list2.slice(-300)}`)
     // Left-click the first node: selected; sneak + right-click: its menu; Delete twice: gone.
     try { await bots[B].lookAt(new (require('vec3').Vec3)(7910.5, 180.4, 7922.5), true) } catch (e) {}
+    await sleep(300) // the look goes out with the next movement packet
     bots[B].swingArm()
+    // Looking at the floor in reach, a client's left-click is a dig start (LEFT_CLICK_BLOCK), not a bare swing.
+    { const V = require('vec3').Vec3; const blk = bots[B].blockAtCursor(6); if (blk) { bots[B]._client.write('block_dig', { status: 0, location: blk.position, face: 1, sequence: 0 }); bots[B]._client.write('block_dig', { status: 1, location: blk.position, face: 1, sequence: 0 }) } }
     await sleep(600)
     const menuOpen = new Promise(resolve => { const t = setTimeout(() => resolve(null), 4000); bots[B].once('windowOpen', w => { clearTimeout(t); resolve(w) }) })
     bots[B].setControlState('sneak', true)
@@ -183,7 +186,7 @@ module.exports = async ({ check }) => {
     const menu = await menuOpen
     bots[B].setControlState('sneak', false)
     const menuTitle = menu ? JSON.stringify(menu.title) : ''
-    check('left-click a node selects it; sneak + right-click opens its menu', menu && menuTitle.includes(`GPS node #${made[0]}`), menuTitle)
+    check('left-click a node selects it; sneak + right-click opens its menu', menu && menuTitle.includes(`GPS node #${made[0]}`), menuTitle + ' | ' + bots[B].log.slice(-8).map(m => m.text).join(' / '))
     if (menu) {
       bots[B].clickWindow(5, 0, 0).catch(() => {})
       await sleep(500)
@@ -246,6 +249,7 @@ module.exports = async ({ check }) => {
 
     // ---------- Another world's own city ----------
     if (fs.existsSync(OWN)) { fs.renameSync(OWN, OWN_BAK); ownMoved = true; await cmd('dphone reload') }
+    await cmd(`zzcombatend ${A}`) // a tagged player's teleport is refused
     await tp([630.5, 65, 630.5], 'jailbreak')
     await sleep(2500) // the land around is made
     const scan = await cmd('dphone city scan 600 600 663 663 0 jailbreak')

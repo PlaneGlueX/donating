@@ -171,7 +171,7 @@ module.exports = async ({ check }) => {
     check('a car spot and a chop shop closer than 50 blocks are refused (no pay for no driving)', /refused: less than 50 blocks from chop shop/.test(nearChop) && /refused: less than 50 blocks from car spot/.test(nearSpot), `${nearChop} | ${nearSpot}`)
     let t = Date.now()
     bots[B].chat('/dcontract spot list')
-    await sleep(800)
+    await until(async () => /Staff only/.test(text(B, t)), 4000)
     check('/dcontract is staff only', /Staff only/.test(text(B, t)), text(B, t))
 
     // ---------- The menu ----------
@@ -209,6 +209,18 @@ module.exports = async ({ check }) => {
     await cmd(`dlevel set ${A} 5`)
     await sleep(1200)
 
+    // ---------- Parked cars (owner: cars parked in every lot, a new one every 5 minutes unless a job holds the spot) ----------
+    const park = async () => cmd(`zzctpark ${spotN}`)
+    const parkedHere = async () => /Test passed/.test(await cmd(`execute if entity @e[tag=donating_ctpark,type=item_display,x=${SPOT[0]},y=${Y},z=${SPOT[2]},distance=..3]`))
+    await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)
+    const shown = await until(async () => /shown=sedan\|Red/.test(await park()) && await parkedHere(), 5000)
+    check('the offer is the car parked at its spot: a Red Sedan stands there (a display with a click box)', shown && /look=sedan\|Red/.test(await park()) && /Test passed/.test(await cmd(`execute if entity @e[tag=donating_ctpark,type=interaction,x=${SPOT[0]},y=${Y},z=${SPOT[2]},distance=..1]`)), await park())
+    await cmd(`zzctoffer ${B} basic sedan Blue ${spotN}`) // another car is parked there now
+    t = Date.now()
+    await cmd(`zzcttake ${A} basic`)
+    await until(async () => /just drove off/.test(text(A, t)), 3000)
+    check('a car that was replaced meanwhile can\'t be taken: "That car just drove off", a new offer', /just drove off/.test(text(A, t)) && field(await state(A), 'job') === '<none>', `${text(A, t)} ${await state(A)}`)
+
     // ---------- Taking the job ----------
     await cmd(`zzctoffer ${A} basic sedan Red ${spotN}`)
     w = await menu(A)
@@ -218,6 +230,7 @@ module.exports = async ({ check }) => {
     let s = await state(A)
     const plate = field(s, 'plate')
     check('taking the job: the menu closes, the car is at its spot (a new MTVehicles car), stage "find"', !bots[A].currentWindow && field(s, 'job') === 'basic' && field(s, 'stage') === 'find' && plate !== '' && (await stands(plate)) >= 1 && /steal the Red Sedan/.test(text(A, t)), `${s} ${await car(plate)} ${text(A, t)}`)
+    check('...the parked car is gone (the real car took its place), and no new one is parked while the job holds the spot', !(await parkedHere()) && /look=<none>/.test(await park()) && /busy=true/.test(await park()), await park())
     check('it isn\'t a garage car: MTVehicles owner is the thief, but /garage doesn\'t list it', /owner=ThiefA/.test(await car(plate)) && !/sedan=/.test(await cmd(`dgarage info ${A}`)), `${await car(plate)} ${await cmd(`dgarage info ${A}`)}`)
     await until(async () => /CONTRACT/.test(barText()), 3000)
     check('the boss bar points the way: "CONTRACT · Steal the Sedan <arrow> <n>m · 9:5x"', /CONTRACT.*Steal the Sedan . \d+m .*9:5\d/.test(barText()), barText())
@@ -339,6 +352,13 @@ module.exports = async ({ check }) => {
     check('driving into a chop shop: $12,000 and 120 XP, the job ends, the car is scrapped', (await bal(A)) - bal0 === 12000 && lvl === 120 && field(s, 'job') === '<none>' && !/exists=yes/.test(await car(plate)) && /CAR DELIVERED|chop shop took/.test(text(A, t)) && logged(/deliver ThiefA .* pay=12000 xp=120/).length === 1, `${(await bal(A)) - bal0} ${lvl} ${s} ${await car(plate)} ${text(A, t)}`)
     check('...the robbery bounty adds 10% ($1,200), and the thief is out of the car', /BOUNTY ThiefA 1200/.test(await cmd(`zzbounty ${A}`)) && !/driver/.test(await cmd(`zzcarseat ${A}`)), `${await cmd(`zzbounty ${A}`)} ${await cmd(`zzcarseat ${A}`)}`)
     await sleep(2500)
+    const back = await until(async () => /look=\S+\|\S+/.test(await park()) && await parkedHere(), 5000)
+    check('the job over, a new car is parked at the spot', back && /busy=false/.test(await park()), await park())
+    const at0 = field(await park(), 'at')
+    await cmd('zzcfgtime contract::park-refresh 2 seconds')
+    const fresh = await until(async () => field(await park(), 'at') !== at0, 6000)
+    await cmd('zzcfgtime contract::park-refresh 5 minutes')
+    check('a parked car is replaced after contract::park-refresh (5 minutes; 2 s for the test)', fresh && await until(parkedHere, 3000), `${at0} -> ${await park()}`)
     check('the GPS dot is gone, and so is the boss bar', !/CONTRACT/.test(barText()) && !/Test passed/.test(await cmd('execute if entity @e[tag=donating_gps]')), `${barText()} ${await cmd('execute if entity @e[tag=donating_gps]')}`)
     t = Date.now()
     await cmd(`zzcttake ${A} basic`)
@@ -404,7 +424,7 @@ module.exports = async ({ check }) => {
     check('lockpicks are kept when you die', (await picks(A, 'basic')) === 1, await dump(A))
     t = Date.now()
     bots[A].chat('/levels')
-    await sleep(800)
+    await until(async () => /Master job car contracts/.test(text(A, t)), 4000)
     check('/levels lists the contract tiers', /Street job car contracts/.test(text(A, t)) && /Master job car contracts/.test(text(A, t)), text(A, t).slice(0, 600))
 
     // ---------- The tutorial's first job (owner, 2026-09-27) ----------

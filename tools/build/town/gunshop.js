@@ -882,12 +882,17 @@ module.exports.points = {
 }
 module.exports.setup = {
   regions: [
-    { id: 'safe_gunshop', box: [472, 63, 774, 547, 95, 833], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' }, note: 'the shop, the range and the front lawn up to the doorstep' },
-    { id: 'safe_gunrange', box: [515, 64, 787, 544, 76, 820], priority: 10, flags: { passthrough: 'allow', 'weapon-shoot': 'allow' }, note: 'the booths (shooters stand at x 515..516) and the lanes; PvP stays off (safe_*)' }
+    { id: 'safe_gunshop', box: [472, 63, 774, 547, 95, 833], flags: { passthrough: 'allow' }, note: 'the shop, the range and the front lawn up to the doorstep' },
+    { id: 'safe_gunrange', box: [515, 64, 787, 544, 76, 820], priority: 10, flags: { passthrough: 'allow', 'weapon-shoot': 'allow' }, note: 'the booths (shooters stand at x 515..516) and the lanes (only the bases are safe zones since 2026-10-21)' }
   ],
   heists: [],
   keepers: [{ kind: 'gun', at: KEEPER, cmd: '/dshopkeeper add gun', note: 'behind the long counter, facing the front door (west)' }],
-  givers: [], crates: [], carSpots: [], chops: [], garages: [],
+  givers: [], crates: [],
+  carSpots: [{ at: [498.5, 65, 734.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gun shop lot)' },
+    { at: [523.5, 65, 734.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gun shop lot)' },
+    { at: [508.5, 65, 750.5, 0], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gun shop lot)' },
+    { at: [538.5, 65, 758.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gun shop lot)' }],
+  chops: [], garages: [],
   pois: [{ type: 'shop', name: 'Gun Shop', at: POI, launch: true, cmd: '/dpoi add shop Gun Shop' }],
   walls: [], holos: []
 }

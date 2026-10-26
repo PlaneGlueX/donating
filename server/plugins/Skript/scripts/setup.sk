@@ -286,24 +286,11 @@ function setupPlaces(s: command sender):
 	setupHead({_s}, "Places")
 	set {_bp} to cfg("bag::base-prefix")
 	set {_sp} to cfg("pvp::safe-prefix")
-	set {_gp} to cfg("garage::region-prefix")
 	set {_base} to setupRegions({_bp})
 	if {_base} > 0:
 		setupLine({_s}, "ok", "%{_base}% base zone(s) where loot sells (regions %{_bp}%*)")
 	else:
 		setupLine({_s}, "no", "no base zone: loot can't be sold (/rg define %{_bp}%, passthrough allow, weapon-shoot deny)")
-	# Safe zones besides the base and the garages (spawn, the shops).
-	set {_zones} to 0
-	loop all regions in poiMainWorld():
-		set {_id} to name of loop-value
-		if {_id} starts with {_sp}:
-			if {_id} does not start with {_bp}:
-				if {_id} does not start with {_gp}:
-					add 1 to {_zones}
-	if {_zones} > 0:
-		setupLine({_s}, "ok", "%{_zones}% other safe zone(s) (spawn, the shops)")
-	else:
-		setupLine({_s}, "warn", "no safe zone besides the base and garages: spawn and the shops want one (/rg define %{_sp}%_spawn ...)")
 	loop "base", "shop" and "spawn":
 		set {_n} to setupPois(loop-value)
 		if {_n} > 0:
@@ -320,9 +307,6 @@ function setupPlaces(s: command sender):
 			if {_a::1} is "base":
 				if setupRegionAt({_l}, {_bp}) is false:
 					setupLine({_s}, "no", "base POI %loop-index% (%{_a::6}%) isn't inside a base zone: robbers the GPS leads there can't sell (/dpoi remove %loop-index%, add it inside)")
-			else if {_a::1} is "spawn":
-				if isSafeZone({_l}) is false:
-					setupLine({_s}, "warn", "spawn POI %loop-index% isn't inside a safe zone")
 	# Mara's missions find the shops on the GPS by a word in their POI's name (review fix).
 	loop "Gun", "Bag", "Gear" and "Car":
 		if setupPoiNamed("shop", loop-value) is false:
@@ -354,6 +338,8 @@ function setupFlags(s: command sender):
 			if {_id} starts with {_sp}:
 				if flag "weapon-shoot" of loop-value is not false:
 					setupLine({_s}, "warn", "%{_id}%: guns fire in this safe zone (/rg flag -w %{_w}% %{_id}% weapon-shoot deny)")
+			else if flag "weapon-shoot" of loop-value is false:
+				setupLine({_s}, "warn", "%{_id}%: no guns fire here, though only the bases are safe (/rg flag -w %{_w}% %{_id}% weapon-shoot)")
 	if {_bad} is 0:
 		setupLine({_s}, "ok", "%{_n}% region(s), every one with passthrough allow")
 
@@ -377,11 +363,6 @@ function setupShops(s: command sender):
 	if size of {garagesites::*} > 0:
 		if setupKeepers("garage") is 0:
 			setupLine({_s}, "warn", "no garage attendant: /garage still works in the garage (/dshopkeeper add garage)")
-	loop {shop::keepers::*}:
-		set {_l} to {shop::keeper::%loop-index%::loc}
-		if {_l} is set:
-			if isSafeZone({_l}) is false:
-				setupLine({_s}, "warn", "shopkeeper %loop-index% (%loop-value%) isn't inside a safe zone: shoppers can be shot")
 
 # ---------- Quest givers ----------
 
@@ -402,11 +383,6 @@ function setupQuests(s: command sender):
 			setupLine({_s}, "warn", "%{_who}% isn't on the map: her missions wait (/missions has Call Mara) (/dquest add story %{_place}%)")
 		else:
 			setupLine({_s}, "warn", "%{_who}% isn't on the map (/dquest add %{_k}% %{_place}%)")
-	loop {quest::giver::*}:
-		set {_l} to questLoc(loop-index)
-		if {_l} is set:
-			if isSafeZone({_l}) is false:
-				setupLine({_s}, "warn", "quest giver %loop-index% (%questNpcName(loop-index)%) isn't inside a safe zone: players in its menu can be shot")
 
 # ---------- Car jobs and hits ----------
 

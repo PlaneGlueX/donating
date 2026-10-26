@@ -642,7 +642,7 @@ module.exports.points = {
 }
 // PLAN 15.4: a safe zone over the whole box (Vic stands in it: a giver outside a safe zone gets a warning).
 module.exports.setup = {
-  regions: [{ id: 'safe_pawnshop', box: [579, 63, 940, 614, 85, 985], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+  regions: [{ id: 'safe_pawnshop', box: [579, 63, 940, 614, 85, 985], flags: { passthrough: 'allow' },
     note: 'Vic\'s Pawn Shop, its forecourt and yard' }],
   heists: [], keepers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: [], pumps: [],
   givers: [{ kind: 'fence', at: VIC, cmd: 'dquest addatw fence jailbreak 600.5 65 962.5 90 Pawn Shop',

@@ -139,7 +139,7 @@ module.exports = async ({ check }) => {
     since = Date.now()
     check('no damage through the fence (a free bot outside hits an inmate inside)', !(await lands(a, A, C)) && said(c, /Not through the fence/, since), `hp ${a.health}`)
     // Walking into the fence: a small shock (half a heart), the warning, never below a heart.
-    await into(A, 151.5, 65, 395.9, 0)
+    await into(A, 151.5, 65, 394.5, 0) // a step back: teleported against it, the shock would fire before the walk
     await cmd(`zzhp ${A} 20`)
     await sleep(300)
     since = Date.now()
@@ -148,7 +148,7 @@ module.exports = async ({ check }) => {
     await sleep(900)
     a.setControlState('forward', false)
     await sleep(400)
-    check('walking into the fence: a small shock (about half a heart) and "The fence is electrified"', a.health < hp0 && hp0 - a.health <= 2 && t.barSince(a, /fence is electrified/, since), `hp ${hp0} -> ${a.health}`)
+    check('walking into the fence: a small shock (about half a heart) and "The fence is electrified"', a.health < hp0 && hp0 - a.health <= 2 && /fence is electrified/.test(t.text(a, since)), `hp ${hp0} -> ${a.health} at ${a.entity.position}; ${t.text(a, since).slice(0, 300)}`)
     await cmd(`zzhp ${A} 2`)
     await sleep(1700)
     a.setControlState('forward', true)
@@ -162,7 +162,11 @@ module.exports = async ({ check }) => {
     check('no HIGH VOLTAGE plates in the fence any more', !/passed/i.test(plate), plate)
 
     // ---------- owned guns inside: taken out at the yard's Gun Shop, one loaded magazine a stay ----------
+    await cmd(`zzjail ${A} catch`) // a new stay: an earlier run's magazine is forgotten
+    await sleep(2500)
     await into(A, 205.5, 65, 160.5, 0)
+    await cmd(`zzcombatend ${A}`) // the fence and fight checks above tag combat, which shuts the shop
+    await cmd(`minecraft:clear ${A} minecraft:feather`) // no copy left from earlier parts
     await cmd(`zzjail ${A} own 50_GS`)
     await cmd(`dshop open ${A} gun`)
     await sleep(600)
@@ -171,10 +175,10 @@ module.exports = async ({ check }) => {
     const wm1 = await cmd(`zzwm ${A}`)
     check('an owned gun taken out inside the walls: in hotbar 1-5, its magazine loaded', /[0-4]=50_GS:([1-9]\d*)x1/.test(wm1), wm1)
     since = Date.now()
-    await cmd(`zzshopact ${A} buy:AK_47`)
-    await cmd(`zzshopact ${A} ammo:light`)
+    const sAk = await cmd(`zzshopact ${A} buy:AK_47`) // a refusal shows in the shop's status line
+    const sAmmo = await cmd(`zzshopact ${A} ammo:light`)
     await sleep(600)
-    check('...a gun not owned isn\'t unlocked in here, and no ammo is sold', !/AK_47/.test(await cmd(`zzwm ${A}`)) && said(a, /Unlock weapons once you're out/, since) && said(a, /Not inside the walls/, since), t.text(a, since).slice(0, 300))
+    check('...a gun not owned isn\'t unlocked in here, and no ammo is sold', !/AK_47/.test(await cmd(`zzwm ${A}`)) && /Unlock weapons once you're out/.test(sAk) && /Not inside the walls/.test(sAmmo), `${sAk} / ${sAmmo}`)
     await cmd(`zzjail ${A} strip`)
     await cmd(`minecraft:clear ${A} minecraft:feather`)
     await sleep(300)

@@ -163,6 +163,7 @@ module.exports = async ({ check }) => {
     check('inside the booth: "Hold right-click on the console"', said(e1, /Hold right-click on the console/, since))
     const held = await hold(e1, CONSOLE, 3800, 1)
     const opened = await until(async () => /state=open/.test(await breach('front')), 1500)
+    await until(async () => /air=210/.test(await breach('front')), 1500) // the panels slide 15 ticks
     let fr = await breach('front')
     const openedAt = Date.now()
     check('holding the console 3 s opens the front gate (every panel cell air within 1 s)', held && opened && /air=210/.test(fr), fr)
@@ -506,7 +507,8 @@ module.exports = async ({ check }) => {
     e1.deactivateItem()
     await sleep(800)
     const r1 = ((await cmd(`zzwm ${E1}`)).match(/0=50_GS:(\d+)/) || [])[1]
-    check('a gun inside: the right-click is refused ("No guns inside the walls"), its rounds unchanged', r0 !== undefined && r0 === r1 && said(e1, /No guns inside the walls/, since), `${r0} -> ${r1}`)
+    // Since 2026-10-21 owned guns work inside the walls (the owner: "used INSIDE the walls").
+    check('a gun inside fires (owned guns work inside the walls since 2026-10-21)', r0 !== undefined && Number(r1) < Number(r0) && !said(e1, /No guns inside the walls/, since), `${r0} -> ${r1}`)
     await cmd(`minecraft:clear ${E1}`)
     await cmd(`zzclear ${E1}`)
     await state(E1, 'in')
@@ -532,7 +534,7 @@ module.exports = async ({ check }) => {
     check('the Prison Gun Shop: shift-clicking an owned knife equips it', w && knife >= 0 && /Combat_Knife/.test(await cmd(`zzwm ${E1}`)), `${knife} ${await cmd(`zzwm ${E1}`)}`)
     const pistol = slotNamed(/Classic Pistol/)
     await click(pistol, 1)
-    check('...an owned gun refused ("No guns inside the walls")', pistol >= 0 && /No guns inside the walls/.test(await shopStatus()) && !/50_GS/.test(await cmd(`zzwm ${E1}`)), await shopStatus())
+    check('...an owned gun is taken out too (since 2026-10-21)', pistol >= 0 && /50_GS/.test(await cmd(`zzwm ${E1}`)), `${await shopStatus()} | ${await cmd(`zzwm ${E1}`)}`)
     await click(2)
     check('...Save refused, the saved loadout unchanged', /Save it once you're out/.test(await shopStatus()) && /= wpn:AK_47/.test(await cmd(`zzdata ${E1} loadout::1`)), `${await shopStatus()} ${await cmd(`zzdata ${E1} loadout::1`)}`)
     await click(47)

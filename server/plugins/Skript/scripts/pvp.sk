@@ -26,8 +26,8 @@ on damage of player:
 		hudBar(attacker, "&aYou're in passive mode: you can't hurt players.", 3)
 
 # ---------- Safe zones ----------
-# Every WorldGuard region whose id starts with cfg("pvp::safe-prefix") ("safe") is a safe zone, e.g.
-# "safe_spawn", "safe_base". Make one with WorldEdit's wand + /rg define safe_base, then
+# Every WorldGuard region whose id starts with cfg("pvp::safe-prefix") ("safe_base": only the bases, owner 2026-10-21)
+# is a safe zone. Make one with WorldEdit's wand + /rg define safe_base, then
 # /rg flag safe_base passthrough allow (like every Donating region: without it WorldGuard itself
 # blocks PvP, doors and NPC clicks inside for everyone who isn't a region member). In a safe zone:
 #   - no player hurts another there (either player inside); cops and traps still can
@@ -52,6 +52,18 @@ on damage of player:
 	else if isSafeZone(location of attacker) is true:
 		cancel event
 		hudBar(attacker, "&aNo fighting in safe zones.", 3)
+	else if pvpGarageSafe(victim) is true:
+		cancel event
+		hudBar(attacker, "&aThey're picking a car at the garage.", 3)
+
+# A player in the garage menu at a garage is safe until they close it (owner, 2026-10-21: "if a player is actively is in
+# a garage choosing their car, its safe until they come out"). Not for a player already in combat: no hiding in a menu.
+function pvpGarageSafe(p: player) :: boolean:
+	{-car::gui::%{_p}%} is set
+	{_p}'s current inventory is {-car::gui::%{_p}%}
+	isCombatTagged({_p}) is false
+	garageAt({_p}) is not ""
+	return true
 
 on region enter:
 	isCombatTagged(player) is true
@@ -90,14 +102,15 @@ on damage of player:
 
 # ---------- Stores ----------
 # Stores (heists.sk, difficulty 0) are for new robbers: with store::no-pvp (PROPOSAL) nobody hurts or is hurt by a
-# player inside one (the crew rule already covers robbers inside; this stops shots from outside).
+# player inside one (the crew rule already covers robbers inside; this stops shots from outside). By where they
+# stand, so customers in a closed store (heistStoreCustomer) count too.
 on damage of player:
 	attacker is a player
 	attacker does not have metadata "NPC"
 	attacker is not victim
 	{-cfg::store::no-pvp} is true
-	set {_hv} to heistOf(victim)
-	set {_ha} to heistOf(attacker)
+	set {_hv} to heistAt(location of victim)
+	set {_ha} to heistAt(location of attacker)
 	set {_store} to false
 	if {_hv} is not "":
 		if heistIsStore({_hv}) is true:

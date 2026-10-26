@@ -38,8 +38,10 @@ function loadSettings():
 	set {-cfg::pvp::spawn-shield} to 10 seconds
 	# After a command teleport or a heist eviction (pvp.sk; owner, 2026-09-27). EssentialsX's own stays 0.
 	set {-cfg::pvp::teleport-immunity} to 3 seconds
-	# WorldGuard regions whose id starts with this are safe zones (pvp.sk).
-	set {-cfg::pvp::safe-prefix} to "safe"
+	# WorldGuard regions whose id starts with this are safe zones (pvp.sk). Only the bases, with their crate stands (owner,
+	# 2026-10-21: "only safe zone is bases that have the crates"); garages, shops and spawn aren't safe any more, except a
+	# player in the garage menu at a garage (pvp.sk).
+	set {-cfg::pvp::safe-prefix} to "safe_base"
 	set {-cfg::passive::switch-cooldown} to 10 minutes
 	set {-cfg::bounty::repeat-kill-window} to 15 minutes
 	set {-cfg::duffel::despawn} to 2 minutes
@@ -459,6 +461,11 @@ function loadSettings():
 	set {-cfg::contract::cooldown} to 3 minutes
 	# Offers are made again this often (per player).
 	set {-cfg::contract::refresh} to 10 minutes
+	# Every car spot shows a parked car (contracts.sk), a new one this often unless a job holds the spot (owner, 2026-10-21:
+	# "non owned/player cars despawn and get replaced with a new one every 5 minutes (unless a player is driving or trying
+	# to unlock it)"); drawn while a player is within park-range blocks.
+	set {-cfg::contract::park-refresh} to 5 minutes
+	set {-cfg::contract::park-range} to 80
 	# The lock-picking minigame (like the drill's, loot.sk): the marker moves one slot every qte-step
 	# ticks; clicks are ignored this many ticks after a hit / a miss.
 	set {-cfg::contract::qte-hit-lock} to 6
@@ -616,14 +623,10 @@ function loadSettings():
 	set {-cfg::fence::car::tiers::*} to "basic" and "pro"
 	set {-cfg::fence::car::basic::pay} to 6000
 	set {-cfg::fence::car::pro::pay} to 18000
-	# clock.sk (owner, 2026-10-21: "a 12 hour clock system for the server (1min = 1sec irl)"): clock::rate game minutes a
-	# real second (a game hour is a real minute, a day 24 minutes, a week 168); the sky is set again once it's clock::drift
-	# game minutes off; clock::sky false leaves every world's time alone; clock::worlds (empty = every world but the
-	# Nether and the End). The game week is progress.sk's week (the hit contracts, Vic's list). Changing the rate moves
-	# the clock (and maybe the week) at once.
-	set {-cfg::clock::rate} to 1
-	set {-cfg::clock::drift} to 3
-	set {-cfg::clock::sky} to true
+	# clock.sk (owner, 2026-10-21; rebuilt the same day on Minecraft's own day/night cycle): the clock reads the play
+	# world's time (clock::world, else prison::world); clock::rate is vanilla's pace, 1.2 game minutes a real second (only
+	# for real countdowns: it never changes the sky). The game week is progress.sk's week (the hit contracts, Vic's list).
+	set {-cfg::clock::rate} to 1.2
 	set {-cfg::clock::days::*} to "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" and "Sun"
 	# progress.sk: run notes are kept 14 days at most. (week::offset moved the real Thursday week; since 2026-10-21 the
 	# week is the game clock's: /dclock set or offset moves it.)
@@ -1083,6 +1086,13 @@ function loadSettings():
 	set {-cfg::clerk::throw-speed} to 1.0
 	set {-cfg::clerk::spread} to 0.6
 	set {-cfg::clerk::damage} to 1.5
+	# A prop's push along the throw (blocks a tick; the Pipe Wrench's is 0.75) and lift; a chance of a short bad
+	# effect, blindness or Slowness I (owner, 2026-10-21; PROPOSAL).
+	set {-cfg::clerk::knockback} to 0.6
+	set {-cfg::clerk::lift} to 0.3
+	set {-cfg::clerk::effect-chance} to 25
+	set {-cfg::clerk::blind-time} to 1.5 seconds
+	set {-cfg::clerk::slow-time} to 2 seconds
 	set {-cfg::clerk::give-up} to 3
 	# What they throw: a Citizens item id (in their hand) and the item the thrown snowball shows.
 	set {-cfg::clerk::props::*} to "honey_bottle", "glass_bottle", "cookie", "bread", "apple" and "melon_slice"
@@ -1097,6 +1107,27 @@ function loadSettings():
 	# Added to the throws in a store with police.
 	set {-cfg::clerk::lines::throw-police::*} to "I called the cops!" and "The cops are coming!"
 	set {-cfg::clerk::lines::duck::*} to "Ow! Stop it!" and "Okay! Okay!"
+	# The armed clerk (owner, 2026-10-21: "10% chance ... 75% chance the weapon is melee and 25% armed (armed will have a
+	# little more money)"; PROPOSAL numbers): at each opening a store's clerk is armed clerk::armed-chance % of the time,
+	# with a melee weapon clerk::armed-melee % of those, else a gun; the register then holds clerk::mult-melee or
+	# clerk::mult-gun times its cash (every piece worth that much more). Melee: clerk::melee-damage HP a hit within
+	# clerk::melee-reach, one every clerk::melee-every. Gun: a shot every clerk::gun-every at a robber in sight within
+	# clerk::range, landing clerk::gun-aim % of the time for clerk::gun-damage HP.
+	set {-cfg::clerk::armed-chance} to 10
+	set {-cfg::clerk::armed-melee} to 75
+	set {-cfg::clerk::mult-melee} to 3
+	set {-cfg::clerk::mult-gun} to 3.5
+	set {-cfg::clerk::melee-damage} to 3
+	set {-cfg::clerk::melee-reach} to 2.6
+	set {-cfg::clerk::melee-every} to 1.25 seconds
+	set {-cfg::clerk::melee-push} to 0.5
+	set {-cfg::clerk::gun-damage} to 2.5
+	set {-cfg::clerk::gun-every} to 1.5 seconds
+	set {-cfg::clerk::gun-aim} to 45
+	# What they hold (Citizens item ids): the Pipe Wrench's look, the Classic Pistol's.
+	set {-cfg::clerk::weapon::melee} to "amethyst_shard[custom_model_data={floats:[2f]}]"
+	set {-cfg::clerk::weapon::gun} to "feather[custom_model_data={floats:[9f]}]"
+	set {-cfg::clerk::lines::armed::*} to "Wrong store, pal!", "I've been waiting for this!" and "Not today!"
 	set {-cfg::difficulty::2::level} to 5
 	# Owner, 2026-09-28: heists 0 / 5 / 20 / 45 (difficulty 1-4).
 	set {-cfg::difficulty::3::level} to 20
@@ -1260,12 +1291,13 @@ function loadSettings():
 	set {-cfg::loot::register::name} to "Register cash"
 	set {-cfg::loot::register::piece} to 100
 	set {-cfg::loot::register::take} to 0.6
-	set {-cfg::loot::register::item} to paper
-	set {-cfg::loot::register::model} to "donating:loot_cash"
+	# A real register (loot.sk lootRegSpawn): each piece a bundle of bills in the drawer (the pack's register_* models).
+	set {-cfg::loot::register::item} to iron ingot
+	set {-cfg::loot::register::model} to "donating:register_bills"
 	set {-cfg::loot::register::per-cell} to 4
 	set {-cfg::loot::register::layers} to 3
-	set {-cfg::loot::register::thick} to 0.05
-	set {-cfg::loot::register::scale} to 0.35
+	set {-cfg::loot::register::thick} to 0.03125
+	set {-cfg::loot::register::scale} to 1
 	set {-cfg::loot::pile::lift} to 0             # surface above the block top (auto -0.5 on a bottom slab)
 	# Gates: glass to smash, a safe to crack (keypad, needs a Safe Kit), a vault door to drill (needs a
 	# Drill). claim = the head start of whoever opened it (only they can take from the piles behind it;
@@ -1315,6 +1347,7 @@ function loadSettings():
 	set {-cfg::shop::title::tools} to "Heist Tools"
 	set {-cfg::shop::title::cars} to "Car Dealer"
 	set {-cfg::shop::title::garage} to "City Garage"
+	set {-cfg::shop::title::store} to "Store"
 
 	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles. Owner, 2026-09-26:
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
@@ -1539,6 +1572,30 @@ function loadSettings():
 	set {-cfg::tool::grappler::item} to breeze rod
 	set {-cfg::tool::grappler::about} to "Right-click: pull yourself where you aim"
 	set {-cfg::tool::grappler::level} to 30
+	# Store food (owner, 2026-10-21: "allow players to actually buy things in the stores (food, other consumables). keep
+	# stores open even when heist is on cooldown"): bought from a store's clerk (clerk.sk, shop kind "store"), carried
+	# like a tool in hotbar 1-5 and eaten the vanilla way (the base item's hunger), lost on death. Not in shop::tools,
+	# so the gun shop and /levels leave them out. PROPOSAL prices.
+	set {-cfg::tool::donut::name} to "Donut"
+	set {-cfg::tool::donut::enabled} to true
+	set {-cfg::tool::donut::price} to 40
+	set {-cfg::tool::donut::max} to 8
+	set {-cfg::tool::donut::item} to pumpkin pie
+	set {-cfg::tool::donut::about} to "Hold right-click: eat"
+	set {-cfg::tool::sandwich::name} to "Sandwich"
+	set {-cfg::tool::sandwich::enabled} to true
+	set {-cfg::tool::sandwich::price} to 60
+	set {-cfg::tool::sandwich::max} to 8
+	set {-cfg::tool::sandwich::item} to bread
+	set {-cfg::tool::sandwich::about} to "Hold right-click: eat"
+	set {-cfg::tool::hotdog::name} to "Hot Dog"
+	set {-cfg::tool::hotdog::enabled} to true
+	set {-cfg::tool::hotdog::price} to 80
+	set {-cfg::tool::hotdog::max} to 8
+	set {-cfg::tool::hotdog::item} to cooked porkchop
+	set {-cfg::tool::hotdog::about} to "Hold right-click: eat"
+	# What a store's clerk sells: "tool:<t>" or "con:<consumable>".
+	set {-cfg::shop::store::*} to "tool:donut", "tool:sandwich", "tool:hotdog", "con:Bandage" and "con:Energy_Drink"
 	# The Pipe Wrench's knockback (title Baseball_Bat; items.sk; it was MechanicsCore's Push): blocks a tick along the
 	# hit, and up.
 	set {-cfg::bat::knockback} to 0.75

@@ -271,9 +271,9 @@ module.exports = async ({ check }) => {
     await sleep(1500)
 
     // ---------- Safe zones by car (combat-tagged) ----------
-    await cmd(`rg remove -w world safe_zgar`)
-    await cmd(`zzregion safe_zgar 1225 ${Y - 1} 1193 1240 ${Y + 6} 1206`)
-    await cmd(`rg flag -w world safe_zgar passthrough allow`)
+    await cmd(`rg remove -w world safe_base_zgar`)
+    await cmd(`zzregion safe_base_zgar 1225 ${Y - 1} 1193 1240 ${Y + 6} 1206`)
+    await cmd(`rg flag -w world safe_base_zgar passthrough allow`)
     await cmd('zzcfgtime car::call-cooldown 1 second')
     await cmd(`minecraft:tp ${A} 1229.5 ${Y} 1199.5 -90 0`)
     await sleep(1500)
@@ -303,7 +303,7 @@ module.exports = async ({ check }) => {
     const swept = await until(async () => (await stands(plate)) === 3, 15000)
     check('a stray copy of a car is removed by the sweep, the car itself stays out', twice === 6 && swept && /,out,/.test(await info(A)), `${twice} ${await car(plate)} ${await info(A)}`)
     await cmd(`dgarage store ${A}`)
-    await cmd(`rg remove -w world safe_zgar`)
+    await cmd(`rg remove -w world safe_base_zgar`)
     await sleep(500)
 
     // ---------- Cleanup: idle, and logging out ----------

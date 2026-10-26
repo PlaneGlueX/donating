@@ -137,6 +137,20 @@ module.exports = async ({ check }) => {
     // The Legend's own footer: it must show their level, not their rank.
     const footer = bots[Z].tablist && bots[Z].tablist.footer ? bots[Z].tablist.footer.toString() : ''
     check('the footer shows the robber level, not the rank', /Level 0 Pickpocket/.test(footer) && /\/level/.test(footer) && !/Legend|VIP/.test(footer), footer)
+    // Staff given another group in its place (lp user parent set admin) keep what they bought: the perks follow
+    // the purchase record, not the LuckPerms group.
+    await cmd(`lp user ${Z} parent remove legend`)
+    await sleep(2000)
+    t = Date.now()
+    bots[Z].chat('/ranks')
+    await sleep(900)
+    const still = messagesSince(bots[Z], t).map(m => m.text).join(' | ')
+    t = Date.now()
+    bots[Z].chat('/heistrefresh')
+    await sleep(900)
+    const refresh = messagesSince(bots[Z], t).map(m => m.text).join(' | ')
+    check('without the Legend group (staff moved to another) the bought rank\'s perks stay: /ranks, Heist Refresh', /Yours: \[Legend\] Legend/.test(still) && !/comes with/.test(refresh), `${still} / ${refresh}`)
+    await cmd(`lp user ${Z} parent add legend`)
   } finally {
     for (const name of [Z, M, A]) {
       await rcon.cmd(`dranks give ${name} none`).catch(() => {})

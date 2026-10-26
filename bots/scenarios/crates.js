@@ -20,7 +20,7 @@ const PLATFORM = `896 ${Y - 1} 896 950 ${Y - 1} 912`
 // Crate stands (inside the safe zone below): common, legendary, and a spare block for /dcrate place.
 const STANDS = { Common: [900, Y, 910], Legendary: [902, Y, 910] }
 const SPARE = [904, Y, 910]
-const SAFE = 'safe_crates_test'
+const SAFE = 'safe_base_crates_test'
 const HID = 'zref'
 const FAR = '0.5 68 -656.5'
 const LOGS = path.join(__dirname, '..', '..', 'server', 'plugins', 'Skript', 'logs')

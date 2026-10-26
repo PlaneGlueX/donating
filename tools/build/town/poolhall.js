@@ -642,7 +642,7 @@ module.exports.points = {
   POOL_BROKER: BROKER         // the Broker (quests.sk, kind hits): on his platform behind the desk, facing the door
 }
 module.exports.setup = {
-  regions: [{ id: 'safe_poolhall', box: [418, 63, 1129, 479, 90, 1172], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+  regions: [{ id: 'safe_poolhall', box: [418, 63, 1129, 479, 90, 1172], flags: { passthrough: 'allow' },
     note: 'the Broker\'s Pool Hall, its forecourt and yards' }],
   heists: [], keepers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: [], pumps: [],
   givers: [{ kind: 'hits', at: BROKER, cmd: 'dquest addatw hits jailbreak 448.5 65.5 1161.5 180 Pool Hall',

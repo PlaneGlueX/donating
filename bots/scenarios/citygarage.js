@@ -142,6 +142,26 @@ module.exports = async ({ check }) => {
     // ---------- At the garage: the exit lane ----------
     await tp(A, INSIDE)
     await tp(B, [INSIDE[0] + 2, Y, INSIDE[2]])
+    // Only the bases are safe zones (owner, 2026-10-21), but a player in the garage menu at a garage is safe until they
+    // close it.
+    await sleep(3500) // the teleport immunity
+    const punch = async () => { await bots[B].lookAt(bots[A].entity.position.offset(0, 1.4, 0), true); bots[B].attack(bots[A].entity); await sleep(700) }
+    w = await openGarage(A)
+    let hp = bots[A].health
+    t = Date.now()
+    await punch()
+    check('in the garage menu at a garage: no player can hurt you ("picking a car")', Boolean(w) && bots[A].health === hp && /picking a car/.test(text(B, t)), `${Boolean(w)} hp ${hp} -> ${bots[A].health} | ${text(B, t).slice(0, 150)}`)
+    close(A)
+    await sleep(400)
+    hp = bots[A].health
+    await punch()
+    check('...the menu closed, the garage is no safe zone: the hit lands', bots[A].health < hp, `hp ${hp} -> ${bots[A].health}`)
+    t = Date.now()
+    await cmd(`zzcombatend ${A}`)
+    await cmd(`zzcombatend ${B}`)
+    await until(() => /out of combat/.test(text(A, t)), 3000)
+    await cmd(`minecraft:effect give ${A} minecraft:instant_health 1 2 true`)
+    await sleep(1700) // "You're out of combat" holds the action bar 1.5 s
     t = Date.now()
     w = await openGarage(A)
     const here = itemText(w && w.slots[4])

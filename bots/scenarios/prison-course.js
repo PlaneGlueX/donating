@@ -309,6 +309,7 @@ module.exports = async ({ check }) => {
 
     // ---- B: a course bot at step cell logs out and back: its door opens 3 s after the join
     let b = await t.newBot(B, { fresh: true })
+    await cmd(`zzjail ${B} strip`) // a course card left in its inventory by an earlier run would skip the sneak step (2026-10-21)
     await sleep(1500)
     s = await info(B)
     const bcell = field(s, 'cell')

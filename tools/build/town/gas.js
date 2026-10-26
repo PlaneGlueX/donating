@@ -643,10 +643,6 @@ function storeRoof () {
 }
 
 // ---- inside: fridges, aisles, the checkout, the lottery counter, coffee and slush -------------------------------------
-const GOODS = ['red_terracotta', 'orange_terracotta', 'yellow_terracotta', 'lime_terracotta', 'light_blue_terracotta', 'white_terracotta',
-  'magenta_terracotta', 'cyan_terracotta', 'brown_terracotta', 'red_wool', 'orange_wool', 'yellow_wool', 'lime_wool', 'light_blue_wool', 'white_wool']
-const goods = (x, y, z) => GOODS[h(x, y, z) % GOODS.length]
-const DRINKS = ['red_concrete', 'orange_concrete', 'lime_concrete', 'blue_concrete', 'yellow_concrete', 'white_concrete', 'brown_concrete', 'cyan_concrete']
 // A low 2-deep shelf unit of lookalikes, 2.5 tall (a birch kick, a row of goods, a birch top), its end cells a red or
 // orange promo card
 function gondola (x1, z1, x2, z2) {
@@ -654,19 +650,43 @@ function gondola (x1, z1, x2, z2) {
   rect(x1, z1, x2, z2, (x, z) => {
     const end = alongX ? (x === x1 || x === x2) : (z === z1 || z === z2)
     S(x, 65, z, 'stripped_birch_wood[axis=y]')
-    S(x, 66, z, end ? (h(x, 66, z) < 50 ? 'red_concrete' : 'orange_concrete') : goods(x, 66, z))
+    S(x, 66, z, end ? (h(x, 66, z) < 50 ? 'red_concrete' : 'orange_concrete') : 'barrier') // the goods: furniture models (DISPLAYS)
     S(x, 67, z, 'birch_slab[type=bottom]')
   })
 }
-// Item displays (tag DISPLAY_TAG): two hot dogs on the roller grill behind the checkout.
-const DISPLAYS = [914, 915].map(z => ({ x: 382.5, y: 66.3, z: z + 0.5, item: 'cooked_porkchop', cmd: null, yaw: 90, pitch: 90, scale: 0.4 }))
+// Item displays (tag DISPLAY_TAG): the store's furniture models (tools/furniture-art.js), each at its block's centre
+// (a model's 0..16 is that block), yaw the way its front faces (south 0, west 90, north 180, east -90). The blocks
+// they stand in are barriers (or air behind the fridge glass).
+const GONDOLAS = [[375, 894, 384, 895], [375, 898, 384, 899], [375, 906, 376, 913], [379, 906, 380, 913], [375, 917, 376, 926], [379, 917, 380, 926]]
+const furn = (x, y, z, m, yaw) => ({ x, y, z, item: 'iron_ingot', cmd: `donating:furn_${m}`, yaw, pitch: 0, scale: 1 })
+const DISPLAYS = (() => {
+  const out = []
+  for (let z = 893; z <= 928; z++) out.push(furn(371.5, 67.5, z + 0.5, `drinks_${['soda', 'energy', 'water'][Math.floor((z - 893) / 3) % 3]}`, -90))
+  for (const [x1, z1, x2, z2] of GONDOLAS) {
+    const alongX = (x2 - x1) > (z2 - z1)
+    for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) {
+      if (alongX ? (x === x1 || x === x2) : (z === z1 || z === z2)) continue // the promo ends
+      const kind = ['chips', 'cereal', 'cans', 'candy'][h(x, 66, z) % 4]
+      out.push(furn(x + 0.5, 66.5, z + 0.5, `shelf_${kind}`, alongX ? (z === z1 ? 180 : 0) : (x === x1 ? 90 : -90)))
+    }
+  }
+  for (const [x, k] of [[376, 'cherry'], [377, 'berry'], [378, 'lime']]) out.push(furn(x + 0.5, 66.5, 929.5, `slush_${k}`, 180))
+  for (const x of [381, 383]) out.push(furn(x + 0.5, 66.5, 929.5, 'coffee', 180))
+  out.push(furn(385.5, 66.5, 929.5, 'cups', 180))
+  out.push(furn(382.5, 66.5, 912.5, 'coffee', -90), furn(382.5, 66.5, 915.5, 'roller', -90), // the roller's middle on z 915
+    furn(382.5, 66.5, 917.5, 'microwave', -90), furn(382.5, 66.5, 919.5, 'cups', -90))
+  for (let z = 913; z <= 918; z++) out.push(furn(390.5, 66.5, z + 0.5, 'magrack', 90))
+  out.push(furn(390.5, 66.5, 924.5, 'atm', 90), furn(387.5, 65.5, 895.0, 'icecream', 0)) // the freezer's middle of x 386..388, z 894..895
+  for (const [a, b] of [[372, 378], [382, 389]]) for (let x = a; x <= b; x++) out.push(furn(x + 0.5, 67.5, 886.5, `lotto_${h(x, 67, 886) % 4 + 1}`, 0))
+  return out
+})()
 function inside () {
   // the fridge wall (x 371..372): drinks behind light blue glass doors in steel frames, lit from the top, a blue header
   // (y 70: right under the north part's ceiling, with a white bulkhead over it in the taller south part)
   for (let z = 893; z <= 928; z++) {
     const post = (z - 893) % 3 === 0 || z === 928, hd = FRIDGE_TOP(z)
     F(371, 65, z, 372, 65, z, 'light_gray_concrete')
-    for (let y = 66; y <= hd - 2; y++) S(371, y, z, DRINKS[h(371, y, z) % DRINKS.length])
+    for (let y = 66; y <= hd - 2; y++) S(371, y, z, 'air')           // the drinks: furniture models (DISPLAYS)
     S(371, hd - 1, z, 'sea_lantern')
     for (let y = 66; y <= hd - 1; y++) S(372, y, z, post ? 'iron_block' : 'light_blue_stained_glass')
     F(371, hd, z, 372, hd, z, 'blue_concrete')
@@ -683,8 +703,7 @@ function inside () {
   for (const [a, b] of [[372, 378], [382, 389]]) {
     F(a, 65, 886, b, 65, 886, 'smooth_quartz')
     for (let x = a; x <= b; x++) {
-      S(x, 67, 886, ['yellow_concrete', 'lime_concrete', 'orange_concrete', 'light_blue_concrete', 'magenta_concrete'][h(x, 67, 886) % 5])
-      S(x, 68, 886, ['red_concrete', 'yellow_concrete', 'lime_concrete', 'pink_concrete', 'light_blue_concrete'][h(x, 68, 886) % 5])
+      S(x, 67, 886, 'barrier'); S(x, 68, 886, 'barrier')              // the dispensers: furniture models (DISPLAYS)
       S(x, 69, 886, 'polished_blackstone')
     }
   }
@@ -699,23 +718,22 @@ function inside () {
   F(383, 65, 913, 385, 65, 918, 'gray_carpet')                     // the clerk's mat
   // the back counter (x 382): coffee machine, the hot dog roller, a microwave, cups; a lit menu hung over it
   F(382, 65, 911, 382, 65, 920, 'smooth_quartz')
-  S(382, 66, 912, 'iron_block'); S(382, 67, 912, 'polished_blackstone_slab[type=bottom]')
-  F(382, 66, 914, 382, 66, 915, LID('east'))                     // the roller grill (DISPLAYS: its hot dogs)
-  S(382, 66, 917, 'iron_block'); S(382, 66, 919, 'white_terracotta')
+  for (const z of [912, 914, 915, 917, 919]) S(382, 66, z, 'barrier') // coffee, the roller grill, microwave, cups (DISPLAYS)
+  S(382, 67, 912, 'air')
   for (const z of [912, 919]) S(382, 71, z, 'iron_chain[axis=y]')
   for (let z = 912; z <= 919; z++) { S(382, 70, z, 'polished_blackstone'); S(382, 69, z, (z % 2) ? 'pearlescent_froglight[axis=y]' : 'sea_lantern') }
   // coffee and slush along the south wall: three slush tanks, two coffee makers, cups and lids
   F(375, 65, 929, 388, 65, 929, 'smooth_quartz')
-  for (const [x, s] of [[376, 'red_stained_glass'], [377, 'blue_stained_glass'], [378, 'lime_stained_glass']]) { S(x, 66, 929, s); S(x, 67, 929, 'iron_block') }
-  for (const x of [381, 383]) { S(x, 66, 929, 'polished_blackstone'); S(x, 67, 929, 'polished_blackstone_slab[type=bottom]') }
-  S(385, 66, 929, 'white_terracotta'); S(386, 66, 929, 'quartz_slab[type=bottom]'); S(387, 66, 929, LID('north'))
+  for (const x of [376, 377, 378]) F(x, 66, 929, x, 67, 929, 'barrier') // the slush machines (DISPLAYS)
+  for (const x of [381, 383]) { S(x, 66, 929, 'barrier'); S(x, 67, 929, 'air') } // coffee makers
+  S(385, 66, 929, 'barrier'); S(386, 66, 929, 'quartz_slab[type=bottom]'); S(387, 66, 929, LID('north'))
   F(375, 68, 929, 388, 68, 929, 'polished_blackstone')             // the menu strip over the counter
   // by the windows: a magazine rack, the ATM; the door mat
-  for (let z = 913; z <= 918; z++) { S(390, 65, z, 'stripped_birch_wood[axis=y]'); S(390, 66, z, goods(390, 66, z)) }
-  S(390, 65, 924, 'light_gray_concrete'); S(390, 66, 924, 'polished_blackstone'); S(390, 67, 924, 'light_gray_concrete')
+  for (let z = 913; z <= 918; z++) { S(390, 65, z, 'stripped_birch_wood[axis=y]'); S(390, 66, z, 'barrier') } // the rack (DISPLAYS)
+  F(390, 65, 924, 390, 67, 924, 'barrier')                          // the ATM (DISPLAYS)
   F(390, 65, DOOR_Z[0], 390, 65, DOOR_Z[1], 'gray_carpet')
   // a cooler of ice cream by the north aisle
-  F(386, 65, 894, 388, 65, 895, 'white_concrete'); F(386, 66, 894, 388, 66, 895, 'light_blue_stained_glass')
+  F(386, 65, 894, 388, 65, 895, 'barrier'); F(386, 66, 894, 388, 66, 895, 'air') // its model (DISPLAYS)
 }
 
 // ---- outside the store: walks, bins, ice, propane, AC units -------------------------------------------------------------
@@ -870,7 +888,12 @@ module.exports.setup = {
         cmd: 'dloot add gas pile 380 65 890 380 65 890 value=300-600 style=register name=Lottery_till' }
     ]
   }],
-  keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [],
+  keepers: [], givers: [], crates: [],
+  carSpots: [{ at: [396.5, 65, 890.5, 90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gas station lots)' },
+    { at: [380.5, 65, 870.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gas station lots)' },
+    { at: [369.5, 65, 941.5, 90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gas station lots)' },
+    { at: [404.5, 65, 979.5, 0], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the gas station lots)' }],
+  chops: [], garages: [],
   // the Gas Station as a place on the locator bar and the GPS (nav.sk: only once the jailbreak map is the main world)
   pois: [{ type: 'landmark', name: 'Gas Station', at: [402.5, 65, 953.5, 0], launch: true, cmd: '/dpoi add landmark Gas Station' }],
   walls: [], holos: [],

@@ -313,8 +313,6 @@ function questAdd(sender: text, l: location, kind: text, place: text) :: text:
 	poiReconcile()
 	questLog("add %{_n}% %{_kind}% %{_place}% at %{_x}% %{_y}% %{_z}% yaw=%{_yaw}% by=%{_sender}%")
 	set {_out} to "QUEST giver %{_n}% (%{_kind}%) added: %questNpcName({_n})% at %questThe({_place})%"
-	if isSafeZone({_l}) is false:
-		set {_out} to "%{_out}% (not in a safe zone: players can be shot while in its menu)"
 	return {_out}
 
 # The words from the from-th on, joined with spaces ("" if none).

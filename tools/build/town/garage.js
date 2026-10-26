@@ -821,16 +821,21 @@ module.exports.points = {
 }
 // PLAN 8.1/8.2. The region takes in the building, its pad and the apron from x 328 east (the exits and the return), not
 // the north lot or the west stalls. It also covers the whole cut onto 1st Street (x 330..375, z 841..842), the lot's
-// only way in (the west planter, x 301..327 outside the region, is fenced; the east one is inside it): a combat-tagged or
-// wanted driver (who can't enter a safe zone) can't drive into the lot at all, the north lot included. Launch items (a
+// only way in (the west planter, x 301..327 outside the region, is fenced; the east one is inside it). It isn't a safe
+// zone (only the bases are, owner 2026-10-21): a player is safe there only while the garage menu is open. Launch items (a
 // City Garage site needs the main world: citygarage.sk) are marked launch: true.
 module.exports.setup = {
-  regions: [{ id: 'safe_garage_town', box: [328, 63, 785, 385, 90, 842], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+  regions: [{ id: 'safe_garage_town', box: [328, 63, 785, 385, 90, 842], flags: { passthrough: 'allow' },
     note: 'the garage and its apron from x 328 east (exits, return, the cut onto 1st Street: the lot\'s only way in, the west planter fenced); becomes the City Garage site "town" at launch' }],
   heists: [],
   keepers: [{ kind: 'garage', at: SPOT.attendant, launch: true, cmd: '/dshopkeeper add garage',
     note: 'behind the office counter, facing the door (south)' }],
-  givers: [], crates: [], carSpots: [], chops: [],
+  givers: [], crates: [],
+  carSpots: [{ at: [320.5, 65, 754.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the north lot and the west stalls, outside the garage site)' },
+    { at: [370.5, 65, 754.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the north lot and the west stalls, outside the garage site)' },
+    { at: [335.5, 65, 770.5, 0], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the north lot and the west stalls, outside the garage site)' },
+    { at: [304.5, 65, 805.5, 90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the north lot and the west stalls, outside the garage site)' }],
+  chops: [],
   garages: [{ site: 'town', region: 'safe_garage_town', exits: [SPOT.exit1, SPOT.exit2], returns: [SPOT.ret], bays: [SPOT.bay1, SPOT.bay2], launch: true,
     // Console lines with the real spots (citygarage.sk's exitat|returnat|bayat <site> <x> <y> <z> <yaw>). Bays are
     // numbered in the order they're added, and bay 1 must be the west one (337.5 65 800.5) to match the painted

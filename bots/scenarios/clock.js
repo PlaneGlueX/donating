@@ -1,6 +1,6 @@
-// clock.sk (owner, 2026-10-21: "add a 12 hour clock system for the server (1min = 1sec irl) make sure the day/night
-// time cycle in game follows it"): game minutes G = floor((unix + offset) × rate), shown as a 12-hour clock; every
-// world's sky follows it (the world's clock runs at the game clock's pace: time rate 0.833333; set again when it drifts).
+// clock.sk (owner, 2026-10-21; rebuilt the same day on Minecraft's own day/night cycle: "the clock time is making the server
+// lag"): the clock reads the play world's time of day (vanilla speed, 1.2 game minutes a real second) and counts the
+// days itself when the time of day wraps; it never sets the sky by itself.
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
@@ -19,45 +19,50 @@ module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   let bot
-  let off0 = null
+  let day0 = null
   try {
     const field = (s, k) => (s.match(new RegExp(` ${k}=(\\S*)`)) || [])[1]
     const state = async () => cmd('zzclock')
-    const until = async (fn, ms = 5000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(250) } return Boolean(await fn()) }
-    const info = await cmd('dclock info')
-    off0 = Number((info.match(/offset=(-?[\d.]+)/) || [])[1])
+    day0 = Number((await cmd('zzweek')).match(/ day=(\d+)/)[1])
 
-    // ---------- The clock follows the real time ----------
-    const unix = Math.floor(Date.now() / 1000)
+    // ---------- The clock is the play world's time ----------
     let s = await state()
-    const min = Number(field(s, 'min'))
     const ofday = Number(field(s, 'ofday'))
-    check('game minutes = unix + offset (a game minute a real second), the time of day G mod 1440', Math.abs(min - (unix + off0)) <= 2 && ofday === ((min % 1440) + 1440) % 1440, `${s} unix=${unix} off=${off0}`)
+    check('the clock is the play world\'s time of day, and game minutes = day × 1440 + it', Math.abs(wrap(Number(field(s, 'minute')) - ofday)) <= 2 && Number(field(s, 'min')) === day0 * 1440 + ofday, s)
     check('...shown as a 12-hour clock ("3:45 PM")', (s.match(/text=(\S+ (?:AM|PM))/) || [])[1] === clockText(ofday), s)
 
-    // ---------- /dclock set moves the clock and the sky follows ----------
+    // ---------- /dclock set sets the world's time; the sky runs at vanilla speed ----------
     const set = await cmd('dclock set 7:30 pm')
-    await sleep(2500) // the next pass sends the world's speed and time again
+    await sleep(1200)
     s = await state()
-    check('/dclock set 7:30 pm: the clock says 7:30-7:33 PM', /CLOCK now 7:3\d PM/.test(set) && Number(field(s, 'ofday')) >= 1170 && Number(field(s, 'ofday')) <= 1173, `${set} | ${s}`)
-    check('...and the world\'s time follows it within the drift (3 game minutes)', Math.abs(wrap(Number(field(s, 'minute')) - Number(field(s, 'ofday')))) <= 3, s)
-    const m1 = Number(field(s, 'minute'))
+    check('/dclock set 7:30 pm: the world and the clock say 7:30-7:33 PM', /CLOCK now 7:3\d PM/.test(set) && Number(field(s, 'ofday')) >= 1170 && Number(field(s, 'ofday')) <= 1173, `${set} | ${s}`)
+    const m1 = Number(field(s, 'ofday'))
     await sleep(10000)
     s = await state()
-    const m2 = Number(field(s, 'minute'))
-    check('the sky runs at the clock\'s pace: 10 real seconds = 9-11 game minutes', wrap(m2 - m1) >= 9 && wrap(m2 - m1) <= 11 && Math.abs(wrap(m2 - Number(field(s, 'ofday')))) <= 3, `${m1} -> ${m2} | ${s}`)
+    const m2 = Number(field(s, 'ofday'))
+    check('the sky runs at vanilla speed: 10 real seconds = 11-13 game minutes', wrap(m2 - m1) >= 11 && wrap(m2 - m1) <= 13, `${m1} -> ${m2} | ${s}`)
     check('the sidebar\'s clock: the night icon and "7:4x PM" (7 PM is night)', /☾/.test(s) && /7:4\d/.test(s), s)
+
+    // ---------- Midnight is a new day ----------
+    const dBefore = Number((await cmd('zzweek')).match(/ day=(\d+)/)[1]) // an earlier time set above is a new day too
+    await cmd('dclock set 11:58 pm')
+    await sleep(4000)
+    s = await state()
+    const d1 = Number((await cmd('zzweek')).match(/ day=(\d+)/)[1])
+    check('past midnight the day count goes up by one', d1 === dBefore + 1 && Number(field(s, 'ofday')) < 60 && Number(field(s, 'min')) === d1 * 1440 + Number(field(s, 'ofday')), `day ${dBefore} -> ${d1} | ${s}`)
+    await cmd(`dclock day ${day0}`)
+    await cmd('dclock set 7:30 pm')
 
     // ---------- /clock ----------
     bot = await join(A)
-    await sleep(1500)
+    await sleep(3000)
     const t = Date.now()
     bot.chat('/clock')
     await sleep(1200)
     const said = messagesSince(bot, t).map(m => m.text).join(' | ')
     check('/clock: the time, the day and how long until dawn', /It's 7:\d\d PM on (Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(said) && /Dawn in/.test(said), said)
   } finally {
-    if (off0 !== null && !Number.isNaN(off0)) await rcon.cmd(`dclock offset ${off0}`).catch(() => {})
+    if (day0 !== null && !Number.isNaN(day0)) await rcon.cmd(`dclock day ${day0}`).catch(() => {})
     if (bot) await quit(bot).catch(() => {})
     rcon.close()
   }

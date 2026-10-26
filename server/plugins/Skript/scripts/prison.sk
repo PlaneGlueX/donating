@@ -1386,7 +1386,7 @@ function jailFenceDist(px: number, pz: number, x: number, z: number, ax: text) :
 	return {_d}
 
 # Every 5 ticks for anyone not exempt in the prison world (both sides of the fence): touching a fence's mesh (within
-# 0.45 of it, a post 0.62) between y 64 and 73 gives prison::fence::damage hearts (never below one heart left), a spark,
+# 0.82 of it: the base block stops a player 0.8 away) between y 64 and 73 gives prison::fence::damage hearts (never below one heart left), a spark,
 # a push away from it and a warning; at most once per prison::fence::every.
 every 5 ticks:
 	jailOn() is true
@@ -1426,9 +1426,8 @@ function jailFenceTouch(p: player, l: location):
 			set {_v} to {-jailfence::%{_cx}%|%{_cz}%}
 			if {_v} is set:
 				set {_d} to jailFenceDist({_px}, {_pz}, {_cx}, {_cz}, "%{_v}%")
-				set {_lim} to 0.45
-				if "%{_v}%" contains "p":
-					set {_lim} to 0.62
+				# Against the andesite base block a player stands 0.8 from the mesh line (0.5 + half their width).
+				set {_lim} to 0.82
 				if {_d} <= {_lim}:
 					if {_d} < {_best}:
 						set {_best} to {_d}

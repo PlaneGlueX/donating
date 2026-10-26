@@ -656,7 +656,7 @@ module.exports.points = {
   DEALER_CRATE_SUPER: [...CRATES.supercar, 0], DEALER_CRATE_HYPER: [...CRATES.hypercar, 0]
 }
 module.exports.setup = {
-  regions: [{ id: 'safe_garage_dealer', box: [466, 63, 1010, 543, 110, 1105], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+  regions: [{ id: 'safe_garage_dealer', box: [466, 63, 1010, 543, 110, 1105], flags: { passthrough: 'allow' },
     note: 'the dealership, its lot and the strip; becomes the City Garage site "dealer" at launch' }],
   heists: [],
   keepers: [

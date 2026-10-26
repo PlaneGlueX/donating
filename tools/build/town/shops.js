@@ -1223,7 +1223,7 @@ module.exports.points = {
   SHOPS_WALKWAY: [476.5, 65, 905.5, -90]                // the walkway between the shops
 }
 module.exports.setup = {
-  regions: [{ id: 'safe_shops', box: [467, 63, 870, 499, 100, 966], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+  regions: [{ id: 'safe_shops', box: [467, 63, 870, 499, 100, 966], flags: { passthrough: 'allow' },
     note: 'the Gear and Bag Shops, the walkway between them and the front lawn; not the rear lot' }],
   heists: [],
   keepers: [
@@ -1231,7 +1231,12 @@ module.exports.setup = {
     { kind: 'tools', at: TOOLS_KEEPER, cmd: '/dshopkeeper add tools', note: 'behind the counter\'s tool cases' },
     { kind: 'bag', at: BAG_KEEPER, cmd: '/dshopkeeper add bag', note: 'behind the red counter, in front of the cubby wall' }
   ],
-  givers: [], crates: [], carSpots: [], chops: [], garages: [],
+  givers: [], crates: [],
+  carSpots: [{ at: [504.5, 65, 885.5, 90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the rear lot)' },
+    { at: [516.5, 65, 914.5, -90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the rear lot)' },
+    { at: [537.5, 65, 936.5, 90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the rear lot)' },
+    { at: [551.5, 65, 893.5, -90], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the rear lot)' }],
+  chops: [], garages: [],
   pois: [
     { type: 'shop', name: 'Gear Shop', at: GEAR_POI, launch: true, cmd: '/dpoi add shop Gear Shop' },
     { type: 'shop', name: 'Bag Shop', at: BAG_POI, launch: true, cmd: '/dpoi add shop Bag Shop' }

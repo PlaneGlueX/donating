@@ -475,11 +475,11 @@ final class Paths {
             if (!wandOut && !showing.getOrDefault(p.getUniqueId(), false)) continue;
             Graph g = graph(p.getWorld().getName());
             Location l = p.getLocation();
-            Node s = selectedOf(p);
-            if (s != null && s.world.equals(l.getWorld().getName()))
+            Node sn = selectedOf(p);
+            if (sn != null && sn.world.equals(l.getWorld().getName()))
                 for (int k = 0; k < 8; k++) {
                     double a = k * Math.PI / 4;
-                    p.spawnParticle(Particle.DUST, s.x + Math.cos(a) * 0.45, s.y + 0.15, s.z + Math.sin(a) * 0.45, 1, 0, 0, 0, 0, sel, true);
+                    p.spawnParticle(Particle.DUST, sn.x + Math.cos(a) * 0.45, sn.y + 0.15, sn.z + Math.sin(a) * 0.45, 1, 0, 0, 0, 0, sel, true);
                 }
             if (g == null) continue;
             double r2 = showRange * showRange;

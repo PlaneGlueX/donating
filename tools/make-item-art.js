@@ -1369,6 +1369,112 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   })
   addCase('stick', 'donating:nozzle', 'donating:item/fuel_nozzle')
 
+  // Store food (owner, 2026-10-21: "allow players to actually buy things in the stores (food, other consumables)"):
+  // shop.sk tools on vanilla foods (tool:donut on a pumpkin pie, tool:sandwich on bread, tool:hotdog on a cooked
+  // porkchop), so eating is vanilla's with that food's hunger. Small 3D models, held like any item, 3D in menus too.
+  const FOOD = {
+    thirdperson_righthand: { rotation: [0, 0, 0], translation: [0, 2.5, 1], scale: [0.55, 0.55, 0.55] },
+    thirdperson_lefthand: { rotation: [0, 0, 0], translation: [0, 2.5, 1], scale: [0.55, 0.55, 0.55] },
+    firstperson_righthand: { rotation: [10, -30, 0], translation: [1.5, 4, 0], scale: [0.6, 0.6, 0.6] },
+    firstperson_lefthand: { rotation: [10, -30, 0], translation: [1.5, 4, 0], scale: [0.6, 0.6, 0.6] },
+    gui: { rotation: [30, -35, 0], translation: [0, 0, 0], scale: [0.85, 0.85, 0.85] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { scale: [0.8, 0.8, 0.8] }
+  }
+  // The donut: a square ring of dough with pink icing on top and sprinkles.
+  solid('food_donut', [
+    [226, 170, 102], [198, 138, 74], [150, 98, 50], [250, 156, 196], // 0-3 dough light, dough, dough dark, icing
+    [230, 120, 168], [255, 255, 255], [96, 196, 236], [250, 220, 80] // 4-7 icing dark, sprinkles white, blue, yellow
+  ], [
+    { from: [3, 4, 3], to: [13, 7, 6], c: { all: 1, up: 0, down: 2 } },
+    { from: [3, 4, 10], to: [13, 7, 13], c: { all: 1, up: 0, down: 2 } },
+    { from: [3, 4, 6], to: [6, 7, 10], c: { all: 1, up: 0, down: 2 } },
+    { from: [10, 4, 6], to: [13, 7, 10], c: { all: 1, up: 0, down: 2 } },
+    { from: [3.4, 7, 3.4], to: [12.6, 7.6, 5.8], c: { all: 4, up: 3 } },
+    { from: [3.4, 7, 10.2], to: [12.6, 7.6, 12.6], c: { all: 4, up: 3 } },
+    { from: [3.4, 7, 5.8], to: [5.8, 7.6, 10.2], c: { all: 4, up: 3 } },
+    { from: [10.2, 7, 5.8], to: [12.6, 7.6, 10.2], c: { all: 4, up: 3 } },
+    ...[[4.5, 4.2, 5], [8, 4.5, 6], [11, 4, 7], [11.5, 8, 5], [4.5, 11, 6], [8.5, 11.5, 7], [11, 11, 5], [4.2, 7.8, 7]]
+      .map(([x, z, c]) => ({ from: [x, 7.6, z], to: [x + 0.8, 7.8, z + 0.4], c }))
+  ], FOOD)
+  addCase('pumpkin_pie', 'donating:tool_donut', 'donating:item/food_donut')
+  // The sandwich: two slices of bread with ham, cheese and lettuce sticking out.
+  solid('food_sandwich', [
+    [236, 200, 140], [214, 172, 108], [168, 120, 64], [236, 152, 150], // 0-3 bread light, bread, crust, ham
+    [250, 214, 80], [110, 190, 70] // 4-5 cheese, lettuce
+  ], [
+    { from: [3, 2, 3], to: [13, 4, 13], c: { all: 2, up: 1, down: 2 } },
+    { from: [2.6, 4, 2.6], to: [13.4, 4.6, 13.4], c: 5 },
+    { from: [3.2, 4.6, 3.2], to: [12.8, 5.6, 12.8], c: 3 },
+    { from: [2.8, 5.6, 2.8], to: [13.2, 6, 13.2], c: 4 },
+    { from: [3, 6, 3], to: [13, 8, 13], c: { all: 2, up: 0, down: 1 } }
+  ], FOOD)
+  addCase('bread', 'donating:tool_sandwich', 'donating:item/food_sandwich')
+  // The hot dog: a long bun with the sausage in it and a line of mustard.
+  solid('food_hotdog', [
+    [236, 196, 126], [210, 160, 90], [164, 112, 56], [196, 84, 60], // 0-3 bun light, bun, bun dark, sausage
+    [150, 56, 40], [250, 214, 40] // 4-5 sausage dark, mustard
+  ], [
+    { from: [4.5, 3, 2], to: [7, 6.5, 14], c: { all: 1, up: 0, down: 2 } },
+    { from: [9, 3, 2], to: [11.5, 6.5, 14], c: { all: 1, up: 0, down: 2 } },
+    { from: [7, 3, 2], to: [9, 4, 14], c: 2 },
+    { from: [6.6, 4, 1], to: [9.4, 6.8, 15], c: { all: 3, down: 4 } },
+    { from: [7.4, 6.8, 2], to: [8.6, 7.1, 14], c: 5 }
+  ], FOOD)
+  addCase('cooked_porkchop', 'donating:tool_hotdog', 'donating:item/food_hotdog')
+
+  // A store's cash register (owner, 2026-10-21: "an actual register (custom texture) that opens and actually has the
+  // cash"): loot.sk puts three item displays (no display transform) on the counter, front toward the customers (-z):
+  // the body, the drawer and the bill bundles in it. The drawer is drawn shut (its front panel at z 2.4-3, the rest
+  // hidden in the body); loot.sk slides the display 8 units out when the clerk is hit. Its four bins are 2 units wide,
+  // centred at x 4.6, 6.9, 9.1 and 11.4, the floor's top at y 1, the bundles (0.5 high, 4 long) at z 4.75-8.75.
+  const REGISTER = [
+    [245, 240, 226], [220, 214, 196], [176, 168, 148], [52, 54, 60], // 0-3 cream light, cream, cream dark, keypad
+    [200, 204, 212], [88, 180, 92], [210, 70, 60], [24, 30, 28], // 4-7 key, green key, red key, screen
+    [96, 232, 120], [210, 214, 222], [20, 20, 22], [250, 250, 246] // 8-11 digits, chrome, slot, receipt
+  ]
+  const keys = []
+  for (const [row, z] of [4.3, 5.6, 6.9].entries()) {
+    for (const x of [4.3, 5.8, 7.3, 8.8]) keys.push({ from: [x, 5.5, z], to: [x + 1, 5.9, z + 0.9], c: { all: 4, up: 4 } })
+    keys.push({ from: [10.8, 5.5, z], to: [12.3, 5.9, z + 0.9], c: row === 2 ? 6 : 5 })
+  }
+  solid('register_body', REGISTER, [
+    { from: [2, 0, 3], to: [14, 4, 13], c: { all: 1, up: 0, down: 2 } }, // the drawer's housing
+    { from: [3, 0.5, 2.98], to: [13, 4, 2.99], c: 10, dirs: ['north'] }, // the dark slot the drawer slides out of
+    { from: [3, 4, 3.5], to: [13, 5.5, 8], c: 3 }, // the keypad
+    ...keys,
+    { from: [2, 4, 8], to: [14, 8.5, 13], c: { all: 1, up: 0, down: 2 } }, // the top case
+    { from: [9.5, 8.5, 9], to: [13, 9.3, 12], c: 2 }, // the receipt printer and its roll
+    { from: [10, 9.3, 10], to: [12.5, 10.2, 10.6], c: 11 },
+    { from: [7.3, 8.5, 10.8], to: [8.7, 11, 11.8], c: 9 }, // the screen's post
+    { from: [4, 11, 10.3], to: [12, 14.5, 12], c: 3 }, // the customer screen, its glass and digits
+    { from: [4.6, 11.6, 10.25], to: [11.4, 13.9, 10.3], c: 7, dirs: ['north'] },
+    { from: [5.5, 12.3, 10.2], to: [10.5, 13.1, 10.25], c: 8, dirs: ['north'] }
+  ], { gui: { rotation: [25, 200, 0], scale: [0.9, 0.9, 0.9] } })
+  solid('register_drawer', REGISTER, [
+    { from: [2.5, 0.5, 2.4], to: [13.5, 4, 3], c: { all: 1, up: 0, down: 2 } }, // the front panel
+    { from: [6.5, 1.8, 2.1], to: [9.5, 2.6, 2.4], c: 9 }, // its pull
+    { from: [11.5, 2.6, 2.35], to: [12.1, 3.2, 2.4], c: 10, dirs: ['north'] }, // the keyhole
+    { from: [3, 0.5, 3], to: [13, 1, 11], c: { all: 2, up: 3 } }, // the floor
+    { from: [3, 1, 3], to: [3.5, 4, 11], c: 2 }, // the sides and the back
+    { from: [12.5, 1, 3], to: [13, 4, 11], c: 2 },
+    { from: [3.5, 1, 10.5], to: [12.5, 4, 11], c: 2 },
+    { from: [5.625, 1, 3], to: [5.875, 3, 10.5], c: 9 }, // the bins' dividers
+    { from: [7.875, 1, 3], to: [8.125, 3, 10.5], c: 9 },
+    { from: [10.125, 1, 3], to: [10.375, 3, 10.5], c: 9 }
+  ], {})
+  solid('register_bills', [
+    [140, 204, 128], [104, 166, 96], [68, 118, 62], [232, 212, 160] // 0-2 bills light, mid, dark, the paper band
+  ], [
+    { from: [7.05, 7.75, 6], to: [8.95, 8.25, 10], c: { all: 1, up: 0, down: 2 } },
+    { from: [7, 7.7, 7.5], to: [9, 8.3, 8.5], c: 3 }
+  ], {})
+  addCase('iron_ingot', 'donating:register_body', 'donating:item/register_body')
+  addCase('iron_ingot', 'donating:register_drawer', 'donating:item/register_drawer')
+  addCase('iron_ingot', 'donating:register_bills', 'donating:item/register_bills')
+  // The stores' furniture (tools/furniture-art.js: drink fridges, shelves, the slush machine, the menu boards...).
+  require('./furniture-art')({ write, canvas, addCase })
+
   // The prison guards' handcuffs (owner, 2026-10-20: "make the guards hold hand cuffs while arresting you (make the
   // textures for the item too)"): two steel cuffs on a four-link chain, a lock case with a keyhole and a lock pin on
   // each; held by the top cuff with the chain and the bottom cuff hanging below. Art only (jailcops.sk's jcopHold puts

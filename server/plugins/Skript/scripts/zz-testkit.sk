@@ -10,7 +10,7 @@ on unload:
 
 # A known layout: test sword in hotbar 1, test ammo in the first upper slot, a tier-2 bag.
 command /zztestkit <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_p} to arg-1
 		clear {_p}'s inventory
@@ -26,7 +26,7 @@ command /zztestkit <player>:
 
 # One line with every non-empty slot: "slot=material xcount [id]" (slot 40 = offhand, 36-39 = armor).
 command /zzdump <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_p} to arg-1
 		set {_out} to ""
@@ -39,12 +39,12 @@ command /zzdump <player>:
 
 # LuckPerms answers asynchronously, so its own replies never come back over RCON.
 command /zzperm <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "PERM %arg-2% for %arg-1%: %whether arg-1 has permission arg-2%"
 
 command /zzclear <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		clear arg-1's inventory
 		deleteData(arg-1, "bag-tier")
@@ -62,7 +62,7 @@ command /zzclear <player>:
 
 # Forgets a player's saved data and balance, so their next join counts as a first join.
 command /zzforget <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {data::%arg-1%::*}
 		set balance of arg-1 to 0
@@ -70,38 +70,38 @@ command /zzforget <offline player>:
 
 # Balance as a plain number (EssentialsX's own /balance formats it).
 command /zzbal <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "BAL %arg-1%: %floor(balance of arg-1)%"
 
 # One setting from core.sk, e.g. /zzcfg money::start
 command /zzcfg <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "CFG %arg-1% = %cfg(arg-1)%"
 
 # Changes a number setting until the next loadSettings() (tests put the old value back).
 command /zzcfgset <text> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-cfg::%arg-1%} to arg-2
 		send "CFGSET %arg-1% = %arg-2%"
 
 # afk.sk: pretend the player's last activity was 10 minutes ago (AFK within 10 seconds).
 command /zzafk <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-afk::last::%arg-1%} to 10 minutes ago
 		send "AFKSET %arg-1%"
 
 command /zzafkstate <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "AFK %arg-1%: %isAfk(arg-1)%"
 
 # Player data: /zzdata <player> <key> shows it, "... <key> <number>" sets it, "... <key> none" deletes it.
 command /zzdata <offline player> <text> [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-3 is "none":
 			deleteData(arg-1, arg-2)
@@ -111,7 +111,7 @@ command /zzdata <offline player> <text> [<text>]:
 
 # nav.sk: turn passive mode on or off directly (the phone button goes through pvp.sk's rules).
 command /zzpassive <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is "on":
 			setPassive(arg-1, true)
@@ -122,7 +122,7 @@ command /zzpassive <player> <text>:
 # Phone: the player's phone map id (DonatingPhone metadata), the map id on the slot-8 phone, and
 # whether the big map is open.
 command /zzphone <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_meta} to metadata value "donating_phone_map" of arg-1
 		set {_slot} to int tag "minecraft:map_id" of nbt of slot 8 of arg-1's inventory
@@ -133,7 +133,7 @@ command /zzphone <player>:
 
 # Navigation: hide or show entities with a scoreboard tag for one player (per-player waypoints).
 command /zzhide <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_n} to 0
 		loop all entities:
@@ -143,7 +143,7 @@ command /zzhide <player> <text>:
 		send "HIDDEN %{_n}% from %arg-1%"
 
 command /zzshow <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_n} to 0
 		loop all entities:
@@ -154,20 +154,20 @@ command /zzshow <player> <text>:
 
 # chat-extras.sk: send the next rotating tip now.
 command /zztip:
-	executable by: console
+	executable by: players and console
 	trigger:
 		sendTip()
 		send "TIP SENT"
 
 # combat-log.sk: the player's combat state, and ending a tag now (the loop tells them within a second).
 command /zzcombat <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_cause} to deathCause(arg-1)
 		send "COMBAT %arg-1% tagged=%isCombatTagged(arg-1)% wanted=%isWanted(arg-1)% cause=%{_cause}%"
 
 command /zzcombatend <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-combat::at::%arg-1%} to 1 hour ago
 		delete {-combat::playerat::%arg-1%}
@@ -176,20 +176,20 @@ command /zzcombatend <player>:
 # pvp.sk: a cuboid WorldGuard region in the main world (safe zones are regions named safe...), and
 # the spawn shield state. Remove a region with: rg remove -w world <id>
 command /zzregion <text> <number> <number> <number> <number> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_w} to world "world"
 		create a cuboid region named arg-1 in {_w} between location(arg-2, arg-3, arg-4, {_w}) and location(arg-5, arg-6, arg-7, {_w})
 		send "REGION %arg-1% made"
 
 command /zzshield <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "SHIELD %arg-1% %hasSpawnShield(arg-1)% safe=%isSafeZone(location of arg-1)%"
 
 # Ends the spawn shield now (tests that aren't about it).
 command /zzshieldoff <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {-pvp::shield::%arg-1%}
 		send "SHIELDOFF %arg-1%"
@@ -197,7 +197,7 @@ command /zzshieldoff <player>:
 # shop.sk: WeaponMechanics items and ammo in the inventory: "WM <slot>=<title>:<loaded>x<amount> | ...
 # ammo <type>=<rounds> ...".
 command /zzwm <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_out} to ""
 		loop integers from 0 to 40:
@@ -212,19 +212,19 @@ command /zzwm <player>:
 # A gun shop action as if its button was clicked (the shop must be open: /dshop open <player> gun): buy:<W> takes out
 # or unlocks, ammo:<type>, tab:<tab> ... (2026-10-21, prison-rules: owned guns inside the walls).
 command /zzshopact <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		shopAction(arg-1, arg-2, false)
 		send "SHOPACT %arg-1% %arg-2% status=%{-shop::status::%arg-1%}%"
 
 command /zzammo <player> <text> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "AMMO added %addAmmo(arg-1, arg-2, arg-3)%"
 
 # Forgets shop data: unlocks, saved loadout, bags; closes the shop.
 command /zzshopreset <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop {-cfg::shop::weapons::*}:
 			deleteData(arg-1, "wpn::%loop-value%")
@@ -240,21 +240,21 @@ command /zzshopreset <player>:
 
 # Fills slots <from>..<to> with stone (full-inventory tests).
 command /zzfill <player> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop integers from arg-2 to arg-3:
 			set slot loop-value of arg-1's inventory to stone
 		send "FILLED %arg-1%"
 
 command /zzshop <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_s} to {-shop::status::%arg-1%}
 		set {_c} to {-shop::confirm::%arg-1%}
 		send "SHOP open=%{-shop::kind::%arg-1%}% tab=%{-shop::tab::%arg-1%}% gen=%{-shop::gen::%arg-1%}% confirm=%{_c}% status=%{_s}%"
 
 command /zztag <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		tagCombat(arg-1, "trap")
 		send "TAGGED %arg-1%"
@@ -262,7 +262,7 @@ command /zztag <player>:
 # bounty.sk: a player's bounty, adding to it (like bag.sk's robbery sales), and the same-IP check
 # (every local bot shares 127.0.0.1).
 command /zzbounty <offline player> [<number>] [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is set:
 			set {_added} to addBounty(arg-1, arg-2, arg-3 ? "robbery")
@@ -271,7 +271,7 @@ command /zzbounty <offline player> [<number>] [<text>]:
 		send "BOUNTY %arg-1% %getBounty(arg-1)% kills=%{_k}%"
 
 command /zzbountyreset <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		clearBounty(arg-1)
 		delete {data::%arg-1%::bounty-last::*}
@@ -279,7 +279,7 @@ command /zzbountyreset <offline player>:
 		send "BOUNTYRESET %arg-1%"
 
 command /zzbountyip <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-1 is "off":
 			set {-cfg::bounty::ip-check} to false
@@ -290,7 +290,7 @@ command /zzbountyip <text>:
 # ---------- heists.sk ----------
 
 command /zzheist <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_h} to arg-1
 		if heistExists({_h}) is false:
@@ -305,7 +305,7 @@ command /zzheist <text>:
 		send "HEIST %{_h}% state=%heistState({_h})% run=%heistRun({_h})% left=%heistSecondsLeft({_h})% inside=%heistRobberCount({_h})% names=%{_names}% alarm=%heistAlarmStage({_h})% wave=%heistWave({_h})% hunted=%{_hunted}% reset=%{_reset}%"
 
 command /zzinheist <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_in} to heistOf(arg-1)
 		if {_in} is "":
@@ -317,7 +317,7 @@ command /zzinheist <player>:
 
 # heists.sk's own teleport (skips the gates; the reconcile decides membership).
 command /zzheisttp <player> <number> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		heistTeleport(arg-1, location(arg-2, arg-3, arg-4, world "world"))
 		send "HEISTTP %arg-1%"
@@ -325,40 +325,40 @@ command /zzheisttp <player> <number> <number> <number>:
 # Runs a command as the real console (some plugins, like Tebex, refuse the RCON sender); the reply goes
 # to the server log.
 command /zzconsole <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		execute console command arg-1
 		send "CONSOLE ran %arg-1%"
 
 # boosters.sk: the running booster's seconds left.
 command /zzboosterleft <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {booster::left} to arg-1
 		send "BOOSTERLEFT %{booster::left}%"
 
 # An active heist's clock: /zzheistleft <id> <seconds left>.
 command /zzheistleft <text> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-heist::%arg-1%::until} to now
 		add 1 second * arg-2 to {-heist::%arg-1%::until}
 		send "HEISTLEFT %arg-1% %heistSecondsLeft(arg-1)%"
 
 command /zzcfgtime <text> <timespan>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-cfg::%arg-1%} to arg-2
 		send "CFGTIME %arg-1% = %arg-2%"
 
 command /zzcfgtext <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-cfg::%arg-1%} to arg-2
 		send "CFGTEXT %arg-1% = %arg-2%"
 
 command /zzcfgreload:
-	executable by: console
+	executable by: players and console
 	trigger:
 		# The prison switch stays as it is (2026-10-20: loadSettings switched it off, and the master switch moved a real
 		# player in the prison to the city spawn; set back in the same tick, no pass sees it off). /sk reload core still
@@ -370,7 +370,7 @@ command /zzcfgreload:
 		send "CFGRELOAD"
 
 command /zzpapi <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_v} to placeholder arg-2 from arg-1
 		# The console strips color codes: show them as (amp)a, (amp)f ...
@@ -379,13 +379,13 @@ command /zzpapi <player> <text>:
 		send "PAPI %arg-2% = %{_v}%"
 
 command /zzpassivewhy <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "PASSIVEWHY %passiveBlockReason(arg-1)%"
 
 # Forgets a heist's memory state, like a restart or Minehut sleep does.
 command /zzheistforget <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {-heist::%arg-1%::*}
 		send "HEISTFORGET %arg-1%"
@@ -393,7 +393,7 @@ command /zzheistforget <text>:
 # A staff kick. core.sk flags kicks typed in the console or by staff in game; RCON commands (the tests)
 # don't fire Skript's command event, so this flags it the same way first.
 command /zzkick <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_k} to name of arg-1 in lower case
 		set {-staffkick::%{_k}%} to true
@@ -403,21 +403,21 @@ command /zzkick <player>:
 		delete {-staffkick::%{_k}%}
 
 command /zzspawn:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_l} to spawn of world "world"
 		send "SPAWN %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}%"
 
 # Puts the owned bag (data bag-tier) into the offhand (inventory.sk's applyBag).
 command /zzbagapply <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		applyBag(arg-1)
 		send "BAGAPPLY %arg-1% %itemId(offhand tool of arg-1)%"
 
 # Sends the local test pack again (after tools\build-pack.js), so a client reloads it without rejoining.
 command /zzpack <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send resource pack from "http://127.0.0.1:8765/pack.zip" to arg-1
 		send "PACK sent to %arg-1%"
@@ -427,7 +427,7 @@ command /zzpack <player>:
 # Health in HP (20 = full): /zzhp <player> [hp]. Also fills food and saturation to 20 / 0 when setting,
 # so natural regeneration is slow and predictable (1 HP per 4 s).
 command /zzhp <player> [<number>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is set:
 			set health of arg-1 to arg-2 / 2
@@ -437,7 +437,7 @@ command /zzhp <player> [<number>]:
 
 
 command /zztrap <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_h} to arg-1
 		set {_valid} to 0
@@ -454,7 +454,7 @@ command /zztrap <text>:
 		send "TRAPS %{_h}% armed=%trapArmed({_h})% alarmed=%whether {-trap::alarmed::%{_h}%} is set% traps=%trapCount({_h})% displays=%{_valid}% floors=%{_floors}%"
 
 command /zztrapstate <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_p::*} to arg-1 split at "-"
 		set {_c} to "%{_p::1}%::%{_p::2}%"
@@ -473,7 +473,7 @@ command /zztrapstate <text>:
 
 # trapScan at a spot: which trap would kill a robber standing, sneaking or swimming there.
 command /zztrapprobe <text> <number> <number> <number> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_hh} to 1.8
 		if arg-5 is "sneak":
@@ -486,7 +486,7 @@ command /zztrapprobe <text> <number> <number> <number> <text>:
 		send "PROBE %{_n}%"
 
 command /zztrapbench <player> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_h} to heistOf(arg-1)
 		set {_l} to location of arg-1
@@ -501,7 +501,7 @@ command /zztrapbench <player> <number>:
 # One line per heist: armed run, rolled, left, spots; per spot: kind, state, pieces, $ left, hitboxes,
 # registered entities, marker colour.
 command /zzloot <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_h} to arg-1
 		set {_out} to "LOOT %{_h}% armed=%lootArmed({_h})% run=%{-lootrun::%{_h}%}% rolled=%lootRolled({_h})% left=%lootLeft({_h})% spots=%lootSpotsText({_h})% pool=%heistLootPool({_h})% state=%heistState({_h})%"
@@ -514,7 +514,7 @@ command /zzloot <text>:
 
 # A player's code for a safe (made now if they have none): /zzlootcode <h-n> <player>
 command /zzlootcode <text> <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_p::*} to arg-1 split at "-"
 		set {_c} to "%{_p::1}%::%{_p::2}%"
@@ -523,7 +523,7 @@ command /zzlootcode <text> <player>:
 		send "CODE %{-lootcode::%{_c}%::%arg-2%}%"
 
 command /zzbag <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_lines} to ""
 		loop {data::%arg-1%::loot::*}:
@@ -536,7 +536,7 @@ command /zzbag <player>:
 # Sets a bag line. With "own" the dollars also count as robbed by that player (progress.sk's own-loot ledger: level XP
 # from a sale, jobs, Vic), as if they robbed it; without, it's like loot from a picked-up duffel.
 command /zzbagadd <player> <text> <number> [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-3 <= 0:
 			deleteData(arg-1, "loot::%arg-2%")
@@ -551,7 +551,7 @@ command /zzbagadd <player> <text> <number> [<text>]:
 # Heist tools into hotbar slot N (0-4): /zztool <player> <drill|safe-kit> <amount> <slot>
 # Puts a shop helmet or vest on a player (shop.sk gearItem: "helmet-1".."vest-2"), e.g. to give back gear lost in a test.
 command /zzgear <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_i} to gearItem(arg-2)
 		if {_i} is not set:
@@ -570,7 +570,7 @@ command /zzgear <player> <text>:
 		send "GEAR %arg-1% %arg-2%"
 
 command /zztool <player> <text> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-3 <= 0:
 			set slot arg-4 of arg-1's inventory to air
@@ -581,7 +581,7 @@ command /zztool <player> <text> <number> <number>:
 # bag.sk: every dropped duffel in loaded chunks:
 # "DUFFELS <n> | <id> lines=<lines> owner=<name> passive=<p> left=<s> at=<x>,<y>,<z> inv=<b> name=<name>"
 command /zzduffels:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_out} to ""
 		set {_n} to 0
@@ -601,7 +601,7 @@ command /zzduffels:
 		send "DUFFELS %{_n}%%{_out}%"
 
 command /zzbagclear <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {data::%arg-1%::loot::*}
 		bagRecount(arg-1)
@@ -610,7 +610,7 @@ command /zzbagclear <player>:
 
 # The offhand item's name and whether it glints: "OFFHAND <name> glint=<true|false>"
 command /zzoffhand <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_i} to offhand tool of arg-1
 		set {_g} to boolean tag "minecraft:enchantment_glint_override" of nbt of {_i}
@@ -620,7 +620,7 @@ command /zzoffhand <player>:
 
 # The NBT of a shop icon: /zzicon wpn <title> | ammo <type> | bag <tier>
 command /zzicon <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-1 is "wpn":
 			set {_i} to wpnIcon(arg-2)
@@ -634,14 +634,14 @@ command /zzicon <text> <text>:
 
 # A text value in player data: /zzdatatext <player> <key> <text>
 command /zzdatatext <offline player> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		setData(arg-1, arg-2, arg-3)
 		send "DATATEXT %arg-1% %arg-2% = %getData(arg-1, arg-2)%"
 
 # loot.sk's cleaned-out rule for a given time left: "CLEAN <T> -> <T'>"
 command /zzcleancalc <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_min} to {-cfg::loot::cleaned-out}
 		set {_new} to arg-1
@@ -654,7 +654,7 @@ command /zzcleancalc <number>:
 
 # Wipes a player's keys, cosmetics, choices and the daily / refresh timers.
 command /zzcratereset <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {data::%arg-1%::keys::*}
 		delete {data::%arg-1%::cos::*}
@@ -670,14 +670,14 @@ command /zzcratereset <offline player>:
 
 # A crate's reward lines until the next loadSettings() (lines split by ";"): /zzcratelines common 1|money|777
 command /zzcratelines <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-cfg::crate::%arg-1%::rewards::*} to arg-2 split at ";"
 		send "CRATELINES %arg-1% %size of {-cfg::crate::%arg-1%::rewards::*}%"
 
 # A true/false setting until the next loadSettings(): /zzcfgbool cos::denim::retired true
 command /zzcfgbool <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is "true":
 			set {-cfg::%arg-1%} to true
@@ -687,7 +687,7 @@ command /zzcfgbool <text> <text>:
 
 # Rolls a crate n times without giving anything: "ROLL <crate> total=<w> <line>=<count> | ..."
 command /zzcrateroll <text> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop arg-2 times:
 			set {_l} to crateRoll(arg-1)
@@ -699,7 +699,7 @@ command /zzcrateroll <text> <number>:
 
 # The cosmetics a player owns and has chosen.
 command /zzcos <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop {-cfg::cosmetics::*}:
 			if cosOwned(arg-1, loop-value) is true:
@@ -713,7 +713,7 @@ command /zzcos <offline player>:
 
 # Gives a cosmetic directly: /zzcosgive <player> <id>
 command /zzcosgive <offline player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_new} to cosGive(arg-1, arg-2, "test")
 		send "COSGIVE %arg-1% %arg-2% new=%{_new}%"
@@ -721,7 +721,7 @@ command /zzcosgive <offline player> <text>:
 # Gun skins (cosmetics.sk), read only: each gun's saved choice and the look that counts (gunSkinWorn: "" when it isn't
 # owned any more), the gun skins owned, and their serials. Never touches a gun's item model (GunFx owns it: /dphone gunskin).
 command /zzgunskin <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop {-cfg::gunskin::guns::*}:
 			set {_d} to getData(arg-1, "gunskin::%loop-value%")
@@ -735,7 +735,7 @@ command /zzgunskin <offline player>:
 
 # A menu icon of a gun in a look (cosmetics.sk gunSkinIcon; "-" = its own): its item model and custom model data.
 command /zzgunskinicon <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_id} to arg-2
 		if {_id} is "-":
@@ -745,7 +745,7 @@ command /zzgunskinicon <text> <text>:
 
 # A heist's memory state value: /zzheistvar <id> <key> <text|none> (e.g. alarm warning)
 command /zzheistvar <text> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-3 is "none":
 			delete {-heist::%arg-1%::%arg-2%}
@@ -757,7 +757,7 @@ command /zzheistvar <text> <text> <text>:
 
 # Every NPC entity (Citizens): "NPCS id=<NPC-ID> name at x,y,z tags=... hp=..."
 command /zznpcs:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop all entities:
 			loop-entity has metadata "NPC"
@@ -770,7 +770,7 @@ command /zznpcs:
 
 # Puts a feather with a WeaponMechanics skin number in every NPC's hand: /zznpctool <model>
 command /zznpctool <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		loop all entities:
 			loop-entity has metadata "NPC"
@@ -781,7 +781,7 @@ command /zznpctool <number>:
 
 # A heist's cops: "COPS <h> alive=N total=M ids=a,b saved=x,y"
 command /zzcops <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_ids::*} to indices of {-cop::ids::%arg-1%::*}
 		set {_ids} to join {_ids::*} with ","
@@ -791,7 +791,7 @@ command /zzcops <text>:
 
 # Forgets the cops in memory (like a restart does), without removing the NPCs.
 command /zzcopforget:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {-cop::*}
 		send "COPFORGET done"
@@ -799,7 +799,7 @@ command /zzcopforget:
 # ---------- garage.sk (MTVehicles) ----------
 # A new car of an MTV model uuid for a player (no item, nothing spawned): "CARNEW <plate>"
 command /zzcarnew <offline player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_car} to a new mtv vehicle with uuid arg-2 and owner arg-1
 		if {_car} is not set:
@@ -810,7 +810,7 @@ command /zzcarnew <offline player> <text>:
 
 # Spawns a car by plate at x y z in the main world.
 command /zzcarspawn <text> <number> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_l} to location(arg-2, arg-3, arg-4, world "world")
 		spawn mtv vehicle with license plate arg-1 at {_l}
@@ -824,7 +824,7 @@ command /zzcarspawn <text> <number> <number> <number>:
 
 # What MTVehicles knows about a plate, and the loaded stands with it.
 command /zzcarinfo <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_car} to mtv vehicle with license plate arg-1
 		if {_car} is not set:
@@ -843,7 +843,7 @@ command /zzcarinfo <text>:
 
 # Despawns and deletes a car by plate (MTVehicles data too), and forgets it in garage.sk.
 command /zzcardelete <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_car} to mtv vehicle with license plate arg-1
 		if {_car} is set:
@@ -857,14 +857,14 @@ command /zzcardelete <text>:
 
 # Where a player sits: "SEAT <player> driver:<plate>" / "passenger:<plate>" / "" (garage.sk carSeatOf).
 command /zzcarseat <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "SEAT %arg-1% %carSeatOf(arg-1)% riding=%{-car::riding::%uuid of arg-1%}% slot8=%itemId(slot 8 of arg-1's inventory)%"
 
 # The next join of a player puts them on a plate's driver's seat in the join tick (what vanilla does with a seat saved
 # with the player: carshake.js checks DonatingPhone takes them out of it).
 command /zzseatonjoin <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-zz::seatonjoin::%arg-1%} to arg-2
 		send "SEATONJOIN %arg-1% %arg-2%"
@@ -880,7 +880,7 @@ on join:
 
 # Makes a player sit in the driver's seat of a plate (MTVehicles' mount effect: no enter event).
 command /zzcarmount <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_car} to mtv vehicle with license plate arg-2
 		make arg-1 mount mtv vehicle {_car}
@@ -890,7 +890,7 @@ command /zzcarmount <player> <text>:
 
 # Why each spot around a player is (not) clear for a car (garage.sk carSpawnSpot).
 command /zzcarspot <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_base} to location of arg-1
 		set {_yaw} to yaw of arg-1
@@ -916,7 +916,7 @@ command /zzcarspot <player>:
 
 # Moves a car (all its loaded stands) to x y z in the main world (MTVehicles' teleport effect).
 command /zzcartp <text> <number> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_car} to mtv vehicle with license plate arg-1
 		teleport mtv vehicle {_car} to location(arg-2, arg-3, arg-4, world "world")
@@ -928,20 +928,20 @@ command /zzcartp <text> <number> <number> <number>:
 
 # Grants a crate reward line as if a crate rolled it: /zzcrategrant <player> <crate> <line>
 command /zzcrategrant <player> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_got} to crateGrant(arg-1, arg-3, arg-2)
 		send "CRATEGRANT %arg-1% %{_got}%"
 
 # Whether a heist's alarm would still chase a player where they are (heists.sk heistInRange).
 command /zzinrange <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "INRANGE %arg-1% %arg-2% %heistInRange(arg-1, arg-2)% seat=%carSeatOf(arg-1)%"
 
 # Makes a heist's alarm hunt a player (heistHunt), or releases them: /zzhunt <player> <heist> [release]
 command /zzhunt <player> <text> [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-3 is "release":
 			heistRelease(arg-1, "staff")
@@ -953,7 +953,7 @@ command /zzhunt <player> <text> [<text>]:
 
 # ctArrow / ctCompass towards x z from where the player stands and looks, and Skript's atan2(1, 0).
 command /zzctdir <player> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_to} to location(arg-2, y-coordinate of arg-1, arg-3, world of arg-1)
 		log "CTDIR arrow=%gpsArrow(arg-1, {_to})% to %arg-2% %arg-3%" to "zztest"
@@ -961,7 +961,7 @@ command /zzctdir <player> <number> <number>:
 
 # Clears a player's job cooldown and offers (and ends a job without a cooldown).
 command /zzctreset <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		if {-ctjob::%{_u}%} is set:
@@ -976,29 +976,37 @@ command /zzctreset <player>:
 
 # Sets an offer: /zzctoffer <player> <tier> <model> <color> <spot n>
 command /zzctoffer <player> <text> <text> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-ctoffer::%uuid of arg-1%::%arg-2%} to "%arg-3%|%arg-4%|%arg-5%"
+		# The car parked at that spot is the offer's (ctTake checks it).
+		ctParkSet(arg-5, arg-3, arg-4)
 		set {-ctofferat::%uuid of arg-1%} to now
 		send "CTOFFER %arg-1% %arg-2% %{-ctoffer::%uuid of arg-1%::%arg-2%}%"
 
+# The parked car at a car spot: /zzctpark <spot n>
+command /zzctpark <text>:
+	executable by: players and console
+	trigger:
+		send "CTPARK %arg-1% look=%{-ctpark::look::%arg-1%}% at=%unix timestamp of {-ctpark::at::%arg-1%}% shown=%{-ctpark::shown::%arg-1%}% busy=%ctSpotBusy(arg-1)%"
+
 # Takes a job as if clicked in the menu.
 command /zzcttake <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		ctTake(arg-1, arg-2)
 		send "CTTAKE %arg-1% job=%{-ctjob::%uuid of arg-1%}% plate=%{-ctjob::%uuid of arg-1%::plate}%"
 
 # A job's state in one line.
 command /zzctstate <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		send "CTSTATE %arg-1% job=%{-ctjob::%{_u}%}% stage=%{-ctjob::%{_u}%::stage}% plate=%{-ctjob::%{_u}%::plate}% fails=%{-ctjob::%{_u}%::fails}% left=%ctLeft({_u})% cd=%ctCooldownLeft(arg-1)% seat=%carSeatOf(arg-1)% qte=%{-ctqte::%arg-1%}% gps=%gpsActive(arg-1)%:%{-gps::questlabel::%{_u}%}% hud=%{-hud::bosslast::%arg-1%::title}%"
 
 # Sets the seconds left in a player's job.
 command /zzcttime <player> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_until} to now
 		add 1 second * arg-2 to {_until}
@@ -1007,7 +1015,7 @@ command /zzcttime <player> <number>:
 
 # Sets a player's lockpicks of a tier: /zzpick <player> <tier> <n> (0 removes them, -1 only reads).
 command /zzpick <player> <text> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_s} to lockpickSlot(arg-1, arg-2)
 		if {_s} < 0:
@@ -1023,7 +1031,7 @@ command /zzpick <player> <text> <number>:
 
 # Seats a player in the driver's seat of their job's car (MTVehicles' mount effect: no enter event).
 command /zzctmount <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_car} to mtv vehicle with license plate {-ctjob::%uuid of arg-1%::plate}
 		make arg-1 mount mtv vehicle {_car}
@@ -1032,20 +1040,20 @@ command /zzctmount <player>:
 
 # The lock-picking minigame's state: marker, target, hits.
 command /zzctqte <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "CTQTE %arg-1% pos=%{-ctqte::%arg-1%::pos}% prev=%{-ctqte::%arg-1%::prev}% target=%{-ctqte::%arg-1%::target}% hits=%{-ctqte::%arg-1%::hits}% need=%{-ctqte::%arg-1%::need}%"
 
 # Finishes an open lock-picking minigame as if the last pin was hit (computer-use tests can't time clicks).
 command /zzctpick <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		ctPicked(arg-1)
 		send "CTPICK %arg-1% stage=%{-ctjob::%uuid of arg-1%::stage}%"
 
 # The components of a car menu icon (garage.sk carIcon).
 command /zzcarflags <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_i} to carIcon(arg-1, arg-2)
 		send "CARFLAGS %nbt of {_i}% flags=%item flags of {_i}%"
@@ -1057,14 +1065,14 @@ command /zzcarflags <text> <text>:
 
 # Fires a progress event as if it happened: /zzprog <player> <ev> <n> <detail>
 command /zzprog <player> <text> <number> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		progEvent(arg-1, arg-2, arg-3, arg-4)
 		send "PROG %arg-1% %arg-2% %arg-3% %arg-4%"
 
 # A player's season in one line.
 command /zzseason <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		set {_s} to seasonNum()
@@ -1076,14 +1084,14 @@ command /zzseason <offline player>:
 
 # Sets a player's minutes played this season.
 command /zzseasonmins <offline player> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {ss::%seasonNum()%::mins::%uuid of arg-1%} to arg-2
 		send "SEASONMINS %arg-1% %arg-2%"
 
 # Wipes every season (tests only): back to no season at all, so the real first season is Season 1.
 command /zzseasonwipe:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {season::*}
 		delete {ss::*}
@@ -1104,7 +1112,7 @@ command /zzseasonwipe:
 
 # Sets a heist's alarm wave number (a number, unlike /zzheistvar): /zzheistwave <heist> <n> (0 deletes it).
 command /zzheistwave <text> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 <= 0:
 			delete {-heist::%arg-1%::wave}
@@ -1114,7 +1122,7 @@ command /zzheistwave <text> <number>:
 
 # progress.sk (2026-09-27): a player's notes on one heist run ("<heist>#<run>").
 command /zzrun <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_k} to "run::%arg-2%"
 		set {_flag} to getData(arg-1, {_k})
@@ -1126,24 +1134,24 @@ command /zzrun <player> <text>:
 
 # progress.sk: forget a player's finished runs now (as after a sale).
 command /zzprune <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		progRunPrune(arg-1)
 		send "PRUNED %arg-1%"
 
 # progress.sk: the week number; /zzweek <n> overrides it, /zzweek off goes back to the clock.
 command /zzweek [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-1 is "off":
 			delete {-prog::weekoverride}
 		else if arg-1 is set:
 			set {-prog::weekoverride} to arg-1 parsed as number
-		send "WEEK %progWeek()% unix=%progUnix()% min=%clockMinutes()% offset=%clockOffset()%"
+		send "WEEK %progWeek()% unix=%progUnix()% min=%clockMinutes()% day=%clockDayCount()%"
 
 # progress.sk: a heist's heat; /zzheat <h> <week> <runs> sets that week's count.
 command /zzheat <text> [<number>] [<number>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-3 is set:
 			set {heat::w::%arg-2%::%arg-1%} to arg-3
@@ -1153,7 +1161,7 @@ command /zzheat <text> [<number>] [<number>]:
 
 # progress.sk: set a run note (true/false, a number, or text): /zzrunset <player> <tag> <key> <value>
 command /zzrunset <player> <text> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-4 is "true":
 			progTagMark(arg-1, arg-2, arg-3, true)
@@ -1167,7 +1175,7 @@ command /zzrunset <player> <text> <text> <text>:
 
 # A car delivery as progress.sk sees it (jobs.sk, fence.sk): /zzctdeliver <player> <tier> <model> <took s> <misses>
 command /zzctdeliver <player> <text> <text> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		set {-prog::ct::%{_u}%} to "%arg-3%|%arg-4%|%arg-5%"
@@ -1178,14 +1186,14 @@ command /zzctdeliver <player> <text> <text> <number> <number>:
 
 # fence.sk: pay the premium of the sales made so far (bag.sk calls fenceSalePay after a real sale).
 command /zzfencepay <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		fenceSalePay(arg-1)
 		send "FENCEPAY %arg-1%"
 
 # pv.sk: a personal item display for a player at x y z: /zzpv <player> <key> <x> <y> <z>
 command /zzpv <player> <text> <number> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_l} to location(arg-3, arg-4, arg-5, world of arg-1)
 		set {_e} to pvItem(arg-1, arg-2, {_l}, gold ingot, 1)
@@ -1196,7 +1204,7 @@ command /zzpv <player> <text> <number> <number> <number>:
 
 # pv.sk: a display spawned WITHOUT the pv tag, then adopted (a leak: personal views must switch off).
 command /zzpvleak <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		spawn an item display at location of arg-1:
 			make event-display not persistent
@@ -1213,13 +1221,13 @@ command /zzpvleak <player>:
 
 # A contract offer (contracts.sk) for tests: "model|color|spot" or <none>.
 command /zzctofferget <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send "CTOFFERGET %arg-1% %arg-2% %{-ctoffer::%uuid of arg-1%::%arg-2%}%"
 
 # hits.sk windows for tests: /zzhitwin <tier> clear | <tier> <k> <unix> (a new unused window this week).
 command /zzhitwin <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_a::*} to arg-1 split at " "
 		set {_w} to progWeek()
@@ -1234,14 +1242,14 @@ command /zzhitwin <text>:
 
 # Forgets which level rewards a player got (levels.sk marks each one given; tests start over).
 command /zzlvlrewards <offline player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {data::%arg-1%::lvlreward::*}
 		send "LVLREWARDS %arg-1% cleared"
 
 # A car-crate roll pool for tests (garage.sk carRoll): /zzcarpool <pool> <cars "w|car;..."> <wraps "w|tier;..."> <stages "w|stage;..."> <neon 0-1> <trail 0-1>
 command /zzcarpool <text> <text> <text> <text> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {-cfg::carroll::%arg-1%::cars::*} to arg-2 split at ";"
 		set {-cfg::carroll::%arg-1%::wraps::*} to arg-3 split at ";"
@@ -1253,7 +1261,7 @@ command /zzcarpool <text> <text> <text> <text> <number> <number>:
 
 # A heist's clock and its saved reopen time, in seconds from now (-1 = none): /zzheistreopen <id>
 command /zzheistreopen <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to -1
 		if {-heist::%arg-1%::until} is set:
@@ -1269,7 +1277,7 @@ command /zzheistreopen <text>:
 
 # garage.sk's climb out of the water on a car, as if its driver held forward: /zzcarclimb <plate>
 command /zzcarclimb <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_main} to "MTVEHICLES_MAIN_%arg-1%"
 		loop all armor stands:
@@ -1281,14 +1289,14 @@ command /zzcarclimb <text>:
 # A text from a contact, as story.sk's storyText sends it (messages.sk msgPost: said in person, else kept a second later,
 # one text per burst): /zztext <player> <from> <text>. The reply is the inbox before the burst is kept (/zzinbox).
 command /zztext <player> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		storyText(arg-1, arg-2, arg-3)
 		send "TEXT %arg-1% n=%msgNewest(arg-1)% unread=%msgUnreadAll(arg-1)%"
 
 # A line of a kind (say|text|keep), as msgPost takes it: /zzmsg <player> <kind> <from> <text>
 command /zzmsg <player> <text> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		msgPost(arg-1, arg-3, arg-4, arg-2)
 		send "MSG %arg-1% %arg-2%"
@@ -1297,7 +1305,7 @@ command /zzmsg <player> <text> <text> <text>:
 # until the playing and waiting ones end) who= gen= told= (the course notice). /zzvoice <player> clip <speaker> <line...>:
 # the clip voicelines.sk finds for that line.
 command /zzvoice <player> [<text>] [<text>] [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is "clip":
 			send "VOICECLIP %voiceClip(arg-3, arg-4)%"
@@ -1307,7 +1315,7 @@ command /zzvoice <player> [<text>] [<text>] [<text>]:
 
 # The inbox: /zzinbox <player> [flush] (flush: the pending bursts kept now). One line: n, unread, the newest text.
 command /zzinbox <player> [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is "flush":
 			msgFlushAll(arg-1)
@@ -1317,7 +1325,7 @@ command /zzinbox <player> [<text>]:
 # An old-style text (before 2026-10-19 every line was kept): kept as is, sent <ago> seconds ago.
 # /zzinboxraw <player> <ago> <from> <text>
 command /zzinboxraw <player> <number> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_n} to msgSave(arg-1, arg-3, arg-4)
 		setData(arg-1, "inbox::%{_n}%::at", floor(unix timestamp of now) - arg-2)
@@ -1325,7 +1333,7 @@ command /zzinboxraw <player> <number> <text> <text>:
 
 # Forgets a player's texts: /zzinboxclear <player> (inbox-v 2: nothing old to tidy at the next join)
 command /zzinboxclear <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {data::%arg-1%::inbox::*}
 		delete {data::%arg-1%::inbox-seen::*}
@@ -1335,14 +1343,14 @@ command /zzinboxclear <player>:
 
 # Closes a player's open menu (computer-use playtests: synthetic keys can miss the game window).
 command /zzclose <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		close arg-1's inventory
 		send "CLOSED %arg-1%"
 
 # Logs every hit a player takes (cause, amount, where) to the console while on (carsteer's wall-grace check).
 command /zzdmglog <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-2 is "on":
 			set {-zz::dmglog::%arg-1%} to true
@@ -1357,7 +1365,7 @@ on damage of player with priority monitor:
 # Calls a player's car out next to them the normal way (garage.sk carCall: tracked as out, so the stand sweep keeps it),
 # without the call cooldown.
 command /zzcarcall <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {-car::callat::%uuid of arg-1%}
 		carCall(arg-1, (arg-2 in upper case))
@@ -1435,7 +1443,7 @@ function zzJailInfo(p: player) :: text:
 # cellopen <secs> | ko <other> <secs|clear> (the player can't hurt the other for secs) | shield <secs|clear> | hostile |
 # calm | unstuck | own <weapon> | tag | mark <method> | eligible
 command /zzjail <player> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_p} to arg-1
 		set {_u} to "%uuid of {_p}%"
@@ -1523,7 +1531,7 @@ command /zzjail <player> <text>:
 
 # A plugin teleport into the prison world (no teleport immunity, never refused by the prison's teleport gate).
 command /zzjailtp <player> <number> <number> <number> [<number>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_yaw} to arg-5
 		if {_yaw} is not set:
@@ -1533,7 +1541,7 @@ command /zzjailtp <player> <number> <number> <number> [<number>]:
 
 # A door's current block data (its first block, the lower half): "DOOR <name> <block data>".
 command /zzjaildoor <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_v} to {-jaildoor::%arg-1%::1}
 		if {_v} is not set:
@@ -1545,7 +1553,7 @@ command /zzjaildoor <text>:
 
 # A breach or gate (gate, punch, front, dig: the dugout): its state, or open|close|due (an open one is due now)|cool (its cooldown ends).
 command /zzjailbreach <text> [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_id} to arg-1
 		if arg-2 is "open":
@@ -1578,7 +1586,7 @@ command /zzjailbreach <text> [<text>]:
 
 # A prison cop by route: "COP id= route= loaded= at= yaw= hunts= staggered= lastattack=".
 command /zzjailcop <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_id} to jcopIdOf(arg-1)
 		if {_id} is "":
@@ -1587,14 +1595,14 @@ command /zzjailcop <text>:
 		send jcopInfo({_id})
 
 command /zzjailcops:
-	executable by: console
+	executable by: players and console
 	trigger:
 		send jcopCounts()
 
 # What a prison cop sees of a player (jailcops.sk's restricted rule): "SEES <p> by=<route> zone=<the player's restricted
 # zone> cone=<in view: notice::range and restricted-cone> los=<vanilla line of sight> glass=<jcopClearView> win=<jcopSeesRz>"
 command /zzjailsees <text> <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_id} to jcopIdOf(arg-1)
 		set {_e} to {_none}
@@ -1621,7 +1629,7 @@ command /zzjailsees <text> <player>:
 
 # Moves a prison cop (Citizens' moveto, through the real console: --id needs it).
 command /zzjailcopto <text> <number> <number> <number>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_id} to jcopIdOf(arg-1)
 		if {_id} is "":
@@ -1634,7 +1642,7 @@ command /zzjailcopto <text> <number> <number> <number>:
 # The cop roster until the next loadSettings (tests that aren't about cops): "none", or routes split by spaces. Cops
 # of routes left out are removed.
 command /zzjailroster <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {-cfg::jailcop::roster::*}
 		# The busy guards too (/zzjailbusy sets them): a test's roster is exactly what it names.
@@ -1654,7 +1662,7 @@ command /zzjailroster <text>:
 # The busy guards' roster (2026-10-21; core.sk jailcop::roster-busy: made while more than jailcop::busy-players are in
 # the prison) and the threshold, until the next loadSettings: "/zzjailbusy <routes|none> [players]".
 command /zzjailbusy <text> [<number>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		delete {-cfg::jailcop::roster-busy::*}
 		if arg-1 is not "none":
@@ -1667,7 +1675,7 @@ command /zzjailbusy <text> [<number>]:
 # A car job with a real MTVehicles plate (from /zzcarnew) but no car in the world (prison-respawn: a death ends it as
 # "jailed", no cooldown). "CTFAKE <player> job=<tier> plate=<plate>"
 command /zzctfake <player> <text> <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		set {_l} to location of arg-1
@@ -1689,7 +1697,7 @@ command /zzctfake <player> <text> <text>:
 
 # fuel.sk (2026-10-21): a player's pump state. "FUELSTATE <player> hold=<n> fill=<plate> liters= paid= pct= slot8= held="
 command /zzfuel <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		send "FUELSTATE %arg-1% hold=%{-fuel::hold::%{_u}%}% fill=%{-fuel::fill::%{_u}%}% liters=%{-fuel::liters::%{_u}%}% paid=%{-fuel::paid::%{_u}%}% pct=%{-fuel::pct::%{_u}%}% slot8=%itemId(slot 8 of arg-1's inventory)% held=%index of arg-1's current hotbar slot%"
@@ -1697,7 +1705,7 @@ command /zzfuel <player>:
 # bikes.sk (2026-10-21): a stand-in bike look while tools\make-car-wraps.js hasn't made the Scrapper variants (the
 # Viper's Black variant); "clear" puts the generated list back. "BIKELOOK <uuid=damage>"
 command /zzbikelook <text>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		if arg-1 is "clear":
 			carWrapsLoad()
@@ -1707,7 +1715,7 @@ command /zzbikelook <text>:
 
 # bikes.sk: a player's bike and minigame. "BIKESTATE <player> of=<plate> qte=<spot> hits= fails="
 command /zzbike <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_u} to "%uuid of arg-1%"
 		send "BIKESTATE %arg-1% of=%{-bike::of::%{_u}%}% qte=%{-bkqte::%arg-1%}% hits=%{-bkqte::%arg-1%::hits}% fails=%{-bkqte::%arg-1%::fails}%"
@@ -1715,14 +1723,14 @@ command /zzbike <player>:
 # clerk.sk (2026-10-21): a hit on a store's clerk by that player (as if they punched them), and the clerk's state.
 # "CLERKHIT <store> st=<state> hit=<date>"
 command /zzclerkhit <text> <player>:
-	executable by: console
+	executable by: players and console
 	trigger:
 		clerkHit(arg-1, arg-2)
 		send "CLERKHIT %arg-1% st=%{-clerk::%arg-1%::st}% hit=%{-store::%arg-1%::hit}%"
 
 # heists.sk (2026-10-21): the alarm's phase. "ALARMSTATE <heist> stage= assault= pool= alive= pending= left= len= wave= cap="
 command /zzalarm <text> [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
 		set {_h} to arg-1
 		# "/zzalarm <h> end": the phase ends now (the next tick moves on: warning/break -> assault, assault -> break).
@@ -1732,9 +1740,10 @@ command /zzalarm <text> [<text>]:
 
 # clock.sk (2026-10-21): the clock and one world's time. "CLOCKSTATE min= ofday= text= world= minute="
 command /zzclock [<text>]:
-	executable by: console
+	executable by: players and console
 	trigger:
-		set {_w} to first element of all worlds
+		set {_w} to clockWorld()
 		if arg-1 is set:
 			set {_w} to world(arg-1)
 		send "CLOCKSTATE min=%clockMinutes()% ofday=%clockOfDay()% text=%clockText(clockOfDay())% day=%clockDayName(clockDay())% week=%clockWeek()% world=%{_w}% minute=%clockWorldMinute({_w})% ph=%{-ph::clock}%"
+

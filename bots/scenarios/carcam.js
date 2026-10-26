@@ -222,7 +222,7 @@ module.exports = async ({ check }) => {
 
     await sleep(1500)
     const bar = messagesSince(bots[D], t).filter(m => m.kind === 'game_info').map(m => m.text)
-    check('while the chase view is on the action bar shows the driver\'s health and how to get out (the client hides the hearts)', bar.some(s => /❤ \d+(\.\d+)?\/\d+/.test(s) && /Sneak: get out/.test(s)), bar.slice(-5).join(' | '))
+    check('while the chase view is on the action bar shows the driver\'s health and how to get out (the client hides the hearts)', bar.some(s => /❤ \d+(\.\d+)?\/\d+/.test(s) && /Sneak: (get )?out/.test(s)), bar.slice(-5).join(' | '))
     const dist = await cmd(`execute as ${D} on vehicle run attribute @s minecraft:camera_distance base get`)
     check('the fallback for everyone: the driver\'s seat stand has camera_distance 7 (F5 in a car sits farther back)', /\s7(\.0+)?\s*$/.test(dist), dist)
 
@@ -435,6 +435,7 @@ module.exports = async ({ check }) => {
     check('...and with the bag back in the offhand the key is the map again (the minimap)', camOf(st).key === 'key-map' && camOf(st).hook === 'false' && botKey() && botKey().name === 'filled_map' && hasMapId(botKey()), st)
 
     // ---------- Getting out: first person again ----------
+    cam = camOf(await status()) // the big map's pause and resume made a new camera stand
     t = Date.now()
     await cmd(`minecraft:ride ${D} dismount`)
     await sleep(800)

@@ -588,7 +588,7 @@ module.exports.displays = [
 ]
 module.exports.points = { SCRAP_BOSS: SPOT.boss, SCRAP_CHOP: SPOT.chop, SCRAP_GATE: [584.5, 65, 1053.5, -90] }
 module.exports.setup = {
-  regions: [{ id: 'safe_scrapyard', box: [588, 63, 1018, 603, 80, 1031], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
+  regions: [{ id: 'safe_scrapyard', box: [588, 63, 1018, 603, 80, 1031], flags: { passthrough: 'allow' },
     note: 'the Boss\'s booth and the spot in front of its window only (the yard and the chop bay stay outside)' }],
   heists: [], keepers: [],
   givers: [{ kind: 'contracts', at: SPOT.boss, cmd: 'dquest addatw contracts jailbreak 595.5 65 1028.5 0 Scrap Yard',

@@ -10,6 +10,237 @@
           "type": "minecraft:model",
           "model": "donating:item/tool_drill"
         }
+      },
+      {
+        "when": "donating:register_body",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/register_body"
+        }
+      },
+      {
+        "when": "donating:register_drawer",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/register_drawer"
+        }
+      },
+      {
+        "when": "donating:register_bills",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/register_bills"
+        }
+      },
+      {
+        "when": "donating:furn_drinks_soda",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/drinks_soda"
+        }
+      },
+      {
+        "when": "donating:furn_drinks_energy",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/drinks_energy"
+        }
+      },
+      {
+        "when": "donating:furn_drinks_water",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/drinks_water"
+        }
+      },
+      {
+        "when": "donating:furn_shelf_chips",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/shelf_chips"
+        }
+      },
+      {
+        "when": "donating:furn_shelf_cereal",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/shelf_cereal"
+        }
+      },
+      {
+        "when": "donating:furn_shelf_cans",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/shelf_cans"
+        }
+      },
+      {
+        "when": "donating:furn_shelf_candy",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/shelf_candy"
+        }
+      },
+      {
+        "when": "donating:furn_slush_cherry",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slush_cherry"
+        }
+      },
+      {
+        "when": "donating:furn_slush_berry",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slush_berry"
+        }
+      },
+      {
+        "when": "donating:furn_slush_lime",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slush_lime"
+        }
+      },
+      {
+        "when": "donating:furn_coffee",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/coffee"
+        }
+      },
+      {
+        "when": "donating:furn_roller",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/roller"
+        }
+      },
+      {
+        "when": "donating:furn_microwave",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/microwave"
+        }
+      },
+      {
+        "when": "donating:furn_cups",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/cups"
+        }
+      },
+      {
+        "when": "donating:furn_atm",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/atm"
+        }
+      },
+      {
+        "when": "donating:furn_icecream",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/icecream"
+        }
+      },
+      {
+        "when": "donating:furn_lotto_1",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/lotto_1"
+        }
+      },
+      {
+        "when": "donating:furn_lotto_2",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/lotto_2"
+        }
+      },
+      {
+        "when": "donating:furn_lotto_3",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/lotto_3"
+        }
+      },
+      {
+        "when": "donating:furn_lotto_4",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/lotto_4"
+        }
+      },
+      {
+        "when": "donating:furn_magrack",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/magrack"
+        }
+      },
+      {
+        "when": "donating:furn_dmenu_1",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/dmenu_1"
+        }
+      },
+      {
+        "when": "donating:furn_dmenu_2",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/dmenu_2"
+        }
+      },
+      {
+        "when": "donating:furn_dmenu_3",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/dmenu_3"
+        }
+      },
+      {
+        "when": "donating:furn_dmenu_4",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/dmenu_4"
+        }
+      },
+      {
+        "when": "donating:furn_dmenu_5",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/dmenu_5"
+        }
+      },
+      {
+        "when": "donating:furn_dmenu_6",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/dmenu_6"
+        }
+      },
+      {
+        "when": "donating:furn_fryer",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/fryer"
+        }
+      },
+      {
+        "when": "donating:furn_mixer",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/mixer"
+        }
+      },
+      {
+        "when": "donating:furn_bakerybox",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/bakerybox"
+        }
       }
     ],
     "fallback": {

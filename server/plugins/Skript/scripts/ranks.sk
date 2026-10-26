@@ -57,6 +57,13 @@ function paidRank(p: offline player) :: text:
 				if {_w} > {_bw}:
 					set {_bw} to {_w}
 					set {_best} to {_id}
+	# The rank bought (/dranks give records it) counts even when LuckPerms lost the group: staff given a
+	# higher group (lp user parent set admin) keep the perks they paid for (owner, 2026-10-21).
+	set {_bought} to getData({_p}, "paid-rank")
+	if {_bought} is set:
+		if {-cfg::paidrank::%{_bought}%::weight} is set:
+			if {-cfg::paidrank::%{_bought}%::weight} > {_bw}:
+				set {_best} to {_bought}
 	return {_best}
 
 # The tag ("&6[Elite]"), or "" for none.

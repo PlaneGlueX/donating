@@ -565,24 +565,26 @@ const donutDisp = (x, y, z, scale = 0.55, yaw = 0) => disp(x, y, z, 'brick', sca
 function inside () {
   // the kitchen (x 402..408): lookalikes only, nothing with a menu (PLAN 10.2)
   F(402, 65, 784, 402, 65, 789, 'smooth_quartz')                                     // a prep counter
-  F(402, 65, 790, 402, 65, 791, 'iron_block')                                        // two fryers with grate lids
-  F(402, 66, 790, 402, 66, 791, 'iron_trapdoor[facing=east,half=bottom,open=false]')
+  F(402, 65, 790, 402, 65, 791, 'barrier'); F(402, 66, 790, 402, 66, 791, 'air')      // the fryer (a furniture model)
+  disp(402.5, 65.5, 791.5, 'iron_ingot', 1, -90, 0, 'donating:furn_fryer')            // its middle on z 791
   F(402, 71, 789, 403, 72, 792, 'light_gray_concrete'); F(403, 71, 789, 403, 71, 792, 'iron_trapdoor[facing=west,half=top,open=false]') // the hood
   F(402, 65, 793, 402, 68, 796, 'iron_block')                                        // the ovens, doors on their fronts
   for (let z = 793; z <= 796; z++) { S(403, 66, z, 'iron_trapdoor[facing=east,half=bottom,open=true]'); S(402, 66, z, 'tinted_glass') }
   F(402, 65, 797, 402, 65, 799, 'smooth_quartz')                                     // a sink counter
   for (const [a, b] of [[801, 803], [806, 808]]) F(402, 65, a, 402, 69, b, 'iron_bars') // donut racks
-  F(402, 65, 815, 402, 65, 817, 'smooth_quartz'); S(402, 66, 816, 'iron_block'); S(402, 67, 816, 'light_gray_concrete') // a stand mixer
+  F(402, 65, 815, 402, 65, 817, 'smooth_quartz'); S(402, 66, 816, 'barrier'); S(402, 67, 816, 'air') // a stand mixer
+  disp(402.5, 66.5, 816.5, 'iron_ingot', 1, -90, 0, 'donating:furn_mixer')
   F(402, 65, 819, 404, 70, 825, 'iron_block')                                       // the walk-in freezer (solid: no dark room)
   F(404, 66, 819, 404, 69, 825, 'light_gray_concrete'); door(DB, 404, 65, 822, 'west', 'left', false, 'iron_door')
   for (const [a, b] of [[788, 796], [800, 808]]) F(405, 65, a, 406, 65, b, 'smooth_quartz') // two prep islands
   F(409, 65, 795, 409, 65, 812, 'smooth_quartz')                                     // the back counter, coffee machines on it
-  for (const z of [797, 809]) { S(409, 66, z, 'iron_block'); S(409, 67, z, 'polished_blackstone_slab[type=bottom]') }
+  for (const z of [797, 809]) { S(409, 66, z, 'barrier'); S(409, 67, z, 'air'); disp(409.5, 66.5, z + 0.5, 'iron_ingot', 1, -90, 0, 'donating:furn_coffee') }
   S(409, 66, 803, 'polished_blackstone'); screen(409.5, 803.5, -90)                       // the back register (faces the clerks' aisle)
   // the menu boards hanging over the clerks (they face the customers through the counter)
-  const PANEL = ['magenta_concrete', 'magenta_concrete', 'pearlescent_froglight[axis=y]', 'pearlescent_froglight[axis=y]', 'pink_concrete', 'pink_concrete']
+  // (furniture models: a lit 6-cell board each, cell 1 at the south end, the customers' left)
   for (const z0 of [795, 808]) for (let k = 0; k < 6; k++) {
-    S(410, 72, z0 + k, 'polished_blackstone'); S(410, 71, z0 + k, PANEL[k]); S(410, 70, z0 + k, PANEL[k])
+    S(410, 72, z0 + k, 'polished_blackstone'); S(410, 71, z0 + k, 'air'); S(410, 70, z0 + k, 'air')
+    disp(410.5, 71.0, z0 + 5 - k + 0.5, 'iron_ingot', 1, -90, 0, `donating:furn_dmenu_${k + 1}`)
   }
   // the front counter (x 412, z 793..814): white, raised ends; the register cells (z 800..802) stay bare with air above
   F(412, 65, 793, 412, 65, 814, 'smooth_quartz')
@@ -594,7 +596,7 @@ function inside () {
     S(413, 65, z, 'glass')
     donutDisp(413.5, 65.3, z + 0.5, 0.55, (h(413, 5, z) % 4) * 90)
   }
-  for (const z of [795, 796, 811]) { disp(412.5, 66.25, z + 0.5, 'pink_wool', 0.45, 90, 0); disp(412.5, 66.7, z + 0.5, 'pink_wool', 0.4, 75, 0) } // bakery boxes
+  for (const z of [795, 796, 811]) { disp(412.5, 66.5, z + 0.5, 'iron_ingot', 1, 90, 0, 'donating:furn_bakerybox'); disp(412.5, 66.75, z + 0.5, 'iron_ingot', 1, 75, 0, 'donating:furn_bakerybox') } // bakery boxes, two high
   // the half wall that closes the clerks' side to the south (jumpable); the way behind is round the north end (z 792)
   F(412, 65, 815, 421, 65, 815, 'smooth_quartz'); F(421, 65, 816, 421, 65, 826, 'smooth_quartz')
   // seating: purpur tables (top slabs) with purpur-stair benches on light blue rugs, north and south of the aisle
@@ -760,6 +762,7 @@ function signBox () {
 // ---- the module ------------------------------------------------------------------------------------------------------------
 module.exports = (b = new (require('../mcstruct').Build)()) => {
   B = b
+  DISPLAYS.length = 0 // filled again by every build
   groundLayer(); shell(); roof(); inside(); yard()
   TURN = true; truss(); torus(); signBox(); TURN = false // the donut group, turned to face east
   B = null
@@ -804,7 +807,11 @@ module.exports.setup = {
         cmd: 'dloot add donut pile 412 65 800 412 65 802 value=1800-3000 style=register piece=125 name=Front_register' }
     ]
   }],
-  keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: []
+  keepers: [], givers: [], crates: [],
+  carSpots: [{ at: [404.5, 65, 753.5, 0], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the donut shop lot)' },
+    { at: [412.5, 65, 759.5, 180], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the donut shop lot)' },
+    { at: [420.5, 65, 776.5, 0], launch: true, cmd: '/dcontract spot add', note: 'a parked car for car jobs (the donut shop lot)' }],
+  chops: [], garages: [], pois: [], walls: [], holos: []
 }
 module.exports.build = () => module.exports()
 

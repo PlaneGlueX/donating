@@ -19,8 +19,11 @@
 #     the prop, aimed with gravity and a little spread: clerk::damage a hit), then the next shelf, every clerk::every at
 #     most. Another hit makes them duck for clerk::stun (they drop what they hold). With nobody inside they walk back
 #     to the register. A thrown prop that kills counts like a trap (the store's own p, death.sk "clerk").
-# The clerk goes when the store closes (its run ends, disable, delete) and stands at the register again at the next
-# opening; a clerk that can't be made (no Citizens, a spawn that keeps failing) leaves the register open (logged).
+# The clerk stays while the store is a shop (owner, 2026-10-21: "keep stores open even when heist is on cooldown, just
+# disable the robbing mechanics"): a robbery's end calms them (back to the register), they go only when the store is
+# disabled or deleted. A right-click on a calm clerk opens the store's shop (shop.sk kind "store": food and a few
+# consumables); a hit while the register is empty (heists.sk heistStoreCustomer) only makes them duck. A clerk that
+# can't be made (no Citizens, a spawn that keeps failing) leaves the register open (logged).
 # Saved: {store::<h>::clerk} ("x|y|z|yaw", the store's world), {store::<h>::shelf::<n>} ("x|y|z"), {clerks::ids::<id>}
 # (removed after a crash). Memory: {-clerk::id::<h>}, {-clerk::heist::<id>}, {-store::<h>::hit} (the robbery started),
 # {-clerk::<h>::st|goal|at|next|stun|tries|spawning}, {-clerk::proj::<uuid>}.
@@ -106,13 +109,68 @@ function clerkSkinId() :: text:
 
 # ---------- Making and removing ----------
 
+# True while the store should have its clerk: a store with a clerk spot that isn't disabled.
+function clerkWanted(h: text) :: boolean:
+	if heistIsStore({_h}) is false:
+		return false
+	if clerkOn() is false:
+		return false
+	if {store::%{_h}%::clerk} is not set:
+		return false
+	set {_s} to heistState({_h})
+	if {_s} is "open":
+		return true
+	if {_s} is "active":
+		return true
+	if {_s} is "cooldown":
+		return true
+	return false
+
 # heists.sk heistOnOpen: the register shuts and the clerk takes its spot (a moment later: Citizens).
 function clerkOnOpen(h: text):
 	delete {-store::%{_h}%::hit}
-	clerkRemove({_h}, "reopen")
 	delete {-clerk::%{_h}%::tries}
-	if storeShut({_h}) is true:
+	clerkArmRoll({_h})
+	if {-clerk::id::%{_h}%} is set:
+		clerkCalm({_h})
+	else if storeShut({_h}) is true:
 		clerkSpawn({_h})
+
+# The armed clerk (core.sk clerk::armed-*): rolled at every opening of a store whose register stays shut until the hit;
+# the register's cash is multiplied for that run (loot.sk lootArm reads {-lootmult::<h>}).
+function clerkArmRoll(h: text):
+	delete {-clerk::%{_h}%::weapon}
+	delete {-lootmult::%{_h}%}
+	storeShut({_h}) is true
+	random number between 0 and 100 < cfg("clerk::armed-chance")
+	set {_w} to "gun"
+	if random number between 0 and 100 < cfg("clerk::armed-melee"):
+		set {_w} to "melee"
+	set {-clerk::%{_h}%::weapon} to {_w}
+	set {-lootmult::%{_h}%} to cfg("clerk::mult-%{_w}%")
+	clerkLog("armed %{_h}% %{_w}% mult=%{-lootmult::%{_h}%}%")
+
+# What the clerk holds when not throwing: an armed clerk's weapon, else nothing.
+function clerkWeaponItem(h: text) :: text:
+	set {_w} to {-clerk::%{_h}%::weapon}
+	if {_w} is set:
+		set {_i} to cfg("clerk::weapon::%{_w}%")
+		return "%{_i}%"
+	return ""
+
+# Back to the register, holding nothing (or their weapon), and serving again.
+function clerkCalm(h: text):
+	set {-clerk::%{_h}%::st} to "idle"
+	delete {-clerk::%{_h}%::goal}
+	delete {-clerk::%{_h}%::stun}
+	clerkHold({_h}, clerkWeaponItem({_h}))
+	set {_l} to clerkSpot({_h})
+	{_l} is set
+	{-clerk::id::%{_h}%} is set
+	clerkCmd({-clerk::id::%{_h}%}, "pathto %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}%")
+	wait 3 seconds
+	{-clerk::%{_h}%::st} is "idle"
+	clerkFace({_h})
 
 function clerkSpawn(h: text):
 	{-clerk::%{_h}%::spawning} is not set
@@ -160,18 +218,23 @@ function clerkSpawn(h: text):
 	if {_id} is "":
 		clerkLog("spawn-failed %{_h}% try=%{-clerk::%{_h}%::tries}% (the sweep removes it if it appears later)")
 		stop
-	# The store closed (or reopened) while it was being made.
-	if storeShut({_h}) is false:
-		if {-store::%{_h}%::hit} is not set:
-			execute console command "npc remove %{_id}%"
-			clerkLog("spawn-dropped %{_h}% id=%{_id}%")
-			stop
+	# The store was disabled (or deleted) while it was being made.
+	if clerkWanted({_h}) is false:
+		execute console command "npc remove %{_id}%"
+		clerkLog("spawn-dropped %{_h}% id=%{_id}%")
+		stop
+	# Staff removed the clerk spot while this one was spawning.
+	if {store::%{_h}%::clerk} is not set:
+		execute console command "npc remove %{_id}%"
+		clerkLog("spawn-dropped %{_h}% id=%{_id}% (no spot)")
+		stop
 	set {clerks::ids::%{_id}%} to {_h}
 	set {-clerk::id::%{_h}%} to {_id}
 	set {-clerk::heist::%{_id}%} to {_h}
 	set {-clerk::ent::%{_h}%} to {_ent}
 	set {-clerk::%{_h}%::st} to "idle"
 	clerkSetup({_id}, {_h})
+	clerkHold({_h}, clerkWeaponItem({_h}))
 	clerkLog("spawn %{_h}% id=%{_id}% after %{_tries}% ticks")
 
 function clerkSetup(id: text, h: text):
@@ -181,6 +244,8 @@ function clerkSetup(id: text, h: text):
 	clerkSentinel({_id}, "health 20")
 	clerkSentinel({_id}, "speed %cfg("clerk::speed")%")
 	clerkSentinel({_id}, "deathxp 0")
+	# Its thrown props hurt robbers it doesn't target (safeshot would cancel them).
+	clerkSentinel({_id}, "safeshot false")
 	set {_sk} to clerkSkinId()
 	set {_tex} to skinTexture({_sk})
 	set {_sig} to skinSignature({_sk})
@@ -217,9 +282,14 @@ function clerkRemove(h: text, why: text):
 	execute console command "npc remove %{_id}%"
 	clerkLog("remove %{_h}% id=%{_id}% why=%{_why}%")
 
-# Hooks from heists.sk: the store closed.
+# Hooks from heists.sk: a robbery ended (the clerk calms down) or the store was disabled or deleted (the clerk goes).
 function clerkOnClose(h: text, why: text):
-	clerkRemove({_h}, {_why})
+	delete {-clerk::%{_h}%::weapon}
+	delete {-lootmult::%{_h}%}
+	if {_why} is "disable" or "delete":
+		clerkRemove({_h}, {_why})
+	else:
+		clerkCalm({_h})
 
 # ---------- The robbery ----------
 
@@ -234,6 +304,19 @@ on damage with priority lowest:
 	clerkHit({_h}, attacker)
 
 function clerkHit(h: text, p: player):
+	# Nothing to rob (the store is in cooldown or cleaned out): they duck, that's all.
+	if heistStoreCustomer({_h}) is true:
+		if {-clerk::%{_h}%::st} is "idle":
+			set {-clerk::%{_h}%::stun} to now
+			add cfg("clerk::stun") to {-clerk::%{_h}%::stun}
+			set {-clerk::%{_h}%::st} to "stunned"
+			set {_e} to clerkEntity({_h})
+			if {_e} is set:
+				play sound "entity.villager.hurt" with volume 0.8 and pitch 1.3 at location of {_e}
+		set {_name} to cfg("clerk::name")
+		set {_left} to formatClock(heistSecondsLeft({_h}))
+		hudBar({_p}, "&6%{_name}%: &fThe register's empty! &7(robbable again in %{_left}%)", 2)
+		stop
 	if {-store::%{_h}%::hit} is not set:
 		clerkStart({_h}, {_p})
 		stop
@@ -244,7 +327,7 @@ function clerkHit(h: text, p: player):
 	set {-clerk::%{_h}%::stun} to now
 	add cfg("clerk::stun") to {-clerk::%{_h}%::stun}
 	set {-clerk::%{_h}%::st} to "stunned"
-	clerkHold({_h}, "")
+	clerkHold({_h}, clerkWeaponItem({_h}))
 	set {_e} to clerkEntity({_h})
 	if {_e} is set:
 		play sound "entity.player.hurt" with volume 0.8 at location of {_e}
@@ -256,14 +339,17 @@ function clerkStart(h: text, p: player):
 	heistStartRun({_h})
 	lootStoreUnlock({_h})
 	clerkLog("hit %{_h}% by %name of {_p}% %uuid of {_p}% run=%heistRun({_h})%")
-	set {-clerk::%{_h}%::st} to "fetch"
+	set {-clerk::%{_h}%::st} to clerkBusyState({_h})
 	delete {-clerk::%{_h}%::goal}
 	set {-clerk::%{_h}%::next} to now
 	add 1 second to {-clerk::%{_h}%::next}
 	set {_e} to clerkEntity({_h})
 	if {_e} is set:
 		play sound "entity.villager.hurt" with volume 1 and pitch 1.3 at location of {_e}
-	clerkSay({_h}, "panic")
+	if {-clerk::%{_h}%::weapon} is set:
+		clerkSay({_h}, "armed")
+	else:
+		clerkSay({_h}, "panic")
 	# The panic button, only in a store with police (heists.sk: the robbers inside are wanted now, the cops come after
 	# the response time). The hitter too, if they hit from outside.
 	if heistPolice({_h}) is true:
@@ -275,9 +361,19 @@ function clerkStart(h: text, p: player):
 		set {_warn} to heistAlarmWarning({_h})
 		loop heistRobbers({_h}):
 			heistNotify(loop-value, "warn", "&cThe clerk hit the panic button. &7The register's open: grab it, the cops are %{_warn}%s out.")
+	else if {-clerk::%{_h}%::weapon} is set:
+		set {_m} to {-lootmult::%{_h}%}
+		loop heistRobbers({_h}):
+			heistNotify(loop-value, "warn", "&cThe clerk's armed! &7The register's open and holds %{_m}%x the cash.")
 	else:
 		loop heistRobbers({_h}):
 			heistNotify(loop-value, "warn", "&eThe register's open. &7Watch out: the clerk throws things.")
+
+# What a clerk does once the robbery runs: an armed one fights, the others fetch things to throw.
+function clerkBusyState(h: text) :: text:
+	if {-clerk::%{_h}%::weapon} is set:
+		return "fight"
+	return "fetch"
 
 # A line the clerk shouts, on the action bar of everyone in the store (clerk::lines::<kind>).
 function clerkSay(h: text, kind: text):
@@ -331,21 +427,25 @@ function clerkTick(h: text):
 	if {_st} is "stunned":
 		if {-clerk::%{_h}%::stun} > now:
 			stop
-		set {-clerk::%{_h}%::st} to "fetch"
+		# Ducked while the store was only a shop: back to serving.
+		if heistStoreCustomer({_h}) is true:
+			clerkCalm({_h})
+			stop
+		set {_st} to clerkBusyState({_h})
+		set {-clerk::%{_h}%::st} to {_st}
 		delete {-clerk::%{_h}%::goal}
-		set {_st} to "fetch"
 	# Nobody left inside: back to the register, standing there.
 	if heistRobberCount({_h}) <= 0:
 		if {_st} is not "home":
 			set {-clerk::%{_h}%::st} to "home"
-			clerkHold({_h}, "")
+			clerkHold({_h}, clerkWeaponItem({_h}))
 			set {_l} to clerkSpot({_h})
 			clerkCmd({-clerk::id::%{_h}%}, "pathto %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}%")
 		stop
 	if {_st} is "home":
-		set {-clerk::%{_h}%::st} to "fetch"
+		set {_st} to clerkBusyState({_h})
+		set {-clerk::%{_h}%::st} to {_st}
 		delete {-clerk::%{_h}%::goal}
-		set {_st} to "fetch"
 	if {-clerk::%{_h}%::next} is set:
 		if {-clerk::%{_h}%::next} > now:
 			stop
@@ -353,17 +453,19 @@ function clerkTick(h: text):
 		clerkFetch({_h}, {_e})
 	else if {_st} is "armed":
 		clerkAim({_h}, {_e})
+	else if {_st} is "fight":
+		clerkFight({_h}, {_e})
 
 # To a shelf (a different one each time when there are several), then grab a prop there.
 function clerkFetch(h: text, e: entity):
 	set {_goal} to {-clerk::%{_h}%::goal}
 	if {_goal} is not set:
 		loop {store::%{_h}%::shelf::*}:
-			if "%loop-index%" is not {-clerk::%{_h}%::last}:
-				add "%loop-index%" to {_opts::*}
+			if loop-index is not {-clerk::%{_h}%::last}:
+				add loop-index to {_opts::*}
 		if size of {_opts::*} is 0:
 			loop {store::%{_h}%::shelf::*}:
-				add "%loop-index%" to {_opts::*}
+				add loop-index to {_opts::*}
 		if size of {_opts::*} is 0:
 			# No shelves: from under the counter.
 			set {_goal} to "counter"
@@ -407,22 +509,88 @@ function clerkFetch(h: text, e: entity):
 function clerkAim(h: text, e: entity):
 	set {_t} to clerkTarget({_h}, {_e})
 	if {_t} is not set:
-		if difference between {-clerk::%{_h}%::at} and now >= 3 seconds:
-			set {-clerk::%{_h}%::at} to now
-			set {_near} to cfg("clerk::range") * 3
-			loop heistRobbers({_h}):
-				if world of loop-value is world of {_e}:
-					set {_d} to distance between (location of loop-value) and (location of {_e})
-					if {_d} < {_near}:
-						set {_near} to {_d}
-						set {_go} to location of loop-value
-			if {_go} is set:
-				clerkCmd({-clerk::id::%{_h}%}, "pathto %x-coordinate of {_go}% %y-coordinate of {_go}% %z-coordinate of {_go}%")
+		clerkSeek({_h}, {_e})
 		stop
 	clerkThrow({_h}, {_e}, {_t})
 	set {-clerk::%{_h}%::st} to "fetch"
 	set {-clerk::%{_h}%::next} to now
 	add cfg("clerk::every") to {-clerk::%{_h}%::next}
+
+# Nobody in sight: walk toward the nearest robber of the store (every 3 s), then look again.
+function clerkSeek(h: text, e: entity):
+	if {-clerk::%{_h}%::at} is set:
+		difference between {-clerk::%{_h}%::at} and now >= 3 seconds
+	set {-clerk::%{_h}%::at} to now
+	set {_near} to cfg("clerk::range") * 3
+	loop heistRobbers({_h}):
+		if world of loop-value is world of {_e}:
+			set {_d} to distance between (location of loop-value) and (location of {_e})
+			if {_d} < {_near}:
+				set {_near} to {_d}
+				set {_go} to location of loop-value
+	{_go} is set
+	clerkCmd({-clerk::id::%{_h}%}, "pathto %x-coordinate of {_go}% %y-coordinate of {_go}% %z-coordinate of {_go}%")
+
+# An armed clerk (clerkArmRoll): melee walks up to the nearest robber in sight and hits within clerk::melee-reach; a
+# gun stays where it is and shoots a robber in sight (a crit tracer either way, clerk::gun-aim % of shots land).
+function clerkFight(h: text, e: entity):
+	if {-clerk::%{_h}%::holding} is not set:
+		clerkHold({_h}, clerkWeaponItem({_h}))
+	set {_t} to clerkTarget({_h}, {_e})
+	if {_t} is not set:
+		clerkSeek({_h}, {_e})
+		stop
+	set {_d} to distance between (location of {_t}) and (location of {_e})
+	if {-clerk::%{_h}%::weapon} is "melee":
+		if {_d} > cfg("clerk::melee-reach"):
+			set {_go} to location of {_t}
+			clerkCmd({-clerk::id::%{_h}%}, "pathto %x-coordinate of {_go}% %y-coordinate of {_go}% %z-coordinate of {_go}%")
+			set {-clerk::%{_h}%::next} to now
+			add 10 ticks to {-clerk::%{_h}%::next}
+			stop
+		make {_e} look at {_t}'s eyes
+		make {_e} swing their main hand
+		play sound "entity.player.attack.strong" with volume 1 at location of {_e}
+		clerkStrike({_h}, {_e}, {_t}, cfg("clerk::melee-damage"), "melee")
+		set {-clerk::%{_h}%::next} to now
+		add cfg("clerk::melee-every") to {-clerk::%{_h}%::next}
+		if random number between 0 and 100 < 30:
+			clerkSay({_h}, "armed")
+		# A shove away from the clerk, a tick later so vanilla's own knockback doesn't overwrite it.
+		set {_hx} to (x-coordinate of {_t}) - (x-coordinate of {_e})
+		set {_hz} to (z-coordinate of {_t}) - (z-coordinate of {_e})
+		set {_len} to sqrt({_hx} ^ 2 + {_hz} ^ 2)
+		{_len} > 0.01
+		set {_k} to cfg("clerk::melee-push")
+		wait 1 tick
+		{_t} is online
+		set velocity of {_t} to vector({_hx} / {_len} * {_k}, cfg("clerk::lift"), {_hz} / {_len} * {_k})
+		stop
+	make {_e} look at {_t}'s eyes
+	set {_from} to eye location of {_e}
+	set {-clerk::%{_h}%::next} to now
+	add cfg("clerk::gun-every") to {-clerk::%{_h}%::next}
+	play sound "entity.firework_rocket.blast" with volume 1.2 and pitch 1.6 at location of {_e}
+	if random number between 0 and 100 < cfg("clerk::gun-aim"):
+		set {_to} to location of {_t}
+		set y-coordinate of {_to} to (y-coordinate of {_to}) + 1.2
+		jcopTracer({_from}, {_to}, "crit")
+		clerkStrike({_h}, {_e}, {_t}, cfg("clerk::gun-damage"), "gun")
+	else:
+		set {_tx} to (x-coordinate of {_t}) + (random number between -1.5 and 1.5)
+		set {_ty} to (y-coordinate of {_t}) + 1.2 + (random number between -0.8 and 1.2)
+		set {_tz} to (z-coordinate of {_t}) + (random number between -1.5 and 1.5)
+		jcopTracer({_from}, location({_tx}, {_ty}, {_tz}, world of {_t}), "crit")
+		clerkLog("miss %{_h}% %name of {_t}%")
+
+# A hit by the clerk itself (an armed clerk's weapon): by the clerk, so death.sk and combat-log.sk see a clerk hit; the
+# damage handler below takes the amount from {-clerk::dmg::<uuid>}.
+function clerkStrike(h: text, e: entity, t: player, n: number, kind: text):
+	set {_u} to "%uuid of {_t}%"
+	set {-clerk::dmg::%{_u}%} to {_n}
+	execute console command "minecraft:damage %{_u}% %{_n}% minecraft:mob_attack by %uuid of {_e}%"
+	delete {-clerk::dmg::%{_u}%}
+	clerkLog("%{_kind}% %{_h}% %name of {_t}% by=%{_n}%")
 
 # A thrown prop: a snowball showing it, aimed at the robber's chest with gravity (0.03 a tick²) over t = d / speed
 # ticks: v = (dx / t, dy / t + 0.015 × t, dz / t), plus up to clerk::spread blocks of miss at the target.
@@ -462,32 +630,88 @@ function clerkThrow(h: text, e: entity, t: player):
 	delete {-clerk::proj::%{_u}%}
 
 # A thrown prop that lands: clerk::damage (snowballs do nothing by themselves).
+# A snowball's 0-damage hit on a player never reaches a damage event (vanilla stops it first), so the landing does it:
+# the nearest player within 1.5 blocks of where it lands, hurt by the clerk.
 on damage of player with priority low:
 	attacker is set
 	clerkOfEntity(attacker) is not ""
-	set damage to cfg("clerk::damage")
+	set {_n} to {-clerk::dmg::%uuid of victim%}
+	if {_n} is not set:
+		set {_n} to cfg("clerk::damage")
+	set damage to {_n}
+on projectile hit:
+	set {_h} to {-clerk::proj::%uuid of projectile%}
+	{_h} is set
+	delete {-clerk::proj::%uuid of projectile%}
+	set {_best} to 1.5
+	loop players in radius 1.5 of projectile:
+		set {_d} to distance between loop-player and projectile
+		if {_d} < {_best}:
+			set {_best} to {_d}
+			set {_v} to loop-player
+	{_v} is set
+	# By the clerk (the shooter), so death.sk and combat-log.sk see a clerk hit; the handler above sets the amount.
+	set {_n} to cfg("clerk::damage")
+	set {_s} to shooter
+	clerkLog("hurt %{_h}% %name of {_v}% by=%{_n}%")
+	set {_pv} to velocity of projectile
+	if {_s} is set:
+		execute console command "minecraft:damage %uuid of {_v}% %{_n}% minecraft:mob_attack by %uuid of {_s}%"
+	else:
+		damage {_v} by {_n} / 2
+	# Owner, 2026-10-21: "small damage and medium knockback and sometimes a bad effect like slight blindness or
+	# slowness". The push goes along the throw, a tick later so vanilla's own knockback doesn't overwrite it.
+	set {_hx} to x of {_pv}
+	set {_hz} to z of {_pv}
+	set {_len} to sqrt({_hx} ^ 2 + {_hz} ^ 2)
+	if {_len} > 0.01:
+		set {_k} to cfg("clerk::knockback")
+		wait 1 tick
+		{_v} is online
+		set velocity of {_v} to vector({_hx} / {_len} * {_k}, cfg("clerk::lift"), {_hz} / {_len} * {_k})
+	if random number between 0 and 100 < cfg("clerk::effect-chance"):
+		if chance of 50%:
+			set {_t} to cfg("clerk::blind-time")
+			apply potion effect of blindness of tier 1 to {_v} for {_t}
+			hudBar({_v}, "&7Something in your eyes!", 2)
+		else:
+			set {_t} to cfg("clerk::slow-time")
+			apply potion effect of slowness of tier 1 to {_v} for {_t}
+			hudBar({_v}, "&7That one hurt: slowed down", 2)
+		clerkLog("effect %{_h}% %name of {_v}%")
 
 # ---------- Upkeep ----------
 
-# Every 5 s: an open or robbed store with a clerk spot and no clerk gets one (tries clerk::give-up times, then the
-# register opens without one); a clerk of a store that isn't open or robbed any more goes.
+# Every 5 s: a store that should have a clerk (clerkWanted) and has none gets one (tries clerk::give-up times; an open
+# store's register then opens without one); a clerk of a store that's disabled or gone goes.
 every 5 seconds:
 	loop {heists::*}:
 		set {_h} to loop-index
 		set {_s} to heistState({_h})
 		if {-clerk::id::%{_h}%} is set:
-			if {_s} is not "open" or "active":
+			if clerkWanted({_h}) is false:
 				clerkRemove({_h}, "closed")
-		else if {_s} is "open":
-			if storeShut({_h}) is true:
-				if {-clerk::%{_h}%::tries} is set:
-					if {-clerk::%{_h}%::tries} >= cfg("clerk::give-up"):
-						set {-store::%{_h}%::hit} to "noclerk"
-						lootStoreUnlock({_h})
-						clerkLog("give-up %{_h}%: no clerk after %{-clerk::%{_h}%::tries}% tries (the register is open)")
-				if storeShut({_h}) is true:
-					clerkSpawn({_h})
+		else if clerkWanted({_h}) is true:
+			set {_tries} to {-clerk::%{_h}%::tries}
+			if {_tries} is not set:
+				set {_tries} to 0
+			if {_tries} < cfg("clerk::give-up"):
+				clerkSpawn({_h})
+			else if storeShut({_h}) is true:
+				set {-store::%{_h}%::hit} to "noclerk"
+				lootStoreUnlock({_h})
+				clerkLog("give-up %{_h}%: no clerk after %{_tries}% tries (the register is open)")
 	clerkSweep()
+
+# A right-click on a calm clerk: the store's shop (shop.sk). Not while they panic, duck or the robbery runs.
+on right click on entity:
+	set {_h} to clerkOfEntity(event-entity)
+	{_h} is not ""
+	cancel event
+	if {-clerk::%{_h}%::st} is not "idle":
+		hudBar(player, "&cNot now!", 2)
+		stop
+	openShop(player, "store")
 
 # Clerks left from before a restart or a crash are removed once Citizens has loaded its NPCs; a reload keeps the
 # living ones (they're in memory).
@@ -599,7 +823,7 @@ command /dclerk [<text>]:
 				lootStoreUnlock({_h})
 			send "CLERK %{_h}%: no clerk any more (the register is open to anyone, no police)" to sender
 		else if {_sub} is "info":
-			send "CLERK %{_h}% spot=%{store::%{_h}%::clerk}% id=%{-clerk::id::%{_h}%}% st=%{-clerk::%{_h}%::st}% goal=%{-clerk::%{_h}%::goal}% holding=%{-clerk::%{_h}%::holding}% hit=%{-store::%{_h}%::hit}% shut=%storeShut({_h})% tries=%{-clerk::%{_h}%::tries}% state=%heistState({_h})% alarm=%heistAlarmStage({_h})% assault=%heistAssault({_h})% pool=%heistPool({_h})%" to sender
+			send "CLERK %{_h}% spot=%{store::%{_h}%::clerk}% id=%{-clerk::id::%{_h}%}% st=%{-clerk::%{_h}%::st}% goal=%{-clerk::%{_h}%::goal}% holding=%{-clerk::%{_h}%::holding}% weapon=%{-clerk::%{_h}%::weapon}% mult=%{-lootmult::%{_h}%}% hit=%{-store::%{_h}%::hit}% shut=%storeShut({_h})% tries=%{-clerk::%{_h}%::tries}% state=%heistState({_h})% alarm=%heistAlarmStage({_h})% assault=%heistAssault({_h})% pool=%heistPool({_h})%" to sender
 			loop {store::%{_h}%::shelf::*}:
 				send "CLERK %{_h}% shelf %loop-index%: %loop-value%" to sender
 		else if {_sub} is "spawn":

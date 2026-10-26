@@ -10,7 +10,7 @@
 # cancelled event suggests nothing; Paper sends nothing for an empty list.
 # Commands without arguments and free-text arguments (chat, broadcasts) are left alone: Skript's own completer
 # suggests nothing there. Player names are only the players the viewer can see (EssentialsX vanish hides staff).
-# Console-only commands suggest nothing; local test helpers (zz-*) have no completions. Every handler also answers the
+# Console-only commands suggest nothing; local test helpers (zz-*) are completed for the owner only (zz-tab.sk). Every handler also answers the
 # namespaced label ("/skript:bounty"): SkBee compares the typed label with each listed one, so both are listed.
 # /dphone completes in Java (DonatingPhone).
 #
@@ -697,7 +697,7 @@ on tab complete of "/dcontract" and "/skript:dcontract":
 	set tab completions for position 1 to "spot", "chop", "dump", "info" and "end"
 	set {_s} to tab arg-1
 	if {_s} is "spot" or "chop":
-		set tab completions for position 2 to "add", "addat", "remove" and "list"
+		set tab completions for position 2 to "add", "addat", "addatw", "remove" and "list"
 		if tab arg-2 is "remove":
 			set {_l::*} to tabIndices({_s})
 			if {_l::*} is set:
@@ -708,6 +708,13 @@ on tab complete of "/dcontract" and "/skript:dcontract":
 			set tab completions for position 4 to tabPos(player, "y")
 			set tab completions for position 5 to tabPos(player, "cz")
 			set tab completions for position 6 to tabPos(player, "yaw")
+		else if tab arg-2 is "addatw":
+			# addatw <world> <x> <y> <z> [yaw]: where you stand.
+			set tab completions for position 3 to "%world of player%"
+			set tab completions for position 4 to tabPos(player, "cx")
+			set tab completions for position 5 to tabPos(player, "y")
+			set tab completions for position 6 to tabPos(player, "cz")
+			set tab completions for position 7 to tabPos(player, "yaw")
 	else if {_s} is "info":
 		set tab completions for position 2 to tabPlayerNames(player)
 	else if {_s} is "end":
@@ -864,12 +871,12 @@ on tab complete of "/dclerk" and "/skript:dclerk":
 		set tab completions for position 5 to tabPos(player, "cz")
 
 on tab complete of "/dclock" and "/skript:dclock":
-	set tab completions for position 1 to "info", "set", "sync" and "offset"
+	set tab completions for position 1 to "info", "set" and "day"
 	if tab arg-1 is "set":
 		set tab completions for position 2 to "6:00", "9:00", "12:00" and "7:30"
 		set tab completions for position 3 to "am" and "pm"
-	else if tab arg-1 is "offset":
-		set tab completions for position 2 to "%clockOffset()%"
+	else if tab arg-1 is "day":
+		set tab completions for position 2 to "%clockDayCount()%"
 
 on tab complete of "/dfuel" and "/skript:dfuel":
 	set tab completions for position 1 to "pumpat", "pump", "remove", "list", "dump", "car" and "info"

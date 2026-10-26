@@ -4,7 +4,7 @@
 // a bound title, a Season key and the first list. The list (rolled for everyone each week: the least robbed heist,
 // never a difficulty 1 one) pays its premium only on loot you robbed yourself, after pickup, up to each order's cap,
 // each dollar once, 75% for passive players; the car order pays once; a new week needs a new pickup; staff only.
-const { join, sleep, quit, messagesSince } = require('../lib')
+const { join, sleep, quit, messagesSince, stashGivers, restoreGivers } = require('../lib')
 const rconLib = require('../rcon')
 const { Vec3 } = require('vec3')
 
@@ -26,7 +26,10 @@ module.exports = async ({ check }) => {
   let boss = ''
   let spot = ''
   let chop = ''
+  let stashed = []
   try {
+    // The town's own givers (Mara, the Boss, Vic, the Broker) off the map for the test; back in the finally.
+    stashed = await stashGivers(cmd, ['story', 'contracts', 'fence', 'hits'])
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const until = async (fn, ms = 5000) => {
       const end = Date.now() + ms
@@ -215,6 +218,7 @@ module.exports = async ({ check }) => {
     await sleep(800)
     check('/dfence is staff only', /Staff only/.test(text(B, t)), text(B, t))
   } finally {
+    await restoreGivers(cmd, stashed).catch(() => {})
     await rcon.cmd('zzweek off').catch(() => {})
     if (vic) await rcon.cmd(`dquest remove ${vic}`).catch(() => {})
     if (boss) await rcon.cmd(`dquest remove ${boss}`).catch(() => {})

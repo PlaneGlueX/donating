@@ -132,4 +132,14 @@ function quit (bot) {
   })
 }
 
-module.exports = { join, sleep, messagesSince, waitForMessage, colorOf, inventorySnapshot, quit, HOST, PORT, VERSION }
+// Takes the map's quest givers of these kinds away for a test that needs none on the map (the town's own givers),
+// returning the /dquest dump lines that put them back (restoreGivers, in the test's finally).
+async function stashGivers (cmd, kinds) {
+  const ids = (await cmd('dquest list')).split('\n').map(l => l.match(/QUEST (\d+): (\w+)\|/)).filter(m => m && kinds.includes(m[2])).map(m => m[1])
+  const lines = (await cmd('dquest dump')).split('\n').map(l => l.trim()).filter(l => /^dquest addatw? /.test(l) && kinds.includes(l.split(' ')[2]))
+  for (const n of ids) await cmd(`dquest remove ${n}`)
+  return lines
+}
+async function restoreGivers (cmd, lines) { for (const l of lines || []) await cmd(l) }
+
+module.exports = { stashGivers, restoreGivers, join, sleep, messagesSince, waitForMessage, colorOf, inventorySnapshot, quit, HOST, PORT, VERSION }

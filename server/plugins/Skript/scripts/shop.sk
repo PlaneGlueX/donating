@@ -583,6 +583,8 @@ function renderShop(p: player):
 		renderGear({_p})
 	else if {_kind} is "bag":
 		renderBag({_p})
+	else if {_kind} is "store":
+		renderStore({_p})
 	else:
 		renderTools({_p})
 
@@ -796,30 +798,7 @@ function renderGun(p: player):
 	else:
 		set {_k} to 1
 		loop {-cfg::shop::consumables::*}:
-			set {_w} to loop-value
-			set {_name} to cfg("con::%{_w}%::name")
-			set {_money} to formatMoney(cfg("con::%{_w}%::price"))
-			set {_max} to cfg("con::%{_w}%::max")
-			set {_need} to conLevel({_w})
-			delete {_lore::*}
-			add "&e%{_money}% each, up to %{_max}%" to {_lore::*}
-			set {_ok} to levelOk({_p}, {_need})
-			if {_ok} is false:
-				add "&cNeeds level %{_need}%" to {_lore::*}
-			else:
-				set {_at} to loadoutSlotOf({_p}, "con:%{_w}%")
-				if {_at} >= 0:
-					set {_have} to item amount of slot {_at} of {_p}'s inventory
-					add "&7You have %{_have}%" to {_lore::*}
-			# The consumable's own details (weaponlore.sk), above the control hint.
-			delete {_wl::*}
-			set {_wl::*} to wpnLore({_w})
-			if {_wl::*} is set:
-				add "&r" to {_lore::*}
-				add {_wl::*} to {_lore::*}
-			if {_ok} is not false:
-				add "&eShift-click: fill up" to {_lore::*}
-			button({_p}, {_cells::%{_k}%}, tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore {_lore::*}, "shopicon:con"), "con:%{_w}%")
+			button({_p}, {_cells::%{_k}%}, conIcon({_p}, loop-value), "con:%loop-value%")
 			add 1 to {_k}
 		set {_k} to 8
 		loop {-cfg::shop::tools::*}:
@@ -934,6 +913,43 @@ function renderBag(p: player):
 			set {_i} to glint({_i})
 		button({_p}, 10 + {_t}, tagItem({_i}, "shopicon:bag"), "bag:%{_t}%")
 		delete {_lore::*}
+
+# A consumable's shop button (the gun shop's Items tab, a store's clerk).
+function conIcon(p: player, w: text) :: item:
+	set {_name} to cfg("con::%{_w}%::name")
+	set {_money} to formatMoney(cfg("con::%{_w}%::price"))
+	set {_max} to cfg("con::%{_w}%::max")
+	set {_need} to conLevel({_w})
+	add "&e%{_money}% each, up to %{_max}%" to {_lore::*}
+	set {_ok} to levelOk({_p}, {_need})
+	if {_ok} is false:
+		add "&cNeeds level %{_need}%" to {_lore::*}
+	else:
+		set {_at} to loadoutSlotOf({_p}, "con:%{_w}%")
+		if {_at} >= 0:
+			set {_have} to item amount of slot {_at} of {_p}'s inventory
+			add "&7You have %{_have}%" to {_lore::*}
+	# The consumable's own details (weaponlore.sk), above the control hint.
+	set {_wl::*} to wpnLore({_w})
+	if {_wl::*} is set:
+		add "&r" to {_lore::*}
+		add {_wl::*} to {_lore::*}
+	if {_ok} is not false:
+		add "&eShift-click: fill up" to {_lore::*}
+	return tagItem(wpnIcon({_w}) named "&f%{_name}%" with lore {_lore::*}, "shopicon:con")
+
+# A store's clerk (clerk.sk): food (tools) and a few consumables, shop::store.
+function renderStore(p: player):
+	set {_k} to 10
+	loop {-cfg::shop::store::*}:
+		set {_v} to loop-value
+		if {_v} starts with "tool:":
+			set {_t} to subtext of {_v} from characters 6 to (length of {_v})
+			button({_p}, {_k}, toolIcon({_p}, {_t}), {_v})
+		else if {_v} starts with "con:":
+			set {_w} to subtext of {_v} from characters 5 to (length of {_v})
+			button({_p}, {_k}, conIcon({_p}, {_w}), {_v})
+		add 1 to {_k}
 
 function renderTools(p: player):
 	set {_k} to 11
@@ -1508,7 +1524,7 @@ command /dshop <text> <player> [<text>]:
 	trigger:
 		if arg-1 is "open":
 			if arg-3 is not set:
-				send "usage: dshop open <player> gun|gear|bag|tools|cars"
+				send "usage: dshop open <player> gun|gear|bag|tools|store|cars|garage"
 				stop
 			if arg-3 is "cars":
 				garageDealer(arg-2)

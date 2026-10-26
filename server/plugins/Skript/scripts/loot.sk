@@ -285,6 +285,8 @@ function lootCompileOne(h: text, n: text):
 		set {-lootc::%{_c}%::axis} to 0
 		if {_z2} - {_z1} > {_x2} - {_x1}:
 			set {-lootc::%{_c}%::axis} to 90
+		if {_style} is "register":
+			lootRegCompile({_h}, {_n})
 	else:
 		set {-lootc::%{_c}%::cy} to ({_y1} + {_y2} + 1) / 2
 		set {-lootc::%{_c}%::blocks} to size of {loot::%{_h}%::%{_n}%::gate::*}
@@ -311,6 +313,13 @@ function lootArmed(h: text) :: boolean:
 function lootArm(h: text):
 	lootDisarm({_h})
 	lootCompile({_h})
+	# A run multiplier (clerk.sk: an armed clerk's register holds more): every piece is worth that much more.
+	set {_m} to {-lootmult::%{_h}%}
+	if {_m} is set:
+		loop {loots::%{_h}%::*}:
+			if loop-value is "pile":
+				set {_c} to "%{_h}%::%loop-index%"
+				set {-lootc::%{_c}%::piece} to floor({-lootc::%{_c}%::piece} * {_m})
 	set {-lootrun::%{_h}%} to heistRun({_h})
 	set {_total} to 0
 	set {_lines} to ""
@@ -381,6 +390,8 @@ function lootRollPile(h: text, n: text) :: number:
 		loop integers from 1 to {_per}:
 			add "%{_ci}%:%loop-value-2%" to {_all::*}
 	set {_order::*} to shuffled {_all::*}
+	if {-lootc::%{_c}%::reg} is true:
+		set {_order::*} to {_all::*}
 	set {_placed} to 0
 	loop {_layers} times:
 		set {_layer} to loop-number
@@ -460,7 +471,9 @@ function lootSpawnSpot(h: text, n: text):
 	set {-lootup::%{_c}%} to true
 	set {_k} to {-lootc::%{_c}%::kind}
 	set {_st} to {-lootst::%{_c}%}
-	if {_k} is "pile":
+	if {-lootc::%{_c}%::reg} is true:
+		lootRegSpawn({_h}, {_n})
+	else if {_k} is "pile":
 		set {_slots} to {-lootc::%{_c}%::per} * {-lootc::%{_c}%::layers}
 		loop integers from 1 to {-lootc::%{_c}%::cells}:
 			set {_i} to loop-value
@@ -540,6 +553,8 @@ function lootSpawnHitbox(h: text, n: text, i: number):
 		set {_l} to location({-lootc::%{_c}%::cellx::%{_i}%} + 0.5, {-lootc::%{_c}%::top}, {-lootc::%{_c}%::cellz::%{_i}%} + 0.5, {_w})
 		set {_wd} to 1
 		set {_ht} to max(0.3, {-lootc::%{_c}%::layers} * {-lootc::%{_c}%::thick} + 0.2)
+		if {-lootc::%{_c}%::reg} is true:
+			set {_ht} to 0.95
 	else:
 		set {_g} to {loot::%{_h}%::%{_n}%::gate::%{_i}%}
 		{_g} is set
@@ -559,6 +574,158 @@ function lootHitboxSetup(e: entity, w: number, h: number):
 	set interaction width of {_e} to {_w}
 	set interaction height of {_e} to {_h}
 	make {_e} unresponsive
+
+# ---------- The register (a pile of style register: a store's till) ----------
+# Owner, 2026-10-21: "an actual register (custom texture) that opens and actually has the cash". The body, its
+# drawer and the cash are item displays of the pack's register_* models (no display transform: model 0-16 is
+# -0.5..0.5 around the display, the model's front (-z) toward the display's yaw). The register stands on the
+# pile's middle, its front toward the customers (away from the clerk's spot, else toward the exit). Each piece is
+# a bundle of bills in one of the drawer's 4 bins, stacked in fill order g = ((layer - 1) × cells + cell - 1) ×
+# per + k - 1 (bin g mod 4, height floor(g / 4)), so the top bundle goes first (lootRegPick) and none floats.
+# Shut: the drawer closed, no cash; the clerk's hit slides it 0.5 blocks out (lootRegOpen).
+function lootRegCompile(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {-lootc::%{_c}%::reg} to true
+	set {_dx} to 0
+	set {_dz} to 0
+	set {_from} to clerkSpot({_h})
+	if {_from} is set:
+		set {_fx} to x-coordinate of {_from}
+		set {_fz} to z-coordinate of {_from}
+		set {_dx} to {_fx} - {-lootc::%{_c}%::cx}
+		set {_dz} to {_fz} - {-lootc::%{_c}%::cz}
+	if abs({_dx}) + abs({_dz}) < 0.1:
+		set {_to} to heistExit({_h})
+		set {_fx} to x-coordinate of {_to}
+		set {_fz} to z-coordinate of {_to}
+		set {_dx} to {-lootc::%{_c}%::cx} - {_fx}
+		set {_dz} to {-lootc::%{_c}%::cz} - {_fz}
+	# The nearer axis: (fx, fz) the front (the keypad and drawer, toward the clerk), yaw its Minecraft yaw.
+	set {_ffx} to 0
+	set {_ffz} to 1
+	set {_yaw} to 0
+	if abs({_dx}) >= abs({_dz}):
+		set {_ffz} to 0
+		if {_dx} >= 0:
+			set {_ffx} to 1
+			set {_yaw} to -90
+		else:
+			set {_ffx} to -1
+			set {_yaw} to 90
+	else if {_dz} < 0:
+		set {_ffz} to -1
+		set {_yaw} to 180
+	set {-lootc::%{_c}%::fx} to {_ffx}
+	set {-lootc::%{_c}%::fz} to {_ffz}
+	set {-lootc::%{_c}%::yaw} to {_yaw}
+
+function lootRegItem(model: text) :: item:
+	set {_i} to 1 of iron ingot
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to {_model}
+	return {_i}
+
+# A spot in the register's frame: r blocks to the side, f forward, y over the counter.
+function lootRegAt(c: text, w: world, r: number, f: number, y: number) :: location:
+	set {_fx} to {-lootc::%{_c}%::fx}
+	set {_fz} to {-lootc::%{_c}%::fz}
+	set {_x} to {-lootc::%{_c}%::cx} + {_fx} * {_f} - {_fz} * {_r}
+	set {_z} to {-lootc::%{_c}%::cz} + {_fz} * {_f} + {_fx} * {_r}
+	set {_l} to location({_x}, {-lootc::%{_c}%::top} + {_y}, {_z}, {_w})
+	set yaw of {_l} to {-lootc::%{_c}%::yaw}
+	set pitch of {_l} to 0
+	return {_l}
+
+# A bundle's spot: its bin (2 units wide, centred 0.07 / 0.21 blocks off the middle), 0.5 units a bundle up
+# from the drawer's floor (y 1), 1.25 units forward of the model's middle, `out` blocks more when open.
+function lootRegPieceAt(c: text, w: world, i: number, slot: number, out: number) :: location:
+	set {_per} to {-lootc::%{_c}%::per}
+	set {_g} to (ceil({_slot} / {_per}) - 1) * {-lootc::%{_c}%::cells} * {_per} + ({_i} - 1) * {_per} + mod({_slot} - 1, {_per})
+	set {_r} to (mod({_g}, 4) - 1.5) * 0.1432
+	set {_y} to (1.25 + 0.5 * floor({_g} / 4)) / 16
+	return lootRegAt({_c}, {_w}, {_r}, 0.078125 + {_out}, {_y})
+
+function lootRegSpawn(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_w} to world of {loot::%{_h}%::%{_n}%::a}
+	set {_st} to {-lootst::%{_c}%}
+	set {_out} to 0
+	if {_st} is "open" or "empty":
+		# lootRegOpen draws it shut, then slides the drawer out.
+		if {-lootslide::%{_c}%} is not set:
+			set {_out} to 0.5
+	set {_view} to {-cfg::loot::piece-view}
+	set {_l} to lootRegAt({_c}, {_w}, 0, 0, 0.5)
+	set {_i} to lootRegItem("donating:register_body")
+	spawn an item display at {_l}:
+		lootDisplaySetup(event-display, {_i}, 1, {_view})
+	lootReg({_c}, last spawned entity)
+	set {_l} to lootRegAt({_c}, {_w}, 0, {_out}, 0.5)
+	set {_i} to lootRegItem("donating:register_drawer")
+	spawn an item display at {_l}:
+		lootDisplaySetup(event-display, {_i}, 1, {_view})
+	set {-lootregd::%{_c}%} to last spawned entity
+	lootReg({_c}, last spawned entity)
+	{_st} is not "shut"
+	set {_stack} to {-lootc::%{_c}%::stack}
+	set {_slots} to {-lootc::%{_c}%::per} * {-lootc::%{_c}%::layers}
+	loop integers from 1 to {-lootc::%{_c}%::cells}:
+		set {_ci} to loop-value
+		loop integers from 1 to {_slots}:
+			set {_val} to {-lootv::%{_c}%::%{_ci}%::%loop-value-2%}
+			if {_val} is set:
+				set {_l} to lootRegPieceAt({_c}, {_w}, {_ci}, loop-value-2, {_out})
+				set {_s} to {-lootc::%{_c}%::scale}
+				if {_val} < {-lootc::%{_c}%::piece}:
+					set {_s} to {_s} * (0.4 + 0.6 * {_val} / {-lootc::%{_c}%::piece})
+				spawn an item display at {_l}:
+					lootDisplaySetup(event-display, {_stack}, {_s}, {_view})
+				set {-lootpd::%{_c}%::%{_ci}%::%loop-value-2%} to last spawned entity
+				lootReg({_c}, last spawned entity)
+		if {_st} is "open":
+			if {-lootn::%{_c}%} > 0:
+				lootSpawnHitbox({_h}, {_n}, {_ci})
+
+# The clerk was hit: the register is drawn shut, then its drawer and the cash slide out (the displays' 3-tick
+# teleport). A register nobody is near (not spawned) is drawn open when its chunk loads (lootEnsure).
+function lootRegOpen(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootup::%{_c}%} is true
+	set {-lootslide::%{_c}%} to true
+	lootSpawnSpot({_h}, {_n})
+	delete {-lootslide::%{_c}%}
+	set {_w} to world of {loot::%{_h}%::%{_n}%::a}
+	set {_mid} to lootRegAt({_c}, {_w}, 0, 0, 0.5)
+	play sound "block.note_block.bell" with volume 1 and pitch 1.6 at {_mid}
+	wait 2 ticks
+	play sound "block.iron_trapdoor.open" with volume 0.8 and pitch 1.4 at {_mid}
+	set {_d} to {-lootregd::%{_c}%}
+	if {_d} is set:
+		if {_d} is valid:
+			teleport {_d} to lootRegAt({_c}, {_w}, 0, 0.5, 0.5)
+	set {_slots} to {-lootc::%{_c}%::per} * {-lootc::%{_c}%::layers}
+	loop integers from 1 to {-lootc::%{_c}%::cells}:
+		set {_ci} to loop-value
+		loop integers from 1 to {_slots}:
+			set {_p} to {-lootpd::%{_c}%::%{_ci}%::%loop-value-2%}
+			if {_p} is set:
+				if {_p} is valid:
+					teleport {_p} to lootRegPieceAt({_c}, {_w}, {_ci}, loop-value-2, 0.5)
+
+# The top bundle (the highest g): "cell:slot", or "" when the drawer's empty.
+function lootRegPick(c: text) :: text:
+	set {_per} to {-lootc::%{_c}%::per}
+	set {_best} to 0 - 1
+	set {_pick} to ""
+	loop integers from 1 to {-lootc::%{_c}%::cells}:
+		set {_ci} to loop-value
+		loop integers from 1 to {_per} * {-lootc::%{_c}%::layers}:
+			set {_s} to loop-value-2
+			if {-lootv::%{_c}%::%{_ci}%::%{_s}%} is set:
+				set {_g} to (ceil({_s} / {_per}) - 1) * {-lootc::%{_c}%::cells} * {_per} + ({_ci} - 1) * {_per} + mod({_s} - 1, {_per})
+				if {_g} > {_best}:
+					set {_best} to {_g}
+					set {_pick} to "%{_ci}%:%{_s}%"
+	return {_pick}
 
 # The glowing marker: yellow = grab now, white = a gate with loot behind it (work first), red = a
 # jammed drill; nothing on an empty or locked pile or an open gate. Changes only on a state change.
@@ -595,6 +762,8 @@ function lootMarker(h: text, n: text, force: boolean = false):
 	set {_w} to world of {loot::%{_h}%::%{_n}%::a}
 	if {-lootc::%{_c}%::kind} is "pile":
 		set {_y} to {-lootc::%{_c}%::top} + 0.55 + {-lootc::%{_c}%::layers} * {-lootc::%{_c}%::thick}
+		if {-lootc::%{_c}%::reg} is true:
+			set {_y} to {-lootc::%{_c}%::top} + 1.25
 	else:
 		set {_y} to {-lootc::%{_c}%::y2} + 1.45
 	set {_l} to location({-lootc::%{_c}%::cx}, {_y}, {-lootc::%{_c}%::cz}, {_w})
@@ -689,7 +858,10 @@ function lootStoreUnlock(h: text):
 		loop-value is "pile"
 		if {-lootst::%{_h}%::%loop-index%} is "shut":
 			lootPileState({_h}, loop-index)
-			lootOpenPile({_h}, loop-index)
+			if {-lootc::%{_h}%::%loop-index%::reg} is true:
+				lootRegOpen({_h}, loop-index)
+			else:
+				lootOpenPile({_h}, loop-index)
 	lootLog("store-unlock %{_h}% run=%heistRun({_h})%")
 
 function lootOpenPile(h: text, n: text):
@@ -861,6 +1033,8 @@ function lootClickPile(p: player, h: text, n: text, i: number):
 
 # Top-layer piece nearest to the robber, in cell i or (empty) the nearest cell with loot: "cell:slot".
 function lootPick(c: text, i: number, p: player) :: text:
+	if {-lootc::%{_c}%::reg} is true:
+		return lootRegPick({_c})
 	set {_px} to x-coordinate of {_p}
 	set {_pz} to z-coordinate of {_p}
 	set {_cell} to {_i}
@@ -938,7 +1112,12 @@ function lootTake(p: player, h: text, n: text, i: number) :: number:
 			lootUnreg({_c}, {_d})
 			if {_d} is valid:
 				lootVanish({_d}, {_p})
-		if {-lootcn::%{_c}%::%{_cell}%} <= 0:
+		if {-lootc::%{_c}%::reg} is true:
+			if {-lootn::%{_c}%} <= 0:
+				loop {-loothb::%{_c}%::*}:
+					lootKillOne({_c}, loop-value)
+				delete {-loothb::%{_c}%::*}
+		else if {-lootcn::%{_c}%::%{_cell}%} <= 0:
 			set {_hb} to {-loothb::%{_c}%::%{_cell}%}
 			if {_hb} is set:
 				lootKillOne({_c}, {_hb})

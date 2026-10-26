@@ -7,7 +7,7 @@ const rconLib = require('../rcon')
 
 const P = 'TutBot'
 const Y = 200
-const REGION = 'safe_spawn_zt'
+const REGION = 'safe_base_spawn_zt'
 const CHUNKS = '1095 1095 1125 1115'
 const PLATFORM = `1095 ${Y - 1} 1095 1125 ${Y - 1} 1115`
 const FAR = '0.5 68 -656.5'

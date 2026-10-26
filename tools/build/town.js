@@ -73,7 +73,7 @@ function build () {
 }
 const gather = key => present().flatMap(m => mod(m)[key] || [])
 const labels = () => gather('labels')
-const displays = () => gather('displays')
+const displays = () => { build(); return gather('displays') } // donut.js fills its list while it builds
 const biomes = () => gather('biomes')
 function points () {
   const all = {}
@@ -107,7 +107,7 @@ const vol = b => (b[3] - b[0] + 1) * (b[4] - b[1] + 1) * (b[5] - b[2] + 1)
 const AIRISH = /^(air|cave_air|void_air|light|short_grass|tall_grass|fern|large_fern|dead_bush|poppy|dandelion|cornflower|oxeye_daisy|allium|azure_bluet|orange_tulip|red_tulip|white_tulip|pink_tulip|lily_of_the_valley|wildflowers|seagrass|tall_seagrass|lily_pad|.*_carpet|.*_pressure_plate|.*_button|tripwire_hook|ladder|redstone_wire|rail|snow)$/
 const GRAVITY = /^(sand|red_sand|gravel|suspicious_sand|suspicious_gravel|.*_concrete_powder|anvil|dragon_egg|pointed_dripstone)$/
 // thin or see-through blocks a label or a display may sit in (a slab's free half, a pegboard's trapdoor, a glass case)
-const THIN = /(_slab|_trapdoor|glass|_pane|iron_bars|_fence|_wall$|_stairs|_door|chain|end_rod|lantern|_button|_carpet|ladder|_sign|tripwire|lever|rail|torch|leaves|water)$/
+const THIN = /(_slab|_trapdoor|glass|_pane|iron_bars|_fence|_wall$|_stairs|_door|chain|end_rod|lantern|_button|_carpet|ladder|_sign|tripwire|lever|rail|torch|leaves|water|barrier)$/
 const nameOf = s => s.replace(/^minecraft:/, '').replace(/\[.*$/, '')
 // A cell's block: the build's, else the jailbreak world's flat default (grass y 64, dirt 61..63, stone below, air above).
 const worldAt = y => y === 64 ? 'grass_block' : y >= 61 && y <= 63 ? 'dirt' : y <= 60 ? 'stone' : 'air'

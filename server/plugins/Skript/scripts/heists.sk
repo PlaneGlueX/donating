@@ -496,7 +496,13 @@ function heistEndRun(h: text, reason: text):
 	set {-heist::%{_h}%::reset-next} to 1
 	set {_m::*} to heistRobbers({_h})
 	loop {_m::*}:
-		heistEvict(loop-value, {_h}, {_reason})
+		# A store stays open to customers (heistStoreCustomer): its robbers stay where they are, only the robbery ends.
+		if heistIsStore({_h}) is true:
+			heistLeave(loop-value, {_h}, "store")
+			applyWaypointReceive(loop-value)
+			heistNotify(loop-value, "leave", "&aThe %heistName({_h})% robbery is over. &7You keep your loot: sell it at the base.")
+		else:
+			heistEvict(loop-value, {_h}, {_reason})
 	heistLog("end %{_h}% run=%heistRun({_h})% reason=%{_reason}%")
 	if heistSetting({_h}, "announce") is not false:
 		heistAnnounce("&7The %heistName({_h})% is closed. &7It reopens in %formatClock(heistSecondsLeft({_h}))%.")
@@ -563,6 +569,8 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 		if {-cfg::store::no-pvp} is true:
 			if isCombatTagged({_p}) is true:
 				return "You can't go into the %heistName({_h})% while in combat."
+	if heistStoreCustomer({_h}) is true:
+		return ""
 	set {_s} to heistState({_h})
 	if {_s} is "cooldown":
 		set {_left} to heistSecondsLeft({_h})
@@ -586,6 +594,18 @@ function heistEntryBlock(p: player, h: text, tp: boolean) :: text:
 		return "You need level %{_need}% (%levelName({_need})%) for the %{_name}%. /level"
 	return ""
 
+# A store in cooldown, or cleaned out and closing, is still a shop (owner, 2026-10-21: "keep stores open even when heist
+# is on cooldown, just disable the robbing mechanics"): anyone may walk in as a customer, never as a robber.
+function heistStoreCustomer(h: text) :: boolean:
+	if heistIsStore({_h}) is true:
+		set {_s} to heistState({_h})
+		if {_s} is "cooldown":
+			return true
+		if {_s} is "active":
+			if {-heist::%{_h}%::storeclose} is set:
+				return true
+	return false
+
 # Puts membership in line with where the player stands.
 function heistReconcile(p: player):
 	{_p} is alive
@@ -604,6 +624,8 @@ function heistReconcile(p: player):
 	if {_at} is not "":
 		set {_why} to heistEntryBlock({_p}, {_at}, false)
 		if {_why} is "":
+			# A customer in a closed store isn't a robber.
+			heistStoreCustomer({_at}) is false
 			heistJoin({_p}, {_at})
 		else:
 			# Inside a heist they may not be in (it closed, a teleport slipped through): moved out, no loss.
@@ -1033,8 +1055,10 @@ function heistResetStep(h: text):
 	if {_count} is not set:
 		delete {-heist::%{_h}%::reset-next}
 		stop
-	if heistStandingInside({_h}) > 0:
-		stop
+	# Customers stay in a store while it resets (heistStoreCustomer).
+	if heistIsStore({_h}) is false:
+		if heistStandingInside({_h}) > 0:
+			stop
 	set {_key} to "donating:heist/%{_h}%/%{_n}%"
 	if structure template {_key} does not exist:
 		# Fail closed: a missing file would place nothing and reopen a looted room.
