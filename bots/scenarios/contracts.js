@@ -351,6 +351,12 @@ module.exports = async ({ check }) => {
     const lvl = (await xpOf()) - xp0
     check('driving into a chop shop: $12,000 and 120 XP, the job ends, the car is scrapped', (await bal(A)) - bal0 === 12000 && lvl === 120 && field(s, 'job') === '<none>' && !/exists=yes/.test(await car(plate)) && /CAR DELIVERED|chop shop took/.test(text(A, t)) && logged(/deliver ThiefA .* pay=12000 xp=120/).length === 1, `${(await bal(A)) - bal0} ${lvl} ${s} ${await car(plate)} ${text(A, t)}`)
     check('...the robbery bounty adds 10% ($1,200), and the thief is out of the car', /BOUNTY ThiefA 1200/.test(await cmd(`zzbounty ${A}`)) && !/driver/.test(await cmd(`zzcarseat ${A}`)), `${await cmd(`zzbounty ${A}`)} ${await cmd(`zzcarseat ${A}`)}`)
+    const crushAt = `execute in minecraft:overworld positioned ${CHOP.join(' ')} if entity @e[tag=donating_crush,distance=..8]`
+    const pa = bots[A].entity.position
+    const edge = Math.hypot(pa.x - CHOP[0], pa.z - CHOP[2])
+    check('the crusher runs (owner: an animation for the chop machine): the car\'s copy and the press at the bay, the thief moved to its edge, logged', /Test passed/.test(await cmd(crushAt)) && edge > 5 && edge < 7 && logged(/crush ThiefA chop=/).length === 1, `${await cmd(crushAt)} edge=${edge.toFixed(1)}`)
+    const crushGone = await until(async () => !/Test passed/.test(await cmd(crushAt)), 9000)
+    check('...and clears up within about 6 s (one car at a time: the next one waits outside meanwhile)', crushGone, await cmd(crushAt))
     await sleep(2500)
     const back = await until(async () => /look=\S+\|\S+/.test(await park()) && await parkedHere(), 5000)
     check('the job over, a new car is parked at the spot', back && /busy=false/.test(await park()), await park())

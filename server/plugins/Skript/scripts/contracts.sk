@@ -427,6 +427,8 @@ every 2 seconds:
 
 on load:
 	execute console command "minecraft:kill @e[tag=donating_ctpark]"
+	execute console command "minecraft:kill @e[tag=donating_crush]"
+	delete {-ctchop::busy::*}
 	delete {-ctpark::disp::*}
 	delete {-ctpark::box::*}
 	delete {-ctpark::hit::*}
@@ -942,6 +944,11 @@ function ctDriveCheck(u: text):
 	set {-ctjob::%{_u}%::carat} to {_l}
 	set {_c} to ctChopNear({_l})
 	if {_c} is not "":
+		if {-ctchop::busy::%{_c}%} is set:
+			if {-ctchop::busy::%{_c}%} > now:
+				set {_left} to ceil(difference between now and {-ctchop::busy::%{_c}%} / 1 second)
+				hudBar({_p}, "&eChop shop busy: &7wait for the crusher (%{_left}%s)", 2)
+				stop
 		ctDeliver({_u}, {_c})
 
 # Delivered: the car is scrapped and the job pays (one call, no wait).
@@ -959,8 +966,16 @@ function ctDeliver(u: text, chop: text):
 	set {_miss} to {-ctjob::%{_u}%::misses}
 	if {_miss} is not set:
 		set {_miss} to 0
+	# The crusher's copy of the car, read while the car still exists (ctEnd scraps it).
+	set {_carl} to carMainLoc({-ctjob::%{_u}%::plate}, location of {_p})
+	if {_carl} is not set:
+		set {_carl} to location of {_p}
+	set {_dmg} to carColorPart({_m}, {_label}, 3) parsed as number
+	set {_yaw} to yaw of {_p}
 	make {_p} dismount
 	ctEnd({_u}, "done")
+	if {_dmg} is set:
+		ctCrush({_p}, {_chop}, {_carl}, {_dmg}, {_yaw})
 	giveMoney({_p}, {_pay})
 	set {_bounty} to 0
 	if {_t} is "starter":
@@ -988,6 +1003,109 @@ function ctDeliver(u: text, chop: text):
 	set {-prog::ct::%{_u}%} to "%{_m}%|%{_took}%|%{_miss}%"
 	progEvent({_p}, "contract", {_pay}, {_t})
 	delete {-prog::ct::%{_u}%}
+
+# The crusher (one car at a time: ctDriveCheck keeps the next one waiting): a copy of the car rolls to the middle of
+# the bay, the press plate comes down on it with sparks, and a crushed cube drops; the thief stands at the edge
+# watching. Only displays (tag donating_crush, never persistent); the real car is already scrapped.
+# shortcut: one press for every chop shop (the Scrap Yard's frame: 5 wide, 5 above the spot); per-shop sizes when a
+# second chop shop with another frame is built.
+function ctCrush(p: player, c: text, l: location, dmg: number, yaw: number):
+	set {_ctr} to {contract::chop::%{_c}%}
+	{_ctr} is set
+	set {_until} to now
+	add cfg("contract::crush::time") to {_until}
+	set {-ctchop::busy::%{_c}%} to {_until}
+	ctLog("crush %{_p}% chop=%{_c}%")
+	set {_w} to world of {_ctr}
+	set {_cx} to x-coordinate of {_ctr}
+	set {_cy} to y-coordinate of {_ctr}
+	set {_cz} to z-coordinate of {_ctr}
+	# The thief: out to the bay's edge on the side the car came from, facing the press.
+	set {_dx} to x-coordinate of {_l}
+	set {_dz} to z-coordinate of {_l}
+	set {_dx} to {_dx} - {_cx}
+	set {_dz} to {_dz} - {_cz}
+	set {_len} to sqrt({_dx} ^ 2 + {_dz} ^ 2)
+	if {_len} < 1:
+		set {_dx} to 0
+		set {_dz} to 1
+		set {_len} to 1
+	set {_out} to location({_cx} + {_dx} / {_len} * 6, {_cy}, {_cz} + {_dz} / {_len} * 6, {_w})
+	if {_p} is online:
+		teleport {_p} to {_out}
+		make {_p} look at {_ctr} ~ vector(0, 1, 0)
+	# The car's copy where it stopped, then rolling under the press.
+	set {_lift} to cfg("garage::bay-lift")
+	set {_s} to cfg("garage::bay-scale")
+	set {_from} to {_l} ~ vector(0, {_lift}, 0)
+	set yaw of {_from} to {_yaw}
+	set pitch of {_from} to 0
+	spawn an item display at {_from}:
+		make event-display not persistent
+		add "donating_crush" to scoreboard tags of event-display
+		set item of event-display to carIconDamage({_dmg})
+		set display scale of event-display to vector({_s}, {_s}, {_s})
+	set {_car} to last spawned entity
+	set item transform of {_car} to head
+	set teleport duration of {_car} to 20 ticks
+	set {_h} to cfg("contract::crush::plate-height")
+	set {_ps} to cfg("contract::crush::plate-size")
+	spawn a block display of iron block at location({_cx} - {_ps} / 2, {_cy} + {_h}, {_cz} - {_ps} / 2, {_w})
+	set {_plate} to last spawned entity
+	make {_plate} not persistent
+	add "donating_crush" to scoreboard tags of {_plate}
+	set display scale of {_plate} to vector({_ps}, 0.6, {_ps})
+	wait 2 ticks
+	set {_to} to {_ctr} ~ vector(0, {_lift}, 0)
+	set yaw of {_to} to {_yaw}
+	set pitch of {_to} to 0
+	teleport {_car} to {_to}
+	play sound "entity.minecart.riding" with volume 0.6 at {_ctr}
+	wait 25 ticks
+	# The press comes down (12 ticks) and flattens the car with it.
+	play sound "block.piston.extend" with volume 1 and pitch 0.5 at {_ctr}
+	set interpolation delay of {_plate} to 0 ticks
+	set interpolation duration of {_plate} to 12 ticks
+	set display translation of {_plate} to vector(0, 1.3 - {_h}, 0)
+	set interpolation delay of {_car} to 0 ticks
+	set interpolation duration of {_car} to 12 ticks
+	set display scale of {_car} to vector({_s}, {_s} * 0.25, {_s})
+	set display translation of {_car} to vector(0, -0.55, 0)
+	wait 12 ticks
+	play sound "block.anvil.land" with volume 1 and pitch 0.6 at {_ctr}
+	play sound "entity.generic.explode" with volume 0.5 and pitch 1.4 at {_ctr}
+	draw 40 crit particles with offset vector(1.6, 0.3, 1.6) at {_ctr} ~ vector(0, 0.8, 0)
+	draw 12 lava particles with offset vector(1.2, 0.2, 1.2) at {_ctr} ~ vector(0, 0.6, 0)
+	draw 20 large smoke particles with offset vector(1.5, 0.3, 1.5) at {_ctr} ~ vector(0, 0.7, 0)
+	wait 10 ticks
+	# The press goes back up; the car is a cube now, dropped off the press onto the pad.
+	set interpolation delay of {_plate} to 0 ticks
+	set interpolation duration of {_plate} to 25 ticks
+	set display translation of {_plate} to vector(0, 0, 0)
+	play sound "block.piston.contract" with volume 1 and pitch 0.5 at {_ctr}
+	kill {_car}
+	set {_cl} to location({_cx} - 0.6, {_cy} + 1.6, {_cz} - 0.6, {_w})
+	set {_k} to random integer between 1 and 3
+	if {_k} is 1:
+		spawn a block display of red terracotta at {_cl}
+	else if {_k} is 2:
+		spawn a block display of blue terracotta at {_cl}
+	else:
+		spawn a block display of cyan terracotta at {_cl}
+	set {_cube} to last spawned entity
+	make {_cube} not persistent
+	add "donating_crush" to scoreboard tags of {_cube}
+	set display scale of {_cube} to vector(1.2, 1.2, 1.2)
+	set teleport duration of {_cube} to 5 ticks
+	wait 2 ticks
+	teleport {_cube} to location({_cx} - 0.6, {_cy}, {_cz} - 0.6, {_w})
+	wait 5 ticks
+	play sound "block.netherite_block.place" with volume 1 and pitch 0.6 at {_ctr}
+	draw 15 poof particles with offset vector(0.6, 0.1, 0.6) at {_ctr}
+	wait 40 ticks
+	kill {_cube}
+	kill {_plate}
+	delete {-ctchop::busy::%{_c}%}
 
 # ---------- Ending a job ----------
 

@@ -473,6 +473,12 @@ function loadSettings():
 	set {-cfg::contract::qte-miss-lock} to 10
 	# Chop shops (staff: /dcontract chop add): the stolen car counts as delivered within this many blocks.
 	set {-cfg::contract::chop-radius} to 6
+	# The crusher (owner, 2026-10-22: "an animation for the chop machine ... one player at a time"): the car rolls under
+	# the press, the plate (crush::plate-height above the spot, crush::plate-size wide, like the Scrap Yard's frame)
+	# comes down, a cube drops; another stolen car waits outside until crush::time is over.
+	set {-cfg::contract::crush::time} to 6 seconds
+	set {-cfg::contract::crush::plate-height} to 5
+	set {-cfg::contract::crush::plate-size} to 5
 	# Car spots and chop shops at least this far apart (/dcontract refuses closer ones).
 	set {-cfg::contract::min-distance} to 50
 
