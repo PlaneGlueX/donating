@@ -114,7 +114,8 @@ const lineCells = (x1, z1, x2, z2) => { const c = []; line4(x1, z1, x2, z2, (x, 
 const F6ALL = lineCells(88, 246, 106, 288)
 const FENCES = [
   { name: 'F1', cells: axisCells(381, 352, 381, 391), out: [1, 0] },
-  { name: 'F2 west', cells: axisCells(115, 396, 243, 396), out: [0, 1] },
+  // the ladder over F2 west (owner, 2026-10-22): x 148..151 a timber patch, ladders on x 149..150 (lotLadder)
+  { name: 'F2 west', cells: axisCells(115, 396, 243, 396), out: [0, 1], ladder: [33, 36] },
   { name: 'F2 east', cells: axisCells(301, 396, 376, 396), out: [0, 1] },
   { name: 'F3', cells: axisCells(110, 297, 110, 391), out: [-1, 0] },
   { name: 'F4', cells: axisCells(115, 292, 117, 292), out: [0, 1] },
@@ -133,6 +134,7 @@ const fenceCells = () => FENCES.flatMap(f => {
   const n = f.cells.length, out = []
   f.cells.forEach(([x, z], i) => {
     if (f.gate && i >= f.gate[0] && i <= f.gate[1]) return
+    if (f.ladder && i >= f.ladder[0] && i <= f.ladder[1]) return // the ladder's timber patch doesn't shock
     const nb = [f.cells[i - 1], f.cells[i + 1]].filter(Boolean)
     const ax = nb.some(c => c[0] !== x) ? (nb.some(c => c[1] !== z) ? 'c' : 'x') : 'z'
     const post = i % 4 === 0 || i === n - 1 || (f.gate && (i === f.gate[0] - 1 || i === f.gate[1] + 1))
@@ -305,8 +307,8 @@ function parkingLot () {
     S(x, 64, z, 'light_gray_concrete')
     if (z === 394) S(x, 65, z, 'smooth_stone_slab[type=bottom]')
   })
-  // stalls 4 wide x 8 deep along the south fence: none at the ramp (x 128..175) or the gate (252..292)
-  for (const [a, b] of [[114, 126], [176, 248], [296, 376]]) for (let x = a; x <= b; x += 4) for (let z = 386; z <= 393; z++) white(x, z)
+  // stalls 4 wide x 8 deep along the south fence: none at the gate (252..292); x 130..170 where the ramp stood
+  for (const [a, b] of [[114, 126], [130, 170], [176, 248], [296, 376]]) for (let x = a; x <= b; x += 4) for (let z = 386; z <= 393; z++) white(x, z)
   // planted median with cypresses and lamps
   rect(147, 346, 231, 350, (x, z) => {
     if (x === 147 || x === 231 || z === 346 || z === 350) { S(x, 64, z, 'smooth_stone'); S(x, 65, z, 'smooth_stone_slab[type=bottom]') }
@@ -316,22 +318,35 @@ function parkingLot () {
   // lamps every ~24
   for (const x of [130, 155, 180]) lamp(x, 336)
   for (const x of [120, 186, 210, 234, 258, 282, 306, 330, 354, 374]) lamp(x, 380)
-  ramp()
+  noRamp()
 }
 
-// Wooden escape ramp (scenery): spruce slabs and stairs rising west from the ground to a top at y 69, oak trim.
-function ramp () {
-  const k = x => x <= 136 ? 10 : 1 + Math.floor((171 - x) * 9 / 35) // surface = 65 + k/2
-  for (let x = 132; x <= 171; x++) for (let z = 373; z <= 387; z++) {
-    const kk = k(x), full = kk >> 1, side = z === 373 || z === 387
-    if (side) { // oak trim: a full-height oak side with a fence rail along the higher part
-      const n = Math.ceil(kk / 2)
-      for (let y = 65; y < 65 + n; y++) S(x, y, z, 'oak_planks')
-      if (kk >= 4) S(x, 65 + n, z, 'oak_fence')
-      continue
-    }
-    for (let y = 65; y < 65 + full; y++) S(x, y, z, y === 64 + full && kk % 2 === 0 && k(x + 1) === kk - 1 && x < 171 ? 'spruce_stairs[facing=west,half=bottom]' : 'spruce_planks')
-    if (kk % 2 === 1) S(x, 65 + full, z, 'spruce_slab[type=bottom]')
+// The wooden ramp that stood at x 132..171, z 373..387 is gone (owner, 2026-10-22: "get rid of the big ramp"). The paste
+// is sparse: air over its box.
+function noRamp () {
+  rect(132, 373, 171, 387, (x, z) => { for (let y = 65; y <= 74; y++) S(x, y, z, 'air') })
+}
+
+// The ladder over the lot's south fence (owner, 2026-10-22: "a ladder on the ramp side of the prison parking lot so people
+// can escape without a card"): F2 west's cells x 148..151 are a timber patch (stripped spruce logs at 148 and 151 up to
+// y 74, spruce planks at 149..150 up to y 72), a ladder up its lot face (z 395, y 65..72) and a short one down the
+// outside (z 397, y 67..72: the last 2 blocks are a drop, so nobody climbs in from the road). The tall logs and no
+// outrigger within 6 blocks keep anyone on top from walking the fence's chains (the checker found the drop into the
+// corner pockets). Always open: a prisoner who reaches the lot can leave over it; the escape checker opens it as the
+// state "ladder" (lotLadderIn).
+const LADDER_X = [149, 150]
+function lotLadder () {
+  for (const x of [148, 151]) {
+    S(x, 64, 396, 'smooth_stone'); S(x, 65, 396, 'polished_andesite')
+    for (let y = 66; y <= 74; y++) S(x, y, 396, 'stripped_spruce_log[axis=y]')
+  }
+  for (let x = 144; x <= 155; x++) S(x, 72, 397, 'air')
+  for (const x of LADDER_X) {
+    S(x, 64, 396, 'smooth_stone'); S(x, 65, 396, 'polished_andesite')
+    for (let y = 66; y <= 72; y++) S(x, y, 396, 'spruce_planks')
+    for (let y = 65; y <= 72; y++) S(x, y, 395, 'ladder[facing=north,waterlogged=false]')
+    for (let y = 65; y <= 66; y++) S(x, y, 397, 'air')
+    for (let y = 67; y <= 72; y++) S(x, y, 397, 'ladder[facing=south,waterlogged=false]')
   }
 }
 
@@ -623,6 +638,7 @@ function fences () {
         S(x, 71, z, 'light_gray_concrete')
         continue
       }
+      if (f.ladder && i >= f.ladder[0] && i <= f.ladder[1]) continue // lotLadder builds it
       const post = i % 4 === 0 || i === n - 1 || (f.gate && (i === f.gate[0] - 1 || i === f.gate[1] + 1))
       let o = null
       for (const c of [[x + f.out[0], z], [x, z + f.out[1]]]) if ((c[0] !== x || c[1] !== z) && !on.has(c.join())) { o = c; break }
@@ -877,6 +893,7 @@ module.exports = (b) => {
   unroute()
   walls()
   fences()
+  lotLadder()
   booth()
   for (const t of TOWERS) tower(t)
   sealT9()
@@ -948,6 +965,9 @@ module.exports.points = {
   DUG_IN: [114.5, 65, 362.5, 90],
   DUG_FACE: [112.5, 62, 360.5, 90],
   DUG_OUT: [105.5, 65, 362.5, 90],
+  // the ladder over the lot's south fence (2026-10-22): in front of it in the lot, and the road side below it
+  LADDER_IN: [150.0, 65, 393.5, 0],
+  LADDER_OUT: [150.0, 65, 398.5, 0],
   RUN_1: [172.5, 65, 103.5, 0],
   RUN_2: [238.5, 65, 103.5, 0],
   RUN_3: [227.5, 65, 243.5, 0],
@@ -971,6 +991,8 @@ module.exports.points = {
   L_FUSE: [266.97, 66.5, 395.5, 90]
 }
 // The parkour props' blocks (the checker takes them out to prove they're the only way over the annex fence).
+// The ladder's lot-side blocks (the checker takes them out unless the state "ladder" is on).
+module.exports.lotLadderIn = LADDER_X.map(x => [x, 65, 395, x, 72, 395])
 module.exports.parkour = [
   ...PARKOUR.map(([, x1, z1, x2, z2, top]) => [x1, 65, z1, x2, top, z2]),
   [PARKOUR_VENTS[0], PARKOUR_VENTS[1], PARKOUR_VENTS[2], PARKOUR_VENTS[3], PARKOUR_VENTS[4], PARKOUR_VENTS[2]]

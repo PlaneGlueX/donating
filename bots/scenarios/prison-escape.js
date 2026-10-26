@@ -381,6 +381,8 @@ module.exports = async ({ check }) => {
     await sleep(500)
     check('the punch box with the WALK cop next to it: "A guard\'s watching", no shock', said(e2, /A guard's watching/, since) && e2.health >= hp0, `hp ${hp0} -> ${e2.health}`)
     await t.copTo('walk', 180.5, 65, 310.5)
+    // the police yard's guard (route poleast, on the roster since 2026-10-21) passes 14 blocks from the stand
+    await t.copTo('poleast', 182.5, 65, 312.5)
     await sleep(1500)
     hp0 = e2.health
     for (let i = 0; i < 10; i++) { punch(e2, 335, 66, 284, 2); await sleep(250) }
@@ -440,7 +442,7 @@ module.exports = async ({ check }) => {
     await sleep(1200)
     since = Date.now()
     await sleep(800)
-    check('in the tunnel: "Hold right-click on the dirt under the fence"', t.barSince(e1, /dirt under the fence/, since - 800), field(await info(E1), 'lot'))
+    check('in the tunnel: "Hold right-click on the dirt under the fence"', said(e1, /dirt under the fence/, since - 800), field(await info(E1), 'lot'))
     logs.prison.mark()
     await hold(e1, [111.5, 62.99, 360.5], 6800, 1.5)
     const dug = await until(async () => /state=open/.test(await breach('dig')), 1500)
@@ -458,7 +460,7 @@ module.exports = async ({ check }) => {
     check('...caving in: "closing", then shut; an inmate in the tunnel stays on the lot side, still in', caving && shut && pTun && pTun[0] > 111 && field(await info(E2), 'state') === 'in', `${await breach('dig')} ${pTun}`)
     since = Date.now()
     await hold(e2, [111.5, 62.99, 360.5], 1500, 1.5)
-    check('...and just after, it refuses ("It just caved in")', t.barSince(e2, /just caved in/, since), field(await breach('dig'), 'cool'))
+    check('...and just after, it refuses ("It just caved in")', said(e2, /just caved in/, since), field(await breach('dig'), 'cool'))
     await breach('dig', 'cool')
 
     // ---------- free players ----------
@@ -501,6 +503,8 @@ module.exports = async ({ check }) => {
     e1.setQuickBarSlot(0)
     await sleep(800)
     const r0 = ((await cmd(`zzwm ${E1}`)).match(/0=50_GS:(\d+)/) || [])[1]
+    // At the floor: a straight shot down Hall B hit a passing guard (20 since 2026-10-21) and tagged the bot in combat.
+    await e1.look(e1.entity.yaw, -Math.PI / 2, true)
     since = Date.now()
     e1.activateItem()
     await sleep(300)
@@ -509,6 +513,8 @@ module.exports = async ({ check }) => {
     const r1 = ((await cmd(`zzwm ${E1}`)).match(/0=50_GS:(\d+)/) || [])[1]
     // Since 2026-10-21 owned guns work inside the walls (the owner: "used INSIDE the walls").
     check('a gun inside fires (owned guns work inside the walls since 2026-10-21)', r0 !== undefined && Number(r1) < Number(r0) && !said(e1, /No guns inside the walls/, since), `${r0} -> ${r1}`)
+    await cmd(`djailcops calm ${E1}`)
+    await cmd(`zzcombatend ${E1}`)
     await cmd(`minecraft:clear ${E1}`)
     await cmd(`zzclear ${E1}`)
     await state(E1, 'in')

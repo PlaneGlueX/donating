@@ -263,7 +263,10 @@ const ROUTES = [
   ['LOT_EXIT', 'BIKE_SHOP'],
   // The dugout under the west lot fence (2026-10-21, outdoors.js dugout: the plug dug out). Not on to the bike shop: the
   // model has no ground outside the build, so that walk went back through the tunnel and out the front gate.
-  ['ROUTE_LOT_1', 'DUG_IN', 'DUG_OUT']
+  ['ROUTE_LOT_1', 'DUG_IN', 'DUG_OUT'],
+  // The ladder over the lot's south fence (2026-10-22, outdoors.js lotLadder, where the ramp stood; last so the older
+  // nodes keep their ids)
+  ['ROUTE_LOT_1', 'LADDER_IN', 'LADDER_OUT']
 ]
 const NAMES = new Map() // "x,z,f" of an anchor -> its point name
 const nodes = [] // {x, z, f, name}

@@ -7,7 +7,9 @@
 //   - the controls course goes on from the crawl through the boiler room and Rusty's cell (10), the model does see a
 //     leak when one is put back (11), and no spot anyone reaches is in a block an outline runs through (12);
 //   - the keycard-only Gun Shop (2026-10-20) is sealed with its door closed and its keeper reached with it open (13);
-//   - the dugout under F3 (2026-10-21) leads out of the lot only while it's dug open, and nowhere else (14).
+//   - the dugout under F3 (2026-10-21) leads out of the lot only while it's dug open, and nowhere else (14);
+//   - the ladder over F2 west (2026-10-22) leads out of the lot and nowhere else, and nobody climbs in by it (15). It's
+//     always there in the game; every other step runs with its lot-side ladder taken out (the state "ladder" off).
 //   node --max-old-space-size=6000 tools/build/jail-escape-check.js [--only <n,...>]   (or: node tools/build/jail.js check)
 // Steps 1-9 are ESCAPE-SPEC 3.8's assertions in its order. Exits 1 when an assertion fails. About two and a half minutes.
 //
@@ -229,8 +231,9 @@ function overlay (open = {}, { noProps = false } = {}) {
       for (const yy of ys) P.set(`${x},${yy},${z}`, AIR_DOORS.has(name) ? 'air' : B.get(x, yy, z).replace('open=false', 'open=true'))
     }
   }
+  if (!open.ladder) for (const [x1, y1, z1, x2, y2, z2] of outdoors.lotLadderIn) for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) for (let z = z1; z <= z2; z++) P.set(`${x},${y},${z}`, 'air')
   for (const [what, on] of Object.entries(open)) {
-    if (!on) continue
+    if (!on || what === 'ladder') continue
     if (OPEN[what]) for (const d of OPEN[what]) openDoor(d)
     else if (Z.BREACHES[what]) for (const [x1, y1, z1, x2, y2, z2] of Z.BREACHES[what]) for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) for (let z = z1; z <= z2; z++) P.set(`${x},${y},${z}`, 'air')
     else throw new Error(`unknown open state ${what}`)
@@ -387,6 +390,8 @@ const APPENDIX_B = [
   ['DUG_IN', 114.5, 65, 362.5, 'stand', 'lot'],
   ['DUG_FACE', 112.5, 62, 360.5, 'stand', 'lot'],
   ['DUG_OUT', 105.5, 65, 362.5, 'stand', 'outside'],
+  ['LADDER_IN', 150.0, 65, 393.5, 'stand', 'lot'],
+  ['LADDER_OUT', 150.0, 65, 398.5, 'stand', 'outside'],
   ['RUN_1', 172.5, 65, 103.5, 'stand', 'inner'], ['RUN_2', 238.5, 65, 103.5, 'stand', 'inner'], ['RUN_3', 227.5, 65, 243.5, 'stand', 'inner'], ['RUN_4', 140.5, 65, 240.5, 'stand', 'inner'],
   ['STASH_1', 273.5, 65, 180.5, 'stand', 'inner'], ['STASH_2', 238.5, 65, 94.5, 'stand', 'inner'], ['STASH_3', 162.5, 65, 245.5, 'stand', 'inner'], ['STASH_4', 190.5, 65, 318.5, 'stand', 'inner'],
   ['LOT_EXIT', 260.5, 65, 404.5, 'stand', 'outside'],
@@ -619,6 +624,23 @@ if (step(14)) {
   for (const [label, open] of [['police doors + dugout open', { police: true, dig: true }], ['gate breach + dugout open', { gate: true, dig: true }], ['punch gate + dugout open', { punch: true, dig: true }]]) {
     const q = run(`${label}, from R_SPAWN`, open, [R_SPAWN], 'strict')
     ok(q.seen.has(node('DUG_OUT').join(',')), `${label}: out by the dugout`)
+  }
+}
+
+// 15. the ladder over the lot's south fence (2026-10-22): from the lot, out over it; nothing inside the inner outline or the
+// booth with it; from the road, never in (the outside ladder ends 2 blocks up); every method reaches LADDER_OUT with it
+if (step(15)) {
+  console.log('15. The ladder over the lot fence')
+  const L = [[210, 330, 1040]]
+  const r = run('the lot, the ladder', { ladder: true }, L, 'strict')
+  const out = r.out.filter(k => { const [x, z] = xzOf(k); return x >= 147 && x <= 152 && z >= 397 && z <= 400 })
+  ok(out.length > 0 && r.seen.has(node('LADDER_OUT').join(',')), 'out over the ladder: LADDER_OUT (150, 398) reached'); if (out.length) console.log(`       ${pathTo(r, out)}`)
+  never('the lot, the ladder', { ladder: true }, L, a => [...a.inner, ...a.booth], "nothing inside the inner outline, not the booth's inside, with generous moves")
+  never('the ladder alone, from R_SPAWN', { ladder: true }, [R_SPAWN], beyondInner, 'nothing outside the inner outline')
+  never('from outside, the ladder', { ladder: true }, [[150, 400, 1040], [92, 350, 1040], [272, 425, 1040]], a => [...a.lot, ...a.inner], 'nothing inside the outline from the road')
+  for (const [label, open] of [['police doors + ladder', { police: true, ladder: true }], ['gate breach + ladder', { gate: true, ladder: true }], ['punch gate + ladder', { punch: true, ladder: true }]]) {
+    const q = run(`${label}, from R_SPAWN`, open, [R_SPAWN], 'strict')
+    ok(q.seen.has(node('LADDER_OUT').join(',')), `${label}: out over the ladder`)
   }
 }
 

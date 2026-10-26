@@ -880,6 +880,17 @@ function jailEscape(p: player):
 		set {_sub} to "Over the fence"
 	else if {_m} is "dig":
 		set {_sub} to "Dug your way out"
+	# The lot's ladder (outdoors.js lotLadder) works for every method: it's where they left that counts.
+	set {_lo} to jailPt("LADDER_OUT")
+	if {_lo} is set:
+		if "%world of {_lo}%" is "%world of {_l}%":
+			# flat: the escape comes on top of the fence, 8 blocks above LADDER_OUT
+			set {_ldx} to x-coordinate of {_l}
+			set {_ldx} to {_ldx} - x-coordinate of {_lo}
+			set {_ldz} to z-coordinate of {_l}
+			set {_ldz} to {_ldz} - z-coordinate of {_lo}
+			if sqrt({_ldx} * {_ldx} + {_ldz} * {_ldz}) < 5:
+				set {_sub} to "Over the lot fence"
 	send title colored "&a&lESCAPED" with subtitle colored "&7%{_sub}%" to {_p} for 4 seconds
 	play sound "ui.toast.challenge_complete" with volume 1 to {_p}
 	progEvent({_p}, "escape", 1, {_m})
@@ -960,7 +971,7 @@ every second:
 								set {_mm} to jailMarkOf({_p})
 								if {_mm} is "":
 									set {_mm} to "other"
-								send title colored "&6&lTHE LOT" with subtitle colored "&7The front gate opens from the gatehouse booth" to {_p} for 3 seconds
+								send title colored "&6&lTHE LOT" with subtitle colored "&7Out: the gatehouse booth's gate, or the ladder on the south fence" to {_p} for 3 seconds
 								play sound "block.note_block.bell" with volume 1 to {_p}
 								progEvent({_p}, "jaillot", 1, {_mm})
 								jailLog("lot %{_p}% %{_mm}%")
@@ -1652,7 +1663,7 @@ function prisonHud(p: player) :: boolean:
 				set {_left} to jailSecsLeft({_due})
 				hudBossSet({_p}, "&a&lGATE OPEN&r &7· %ceil({_left})%s", "green", {_left} / max(1, cfg("prison::front::open") / 1 second))
 				return true
-		hudBossSet({_p}, "&6&lTHE LOT&r &7· the front gate opens from the gatehouse booth", "yellow", 1)
+		hudBossSet({_p}, "&6&lTHE LOT&r &7· the booth's gate or the south fence ladder", "yellow", 1)
 		return true
 	set {_bar} to {-jail::bar::%{_u}%}
 	if {_bar} is set:

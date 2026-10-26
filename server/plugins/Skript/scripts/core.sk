@@ -1084,6 +1084,11 @@ function loadSettings():
 	set {-cfg::clerk::range} to 14
 	set {-cfg::clerk::every} to 1.5 seconds
 	set {-cfg::clerk::stun} to 3 seconds
+	# Every hit on the clerk shoves them (blocks a tick, lift) and the robbery makes them walk faster (Citizens' speed
+	# modifier; 1 when calm). Owner, 2026-10-22; PROPOSAL.
+	set {-cfg::clerk::hit-knockback} to 0.5
+	set {-cfg::clerk::hit-lift} to 0.25
+	set {-cfg::clerk::panic-speed} to 1.6
 	set {-cfg::clerk::throw-speed} to 1.0
 	set {-cfg::clerk::spread} to 0.6
 	set {-cfg::clerk::damage} to 1.5
@@ -2681,11 +2686,12 @@ function loadSettings():
 	set {-cfg::story::l_diglot::brief} to "First the lot. No card? The quiet way is the parkour: punch the box by the gate between the Gun Shop and the police station, then over the annex fence."
 	set {-cfg::story::l_diglot::rewards::*} to "money|100"
 	set {-cfg::story::l_out::way} to "c4|keycard|parkour"
-	set {-cfg::story::l_out::label} to "Break out through the front gate"
-	set {-cfg::story::l_out::side} to "Out the front gate"
+	set {-cfg::story::l_out::label} to "Out the front gate or over the lot's ladder"
+	set {-cfg::story::l_out::side} to "Out the gate or the ladder"
 	set {-cfg::story::l_out::obj} to "ev|escape|1"
-	set {-cfg::story::l_out::gps} to "jail:BOOTH_OUT"
-	set {-cfg::story::l_out::brief} to "That's everything I know. Get to the lot, open the front gate from the booth, and go."
+	# Two ways out of the lot (owner, 2026-10-22: "two waypoints to the gate control or the ladder"): the GPS takes the nearer.
+	set {-cfg::story::l_out::gps} to "jail:BOOTH_OUT,LADDER_IN"
+	set {-cfg::story::l_out::brief} to "That's everything I know. In the lot, open the front gate from the booth, or climb the ladder over the south fence, and go."
 	set {-cfg::story::l_out::done} to "Knew you had it in you. Mara runs things out there: find her."
 	set {-cfg::story::l_out::rewards::*} to "money|250" and "xp|50"
 	set {-cfg::story::l_dig::way} to "dig"

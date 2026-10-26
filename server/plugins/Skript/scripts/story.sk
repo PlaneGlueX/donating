@@ -918,13 +918,14 @@ function storyGpsSpots(p: player, id: text) :: text:
 			if {_a::1} is {_g}:
 				if {_a::2} is {_w}:
 					add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
-	# The prison (prison.sk): "jail:<POINT>" a point there; "jailc4" the nearest search spot whose C4 part the player
+	# The prison (prison.sk): "jail:<POINT>[,<POINT>...]" points there (the nearest along the way wins); "jailc4" the nearest search spot whose C4 part the player
 	# lacks, then Lefty (all three carried: he puts it together, jailjobs.sk), nothing with a C4 in hand.
 	if {_g} starts with "jail:":
-		set {_jl} to jailPt(subtext of {_g} from characters 6 to (length of {_g}))
-		if {_jl} is set:
-			if "%world of {_jl}%" is {_w}:
-				add gpsSpot({_jl}) to {_s::*}
+		loop (subtext of {_g} from characters 6 to (length of {_g})) split at ",":
+			set {_jl} to jailPt(loop-value)
+			if {_jl} is set:
+				if "%world of {_jl}%" is {_w}:
+					add gpsSpot({_jl}) to {_s::*}
 	else if {_g} is "jailc4":
 		if jailCount({_p}, "c4") < 1:
 			set {_best} to -1
