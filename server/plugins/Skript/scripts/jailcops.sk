@@ -887,8 +887,8 @@ function jcopUnbuff(id: text):
 	jcopLog("unbuff id=%{_id}%")
 
 # Queues armed::extra guards for an armed prisoner (armed::cap in all, every armed prisoner's together): each from a
-# patrol point between armed::spawn-min and armed::spawn-max blocks away inside the walls, nearest first, no two from one
-# route. They're made by the every-second pass (jcopSpawnRun, one run at a time).
+# patrol point between armed::spawn-min and armed::spawn-max blocks away inside the walls, nearest first, one a
+# route while routes last. They're made by the every-second pass (jcopSpawnRun, one run at a time).
 function jcopArmQueue(p: player):
 	set {_u} to "%uuid of {_p}%"
 	set {_n} to cfg("jailcop::armed::extra")
@@ -921,9 +921,30 @@ function jcopArmQueue(p: player):
 	loop sorted indices of {_cand::*} in ascending order:
 		if {_k} < {_n}:
 			add 1 to {_k}
+			set {_used::%{_spot::%loop-value%}%} to true
 			add 1 to {-jailcop::armn}
 			set {_name} to "armed%{-jailcop::armn}%"
 			set {-jailcop::armq::%{_name}%} to "%{_name}%|%{_spot::%loop-value%}%|%{_u}%"
+	# Fewer routes in range than extras (the prison is wide: often two): the rest from the nearest other points.
+	if {_k} < {_n}:
+		loop {_rs::*}:
+			loop {-jailroute::%loop-value-1%::*}:
+				set {_s} to "%loop-value-2%"
+				if {_used::%{_s}%} is not set:
+					set {_a::*} to {_s} split at "|"
+					set {_pl} to location({_a::1} parsed as number, {_a::2} parsed as number, {_a::3} parsed as number, world of {_p})
+					set {_d} to distance between {_l} and {_pl}
+					if {_d} >= {_min}:
+						if {_d} <= {_max}:
+							if jailInsideAt({_pl}) is true:
+								set {_used::%{_s}%} to true
+								set {_more::%{_s}%} to {_d}
+		loop sorted indices of {_more::*} in ascending order:
+			if {_k} < {_n}:
+				add 1 to {_k}
+				add 1 to {-jailcop::armn}
+				set {_name} to "armed%{-jailcop::armn}%"
+				set {-jailcop::armq::%{_name}%} to "%{_name}%|%loop-value%|%{_u}%"
 	jcopLog("armed-queue %{_p}% %{_u}% n=%{_k}%")
 
 # Every second: the queued extra guards are made (one run at a time); an extra whose prisoner isn't armed or hunted by
