@@ -408,6 +408,26 @@ module.exports = async ({ check }) => {
     check('the key\'s right-click opens the big map: the chase view pauses (reason=phone-open), the slot stays on the key; again: the map closes and the view is back',
       openNow && /none reason=phone-open/.test(paused) && /slot=8/.test(paused) && /plate=/.test(resumed) && bots[D].quickBarSlot === 8,
       `${paused} | ${resumed} | slot ${bots[D].quickBarSlot}`)
+    // Owner, 2026-10-22: with the map open the camera looks down at the car, so a right-click lands on its own stands
+    // (an entity click): that closes the map too.
+    bots[D].activateItem()
+    await sleep(150)
+    bots[D].deactivateItem()
+    await sleep(800)
+    const open2 = /open=true/.test(await cmd(`dphone status ${D}`))
+    // The car's stands nearest first; some are markers the client can't click (the server ignores those), so try each.
+    const stands = Object.values(bots[D].entities).filter(e => e.name === 'armor_stand' && e.position.distanceTo(bots[D].entity.position) < 4)
+      .sort((x, y) => x.position.distanceTo(bots[D].entity.position) - y.position.distanceTo(bots[D].entity.position))
+    const stand = stands[0]
+    let closed2 = false
+    for (const e of stands) {
+      bots[D].activateEntity(e).catch(() => {})
+      await sleep(700)
+      if ((closed2 = /open=false/.test(await cmd(`dphone status ${D}`)))) break
+    }
+    await sleep(500)
+    check('...a right-click on the car itself (the camera looks down at it) closes the map too, and the view is back',
+      open2 && Boolean(stand) && closed2 && /plate=/.test(await status()), `open ${open2} stand ${Boolean(stand)} closed ${closed2} | ${await status()}`)
 
     // ---------- Nothing in the offhand: the key is the hook (a held map would be drawn big in the middle) ----------
     await cmd(`zzdata ${D} bag-tier none`)

@@ -424,7 +424,10 @@ const TOWER = { x1: 503, x2: 542, z1: 1060, z2: 1103, floors: [64, 75, 86], roof
 const DRIVE = [[1020, 1031], [1080, 1091]]                      // Main's driveways (COMMON's DRIVEWAYS x 461..464)
 const WING_DOOR = [1034, 1036]                                  // the wing's doorway (y 65..67)
 const TOWER_DOORS = [[1071, 1073], [1087, 1089]]                // the tower's doorways (y 65..67)
-const ONE_M = { x: 502, z1: 1072, z2: 1091, y1: 77, y2: 90 }
+const ONE_M = { x: 502, z1: 1072, z2: 1091, y1: 77, y2: 90 } // where the gold "1M" stood (removed 2026-10-22)
+// The big car: a racecar model at 2x (2 x the bays' 0.625 would be 1.25; 2.0 is 12.8 long, 6.9 wide, 4.6 high), its
+// wheels on the ledge's top (y 79): y = 79 + 2.0 x 2.704 (the bays' 1.69 lift at 0.625). Yaw 0 runs it along z.
+const BIG_CAR = { x: 499.5, z: 1081.5, scale: 2.0, damage: 1166, ledge: { x1: 496, x2: 502, z1: 1075, z2: 1088, y: 78 } }
 const DESK = { x: 515, z1: 1078, z2: 1085 }                     // the sales desk (the Car Dealer at 516.5 behind it)
 const DESK2 = { x: 515, z1: 1069, z2: 1073 }                    // the garage attendant's desk (launch)
 const BAYS = [1067.5, 1076.5, 1085.5, 1094.5]                   // bay spots' z (x 528.5), 3 wide x 5 long over x 526..530
@@ -595,13 +598,21 @@ const LETTERS = (() => {
     [1088, 90], [1088, 89], [1087, 89], [1087, 88], [1087, 87], [1086, 87], [1086, 86], [1086, 85], [1086, 84]]) add(z, y)
   return c
 })()
+// Owner, 2026-10-22: "change the 1M sign on the car dealership to a car": the letters go (air where they stood: a
+// paste only changes the blocks it sets) and a racecar twice life size stands on a lit ledge in their place (BIG_CAR,
+// an item display in module.exports.displays).
 function oneM () {
   for (const k of LETTERS) {
     const [z, y] = k.split(',').map(Number)
-    // gold on every face open to the sky (yellow concrete is a road block: PLAN 10.2), yellow mixed in below
-    S(ONE_M.x, y, z, !LETTERS.has(`${z},${y + 1}`) || h(ONE_M.x, y, z) < 65 ? 'gold_block' : 'yellow_concrete')
-    S(TOWER.x1, y, z, 'ochre_froglight[axis=y]') // the glow behind it (in the curtain)
+    S(ONE_M.x, y, z, 'air')
   }
+  const L = BIG_CAR.ledge
+  for (let x = L.x1; x <= L.x2; x++) for (let z = L.z1; z <= L.z2; z++) {
+    const edge = x === L.x1 || z === L.z1 || z === L.z2
+    S(x, L.y, z, edge ? 'ochre_froglight[axis=y]' : 'black_concrete') // lit edges seen from the street
+  }
+  // two brackets under it into the curtain's floor band
+  for (const z of [L.z1 + 2, L.z2 - 2]) for (let x = L.x2 - 2; x <= L.x2; x++) S(x, L.y - 1 - (L.x2 - x), z, 'polished_blackstone_stairs[facing=west,half=top,shape=straight,waterlogged=false]')
 }
 
 // ---- inside the tower: the desks, the bays, the crate stands, plants -------------------------------------------------
@@ -648,7 +659,9 @@ module.exports.displays = [
   car(512.5, 76, 1068.5, 1070, 0, 'Sports Car Black'), car(512.5, 76, 1082.5, 1139, 0, 'SUV White'), car(512.5, 76, 1096.5, 1161, 0, 'Hotrod Black'),
   car(524.5, 76, 1076.5, 1023, 90, 'Sport Sedan Quartz'), car(524.5, 76, 1092.5, 1074, 90, 'Jeep Gold'),
   // the top floor: the Extreme cars on their podiums
-  car(512.5, 88, 1070.5, 1036, 0, 'Viper Orange'), car(522.5, 88, 1084.5, 1198, 0, 'Riviera Black Orange'), car(512.5, 88, 1098.5, 1166, 0, 'Apex Red')
+  car(512.5, 88, 1070.5, 1036, 0, 'Viper Orange'), car(522.5, 88, 1084.5, 1198, 0, 'Riviera Black Orange'), car(512.5, 88, 1098.5, 1166, 0, 'Apex Red'),
+  // the big car on the tower's face, where the "1M" was (lit, seen from the far end of Main Street)
+  { ...car(BIG_CAR.x, BIG_CAR.ledge.y + 1, BIG_CAR.z, BIG_CAR.damage, 0, 'the big Apex over the doors'), y: BIG_CAR.ledge.y + 1 + 2.704 * BIG_CAR.scale, scale: BIG_CAR.scale, viewRange: 4, brightness: { sky: 15, block: 15 } }
 ]
 module.exports.points = {
   DEALER_DOOR: SPOT.door, DEALER_CARS: SPOT.dealer, DEALER_ATTENDANT: SPOT.attendant,

@@ -161,6 +161,7 @@ function clerkWeaponItem(h: text) :: text:
 # Back to the register, holding nothing (or their weapon), and serving again.
 function clerkCalm(h: text):
 	set {-clerk::%{_h}%::st} to "idle"
+	clerkPace({_h}, false)
 	delete {-clerk::%{_h}%::goal}
 	delete {-clerk::%{_h}%::stun}
 	clerkHold({_h}, clerkWeaponItem({_h}))
@@ -304,6 +305,9 @@ on damage with priority lowest:
 	clerkHit({_h}, attacker)
 
 function clerkHit(h: text, p: player):
+	# Every hit lands visibly (owner, 2026-10-22: "allow the player to keep hitting the clerk, and allow the clerk to
+	# take knockback to hits"): the hurt animation and a shove away from the hitter. Still never hurt.
+	clerkKnock({_h}, {_p})
 	# Nothing to rob (the store is in cooldown or cleaned out): they duck, that's all.
 	if heistStoreCustomer({_h}) is true:
 		if {-clerk::%{_h}%::st} is "idle":
@@ -333,9 +337,39 @@ function clerkHit(h: text, p: player):
 		play sound "entity.player.hurt" with volume 0.8 at location of {_e}
 	clerkSay({_h}, "duck")
 
+# The hurt animation and a shove away from the hitter, a tick later so the cancelled hit's motion doesn't win.
+function clerkKnock(h: text, p: player):
+	set {_e} to clerkEntity({_h})
+	{_e} is set
+	play hurt animation on {_e}
+	play sound "entity.player.hurt" with volume 0.8 at location of {_e}
+	set {_hx} to x-coordinate of {_e}
+	set {_hx} to {_hx} - x-coordinate of {_p}
+	set {_hz} to z-coordinate of {_e}
+	set {_hz} to {_hz} - z-coordinate of {_p}
+	set {_len} to sqrt({_hx} ^ 2 + {_hz} ^ 2)
+	{_len} > 0.01
+	set {_k} to cfg("clerk::hit-knockback")
+	wait 1 tick
+	{_e} is valid
+	set velocity of {_e} to vector({_hx} / {_len} * {_k}, cfg("clerk::hit-lift"), {_hz} / {_len} * {_k})
+	clerkLog("knock %{_h}% by %name of {_p}%")
+
+# The clerk's walking speed: faster while the robbery runs (owner, 2026-10-22: "move faster during the heist").
+function clerkPace(h: text, fast: boolean):
+	{-clerk::id::%{_h}%} is set
+	set {_m} to 1
+	if {_fast} is true:
+		set {_m} to cfg("clerk::panic-speed")
+		if {_m} is not set:
+			set {_m} to 1
+	clerkCmd({-clerk::id::%{_h}%}, "speed %{_m}%")
+	clerkLog("pace %{_h}% %{_m}%")
+
 function clerkStart(h: text, p: player):
 	heistState({_h}) is "open" or "active"
 	set {-store::%{_h}%::hit} to now
+	clerkPace({_h}, true)
 	heistStartRun({_h})
 	lootStoreUnlock({_h})
 	clerkLog("hit %{_h}% by %name of {_p}% %uuid of {_p}% run=%heistRun({_h})%")

@@ -797,22 +797,17 @@ module.exports.labels = [
   { x: 382.03, y: 72.15, z: 840.5, facing: 'east', text: 'TOWN', color: '#ffffff', scale: 3.0 },
   { x: 382.03, y: 71.05, z: 840.5, facing: 'east', text: 'GARAGE', color: '#ffffff', scale: 3.0 }
 ]
-// Item displays (tag DISPLAY_TAG): the red car on the roof (garage_new). A car is a diamond hoe with its model's damage
-// (MTVehicles; the pack draws the car only while the hoe is unbreakable), shown with the head transform like
-// citygarage.sk's bays. Those sit garage::bay-lift 1.69 over the floor at garage::bay-scale 0.625, so at scale s the
-// lift is 1.69 * s / 0.625: y = the podium's top face (77.0) + 1.69 * 2.5 / 0.625 = 83.76 (the entity's y; the car's
-// wheels are on the podium, x 337..352, z 799..806, 2 over the deck: on the deck the fascia and its lip hid them from
-// the street). Tune y, scale and yaw in the client.
-// Beyond PLAN 10.2's display fields this one has (town.js's `displays` must write them): `damage` (the item's damage
-// component), `unbreakable` (the unbreakable component; the pack draws the car only then), `transform` (the display's
-// item_display transform; default none) and `viewRange` (the display's view_range: the client draws it out to 64 x
-// view_range x its entity distance setting, so 1.0, the default, is about 64 blocks; the server sends displays within 128
-// (spigot.yml display: 128, view-distance 8), so 3 shows the car from the Main / 1st junction, ~118 away, and the
-// bridge's south end, ~125, even at a lower entity distance). No `cmd`: no custom_model_data.
+// Item displays (tag DISPLAY_TAG): a giant Pipe Wrench on the roof (owner, 2026-10-22: "change the garage model to a
+// wrench or something"; the red Sedan stood there before and the dealership has the big car now). The wrench is the
+// melee weapon's own model (amethyst shard, custom_model_data 2: make-item-art.js pipe_wrench, built on a diagonal),
+// shown with the fixed transform (flat like a framed item, its face toward Main Street to the east: yaw -90) at scale 7,
+// about 7 blocks corner to corner, its lower end just over the roof podium (top face y 77.0, x 337..352, z 799..806).
+// Tune y, scale and yaw in the client. Fields: `cmd` (custom_model_data float), `transform`, `viewRange` (64 x
+// view_range x the entity distance setting: 3 shows it from the Main / 1st junction), `brightness` (full: it reads at night).
 module.exports.displays = [
-  { x: 344.5, y: 83.76, z: 802.5, item: 'diamond_hoe', damage: 1017, unbreakable: true, transform: 'head', yaw: -90, pitch: 0, scale: 2.5, viewRange: 3,
-    note: 'the red Sedan (core.sk carcolors::sedan "Red=GKAH5U=1017", vehicles.yml "Sedan Red"), nose east (Minecraft yaw -90) ' +
-      'toward Main Street, its wheels on the roof podium (top face y 77.0)' }
+  { x: 344.5, y: 81.3, z: 802.5, item: 'amethyst_shard', cmd: 2, transform: 'fixed', yaw: -90, pitch: 0, scale: 7, viewRange: 3,
+    brightness: { sky: 15, block: 15 },
+    note: 'the Pipe Wrench (title Baseball_Bat, shard 2), face east toward Main Street, its lower end over the roof podium (top face y 77.0)' }
 ]
 module.exports.points = {
   GARAGE_ATTENDANT: SPOT.attendant, GARAGE_BAY_1: SPOT.bay1, GARAGE_BAY_2: SPOT.bay2,

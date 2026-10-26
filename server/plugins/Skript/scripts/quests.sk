@@ -107,12 +107,33 @@ function questNearestText(p: player, kind: text) :: text:
 	set {_n} to questNearest({_p}, {_kind})
 	if {_n} is "":
 		return ""
+	if questHidden({_p}, {_kind}) is true:
+		return questPlace({_n})
 	set {_d} to round(distance between (location of {_p}) and questLoc({_n}))
 	return "%questPlace({_n})% (%{_d}%m)"
+
+# Givers players find by themselves (core.sk quest::<kind>::secret: the Scrap Yard Boss and the Broker; owner,
+# 2026-10-22: "dont lead the player to the contracts ... no pins anywhere after the first time going there"): never a
+# dot on the locator bar or the phone's map, and once the player has talked to one in person (data quest-met::<kind>)
+# no GPS route or pin to it either. The first visit (Mara's "meet the Scrap Yard Boss") still has its route.
+function questSecret(kind: text) :: boolean:
+	if {-cfg::quest::%{_kind}%::secret} is true:
+		return true
+	return false
+
+function questHidden(p: player, kind: text) :: boolean:
+	if questSecret({_kind}) is true:
+		if getData({_p}, "quest-met::%{_kind}%") is set:
+			return true
+	return false
 
 # Pins the nearest giver of a kind on the GPS (the pin clears on arrival, like any pin; gpsPin says "Pin set").
 function questFind(p: player, kind: text):
 	set {_n} to questNearest({_p}, {_kind})
+	if {_n} is not "":
+		if questHidden({_p}, {_kind}) is true:
+			msg({_p}, "&7You've been to &f%questThe(questPlace({_n}))%&7 before: find your own way back.")
+			stop
 	if {_n} is "":
 		# The kind's NPC at its default place ("Scrap Yard Boss", "Mara").
 		set {_who} to {-cfg::quest::%{_kind}%::npc}
@@ -243,6 +264,9 @@ function questOpen(p: player, n: text):
 	set {-quest::openat::%{_p}%} to now
 	# Talking to a giver in person counts for the story (progress.sk).
 	progEvent({_p}, "talk", 1, {_k})
+	# Every visit is remembered, so a kind made secret later (quest::<kind>::secret) still knows who's been there.
+	if getData({_p}, "quest-met::%{_k}%") is not set:
+		setData({_p}, "quest-met::%{_k}%", true)
 	if {_k} is "contracts":
 		play sound "entity.villager.ambient" with volume 0.6 and pitch 0.8 to {_p}
 		# His side jobs (jobs.sk): talking to him picks up the waiting ones.

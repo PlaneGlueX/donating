@@ -451,7 +451,10 @@ function gpsEntries(p: player, cat: text) :: texts:
 		set {_st} to ""
 		if {-ctjob::%{_u}%} is set:
 			set {_st} to "&eYour job: %formatClock(ctLeft({_u}))% left"
-		add "head:boss|&fCar contracts|%{_st}%;;%gpsGiverText({_p}, "contracts")%;;&eClick: GPS · Right-click: open|q:contracts" to {_out::*}
+		set {_ck} to "&eClick: GPS · Right-click: open"
+		if questHidden({_p}, "contracts") is true:
+			set {_ck} to "&eRight-click: open"
+		add "head:boss|&fCar contracts|%{_st}%;;%gpsGiverText({_p}, "contracts")%;;%{_ck}%|q:contracts" to {_out::*}
 		# Side jobs (Mara's and the Boss's boards).
 		set {_w} to 0
 		set {_t} to 0
@@ -482,7 +485,10 @@ function gpsEntries(p: player, cat: text) :: texts:
 			set {_st} to "&f%hitTargetName()%"
 		else:
 			set {_st} to "&f%hitTargetName()% &7· %hitWindowText({_tier})%"
-		add "head:broker|&fHit contracts|%{_st}%;;%gpsGiverText({_p}, "hits")%;;&eClick: GPS · Right-click: open|q:hits" to {_out::*}
+		set {_ck} to "&eClick: GPS · Right-click: open"
+		if questHidden({_p}, "hits") is true:
+			set {_ck} to "&eRight-click: open"
+		add "head:broker|&fHit contracts|%{_st}%;;%gpsGiverText({_p}, "hits")%;;%{_ck}%|q:hits" to {_out::*}
 		# Bounties (posted with the Broker).
 		set {_st} to ""
 		set {_b} to getData({_p}, "bounty")
@@ -595,6 +601,10 @@ function gpsGiverText(p: player, kind: text) :: text:
 	# The NPC's name, and its place unless the name says it ("Scrap Yard Boss · 140m", "Mara · Safehouse · 90m").
 	set {_nm} to questNpcName({_n})
 	set {_pl} to questPlace({_n})
+	if questHidden({_p}, {_kind}) is true:
+		if {_nm} contains {_pl}:
+			return "&7%{_nm}% · you know the way"
+		return "&7%{_nm}% · %{_pl}% · you know the way"
 	if {_nm} contains {_pl}:
 		return "&7%{_nm}% · %gpsDist({_p}, questLoc({_n}))%"
 	return "&7%{_nm}% · %{_pl}% · %gpsDist({_p}, questLoc({_n}))%"

@@ -211,7 +211,11 @@ function poiReconcile():
 			set {_color} to {-cfg::poi::quest::color}
 			if {_color} is not set:
 				set {_color} to "blue"
-			poiEnsure("q_%loop-index%", {_l}, {_color}, true)
+			# Givers players find themselves (quests.sk questSecret): no dot.
+			set {_on} to true
+			if questSecret(questKind(loop-index)) is true:
+				set {_on} to false
+			poiEnsure("q_%loop-index%", {_l}, {_color}, {_on})
 	# Stands nothing refers to any more (a removed POI, a deleted heist) go.
 	loop all entities:
 		if loop-entity has scoreboard tag "donating_poi":
@@ -290,7 +294,8 @@ function poiMapReconcile():
 	loop {quest::giver::*}:
 		set {_l} to questLoc(loop-index)
 		if {_l} is set:
-			poiMapWant("q%loop-index%", "quest", {_l}, "%questNpcName(loop-index)% (%questPlace(loop-index)%)")
+			if questSecret(questKind(loop-index)) is false:
+				poiMapWant("q%loop-index%", "quest", {_l}, "%questNpcName(loop-index)% (%questPlace(loop-index)%)")
 	# Places that are gone first (before the minute's reset below forgets what was sent: review of this change).
 	loop {-mapplace::sent::*}:
 		if {-mapwant::%loop-index%} is not set:

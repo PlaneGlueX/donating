@@ -686,6 +686,7 @@ function displayNbt (d) {
   const s = d.scale ?? 1
   return `{Tags:["${common().DISPLAY_TAG}"],item:{id:"minecraft:${d.item}",count:1${comp.length ? `,components:{${comp.join(',')}}` : ''}},item_display:"${d.transform || 'none'}",` +
     `Rotation:[${fl(d.yaw || 0)},${fl(d.pitch || 0)}],view_range:${fl(d.viewRange ?? 1)},` +
+    (d.brightness ? `brightness:{sky:${d.brightness.sky},block:${d.brightness.block}},` : '') +
     `transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[${fl(s)},${fl(s)},${fl(s)}]}}`
 }
 // Summons every entity of a list (each chunk force-loaded while it runs), after removing the old ones with that tag.

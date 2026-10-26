@@ -75,6 +75,8 @@ module.exports = async ({ check }) => {
       await cmd(`eco set ${name} 100000`)
       for (const t of ['basic', 'pro', 'master']) await cmd(`zzpick ${name} ${t} 0`)
     }
+    // The checks below lead players to the giver; the found-not-led rule (quest::contracts::secret) is checked at the end.
+    await cmd('zzcfgbool quest::contracts::secret false')
     const waypoints = []
     bots[Q]._client.on('tracked_waypoint', p => waypoints.push(p))
     await tp(Q, AWAY)
@@ -202,6 +204,23 @@ module.exports = async ({ check }) => {
     await sleep(800)
     check('next to the giver the job is taken', field(await cmd(`zzctstate ${Q}`), 'job') === 'basic' && /steal the Red Sedan/.test(text(Q, t)), `${await cmd(`zzctstate ${Q}`)} ${text(Q, t)}`)
     await cmd(`zzctreset ${Q}`)
+
+    // ---------- Found, not led to (owner, 2026-10-22: "no pins anywhere after the first time going there") ----------
+    await cmd('zzcfgbool quest::contracts::secret true')
+    const noDot = await until(async () => / is 0(.0+)?$/.test(await cmd(`execute as @e[tag=poi_q_${giverN},limit=1] run attribute @s minecraft:waypoint_transmit_range base get`)), 12000)
+    check('a secret giver (the Scrap Yard Boss) has no dot on the locator bar', noDot, await cmd(`execute as @e[tag=poi_q_${giverN},limit=1] run attribute @s minecraft:waypoint_transmit_range base get`))
+    await tp(Q, AWAY)
+    await sleep(3500)
+    bots[Q].chat('/gps clear')
+    await sleep(500)
+    const { qw: sw, s: sSlot } = await gpsQuests()
+    const sEntry = sSlot >= 0 ? itemText(sw.slots[sSlot]) : ''
+    t = Date.now()
+    if (sSlot >= 0) bots[Q].clickWindow(sSlot, 0, 0).catch(() => {})
+    await sleep(1200)
+    g = await gps(Q)
+    check('...and after the first visit (Q talked to him above) the GPS names him without a distance and a click pins nothing', /you know the way/.test(sEntry) && !/Quest Yard Boss . \d+m/.test(sEntry) && field(g, 'active') !== 'pin' && /find your own way back/.test(text(Q, t)), `${sEntry.slice(0, 300)} | ${g} | ${text(Q, t)}`)
+    await closeAll(Q)
 
     // ---------- It stays; staff remove it ----------
     await cmd(`minecraft:kill @e[tag=questg_${giverN}]`)

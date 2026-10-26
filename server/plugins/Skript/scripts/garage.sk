@@ -1186,6 +1186,15 @@ on right click with priority lowest:
 	else:
 		openPhoneMap(player)
 
+# With the big map open the camera looks down at the car, so a right-click lands on the car's own stands (an entity
+# click, not the one above): it closes the map too (owner, 2026-10-22: "let them right click to go back").
+on right click on entity with priority lowest:
+	itemId(player's tool) starts with "carkey:"
+	player has scoreboard tag "donating_phone_open"
+	cancel event
+	set {-car::keyat::%player%} to now
+	closePhoneMap(player)
+
 on swap hand items with priority lowest:
 	set {_seat} to carSeatOf(player)
 	{_seat} starts with "driver:"

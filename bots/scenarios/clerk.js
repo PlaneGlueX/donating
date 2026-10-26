@@ -136,6 +136,7 @@ module.exports = async ({ check }) => {
     check('...no police: nobody wanted, no alarm, "the register\'s open"', /wanted=false/.test(await combat(A)) && field(await alarm(), 'stage') === 'none' && /register's open/.test(text(A, t)) && !/panic button/.test(text(A, t)), `${await combat(A)} | ${await alarm()} | ${text(A, t).slice(0, 300)}`)
     const staffAlarm = await cmd(`dheist alarm ${ID}`)
     check('...and staff can\'t trip its alarm either', /police are off/.test(staffAlarm) && field(await alarm(), 'stage') === 'none', `${staffAlarm} | ${await alarm()}`)
+    check('...the clerk walks faster while the robbery runs (owner, 2026-10-22)', await until(() => /pace zclerk 1\.6/.test(readLog('clerk').slice(log0)), 2000), readLog('clerk').slice(log0).slice(-300))
     check('...the clerk isn\'t hurt (still there, same NPC)', /id=\d+/.test(await info()) && clerkEntity(bots[A]) !== undefined, await info())
     await sleep(500) // the drawer slides out (2 ticks, then a 3-tick teleport)
     reg = [await regCount('register_bills'), await drawerZ()]
@@ -156,6 +157,10 @@ module.exports = async ({ check }) => {
     // Another hit: they duck.
     await cmd(`zzclerkhit ${ID} ${A}`)
     check('another hit makes the clerk duck (stunned)', field(await info(), 'st') === 'stunned', await info())
+    // Owner, 2026-10-22: "allow the player to keep hitting the clerk, and allow the clerk to take knockback to hits".
+    const lk = readLog('clerk').length
+    await cmd(`zzclerkhit ${ID} ${A}`)
+    check('...and every hit, even while ducking, shoves the clerk back', await until(() => /knock zclerk by ClerkA/.test(readLog('clerk').slice(lk)), 2000) && field(await info(), 'st') === 'stunned', readLog('clerk').slice(lk))
     const back = await until(async () => field(await info(), 'st') !== 'stunned', 5000)
     check('...for a moment, then back to it', back, await info())
 
@@ -164,6 +169,7 @@ module.exports = async ({ check }) => {
     const id0 = field(await info(), 'id')
     const calm = await until(async () => field(await info(), 'st') === 'idle', 8000)
     check('the robbery ends: the clerk calms down and stays (same NPC)', calm && field(await info(), 'id') === id0, await info())
+    check('...back at the normal pace', /pace zclerk 1\r?\n/.test(readLog('clerk').slice(log0)), readLog('clerk').slice(log0).slice(-300))
     // ---------- The store as a shop while it cools down ----------
     const balOf = async name => Number(((await cmd(`zzbal ${name}`)).match(/: (-?\d+)/) || [])[1])
     await cmd(`zzcombatend ${A}`)

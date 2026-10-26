@@ -485,6 +485,8 @@ function loadSettings():
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
+	# Found on the map, not led to (quests.sk questSecret; owner, 2026-10-22): no dot, no map place, no GPS after the first visit.
+	set {-cfg::quest::contracts::secret} to true
 	set {-cfg::quest::contracts::hold} to "flint"
 	set {-cfg::quest::contracts::hold-model} to "donating:lockpick_basic"
 	set {-cfg::quest::story::name} to "Missions"
@@ -527,6 +529,7 @@ function loadSettings():
 	set {-cfg::msgcontact::broker::skin} to "broker"
 	set {-cfg::msgcontact::broker::kind} to "hits"
 	set {-cfg::quest::hits::place} to "Pool Hall"
+	set {-cfg::quest::hits::secret} to true
 	set {-cfg::quest::hits::hold} to "book"
 	set {-cfg::quest::reach} to 6
 

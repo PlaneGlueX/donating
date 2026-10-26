@@ -767,6 +767,17 @@ un.js prison-course 40/40: the prompts per step, /tutorial and confirm at step b
     - Bots: PASS (2026-10-22): prison-ladder 7/7 (the ramp gone, the ladder, 2 GPS spots in the lot, climbing out escapes "Over the lot fence", the route gone after, no climbing in from the road).
     - Voice: Lefty's l_out brief changed, so his recorded take (lefty_out_brief) is stale and stays silent until re-recorded.
     - Client: TODO (yours: in the lot, check the two GPS waypoints; climb the ladder).
+263. **Keep hitting the clerk** (your "allow the player to keep hitting the clerk, and allow the clerk to take knockback to hits and move faster during the heist"). Every hit on a clerk pushes them back (0.5 blocks, a little lift) and they duck a moment; while the store's being robbed they run at 1.6x their walking speed to the shelves and back. Still never hurt.
+    - Bots: PASS (2026-10-22): clerk 41/41 (a second and third hit land and push, the faster pace while robbed, calm again after).
+    - Client: TODO (yours: hit the Donut Shop's clerk a few times during a robbery).
+264. **Find the contract givers yourself** (your "no pins anywhere after the first time going there"). The Scrap Yard Boss (car jobs) and the Broker (hit contracts) have no dot on the locator bar and no banner on the phone's map. Before your first visit the GPS still leads you there (Mara's mission, the Quests page); after it, the Quests page says "<name> · you know the way" and a click opens nothing on the GPS ("You've been to the Scrap Yard before: find your own way back"). Settings `quest::contracts::secret` and `quest::hits::secret` (true).
+    - Bots: PASS (2026-10-22): quests 23/23 (no dot, after the first visit no distance and no pin).
+265. **Back to the chase view from the map** (your "when the player opens up the map view on the phone while in a car, let them right click to go back to the original view"). With the big map open in a car, a right-click anywhere (also on the car itself, which the tilted camera looks at) closes the map and the chase view comes back.
+    - Bots: PASS (2026-10-22): carcam 44/44.
+    - Client: TODO (yours: in a car, right-click the key, then right-click again).
+266. **A big car on the dealership, a wrench on the garage** (your "change the 1M sign on the car dealership to a car or something", then "big car model, then change the garage model to a wrench or something"). The gold 1M is gone; a big Apex (scale 2) stands on a black ledge with a gold edge over the dealership's doors (x 496-502, y 78), lit full bright. The red Sedan on the town garage's roof is now a giant Pipe Wrench (7 blocks, facing Main Street, full bright).
+    - Built: PASS (2026-10-22): `town.js check --seal`, pasted (the dealer front x 495-503, z 1071-1092), `town.js displays` (393 in the world).
+    - Client: TODO (look at both from the street: the car's way round and height, the wrench's size and side; y, scale and yaw are in dealer.js BIG_CAR and garage.js displays).
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.
     - Result: HUMAN / TODO
 24. **Car entry with MTVehicles** (after installing it): right-clicking a car still lets you get in (the lock cancels right-clicks on entities after other plugins run).
