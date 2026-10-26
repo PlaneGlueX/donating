@@ -200,7 +200,7 @@ module.exports = async ({ check }) => {
     // ---------- a task done mid-line: the mission waits for the clip (owner, 2026-10-22) ----------
     await sleep(3000)
     await cmd(`dstory set ${B} lefty l_way`)
-    await sleep(2500)
+    await sleep(11000) // l_way's brief is voiced (~9 s): let it end, or the next line cuts it
     since = Date.now()
     await cmd(`zzmsg ${B} say Lefty Three ways past the fences: a keycard through the police station, C4 on the vehicle gate, or over the fence by the Gun Shop.`)
     await cmd(`zzdatatext ${B} lefty-way c4`)
