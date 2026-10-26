@@ -16,6 +16,7 @@
 //   node tools/build/town.js paste [--world W] [--box x1,z1,x2,z2[;...]]
 //   node tools/build/town.js labels [--world W]           -> the text displays (tag town_label), old ones removed first
 //   node tools/build/town.js displays [--world W]         -> the item displays (tag town_display), old ones removed first
+//   (labels and displays --if-missing: only when the count in the world is off; Playtest.bat runs that at every start)
 // Also a build.js for tools/build/render.js (module.exports.build).
 const fs = require('fs')
 const path = require('path')
@@ -688,7 +689,7 @@ function displayNbt (d) {
     `transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[${fl(s)},${fl(s)},${fl(s)}]}}`
 }
 // Summons every entity of a list (each chunk force-loaded while it runs), after removing the old ones with that tag.
-async function summonAll (W, list, type, tag, nbtOf, what) {
+async function summonAll (W, list, type, tag, nbtOf, what, ifMissing) {
   const rcon = require(path.join(ROOT, 'bots', 'rcon.js'))
   const ex = `execute in minecraft:${W} run`
   const chunks = new Map()
@@ -701,6 +702,11 @@ async function summonAll (W, list, type, tag, nbtOf, what) {
       if (/is not marked/i.test(q)) { await r.cmd(`${ex} forceload add ${x} ${z}`); added.push([x, z]) } else if (!/is marked/i.test(q)) throw new Error(`forceload query ${k}: ${q.trim()}`)
     }
     await new Promise(res => setTimeout(res, 2500)) // entities load a little after their chunk
+    if (ifMissing) { // --if-missing (Playtest.bat's start): leave them when every one is there
+      const now = /count:\s*(\d+)/i.exec(await r.cmd(`${ex} execute if entity @e[type=minecraft:${type},tag=${tag}]`))
+      if (now && Number(now[1]) === list.length) { console.log(`all ${list.length} ${what}s are in the world`); return }
+      console.log(`${what}s in the world: ${now ? now[1] : 0} of ${list.length}: placing them again`)
+    }
     const killed = await r.cmd(`${ex} minecraft:kill @e[type=minecraft:${type},tag=${tag}]`)
     let n = 0
     for (const e of list) {
@@ -762,8 +768,8 @@ if (require.main === module) {
       console.log(`wrote ${file} (${L.length} lines)`)
     } else if (cmd === 'biomes') { if (opt('apply', false)) applyBiomes(W).catch(fail); else console.log(biomeLines(W).join('\n')) }
     else if (cmd === 'paste') paste(W, opt('box', null)).catch(fail)
-    else if (cmd === 'labels') summonAll(W, labels(), 'text_display', common().LABEL_TAG, labelNbt, 'label').catch(fail)
-    else if (cmd === 'displays') summonAll(W, displays(), 'item_display', common().DISPLAY_TAG, displayNbt, 'display').catch(fail)
+    else if (cmd === 'labels') summonAll(W, labels(), 'text_display', common().LABEL_TAG, labelNbt, 'label', !!opt('if-missing', false)).catch(fail)
+    else if (cmd === 'displays') summonAll(W, displays(), 'item_display', common().DISPLAY_TAG, displayNbt, 'display', !!opt('if-missing', false)).catch(fail)
     else fail(`unknown command ${cmd}: check, render, setup, gps, biomes, paste, labels, displays`)
   } catch (e) { fail(e) }
 }

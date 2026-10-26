@@ -143,7 +143,7 @@ const snbt = s => [...s].map(c => {
 const f = n => `${Math.round(n * 1000) / 1000}f`
 
 // A whole number in a command coordinate means the block centre (+0.5): always write the decimals.
-async function placeLabels () {
+async function placeLabels (ifMissing) {
   const rcon = require(path.join(ROOT, 'bots', 'rcon.js'))
   const list = labels()
   const ex = `execute in minecraft:${WORLD} run`
@@ -158,6 +158,11 @@ async function placeLabels () {
     }
     // entities load a little after their chunk: wait, then remove the old labels everywhere they could be
     await new Promise(res => setTimeout(res, 2500))
+    if (ifMissing) { // --if-missing (Playtest.bat's start): leave them when every one is there
+      const now = /count:\s*(\d+)/i.exec(await r.cmd(`${ex} execute if entity @e[type=minecraft:text_display,tag=jail_label]`))
+      if (now && Number(now[1]) === list.length) { console.log(`all ${list.length} labels are in the world`); return }
+      console.log(`labels in the world: ${now ? now[1] : 0} of ${list.length}: placing them again`)
+    }
     const killed = await r.cmd(`${ex} minecraft:kill @e[type=minecraft:text_display,tag=jail_label]`)
     let n = 0
     for (const l of list) {
@@ -199,7 +204,7 @@ function boxed (b, spec) {
 if (require.main === module) {
   const cmd = process.argv[2]
   const fail = e => { console.error(e.message || e); process.exit(1) }
-  if (cmd === 'labels') placeLabels().catch(fail)
+  if (cmd === 'labels') placeLabels(process.argv.includes('--if-missing')).catch(fail)
   else if (cmd === 'check') {
     const r = require('child_process').spawnSync(process.execPath, ['--max-old-space-size=6000', path.join(__dirname, 'jail-escape-check.js'), ...process.argv.slice(3)], { stdio: 'inherit' })
     process.exit(r.status === null ? 1 : r.status)
