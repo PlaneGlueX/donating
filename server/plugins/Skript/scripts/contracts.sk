@@ -408,6 +408,16 @@ function ctParkTick(n: text):
 	if {_near} is true:
 		if ctParkShown({_n}) is false:
 			ctParkShow({_n})
+		else:
+			# Copies saved with the chunk come back when it loads (found 2026-10-21: ~450 car models at the stores, the lag):
+			# keep only this spot's own two.
+			set {_d} to {-ctpark::disp::%{_n}%}
+			set {_b} to {-ctpark::box::%{_n}%}
+			loop all entities in radius 3 of {_l}:
+				if scoreboard tags of loop-entity contain "donating_ctpark":
+					if loop-entity is not {_d}:
+						if loop-entity is not {_b}:
+							kill loop-entity
 	else if {-ctpark::disp::%{_n}%} is set:
 		ctParkHide({_n})
 
