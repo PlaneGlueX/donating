@@ -17,24 +17,12 @@ function voiceClip(who: text, line: text) :: text:
 			return "lefty_the_lot"
 		if {_line} is "First, get yourself sorted.":
 			return "lefty_get_sorted"
-		if {_line} is "The Gun Shop in the yard keeps your knives for when they lock you up again. Melee only in here.":
-			return "lefty_shop_brief"
-		if {_line} is "Smart. Now the fun part.":
-			return "lefty_shop_done"
-		if {_line} is "The cafeteria counter: hold right-click on it and grab me a donut. Everything in here runs on donuts.":
-			return "lefty_donut_brief"
-		if {_line} is "Mm. You'll do.":
-			return "lefty_donut_done"
 		if {_line} is "Putty in the workshop, wires in the supply closet, a timer in the infirmary: hold right-click to search each. Bring me all three and I put it together.":
 			return "lefty_c4_brief"
 		if {_line} is "Careful with that. The vehicle gate by the plaza: hold right-click on it to plant it, and you're in the lot.":
 			return "lefty_c4_done"
 		if {_line} is "Knock a guard down, or ask Rusty in B1: he trades for donuts.":
 			return "lefty_card_brief"
-		if {_line} is "The police station's yard door. Straight through, and the same card opens the gatehouse.":
-			return "lefty_card_done"
-		if {_line} is "That's everything I know. Get to the lot, open the front gate from the booth, and go.":
-			return "lefty_out_brief"
 		if {_line} is "Knew you had it in you. Mara runs things out there: find her.":
 			return "lefty_out_done"
 		if {_line} is "Give me those. There: hold right-click on the vehicle gate by the plaza, then get clear.":
@@ -51,6 +39,32 @@ function voiceClip(who: text, line: text) :: text:
 			return "lefty_not_done"
 		if {_line} is "Got it. Whisper sends his regards, huh.":
 			return "lefty_got_note"
+		if {_line} is "Or skip the gate: there's a hole by the lot's west fence. Dig under it.":
+			return "lefty_skip_gate"
+		if {_line} is "So which way? Talk to me and pick one: I'll walk you through it. And do the odd job for the others in here: it's a head start.":
+			return "lefty_way_brief"
+		if {_line} is "The vehicle gate by the plaza: hold right-click on it with the C4 in hand. Five seconds, get clear, then through the hole before they rebuild it.":
+			return "lefty_c4lot_brief"
+		if {_line} is "The station's yard door opens as your card walks up. Through the lobby, out the south door: that's the lot. The desk guard watches the doors.":
+			return "lefty_police_brief"
+		if {_line} is "The box by the gate between the Gun Shop and the police station: punch it ten times when no guard's near, or show it a keycard. The gate slides open; the crates in the annex take you over the fence.":
+			return "lefty_parkour_brief"
+		if {_line} is "First the lot. No card? The quiet way is the parkour: punch the box by the gate between the Gun Shop and the police station, then over the annex fence.":
+			return "lefty_diglot_brief"
+		if {_line} is "West end of the lot, by the fence: down the ladder, hold right-click on the dirt under the fence, and out the other side before it caves in.":
+			return "lefty_dig_brief"
+		if {_line} is "C4 it is. Find me the putty, the wires and a timer.":
+			return "lefty_way_c4"
+		if {_line} is "A card, then. Get one, and the police station's your door.":
+			return "lefty_way_card"
+		if {_line} is "Over the fence. Watch for guards near that box.":
+			return "lefty_way_parkour"
+		if {_line} is "Digging. Get into the lot first; the hole's by the west fence.":
+			return "lefty_way_dig"
+		if {_line} is "The police station's yard door, the Gun Shop and the gatehouse all open for it.":
+			return "lefty_card_done"
+		if {_line} is "That's everything I know. In the lot, open the front gate from the booth, or climb the ladder over the south fence, and go.":
+			return "lefty_out_brief"
 	else if {_who} is "rusty":
 		if {_line} is "Took you long enough. Name's Rusty.":
 			return "rusty_took_long"
@@ -82,6 +96,56 @@ function voiceClip(who: text, line: text) :: text:
 			return "whisper_cut"
 		if {_line} is "You're not done down there yet.":
 			return "whisper_not_done"
+	else if {_who} is "mara":
+		if {_line} is "New in town? I've got work for someone with nerve. Come see me at the Safehouse.":
+			return "mara_meet_brief"
+		if {_line} is "Heard you broke out. Nice. I've got work for someone with nerve: come see me at the Safehouse.":
+			return "mara_meet_escaped"
+		if {_line} is "So you're the new face.":
+			return "mara_new_face"
+		if {_line} is "No bag, no gun, no ride. Let's fix that.":
+			return "mara_no_bag"
+		if {_line} is "Here's a lockpick. The Scrap Yard Boss pays cash for cars: go see him.":
+			return "mara_lockpick"
+		if {_line} is "Your hands hold $1,000 of loot at most. A Gym Bag holds $2,000: get one at the Bag Shop.":
+			return "mara_bag_brief"
+		if {_line} is "Now you can carry a real haul.":
+			return "mara_bag_done"
+		if {_line} is "Level 5: the Gun Shop will sell you a Classic Pistol now. Time to trade up from the knife.":
+			return "mara_gun_brief"
+		if {_line} is "Nice. Now let's put it to use.":
+			return "mara_gun_done"
+		if {_line} is "Stores are easy money for new faces: no clock. Smack the clerk, grab the register, and duck whatever they throw at you.":
+			return "mara_rob_brief"
+		if {_line} is "That's the spirit. Now get out of there.":
+			return "mara_rob_done"
+		if {_line} is "Loot's worth nothing in a bag. Take it to the base: your GPS knows the way.":
+			return "mara_sell_brief"
+		if {_line} is "Cash in hand. Feels good, huh? Here's a crate key for your trouble.":
+			return "mara_sell_done"
+		if {_line} is "Guns need a name on the street: level 5. Until then, a knife from the Gun Shop.":
+			return "mara_knife_brief"
+		if {_line} is "Keep it sharp.":
+			return "mara_knife_done"
+		if {_line} is "Use that key at a crate stand. And grab /daily every day: free keys.":
+			return "mara_crate_brief"
+		if {_line} is "Lucky you.":
+			return "mara_crate_done"
+		if {_line} is "Keep robbing and selling. Level 5 opens your first gun, the Safe Kit, Street jobs, the Duffel Bag and the medium heists.":
+			return "mara_level_brief"
+		if {_line} is "Level 5 already? Come by the Safehouse. I've got something for you.":
+			return "mara_end_brief"
+		if {_line} is "You've got talent. Most rookies don't make it this far.":
+			return "mara_talent"
+		if {_line} is "Safes hold the good stuff. Here's a Safe Kit: guess the code, green means right.":
+			return "mara_safes"
+	else if {_who} is "sparks":
+		if {_line} is "Sharp end out. You didn't get it from me.":
+			return "sparks_shiv"
+		if {_line} is "Keep 'em at arm's length. Longer than that, even.":
+			return "sparks_spear"
+		if {_line} is "Heavy. Swing it like you mean it.":
+			return "sparks_club"
 	return ""
 
 # A clip's length in ticks (rounded up; 0 = no such clip).
@@ -96,24 +160,12 @@ function voiceTicks(clip: text) :: number:
 		return 170
 	if {_clip} is "lefty_get_sorted":
 		return 52
-	if {_clip} is "lefty_shop_brief":
-		return 117
-	if {_clip} is "lefty_shop_done":
-		return 60
-	if {_clip} is "lefty_donut_brief":
-		return 127
-	if {_clip} is "lefty_donut_done":
-		return 44
 	if {_clip} is "lefty_c4_brief":
 		return 194
 	if {_clip} is "lefty_c4_done":
 		return 140
 	if {_clip} is "lefty_card_brief":
 		return 100
-	if {_clip} is "lefty_card_done":
-		return 106
-	if {_clip} is "lefty_out_brief":
-		return 111
 	if {_clip} is "lefty_out_done":
 		return 93
 	if {_clip} is "lefty_c4_assemble":
@@ -158,8 +210,82 @@ function voiceTicks(clip: text) :: number:
 		return 47
 	if {_clip} is "whisper_not_done":
 		return 52
+	if {_clip} is "mara_meet_brief":
+		return 104
+	if {_clip} is "mara_meet_escaped":
+		return 120
+	if {_clip} is "mara_new_face":
+		return 42
+	if {_clip} is "mara_no_bag":
+		return 84
+	if {_clip} is "mara_lockpick":
+		return 95
+	if {_clip} is "mara_bag_brief":
+		return 151
+	if {_clip} is "mara_bag_done":
+		return 55
+	if {_clip} is "mara_gun_brief":
+		return 122
+	if {_clip} is "mara_gun_done":
+		return 60
+	if {_clip} is "mara_rob_brief":
+		return 151
+	if {_clip} is "mara_rob_done":
+		return 55
+	if {_clip} is "mara_sell_brief":
+		return 100
+	if {_clip} is "mara_sell_done":
+		return 98
+	if {_clip} is "mara_knife_brief":
+		return 116
+	if {_clip} is "mara_knife_done":
+		return 28
+	if {_clip} is "mara_crate_brief":
+		return 109
+	if {_clip} is "mara_crate_done":
+		return 39
+	if {_clip} is "mara_level_brief":
+		return 173
+	if {_clip} is "mara_end_brief":
+		return 96
+	if {_clip} is "mara_talent":
+		return 79
+	if {_clip} is "mara_safes":
+		return 116
+	if {_clip} is "lefty_skip_gate":
+		return 96
+	if {_clip} is "lefty_way_brief":
+		return 149
+	if {_clip} is "lefty_c4lot_brief":
+		return 183
+	if {_clip} is "lefty_police_brief":
+		return 181
+	if {_clip} is "lefty_parkour_brief":
+		return 244
+	if {_clip} is "lefty_diglot_brief":
+		return 200
+	if {_clip} is "lefty_dig_brief":
+		return 173
+	if {_clip} is "lefty_way_c4":
+		return 88
+	if {_clip} is "lefty_way_card":
+		return 82
+	if {_clip} is "lefty_way_parkour":
+		return 71
+	if {_clip} is "lefty_way_dig":
+		return 90
+	if {_clip} is "sparks_shiv":
+		return 82
+	if {_clip} is "sparks_spear":
+		return 77
+	if {_clip} is "sparks_club":
+		return 95
+	if {_clip} is "lefty_card_done":
+		return 104
+	if {_clip} is "lefty_out_brief":
+		return 154
 	return 0
 
 # Every clip (the tests).
 function voiceClips() :: texts:
-	return "lefty_meet", "lefty_nobody_stays", "lefty_three_ways", "lefty_the_lot", "lefty_get_sorted", "lefty_shop_brief", "lefty_shop_done", "lefty_donut_brief", "lefty_donut_done", "lefty_c4_brief", "lefty_c4_done", "lefty_card_brief", "lefty_card_done", "lefty_out_brief", "lefty_out_done", "lefty_c4_assemble", "lefty_yardrun", "lefty_one_at_a_time", "lefty_free_hand", "lefty_chocolate", "lefty_not_done", "lefty_got_note", "rusty_took_long", "rusty_knife", "rusty_phone", "rusty_security", "rusty_donut_ask", "rusty_trade", "rusty_do_what_i_said", "rusty_got_note", "tank_distraction", "tank_not_done", "tank_got_note", "whisper_stash", "whisper_cut" and "whisper_not_done"
+	return "lefty_meet", "lefty_nobody_stays", "lefty_three_ways", "lefty_the_lot", "lefty_get_sorted", "lefty_c4_brief", "lefty_c4_done", "lefty_card_brief", "lefty_out_done", "lefty_c4_assemble", "lefty_yardrun", "lefty_one_at_a_time", "lefty_free_hand", "lefty_chocolate", "lefty_not_done", "lefty_got_note", "rusty_took_long", "rusty_knife", "rusty_phone", "rusty_security", "rusty_donut_ask", "rusty_trade", "rusty_do_what_i_said", "rusty_got_note", "tank_distraction", "tank_not_done", "tank_got_note", "whisper_stash", "whisper_cut", "whisper_not_done", "mara_meet_brief", "mara_meet_escaped", "mara_new_face", "mara_no_bag", "mara_lockpick", "mara_bag_brief", "mara_bag_done", "mara_gun_brief", "mara_gun_done", "mara_rob_brief", "mara_rob_done", "mara_sell_brief", "mara_sell_done", "mara_knife_brief", "mara_knife_done", "mara_crate_brief", "mara_crate_done", "mara_level_brief", "mara_end_brief", "mara_talent", "mara_safes", "lefty_skip_gate", "lefty_way_brief", "lefty_c4lot_brief", "lefty_police_brief", "lefty_parkour_brief", "lefty_diglot_brief", "lefty_dig_brief", "lefty_way_c4", "lefty_way_card", "lefty_way_parkour", "lefty_way_dig", "sparks_shiv", "sparks_spear", "sparks_club", "lefty_card_done" and "lefty_out_brief"
