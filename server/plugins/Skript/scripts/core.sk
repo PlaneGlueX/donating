@@ -463,8 +463,9 @@ function loadSettings():
 	set {-cfg::contract::refresh} to 10 minutes
 	# Every car spot shows a parked car (contracts.sk), a new one this often unless a job holds the spot (owner, 2026-10-21:
 	# "non owned/player cars despawn and get replaced with a new one every 5 minutes (unless a player is driving or trying
-	# to unlock it)"); drawn while a player is within park-range blocks.
-	set {-cfg::contract::park-refresh} to 5 minutes
+	# to unlock it)"); 30 real minutes since (owner, the same day: "every real life 30 minutes (less lag)"); drawn while a
+	# player is within park-range blocks.
+	set {-cfg::contract::park-refresh} to 30 minutes
 	set {-cfg::contract::park-range} to 80
 	# The lock-picking minigame (like the drill's, loot.sk): the marker moves one slot every qte-step
 	# ticks; clicks are ignored this many ticks after a hit / a miss.
