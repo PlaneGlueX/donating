@@ -129,7 +129,7 @@ module.exports = async ({ check }) => {
     b0 = await bal(M1)
     const wm = await menu(m1, LEFTY)
     const wayNames = wm ? [10, 12, 14, 16].map(i => JSON.stringify(wm.slots[i] || '')) : []
-    check('l_way: talking to Lefty opens his menu: C4, a keycard, the parkour, the dugout, and the head start 0/5', wm && /C4/.test(wayNames[0]) && /keycard/.test(wayNames[1]) && /fence by the Gun Shop/.test(wayNames[2]) && /Dig under/.test(wayNames[3]) && /Head start.*0\/5/.test(JSON.stringify(wm.slots[22] || '')), `${wm && JSON.stringify(wm.title)} | ${wayNames.join(' / ').slice(0, 500)}`)
+    check('l_way: talking to Lefty opens his menu: C4, a keycard, the parkour, the dugout, and the head start 0/5', wm && /C4/.test(wayNames[0]) && /keycard/.test(wayNames[1]) && /fence by the Gun Shop/.test(wayNames[2]) && /Dig under/.test(wayNames[3]) && /Head start/.test(JSON.stringify(wm.slots[22] || '')) && /"0\/5"/.test(JSON.stringify(wm.slots[22] || '')), `${wm ? [10, 12, 14, 16, 22].map(i => `${i}:` + [...JSON.stringify(wm.slots[i] || '').matchAll(/"value":"([^"]{3,})"/g)].map(m => m[1]).filter(v => !/^(dark_gray|red|gray|yellow|aqua|green|gold|white)$/.test(v)).join('~')).join(' / ') : 'no menu'}`)
     if (wm) m1.clickWindow(10, 0, 0).catch(() => {})
     const way = await until(async () => /id=l_c4/.test(await story(M1, 'lefty')), 8000, 500)
     check('...picking C4: l_way passes (+$50), next l_c4 (data lefty-way = c4)', way && (await bal(M1)) === b0 + 50 && /= c4$/.test(await cmd(`zzdata ${M1} lefty-way`)), `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} ${await cmd(`zzdata ${M1} lefty-way`)}`)
@@ -164,7 +164,9 @@ module.exports = async ({ check }) => {
     check('...Sparks makes a Shiv: a head-start job ticked ("Head start 1/5"), in /prison too, the lesson still l_c4', crafted && said(m1, /Head start 1\/5/, since) && /id=l_c4/.test(await story(M1, 'lefty')), `${t.text(m1, since).slice(0, 400)} | ${await story(M1, 'lefty')}`)
     // The Shiv out of hotbar 1-5 again (the C4 below needs the room).
     for (const sl of [0, 1, 2, 3, 4]) await cmd(`minecraft:item replace entity ${M1} hotbar.${sl} with minecraft:air`)
-    // l_c4: the GPS on the nearest part the bot lacks, then on Lefty, who puts it together.
+    // l_c4: the GPS on the nearest part the bot lacks, then on Lefty, who puts it together (from Lefty's spot: the
+    // wires, then the timer; at Sparks the putty would be nearest).
+    await jtp(M1, ...LEFTY_STAND)
     await sleep(2000)
     const g1 = await gps(M1)
     await cmd(`zzjail ${M1} give wires`)
@@ -269,7 +271,8 @@ module.exports = async ({ check }) => {
     t.logs.prison.mark()
     await escape(m2, M2)
     const fin = await until(async () => /id=done/.test(await story(M2, 'lefty')), 12000, 500)
-    check('an escape during l_c4lot finishes Lefty\'s chain: l_out paid (+$250)', fin && (await bal(M2)) === b0 + 250, `${await story(M2, 'lefty')} bal ${await bal(M2)} vs ${b0}`)
+    // The escape crosses the lot first, so l_c4lot may pay its $100 before l_out's $250.
+    check('an escape during l_c4lot finishes Lefty\'s chain: l_out paid (+$250; l_c4lot\'s $100 too when the way out crossed the lot)', fin && [b0 + 250, b0 + 350].includes(await bal(M2)), `${await story(M2, 'lefty')} bal ${await bal(M2)} vs ${b0}`)
     // Replayed: l_meet, skipped (never paid: the staff set and the escape jumped past it), pays the first time.
     await sleep(1500)
     since = Date.now()

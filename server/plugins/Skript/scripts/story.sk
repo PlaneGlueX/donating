@@ -383,6 +383,30 @@ function storyEvent(p: player, ev: text, n: number, detail: text):
 	loop {-cfg::story::chains::*}:
 		storyEventOf({_p}, loop-value, {_ev}, {_n}, {_detail})
 
+# The mission a finish-on event jumps to: the last one counting that event for the player's way out (Lefty's l_out for
+# the gate, keycard and parkour, l_dig for the dugout). No way picked, or a way that has none: the way they really took
+# (the event's detail, else the chain's first way) becomes theirs, so its last mission pays.
+function storyFinishId(p: player, c: text, fo: text, detail: text) :: text:
+	set {_fit} to ""
+	loop 2 times:
+		if {_fit} is "":
+			loop storyList({_c}):
+				set {_o} to {-cfg::story::%loop-value-2%::obj}
+				if "%{_o}%" starts with "ev|%{_fo}%":
+					if {-cfg::story::%loop-value-2%::retired} is not true:
+						if storyWayFits({_p}, loop-value-2) is true:
+							set {_fit} to loop-value-2
+			if {_fit} is "":
+				set {_k} to {-cfg::chain::%{_c}%::way-key}
+				if {_k} is set:
+					set {_w} to first element out of {-cfg::chain::%{_c}%::ways::*}
+					if {-cfg::chain::%{_c}%::ways::*} contains {_detail}:
+						set {_w} to {_detail}
+					setData({_p}, "%{_k}%", {_w})
+	if {_fit} is "":
+		set {_fit} to last element out of storyList({_c})
+	return {_fit}
+
 function storyEventOf(p: player, c: text, ev: text, n: number, detail: text):
 	set {_id} to storyIdOf({_p}, {_c})
 	storyLive({_id}) is true
@@ -390,7 +414,7 @@ function storyEventOf(p: player, c: text, ev: text, n: number, detail: text):
 	set {_fo} to {-cfg::chain::%{_c}%::finish-on}
 	if {_fo} is set:
 		if {_fo} is {_ev}:
-			set {_last} to last element out of storyList({_c})
+			set {_last} to storyFinishId({_p}, {_c}, {_fo}, {_detail})
 			if {_id} is not {_last}:
 				setData({_p}, storyKey({_c}), {_last})
 				storyClearOf({_p}, {_c})
