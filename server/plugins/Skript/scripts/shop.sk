@@ -541,6 +541,8 @@ function button(p: player, slot: number, i: item, act: text):
 	if {_c} is set:
 		if {_c} starts with "%{_act}%@":
 			set {_i} to confirmItem({_p}, {_i}, {_act})
+		else if {_c} starts with "sell%{_act}%@":
+			set {_i} to confirmItem({_p}, {_i}, "sell%{_act}%")
 	set slot {_slot} of {-shop::gui::%{_p}%} to {_i}
 	set {-shop::act::%{_p}%::%{_slot}%} to {_act}
 
@@ -553,6 +555,8 @@ function confirmItem(p: player, i: item, act: text) :: item:
 		set {_status} to "&eClick again to confirm."
 	if {_act} starts with "hot:":
 		set {_c} to red concrete named "&c&lThrow away?" with lore "&7%{_what}%" and {_status}
+	else if {_act} starts with "sell":
+		set {_c} to orange concrete named "&6&lSell it?" with lore "&7%{_what}%" and {_status}
 	else:
 		set {_c} to lime concrete named "&a&lConfirm purchase?" with lore "&7%{_what}%" and {_status}
 	return tagItem({_c}, "shopicon:confirm")
@@ -751,11 +755,15 @@ function renderGun(p: player):
 				add "&7%{_ammoname}% · %{_mag}%/mag" to {_lore::*}
 			if getData({_p}, "wpn::%{_w}%") is true:
 				add "&aOwned" to {_lore::*}
+				set {_sm} to formatMoney(wpnSellPrice({_p}, {_w}))
+				add "&7Right-click: sell for %{_sm}%" to {_lore::*}
 			else:
 				set {_money} to formatMoney(cfg("wpn::%{_w}%::price"))
 				add "&e%{_money}%" to {_lore::*}
 				set {_need} to wpnLevel({_w})
-				if levelOk({_p}, {_need}) is false:
+				if getData({_p}, "wpn::%{_w}%") is "sold":
+					add "&7Sold: no level needed" to {_lore::*}
+				else if levelOk({_p}, {_need}) is false:
 					add "&cNeeds level %{_need}%" to {_lore::*}
 			# The look worn on it (cosmetics.sk's gun skins), only when it isn't the gun's own.
 			if {-cfg::gunskin::guns::*} contains {_w}:
@@ -897,6 +905,8 @@ function renderBag(p: player):
 		add {_hold} to {_lore::*}
 		if {_t} is {_carry}:
 			add "&aCarrying it" to {_lore::*}
+			set {_sm} to formatMoney(bagSellPrice({_t}))
+			add "&7Right-click: sell for %{_sm}%" to {_lore::*}
 		else if {_t} <= {_best}:
 			# Unlocked: a new one of this tier costs the replacement price.
 			set {_money} to formatMoney(cfg("bag::%{_t}%::replace"))
@@ -978,6 +988,9 @@ on inventory click:
 		set {_ok} to true
 	else if click type is right mouse button:
 		set {_ok} to true
+		# A right-click on a weapon (the Weapons tab) or a bag sells it back (sellWeapon, sellBag).
+		if {_act} starts with "buy:" or "bag:":
+			set {_act} to "sell%{_act}%"
 	{_ok} is true
 	set {_gen} to {-shop::gen::%player%}
 	wait 1 tick
@@ -1058,6 +1071,10 @@ function shopAction(p: player, act: text, shift: boolean):
 		buyBag({_p}, {_parts::2} parsed as number)
 	else if {_what} is "tool":
 		buyTool({_p}, {_parts::2}, {_shift})
+	else if {_what} is "sellbuy":
+		sellWeapon({_p}, {_parts::2})
+	else if {_what} is "sellbag":
+		sellBag({_p}, {_parts::2} parsed as number)
 	else if {_what} is "save":
 		saveLoadout({_p})
 	else if {_what} is "restore":
@@ -1084,6 +1101,8 @@ function shopJailBlock(p: player, act: text) :: text:
 			return "Unlock weapons once you're out. In here you can take out the weapons you own."
 	if {_a::1} is "save":
 		return "Save it once you're out."
+	if {_a::1} is "sellbuy" or "sellbag":
+		return "Sell it once you're out."
 	if {_a::1} is "ammo" or "con" or "tool" or "gear" or "bag" or "restore":
 		return "Not inside the walls: do that once you're out."
 	return ""
@@ -1107,11 +1126,13 @@ function buyWeapon(p: player, w: text):
 		else:
 			shopFail({_p}, "Couldn't equip the %{_name}%.")
 		stop
-	# Owner, 2026-09-27: melee first; each weapon's first unlock needs its level (owning one never does).
-	set {_need} to wpnLevel({_w})
-	if levelOk({_p}, {_need}) is false:
-		shopFail({_p}, "The %{_name}% needs level %{_need}% (%levelName({_need})%).")
-		stop
+	# Owner, 2026-09-27: melee first; each weapon's first unlock needs its level (owning one never does). One sold back
+	# (sellWeapon, data "sold") keeps its unlock: buying it again costs the full price but needs no level.
+	if getData({_p}, "wpn::%{_w}%") is not "sold":
+		set {_need} to wpnLevel({_w})
+		if levelOk({_p}, {_need}) is false:
+			shopFail({_p}, "The %{_name}% needs level %{_need}% (%levelName({_need})%).")
+			stop
 	set {_price} to cfg("wpn::%{_w}%::price")
 	if needsConfirm({_p}, "buy:%{_w}%", {_price}, false) is true:
 		stop
@@ -1121,6 +1142,7 @@ function buyWeapon(p: player, w: text):
 		shopFail({_p}, "The %{_name}% costs %{_money}%.")
 		stop
 	setData({_p}, "wpn::%{_w}%", true)
+	setData({_p}, "wpn-paid::%{_w}%", {_price})
 	shopLog({_p}, "unlock %{_w}%", {_price})
 	set {_slot} to freeLoadoutSlot({_p})
 	if {_slot} >= 0:
@@ -1516,6 +1538,74 @@ function buyBag(p: player, t: number):
 	shopLog({_p}, "bag %{_t}%", {_price})
 	shopOk({_p}, "You're carrying the %{_name}%.")
 
+# ---------- Selling back ----------
+# Owner, 2026-10-22: a gun or the bag sells back at the gun and bag shops for 50% (shop::sell-share); "selling does not
+# remove the initial buy unlock that costs more, but the user still has to buy it again". A gun pays half of what was
+# last paid for it (data wpn-paid; a free one, Rusty's knife or a staff unlock, 0; one unlocked before this, its price)
+# and buying it again costs the full price with no level check (data wpn::<W> "sold"). A bag pays half of a new one of
+# its tier (the replacement price: the unlock's extra stays with the player, so selling a just-unlocked bag and buying it
+# back gains nothing); buying it again costs that price. Never while carrying loot or in combat (shopBlockReason).
+
+function wpnSellPrice(p: player, w: text) :: number:
+	set {_paid} to getData({_p}, "wpn-paid::%{_w}%")
+	if {_paid} is not set:
+		set {_paid} to cfg("wpn::%{_w}%::price")
+	return floor({_paid} * cfg("shop::sell-share"))
+
+function bagSellPrice(t: number) :: number:
+	return floor(cfg("bag::%{_t}%::replace") * cfg("shop::sell-share"))
+
+function sellWeapon(p: player, w: text):
+	set {_name} to cfg("wpn::%{_w}%::name")
+	if getData({_p}, "wpn::%{_w}%") is not true:
+		shopFail({_p}, "You don't own the %{_name}%.")
+		stop
+	if shopBagLoot({_p}) > 0:
+		shopFail({_p}, "Not while you carry loot.")
+		stop
+	set {_get} to wpnSellPrice({_p}, {_w})
+	if {_get} is not set:
+		shopFail({_p}, "Selling is off right now.")
+		stop
+	set {_money} to formatMoney({_get})
+	if needsConfirm({_p}, "sellbuy:%{_w}%", 0, true) is true:
+		shopStatus({_p}, "&6Right-click again: sell the %{_name}% for %{_money}%.")
+		stop
+	# No wait: out of the hotbar, the unlock marked sold, then paid.
+	loop integers from 0 to 4:
+		if wmTitle(slot loop-value of {_p}'s inventory) is {_w}:
+			set slot loop-value of {_p}'s inventory to air
+	delete {-shop::sel::%{_p}%}
+	setData({_p}, "wpn::%{_w}%", "sold")
+	deleteData({_p}, "wpn-paid::%{_w}%")
+	giveMoney({_p}, {_get})
+	shopLog({_p}, "sell %{_w}%", {_get})
+	set {_full} to formatMoney(cfg("wpn::%{_w}%::price"))
+	shopOk({_p}, "Sold the %{_name}% for %{_money}%. Buying it again: %{_full}%.")
+
+function sellBag(p: player, t: number):
+	set {_name} to cfg("bag::%{_t}%::name")
+	if getData({_p}, "bag-tier") is not {_t}:
+		shopFail({_p}, "You're not carrying the %{_name}%.")
+		stop
+	if shopBagLoot({_p}) > 0:
+		shopFail({_p}, "Sell your loot at the base first.")
+		stop
+	set {_get} to bagSellPrice({_t})
+	if {_get} is not set:
+		shopFail({_p}, "Selling is off right now.")
+		stop
+	set {_money} to formatMoney({_get})
+	if needsConfirm({_p}, "sellbag:%{_t}%", 0, true) is true:
+		shopStatus({_p}, "&6Right-click again: sell the %{_name}% for %{_money}%.")
+		stop
+	setData({_p}, "bag-best", bestBag({_p}))
+	deleteData({_p}, "bag-tier")
+	applyBag({_p})
+	giveMoney({_p}, {_get})
+	shopLog({_p}, "sell bag %{_t}%", {_get})
+	shopOk({_p}, "Sold the %{_name}% for %{_money}%. Your hands carry the loot now.")
+
 # ---------- Commands ----------
 
 # Console only: bots and Citizens NPCs ("dshop open <p> gun"); staff support (unlock/lock).
@@ -1538,6 +1628,7 @@ command /dshop <text> <player> [<text>]:
 			send "SHOP opened %arg-3% for %arg-2%"
 		else if arg-1 is "unlock":
 			setData(arg-2, "wpn::%arg-3%", true)
+			setData(arg-2, "wpn-paid::%arg-3%", 0)
 			shopLog(arg-2, "staff unlock %arg-3%", 0)
 			send "SHOP unlocked %arg-3% for %arg-2%"
 		else if arg-1 is "lock":

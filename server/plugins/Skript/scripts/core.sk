@@ -1345,6 +1345,8 @@ function loadSettings():
 	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
 	# Purchases at or above this price need a second click within the window.
 	set {-cfg::shop::confirm-above} to 1000
+	# Selling a gun or the carried bag back to the shop (owner, 2026-10-22: "50% of the buying price"; shop.sk sellWeapon, sellBag).
+	set {-cfg::shop::sell-share} to 0.5
 	set {-cfg::shop::confirm-window} to 5 seconds
 	# Restore buys ammo up to this many magazines per saved gun (capped at the type's max).
 	set {-cfg::shop::restock-mags} to 3

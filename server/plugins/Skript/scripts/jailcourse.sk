@@ -218,6 +218,9 @@ function jcRusty(p: player):
 	# Still on this step of the course (a /tutorial stop in the 2 s ends it: no knife, no unlock, no prompt; review fix).
 	jailState({_p}) is "course"
 	jcStepOf({_p}) is "hotbar"
+	# A free knife sells back for nothing (shop.sk sellWeapon reads wpn-paid).
+	if getData({_p}, "wpn::Combat_Knife") is not true:
+		setData({_p}, "wpn-paid::Combat_Knife", 0)
 	setData({_p}, "wpn::Combat_Knife", true)
 	if loadoutSlotOf({_p}, "wpn:Combat_Knife") >= 0:
 		# Already carrying one (owner, 2026-10-21: "if a needed item is already in the inventory, skip the step or say so").
