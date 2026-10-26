@@ -107,13 +107,18 @@ module.exports = async ({ check }) => {
     await sleep(2500)
 
     // ---------- The Car Dealer ----------
+    // Models more than phone::reveal-levels (5) above the player's level stay hidden (owner, 2026-10-22).
     let w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
+    check('at level 0 the Car Dealer hides every car (the Sedan needs 20) and says how many there are', w && !/Sedan/.test(JSON.stringify(w.slots)) && w.slots[18] && /more at higher levels/.test(itemText(w.slots[18])), `${itemText(w && w.slots[10]).slice(0, 100)} | ${itemText(w && w.slots[18]).slice(0, 100)}`)
+    await closeAll(A)
+    await cmd(`dlevel set ${A} 15`)
+    w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
     check('the Car Dealer lists the cars for sale (not the crate cars), drawn as cars', w && /Car Dealer/.test(JSON.stringify(w.title)) && w.slots[10] && w.slots[10].name === 'diamond_hoe' && /Sedan/.test(itemText(w.slots[10])) && !/Vandal/.test(JSON.stringify(w.slots)), `${JSON.stringify(w && w.title)} ${itemText(w && w.slots[10]).slice(0, 200)}`)
     w = await click(A, 10)
     let t = Date.now()
     await click(A, 10)
     await sleep(500)
-    check('a car above your level is refused (Sedan: level 20)', /needs level 20/.test(text(A, t)) && (await bal(A)) === 100000, text(A, t))
+    check('at level 15 the Sedan shows, and a car above your level is refused (Sedan: level 20)', /needs level 20/.test(text(A, t)) && (await bal(A)) === 100000, text(A, t))
     await closeAll(A)
     await cmd(`dlevel set ${A} 20`)
     await sleep(1500)

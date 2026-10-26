@@ -1350,9 +1350,18 @@ function garageDealer(p: player):
 	carClearGui({_p})
 	carPane({_gui}, 3)
 	set {_slot} to 10
+	set {_hid} to 0
 	loop {-cfg::cars::*}:
 		set {_id} to loop-value
+		set {_see} to true
+		# Models far above the player's level stay hidden until they get near it (phone.sk phoneSeesLevel).
 		if carIsCrate({_id}) is false:
+			if phoneSeesLevel({_p}, carLevelOf({_id})) is false:
+				if carModelCount({_p}, {_id}) is 0:
+					set {_see} to false
+					add 1 to {_hid}
+		if carIsCrate({_id}) is false:
+			{_see} is true
 			set {_pr} to {-cfg::car::%{_id}%::price}
 			set {_price} to formatMoney({_pr})
 			set {_need} to carLevelOf({_id})
@@ -1373,6 +1382,8 @@ function garageDealer(p: player):
 			add 1 to {_slot}
 			if {_slot} is 17:
 				set {_slot} to 19
+	if {_hid} > 0:
+		set slot 18 of {_gui} to paper named "&7%{_hid}% more at higher levels"
 	carButton({_p}, {_gui}, 26, barrier named "&cClose", "close")
 	carOpen({_p}, {_gui})
 

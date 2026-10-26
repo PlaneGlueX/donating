@@ -613,6 +613,9 @@ function loadSettings():
 	# A heist order pays heist::rate on up to L1 = min(cap::<d>, pool-share x the pool) of your own loot from it; a
 	# difficulty order diff::rate on up to cap::<d> of your own loot from heists that hard; a car order a flat pay once.
 	set {-cfg::fence::level} to 45
+	# The phone, the GPS's lists, the gun shop and the Car Dealer show heists, quests, guns and cars at most this many
+	# levels above the player's (owner, 2026-10-22: hide what's still far off; phone.sk phoneSeesLevel).
+	set {-cfg::phone::reveal-levels} to 5
 	set {-cfg::fence::heist::rate} to 0.3
 	set {-cfg::fence::heist::min-difficulty} to 2
 	set {-cfg::fence::heist::pool-share} to 0.5

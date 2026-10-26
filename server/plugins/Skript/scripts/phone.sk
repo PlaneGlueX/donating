@@ -119,6 +119,35 @@ function backItem(to: text) :: item:
 function phoneBackItem() :: item:
 	return arrow named "&f◀ Phone"
 
+# What the phone shows while a player is still unlocking things (owner, 2026-10-22: "hide a lot of the level/higher
+# knowledge restricted things on their phone until they unlock it"; by story and level). Free = never a prisoner of an
+# active prison, or escaped once (a death respawns in the prison as "in" again: the apps stay).
+function phoneFree(p: player) :: boolean:
+	if prisonIn({_p}) is false:
+		return true
+	set {_n} to getData({_p}, "jail-escapes")
+	if {_n} is set:
+		if {_n} > 0:
+			return true
+	return false
+
+# A level the phone may show: at most phone::reveal-levels (5) above the player's.
+function phoneSeesLevel(p: player, lvl: number) :: boolean:
+	set {_r} to {-cfg::phone::reveal-levels}
+	if {_r} is not set:
+		set {_r} to 5
+	if {_lvl} <= levelOf({_p}) + {_r}:
+		return true
+	return false
+
+# Mara's chain is on mission id now or got past it.
+function phoneStoryAt(p: player, id: text) :: boolean:
+	if storyIdOf({_p}, "story") is {_id}:
+		return true
+	if storyReached({_p}, {_id}) is true:
+		return true
+	return false
+
 # The phone's home screen (2026-09-29, owner: "make a phone style apps menu (its very cluttered right now)" and "most
 # people can use context clues"): a phone drawn by the title (ui.sk), apps on its screen (columns 2-6 of a 6-row chest),
 # the dock (row 4) and the home button (slot 49: Close). Each app is its name, plus only what's live: unread texts as
@@ -126,7 +155,8 @@ function phoneBackItem() :: item:
 # the GPS's Quests (gps.sk), where their menus open. Clicks go by the item's id ("phone:<app>"), not by the slot.
 function openPhone(p: player):
 	set {_gui} to chest inventory with 6 rows named phoneTitle("home", phoneClock({_p}))
-	# Row 0: Crates, Cosmetics, Season, Bounties, you.
+	set {_free} to phoneFree({_p})
+	# Row 0: Crates, Cosmetics, Season, Bounties, you (the first four once out of the prison).
 	set {_keys} to 0
 	loop {-cfg::crates::*}:
 		add crateKeys({_p}, loop-value) to {_keys}
@@ -139,20 +169,23 @@ function openPhone(p: player):
 		set {_i} to glint({_i})
 	if {_l::*} is set:
 		set lore of {_i} to {_l::*}
-	set slot 2 of {_gui} to tagItem({_i}, "phone:crates")
-	set slot 3 of {_gui} to tagItem(appIcon("cosmetics", "&fCosmetics"), "phone:cosmetics")
+	if {_free} is true:
+		set slot 2 of {_gui} to tagItem({_i}, "phone:crates")
+		set slot 3 of {_gui} to tagItem(appIcon("cosmetics", "&fCosmetics"), "phone:cosmetics")
 	set {_i} to appIcon("season", "&fSeason")
 	set {_s} to {-ph::season::%{_p}%}
 	if {_s} is set:
 		if "%{_s}%" is not "&r":
 			set lore of {_i} to colored "&7%{_s}%"
-	set slot 4 of {_gui} to tagItem({_i}, "phone:season")
+	if {_free} is true:
+		set slot 4 of {_gui} to tagItem({_i}, "phone:season")
 	set {_i} to appIcon("bounties", "&fBounties")
 	set {_b} to getData({_p}, "bounty")
 	if {_b} is set:
 		if {_b} > 0:
 			set lore of {_i} to "&7Yours: &c%formatMoney({_b})%"
-	set slot 5 of {_gui} to tagItem({_i}, "phone:bounties")
+	if {_free} is true:
+		set slot 5 of {_gui} to tagItem({_i}, "phone:bounties")
 	set slot 6 of {_gui} to phoneStats({_p})
 	# Row 1: passive mode, how to play.
 	set slot 11 of {_gui} to phonePassive({_p})
@@ -173,7 +206,8 @@ function openPhone(p: player):
 			if "%{_m}%" is not "":
 				set lore of {_i} to colored "%{_m}%"
 	set slot 40 of {_gui} to tagItem({_i}, "phone:missions")
-	set slot 41 of {_gui} to tagItem(appIcon("garage", "&fGarage"), "phone:garage")
+	if {_free} is true:
+		set slot 41 of {_gui} to tagItem(appIcon("garage", "&fGarage"), "phone:garage")
 	set {_i} to appIcon("bag", "&fBag")
 	set lore of {_i} to "&f%formatMoney(bagTotal({_p}))% &7/ %formatMoney(bagCapacity({_p}))%"
 	set slot 42 of {_gui} to tagItem({_i}, "phone:bag")

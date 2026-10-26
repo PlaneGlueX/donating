@@ -151,8 +151,20 @@ module.exports = async ({ check }) => {
     check('right-clicking the phone: step office', phoned, await info(A))
     check('the office step told: "The Security Office"', await until(() => said(a, /The Security Office/), 2000))
     check('...and Rusty\'s door opens', await doorOpen('rusty'), await door('rusty'))
+    // F with the phone: a prisoner who never escaped sees no Crates, Cosmetics, Season, Bounties or Garage (owner,
+    // 2026-10-22: hide what isn't unlocked yet). The map is closed first (F with it open would close it).
     a.activateItem()
     await sleep(500)
+    {
+      const opened = new Promise(res => { const t = setTimeout(() => res(null), 3000); a.once('windowOpen', w => { clearTimeout(t); res(w) }) })
+      a._client.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: 0 })
+      const w = await opened
+      await sleep(300)
+      const names = w ? w.slots.slice(0, 54).map(it => (it ? JSON.stringify(it.customName || '') : '')).join(' ') : ''
+      check('a prisoner\'s phone hides Crates, Cosmetics, Season, Bounties and Garage (Messages, GPS and Missions stay)', Boolean(w) && /GPS/.test(names) && /Messages/.test(names) && !/Crates|Cosmetics|Season|Bounties|Garage/.test(names), names.slice(0, 400))
+      if (a.currentWindow) a.closeWindow(a.currentWindow)
+      await sleep(300)
+    }
     a.setQuickBarSlot(2)
 
     // ---- the Security Office: its outside reader, the ladder hatch, upstairs, the SECURITY door, Hall B

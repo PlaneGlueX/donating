@@ -410,7 +410,8 @@ function gpsMenu(p: player):
 	set {_i} to appIcon("heists", "&fHeists")
 	if {_open} > 0:
 		set lore of {_i} to "&a%{_open}% open"
-	gpsButton({_p}, {_gui}, 12, {_i}, "cat:heists:1")
+	if phoneFree({_p}) is true:
+		gpsButton({_p}, {_gui}, 12, {_i}, "cat:heists:1")
 	gpsButton({_p}, {_gui}, 13, appIcon("shops", "&fShops"), "cat:shops:1")
 	gpsButton({_p}, {_gui}, 14, appIcon("places", "&fPlaces"), "cat:places:1")
 	# Your car, when one is out.
@@ -442,25 +443,38 @@ function gpsDist(p: player, l: location) :: text:
 function gpsEntries(p: player, cat: text) :: texts:
 	set {_u} to "%uuid of {_p}%"
 	if {_cat} is "quests":
+		# Each quest shows once the story or the player's level gets near it (phone.sk phoneFree, phoneSeesLevel).
+		if phoneFree({_p}) is false:
+			return {_out::*}
 		# Mara's missions.
 		set {_line} to storyLine({_p}, "story")
 		if storyIdOf({_p}, "story") is "done":
 			set {_line} to "&7Story done"
 		add "head:mara|&fMissions|%{_line}%;;%gpsGiverText({_p}, "story")%;;&eClick: GPS · Right-click: open|q:story" to {_out::*}
-		# Car contracts.
+		# Car contracts: from Mara's "meet the Scrap Yard Boss" on, or a job done before.
+		set {_show} to phoneStoryAt({_p}, "c1_wheels")
+		if getData({_p}, "contracts-done") is set:
+			set {_show} to true
+		if getData({_p}, "ct-starter") is set:
+			set {_show} to true
+		if {-ctjob::%{_u}%} is set:
+			set {_show} to true
 		set {_st} to ""
 		if {-ctjob::%{_u}%} is set:
 			set {_st} to "&eYour job: %formatClock(ctLeft({_u}))% left"
 		set {_ck} to "&eClick: GPS · Right-click: open"
 		if questHidden({_p}, "contracts") is true:
 			set {_ck} to "&eRight-click: open"
-		add "head:boss|&fCar contracts|%{_st}%;;%gpsGiverText({_p}, "contracts")%;;%{_ck}%|q:contracts" to {_out::*}
-		# Side jobs (Mara's and the Boss's boards).
+		if {_show} is true:
+			add "head:boss|&fCar contracts|%{_st}%;;%gpsGiverText({_p}, "contracts")%;;%{_ck}%|q:contracts" to {_out::*}
+		# Side jobs (Mara's and the Boss's boards), once a board opened.
 		set {_w} to 0
 		set {_t} to 0
+		set {_show} to false
 		loop {-cfg::jobs::contacts::*}:
 			set {_c} to loop-value
 			if jobsUnlocked({_p}, {_c}) is true:
+				set {_show} to true
 				loop jobsSlots({_p}, {_c}) times:
 					set {_k} to loop-value-2
 					set {_s} to jobsState({_p}, {_c}, {_k})
@@ -471,15 +485,23 @@ function gpsEntries(p: player, cat: text) :: texts:
 		set {_st} to "&7Nothing waiting"
 		if {_w} + {_t} > 0:
 			set {_st} to "&f%{_w}% waiting · %{_t}% taken"
-		add "quests|&fSide jobs|%{_st}%;;&eClick: GPS · Right-click: open|q:jobs" to {_out::*}
-		# Vic's Wanted List.
+		if {_show} is true:
+			add "quests|&fSide jobs|%{_st}%;;&eClick: GPS · Right-click: open|q:jobs" to {_out::*}
+		# Vic's Wanted List: within reach of his level, or once his chain started.
+		set {_show} to phoneSeesLevel({_p}, cfg("fence::level"))
+		if storyIdOf({_p}, "vic") is not "":
+			set {_show} to true
 		set {_st} to "&7New list in %fenceLeftText(fenceWeekLeft())%"
 		if levelOf({_p}) < cfg("fence::level"):
 			set {_st} to "&7Level %cfg("fence::level")%"
 		else if getData({_p}, "fence::took") is progWeek():
 			set {_st} to "&aThis week's list ✔ &7· new in %fenceLeftText(fenceWeekLeft())%"
-		add "head:vic|&fWanted List|%{_st}%;;%gpsGiverText({_p}, "fence")%;;&eClick: GPS · Right-click: open|q:vic" to {_out::*}
-		# Hit contracts.
+		if {_show} is true:
+			add "head:vic|&fWanted List|%{_st}%;;%gpsGiverText({_p}, "fence")%;;&eClick: GPS · Right-click: open|q:vic" to {_out::*}
+		# Hit contracts: within reach of the easy tier's level, or one taken.
+		set {_show} to phoneSeesLevel({_p}, cfg("hit::easy::level"))
+		if hitTierOf({_p}) is not "":
+			set {_show} to true
 		set {_tier} to hitTierOf({_p})
 		if {_tier} is "":
 			set {_st} to "&f%hitTargetName()%"
@@ -488,7 +510,8 @@ function gpsEntries(p: player, cat: text) :: texts:
 		set {_ck} to "&eClick: GPS · Right-click: open"
 		if questHidden({_p}, "hits") is true:
 			set {_ck} to "&eRight-click: open"
-		add "head:broker|&fHit contracts|%{_st}%;;%gpsGiverText({_p}, "hits")%;;%{_ck}%|q:hits" to {_out::*}
+		if {_show} is true:
+			add "head:broker|&fHit contracts|%{_st}%;;%gpsGiverText({_p}, "hits")%;;%{_ck}%|q:hits" to {_out::*}
 		# Bounties (posted with the Broker).
 		set {_st} to ""
 		set {_b} to getData({_p}, "bounty")
@@ -498,9 +521,13 @@ function gpsEntries(p: player, cat: text) :: texts:
 		add "bounties|&fBounties|%{_st}%;;%gpsGiverText({_p}, "hits")%;;&eRight-click: the list|q:bounties" to {_out::*}
 		return {_out::*}
 	if {_cat} is "heists":
+		if phoneFree({_p}) is false:
+			return {_out::*}
 		loop {heists::*}:
 			set {_h} to loop-index
 			if heistState({_h}) is not "disabled":
+				# Heists far above the player's level stay off the list until they get near it.
+				phoneSeesLevel({_p}, heistLevel({_h})) is true
 				set {_l} to {heist::%{_h}%::exit}
 				if {_l} is not set:
 					set {_l} to {heist::%{_h}%::holo}
@@ -554,6 +581,8 @@ function gpsEntries(p: player, cat: text) :: texts:
 				if {_icon} is "garage":
 					set {_icon} to "garagepl"
 				add "%{_icon}%|&f%gpsPoiName(loop-value, loop-index)%|&7%gpsDist({_p}, {_l})%|pin|%world of {_l}%|%x-coordinate of {_l}%|%y-coordinate of {_l}%|%z-coordinate of {_l}%" to {_out::*}
+	if phoneFree({_p}) is false:
+		return {_out::*}
 	loop {-cfg::crates::*}:
 		set {_c} to loop-value
 		delete {_best}

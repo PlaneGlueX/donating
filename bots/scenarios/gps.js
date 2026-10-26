@@ -296,6 +296,14 @@ module.exports = async ({ check }) => {
 
     // Quests: one entry per quest line; a right-click on car contracts opens the Scrap Yard's menu, whose "◀ Back"
     // comes back here.
+    // At level 0 with no jobs board open, side jobs and hit contracts (level 15) stay hidden (owner, 2026-10-22).
+    await cmd(`dlevel set ${A} 0`)
+    await cmd(`djobs lock ${A} mara`)
+    await cmd(`djobs lock ${A} boss`)
+    w = await chatOpen('/gps quests')
+    check('at level 0 with no jobs board, Quests hides side jobs and hit contracts', find(/^Side jobs/) < 0 && find(/^Hit contracts/) < 0 && find(/^Missions/) >= 0, names())
+    await cmd(`dlevel set ${A} 15`)
+    await cmd(`djobs unlock ${A} mara`)
     w = await chatOpen('/gps quests')
     const quests = [/^Missions/, /^Car contracts/, /^Side jobs/, /^Wanted List/, /^Hit contracts/, /^Bounties$/].map(find)
     check('Quests lists Mara\'s missions, car contracts, side jobs, Vic\'s Wanted List, hit contracts and bounties', /GPS . Quests$/.test(title(w)) && quests.every(s => s >= 0), `${title(w)} | ${names()}`)
@@ -339,6 +347,8 @@ module.exports = async ({ check }) => {
     keeperId = ''
     await cmd(`lp user ${A} permission unset donating.staff`)
   } finally {
+    await rcon.cmd(`dlevel reset ${A}`).catch(() => {})
+    await rcon.cmd(`djobs lock ${A} mara`).catch(() => {})
     await rcon.cmd('zzcfgreload').catch(() => {})
     if (poiId) await rcon.cmd(`zzconsole dpoi remove ${poiId}`).catch(() => {})
     if (keeperId) await rcon.cmd(`zzconsole dshopkeeper remove ${keeperId}`).catch(() => {})

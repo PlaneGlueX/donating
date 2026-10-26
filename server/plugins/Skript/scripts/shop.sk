@@ -743,8 +743,17 @@ function renderGun(p: player):
 			set slot {_cells::1} of {_gui} to tagItem(paper named "&7No weapons yet", "shopicon:none")
 	else if {_tab} is "weapons":
 		set {_k} to 1
+		set {_hid} to 0
 		loop {-cfg::shop::weapons::*}:
 			set {_w} to loop-value
+			# Guns far above the player's level stay hidden until they get near it (phone.sk phoneSeesLevel); owned
+			# or sold ones always show.
+			set {_see} to true
+			if getData({_p}, "wpn::%{_w}%") is not set:
+				if phoneSeesLevel({_p}, wpnLevel({_w})) is false:
+					set {_see} to false
+					add 1 to {_hid}
+			{_see} is true
 			set {_name} to cfg("wpn::%{_w}%::name")
 			set {_kindname} to cfg("wpn::%{_w}%::kind")
 			add "&7%{_kindname}%" to {_lore::*}
@@ -780,6 +789,9 @@ function renderGun(p: player):
 			button({_p}, {_cells::%{_k}%}, tagItem(wpnIconFor({_p}, {_w}) named "&f%{_name}%" with lore {_lore::*}, "shopicon:wpn"), "buy:%{_w}%")
 			delete {_lore::*}
 			add 1 to {_k}
+		if {_hid} > 0:
+			if {_cells::%{_k}%} is set:
+				set slot {_cells::%{_k}%} of {_gui} to tagItem(paper named "&7%{_hid}% more at higher levels", "shopicon:none")
 	else if {_tab} is "ammo":
 		set {_row} to 0
 		loop {-cfg::shop::ammo::*}:

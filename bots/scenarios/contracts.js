@@ -359,7 +359,7 @@ module.exports = async ({ check }) => {
     const fresh = await until(async () => field(await park(), 'at') !== at0, 6000)
     await cmd('zzcfgtime contract::park-refresh 30 minutes')
     check('a parked car is replaced after contract::park-refresh (30 minutes; 2 s for the test)', fresh && await until(parkedHere, 3000), `${at0} -> ${await park()}`)
-    check('the GPS dot is gone, and so is the boss bar', !/CONTRACT/.test(barText()) && !/Test passed/.test(await cmd('execute if entity @e[tag=donating_gps]')), `${barText()} ${await cmd('execute if entity @e[tag=donating_gps]')}`)
+    check('the GPS dot is gone, and so is the boss bar', !/CONTRACT/.test(barText()) && !/Test passed/.test(await cmd('execute in minecraft:overworld positioned 1440 200 1415 if entity @e[tag=donating_gps,distance=..200]')), `${barText()} ${await cmd('execute in minecraft:overworld positioned 1440 200 1415 if entity @e[tag=donating_gps,distance=..200]')}`)
     t = Date.now()
     await cmd(`zzcttake ${A} basic`)
     await sleep(500)

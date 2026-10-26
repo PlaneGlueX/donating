@@ -104,6 +104,15 @@ module.exports = async ({ check }) => {
 
     // ---------- Buying weapons ----------
     await rcon.cmd(`dlevel set ${NAME} 0`) // the melee level gates below are read at level 0
+    // Guns more than phone::reveal-levels (5) above the player's level are hidden (owner, 2026-10-22); the rest of
+    // this test reads every cell, so it shows them all after this check.
+    await rcon.cmd('zzcfgset phone::reveal-levels 5')
+    await tab('weapons')
+    {
+      const all = JSON.stringify((bot.currentWindow && bot.currentWindow.slots) || [])
+      check('at level 0 the Weapons tab hides guns more than 5 levels up (the Katana, level 12) and says how many more there are', all.includes('Brass Knuckles') && !all.includes('Katana') && /more at higher levels/.test(all), all.slice(0, 300))
+    }
+    await rcon.cmd('zzcfgset phone::reveal-levels 1000')
     await tab('weapons')
     // Lore lines of a shop slot, each as JSON text (a line's colors split it into parts, but each part's text is whole).
     const loreOf = s => {
