@@ -43,6 +43,14 @@ function voiceLeft(p: player) :: number:
 			return {_left}
 	return 0
 
+# A voice line playing, waiting, or ended under a second ago (story.sk waits for it before a mission completes).
+function voiceBusy(p: player) :: boolean:
+	set {_end} to {-voice::until::%uuid of {_p}%}
+	if {_end} is set:
+		if {_end} + 1 > unix timestamp of now:
+			return true
+	return false
+
 # Where a speaker's voice comes from: the nearest quest giver of the speaker's kind (core.sk msgcontact::<key>::kind,
 # else the key itself: "sparks") in the player's world within voice::range blocks, at head height; else the player.
 function voiceFrom(p: player, key: text) :: location:

@@ -880,6 +880,10 @@ function storyPassOf(p: player, c: text):
 		else:
 			delete {-story::needsgone::%{_p}%::%{_c}%}
 	if storyMet({_p}, {_id}) is true:
+		# Owner, 2026-10-22: "dont cut an npc's voicelines when the player finishes the task early": a line still
+		# playing (or one that ended under a second ago: the gap between two talk lines) is heard out first.
+		if voiceBusy({_p}) is true:
+			stop
 		storyComplete({_p}, {_id})
 
 every second:

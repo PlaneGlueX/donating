@@ -782,6 +782,9 @@ un.js prison-course 40/40: the prompts per step, /tutorial and confirm at step b
     - Bots: PASS (2026-10-22): shop 61/61 (the loot refusal, the bag sold for $1,500 with its tier kept, an Uzi sold for $1,500 and gone from the hotbar, bought back at the full $3,000 at a level it needed 99 for).
     - Client: TODO (yours: right-click a gun you own in the Weapons tab and the bag you carry; owner: is half of a new bag's price right for bags, rather than half of the unlock you paid?).
 268. **The phone's map of the jailbreak world, scanned again** (your "render in the map on the phone again, since it grew"). `/dphone city scan -40 -30 770 1300 0 jailbreak`: 811x1331 pixels at a block a pixel (the prison and the whole town), 4,368 chunks.
+
+269. **A task finished mid-line waits for the line** (your "dont cut an npc's voicelines when the player finishes the task early, if they finish the task early, wait until the voiceline is done to give them the complete status and then start the next voiceline"). While an inmate's voice line plays (or one waits after it), a mission you've already met doesn't pass yet: a second after the line ends, "Mission passed" and the next brief come. Only for players who hear voices (the pack loaded, /voiceline on); everyone else as before. Bots: voicelines 30 (new: Lefty's way picked during his "Three ways" line passes only after it, 8.6 s), story 20.
+   - TODO (you): pick your way out in Lefty's menu while he's still talking and check the mission passes after his line, not over it.
     - Done: PASS (2026-10-22): `dphone city info` shows jailbreak:-40,-30,770,1300@0.
     - Client: TODO (open the big map in the town and zoom with Shift).
 23. **Feel of the lock:** open the inventory, try to drag things around, press F/Q while holding a gun. Nothing should flicker badly or feel broken.

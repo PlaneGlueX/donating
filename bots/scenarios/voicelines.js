@@ -139,10 +139,12 @@ module.exports = async ({ check }) => {
     await cmd(`zzmsg ${A} say Lefty Mm, chocolate.`)
     await until(() => voices(a, tl).length > 0, 3000)
     check('Lefty again 3 s later (past the 2.5 s chain): his clip stops, the new one plays at once', stops(a, tl).length >= 1 && clip(voices(a, tl)[0]) === 'lefty_chocolate' && voices(a, tl)[0].t - tl < 800, `${JSON.stringify(stops(a, tl))} ${voices(a, tl).map(clip)}`)
+    // The chocolate's packets can land in the same millisecond as this window opens (a fast server): wait a bit, the 2.9 s clip still plays.
+    await sleep(300)
     since = Date.now()
     await cmd(`zzmsg ${A} say Lefty Free advice? Not today.`)
     await sleep(1500)
-    check('a line with no recording: the ping, no voice, and the clip playing isn\'t stopped', voices(a, since).length === 0 && pings(a, since).length === 1 && stops(a, since).length === 0, JSON.stringify(a.sounds.filter(s => s.t >= since)))
+    check('a line with no recording: the ping, no voice, and the clip playing isn\'t stopped', voices(a, since).length === 0 && pings(a, since).length === 1 && stops(a, since).length === 0, a.sounds.filter(s => s.t >= tl - 3000 && !/pressure_plate/.test(s.name)).map(s => `${s.t - tl} ${s.stop ? 'STOP' : s.name}`).join(' | ') + ` (since=${since - tl})`)
 
     // ---------- /voiceline off and on ----------
     await sleep(3200)
@@ -183,7 +185,7 @@ module.exports = async ({ check }) => {
     await sleep(6000)
     since = Date.now()
     await cmd(`dquest open ${B} ${leftyN}`)
-    const done = await until(async () => /id=l_craft/.test(await cmd(`dstory info ${B} lefty`)), 40000, 500)
+    const done = await until(async () => !/id=l_meet/.test(await cmd(`dstory info ${B} lefty`)), 40000, 500)
     vs = voices(b, since)
     const want = ['lefty_nobody_stays', 'lefty_three_ways', 'lefty_the_lot', 'lefty_get_sorted']
     const len = { lefty_nobody_stays: 2400, lefty_three_ways: 8640, lefty_the_lot: 8480 }
@@ -194,6 +196,19 @@ module.exports = async ({ check }) => {
     const sync = talk.length === 4 && [/Nobody stays in here/, /Three ways past the fences/, /Then the lot/, /First, get yourself sorted/].every((re, i) => Math.abs(chatAt(re) - talk[i].t) < 700)
     check('talking to Lefty (l_meet): his four lines in order, each after the last ended, never two at once', done && order && gapsOk && stops(b, since).length === 0, `${talk.map(s => `${clip(s)}@${s.t - since}`).join(' ')} stops ${stops(b, since).length}`)
     check('...each chat line comes with its clip (the talk waits for the voice, ~22 s instead of 8)', sync, talk.map((s, i) => `${s.t - since}/${chatAt([/Nobody stays in here/, /Three ways past the fences/, /Then the lot/, /First, get yourself sorted/][i]) - since}`).join(' '))
+
+    // ---------- a task done mid-line: the mission waits for the clip (owner, 2026-10-22) ----------
+    await sleep(3000)
+    await cmd(`dstory set ${B} lefty l_way`)
+    await sleep(2500)
+    since = Date.now()
+    await cmd(`zzmsg ${B} say Lefty Three ways past the fences: a keycard through the police station, C4 on the vehicle gate, or over the fence by the Gun Shop.`)
+    await cmd(`zzdatatext ${B} lefty-way c4`)
+    await sleep(4000)
+    const held = /id=l_way/.test(await cmd(`dstory info ${B} lefty`))
+    const moved = await until(async () => !/id=l_way/.test(await cmd(`dstory info ${B} lefty`)), 12000, 250)
+    const passAt = Date.now() - since
+    check('a task done while Lefty still talks: the mission passes only after his line (8.6 s), not mid-clip', held && moved && passAt >= 8400 && stops(b, since).length === 0, `held ${held} moved ${moved} at ${passAt} ms; stops ${stops(b, since).length}; ${await cmd(`dstory info ${B} lefty`)}`)
 
     // ---------- a /tutorial confirm replay: the notice again ----------
     await sleep(3000)
