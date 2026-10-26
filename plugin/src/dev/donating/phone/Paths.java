@@ -491,8 +491,8 @@ final class Paths {
             for (int e = 0; e < g.ea.length && budget > 0; e++) {
                 int a = g.ea[e], b = g.eb[e];
                 double L = g.len(a, b);
-                for (double d = 0.5; d < L && budget > 0; d += 1) {
-                    double t = d / L, x = lerp(g.x[a], g.x[b], t), y = lerp(g.y[a], g.y[b], t) + 0.3, z = lerp(g.z[a], g.z[b], t);
+                for (double s = 0.5; s < L && budget > 0; s += 1) {
+                    double t = s / L, x = lerp(g.x[a], g.x[b], t), y = lerp(g.y[a], g.y[b], t) + 0.3, z = lerp(g.z[a], g.z[b], t);
                     if (sq(x - l.getX()) + sq(y - l.getY()) + sq(z - l.getZ()) > r2) continue;
                     p.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, link, true);
                     budget--;
