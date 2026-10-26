@@ -108,9 +108,9 @@ module.exports = async ({ check }) => {
     await until(async () => (await id(A)) !== 'c1_meet', 9000)
     const lines = text(A, t)
     check('talking to Mara in person plays her lines (not all at once), then the mission is done (no "<none>")', early === 'c1_meet' && /So you're the new face/.test(lines) && /No bag, no gun, no ride/.test(lines) && /Mission passed: Meet Mara/.test(lines) && !/<none>/.test(lines), `early=${early} ${lines.slice(0, 500)}`)
-    // The Boss isn't there: his brief is a text, its chat notice a second later (messages.sk's join window).
-    await until(async () => /✉ Boss: .*first job/.test(text(A, t)), 3000)
-    check('the next mission arrives as a text (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /✉ Boss: .*first job/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
+    // The Boss isn't there: his brief is about the quest you're on, so the whole line comes in chat (owner, 2026-10-22).
+    await until(async () => /Boss: Mara sent you\? Take my first job/.test(text(A, t)), 3000)
+    check('the next mission\'s brief comes whole in chat, no ✉ notice (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /Boss: Mara sent you\? Take my first job/.test(text(A, t)) && !/✉ Boss/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
     await set(A, 'c1_knife')
     t = Date.now()
     await cmd(`dshop unlock ${A} Combat_Knife`)

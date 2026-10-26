@@ -181,7 +181,7 @@ function hitTake(p: player, t: text):
 	set {_name} to hitTargetName()
 	if {_was} is "":
 		# Once, here (the menu no longer repeats it): the target and the bodyguards are the hunter's alone.
-		storyKeep({_p}, "Broker", "%{_name}%. %{-cfg::hit::target::%hitTarget()%::crime}% Only you'll see them and their guards. I'll text you when they're seen.")
+		storyQuest({_p}, "Broker", "%{_name}%. %{-cfg::hit::target::%hitTarget()%::crime}% Only you'll see them and their guards. I'll text you when they're seen.")
 		hitLog("take %{_p}% %uuid of {_p}% %{_t}% W=%progWeek()% target=%hitTarget()%")
 	else:
 		hudBar({_p}, "&aYour contract is now %hitTierName({_t})%.", 1)
@@ -250,7 +250,7 @@ function hitWindowTick(t: text):
 	loop all players:
 		if hitTierOf(loop-player) is {_t}:
 			if hitHunting(loop-player) is true:
-				storyText(loop-player, "Broker", "%hitTargetName()%'s in town. I'll text you what I hear.")
+				storyQuest(loop-player, "Broker", "%hitTargetName()%'s in town. I'll text you what I hear.")
 				play sound "block.bell.use" with volume 0.6 to loop-player
 
 # The next window of a tier (game seconds, 0 = none left this week) for the menu.
@@ -682,7 +682,7 @@ function hitWindowOver(p: player):
 			stop
 	if hitHunting({_p}) is true:
 		if {-hit::s::%{_u}%::a} is set:
-			storyText({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
+			storyQuest({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
 	hitEnd({_p}, "window")
 
 # ---------- The hunt (every second, and every 5 ticks while a copy exists) ----------
@@ -734,7 +734,7 @@ function hitSecond(p: player):
 	if hitNow({_p}) is false:
 		if {-hit::s::%{_u}%::overtime} is set:
 			delete {-hit::s::%{_u}%::overtime}
-			storyText({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
+			storyQuest({_p}, "Broker", "%hitTargetName()% slipped away. Next time.")
 			hitEnd({_p}, "overtime")
 		else if {-hit::s::%{_u}%::a} is set:
 			hitEnd({_p}, "window")
@@ -1019,7 +1019,7 @@ function hitLost(p: player):
 	execute console command "dphone mark %name of {_p}% off"
 	set {-hit::s::%{_u}%::r} to cfg("hit::%hitTierOf({_p})%::rmin") * 2
 	delete {-hit::s::%{_u}%::cx}
-	storyText({_p}, "Broker", "You lost %hitTargetName()%. I'm asking around.")
+	storyQuest({_p}, "Broker", "You lost %hitTargetName()%. I'm asking around.")
 	hitTip({_p})
 	hitLog("lost %{_p}%")
 

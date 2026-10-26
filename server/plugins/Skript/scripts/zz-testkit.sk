@@ -1294,7 +1294,7 @@ command /zztext <player> <text> <text>:
 		storyText(arg-1, arg-2, arg-3)
 		send "TEXT %arg-1% n=%msgNewest(arg-1)% unread=%msgUnreadAll(arg-1)%"
 
-# A line of a kind (say|text|keep), as msgPost takes it: /zzmsg <player> <kind> <from> <text>
+# A line of a kind (say|text|keep|quest), as msgPost takes it: /zzmsg <player> <kind> <from> <text>
 command /zzmsg <player> <text> <text> <text>:
 	executable by: players and console
 	trigger:

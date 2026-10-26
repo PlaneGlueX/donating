@@ -79,7 +79,7 @@ const SPEC = {
   zzhitwin: ['L:easy|medium|hard', 'L:clear'],
   zzheistreopen: ['heist'],
   zztext: ['p', 'contact'],
-  zzmsg: ['p', 'L:say|text|keep', 'contact'],
+  zzmsg: ['p', 'L:say|text|keep|quest', 'contact'],
   zzvoice: ['p', 'L:clip', 'L:Lefty|Rusty|Tank|Whisper'],
   zzinbox: ['p', 'L:flush'],
   zzinboxraw: ['p', 'L:60|3600', 'contact'],

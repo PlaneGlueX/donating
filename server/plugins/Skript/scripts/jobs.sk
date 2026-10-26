@@ -675,7 +675,7 @@ function jobsComplete(p: player, c: text, k: number):
 		set {_star} to " &7· &e★"
 	msg({_p}, "&6Job done: &f%{_name}% &7· &a%formatMoney({_pay})% &7· &b+%{_xp}% XP &7· &d+%{_rep}% rep%{_star}%")
 	set {_lines::*} to {-cfg::jobs::%{_c}%::line::done::*}
-	storyText({_p}, {-cfg::jobs::%{_c}%::name}, random element out of {_lines::*})
+	storyQuest({_p}, {-cfg::jobs::%{_c}%::name}, random element out of {_lines::*})
 	if getData({_p}, "quest-track") is "job:%{_c}%:%{_k}%":
 		deleteData({_p}, "quest-track")
 	jobsForget({_p}, {_c}, {_k})
@@ -779,7 +779,7 @@ function jobsReplace(p: player, c: text, k: number, s: text):
 			setData({_p}, "job::%{_c}%::%{_k}%", "taken")
 			jobsSet({_p}, {_c}, {_k}, "takenat", progUnix())
 			jobsOfferReset({_p}, {_c}, {_k})
-		storyText({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::void})
+		storyQuest({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::void})
 	else:
 		jobsForget({_p}, {_c}, {_k})
 

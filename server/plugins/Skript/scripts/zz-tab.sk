@@ -1395,7 +1395,7 @@ on tab complete of "/zzmsg" and "/skript:zzmsg":
 	if {_l::*} is set:
 		set tab completions for position 1 to {_l::*}
 	delete {_l::*}
-	set {_l::*} to zzTab(player, "L:say|text|keep")
+	set {_l::*} to zzTab(player, "L:say|text|keep|quest")
 	if {_l::*} is set:
 		set tab completions for position 2 to {_l::*}
 	delete {_l::*}

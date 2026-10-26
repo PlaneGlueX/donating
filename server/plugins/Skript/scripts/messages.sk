@@ -1,14 +1,16 @@
 # messages.sk: the phone's Messages app (2026-09-28; CLAUDE.md's ideas: "a phone Messages app"). Reworked 2026-10-19
 # (owner: "redo the message system, theres alot of spam when the quest messages get put into the phone messages"): the
-# phone keeps only what a contact would really text (story.sk's storyText / storySay / storyKeep call msgPost):
+# phone keeps only what a contact would really text (story.sk's storyText / storySay / storyQuest call msgPost):
 #   - "say": said in person (talking to an NPC, Mara's talk lines, a call, the inmates, the course): the whole line in
 #     chat ("Mara: ..."), never kept.
 #   - "text" (storyText): said in person while the player stands within messages::near (10) blocks of that contact's
 #     quest giver (core.sk msgcontact::<key>::kind); else a text: kept, and chat gets one short notice
 #     ("✉ Mara: <first words>… · /messages").
-#   - "keep" (a mission's brief or "Skipping ahead", a hit contract's brief: one per start): like "text", but said in
-#     person it's also kept, as read (unless an older text from that contact is still unread: then it's new too), so
-#     every mission has its text on the phone.
+#   - "keep": like "text", but said in person it's also kept, as read (unless an older text from that contact is
+#     still unread: then it's new too). Only /zzmsg uses it now.
+#   - "quest" (storyQuest, 2026-10-22: about the quest you're on: a brief, "Skipping ahead", its progress, done or
+#     called off; a hit's brief and sightings; a job done): the whole line in chat wherever you are (said, voiced when
+#     recorded), kept as read like "keep". "text" stays for news: a new jobs board, jobs waiting, a rep tier.
 #   - One contact's lines within messages::join-window (1 s) are ONE text (a mission's done line and the next brief;
 #     a job's done line and the rep line), a line already in it is left out; the same text from the same contact within
 #     messages::dedupe (30 min) isn't kept again (its notice still shows). So the unread count is per text, not per line.
@@ -67,7 +69,7 @@ function msgSave(p: player, from: text, line: text) :: number:
 		deleteData({_p}, "inbox::%{_old}%::text")
 	return {_n}
 
-# ---------- Sending (story.sk's storyText, storySay, storyKeep) ----------
+# ---------- Sending (story.sk's storyText, storySay, storyQuest) ----------
 
 # Whether the player stands with the contact (within messages::near blocks of a quest giver of the contact's kind).
 function msgInPerson(p: player, key: text) :: boolean:
@@ -143,8 +145,11 @@ function msgRecent(p: player, key: text, t: text) :: boolean:
 					return true
 	return false
 
-# A line from a contact: kind "say" (in person only), "text" (in person: said; else kept, with a notice) or "keep"
-# (kept either way: as read when said in person). Kept lines wait messages::join-window so a burst is one text.
+# A line from a contact: kind "say" (in person only), "text" (in person: said; else kept, with a notice), "keep"
+# (kept either way: as read when said in person) or "quest" (about the quest you're on: the whole line in chat
+# wherever you are, kept as read; owner, 2026-10-22: "for messages related to the current quest, display the full
+# message in chat and not as a notification for the phone"). Kept lines wait messages::join-window so a burst is one
+# text.
 function msgPost(p: player, from: text, line: text, kind: text):
 	{_line} is not ""
 	set {_k} to msgKey({_from})
@@ -152,9 +157,11 @@ function msgPost(p: player, from: text, line: text, kind: text):
 		msgSpeak({_p}, {_from}, {_line})
 		stop
 	set {_near} to msgInPerson({_p}, {_k})
+	if {_kind} is "quest":
+		set {_near} to true
 	if {_near} is true:
 		msgSpeak({_p}, {_from}, {_line})
-		if {_kind} is not "keep":
+		if {_kind} is "text":
 			stop
 	set {_u} to "%uuid of {_p}%"
 	# A burst whose flush never came (a script reload drops its wait): kept now, this line starts a new one.

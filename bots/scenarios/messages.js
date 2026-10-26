@@ -250,6 +250,14 @@ module.exports = async ({ check }) => {
     const t4 = await tx(4)
     check('an old inbox at a join: the in-person lines go (Rusty, Mara\'s talk, "One for you", Lefty\'s chat), Mara\'s burst is one text, the Broker\'s repeat goes, Lefty\'s mission text stays (10 -> 3, v=2)', inboxN(ib) === 3 && /v=2/.test(ib) && t1 === 'Nice work out there. Next: buy a bag.' && t2 === 'Vinnie is in town.' && t3 === LEFTY_BRIEF && t4 === '<none>', `${ib} | 1=${t1} | 2=${t2} | 3=${t3} | 4=${t4}`)
     check('a join says how many texts wait unread', /✉ 3 unread message\(s\)/.test(text(t)), text(t).slice(0, 300))
+
+    // ---------- About the quest you're on: the whole line in chat, kept as read ----------
+    await cmd(`zzinboxclear ${A}`)
+    t = Date.now()
+    await post('quest', 'Mara', LONG)
+    await sleep(1600)
+    ib = await inbox()
+    check('a quest line away from Mara (owner: "display the full message in chat and not as a notification"): the whole line in chat, no ✉ notice, kept on the phone as read', lines(t).some(l => l === `Mara: ${LONG}`) && notices(t, 'Mara').length === 0 && inboxN(ib) === 1 && unread(ib) === 0, `${ib} | ${text(t).slice(0, 300)}`)
   } finally {
     if (mara) await rcon.cmd(`zzconsole dquest remove ${mara}`).catch(() => {})
     await rcon.cmd(`zzinboxclear ${A}`).catch(() => {})

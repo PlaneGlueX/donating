@@ -158,7 +158,7 @@ function fenceTakeList(p: player):
 	if {_o3} is not "":
 		set {_a::*} to {_o3} split at "|"
 		delete {-ctoffer::%uuid of {_p}%::%{_a::3}%}
-	storyText({_p}, "Vic", "Fresh list. Don't make me wait.")
+	storyQuest({_p}, "Vic", "Fresh list. Don't make me wait.")
 	fenceLog("took %{_p}% %uuid of {_p}% W=%{_w}%")
 
 # Talking to Vic with no talk mission due (story.sk storyTalkKind).
@@ -229,7 +229,7 @@ function fenceEvent(p: player, ev: text, n: number, detail: text, own: number):
 		giveMoney({_p}, {_pay})
 		setData({_p}, "fence::car", progWeek())
 		msg({_p}, "&6✉ Vic's list: &a+%formatMoney({_pay})% &7(the %carName({_a::2})% he ordered)")
-		storyText({_p}, "Vic", "That's the one.")
+		storyQuest({_p}, "Vic", "That's the one.")
 		fenceLog("car %{_p}% %uuid of {_p}% model=%{_a::2}% pay=%{_pay}%")
 
 # After a sale: Vic's premium for it, as one line.
@@ -249,7 +249,7 @@ function fenceSalePay(p: player):
 	giveMoney({_p}, {_pay})
 	msg({_p}, "&6✉ Vic's list: &a+%formatMoney({_pay})% &7(%join {_lines::*} with " · "%)")
 	if {_filled} is "heist":
-		storyText({_p}, "Vic", "That order's filled. Pleasure doing business.")
+		storyQuest({_p}, "Vic", "That order's filled. Pleasure doing business.")
 	fenceLog("pay %{_p}% %uuid of {_p}% v=%{_v}% m=%{_m}% P=%{_pay}% ip=%ip of {_p}%")
 
 # jobs.sk questWantModel / questOfferLines: the car Vic ordered, for that tier, while it's open.

@@ -95,8 +95,8 @@ module.exports = async ({ check }) => {
     let t = Date.now()
     vic = ((await cmd(`dquest addat fence ${VIC.join(' ')} 180 Pawn Shop`)).match(/giver (\d+) \(fence\) added/) || [])[1] || ''
     await onMission(A, 'v1_meet')
-    await until(async () => /✉ Vic/.test(text(A, t)), 3000)
-    check('Vic\'s arc waits for a Vic on the map, then starts at level 45 with his text', noGiver === '' && (await vicId(A)) === 'v1_meet' && /✉ Vic: Mara says/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
+    await until(async () => /Vic: Mara says/.test(text(A, t)), 3000)
+    check('Vic\'s arc waits for a Vic on the map, then starts at level 45, his brief whole in chat', noGiver === '' && (await vicId(A)) === 'v1_meet' && /Vic: Mara says you've got quick hands/.test(text(A, t)) && !/✉ Vic/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
     await cmd(`dlevel set ${B} 44`)
     await cmd(`zzdata ${B} vic none`)
     await sleep(3000)

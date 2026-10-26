@@ -159,9 +159,10 @@ function storyText(p: player, from: text, line: text):
 function storySay(p: player, from: text, line: text):
 	msgPost({_p}, {_from}, {_line}, "say")
 
-# A mission's (or a contract's) brief, one per start: kept on the phone either way (as read when said in person).
-function storyKeep(p: player, from: text, line: text):
-	msgPost({_p}, {_from}, {_line}, "keep")
+# About the quest you're on (a brief, its progress, done, called off): the whole line in chat wherever you are, kept
+# as read. storyText stays for news (a new board, jobs waiting): a short notice and an unread text.
+function storyQuest(p: player, from: text, line: text):
+	msgPost({_p}, {_from}, {_line}, "quest")
 
 # ---------- What the map has (needs) ----------
 
@@ -570,7 +571,7 @@ function storyActivateOf(p: player, c: text, id: text):
 				set {_id} to storyNextId({_id})
 		else if storyNeedsMet({_p}, {_need}) is false:
 			storyLog("skip-needs %{_p}% %uuid of {_p}% %{_id}% needs=%{_need}%")
-			storyText({_p}, storyFrom({_id}), "That job fell through. On to the next one.")
+			storyQuest({_p}, storyFrom({_id}), "That job fell through. On to the next one.")
 			set {_id} to storyNextId({_id})
 		else if storyObj({_id}) starts with "state|":
 			if storyState({_p}, storyObj({_id})) is true:
@@ -609,9 +610,9 @@ function storyStartText(p: player, id: text, skipped: number):
 	set {_label} to {-cfg::story::%{_id}%::label}
 	set {_from} to storyFrom({_id})
 	if {_skipped} > 0:
-		storyKeep({_p}, {-cfg::chain::%{_c}%::from}, "Heard you know your way around. Skipping ahead to: %{_label}%.")
+		storyQuest({_p}, {-cfg::chain::%{_c}%::from}, "Heard you know your way around. Skipping ahead to: %{_label}%.")
 	else:
-		storyKeep({_p}, {_from}, storyBrief({_p}, {_id}))
+		storyQuest({_p}, {_from}, storyBrief({_p}, {_id}))
 		# A talk mission whose giver isn't on the map: how to reach them.
 		set {_k} to {-cfg::chain::%{_c}%::giver}
 		if storyObj({_id}) is "talk|%{_k}%":
@@ -706,7 +707,7 @@ function storyComplete(p: player, id: text):
 		storyLog("complete %{_p}% %uuid of {_p}% %{_id}% got=%{_got}%")
 	set {_done} to {-cfg::story::%{_id}%::done}
 	if {_done} is set:
-		storyText({_p}, storyFrom({_id}), {_done})
+		storyQuest({_p}, storyFrom({_id}), {_done})
 	if {_again} is true:
 		msg({_p}, "&6Mission passed: &f%{-cfg::story::%{_id}%::label}% &7· a replay: no rewards")
 		set {_got} to "&7A replay: no rewards"
@@ -898,7 +899,7 @@ function storyPassOf(p: player, c: text):
 			else if difference between {-story::needsgone::%{_p}%::%{_c}%} and now >= 1 second * cfg("story::needs-grace"):
 				delete {-story::needsgone::%{_p}%::%{_c}%}
 				storyLog("skip-needs %{_p}% %uuid of {_p}% %{_id}% needs=%{_need}% (gone)")
-				storyText({_p}, storyFrom({_id}), "That job fell through. On to the next one.")
+				storyQuest({_p}, storyFrom({_id}), "That job fell through. On to the next one.")
 				storyActivateOf({_p}, {_c}, storyNextId({_id}))
 				stop
 		else:
