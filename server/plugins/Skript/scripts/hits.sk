@@ -1039,10 +1039,10 @@ on damage with priority lowest:
 			stop
 		set {_p} to attacker
 		# Only from within hit::max-range (PROPOSAL 16 blocks, the bodyguards' reach, 2026-10-06): the Sniper Rifle (or a
-		# rifle) from beyond it took a target down with no risk at all.
+		# rifle) from beyond it took a target down with no risk at all. Priority 3: the combat bar (also 3) would hide it.
 		if distance between {_p} and victim > cfg("hit::max-range"):
 			cancel event
-			hudBar({_p}, "&7Too far: get within %cfg("hit::max-range")% blocks", 2)
+			hudBar({_p}, "&7Too far: get within %cfg("hit::max-range")% blocks", 3)
 			stop
 		set {-hit::s::%{_vh}%::engaged} to now
 		if {-hit::s::%{_vh}%::noticed} is not set:

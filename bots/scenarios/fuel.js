@@ -14,7 +14,8 @@ const rconLib = require('../rcon')
 
 const A = 'Fueler'
 const Y = 200
-const X0 = 7800, X1 = 7830, Z0 = 7800, Z1 = 7815
+// Long in z: the drive check holds the pedal 3 s and the Sedan must stay on the floor (it drove off the old 15-block one).
+const X0 = 7800, X1 = 7830, Z0 = 7770, Z1 = 7850
 const CHUNKS = `${X0} ${Z0} ${X1} ${Z1}`
 const PUMP = [7810, Y, 7808] // the box 7810 200 7808 .. 7810 202 7808
 const CAR = [7813.5, Y, 7808.5]

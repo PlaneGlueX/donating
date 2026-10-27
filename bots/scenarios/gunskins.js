@@ -348,8 +348,9 @@ module.exports = async ({ check }) => {
 
     // ---------- gunfx.skins.enabled false; a /dphone reload ----------
     const cfg0 = fs.readFileSync(PHONE_CFG, 'utf8')
-    if (/ {2}skins:\n {4}enabled: true/.test(cfg0)) {
-      fs.writeFileSync(PHONE_CFG, cfg0.replace(/( {2}skins:\n {4}enabled: )true/, '$1false'))
+    // \r?: a git checkout on Windows writes the config with CRLF
+    if (/ {2}skins:\r?\n {4}enabled: true/.test(cfg0)) {
+      fs.writeFileSync(PHONE_CFG, cfg0.replace(/( {2}skins:\r?\n {4}enabled: )true/, '$1false'))
       cfgChanged = true
       await cmd('dphone reload')
       bots[A].setQuickBarSlot(0)
@@ -459,7 +460,7 @@ module.exports = async ({ check }) => {
       `owns=${owns} on=${onUzi} off=${off} | ${await gunskin(A)} | ${await gunfx(A)} | ${await model(A, 2)} | ${text(A, t).slice(0, 200)}`)
   } finally {
     if (cfgChanged) {
-      try { const c = fs.readFileSync(PHONE_CFG, 'utf8'); fs.writeFileSync(PHONE_CFG, c.replace(/( {2}skins:\n {4}enabled: )false/, '$1true')) } catch (e) {}
+      try { const c = fs.readFileSync(PHONE_CFG, 'utf8'); fs.writeFileSync(PHONE_CFG, c.replace(/( {2}skins:\r?\n {4}enabled: )false/, '$1true')) } catch (e) {}
       await rcon.cmd('dphone reload').catch(() => {})
     }
     await rcon.cmd('zzcfgreload').catch(() => {})

@@ -98,29 +98,41 @@ module.exports = async ({ check }) => {
     // ---------- weapons in hand: like contraband; a gun makes you ARMED (stronger hunters, 3 more guards) ----------
     const ynId = await copId('yardn')
     await cmd(`zzconsole npc speed 0.01 --id ${ynId}`)
-    const yw = await copAt('yardn')
-    await rotate('yardn', 0) // facing south (+z)
-    await sleep(400)
+    await sleep(1000)
+    // Even at speed 0.01 it keeps facing its next waypoint (a rotate doesn't stick): stand 6 blocks along its own facing,
+    // again until its own sight check sees the spot (it can still turn at a waypoint, or a catch can move the bot).
+    const faceGuard = async () => {
+      let sees = ''
+      for (let i = 0; i < 4; i++) {
+        const yw = await copAt('yardn')
+        const ywYaw = Number(((await cop('yardn')).match(/yaw=(-?[\d.]+)/) || [])[1] || 0) * Math.PI / 180
+        await jtp(A, (yw[0] - Math.sin(ywYaw) * 6).toFixed(1), 65, (yw[2] + Math.cos(ywYaw) * 6).toFixed(1), (ywYaw * 180 / Math.PI + 180).toFixed(0))
+        await calm(A)
+        await sleep(500)
+        sees = await cmd(`zzjailsees yardn ${A}`)
+        if (/cone=true/.test(sees) && /los=true/.test(sees)) break
+      }
+      return sees
+    }
     await cmd(`wm give ${A} Combat_Knife 1 {slot:0}`)
     a.setQuickBarSlot(1)
-    await jtp(A, yw[0].toFixed(1), 65, (yw[2] + 6).toFixed(1), 180)
-    await calm(A)
+    const knifeSees = await faceGuard()
     logs.cops.mark()
     a.setQuickBarSlot(0)
     const knifeH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-held-wpn:Combat_Knife by=${ynId}`)), 4000, 100)
-    check('a melee weapon held out in front of a guard: hostile (why=seen-held-wpn:Combat_Knife), not ARMED', knifeH && !logs.cops.has(new RegExp(`armed ${A}`)), logs.cops.since().split('\n').filter(x => /hostile|armed/.test(x)).join(' / '))
+    check('a melee weapon held out in front of a guard: hostile (why=seen-held-wpn:Combat_Knife), not ARMED', knifeH && !logs.cops.has(new RegExp(`armed ${A}`)), `${logs.cops.since().split('\n').filter(x => /hostile|armed/.test(x)).join(' / ')} | ${knifeSees}`)
     a.setQuickBarSlot(1)
     await calm(A)
     await cmd(`zzjail ${A} own 50_GS`)
-    await cmd(`wm give ${A} 50_GS 1 {slot:1}`)
-    await sleep(300)
+    const gunSees = await faceGuard()
     const known0 = Number((await cmd('zzjailcops')).match(/known=(\d+)/)[1])
     logs.cops.mark()
-    let since0 = Date.now()
+    let since0 = Date.now() // before the give: slot 1 is already in hand, so the guard can see the gun at once
+    await cmd(`wm give ${A} 50_GS 1 {slot:1}`)
     a.setQuickBarSlot(1)
     const gunH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-held-wpn:50_GS`)) && logs.cops.has(new RegExp(`armed ${A} \\S+ why=seen-gun`)), 4000, 100)
     const buffed = await until(() => logs.cops.has(new RegExp(`buff id=${ynId}`)), 3000, 100)
-    check('a gun held out in front of a guard: hostile and ARMED (the title), the hunting guard stronger (buff)', gunH && buffed && said(a, /ARMED/, since0), logs.cops.since().split('\n').filter(x => /hostile|armed|buff/.test(x)).join(' / '))
+    check('a gun held out in front of a guard: hostile and ARMED (the title), the hunting guard stronger (buff)', gunH && buffed && said(a, /ARMED/, since0), `gun=${gunH} buff=${buffed} title=${said(a, /ARMED/, since0)} | ${logs.cops.since().split('\n').filter(x => /hostile|armed|buff/.test(x)).join(' / ')} | ${gunSees}`)
     const extra = await until(async () => Number((await cmd('zzjailcops')).match(/known=(\d+)/)[1]) >= known0 + 3, 30000, 1000)
     check('...and 3 extra guards spawn to hunt them', extra && logs.cops.has(/spawn armed\d+ id=/), `${known0} -> ${await cmd('zzjailcops')} | ${logs.cops.since().split('\n').filter(x => /spawn/.test(x)).slice(-4).join(' / ')}`)
     a.setQuickBarSlot(2)
@@ -819,15 +831,15 @@ module.exports = async ({ check }) => {
     // ---------- strays: a wall cop led down is home 20 s later; the W5 cop walking round T5's cab never is ----------
     check('the W5 cop walking its route (round T5\'s cab) was never moved as a stray', !allLog.has(/stray w5/), allLog.since().split('\n').filter(x => /stray/.test(x)).join(' / '))
     await state(L, 'off')
-    await jtp(L, 266.5, 65, 140.5, 90)
+    await jtp(L, 259.5, 65, 140.5, 90) // west of the yard's bleachers (x 265..276): open ground
     logs.cops.mark()
     await until(async () => /loaded=yes/.test(await cop('w5')), 12000, 500)
     const srv = require('../prisonlib').logTail('../../../logs/latest')
     srv.mark()
-    await copTo('w5', 268.5, 65, 140.5)
+    await copTo('w5', 262.5, 65, 140.5) // not 268.5: inside the bleachers, where it suffocated and went down
     await sleep(400)
     const down = await copAt('w5')
-    const moved = srv.has(/Prison Guard teleported to jailbreak at 268.5, 65, 140.5/)
+    const moved = srv.has(/Prison Guard teleported to jailbreak at 262.5, 65, 140.5/)
     const tw = Date.now()
     const back = await until(async () => { const p = await copAt('w5'); return p && p[1] >= 77 }, 30000, 500)
     // Home by the stray rule (20 s), or sooner by Sentinel's own return to its path (a stuck return teleports).

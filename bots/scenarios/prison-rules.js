@@ -139,7 +139,7 @@ module.exports = async ({ check }) => {
     since = Date.now()
     check('no damage through the fence (a free bot outside hits an inmate inside)', !(await lands(a, A, C)) && said(c, /Not through the fence/, since), `hp ${a.health}`)
     // Walking into the fence: a small shock (half a heart), the warning, never below a heart.
-    await into(A, 151.5, 65, 394.5, 0) // a step back: teleported against it, the shock would fire before the walk
+    await into(A, 160.5, 65, 394.5, 0) // east of the lot ladder (x 148-151, no fence cells there); a step back: teleported against it, the shock would fire before the walk
     await cmd(`zzhp ${A} 20`)
     await sleep(300)
     since = Date.now()

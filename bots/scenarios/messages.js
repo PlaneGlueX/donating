@@ -14,9 +14,12 @@ const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
 
 const A = 'MsgA'
-const FAR = '0.5 68 -656.5'
-// On the ground (y 72 is the hill's top: at y 68 the bot suffocated), 5.4 blocks from Mara.
-const NEAR = '32.5 73 -656.5'
+// A glass platform in the sky (the test world's hill these spots stood on was lost on 2026-10-25), force-loaded during the
+// test or fill does nothing. The bot waits 30 blocks from Mara, or 2 blocks from her.
+const PLATFORM = '-2 199 -660 36 199 -652'
+const CHUNKS = '-2 -660 36 -652'
+const FAR = '0.5 200 -656.5'
+const NEAR = '32.5 200 -656.5'
 const LONG = 'Listen carefully, because I only say this once: the vault on Fifth opens at noon and the guards swap at ten past.'
 const LEFTY_BRIEF = 'New fish? Come sit with me in Hall B. Free advice.'
 
@@ -68,11 +71,13 @@ module.exports = async ({ check }) => {
     })
 
     // ---------- Setup ----------
+    await cmd(`forceload add ${CHUNKS}`)
+    await cmd(`fill ${PLATFORM} glass`)
     bot = await join(A)
     await cmd(`zzinboxclear ${A}`)
     await cmd(`zzclear ${A}`)
     // Mara stands in town (a story giver); Vic (fence) doesn't. The bot waits 30 blocks from her.
-    mara = ((await cmd('dquest addat story 30.5 68 -656.5 90 Test Safehouse')).match(/giver (\d+) \(story\) added/) || [])[1] || ''
+    mara = ((await cmd('dquest addat story 30.5 200 -656.5 90 Test Safehouse')).match(/giver (\d+) \(story\) added/) || [])[1] || ''
     await cmd(`zzheisttp ${A} ${FAR}`)
     await sleep(1500)
 
@@ -262,6 +267,8 @@ module.exports = async ({ check }) => {
     if (mara) await rcon.cmd(`zzconsole dquest remove ${mara}`).catch(() => {})
     await rcon.cmd(`zzinboxclear ${A}`).catch(() => {})
     if (bot) await quit(bot).catch(() => {})
+    await rcon.cmd(`fill ${PLATFORM} air replace glass`).catch(() => {})
+    await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
     rcon.close()
   }
 }

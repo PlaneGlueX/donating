@@ -1,4 +1,4 @@
-# The prison's GPS paths (203 nodes, 210 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
+# The prison's GPS paths (210 nodes, 217 links), made by tools/make-jail-gps-paths.js from tools/build/jail.js.
 # Run every line that isn't a comment, in order (local: tools\rcon.ps1; Minehut: the console, or upload the paths.yml they make).
 dphone path clear jailbreak confirm
 dphone path addat jailbreak 48.5 58 59.5 id=1 nolink
@@ -204,6 +204,13 @@ dphone path addat jailbreak 113.5 62 360.5 id=205 nolink
 dphone path addat jailbreak 105.5 62 360.5 id=206 nolink
 dphone path addat jailbreak 105.5 64 360.5 id=207 nolink
 dphone path addat jailbreak 105.5 65 362.5 id=208 nolink DUG_OUT
+dphone path addat jailbreak 149.5 65 393.5 id=209 nolink LADDER_IN
+dphone path addat jailbreak 149.5 66 395.5 id=210 nolink
+dphone path addat jailbreak 150.5 72 395.5 id=211 nolink
+dphone path addat jailbreak 150.5 73 396.5 id=212 nolink
+dphone path addat jailbreak 150.5 70 397.5 id=213 nolink
+dphone path addat jailbreak 149.5 67 397.5 id=214 nolink
+dphone path addat jailbreak 149.5 65 398.5 id=215 nolink LADDER_OUT
 dphone path link 1 2
 dphone path link 1 15
 dphone path link 1 24
@@ -387,6 +394,7 @@ dphone path link 172 173
 dphone path link 173 174
 dphone path link 174 177
 dphone path link 175 203
+dphone path link 175 209
 dphone path link 176 177
 dphone path link 176 178
 dphone path link 178 181
@@ -414,3 +422,9 @@ dphone path link 204 205
 dphone path link 205 206
 dphone path link 206 207
 dphone path link 207 208
+dphone path link 209 210
+dphone path link 210 211
+dphone path link 211 212
+dphone path link 212 213
+dphone path link 213 214
+dphone path link 214 215

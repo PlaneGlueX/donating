@@ -3,7 +3,7 @@
 # (ESCAPE-SPEC 2.3). jailPointsLoad() deletes and refills exactly these memory variables: {-jailpt::*},
 # {-jailroute::*}, {-jailzone::*}, {-jailwall::*}, {-jailinner::*}, {-jaildoor::*}, {-jailbreach::*},
 # {-jailrubble::*}, {-jailfence::*} and {-jailpts::*}.
-# 299 points, 30 routes, 58 zones, 25 + 37 outline vertices, 28 doors, 4 breaches, 677 fence cells.
+# 301 points, 30 routes, 58 zones, 25 + 37 outline vertices, 28 doors, 4 breaches, 673 fence cells.
 
 on load:
 	jailPointsLoad()
@@ -51,6 +51,8 @@ function jailPointsLoad():
 	set {-jailpt::GUN_KEEPER} to "311.5|65|243.5|0"
 	set {-jailpt::GUN_OUT} to "316.5|65|261.5|180"
 	set {-jailpt::GUN_READER} to "317|66|260|0"
+	set {-jailpt::LADDER_IN} to "150|65|393.5|0"
+	set {-jailpt::LADDER_OUT} to "150|65|398.5|0"
 	set {-jailpt::LEFTY} to "80.5|65.5|151.5|-90"
 	set {-jailpt::LOT_EXIT} to "260.5|65|404.5|0"
 	set {-jailpt::L_FUSE} to "266.97|66.5|395.5|90"
@@ -735,10 +737,6 @@ function jailPointsLoad():
 	set {-jailfence::145|396} to "x"
 	set {-jailfence::146|396} to "x"
 	set {-jailfence::147|396} to "xp"
-	set {-jailfence::148|396} to "x"
-	set {-jailfence::149|396} to "x"
-	set {-jailfence::150|396} to "x"
-	set {-jailfence::151|396} to "xp"
 	set {-jailfence::152|396} to "x"
 	set {-jailfence::153|396} to "x"
 	set {-jailfence::154|396} to "x"
@@ -1896,5 +1894,5 @@ function jailPointsLoad():
 	add "181|65|324|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "177|65|321|polished_andesite_slab[type=bottom]" to {-jailrubble::gate::*}
 	add "178|65|324|iron_bars" to {-jailrubble::gate::*}
-	set {-jailpts::count} to 299
+	set {-jailpts::count} to 301
 	set {-jailpts::loaded} to true
