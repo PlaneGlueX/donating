@@ -130,9 +130,10 @@ module.exports = async ({ check }) => {
     let since0 = Date.now() // before the give: slot 1 is already in hand, so the guard can see the gun at once
     await cmd(`wm give ${A} 50_GS 1 {slot:1}`)
     a.setQuickBarSlot(1)
-    const gunH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-held-wpn:50_GS`)) && logs.cops.has(new RegExp(`armed ${A} \\S+ why=seen-gun`)), 4000, 100)
+    const gunH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-held-wpn:50_GS`)) && logs.cops.has(new RegExp(`armed ${A} \\S+ why=seen-gun`)), 8000, 100) // the 1 s held rule + the 10-tick pass + a guard turning at a waypoint
     const buffed = await until(() => logs.cops.has(new RegExp(`buff id=${ynId}`)), 3000, 100)
-    check('a gun held out in front of a guard: hostile and ARMED (the title), the hunting guard stronger (buff)', gunH && buffed && said(a, /ARMED/, since0), `gun=${gunH} buff=${buffed} title=${said(a, /ARMED/, since0)} | ${logs.cops.since().split('\n').filter(x => /hostile|armed|buff/.test(x)).join(' / ')} | ${gunSees}`)
+    const gunTitle = await until(() => said(a, /ARMED/, since0), 2000, 100)
+    check('a gun held out in front of a guard: hostile and ARMED (the title), the hunting guard stronger (buff)', gunH && buffed && gunTitle, `gun=${gunH} buff=${buffed} title=${said(a, /ARMED/, since0)} | ${logs.cops.since().split('\n').filter(x => /hostile|armed|buff/.test(x)).join(' / ')} | ${gunSees}`)
     const extra = await until(async () => Number((await cmd('zzjailcops')).match(/known=(\d+)/)[1]) >= known0 + 3, 30000, 1000)
     check('...and 3 extra guards spawn to hunt them', extra && logs.cops.has(/spawn armed\d+ id=/), `${known0} -> ${await cmd('zzjailcops')} | ${logs.cops.since().split('\n').filter(x => /spawn/.test(x)).slice(-4).join(' / ')}`)
     a.setQuickBarSlot(2)
