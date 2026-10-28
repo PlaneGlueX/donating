@@ -14,6 +14,7 @@ const MIX = {
   stonebrick: [['stone_bricks', 70], ['cracked_stone_bricks', 12], ['tuff_bricks', 18]],
   // city additions
   plaza: [['polished_andesite', 75], ['andesite', 15], ['stone', 10]],      // alleys, plazas, Hatch Lane, the channel floor
+  walk: [['light_gray_concrete', 100]],                                      // sidewalks (plain, as the prison's: jail/outdoors.js)
   curb: [['smooth_stone', 85], ['stone', 15]]
 }
 // both halves of a door; y = the lower half. Iron doors can't be opened by hand.
@@ -41,16 +42,16 @@ const LABEL_TAG = 'city_label', DISPLAY_TAG = 'city_display' // the tags of the 
 const BOX = {
   jewelry: [596, 356, 639, 415], // the store, its alley (z 356..373) and the fire escape
   bank: [560, 280, 639, 321],    // the tower, Hatch Plaza (x 560..590), the front plaza (x 629..639), the tunnel and shaft
-  museum: [820, 296, 920, 400]   // the mesa (x 820..920, z 300..400, top y 72), the plaza, the terraces, the drain tunnel
+  casino: [820, 296, 920, 400]   // the podium (x 820..920, z 300..400, top y 72), the plaza, the casino, the tunnels
 }
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2] (section 7.1)
 const REGION = {
   jewelry: [598, 56, 374, 634, 97, 414],
   bank: [595, 47, 280, 630, 102, 321],
-  museum: [841, 60, 330, 898, 97, 371]
+  casino: [841, 55, 330, 898, 71, 371] // B1 and B2 under the public gaming floor
 }
-// owned by nobody: no module writes a block here (the base lot, the power plant strip, the casino blocks)
+// owned by nobody: no module writes a block here (the base lot, the power plant strip, the later blocks)
 const KEEP_FREE = [[506, 356, 550, 410], [931, 226, 940, 470], [664, 226, 930, 279]]
 
 const inBox = (x, z, boxes) => boxes.some(([x1, z1, x2, z2]) => x >= x1 && x <= x2 && z >= z1 && z <= z2)
@@ -66,18 +67,18 @@ const ownFor = mod => (x, y, z) => y >= CITY.y1 && y <= CITY.y2 && ownerOf(x, z)
 const AVE = { x1: 481, x2: 789, z1: 419, z2: 441, dash: 430, edge: [420, 440], walk: [[416, 418], [442, 444]], park: [445, 470] }
 const RB = { cx: 810, cz: 430, r: 20, island: 8, walk: 3 } // the roundabout: island d < 8, asphalt 8..20, sidewalk 20..23
 const SPUR = [812, 402, 829, 414]   // asphalt from the roundabout's north-east to the ramp's foot
-const RAMP = { x1: 830, x2: 894, z1: 402, z2: 409, curb: 401, wall: 410, top: 887 } // the ramp road up the mesa's south wall
+const RAMP = { x1: 830, x2: 894, z1: 402, z2: 409, curb: 401, wall: 410, top: 887 } // the ramp road up the podium's south wall
 const BANK_ST = { x1: 640, x2: 663, road: [643, 660], z1: 230 }   // north from the avenue to z 230
-const SECOND = { z1: 340, z2: 355, road: [343, 352], x1: 490, x2: 787 }
+const VAULT_ST = { z1: 340, z2: 355, road: [343, 352], x1: 490, x2: 787 }
 const WEST_ST = { x1: 490, x2: 505, road: [493, 502], z1: 296 }   // north from the avenue to z 296
 const HATCH_LANE = [506, 296, 559, 304]                            // polished andesite, into Hatch Plaza (bank module)
 const CHAN = { x1: 776, x2: 930, z1: 280, z2: 295, floor: 59, mouth: [868, 870] } // the storm channel, walls at its edges
-const LEG = { x1: 776, x2: 787, z1: 296, z2: 355 }                 // its west leg, up into 2nd Street
+const LEG = { x1: 776, x2: 787, z1: 296, z2: 339 }                 // its west leg, up into Vault Street (which starts at z 340)
 
 const rbD = (x, z) => Math.hypot(x + 0.5 - RB.cx, z + 0.5 - RB.cz)
 const rampFeet = x => x >= RAMP.top ? 73 : 65 + Math.floor((x - RAMP.x1) / 8) // where feet stand on the ramp at column x
 const legFloor = z => z <= 296 ? 59 : z >= 336 ? 64 : 59 + Math.floor((z - 296) / 8) // the leg's floor block
-const drainFloor = z => 59 + Math.floor((z - 294) / 7) // the drain tunnel's floor block, z 296..329 (museum module)
+const drainFloor = z => 59 + Math.floor((z - 294) / 7) // the drain tunnel's floor block, z 296..329 (casino module)
 
 // What the streets module lays at (x, z), or null (grass at GROUND_Y). top = the surface block's y.
 // kinds: road (asphalt), line (white / yellow), walk (sidewalk), curb (sidewalk edge, a slab at top + 1), island,
@@ -89,7 +90,7 @@ function streetCell (x, z) {
     if (z === CHAN.z2 && x >= LEG.x2) return x >= CHAN.mouth[0] && x <= CHAN.mouth[1] ? { kind: 'wall', top: 64, mouth: true } : { kind: 'wall', top: 64 }
     return { kind: 'chan', top: x < LEG.x2 ? legFloor(z) : CHAN.floor }
   }
-  if (x >= LEG.x1 && x <= LEG.x2 && z >= LEG.z1 && z < SECOND.z1) {
+  if (x >= LEG.x1 && x <= LEG.x2 && z >= LEG.z1 && z < VAULT_ST.z1) {
     if (x === LEG.x1 || x === LEG.x2) return { kind: 'wall', top: 64 }
     return { kind: 'chan', top: legFloor(z) }
   }
@@ -114,20 +115,20 @@ function streetCell (x, z) {
   }
   const d = rbD(x, z) // after the avenue, so the ring's sidewalk never cuts the avenue's end
   if (d < RB.r + RB.walk) return d < RB.island ? { kind: 'island', top: 64 } : d < RB.r ? { kind: 'road', top: 64 } : { kind: 'walk', top: 64 }
-  // Bank Street, 2nd Street, West Street (crossings are asphalt)
+  // Bank Street, Vault Street, West Street (crossings are asphalt)
   const inBank = x >= BANK_ST.x1 && x <= BANK_ST.x2 && z >= BANK_ST.z1 && z < AVE.walk[0][0]
-  const inSecond = z >= SECOND.z1 && z <= SECOND.z2 && x >= SECOND.x1 && x <= SECOND.x2
+  const inVault = z >= VAULT_ST.z1 && z <= VAULT_ST.z2 && x >= VAULT_ST.x1 && x <= VAULT_ST.x2
   const inWest = x >= WEST_ST.x1 && x <= WEST_ST.x2 && z >= WEST_ST.z1 && z < AVE.walk[0][0]
-  if (inBank || inSecond || inWest) {
+  if (inBank || inVault || inWest) {
     const roadB = inBank && x >= BANK_ST.road[0] && x <= BANK_ST.road[1]
-    const roadS = inSecond && z >= SECOND.road[0] && z <= SECOND.road[1]
+    const roadS = inVault && z >= VAULT_ST.road[0] && z <= VAULT_ST.road[1]
     const roadW = inWest && x >= WEST_ST.road[0] && x <= WEST_ST.road[1]
     if (roadB || roadS || roadW) {
-      const dashB = roadB && !inSecond && (x === 651 || x === 652) && z % 6 < 3
+      const dashB = roadB && !inVault && (x === 651 || x === 652) && z % 6 < 3
       const dashS = roadS && !inBank && !inWest && (z === 347 || z === 348) && x % 6 < 3
       return dashB || dashS ? { kind: 'line', top: 64, color: 'yellow' } : { kind: 'road', top: 64 }
     }
-    const curb = (inBank && (x === 642 || x === 661)) || (inSecond && (z === 342 || z === 353)) || (inWest && (x === 492 || x === 503))
+    const curb = (inBank && (x === 642 || x === 661)) || (inVault && (z === 342 || z === 353)) || (inWest && (x === 492 || x === 503))
     return { kind: curb ? 'curb' : 'walk', top: 64 }
   }
   if (inBox(x, z, [HATCH_LANE])) return { kind: 'lane', top: 64 }
@@ -187,17 +188,16 @@ const FOOT = [
   [632, 389, 634, 393, 91, 'polished_andesite'], [598, 374, 631, 375, 74, 'iron_block'],
   // Bank (section 5): the front plaza, Hatch Plaza, the tower's roof
   [629, 280, 639, 321, 64, 'polished_andesite'], [560, 285, 590, 315, 64, 'polished_andesite'], [597, 282, 628, 319, 101, 'polished_deepslate'],
-  // Museum (section 6): the mesa top, the plaza, the hall's roof, the wing roofs, the portico, the ladder towers
-  [820, 300, 920, 400, 72, 'smooth_sandstone'], [841, 372, 898, 400, 72, 'polished_andesite'], [857, 331, 882, 364, 96, 'calcite'],
-  [843, 339, 856, 361, 89, 'smooth_quartz'], [883, 339, 896, 361, 89, 'smooth_quartz'], [857, 365, 882, 371, 88, 'calcite'],
-  [839, 349, 840, 351, 89, 'stone_bricks'], [899, 349, 900, 351, 89, 'stone_bricks']
+  // Casino (section 6): the podium top, the plaza, the casino's roof, the marquee tower, the security tunnel's portal lawn
+  [820, 300, 920, 400, 72, 'smooth_stone'], [841, 372, 898, 400, 72, 'polished_andesite'], [843, 331, 896, 371, 84, 'calcite'],
+  [862, 365, 877, 371, 97, 'gold_block']
 ]
 const SPOTS = [
   [612, 417], [632, 413], [596, 417], [662, 417], [601, 360], [603, 360], [605, 360],           // jewelry: exit, holo, cops, bikes
-  [636, 300], [633, 300], [662, 337], [662, 262], [565, 297], [565, 303], [574, 299],           // bank: exit, holo, cops, bikes, manhole
-  [869, 380], [869, 373], [870, 388], [810, 430], [925, 350], [866, 290], [869, 290], [872, 290] // museum: exit, holo, cops, bikes
+  [636, 300], [633, 300], [660, 296], [660, 305], [565, 297], [565, 303], [575, 300],           // bank: exit, holo, cops, bikes, manhole
+  [869, 380], [869, 373], [925, 349], [925, 353], [925, 358], [866, 290], [869, 290], [872, 290] // casino: exit, holo, cops, bikes
 ]
-const COLOR = { jewelry: 'blue_wool', bank: 'green_wool', museum: 'yellow_wool', free: 'white_wool' }
+const COLOR = { jewelry: 'blue_wool', bank: 'green_wool', casino: 'yellow_wool', free: 'white_wool' }
 const SURFACE = { road: 'black_concrete', walk: 'light_gray_concrete', curb: 'smooth_stone', island: 'grass_block', park: 'gray_concrete',
   ramp: 'black_concrete', rampwall: 'stone_bricks', lane: 'polished_andesite', chan: 'polished_andesite', wall: 'stone_bricks' }
 module.exports = () => {

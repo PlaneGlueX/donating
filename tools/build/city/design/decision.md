@@ -241,7 +241,7 @@ and the alternate exit to a manhole behind the bank. Twists:
 - **Front door**: an open doorway 4 wide x 4 high mid east face (z 298..301), quartz surround; a red "CLOSED"
   hologram line while cooling. Plaza x 631..639 (polished andesite) to the Bank Street sidewalk.
 - **Back (west)**: a blank granite wall onto **Hatch Plaza** (x 560..590, z 285..315) with the **manhole**: 4
-  polished_andesite_wall bollards round an open ladder shaft (no trapdoor) at (575, 64, 300). **Hatch Lane**
+  andesite_wall bollards round an open ladder shaft (no trapdoor) at (575, 64, 300). **Hatch Lane**
   (z 296..304, polished andesite + stone bricks, not concrete) runs west from the plaza to West Street (x 490..505).
 
 ### 4.3 The robbery
@@ -683,3 +683,36 @@ Calls for the owner:
 3. Build order for the mechanics: M1, then M2, then M3, or none at launch.
 4. Names: "Rising City", "Jewelry Store", "Bank", "Museum", the Blue Heart, Box 167, The Diamond.
 5. A City Criminal Base lot (x 490..550, z 356..410), later.
+
+---------------------------------------------------------------------------------------------------------------------
+
+## 9. 2026-10-28: Museum replaced by the Casino
+
+Owner, 2026-10-28: replace the Museum (the d4 finale) with a casino vault heist from GTA's Diamond Casino and Payday 2's
+Golden Grin, so the server isn't a copy of Jailbreak, "but also make the actual casino usable just like gta". Section 5
+and the Museum column of section 8 stay as judged; PLAN.md sections 6 and 7.4 are the truth now. The Jewelry Store and
+the Bank are unchanged.
+- **Kept**: difficulty 4, level 45, advanced, escape 10:00, cooldown 30:00, pool $240,000; the box x 820..920,
+  z 296..400 (the mesa is now a podium), the ramp, the plaza, the exit (869.5, 73, 380.5), the hologram, the drain to
+  the storm channel bikes, every street, Bank-to-finale 262.
+- **New**: heist `casino`. The gaming floor is a public building outside any region (games in casino-games.md, script
+  casino.sk, not built); the region `heist_casino` 841 55 330 .. 898 71 371 = 41,412 covers only the two levels under
+  it (B1 security and cash, B2 vault), so the floor works while the heist runs or cools down.
+- **Flow**: in quietly by the staff stair off the floor and its keypad (G1), or loudly by the armored-car tunnel from
+  the east (alarm curtain); B1: corridor cameras and lasers, a false floor, the loud cash cage, the manager's safe;
+  B2: the mantrap's moving laser wall, the quiet deposit-room drill (Golden Grin's Dentist room), the loud round vault
+  door (crack the daily vault cage while it drills), cash trolleys, gold, art, Diamonds; out by the drain (cold) or the
+  tunnel (hot). The alarm bars the staff stair, so the chase never crosses the gaming floor.
+- **Numbers**: 7 gates (4 safes, 2 drills, 1 smash), 13 piles, 20 spots, 147 pieces at most, 27 traps; value
+  $164.5K-309K, average ~$236,750; clear 782 s vs 10:00 (a crew); solo finale ~5:45. Story needs unchanged (finale
+  with safes and drills; Mara c4/c5, Vic v4/v5).
+- **Mechanics**: runs on today's scripts. M1 = GTA's vault of the day (2 of 3 contents) and rare Diamonds; M2 = the
+  mantrap's two keycard readers (two robbers within 3 s) and the security PC (cameras and deposit lasers 60 s); M3
+  optional (the deposit shutter as a thermal charge).
+- **Lost**: Jailbreak's museum beats (the roof drop, the spotlit T-Rex hall, the Diamond Room floor puzzle, the twin
+  levers).
+- **Gambling risk** (casino-games.md section 1): real money reaches in-game money through crate keys, and in-game money
+  reaches real value through cars sold between players, so cashable chips may break Mojang's guidelines, Tebex's
+  policy and some countries' laws. Recommended: the cautious option (chips one-way, bound prizes; GTA's own model).
+- **To do**: plan-layout.js still draws the Museum's box name and region (PLAN.md section 8 says so); bring it in line
+  before a builder copies COMMON.

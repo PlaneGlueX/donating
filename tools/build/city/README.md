@@ -11,9 +11,9 @@ Owner, 2026-10-26/27: three heists in the jailbreak world east of the prison (x 
 ## Resume
 Run the workflow from the first step whose file is missing:
 - PLAN.md without its section 12: `from: 'plan'` (the planner continues the file).
-- PLAN.md complete, no design/critique.md: `from: 'critique'` (this is where it stands now).
+- PLAN.md complete, no design/critique.md: `from: 'critique'` .
 - design/critique.md, no design/fixes.md: `from: 'fix'`.
-- design/fixes.md exists: the plan is final, build it.
+- design/fixes.md exists: the plan is final, build it (this is where it stands now, 2026-10-28: the Museum became the Casino, 23 critique findings fixed).
 
 ```
 Workflow({ scriptPath: 'C:/Users/matti/OneDrive/Desktop/Donating Test Server/tools/build/city/design/plan-workflow.js', args: { from: 'critique' } })
