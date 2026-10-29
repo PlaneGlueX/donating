@@ -114,3 +114,32 @@ Changed before building (COMMON): the club's box starts at x 664 (was 668), so t
 
 **Spots:** exit (666.5, 65, 262.5) facing west, the hologram (666.5, 70, 262.5). No cops. GPS 5030 the forecourt (666.5, 65, 262.5), linked to 3017. POI: landmark "Nightclub". ATM 7 at (667, 65, 256). Budget 70,000 blocks.
 - **Built 2026-10-29**: 10,542 blocks (`city.js check` passes), pasted with `--box 664,228,740,278`; the label and the ATM display placed; region, heist (not advanced), 2 gates, 7 piles, 14 traps (6 blinking lasers, 2 turrets at damage 0.5, 6 plates), the snapshot, the hologram, ATM 7, POI 39 and GPS 5030 (linked to 3017) set up over RCON. The lasers warn "less than 2 blocks inside" in game: harmless, their ends are in the south wall. The roll came to $9,250 and $12,250 on its first two openings. `bots/run.js north club` 8/8: open and armed, level 9 kept out at the door, level 10 in, the bar glass smashed, a till and a VIP table paid into the bag, the office safe with its hitboxes.
+
+## 5. Lucky Pawn (`north/pawn.js`)
+
+A store (expand/PLAN.md 1.3): difficulty 0, level 1, no police (stores have none by default), pool $5,000. A clerk stands at the register (clerk.sk): hitting them opens the register and starts the robbery, and they throw things from the shelves. The back room's jewelry cabinet is smashed (a store takes piles and glass only: loot.sk refuses a safe in one, so the plan's Safe Kit safe became glass). A calm clerk sells the store's food and consumables like every store.
+
+Changed before building (COMMON): the region is the building's (below).
+
+**Footprint** (the module owns x 600..636, z 66..109):
+- The building: walls x 606..630, z 80..104, one floor (floor 64, rooms y 65..70, roof 71 with a parapet). Brick, its front the south face z 104 on Gallery Row: the door x 617..619 (y 65..67), display windows behind iron bars on both sides (x 609..614 and 622..627, y 66..68), a black and yellow awning over them at y 69, "LUCKY PAWN" (a gold label) above.
+- The apron x 600..636, z 105..109 (sidewalk, joining Gallery Row's north walk at z 110), an ATM at (612, 107) facing the street. Behind the building grass and a tree.
+
+**Heist region** `heist_pawn` x 605..631, y 63..73, z 79..104 (7,722 blocks).
+
+**Rooms** (inside x 607..629, z 81..103):
+1. **The shop floor** z 92..103: glass display cases (jewelry, watches), guitars and TVs on the walls, a gun case (decoration).
+2. **The counter** z 91 across x 607..627 (polished blackstone, the register on it at x 617..619: P1). The clerk stands behind it at (618.5, 65, 89.5) facing the door; behind them the aisle z 86..90 and the back shelves z 86 (the clerk's three shelf spots). A gap at x 628..629 (the hinge) lets you round the counter.
+3. **The back room** z 81..84 (the wall z 85 with a door at x 610..611): boxes, and the walk-in jewelry cabinet x 626..629, z 81..83 (its walls x 625 and z 84): G1 its glass front at x 625, z 82..83, y 65..66 (smash) and P3 on the shelf at x 629, z 82..83. The clerk can see into the back room through its door from the west shelf, so they throw at you while you smash it: hit them to make them duck.
+
+**Loot:**
+
+| Pile | Where | Value | Style | Behind |
+|---|---|---|---|---|
+| P2 Register | x 617..619, z 91, y 65 | $1,500-3,000 | register (125) | the clerk |
+| P3 Pawned jewelry | x 629, z 82..83, y 65 | $1,000-2,000 | jewel | G1 (smash) |
+
+(Spot numbers: the gate is added first, so it is pawn-1 and the piles pawn-2 and pawn-3; city.js check counts gates first.)
+
+No traps. **Spots:** exit (618.5, 65, 107.5) facing south, the hologram (623.5, 65, 107.5). The clerk at (618.5, 65, 89.5) yaw 0, shelf spots (610.5, 65, 87.5), (626.5, 65, 87.5), (618.5, 65, 87.5). GPS 5040 the apron (618.5, 65, 107.5), linked to 5008. ATM 9 at (612, 65, 107) (8 was the club's duplicate, removed). No POI (a store: its locator dot shows while it's open). Budget 25,000 blocks.
+- **Built 2026-10-29**: 2,726 blocks (`city.js check` passes), pasted with `--box 600,66,636,109`; the label and the ATM display placed; region, the store (difficulty 0, no police), 1 gate, 2 piles, the clerk and 3 shelf spots, the snapshot, the hologram, ATM 9 and GPS 5040 (linked to 5008) set up over RCON. `bots/run.js north pawn` 7/7: open and armed, in, shut until the clerk is hit, the cabinet smashed (the clerk stunned first), the jewelry and the register paid into the bag. The bot test needed a fix: a respawned hitbox can leave its old copy in the bot's entity list, so `box()` now takes the newest at a tie.

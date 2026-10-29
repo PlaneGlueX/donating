@@ -1,7 +1,8 @@
 // Rising City North's heists (tools/build/north/PLAN.md, 2026-10-29), one at a time: `bots/run.js north <heist>`
 // (default: every heist in HEISTS). For each: it's open and every pile is armed, a robber one level short is kept out at
 // the front door, one at the level gets in, smashes a gate and takes from the pile behind it into the bag, takes from an
-// open pile if the heist has one, and the locked gates further in get their hitboxes. After, the run is ended and the
+// open pile if the heist has one, and the locked gates further in get their hitboxes. A store (clerk: true): a hit on the clerk
+// opens it first (no level check at level 1: everyone has it). After, the run is ended and the
 // heist reopens as soon as its room reset is done.
 const fs = require('fs')
 const path = require('path')
@@ -35,6 +36,14 @@ const HEISTS = {
     take: { stand: [702.5, 65, 244.5], aim: [702.5, 66, 242.5], pile: 4 },
     open: { stand: [727.5, 65, 247.5], aim: [729.5, 66, 247.5], pile: 7, name: 'a VIP table (no gate)' },
     hitboxes: [{ stand: [732.5, 65, 270.5], gate: 2, name: 'the office safe G2' }]
+  },
+  pawn: {
+    level: 1, piles: 2, clerk: true,
+    door: [618.5, 65, 107.5], yaw: 180, inside: [618.5, 65, 98.5],
+    smash: { stand: [624.5, 65, 82.5], aim: [625.5, 66, 82.5], gate: 1 },
+    take: { stand: [627.5, 65, 82.5], aim: [629.5, 66, 82.5], pile: 3 },
+    open: { stand: [618.5, 65, 92.5], aim: [618.5, 66, 91.5], pile: 2, name: 'the register' },
+    hitboxes: []
   }
 }
 
@@ -45,7 +54,8 @@ module.exports = async ({ check, args }) => {
   const logLen = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0
   const logged = () => fs.existsSync(LOG) ? fs.readFileSync(LOG).subarray(logLen).toString('utf8') : '' // bytes, not characters
   const until = async (fn, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(500) } return Boolean(await fn()) }
-  const box = (x, y, z) => Object.values(bot.entities).filter(e => e.name === 'interaction').sort((a, b) => Math.hypot(a.position.x - x, a.position.y - y, a.position.z - z) - Math.hypot(b.position.x - x, b.position.y - y, b.position.z - z))[0]
+  // the nearest hitbox to the spot; at a tie the newest (a respawned spot can leave the old box in the bot's list)
+  const box = (x, y, z) => Object.values(bot.entities).filter(e => e.name === 'interaction').map(e => [Math.round(Math.hypot(e.position.x - x, e.position.y - y, e.position.z - z) * 100), e]).sort((a, b) => a[0] - b[0] || b[1].id - a[1].id)[0]?.[1]
   const hold = async ([x, y, z], ms) => { const end = Date.now() + ms; while (Date.now() < end) { const e = box(x, y, z); if (e) bot.activateEntity(e).catch(() => {}); await sleep(200) } }
   const tp = async ([x, y, z]) => { await cmd(`zzheisttp ${P} ${x} ${y} ${z}`); await sleep(2500) }
   const ids = args.length ? args : Object.keys(HEISTS)
@@ -68,22 +78,36 @@ module.exports = async ({ check, args }) => {
       bot.setQuickBarSlot(0)
 
       // One level short, walking in through the front door: kept out.
-      await cmd(`dlevel set ${P} ${H.level - 1}`)
-      await cmd(`minecraft:tp ${P} ${H.door.join(' ')} ${H.yaw} 0`)
-      await sleep(2500)
-      bot.setControlState('forward', true)
-      await sleep(3000)
-      bot.setControlState('forward', false)
-      await sleep(1000)
-      check(`${id}: level ${H.level - 1} is kept out`, !new RegExp(` ${id} `).test(await cmd(`zzinheist ${P}`)), await cmd(`zzinheist ${P}`))
+      if (H.level > 1) {
+        await cmd(`dlevel set ${P} ${H.level - 1}`)
+        await cmd(`minecraft:tp ${P} ${H.door.join(' ')} ${H.yaw} 0`)
+        await sleep(2500)
+        bot.setControlState('forward', true)
+        await sleep(3000)
+        bot.setControlState('forward', false)
+        await sleep(1000)
+        check(`${id}: level ${H.level - 1} is kept out`, !new RegExp(` ${id} `).test(await cmd(`zzinheist ${P}`)), await cmd(`zzinheist ${P}`))
+      }
 
       await cmd(`dlevel set ${P} ${H.level}`)
       await tp(H.inside)
-      check(`${id}: level ${H.level} is in`, new RegExp(` ${id} `).test(await cmd(`zzinheist ${P}`)), await cmd(`zzinheist ${P}`))
+      const inside = await until(async () => new RegExp(` ${id} `).test(await cmd(`zzinheist ${P}`)), 8000) // heists.sk's reconcile decides
+      check(`${id}: level ${H.level} is in`, inside, await cmd(`zzinheist ${P}`))
+
+      if (H.clerk) {
+        const shut = /:pile:shut:/.test(await cmd(`zzloot ${id}`))
+        await cmd(`zzclerkhit ${id} ${P}`)
+        const hit = await until(async () => !/ hit=<none> /.test(await cmd(`dclerk ${id} info`)), 3000)
+        check(`${id}: shut until a hit on the clerk opens it`, shut && hit && /state=active/.test(await cmd(`zzheist ${id}`)), (await cmd(`dclerk ${id} info`)).slice(0, 160))
+      }
 
       await tp(H.smash.stand)
-      await hold(H.smash.aim, 2500)
-      await sleep(500)
+      // hold until it breaks, 10 s at most. A store's clerk throws things (a hit starts the hold over): hit them first, as a
+      // player would, so they duck for clerk::stun.
+      for (let end = Date.now() + 10000; Date.now() < end && (await spot(H.smash.gate))[1] !== 'open';) {
+        if (H.clerk) await cmd(`zzclerkhit ${id} ${P}`)
+        await hold(H.smash.aim, 2000)
+      }
       const g = await spot(H.smash.gate)
       const [ax, ay, az] = H.smash.aim.map(Math.floor)
       check(`${id}: holding on the glass smashes G${H.smash.gate}`, g[1] === 'open' && /passed/i.test(await cmd(`execute if block ${ax} ${ay} ${az} minecraft:air`)), g.join(':'))
