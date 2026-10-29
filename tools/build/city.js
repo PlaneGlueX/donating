@@ -21,12 +21,22 @@ const path = require('path')
 const crypto = require('crypto')
 const { Build, place, parseState } = require('./mcstruct')
 
-const MODULES = ['streets', 'jewelry', 'bank', 'casino']
-const BUDGET = { streets: 250000, jewelry: 70000, bank: 90000, casino: 200000 } // PLAN 9.1
-const PLAN_DIR = path.join(__dirname, 'city')
+// Build sets (2026-10-29, tools/build/expand/PLAN.md): CITY_SET=north is Rising City North, CITY_SET=iron is Ironvale,
+// each with its own folder, COMMON and modules; the default is Rising City itself.
+const SETS = {
+  city: { modules: ['streets', 'jewelry', 'bank', 'casino'], budget: { streets: 250000, jewelry: 70000, bank: 90000, casino: 200000 }, gps: [1002] }, // PLAN 9.1
+  north: { modules: ['streets', 'reserve', 'gallery', 'club', 'pawn', 'carwash'], budget: { streets: 120000, reserve: 150000, gallery: 90000, club: 70000, pawn: 25000, carwash: 30000 }, gps: [3017] },
+  iron: { modules: ['streets', 'power', 'police', 'mansion'], budget: { streets: 400000, power: 150000, police: 90000, mansion: 200000 }, gps: [3012, 3013] }
+}
+const SET_NAME = process.env.CITY_SET || 'city'
+const SET = SETS[SET_NAME]
+if (!SET) throw new Error(`CITY_SET ${SET_NAME}: no such set (${Object.keys(SETS).join(', ')})`)
+const MODULES = SET.modules
+const BUDGET = SET.budget
+const PLAN_DIR = path.join(__dirname, SET_NAME)
 const DIR = process.env.CITY_DIR ? path.resolve(process.env.CITY_DIR) : PLAN_DIR
 const ROOT = path.join(__dirname, '..', '..')
-const PRISON_GPS = new Set([1002]) // the prison's JUNCTION (tools/jail-gps-paths.txt): the city's first link starts there
+const PRISON_GPS = new Set(SET.gps) // nodes of another graph a set's links may start from (the city's: the prison's JUNCTION)
 
 const only = (process.env.CITY_ONLY || '').split(',').map(s => s.trim()).filter(Boolean)
 const HAVE = MODULES.filter(m => (!only.length || only.includes(m)) && fs.existsSync(path.join(DIR, `${m}.js`)))
@@ -239,8 +249,8 @@ function check (opts) {
   if (missing().length) warn(`not built yet (skipped): ${missing().join(', ')}`)
 
   // 1. COMMON: PLAN.md section 8 = plan-layout.js = every module's copy
-  const planSrc = commonOf((/```js\n([\s\S]*?)```/.exec(fs.readFileSync(path.join(PLAN_DIR, 'PLAN.md'), 'utf8').replace(/\r/g, '').split('## 8. COMMON')[1] || '') || [])[1] || '')
-  if (planSrc !== C.src) fail('plan-layout.js\'s COMMON differs from PLAN.md section 8')
+  const planSrc = commonOf((/```js\n([\s\S]*?)```/.exec((fs.existsSync(path.join(PLAN_DIR, 'PLAN.md')) ? fs.readFileSync(path.join(PLAN_DIR, 'PLAN.md'), 'utf8') : '').replace(/\r/g, '').split('## 8. COMMON')[1] || '') || [])[1] || '')
+  if (SET_NAME === 'city' && planSrc !== C.src) fail('plan-layout.js\'s COMMON differs from PLAN.md section 8')
   const odd = present().filter(m => commonOf(fs.readFileSync(path.join(DIR, `${m}.js`), 'utf8')) !== C.src)
   if (odd.length) fail(`COMMON differs from plan-layout.js's in: ${odd.join(', ')}`)
   else ok(`COMMON identical in plan-layout.js${planSrc === C.src ? ', PLAN.md' : ''} and ${present().length} module(s) (${commonHash(C.src)})`)
@@ -514,8 +524,8 @@ async function paste (W, spec) {
   if (spec) { b = boxed(b, spec); console.log(`--box: ${b.blocks.size} blocks`) }
   const main = new Build(), late = new Build()
   for (const [k, s] of b.blocks) (LATE.test(nameOf(s)) ? late : main).blocks.set(k, s)
-  await place(main, { name: 'city', world: W })
-  if (late.blocks.size) await place(late, { name: 'city_late', world: W })
+  await place(main, { name: SET_NAME, world: W })
+  if (late.blocks.size) await place(late, { name: `${SET_NAME}_late`, world: W })
 }
 const YAW = { south: 0, west: 90, north: 180, east: -90, up: 0 }
 const snbt = s => [...s].map(c => {

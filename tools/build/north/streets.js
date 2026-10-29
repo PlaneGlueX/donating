@@ -1,0 +1,237 @@
+'use strict'
+// ---- COMMON (tools/build/north: copy verbatim into every Rising City North module; city.js check compares them) ----
+const h = (x, y, z) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 100
+const pick = (x, y, z, mix) => { const v = h(x, y, z); let a = 0; for (const [s, p] of mix) { a += p; if (v < a) return s } return mix[mix.length - 1][0] }
+const MIX = {
+  white: [['white_concrete', 70], ['smooth_quartz', 20], ['calcite', 10]],
+  brick: [['bricks', 85], ['polished_granite', 8], ['terracotta', 7]],
+  asphalt: [['black_concrete', 75], ['black_concrete_powder', 15], ['gray_concrete_powder', 10]],
+  darkstone: [['blackstone', 40], ['cobbled_deepslate', 35], ['polished_basalt', 25]],
+  navy: [['blue_terracotta', 80], ['blue_concrete', 20]],
+  // town additions
+  deck: [['black_concrete', 90], ['gray_concrete', 10]], // asphalt with no powder: bridge decks and anything over air
+  stonebrick: [['stone_bricks', 70], ['cracked_stone_bricks', 12], ['tuff_bricks', 18]],
+  // city additions
+  plaza: [['polished_andesite', 75], ['andesite', 15], ['stone', 10]],      // alleys, plazas, Hatch Lane, the channel floor
+  walk: [['light_gray_concrete', 100]],                                      // sidewalks (plain, as the prison's: jail/outdoors.js)
+  curb: [['smooth_stone', 85], ['stone', 15]]
+}
+// both halves of a door; y = the lower half. Iron doors can't be opened by hand.
+const door = (b, x, y, z, facing, hinge = 'left', open = false, block = 'iron_door') => {
+  b.set(x, y, z, `${block}[facing=${facing},half=lower,hinge=${hinge},open=${open},powered=false]`)
+  b.set(x, y + 1, z, `${block}[facing=${facing},half=upper,hinge=${hinge},open=${open},powered=false]`) }
+// both parts of a bed; (x,y,z) = the head, the foot is one block opposite to facing. Beds are decoration only.
+const bed = (b, color, x, y, z, facing) => {
+  const d = { north: [0, 1], south: [0, -1], east: [-1, 0], west: [1, 0] }[facing]
+  b.set(x, y, z, `${color}_bed[facing=${facing},part=head,occupied=false]`)
+  b.set(x + d[0], y, z + d[1], `${color}_bed[facing=${facing},part=foot,occupied=false]`) }
+// a diagonal line rasterized 4-connected (an extra cell wherever x and z both change), for fences and bars
+const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Math.abs(z2 - z1)); let px = null, pz = null
+  for (let i = 0; i <= n; i++) { const x = Math.round(x1 + (x2 - x1) * i / n), z = Math.round(z1 + (z2 - z1) * i / n)
+    if (px !== null && x !== px && z !== pz) fn(x, pz); fn(x, z); px = x; pz = z } }
+const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
+
+// ---- Rising City North's frame (tools/build/expand/PLAN.md section 1.1) -----------------------------------------------
+const WORLD = 'world'
+const CITY = { x1: 481, z1: 0, x2: 940, z2: 279, y1: 44, y2: 120 } // every block of Rising City North lies in here
+const GROUND_Y = 64 // the generated grass's top block; feet stand at 65
+const LABEL_TAG = 'north_label', DISPLAY_TAG = 'north_display'
+
+// module boxes [x1, z1, x2, z2]: the module owns every column inside, y CITY.y1..CITY.y2
+const BOX = {
+  reserve: [664, 132, 800, 222], // the Federal Reserve and its plaza on Bank Street North (x 664..669)
+  gallery: [556, 132, 636, 222], // the Art Gallery, its front on Gallery Row
+  club: [668, 228, 740, 278],    // the Nightclub, on Rising City's old kept-free strip, its door on Bank Street (x 664..667 walk)
+  pawn: [600, 66, 636, 106],     // Lucky Pawn, its front on Gallery Row
+  carwash: [490, 132, 550, 200]  // the Car Wash, its front on Gallery Row
+}
+const BUILDINGS = Object.keys(BOX)
+// the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then the whole box)
+const REGION = {
+  reserve: [700, 56, 150, 780, 78, 200],
+  gallery: [564, 64, 140, 628, 78, 214],
+  club: [670, 64, 230, 738, 78, 276],
+  pawn: [602, 63, 68, 634, 75, 104],
+  carwash: [492, 63, 134, 548, 75, 198]
+}
+const KEEP_FREE = []
+
+const inBox = (x, z, boxes) => boxes.some(([x1, z1, x2, z2]) => x >= x1 && x <= x2 && z >= z1 && z <= z2)
+// z 226..279 is the built Rising City's (the streets module of tools/build/city): North owns only the club's lot there and
+// Bank Street North's last 4 rows (z 226..229, grass in the city's build) that join it to the city's Bank Street at z 230.
+const ownerOf = (x, z) => {
+  if (x < CITY.x1 || x > CITY.x2 || z < CITY.z1 || z > CITY.z2) return null
+  if (z >= 226) {
+    if (inBox(x, z, [BOX.club])) return 'club'
+    return x >= 640 && x <= 663 && z <= 229 ? 'streets' : null
+  }
+  if (inBox(x, z, KEEP_FREE)) return 'free'
+  for (const m of BUILDINGS) if (inBox(x, z, [BOX[m]])) return m
+  return 'streets'
+}
+const ownFor = mod => (x, y, z) => y >= CITY.y1 && y <= CITY.y2 && ownerOf(x, z) === mod
+
+// ---- streets (module `streets`) ---------------------------------------------------------------------------------------
+const BANK_N = { x1: 640, x2: 663, road: [643, 660], dash: [651, 652], curb: [642, 661], z1: 0, z2: 229 }
+const ROW = { x1: 481, x2: 930, z1: 110, z2: 125, road: [113, 122], dash: [117, 118], curb: [112, 123] } // Gallery Row
+
+// What the streets module lays at (x, z), or null (the grass stays). top = the surface block's y.
+// kinds: road (asphalt), line (white / yellow), walk (sidewalk), curb (sidewalk edge, a slab at top + 1)
+function streetCell (x, z) {
+  const inBank = x >= BANK_N.x1 && x <= BANK_N.x2 && z >= BANK_N.z1 && z <= BANK_N.z2
+  const inRow = x >= ROW.x1 && x <= ROW.x2 && z >= ROW.z1 && z <= ROW.z2
+  if (!inBank && !inRow) return null
+  const roadB = inBank && x >= BANK_N.road[0] && x <= BANK_N.road[1]
+  const roadR = inRow && z >= ROW.road[0] && z <= ROW.road[1]
+  if (roadB || roadR) {
+    const dashB = roadB && !inRow && (x === BANK_N.dash[0] || x === BANK_N.dash[1]) && ((z % 6) + 6) % 6 < 3
+    const dashR = roadR && !inBank && (z === ROW.dash[0] || z === ROW.dash[1]) && ((x % 6) + 6) % 6 < 3
+    return dashB || dashR ? { kind: 'line', top: 64, color: 'yellow' } : { kind: 'road', top: 64 }
+  }
+  // where the two cross, the corner squares stay sidewalk; a curb only along the road
+  const curb = (inBank && !inRow && (x === BANK_N.curb[0] || x === BANK_N.curb[1])) || (inRow && !inBank && (z === ROW.curb[0] || z === ROW.curb[1]))
+  return { kind: curb ? 'curb' : 'walk', top: 64 }
+}
+
+// ---- props shared by the modules (S = the module's clipped setter, y0 = the ground block's y) ------------------------
+// Town street lamp (a cobra-head): a diorite_wall post y0+1..y0+10, a smooth_quartz cap, an arm of top slabs reaching 3
+// cells toward (dx, dz) at y0+11, and a sea_lantern head hanging under the arm's end.
+function streetLamp (S, x, z, dx, dz, y0 = 64) {
+  for (let y = y0 + 1; y <= y0 + 10; y++) S(x, y, z, 'diorite_wall')
+  S(x, y0 + 11, z, 'smooth_quartz')
+  for (let k = 1; k <= 3; k++) S(x + dx * k, y0 + 11, z + dz * k, 'smooth_quartz_slab[type=top]')
+  S(x + dx * 3, y0 + 10, z + dz * 3, 'sea_lantern')
+}
+// The prison's lamp (the approach road keeps it): a polished_blackstone_wall pole, 3 ochre froglights under slabs.
+function prisonLamp (S, x, z, axis = 'x', y0 = 64) {
+  for (let y = y0 + 1; y <= y0 + 7; y++) S(x, y, z, 'polished_blackstone_wall')
+  for (let k = -1; k <= 1; k++) {
+    const lx = axis === 'x' ? x + k : x, lz = axis === 'x' ? z : z + k
+    S(lx, y0 + 8, lz, 'ochre_froglight[axis=y]'); S(lx, y0 + 9, lz, 'polished_blackstone_slab[type=bottom]')
+  }
+}
+// A Jailbreak pine: a spruce trunk and 3 stacked cones of persistent spruce leaves (radius 4, 3, 2), tall 12..18.
+function pine (S, x, z, tall = 14, y0 = 64) {
+  const t = Math.max(12, Math.min(18, tall)), tiers = [[0.25, 4], [0.5, 3], [0.72, 2]]
+  for (let y = y0 + 1; y <= y0 + t - 2; y++) S(x, y, z, 'spruce_log[axis=y]')
+  for (const [f, r0] of tiers) {
+    const yb = y0 + 1 + Math.round(t * f), hgt = Math.round(t * 0.32)
+    for (let k = 0; k < hgt; k++) {
+      const r = r0 * (1 - k / hgt) + 0.4
+      for (let dx = -r0; dx <= r0; dx++) for (let dz = -r0; dz <= r0; dz++) if ((dx || dz) && dx * dx + dz * dz <= r * r) S(x + dx, yb + k, z + dz, 'spruce_leaves[persistent=true]')
+    }
+  }
+  S(x, y0 + t - 1, z, 'spruce_leaves[persistent=true]'); S(x, y0 + t, z, 'spruce_leaves[persistent=true]')
+}
+// A round tree (the prison's oak): a trunk under a ball of persistent oak leaves.
+function oak (S, x, z, y0 = 64) {
+  for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) for (let dz = -3; dz <= 3; dz++) {
+    if (dx * dx + dy * dy + dz * dz > 10.5) continue
+    S(x + dx, y0 + 6 + dy, z + dz, 'oak_leaves[persistent=true]')
+  }
+  for (let y = y0 + 1; y <= y0 + 5; y++) S(x, y, z, 'oak_log[axis=y]')
+}
+function shrub (S, x, z, y0 = 64) {
+  const s = h(x, 1, z) < 50 ? 'oak_leaves[persistent=true]' : 'azalea_leaves[persistent=true]'
+  S(x, y0 + 1, z, s)
+  if (h(x, 2, z) < 50) S(x + 1, y0 + 1, z, s)
+  if (h(x, 3, z) < 50) S(x, y0 + 1, z + 1, s)
+  if (h(x, 4, z) < 40) S(x, y0 + 2, z, s)
+}
+// ---- end COMMON ----
+
+// The streets module of Rising City North (tools/build/expand/PLAN.md 1.1): Bank Street North and Gallery Row, their
+// curbs and lamps, two ATMs, the GPS nodes. Every write goes through S (clipped to the street columns).
+//   node tools/build/north/streets.js   -> counts and bounds
+// =====================================================================================================================
+const MOD = 'streets'
+const own = ownFor(MOD)
+let B = null
+const MISSED = []
+const S = (x, y, z, s) => { if (own(x, y, z)) B.set(x, y, z, s); else MISSED.push([x, y, z, s]) }
+
+const CELL = new Map()
+for (let x = CITY.x1; x <= CITY.x2; x++) for (let z = CITY.z1; z <= CITY.z2; z++) {
+  if (ownerOf(x, z) !== MOD) continue
+  const c = streetCell(x, z)
+  if (c) CELL.set(`${x},${z}`, c)
+}
+// Curb cuts: no slab where cars cross the sidewalk (the Car Wash's two bays, x 500..509 and 520..529; the Reserve's
+// armored-truck gate on Bank Street North, z 205..214).
+const CUTS = [[500, 112, 509, 112], [500, 123, 509, 123], [520, 123, 529, 123], [661, 205, 661, 214]]
+// ATMs on the street (PLAN 1.1): Gallery Row's north walk at x 700, Bank Street North's west side at z 60 (on the grass
+// beside the walk). [x, z, facing]: the screen side.
+const ATMS = [[700, 110, 'south'], [639, 60, 'east']]
+const LAMPS = []
+
+function surface () {
+  for (const [k, c] of CELL) {
+    const [x, z] = k.split(',').map(Number)
+    if (c.kind === 'road') S(x, 64, z, pick(x, 64, z, MIX.asphalt))
+    else if (c.kind === 'line') S(x, 64, z, `${c.color}_concrete`)
+    else if (c.kind === 'walk') S(x, 64, z, pick(x, 64, z, MIX.walk))
+    else if (c.kind === 'curb') {
+      S(x, 64, z, pick(x, 64, z, MIX.curb))
+      if (!inBox(x, z, CUTS)) S(x, 65, z, 'smooth_stone_slab[type=bottom,waterlogged=false]')
+    }
+  }
+}
+// Lamps every 24 blocks on both walks, the arm over the road; none in a curb cut or on the crossing's corners.
+function lamps () {
+  for (let z = 6; z <= 222; z += 24) for (const [x, dx] of [[640, 1], [663, -1]]) {
+    if (z >= 104 && z <= 131) continue
+    if (inBox(x, z, CUTS) || inBox(x - dx, z, CUTS)) continue
+    streetLamp(S, x, z, dx, 0); LAMPS.push([x, z])
+  }
+  for (let x = 490; x <= 926; x += 24) for (const [z, dz] of [[110, 1], [125, -1]]) {
+    if (x >= 634 && x <= 669) continue
+    if (inBox(x, z - dz, CUTS)) continue
+    if (ATMS.some(([ax, az]) => Math.abs(ax - x) <= 2 && az === z)) continue
+    streetLamp(S, x, z, 0, dz); LAMPS.push([x, z])
+  }
+}
+// An ATM (atm.sk): an iron body, a dark screen block, a slab cap; atm.sk adds the click box and the floating screen.
+function atm ([x, z, facing]) {
+  S(x, 65, z, 'iron_block')
+  S(x, 66, z, 'polished_blackstone')
+  S(x, 67, z, 'smooth_stone_slab[type=bottom,waterlogged=false]')
+  void facing
+}
+
+// ---- GPS (ids from 5001; the city's 3017 is Bank Street at z 262) -------------------------------------------------------
+const GPS = {
+  nodes: [
+    [5001, 651.5, 65, 200.5, 'BANK_N_S'], [5002, 651.5, 65, 117.5, 'BANK_N_ROW'], [5003, 651.5, 65, 5.5, 'BANK_N_END'],
+    [5004, 485.5, 65, 117.5, 'ROW_W'], [5005, 926.5, 65, 117.5, 'ROW_E']
+  ],
+  links: [[3017, 5001], [5001, 5002], [5002, 5003], [5002, 5004], [5002, 5005]]
+}
+
+module.exports = (b = new (require('../mcstruct').Build)()) => {
+  B = b
+  LAMPS.length = 0
+  surface(); lamps(); for (const a of ATMS) atm(a)
+  B = null
+  return b
+}
+module.exports.build = () => module.exports()
+module.exports.labels = [
+  { x: 640.0, y: 70.0, z: 108.5, facing: 'west', text: 'GALLERY ROW', color: '#ffffff', scale: 0.8 }
+].filter(() => false) // none yet: street signs come with the buildings
+module.exports.displays = []
+module.exports.points = {}
+module.exports.setup = {
+  regions: [{ id: 'district_rising_city', box: [481, 0, 0, 940, 200, 470], flags: ['passthrough allow'], launch: true,
+    lines: ['(C) rg remove -w world district_rising_city', '(C) zzregion district_rising_city 481 0 0 940 200 470   # local; on Minehut: //pos1 481,0,0 //pos2 940,200,470 /rg define',
+      '(C) rg flag -w world district_rising_city passthrough allow'] }],
+  heists: [], keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: [], bikes: [],
+  atms: ATMS.map(([x, z]) => `(C) datm add ${x} 65 ${z}`),
+  phone: ['(C) dphone city scan -40 -30 1500 1300 0 world confirm', '(C) dphone roads scan']
+}
+module.exports.gps = GPS
+
+if (require.main === module) {
+  const b = module.exports(), bd = b.bounds()
+  console.log(`${MOD}: ${b.blocks.size} blocks, box ${bd.x1},${bd.y1},${bd.z1} to ${bd.x2},${bd.y2},${bd.z2}; ${LAMPS.length} lamps; ${MISSED.length} missed writes`)
+  if (MISSED.length) { console.log(MISSED.slice(0, 10)); process.exit(1) }
+}

@@ -19,78 +19,110 @@ This is the site plan. Each module gets its own detailed plan (boxes, blocks, sp
 
 ## 1. Where everything goes
 
+Changed 2026-10-29 (owner: "just add to the district with the bank and jewlery store then add a new city/district with others. go one by one plan the layout first then build everything building by building"): five heists go into Rising City on new blocks north of it, and the other three go into one new city, Ironvale. I build them myself, one building at a time, with no workflow. Port Ashby is dropped.
+
 ```
- x: -700 ........ -41 | -40 ....... 480 | 481 ....... 940 | 941 ......... 1500
-z 150  PORT ASHBY      |                 |                 |  IRONVALE
-z 226  (harbor west)   |     PRISON      |  RISING CITY    |  [POWER PLANT]
-z 419  == Harbor Road =|== highway =====|== Main Avenue ==(o)== Main Avenue East ==
-z 471                  |   ridge/tunnel  |                 |        [MANSION HILL]
-z 686                  |  MOUNTAINSIDE (the town) .........|
-z 1300
+ x: -40 ........... 480 | 481 ............ 940 | 941 .............. 1500
+z 0                      |  RISING CITY NORTH   |
+z 110                    |  == Gallery Row ===  |
+z 132                    | [GALLERY] | [RESERVE]|
+z 226                    |  .. [CLUB] ..        |
+z 226..470    PRISON     |  RISING CITY (built) |  IRONVALE [POWER PLANT]
+z 419  === highway ======|== Main Avenue ====(o)|== Main Avenue East =====
+z 450                    |                      |  [POLICE HQ]   [MANSION HILL]
+z 800                                                                  
 ```
 
-| District | Box | New things |
+### 1.1 Rising City North (added to the Rising City district)
+
+- **Area:** x 481..940, z 0..225, plus the old kept-free strip x 664..930, z 226..279 for the Nightclub.
+- **Build set:** its own build driver (`tools/build/north.js`, a mirror of city.js) with its own COMMON (`tools/build/north/plan-layout.js`). The built city's modules are never touched.
+- **District:** `district_rising_city` is widened to z 0..470.
+
+**Streets:** the same profile as the city's Bank Street. Road blocks are from `gps.road-blocks`, so the road scan finds them.
+
+| Street | Box | Profile |
 |---|---|---|
-| Port Ashby (new) | x -700..-41, z 150..700 | Federal Reserve (big), Police HQ evidence room (big), Art Gallery (medium), Lucky Pawn (small), 4 ATMs, a base, a garage |
-| Ironvale (new) | x 941..1500, z 150..800 | Power Plant (medium), the Mansion (big), 2 ATMs |
-| Rising City (existing) | x 481..940, z 226..470 | Nightclub (medium) on the kept-free north blocks, 3 ATMs |
-| Mountainside (existing) | x 120..770, z 686..1300 | Car Wash (small), 3 ATMs |
+| Bank Street North | x 640..663, z 0..229 | road x 643..660, yellow dash x 651..652 (z % 6 < 3), curbs x 642 / 661, walks x 640..641 and 662..663. It joins the built Bank Street at z 230. |
+| Gallery Row | x 481..930, z 110..125 | road z 113..122, yellow dash z 117..118 (x % 6 < 3), curbs z 112 / 123, walks z 110..111 and 124..125. The crossing with Bank Street North is asphalt. |
 
-### 1.1 Port Ashby (west, the harbor)
+Street lamps every 24 blocks on both sidewalks (the city's `streetLamp`).
 
-- **Connection:** the prison highway (z 419..441, ending at x -40) carries on west as Harbor Road, with the same profile as outdoors.js `roads()`, out to x -600.
-- **Streets:**
-  - Harbor Road: x -600..-41, z 419..441.
-  - Bay Street: x -330..-307, z 160..690.
-  - Dock Street: x -520..-497, z 160..690.
-  - North Street: z 260..275, x -600..-60.
-  - South Street: z 580..595, x -600..-60.
-- **Water:** the harbor fills x -700..-601 (top water y 60 and the bed dug out, like the town's river). Piers run out at z 300, 420 and 540.
-- **Lots** (each building's box; its region is inside the box):
+**Buildings:**
 
-| Building | Box | Heist | Difficulty, level | Inside |
+| Building | Box | Front | Heist | Difficulty, level |
 |---|---|---|---|---|
-| Federal Reserve | x -290..-170, z 285..405 | `reserve` | 4, level 50, advanced | Lobby with cameras. A drill door to the vault antechamber. A second vault door (a drill again, until M3 blast charges exist). Gold bars (the heavy style). Deposit boxes as safes. |
-| Police HQ | x -150..-65, z 285..405 | `evidence` | 3, level 30, advanced | A working station look. The evidence cage (a drill) holds seized cash, jewels and goods piles. Cameras sweep the halls, and the cops' spots are inside, so the alarm answers fast. |
-| Art Gallery | x -290..-200, z 450..570 | `gallery` | 2, level 12 | Paintings (the art style). Glass cases (smash) for sculptures and jewels. Blinking lasers and sweeping cameras. Not advanced. |
-| Lucky Pawn | x -180..-140, z 450..495 | `pawn` | 0 (a store), level 1 | A clerk at the register. The back room's safe needs a Safe Kit. No police (the store rule). |
-| Harbor Hideout | x -120..-70, z 450..520 | none | base | `safe_base_harbor`, so loot sells here. 2 crate stands. |
-| Port Garage | x -180..-120, z 520..575 | none | garage site | `safe_garage_port` |
-| Warehouses and docks | x -600..-331 | none | props only | Kept low and hollow. Contract car spots in the lots. |
+| Federal Reserve | x 670..800, z 132..222 | west, a plaza on Bank Street | `reserve` | 4, level 50, advanced |
+| Art Gallery | x 556..636, z 132..222 | north, on Gallery Row | `gallery` | 2, level 12 |
+| Nightclub | x 668..740, z 228..278 | west, on Bank Street (sidewalk x 664..667) | `club` | 2, level 10 |
+| Lucky Pawn | x 600..636, z 66..106 | south, on Gallery Row | `pawn` | 0 (a store), level 1 |
+| Car Wash | x 490..550, z 132..200 | north, on Gallery Row | `carwash` | 0 (a store), level 1 |
 
-### 1.2 Ironvale (east, industrial)
+Everything else north of Gallery Row stays grass and kept free for later.
 
-- **Connection:** Main Avenue East leaves the roundabout's east side, x 831..1300, z 419..441, with the avenue's profile and no parking bays.
-- **Power Plant:** box x 960..1110, z 300..405, north of the avenue. Heist `power`, difficulty 3, level 25, advanced.
-  - The turbine hall has blinking lasers between the turbines and a collapsing catwalk over the pit.
-  - The control room's safe holds the payroll.
-  - Copper spool piles (the goods style) sit behind a drilled cage.
-  - Two hollow cooling towers stand outside the region, as decoration only.
-- **The Mansion:** a hill centred on x 1250, z 640, top y 90, built as a hollow shell. The house is x 1205..1295, z 595..685 on the summit, and its driveway climbs from the avenue at x 1240..1251. Heist `mansion`, difficulty 4, level 60, advanced. Rooms in order:
+**ATMs (3):**
+- the Reserve's frontage at x 666, z 180 (between Bank Street North's east walk and the building);
+- Gallery Row's north walk at x 700;
+- Bank Street North's west walk at z 60.
+
+### 1.2 Ironvale (the new city, east)
+
+- **Area:** x 941..1500, z 150..800. District `district_ironvale` "Ironvale".
+- **Connection:** Main Avenue East leaves the roundabout's east side. It runs x 831..1300, z 419..441, with the avenue's profile (sidewalks z 416..418 and 442..444) and no parking bays.
+- **Build set:** `tools/build/iron.js` with its own COMMON (`tools/build/iron/plan-layout.js`).
+
+| Street | Box | Profile |
+|---|---|---|
+| Main Avenue East | x 831..1300, z 416..444 | as Main Avenue |
+| Hill Drive | x 1240..1251, z 445..594 | road x 1242..1249. It climbs from y 64 to the summit's y 90, 1 block every 6 (z 445..600), with retaining walls. |
+
+**Buildings:**
+
+| Building | Box | Front | Heist | Difficulty, level |
+|---|---|---|---|---|
+| Power Plant | x 960..1110, z 280..405 | south, its gate on Main Avenue East | `power` | 3, level 25, advanced |
+| Police HQ | x 960..1060, z 450..545 | north, on Main Avenue East | `evidence` | 3, level 30, advanced |
+| The Mansion | the hill centred x 1250, z 640 (a hollow shell, top y 90); the house x 1205..1295, z 595..685 | south, at the top of Hill Drive | `mansion` | 4, level 60, advanced |
+
+**ATMs (2):** Main Avenue East's north walk at x 1000 and at x 1180.
+
+### 1.3 What goes in each building
+
+- **Federal Reserve:**
+  - the lobby, with cameras;
+  - vault door 1 (a drill), then the antechamber's lasers;
+  - vault door 2 (a drill until M3's blast charges exist);
+  - bullion piles;
+  - deposit boxes (safes).
+- **Art Gallery:**
+  - paintings (the art style) on the walls;
+  - glass cases (smash) with jewels;
+  - blinking floor lasers and sweeping cameras;
+  - not advanced.
+- **Nightclub:**
+  - dance-floor lasers blinking to a beat;
+  - the bar's register behind glass (smash);
+  - the VIP lounge's cash;
+  - the manager's office safe.
+- **Lucky Pawn:** a clerk at the register, and the back room's safe (a Safe Kit). No police.
+- **Car Wash:** two bays and a coin room with 3 open cash boxes. No clerk, no police.
+- **Power Plant:**
+  - the turbine hall, with blinking lasers and a collapsing catwalk over the pit;
+  - the control room's payroll safe;
+  - copper spools (the goods style) behind a drilled cage;
+  - two hollow cooling towers outside the region.
+- **Police HQ:**
+  - the front desk and offices, with cameras;
+  - the evidence cage (a drill) holding seized cash, jewels and goods;
+  - cop spots inside, so the alarm answers fast.
+- **The Mansion:**
   - the foyer, with cameras;
-  - a laser hall;
+  - the laser hall;
   - the library, with a collapsing floor and the code door (a safe);
   - the gallery, with smash cases;
-  - the study, with the master safe;
-  - the vault room, with a drill and the bullion and cash behind it.
-  - When the alarm trips, the existing cop assaults come up the driveway. There is no custom boss.
-- **2 ATMs** on the avenue.
-
-### 1.3 Rising City (additions)
-
-- **Nightclub:** box x 668..740, z 228..278, on the kept-free north blocks. Its door faces Bank Street (the west face, with a sidewalk at x 664..667). Heist `club`, difficulty 2, level 10, not advanced.
-  - Dance-floor lasers blink to the beat (`blink=true`, the trap system's own).
-  - The bar's register is a smash gate.
-  - The VIP lounge has cash piles.
-  - The manager's office has a safe.
-- **3 ATMs:** two on Main Avenue's north sidewalk and one on Hatch Plaza.
-
-### 1.4 Mountainside (additions)
-
-- **Car Wash:** heist `carwash`, difficulty 0, level 1.
-  - Two wash bays and a coin room with 3 cash-box piles. There's no clerk: the boxes are open to grab.
-  - It goes on a land-owned lot of at least 40 × 30 that touches a street, outside `KEEP_FREE`. The module's builder picks the lot with town `plan-layout.js`'s ownership and writes it into this table.
-- **3 ATMs:** in front of the gas station, the Gun Shop lot and the dealership.
+  - the study's master safe;
+  - the vault room, with a drill and bullion and cash.
+  - The existing cop assaults come up Hill Drive. There is no custom boss.
 
 ## 2. Heist numbers (proposals, following heists.sk's difficulty table)
 
@@ -106,46 +138,45 @@ z 1300
 | reserve | 4 | 50 | $45,000-70,000 | 10 / 30 min | yes |
 | mansion | 4 | 60 | $50,000-80,000 | 10 / 30 min | yes |
 
-## 3. Shared for both new cities
+## 3. Shared
 
-- Streets use the town and city COMMON helpers: asphalt mix, curbs, lamps every 24 blocks. Sidewalks are light gray concrete. Road blocks come from `gps.road-blocks`, so the road scan finds them.
-- **Districts:**
-  - `district_port_ashby`: x -700..-41, z 150..700, y 0..200, named "Port Ashby".
-  - `district_ironvale`: x 941..1500, z 150..800, named "Ironvale".
-- **After the paste:**
-  - The phone's city map grows to cover all four cities: `/dphone city scan -700 -30 1500 1300 [scale] world confirm`. The automatic scale goes to 2 if a side passes 2,048 pixels.
-  - Then `/dphone roads scan`, which groups cells k × k over 262,144.
-- **GPS path nodes:** ids from 5001 (Port Ashby) and 6001 (Ironvale).
-- **POIs:**
-  - landmark: Federal Reserve, Power Plant, Mansion;
-  - base: Harbor Hideout;
-  - garage: Port Garage.
+- Districts:
+  - `district_rising_city` widened to x 481..940, z 0..470;
+  - `district_ironvale`: x 941..1500, z 150..800, y 0..200, named "Ironvale".
+- After each paste:
+  - `/dphone city scan -40 -30 1500 1300 0 world confirm` (the phone's city map over everything; the automatic scale goes up if a side passes 2,048 pixels);
+  - then `/dphone roads scan`.
+- GPS path nodes: ids from 5001 (Rising City North) and 6001 (Ironvale).
+- POIs: landmark Federal Reserve, Power Plant and Mansion.
 
 ## 4. New code (small)
 
-1. **atm.sk** (about 120 lines).
-   - An ATM is one block spot with a furniture model (an item display drawn by make-item-art.js, `donating:atm`) and an interaction hitbox.
+1. **atm.sk** (built 2026-10-29: botsun.js atm 10/10).
+   - An ATM is one block spot with a furniture model (built as blocks by the street module) and a click box and floating screen from atm.sk.
    - "Hold right-click · Crack the ATM": 6 s with loot.sk's hold rules (repeat every 4 ticks, a pause over 1 s starts over, a hit resets).
    - It pays a rolled $300-700 into the bag through bag.sk, so it sells at a base. A full bag takes nothing.
-   - Then it's dark (a red screen) for 15 min.
-   - Not in safe zones; level 1 and up; no police and no wanted status; not for passive players, who get passive's payout like other robberies.
-   - Staff: `/datm add [x y z yaw] | remove <n> | list | dump`. Saved in `{atm::<n>}`.
+   - Then it's out of order (the screen says so) for 15 min.
+   - Not in safe zones; level 1 and up; no police and no wanted status; passive players can crack them and get passive's payout at the base like other robberies.
+   - Staff: `/datm add [x y z] | remove <n> | list | dump | ready [n]`. Saved in `{atm::<n>}`.
    - Lag: one display and one hitbox per ATM, and only in loaded chunks.
    - Bots: atm.js (hold, pay, cooldown, refusals).
-2. **The bullion style** in core.sk `loot::bullion::*`: piece $5,000, take 4 s.
+2. **The bullion style** (built 2026-10-29) in core.sk `loot::bullion::*`: piece $5,000, take 4 s.
    - One bar fills most of a starter bag, so the gold vaults are crew work, with no new carry rule.
    - Later, if the owner wants it: slowness while carrying bullion.
 3. **Setup (setup.sk):** add the new heists to `/dsetup heists` and the ATMs to `/dsetup places`.
 
 M1-M3 from city/PLAN.md section 10 (pick groups, security switches, blast charges) stay later. The Federal Reserve's second door would become a blast charge with M3.
 
-## 5. Order of work
+## 5. Order of work (one at a time)
 
-1. This site plan (the owner can rename the cities or move things).
-2. Detailed plans per module, critiqued.
-   - The modules: `port/streets`, `port/reserve`, `port/police`, `port/gallery`, `port/pawn+hideout+garage`, `iron/streets`, `iron/power`, `iron/mansion`, `city/club`, `town/carwash`.
-   - Plus the ATM art, atm.sk and the bullion style.
-3. Build the modules offline, then review and check them: the build tools' `check`, and laser heights against the trap height guide.
-4. Run a backup (tools/backup.ps1) before pasting. Paste Port Ashby, then Ironvale, then the club and the car wash.
-5. Setup on the server: regions, heists, loot, traps, cop spots, POIs, garages, the base, crates, ATMs, districts, the city and road rescans, and GPS paths.
-6. Bots: one scenario per heist (it opens, its loot pays, its traps fire, and the alarm for advanced heists), plus atm.js. Then PLAYTEST items for the owner.
+1. The layout: this file, and the render `expand/layout.png` (`tools/node/node.exe tools/build/render.js tools/build/expand/layout.js tools/build/expand/layout --views top`).
+2. Rising City North:
+   - the streets;
+   - the Federal Reserve;
+   - the Art Gallery;
+   - the Nightclub;
+   - Lucky Pawn;
+   - the Car Wash.
+   Each building gets a short section in north/PLAN.md, then its module, `north.js check`, a backup, the paste, the setup (region, heist, loot, traps, cop spots, ATMs) and a bot check that it opens and pays.
+3. Ironvale: the streets and Hill Drive's hill, then the Power Plant, the Police HQ and the Mansion, the same way.
+4. The map rescans, districts, POIs and PLAYTEST items.
