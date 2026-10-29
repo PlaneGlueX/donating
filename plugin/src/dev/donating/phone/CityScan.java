@@ -336,7 +336,7 @@ final class CityScan {
             return id;
         }
 
-        /** Every tick: at most one new chunk request, at most 4 waiting, none while the server is behind. */
+        /** Every tick: at most one new chunk request, at most 2 waiting, none while the server is behind (serverBusy). */
         void pump() {
             if (cancelled) return;
             int tenth = total == 0 ? 10 : done.get() * 10 / total;
@@ -348,7 +348,7 @@ final class CityScan {
                 }
                 return;
             }
-            if (inFlight >= 4 || Bukkit.getAverageTickTime() > 40) return;
+            if (inFlight >= 2 || PhonePlugin.serverBusy()) return;
             int cx = cx1 + next / rowsZ, cz = cz1 + next % rowsZ;
             next++;
             inFlight++;

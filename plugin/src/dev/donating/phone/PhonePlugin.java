@@ -64,6 +64,15 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     static final byte STRIP = (byte) 119; // near-black (map color BLACK, darkest shade)
     static final byte WHITE = (byte) 34;
     static final byte BLACK = (byte) 119;
+
+    /** The scans wait while this is true: any tick over 50 ms in the last 100 (5 s), not just a high average
+     *  (2026-10-28: the city scan of the jailbreak city kept loading display-heavy chunks through 2-5 s ticks,
+     *  which barely moved the 100-tick average). */
+    static boolean serverBusy() {
+        if (Bukkit.getAverageTickTime() > 25) return true;
+        for (long t : Bukkit.getServer().getTickTimes()) if (t > 50_000_000L) return true;
+        return false;
+    }
     // Small arrows for the zoomed-out big map. The resource pack redraws these two (unused) icons as a
     // smaller white and green arrow (pack\assets\minecraft\textures\map\decorations).
     static final MapCursor.Type SMALL_SELF = MapCursor.Type.JUNGLE_TEMPLE;

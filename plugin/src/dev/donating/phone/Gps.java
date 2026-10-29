@@ -981,7 +981,7 @@ final class Gps {
                 }
                 return;
             }
-            if (inFlight >= 4 || Bukkit.getAverageTickTime() > 40) return;
+            if (inFlight >= 2 || PhonePlugin.serverBusy()) return;
             int[] c = queue.poll();
             inFlight++;
             world.getChunkAtAsync(c[0], c[1], false, false, chunk -> {

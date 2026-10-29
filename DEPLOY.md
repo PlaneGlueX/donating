@@ -52,7 +52,7 @@ Every jar below is in `server\plugins\` locally (tools\fetch.ps1 re-downloads mi
 | DonatingPhone (ours) | `DonatingPhone.jar` |
 | Multiverse-Core (the prison's own world until launch) | `multiverse-core-5.8.1.jar` |
 
-Not spark (Paper has it built in). Not ViaBackwards: it's on the local server only, so the 1.21.11 test bots can join a 26.1 server.
+Not spark (Paper has it built in). Not ViaBackwards: it's on the local server only, so the 1.21.11 test bots can join a 26.1 server. Paper's built-in spark runs a background profiler: locally (Windows) it froze the server for seconds (CLAUDE.md "Lag"); on Minehut (Linux, async-profiler) it's much cheaper, but if `/lag` shows spikes, upload `plugins/spark/config.json` with `"backgroundProfiler": false` (or `/lag fix` stops it until the next restart).
 
 Start the server once so every plugin makes its folders, then stop it and upload the configs.
 

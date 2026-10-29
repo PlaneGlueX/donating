@@ -1,0 +1,95 @@
+# lag.sk: /lag for staff (owner, 2026-10-28: "check whats making the server and players lag, if you can make a
+# command in game that can fix this when it gets laggy").
+#   /lag      the tick time, what's loaded, the busiest chunks, and whether a DonatingPhone scan is running
+#   /lag fix  stops the known causes: spark's background profiler (the 2026-10-28 cause: on Windows its Java
+#             sampler dumps every thread ~100 times a second, and each dump freezes the server until every thread
+#             reaches a safepoint: 1-3 s while a scan's workers were busy; plugins\spark\config.json has
+#             backgroundProfiler false, this covers a restart that turned it back on), a running city or road
+#             scan (a cancelled scan starts over when run again), junk entities (dropped items that aren't ours,
+#             arrows, XP orbs), and runs the cop and car sweeps now instead of waiting for their 10 s pass.
+# Never removed: duffels (donating_duffel), prison drops and any other item of ours (donating_id), displays,
+# NPCs that are tracked, cars that are out.
+
+function lagLog(text: text):
+	log "%now% %{_text}%" to "lag"
+
+function lagReport(s: command sender):
+	set {_mspt} to average tick time
+	set {_c} to "&a"
+	if {_mspt} > 25:
+		set {_c} to "&e"
+	if {_mspt} > 45:
+		set {_c} to "&c"
+	send "&6Lag &7tick %{_c}%%rounded {_mspt}% ms&7 (50 = full)  TPS 1m &f%rounded (tps from the last 1 minute)%" to {_s}
+	set {_total} to 0
+	loop all entities:
+		add 1 to {_total}
+		set {_t} to "%type of loop-entity%"
+		add 1 to {_types::%{_t}%}
+		set {_k} to "%world of loop-entity% %floor(x-coordinate of loop-entity / 16)%,%floor(z-coordinate of loop-entity / 16)%"
+		add 1 to {_chunks::%{_k}%}
+	set {_line} to ""
+	loop 6 times:
+		set {_best} to 0
+		delete {_bk}
+		loop {_types::*}:
+			if loop-value-2 > {_best}:
+				set {_best} to loop-value-2
+				set {_bk} to loop-index
+		{_bk} is set
+		set {_line} to "%{_line}%  &f%{_best}% &7%{_bk}%"
+		delete {_types::%{_bk}%}
+	send "&7Entities &f%{_total}%&7:%{_line}%" to {_s}
+	set {_line} to ""
+	loop 3 times:
+		set {_best} to 0
+		delete {_bk}
+		loop {_chunks::*}:
+			if loop-value-2 > {_best}:
+				set {_best} to loop-value-2
+				set {_bk} to loop-index
+		{_bk} is set
+		set {_line} to "%{_line}%  &f%{_best}% &7at chunk %{_bk}%"
+		delete {_chunks::%{_bk}%}
+	send "&7Busiest chunks:%{_line}%" to {_s}
+	send "&7Players online &f%size of all players%&7. Scans (they lag the server while they run):" to {_s}
+	if {_s} is a player:
+		make {_s} execute command "/dphone city info"
+		make {_s} execute command "/dphone roads info"
+	else:
+		execute console command "dphone city info"
+		execute console command "dphone roads info"
+	send "&7/lag fix &8stops a scan and clears junk entities" to {_s}
+
+function lagFix(s: command sender):
+	set {_junk} to 0
+	loop all dropped items:
+		set {_i} to item of loop-entity
+		if string tag "donating_duffel" of custom nbt of {_i} is not set:
+			if string tag "donating_id" of custom nbt of {_i} is not set:
+				kill loop-entity
+				add 1 to {_junk}
+	loop all arrows:
+		kill loop-entity
+		add 1 to {_junk}
+	loop all experience orbs:
+		kill loop-entity
+		add 1 to {_junk}
+	copSweep()
+	carSweep()
+	execute console command "spark profiler cancel"
+	# The scans answer the sender; the console's copy goes to the log.
+	execute console command "dphone city cancel"
+	execute console command "dphone roads cancel"
+	lagLog("fix by %{_s}%: junk=%{_junk}% tick=%rounded average tick time%")
+	send "&6Lag &7fixed: &f%{_junk}%&7 junk entities removed, cop and car sweeps run, spark's profiler and any city/road scan stopped (run it again later with nobody on)." to {_s}
+	send "&7Tick time catches up over ~5 s: &f/lag&7 again to check." to {_s}
+
+command /lag [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		if arg-1 is "fix":
+			lagFix(sender)
+		else:
+			lagReport(sender)
