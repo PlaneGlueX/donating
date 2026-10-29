@@ -1,0 +1,18 @@
+# Ironvale's GPS paths (5 nodes, 5 links), made by `CITY_SET=iron node tools/build/city.js gps --world world --out tools/build/iron/iron-gps-paths.txt`.
+# Run every line that isn't a comment, in order, AFTER tools/city-gps-paths.txt: the first link joins the city's node 3008
+# (the roundabout's east side). The remove lines make a second run safe (an existing id is refused). The buildings add theirs.
+dphone path remove 6001
+dphone path remove 6002
+dphone path remove 6003
+dphone path remove 6004
+dphone path remove 6005
+dphone path addat world 840.5 65 430.5 id=6001 nolink AVE_E_W
+dphone path addat world 1010.5 65 430.5 id=6002 nolink AVE_E_MID
+dphone path addat world 1245.5 65 430.5 id=6003 nolink HILL_FOOT
+dphone path addat world 1276.5 65 430.5 id=6004 nolink AVE_E_END
+dphone path addat world 1245.5 91 600.5 id=6005 nolink HILL_TOP
+dphone path link 3008 6001
+dphone path link 6001 6002
+dphone path link 6002 6003
+dphone path link 6003 6004
+dphone path link 6003 6005
