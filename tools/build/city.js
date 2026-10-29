@@ -359,8 +359,10 @@ function check (opts) {
   }
   ok(`loot: ${nLoot} gate(s) and pile(s) checked`)
 
-  // 7. traps: 2 blocks inside their region; floor pits 2+ deep, inside, open under the floor; no camera cone on a safe or drill gate
+  // 7. traps: 2 blocks inside their region; floor pits 2+ deep, inside, open under the floor; no camera cone on a safe or drill gate;
+  // a laser no longer than core.sk's trap::laser::max-length (/dtrap refuses it)
   let nTraps = 0
+  const maxLaser = Number(/\{-cfg::trap::laser::max-length\} to (\d+(?:\.\d+)?)/.exec(fs.readFileSync(path.join(ROOT, 'server', 'plugins', 'Skript', 'scripts', 'core.sk'), 'utf8'))[1])
   for (const h of P.heists) {
     const reg = heistRegions.find(r => r.id === `heist_${h.id}`)
     if (!reg) continue
@@ -376,6 +378,7 @@ function check (opts) {
         const d = blocky ? blockInset(p) : pointIn(p)
         if (d < 2) fail(`${what}: ${p3(p)} is ${d} from ${reg.id}'s edge (2 at least)`)
       }
+      if (t.kind === 'laser' && t.b && Math.hypot(t.b[0] - t.a[0], t.b[1] - t.a[1], t.b[2] - t.a[2]) > maxLaser) fail(`${what}: ${Math.hypot(t.b[0] - t.a[0], t.b[1] - t.a[1], t.b[2] - t.a[2])} long, over core.sk's laser max-length ${maxLaser}`)
       if (t.kind === 'floor') {
         const depth = Number(t.o.depth ?? 4), fb = [Math.min(t.a[0], t.b[0]), Math.min(t.a[1], t.b[1]), Math.min(t.a[2], t.b[2]), Math.max(t.a[0], t.b[0]), Math.max(t.a[1], t.b[1]), Math.max(t.a[2], t.b[2])]
         if (depth < 2) fail(`${what}: its pit is ${depth} deep (2 at least)`)

@@ -1201,7 +1201,7 @@ function loadSettings():
 	set {-cfg::trap::laser::damage} to 3        # hearts per hit (10 = full health), × trap-damage
 	set {-cfg::trap::laser::every} to 1 second # again while you stay in the beam
 	set {-cfg::trap::laser::thickness} to 0.06
-	set {-cfg::trap::laser::max-length} to 32
+	set {-cfg::trap::laser::max-length} to 34 # the city jewelry store's obby 2 beams run 33 blocks wall to wall
 	set {-cfg::trap::laser::view-range} to 1.0
 	# "laser here" heights above the feet: low = jump it, mid = a timed jump, high = sneak under it.
 	set {-cfg::trap::laser::low} to 0.4
