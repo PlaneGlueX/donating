@@ -119,7 +119,7 @@ function linesOf (v) {
   }
   return []
 }
-// the world's name where a line names one: the token W or jailbreak (-w W, spotat jailbreak, ... 0 jailbreak), {W}
+// the world's name where a line names one: the token W or jailbreak (-w W, spotat world, ... 0 jailbreak), {W}
 const inWorld = (cmd, W) => cmd.replace(/\{W\}/g, W).replace(/(^| )(W|jailbreak)(?= |$)/g, `$1${W}`)
 // every key's lines; an entry with launch: true goes to the launch group whole (its (C) flag lines too)
 const allLines = () => { const S = setup(); return Object.fromEntries(Object.keys(S).map(k => [k, S[k].flatMap(e => linesOf(e.v).map(l => ({ ...l, module: e.module, launch: !!(e.v && e.v.launch) })))])) }

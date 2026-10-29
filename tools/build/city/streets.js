@@ -33,7 +33,7 @@ const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Ma
 const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
 
 // ---- the city's frame ----------------------------------------------------------------------------------------------
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const CITY = { x1: 481, z1: 226, x2: 940, z2: 470, y1: 44, y2: 110 } // every block of Rising City lies in here
 const GROUND_Y = 64 // the generated grass's top block; feet stand at 65
 const LABEL_TAG = 'city_label', DISPLAY_TAG = 'city_display' // the tags of the city's text displays and item displays
@@ -457,7 +457,7 @@ module.exports.setup = {
   heists: [], keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [],
   pois: [{ at: POI, cmd: '/dpoi add landmark Rising City', launch: true, lines: ['(L) /dpoi add landmark Rising City'] }],
   walls: [], holos: [], bikes: [],
-  phone: ['(C) dphone city scan -40 -30 940 1300 0 jailbreak'] // 7.6: the phone's map, then the hand paths (7.8)
+  phone: ['(C) dphone city scan -40 -30 940 1300 0 world'] // 7.6: the phone's map, then the hand paths (7.8)
 }
 module.exports.gps = GPS
 module.exports.furniture = { lights: LIGHTS, stopbars: STOPBARS, lamps: LAMPS, rampLamps: RAMP_LAMPS, trees: TREES, glow: GLOW, missed: MISSED }

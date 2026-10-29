@@ -39,7 +39,7 @@ const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Ma
 const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
 
 // ---- the city's frame ----------------------------------------------------------------------------------------------
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const CITY = { x1: 481, z1: 226, x2: 940, z2: 470, y1: 44, y2: 110 } // every block of Rising City lies in here
 const GROUND_Y = 64 // the generated grass's top block; feet stand at 65
 const LABEL_TAG = 'city_label', DISPLAY_TAG = 'city_display' // the tags of the city's text displays and item displays
@@ -606,9 +606,9 @@ module.exports.setup = {
   }],
   keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: [],
   bikes: [
-        '(C) dbike spotat jailbreak 601.5 65 360.5 90',
-        '(C) dbike spotat jailbreak 603.5 65 360.5 90',
-        '(C) dbike spotat jailbreak 605.5 65 360.5 90',
+        '(C) dbike spotat world 601.5 65 360.5 90',
+        '(C) dbike spotat world 603.5 65 360.5 90',
+        '(C) dbike spotat world 605.5 65 360.5 90',
   ]
 }
 

@@ -42,13 +42,13 @@ async function start () {
     }
     return fn()
   }
-  const J = 'execute in minecraft:jailbreak run '
+  const J = 'execute in minecraft:overworld run '
   // A command teleport (minecraft:tp): pvp.sk's 3 s teleport immunity follows it; the prison's gate refuses one that
   // takes an inmate out of the walls.
   const tp = (n, x, y, z, yaw = 0, pitch = 0) => cmd(`${J}minecraft:tp ${n} ${x} ${y} ${z} ${yaw} ${pitch}`)
   // A plugin teleport (zz-testkit /zzjailtp): no immunity, never refused.
   const jtp = (n, x, y, z, yaw = 0) => cmd(`zzjailtp ${n} ${x} ${y} ${z} ${yaw}`)
-  const isBlock = async (x, y, z, b) => /passed/i.test(await cmd(`execute in minecraft:jailbreak if block ${x} ${y} ${z} ${b}`))
+  const isBlock = async (x, y, z, b) => /passed/i.test(await cmd(`execute in minecraft:overworld if block ${x} ${y} ${z} ${b}`))
   const info = n => cmd(`zzjail ${n} info`)
   const state = (n, s) => cmd(`zzjail ${n} state ${s}`)
   const door = async name => cmd(`zzjaildoor ${name}`)

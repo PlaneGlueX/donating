@@ -71,7 +71,7 @@ module.exports = async ({ check }) => {
     await t.copsBlind()
     await cmd('djailjobs setup')
     const list = await cmd('dquest list')
-    const leftyN = (list.match(/QUEST (\d+): lefty\|jailbreak/) || [])[1]
+    const leftyN = (list.match(/QUEST (\d+): lefty\|world/) || [])[1]
     check('Lefty stands in the prison world (a quest giver)', !!leftyN, list.slice(0, 300))
 
     // ---------- the first join into the course: the notice, once ----------

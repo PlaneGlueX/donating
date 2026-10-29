@@ -82,7 +82,7 @@ module.exports = async ({ check }) => {
     since = Date.now()
     let deaths = 0
     b.once('death', () => deaths++)
-    await cmd(`execute in minecraft:jailbreak run minecraft:damage ${B} 100 minecraft:player_attack by ${A}`)
+    await cmd(`execute in minecraft:overworld run minecraft:damage ${B} 100 minecraft:player_attack by ${A}`)
     await sleep(1800)
     const sb = await info(B)
     check('a knockout downs instead of killing (DOWNED, a cell, no death)', deaths === 0 && b.health > 0 && said(b, /DOWNED/, since) && VET_CELLS.includes(field(sb, 'cell')), `deaths=${deaths} ${sb}`)
@@ -158,7 +158,7 @@ module.exports = async ({ check }) => {
     check('...never below one heart left', a.health >= 2, `hp ${a.health}`)
     await cmd(`zzhp ${A} 20`)
     // F2 west's first plate stood at x 130-132 (a yellow face at y 67-68): the fence's mesh again.
-    const plate = await cmd('execute in minecraft:jailbreak if block 131 67 396 minecraft:yellow_concrete')
+    const plate = await cmd('execute in minecraft:overworld if block 131 67 396 minecraft:yellow_concrete')
     check('no HIGH VOLTAGE plates in the fence any more', !/passed/i.test(plate), plate)
 
     // ---------- owned guns inside: taken out at the yard's Gun Shop, one loaded magazine a stay ----------
@@ -199,10 +199,10 @@ module.exports = async ({ check }) => {
     await cmd(`zzclear ${A}`)
 
     await into(A, 205.5, 65, 160.5, 0)
-    await cmd('npc create Visitor Bob --at 206,65,162,jailbreak --type PLAYER')
+    await cmd('npc create Visitor Bob --at 206,65,162,world --type PLAYER')
     await sleep(1500)
     const h0 = a.health
-    await cmd(`execute in minecraft:jailbreak run minecraft:damage ${A} 4 minecraft:mob_attack by @e[tag=CITIZENS_NPC,name="Visitor Bob",limit=1,sort=nearest,x=206,y=65,z=162]`)
+    await cmd(`execute in minecraft:overworld run minecraft:damage ${A} 4 minecraft:mob_attack by @e[tag=CITIZENS_NPC,name="Visitor Bob",limit=1,sort=nearest,x=206,y=65,z=162]`)
     await sleep(800)
     check('a non-prison NPC can\'t hurt an inmate', a.health >= h0, `${h0} -> ${a.health}`)
     const nid = ((await cmd('zznpcs')).match(/id=(\d+) Visitor Bob/) || [])[1]

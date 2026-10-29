@@ -32,7 +32,7 @@ const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Ma
 const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
 
 // ---- the town's frame --------------------------------------------------------------------------------------------
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const TOWN = { x1: 120, z1: 471, x2: 770, z2: 1300, y1: 50, y2: 160 } // every block of the town lies in here
 const TOWN_Z = 729   // z < 729: the approach module; z >= 729: the town
 const WATER_Y = 60   // the river's and the lake's top water block

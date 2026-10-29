@@ -36,7 +36,7 @@ const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Ma
 const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
 
 // ---- the town's frame --------------------------------------------------------------------------------------------
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const TOWN = { x1: 120, z1: 471, x2: 770, z2: 1300, y1: 50, y2: 160 } // every block of the town lies in here
 const TOWN_Z = 729   // z < 729: the approach module; z >= 729: the town
 const WATER_Y = 60   // the river's and the lake's top water block
@@ -633,7 +633,7 @@ module.exports.setup = {
   regions: [{ id: 'safe_base_safehouse', box: [213, 63, 881, 276, 95, 943], flags: { passthrough: 'allow', 'weapon-shoot': 'deny' },
     note: 'the base: loot sells on entry (bag.sk: a safe zone whose id starts with safe_base). House, porch, yards; not the sidewalk.' }],
   heists: [], keepers: [],
-  givers: [{ kind: 'story', at: SPOT.mara, cmd: 'dquest addatw story jailbreak 250.5 65 911.5 -90 Safehouse',
+  givers: [{ kind: 'story', at: SPOT.mara, cmd: 'dquest addatw story world 250.5 65 911.5 -90 Safehouse',
     launchCmd: 'dquest addat story 250.5 65 911.5 -90 Safehouse', note: 'Mara, behind her desk facing the doorway' }],
   crates: Object.entries(CRATES).map(([crate, at]) => ({ crate, at, cmd: `/dcrate place ${crate}` })),
   carSpots: [], chops: [], garages: [],

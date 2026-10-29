@@ -12,7 +12,7 @@ const path = require('path')
 const { Build, place } = require('./mcstruct')
 const MODULES = ['outdoors', 'mainbuilding', 'cellblock', 'mainrooms', 'buildings', 'bikeshop'] // bikeshop: town PLAN 15.3
 const ROOT = path.join(__dirname, '..', '..')
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const POINTS_SK = path.join(ROOT, 'server', 'plugins', 'Skript', 'scripts', 'jailpoints.sk')
 
 function build () {

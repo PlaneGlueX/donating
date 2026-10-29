@@ -30,7 +30,7 @@ module.exports = async ({ check }) => {
     let s = await info(A)
     const cell = field(s, 'cell')
     check('first join: state course, step cell', field(s, 'state') === 'course' && field(s, 'step') === 'cell', s)
-    check('first join: in a west-wing course cell in jailbreak', COURSE_CELLS.includes(cell) && (await t.dim(A)) === 'minecraft:jailbreak', `${cell} ${await t.dim(A)}`)
+    check('first join: in a west-wing course cell in jailbreak', COURSE_CELLS.includes(cell) && (await t.dim(A)) === 'minecraft:overworld', `${cell} ${await t.dim(A)}`)
     check('first join: the cell door is shut while the wait runs', !(await doorOpen(`cell_${cell}`)), await door(`cell_${cell}`))
     const opened = await until(() => doorOpen(`cell_${cell}`), 6000)
     check('the cell door opens after ~5 s', opened, await door(`cell_${cell}`))
@@ -55,7 +55,7 @@ module.exports = async ({ check }) => {
     const woke = await until(async () => said(a, /HEY!/, since), 3000)
     const back = await pos(A)
     check('walking into the guard post without sneaking: HEY! and back to SNEAK_BACK', woke && back && Math.abs(back[0] - 78.5) < 1 && Math.abs(back[2] - 59.5) < 1, `${back}`)
-    const signs = await cmd('execute in minecraft:jailbreak if entity @e[type=minecraft:text_display,tag=jail_label,x=43,y=56,z=47,dx=83,dy=8,dz=66]')
+    const signs = await cmd('execute in minecraft:overworld if entity @e[type=minecraft:text_display,tag=jail_label,x=43,y=56,z=47,dx=83,dy=8,dz=66]')
     check('B1 keeps only its place names (VENT, MAX SECURITY, the Z, SECURITY OFFICE): no course instruction signs', /Count: 4(?!\d)/.test(signs), signs)
     // The corridor past the guard post (6 blocks from him) without sneaking: he sleeps on.
     await sleep(3200)
@@ -269,7 +269,7 @@ module.exports = async ({ check }) => {
     a2.chat('/tutorial stop')
     const freed = await until(async () => field(await info(A), 'state') === 'out', 3000)
     const po = await pos(A)
-    check('a free player\'s /tutorial stop: free again at the same spot outside the walls', freed && po && Math.abs(po[0] - 260.5) < 0.6 && Math.abs(po[2] - 410.5) < 0.6 && (await t.dim(A)) === 'minecraft:jailbreak', `${po} ${await info(A)}`)
+    check('a free player\'s /tutorial stop: free again at the same spot outside the walls', freed && po && Math.abs(po[0] - 260.5) < 0.6 && Math.abs(po[2] - 410.5) < 0.6 && (await t.dim(A)) === 'minecraft:overworld', `${po} ${await info(A)}`)
 
     // ---- review fixes (2026-10-15): a free player who never finished the course (joined before the prison ran) can
     // stop a replay too; a stop in the 2 s while Rusty talks gives no knife after it; the C4 comes back, but not into the
@@ -308,14 +308,14 @@ module.exports = async ({ check }) => {
     a2.setQuickBarSlot(1)
     a2.chat('/tutorial confirm')
     await until(async () => field(await info(A), 'state') === 'course', 3000)
-    await cmd('execute in minecraft:jailbreak run forceload add 256 400 271 415')
-    await cmd('execute in minecraft:jailbreak run setblock 260 66 410 minecraft:stone')
+    await cmd('execute in minecraft:overworld run forceload add 256 400 271 415')
+    await cmd('execute in minecraft:overworld run setblock 260 66 410 minecraft:stone')
     since = Date.now()
     a2.chat('/tutorial stop')
     const freed2 = await until(async () => field(await info(A), 'state') === 'out', 3000)
     const pu = await pos(A)
-    await cmd('execute in minecraft:jailbreak run setblock 260 66 410 minecraft:air')
-    await cmd('execute in minecraft:jailbreak run forceload remove 256 400 271 415')
+    await cmd('execute in minecraft:overworld run setblock 260 66 410 minecraft:air')
+    await cmd('execute in minecraft:overworld run forceload remove 256 400 271 415')
     check('...with a block where its head was: free again at the lot exit, told the old spot isn\'t safe', freed2 && pu && Math.abs(pu[0] - 260.5) < 0.6 && Math.abs(pu[2] - 404.5) < 0.6 && said(a2, /isn't safe any more/, since), `${pu} ${t.text(a2, since)}`)
     await t.drop(A)
 

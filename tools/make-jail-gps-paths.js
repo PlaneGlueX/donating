@@ -16,7 +16,7 @@ const { build, points } = require('./build/jail.js')
 const Z = require('./build/jail/zones.js')
 const { cells: CELLS } = require('./build/jail/cellblock.js')
 
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const outArg = process.argv.indexOf('--out')
 const OUT = outArg > 0 ? process.argv[outArg + 1] : path.join(__dirname, 'jail-gps-paths.txt')
 

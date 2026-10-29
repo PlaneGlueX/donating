@@ -105,8 +105,8 @@ module.exports = async ({ check }) => {
     // ---------- the givers ----------
     const setup = await cmd('djailjobs setup')
     const list = await cmd('dquest list')
-    check('/djailjobs setup: Lefty, Rusty, Tank, Whisper and Sparks stand in the prison world', ['lefty', 'rusty', 'tank', 'whisper', 'sparks'].every(k => new RegExp(`${k}\\|jailbreak`, 'i').test(list)), `${setup} | ${list.slice(0, 500)}`)
-    const sparksN = (list.match(/QUEST (\d+): sparks\|jailbreak/) || [])[1]
+    check('/djailjobs setup: Lefty, Rusty, Tank, Whisper and Sparks stand in the prison world', ['lefty', 'rusty', 'tank', 'whisper', 'sparks'].every(k => new RegExp(`${k}\\|: sparks|world`, 'i').test(list)), `${setup} | ${list.slice(0, 500)}`)
+    const sparksN = (list.match(/QUEST (\d+): sparks\|world/) || [])[1]
 
     // ---------- M1: a course graduate gets Lefty's lessons; Mara waits for the first escape ----------
     const m1 = await t.newBot(M1, { fresh: true })
@@ -198,7 +198,7 @@ module.exports = async ({ check }) => {
     const xp1 = Number(((await cmd(`zzdata ${M1} level-xp`)).match(/= (\d+)/) || [])[1] || 0)
     check('the escape: l_out passes (+$250, +50 XP), the chain done', out && (await bal(M1)) === b0 + 250 && xp1 - xp0 >= 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} xp ${xp0} -> ${xp1}`)
     const mara = await until(async () => /id=c1_meet/.test(await story(M1, 'story')), 10000, 500)
-    await until(() => said(m1, /WELCOME TO THE CITY/, since), 8000) // 4 s after the escape, where it stands (the jailbreak world)
+    await until(() => said(m1, /WELCOME TO THE CITY/, since), 8000) // 4 s after the escape, where it stands (the : sparks|world world)
     check('...then Mara\'s chain starts (c1_meet) with WELCOME TO THE CITY and the "broke out" brief', mara && said(m1, /WELCOME TO THE CITY/, since) && said(m1, /Heard you broke out/, since), `${await story(M1, 'story')} ${t.text(m1, since).slice(0, 300)}`)
     // c1_knife: a state|weapon mission, done at once for a bot holding the knife.
     await cmd(`zzjail ${M1} own Combat_Knife`)
@@ -299,7 +299,7 @@ module.exports = async ({ check }) => {
     await cmd(`execute in minecraft:overworld run minecraft:tp ${M3} 0.5 120 0.5`)
     await sleep(6000)
     await cmd(`minecraft:kill ${M3}`)
-    await until(async () => (await t.dim(M3)) === 'minecraft:jailbreak', 8000)
+    await until(async () => (await t.dim(M3)) === 'minecraft:overworld', 8000)
     await sleep(7000)
     check('a veteran sent in by a death (no course): no Lefty chain', field(await info(M3), 'state') === 'in' && !/id=l_/.test(await story(M3, 'lefty')), `${await info(M3)} ${await story(M3, 'lefty')}`)
 

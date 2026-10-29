@@ -25,7 +25,7 @@ THE OWNER'S REQUEST (2026-10-26): build the city's core heists next, the biggest
 Jewelry Store, Bank and Museum, "but maybe change up the heist themes a little bit, maybe find some ideas from gta or payday 2
 to add to some of the jailbreak heists". Keep each recognisably the Jailbreak heist, with GTA / Payday 2 twists mixed in.
 
-THE MAP (Multiverse world "jailbreak", 1 Roblox stud = 1 block, detailed Minecraft style):
+THE MAP (Multiverse world "world", 1 Roblox stud = 1 block, detailed Minecraft style):
 - The world is a custom flat: grass_block at y 64, dirt y 61..63, stone y <= 60, air above. Street surfaces are at y 64.
 - The prison occupies x -40..480, z -30..470 (tools/build/jail.js, modules in tools/build/jail/). Its east-west highway runs
   x -40..480 at z 419..441 (asphalt y 64: black_concrete mixes; a yellow dashed centre line at z 430; white edge lines at z 420

@@ -36,7 +36,7 @@ const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Ma
 const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
 
 // ---- the town's frame --------------------------------------------------------------------------------------------
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const TOWN = { x1: 120, z1: 471, x2: 770, z2: 1300, y1: 50, y2: 160 } // every block of the town lies in here
 const TOWN_Z = 729   // z < 729: the approach module; z >= 729: the town
 const WATER_Y = 60   // the river's and the lake's top water block
@@ -645,7 +645,7 @@ module.exports.setup = {
   regions: [{ id: 'safe_poolhall', box: [418, 63, 1129, 479, 90, 1172], flags: { passthrough: 'allow' },
     note: 'the Broker\'s Pool Hall, its forecourt and yards' }],
   heists: [], keepers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: [], pumps: [],
-  givers: [{ kind: 'hits', at: BROKER, cmd: 'dquest addatw hits jailbreak 448.5 65.5 1161.5 180 Pool Hall',
+  givers: [{ kind: 'hits', at: BROKER, cmd: 'dquest addatw hits world 448.5 65.5 1161.5 180 Pool Hall',
     launchCmd: 'dquest addat hits 448.5 65.5 1161.5 180 Pool Hall', note: 'the Broker, behind his desk, facing the door' }]
 }
 module.exports.build = () => module.exports()

@@ -36,7 +36,7 @@ const line4 = (x1, z1, x2, z2, fn) => { const n = Math.max(Math.abs(x2 - x1), Ma
 const rect = (x1, z1, x2, z2, fn) => { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) for (let z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) fn(x, z) }
 
 // ---- the town's frame --------------------------------------------------------------------------------------------
-const WORLD = 'jailbreak'
+const WORLD = 'world'
 const TOWN = { x1: 120, z1: 471, x2: 770, z2: 1300, y1: 50, y2: 160 } // every block of the town lies in here
 const TOWN_Z = 729   // z < 729: the approach module; z >= 729: the town
 const WATER_Y = 60   // the river's and the lake's top water block
@@ -591,7 +591,7 @@ module.exports.setup = {
   regions: [{ id: 'safe_scrapyard', box: [588, 63, 1018, 603, 80, 1031], flags: { passthrough: 'allow' },
     note: 'the Boss\'s booth and the spot in front of its window only (the yard and the chop bay stay outside)' }],
   heists: [], keepers: [],
-  givers: [{ kind: 'contracts', at: SPOT.boss, cmd: 'dquest addatw contracts jailbreak 595.5 65 1028.5 0 Scrap Yard',
+  givers: [{ kind: 'contracts', at: SPOT.boss, cmd: 'dquest addatw contracts world 595.5 65 1028.5 0 Scrap Yard',
     launchCmd: 'dquest addat contracts 595.5 65 1028.5 0 Scrap Yard', note: 'behind the counter window, facing south' }],
   crates: [], carSpots: [],
   chops: [{ at: SPOT.chop, launch: true, cmd: '/dcontract chop add', note: 'the middle of the bay (a car within 6 of it is delivered)' }],

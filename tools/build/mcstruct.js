@@ -95,8 +95,8 @@ function pieceNbt (blocks, ox, oy, oz, sx, sy, sz) {
   return zlib.gzipSync(nbt.writeUncompressed(root))
 }
 
-// Writes the build's pieces and pastes them into `world` (a Multiverse world name, e.g. "jailbreak"). Returns stats.
-async function place (build, { world = 'jailbreak', name = 'build', log = console.log } = {}) {
+// Writes the build's pieces and pastes them into `world` (a Multiverse world name, e.g. "world"). Returns stats.
+async function place (build, { world = 'world', name = 'build', log = console.log } = {}) {
   const b = build.bounds()
   if (!b) return { pieces: 0, blocks: 0 }
   fs.mkdirSync(STRUCT_DIR, { recursive: true })

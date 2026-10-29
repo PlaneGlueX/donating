@@ -250,9 +250,9 @@ module.exports = async ({ check }) => {
     // ---------- Another world's own city ----------
     if (fs.existsSync(OWN)) { fs.renameSync(OWN, OWN_BAK); ownMoved = true; await cmd('dphone reload') }
     await cmd(`zzcombatend ${A}`) // a tagged player's teleport is refused
-    await tp([630.5, 65, 630.5], 'jailbreak')
+    await tp([630.5, 65, 630.5], 'world')
     await sleep(2500) // the land around is made
-    const scan = await cmd('dphone city scan 600 600 663 663 0 jailbreak')
+    const scan = await cmd('dphone city scan 600 600 663 663 0 world')
     const scanned = await until(async () => /others=jailbreak:600,600,663,663@0/.test(await cmd('dphone city info')) && !/scanning=/.test(await cmd('dphone city info')), 30000)
     const inOwn = await status()
     await tp(ZOOM_AT)

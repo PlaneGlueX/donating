@@ -185,7 +185,7 @@ module.exports = async ({ check }) => {
     check('the follower out the other lane: method keycard (no escape-unknown)', logs.prison.has(new RegExp(`escape ${E2} \\S+ keycard`)) && !logs.prison.has(new RegExp(`escape-unknown ${E2}`)), logs.prison.since().split('\n').filter(l => /escape/.test(l)).join(' / '))
     await sleep(4500)
     s1 = await info(E1)
-    check('...and stays where it is in the jailbreak world, outside the walls (no teleport to another world)', (await dim(E1)) === 'minecraft:jailbreak' && field(s1, 'inside') === 'false' && field(s1, 'state') === 'out', `${await dim(E1)} ${s1}`)
+    check('...and stays where it is in the jailbreak world, outside the walls (no teleport to another world)', (await dim(E1)) === 'minecraft:overworld' && field(s1, 'inside') === 'false' && field(s1, 'state') === 'out', `${await dim(E1)} ${s1}`)
     ok = await walk(e1, [[262.5, 404.5], [262.5, 410.5]], 4000)
     await sleep(1200)
     const pFree = await pos(E1)
@@ -213,7 +213,7 @@ module.exports = async ({ check }) => {
     const p3 = await pos(E3)
     fr = await breach('front')
     check('the gate closing: the inmate in the gateway is put at FRONT_IN (not escaped)', near(p2, 260.5, 392.5) && field(await info(E2), 'state') === 'in', `${p2}`)
-    check('...the free bot in the gateway is put out at LOT_EXIT', near(p3, 260.5, 404.5) && (await dim(E3)) === 'minecraft:jailbreak', `${p3}`)
+    check('...the free bot in the gateway is put out at LOT_EXIT', near(p3, 260.5, 404.5) && (await dim(E3)) === 'minecraft:overworld', `${p3}`)
     check('...and every gate block is back', /built=210\/210/.test(fr), fr)
 
     // ---------- the fuse box ----------
@@ -493,7 +493,7 @@ module.exports = async ({ check }) => {
     since = Date.now()
     e1.chat('/spawn')
     await sleep(1500)
-    check('a teleport command inside is refused ("Not from in here")', said(e1, /Not from in here/, since) && (await dim(E1)) === 'minecraft:jailbreak')
+    check('a teleport command inside is refused ("Not from in here")', said(e1, /Not from in here/, since) && (await dim(E1)) === 'minecraft:overworld')
     await cmd(`zzjail ${E1} own 50_GS`)
     await cmd(`zzjail ${E1} own Combat_Knife`)
     await cmd(`minecraft:clear ${E1}`)

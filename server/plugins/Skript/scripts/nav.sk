@@ -354,6 +354,27 @@ command /dpoi [<text>]:
 			set {poi::%{_id}%} to "%{_type}%|%world of player%|%{_x}%|%{_y}%|%{_z}%|%{_name}%"
 			poiReconcile()
 			send "POI %{_id}% %{_type}% at %{_x}% %{_y}% %{_z}%%{_name}%" to sender
+		else if {_sub} is "addat":
+			# The console's add (2026-10-28: the city's setup lines from the console): always the main world.
+			set {_type} to {_a::2}
+			set {_x} to {_a::3} parsed as number
+			set {_y} to {_a::4} parsed as number
+			set {_z} to {_a::5} parsed as number
+			if {-cfg::poi::types::*} does not contain {_type}:
+				send "POI addat: /dpoi addat <type> <x> <y> <z> [name]" to sender
+				stop
+			if {_z} is not set:
+				send "POI addat: /dpoi addat <type> <x> <y> <z> [name]" to sender
+				stop
+			set {_name} to ""
+			if size of {_a::*} > 5:
+				loop integers from 6 to size of {_a::*}:
+					set {_name} to "%{_name}% %{_a::%loop-value%}%"
+			add 1 to {poicounter}
+			set {_id} to "%{poicounter}%"
+			set {poi::%{_id}%} to "%{_type}%|%poiMainWorld()%|%{_x}%|%{_y}%|%{_z}%|%{_name}%"
+			poiReconcile()
+			send "POI %{_id}% %{_type}% at %{_x}% %{_y}% %{_z}%%{_name}%" to sender
 		else if {_sub} is "remove":
 			set {_id} to {_a::2}
 			if {poi::%{_id}%} is not set:
@@ -369,9 +390,9 @@ command /dpoi [<text>]:
 				send "POI %loop-index%: %loop-value%" to sender
 			send "POI end" to sender
 		else if {_sub} is "dump":
-			# The lines to run on Minehut: stand there and add (or teleport first).
+			# The lines to run on Minehut (the console).
 			loop {poi::*}:
 				set {_p::*} to loop-value split at "|"
-				send "/minecraft:tp @s %{_p::3}% %{_p::4}% %{_p::5}% then /dpoi add %{_p::1}%%{_p::6}%" to sender
+				send "dpoi addat %{_p::1}% %{_p::3}% %{_p::4}% %{_p::5}%%{_p::6}%" to sender
 		else:
-			send "POI usage: /dpoi add <type> [name] | remove <n> | list | dump" to sender
+			send "POI usage: /dpoi add <type> [name] | addat <type> <x> <y> <z> [name] | remove <n> | list | dump" to sender

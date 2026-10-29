@@ -41,11 +41,11 @@ module.exports = async ({ check }) => {
     check('setup: a free bot in the city with a car job, a knife and a keycard in hotbar 6-8', (await dim(A)) === 'minecraft:overworld' && /job=street/.test(await cmd(`zzctstate ${A}`)) && /Combat_Knife/.test(await cmd(`zzwm ${A}`)) && /keycard:[5-7]x1/.test(field(await info(A), 'items')), `${await cmd(`zzctstate ${A}`)} ${await info(A)}`)
     let since = Date.now()
     await cmd(`minecraft:kill ${A}`)
-    await until(async () => (await dim(A)) === 'minecraft:jailbreak', 8000)
+    await until(async () => (await dim(A)) === 'minecraft:overworld', 8000)
     await sleep(1500)
     let p = await pos(A)
     let s = await info(A)
-    check('killed in the city: respawns in jailbreak at R_SPAWN (86.5, 65, 198.5)', (await dim(A)) === 'minecraft:jailbreak' && p && Math.abs(p[0] - 86.5) <= 1.1 && Math.abs(p[2] - 198.5) <= 1.1, `${await dim(A)} ${p}`)
+    check('killed in the city: respawns in jailbreak at R_SPAWN (86.5, 65, 198.5)', (await dim(A)) === 'minecraft:overworld' && p && Math.abs(p[0] - 86.5) <= 1.1 && Math.abs(p[2] - 198.5) <= 1.1, `${await dim(A)} ${p}`)
     check('...as an inmate (state in), "Locked up again"', field(s, 'state') === 'in' && said(a, /Locked up again/, since), s)
     const dump = await cmd(`zzdump ${A}`)
     check('...with hotbar 1-5 empty (the knife gone)', !/(DUMP |\| )[0-4]=/.test(dump), dump)
@@ -90,7 +90,7 @@ module.exports = async ({ check }) => {
     since = Date.now()
     let deaths = 0
     a.once('death', () => deaths++)
-    await cmd(`execute in minecraft:jailbreak run minecraft:damage ${A} 100`)
+    await cmd(`execute in minecraft:overworld run minecraft:damage ${A} 100`)
     await sleep(1600)
     s = await info(A)
     const cell = field(s, 'cell')
@@ -147,7 +147,7 @@ module.exports = async ({ check }) => {
     await t.jtp(B, 260.5, 65, 404.5, 0)
     await state(B, 'out')
     await sleep(1500)
-    check('setup: a free bot outside the front gate in jailbreak', (await dim(B)) === 'minecraft:jailbreak' && field(await info(B), 'inside') === 'false', await info(B))
+    check('setup: a free bot outside the front gate in jailbreak', (await dim(B)) === 'minecraft:overworld' && field(await info(B), 'inside') === 'false', await info(B))
 
     // ---- the quest slots (owner, 2026-10-15: "allow the keycard and quest items to be in the last few locked spots in
     // the hotbar"): hotbar 6-8 first (never the held slot), then the pockets; a take frees a slot and a pocket item moves up
@@ -172,7 +172,7 @@ module.exports = async ({ check }) => {
     check('...the inventory dump agrees (bricks tagged jail:<kind> in slots 5-7)', /5=brick x1 \[jail:putty\]/.test(dumpQ) && /6=brick x1 \[jail:wires\]/.test(dumpQ) && /7=brick x1 \[jail:keycard\]/.test(dumpQ), dumpQ)
     await cmd(`zzjail ${B} strip`)
     const pB = await pos(B)
-    check('a free bot rejoining in the prison world stays where it was, still free (no teleport to the city)', (await dim(B)) === 'minecraft:jailbreak' && pB && Math.abs(pB[0] - 260.5) < 1 && Math.abs(pB[2] - 404.5) < 1 && field(await info(B), 'state') === 'out', `${await dim(B)} ${pB} ${await info(B)}`)
+    check('a free bot rejoining in the prison world stays where it was, still free (no teleport to the city)', (await dim(B)) === 'minecraft:overworld' && pB && Math.abs(pB[0] - 260.5) < 1 && Math.abs(pB[2] - 404.5) < 1 && field(await info(B), 'state') === 'out', `${await dim(B)} ${pB} ${await info(B)}`)
 
     // ---- the master switch off: an inmate in jailbreak is moved to the city, freed when it's on again. Not while a real
     // player is a prisoner (2026-10-20): the switch moves every prisoner, the owner too.

@@ -37,7 +37,7 @@ module.exports = async ({ check }) => {
   const calm = n => cmd(`djailcops calm ${n}`)
   const rotate = async (r, yaw) => cmd(`zzconsole npc rotate --body ${yaw} --head ${yaw} --id ${await copId(r)}`)
   const yawTo = (from, to) => Math.atan2(-(to[0] - from[0]), to[2] - from[2]) * 180 / Math.PI
-  const hitCop = (at, n, hp) => cmd(`execute in minecraft:jailbreak run minecraft:damage @e[tag=CITIZENS_NPC,limit=1,sort=nearest,x=${at[0]},y=${at[1]},z=${at[2]}] ${hp} minecraft:player_attack by ${n}`)
+  const hitCop = (at, n, hp) => cmd(`execute in minecraft:overworld run minecraft:damage @e[tag=CITIZENS_NPC,limit=1,sort=nearest,x=${at[0]},y=${at[1]},z=${at[2]}] ${hp} minecraft:player_attack by ${n}`)
   // The exempt bot L stands near a cop's route so its chunk is loaded (Citizens despawns NPCs in unloaded chunks).
   const copHere = async (r, x, z, y = 65) => {
     await state(L, 'off')
@@ -182,7 +182,7 @@ module.exports = async ({ check }) => {
     lc = await copAt('lot')
     const bx = Math.round(lc[0] + fwd * 6)
     const lz = Math.floor(lc[2])
-    await cmd(`execute in minecraft:jailbreak run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:iron_bars`)
+    await cmd(`execute in minecraft:overworld run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:iron_bars`)
     await into(A, (lc[0] + fwd * 12).toFixed(1), 65, lc[2].toFixed(1), 0)
     await calm(A)
     logs.cops.mark()
@@ -190,13 +190,13 @@ module.exports = async ({ check }) => {
     const barsH = await until(() => logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${lotId}`)), 4000, 100)
     check('through a wall of iron bars: still seen (los=false, fence=true) and hostile', /los=false/.test(sb) && /fence=true/.test(sb) && barsH, `${sb} | ${logs.cops.since().split('\n').filter(x => /hostile/.test(x)).join(' / ')}`)
     await calm(A)
-    await cmd(`execute in minecraft:jailbreak run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:stone`)
+    await cmd(`execute in minecraft:overworld run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:stone`)
     logs.cops.mark()
     const ss = await cmd(`zzjailsees lot ${A}`)
     await sleep(2500)
     const stoneH = logs.cops.has(new RegExp(`hostile ${A} \\S+ why=seen-restricted by=${lotId}`))
     check('...a stone wall there instead: hidden (fence=false), not hostile', /fence=false/.test(ss) && !stoneH, ss)
-    await cmd(`execute in minecraft:jailbreak run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:air`)
+    await cmd(`execute in minecraft:overworld run fill ${bx} 65 ${lz - 3} ${bx} 68 ${lz + 3} minecraft:air`)
     await cmd(`zzconsole npc speed 1 --id ${lotId}`)
     await calm(A)
     // Hunted in a far corner of the lot nobody sees: calm 20 s later (the lot isn't a no-lose zone).
@@ -840,7 +840,7 @@ module.exports = async ({ check }) => {
     await copTo('w5', 262.5, 65, 140.5) // not 268.5: inside the bleachers, where it suffocated and went down
     await sleep(400)
     const down = await copAt('w5')
-    const moved = srv.has(/Prison Guard teleported to jailbreak at 262.5, 65, 140.5/)
+    const moved = srv.has(/Prison Guard teleported to world at 262.5, 65, 140.5/)
     const tw = Date.now()
     const back = await until(async () => { const p = await copAt('w5'); return p && p[1] >= 77 }, 30000, 500)
     // Home by the stray rule (20 s), or sooner by Sentinel's own return to its path (a stuck return teleports).
@@ -849,7 +849,7 @@ module.exports = async ({ check }) => {
     // ---------- an untracked Prison Guard is swept ----------
     await into(B, 205.5, 65, 150.5, 0)
     logs.cops.mark()
-    await cmd('npc create Prison Guard --at 207,65,152,jailbreak --type PLAYER')
+    await cmd('npc create Prison Guard --at 207,65,152,world --type PLAYER')
     const swept = await until(() => logs.cops.has(/sweep id=/), 16000, 500)
     check('an untracked "Prison Guard" NPC is swept', swept && /known=10/.test(await cmd('zzjailcops')), `${logs.cops.since().split('\n').filter(x => /sweep/.test(x)).join(' / ')} ${await cmd('zzjailcops')}`)
 
