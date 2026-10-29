@@ -342,6 +342,30 @@ every second:
 	trapFloorRestores()
 	trapShowOutlines()
 
+# Orphans: trap displays no trap tracks (loot.sk's sweep, the same cause). A chunk on its way out hides its entities
+# (not valid: trapDespawn can't kill them, trapReconcile spawns new ones); when it's kept loaded after all, the old
+# copies come back next to the new (found 2026-10-28: every jewelry trap doubled after a forceload was dropped and
+# added again). Two passes apart, so a display spawned between them is never taken for one.
+every 10 seconds:
+	loop {heists::*}:
+		loop {-trapd::%loop-index%::*}:
+			set {_track::%uuid of loop-value-2%} to true
+	set {_n} to 0
+	loop all entities:
+		if loop-entity has scoreboard tag "donating_trap":
+			set {_u} to "%uuid of loop-entity%"
+			if {_track::%{_u}%} is not set:
+				if {-traporph::%{_u}%} is set:
+					kill loop-entity
+					add 1 to {_n}
+				else:
+					set {_seen::%{_u}%} to true
+	delete {-traporph::*}
+	loop {_seen::*}:
+		set {-traporph::%loop-index%} to true
+	if {_n} > 0:
+		trapLog("orphans removed %{_n}%")
+
 function trapReconcile(h: text):
 	set {_s} to heistState({_h})
 	set {_want} to false

@@ -109,6 +109,10 @@ function gpsSend(p: player, key: text, line: text):
 # ---------- Pins ----------
 
 function gpsPin(p: player, l: location, label: text):
+	# No route crosses worlds (found 2026-10-28: the test world's places pinned from jailbreak errored on the distance).
+	if world of {_l} is not world of {_p}:
+		hudBar({_p}, "&7%{_label}% is in another world: no route there", 1)
+		stop
 	set {_u} to "%uuid of {_p}%"
 	set {-gps::pin::%{_u}%} to {_l}
 	set {-gps::pinlabel::%{_u}%} to {_label}
@@ -651,7 +655,7 @@ function gpsCat(p: player, cat: text, page: number):
 	delete {-gps::act::%{_p}%::*}
 	set {-gps::view::%{_p}%} to "%{_cat}%:%{_page}%"
 	gpsButton({_p}, {_gui}, 2, appIcon("back", "&f◀ GPS"), "main")
-	# Nearest first (quests keep their order).
+	# Nearest first (quests keep their order). Places in another world are left out: no route reaches them.
 	set {_e::*} to gpsEntries({_p}, {_cat})
 	set {_n} to 0
 	if {_cat} is "quests":
@@ -661,10 +665,8 @@ function gpsCat(p: player, cat: text, page: number):
 	else:
 		loop {_e::*}:
 			set {_a::*} to loop-value split at "|"
-			set {_d} to 1000000000
 			if {_a::5} is "%world of {_p}%":
-				set {_d} to distance between (location of {_p}) and location(({_a::6} parsed as number), ({_a::7} parsed as number), ({_a::8} parsed as number), world of {_p})
-			set {_dist::%loop-index%} to {_d}
+				set {_dist::%loop-index%} to distance between (location of {_p}) and location(({_a::6} parsed as number), ({_a::7} parsed as number), ({_a::8} parsed as number), world of {_p})
 		loop sorted indices of {_dist::*} in ascending order:
 			add 1 to {_n}
 			set {_s::%{_n}%} to {_e::%loop-value%}
