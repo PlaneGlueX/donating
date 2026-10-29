@@ -1223,6 +1223,7 @@ function loadSettings():
 	set {-cfg::trap::floor::drop} to 1.0
 	set {-cfg::trap::floor::depth} to 4
 	set {-cfg::trap::floor::max-tiles} to 64
+	set {-cfg::trap::floor::grace} to 3 seconds # a fall back into the same pit this soon only puts you back
 	set {-cfg::trap::camera::effect} to "alarm"
 	set {-cfg::trap::camera::angle} to 30          # half-angle: a 60° cone
 	set {-cfg::trap::camera::range} to 12

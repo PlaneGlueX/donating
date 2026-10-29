@@ -357,9 +357,11 @@ const HEIST_LINES = [
   '(G) /dtrap add power camera 1022.5 77.5 322.5 -45 35 effect=alarm angle=25 range=16 sweep=60 period=8   # hall north-west',
   '(G) /dtrap add power camera 1088.5 77.5 322.5 45 35 effect=alarm angle=25 range=16 sweep=60 period=8    # hall north-east',
   ...laser('334.5', BLINK(0)), ...laser('338.5', BLINK(2)), ...laser('342.5', BLINK(0)),
-  `(G) /dtrap add power floor ${CATWALK[0]} 64 ${PIT.z1} ${CATWALK[1]} 64 ${PIT.z2} damage=2 depth=4   # the catwalk`,
   '(G) /dtrap add power plate 1051 65 328 damage=2',
   '(G) /dtrap add power plate 1059 65 328 damage=2',
+  // the catwalk in 2-deep strips, each cracking on its own: a sprinter outruns the collapse, a walker falls (2026-10-29;
+  // one 17-long floor was never crossable). After the plates, as in game (power-14..22).
+  ...Array.from({ length: 9 }, (_, i) => PIT.z1 + 2 * i).map(z => `(G) /dtrap add power floor ${CATWALK[0]} 64 ${z} ${CATWALK[1]} 64 ${Math.min(z + 1, PIT.z2)} damage=2 depth=4`),
   '# lockdown (iron bars over every window and the transom), cops, hologram, open',
   ...WINDOWS.map(w => `(G) /dheist lock power add ${w.join(' ')} iron_bars`),
   '(G) /dcops power add 1032.5 65 392.5',

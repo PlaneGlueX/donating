@@ -685,6 +685,16 @@ function trapFire(p: player, h: text, n: text):
 		set {_ok} to heistTripAlarm({_h}, "%{_k}%:%{_id}%")
 		trapLog("alarm %name of {_p}% %{_id}% tripped=%{_ok}%")
 		stop
+	# Put back at the pit's edge still holding forward walks you straight back in: a fall into the same pit
+	# within floor::grace only puts you back again (it was a hit and a death in a second, 2026-10-29).
+	if {_k} is "floor":
+		set {_fell} to {-trapfell::%{_c}%::%{_who}%}
+		if {_fell} is set:
+			if difference between {_fell} and now < {-cfg::trap::floor::grace}:
+				trapPitOut({_p}, {_h})
+				trapLog("refall %name of {_p}% %{_id}%")
+				stop
+		set {-trapfell::%{_c}%::%{_who}%} to now
 	set {_dmg} to {-trapc::%{_c}%::dmg}
 	if {_dmg} is not set:
 		set {_dmg} to 1

@@ -389,8 +389,10 @@ const HEIST_LINES = [
   laser('1236.5', DUCK, 'damage=2'), laser('1233.5', LOW, 'damage=2'),
   laser('1230.5', LOW, BLINK(0)), laser('1230.5', DUCK, BLINK(2)),
   laser('1227.5', DUCK, 'damage=2'), laser('1224.5', LOW, 'damage=2'),
-  `(G) /dtrap add mansion floor ${PIT.x1} ${FL} ${PIT.z1} ${PIT.x2} ${FL} ${PIT.z2} damage=2 depth=4   # the library's collapsing floor`,
   ...[[1227, 91, 657], [1233, 91, 657], [1249, 91, 650], [1251, 91, 650], [1250, 91, 656], [1274, 98, 640], [1274, 98, 641]].map(p => `(G) /dtrap add mansion plate ${p.join(' ')} damage=2`),
+  // the library's collapsing floor in 2-deep strips, each cracking on its own: a sprinter outruns the collapse, a walker
+  // falls (mansion-23..28 in game)
+  ...[633, 635, 637, 639, 641, 643].map(z => `(G) /dtrap add mansion floor ${PIT.x1} ${FL} ${z} ${PIT.x2} ${FL} ${z + 1} damage=2 depth=4`),
   '# lockdown (iron bars over every window), cops, hologram, open',
   ...WINDOWS.map(w => `(G) /dheist lock mansion add ${w.join(' ')} iron_bars`),
   '(G) /dcops mansion add 1250.5 91 605.5',
