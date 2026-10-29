@@ -41,14 +41,14 @@ const LABEL_TAG = 'iron_label', DISPLAY_TAG = 'iron_display'
 // module boxes [x1, z1, x2, z2]: the module owns every column inside, y CITY.y1..CITY.y2
 const BOX = {
   power: [950, 270, 1120, 415],   // the Power Plant, its yard and cooling towers, its gate on the avenue's north walk
-  police: [950, 445, 1070, 555],  // the Police HQ, its front on the avenue's south walk
+  evidence: [950, 445, 1070, 555], // the Police HQ (heist evidence), its front on the avenue's south walk
   mansion: [1160, 560, 1340, 740] // Mansion Hill and the house on top (Hill Drive's strip is the streets')
 }
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then a small placeholder)
 const REGION = {
   power: [1020, 59, 320, 1090, 81, 370],
-  police: [995, 63, 485, 1025, 75, 515],
+  evidence: [975, 55, 460, 1045, 72, 520],
   mansion: [1235, 89, 635, 1265, 101, 665]
 }
 const KEEP_FREE = []
@@ -140,7 +140,7 @@ function shrub (S, x, z, y0 = 64) {
 }
 // ---- end COMMON ----
 // ---- the preview: tools/node/node.exe tools/build/render.js tools/build/iron/plan-layout.js <out> --views top ------------
-const COLOR = { power: 'yellow_wool', police: 'blue_wool', mansion: 'purple_wool' }
+const COLOR = { power: 'yellow_wool', evidence: 'blue_wool', mansion: 'purple_wool' }
 const SURFACE = { road: 'black_concrete', walk: 'light_gray_concrete', curb: 'smooth_stone', wall: 'stone_bricks' }
 module.exports = () => {
   const b = new (require('../mcstruct').Build)()

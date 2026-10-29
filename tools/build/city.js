@@ -26,7 +26,7 @@ const { Build, place, parseState } = require('./mcstruct')
 const SETS = {
   city: { modules: ['streets', 'jewelry', 'bank', 'casino'], budget: { streets: 250000, jewelry: 70000, bank: 90000, casino: 200000 }, gps: [1002] }, // PLAN 9.1
   north: { modules: ['streets', 'reserve', 'gallery', 'club', 'pawn', 'carwash'], budget: { streets: 120000, reserve: 150000, gallery: 90000, club: 70000, pawn: 25000, carwash: 30000 }, gps: [3017] },
-  iron: { modules: ['streets', 'power', 'police', 'mansion'], budget: { streets: 400000, power: 150000, police: 90000, mansion: 200000 }, gps: [3008] }
+  iron: { modules: ['streets', 'power', 'evidence', 'mansion'], budget: { streets: 400000, power: 150000, evidence: 90000, mansion: 200000 }, gps: [3008] }
 }
 const SET_NAME = process.env.CITY_SET || 'city'
 const SET = SETS[SET_NAME]
