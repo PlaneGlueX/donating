@@ -1266,7 +1266,7 @@ function loadSettings():
 	# Pile styles: what a piece looks like and is worth. A pile's value V = n × piece with n rolled at
 	# every opening between ceil(min / piece) and floor(max / piece) (/dloot add ... value=MIN-MAX).
 	# Rate r = piece / take ($ per second of holding); a bag of capacity C fills in C / r seconds.
-	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods", "art" and "register"
+	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods", "art", "register" and "bullion"
 	set {-cfg::loot::cash::name} to "Cash stack"
 	set {-cfg::loot::cash::piece} to 100
 	set {-cfg::loot::cash::take} to 0.8
@@ -1307,6 +1307,24 @@ function loadSettings():
 	set {-cfg::loot::art::layers} to 1
 	set {-cfg::loot::art::thick} to 0.3
 	set {-cfg::loot::art::scale} to 0.5
+	# ATMs (atm.sk, 2026-10-29): hold to crack, a rolled payout into the bag, then out of order for a while.
+	set {-cfg::atm::level} to 1
+	set {-cfg::atm::hold} to 6
+	set {-cfg::atm::min} to 300
+	set {-cfg::atm::max} to 700
+	set {-cfg::atm::cooldown} to 15 minutes
+	set {-cfg::atm::reach} to 5
+	# Big gold bars for the vault heists (tools/build/expand/PLAN.md: the Federal Reserve, the Mansion): one bar fills most
+	# of a starter bag, so the gold is crew work. The gold bar's art, bigger.
+	set {-cfg::loot::bullion::name} to "Bullion"
+	set {-cfg::loot::bullion::piece} to 5000
+	set {-cfg::loot::bullion::take} to 4.0
+	set {-cfg::loot::bullion::item} to gold ingot
+	set {-cfg::loot::bullion::model} to "donating:loot_gold"
+	set {-cfg::loot::bullion::per-cell} to 1
+	set {-cfg::loot::bullion::layers} to 2
+	set {-cfg::loot::bullion::thick} to 0.2
+	set {-cfg::loot::bullion::scale} to 0.85
 	# A store's till (owner, 2026-09-28: stores are small, "all you have to do is rob the cash register"): bills in a
 	# register on the counter, quick to grab. model = the pack's art to use (the cash stack's).
 	set {-cfg::loot::register::name} to "Register cash"

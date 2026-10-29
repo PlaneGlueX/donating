@@ -1,0 +1,208 @@
+# atm.sk: ATMs to crack (2026-10-29; tools/build/expand/PLAN.md section 4, the owner's "add them all": the smallest
+# heist, from GTA Online and Watch Dogs' ATM smash). An ATM is a block spot the builders put an ATM on; this script adds
+# an invisible click box and a floating screen ("ATM" / "OUT OF ORDER 12:30"), both not persistent and only in loaded
+# chunks.
+#   - "Hold right-click · Crack the ATM": cfg atm::hold (6 s) with loot.sk's hold rules (lootHold: a pause over 1 s
+#     starts over, a hit that lands resets it). It pays a rolled atm::min-max into the bag as its own line
+#     ("atm#<unix time>"), sold at a base like any loot (passive players get passive's payout there). A full bag takes
+#     nothing.
+#   - Then that ATM is out of order for atm::cooldown (15 min; memory: a restart puts every ATM back).
+#   - Refused in a safe zone, inside a heist, below atm::level, for builders, with the phone in hand. No police and no
+#     wanted status (the low-tier rule, like the stores).
+# Staff (donating.staff): /datm add [<x> <y> <z>] (default the block you look at) | remove <n> | list | dump | ready [n].
+# Saved: {atm::<n>} = "world|x|y|z", the counter {atmcounter}. Log: atm.log.
+
+function atmLog(text: text):
+	log "%now% %{_text}%" to "atm.log"
+
+function atmSpot(n: text) :: location:
+	set {_v} to {atm::%{_n}%}
+	{_v} is set
+	set {_p::*} to {_v} split at "|"
+	set {_w} to world({_p::1})
+	{_w} is set
+	return location(({_p::2} parsed as number), ({_p::3} parsed as number), ({_p::4} parsed as number), {_w})
+
+# Seconds until ATM n works again (0 = ready).
+function atmLeft(n: text) :: number:
+	set {_r} to {-atm::ready::%{_n}%}
+	if {_r} is not set:
+		return 0
+	return max(0, {_r} - unix timestamp of now)
+
+function atmScreen(n: text) :: text:
+	set {_left} to atmLeft({_n})
+	if {_left} > 0:
+		return "&c&lOUT OF ORDER%nl%&7%formatClock(ceil({_left}))%"
+	return "&a&lATM%nl%&7Hold right-click"
+
+function atmDespawn(n: text):
+	loop "hb" and "tx":
+		set {_e} to {-atm::e::%{_n}%::%loop-value%}
+		if {_e} is set:
+			if {_e} is valid:
+				delete {-atment::%uuid of {_e}%}
+				kill {_e}
+		delete {-atm::e::%{_n}%::%loop-value%}
+	delete {-atm::shown::%{_n}%}
+
+function atmEnsure(n: text):
+	set {_l} to atmSpot({_n})
+	if {_l} is not set:
+		atmDespawn({_n})
+		stop
+	if chunk at {_l} is not loaded:
+		atmDespawn({_n})
+		stop
+	set {_hb} to {-atm::e::%{_n}%::hb}
+	set {_tx} to {-atm::e::%{_n}%::tx}
+	set {_ok} to true
+	if {_hb} is not set:
+		set {_ok} to false
+	else if {_hb} is not valid:
+		set {_ok} to false
+	if {_tx} is not set:
+		set {_ok} to false
+	else if {_tx} is not valid:
+		set {_ok} to false
+	if {_ok} is false:
+		atmDespawn({_n})
+		spawn an interaction at {_l} ~ vector(0.5, 0, 0.5):
+			make event-entity not persistent
+			add "donating_atm" to scoreboard tags of event-entity
+			set interaction width of event-entity to 1.02
+			set interaction height of event-entity to 2.02
+			make event-entity unresponsive
+		set {_hb} to last spawned entity
+		set {-atm::e::%{_n}%::hb} to {_hb}
+		set {-atment::%uuid of {_hb}%} to {_n}
+		spawn a text display at {_l} ~ vector(0.5, 2.3, 0.5):
+			make event-display not persistent
+			add "donating_atm" to scoreboard tags of event-display
+			set billboard of event-display to center
+			set view range of event-display to 0.5
+			set brightness override of event-display to 15
+		set {-atm::e::%{_n}%::tx} to last spawned entity
+	set {_t} to atmScreen({_n})
+	if {-atm::shown::%{_n}%} is not {_t}:
+		set text of {-atm::e::%{_n}%::tx} to colored {_t}
+		set {-atm::shown::%{_n}%} to {_t}
+
+every 2 seconds:
+	loop {atm::*}:
+		atmEnsure(loop-index)
+
+on load:
+	# Stray copies from before a reload (not persistent, but a reload doesn't unload them).
+	loop all entities:
+		if scoreboard tags of loop-entity contain "donating_atm":
+			kill loop-entity
+	delete {-atment::*}
+	delete {-atm::e::*}
+	delete {-atm::shown::*}
+
+on right click on interaction:
+	set {_n} to {-atment::%uuid of event-entity%}
+	{_n} is set
+	cancel event
+	set {-lootguard::%player%} to now
+	if itemId(player's tool) is "phone":
+		phoneHint(player, "crack the ATM")
+		stop
+	atmClick(player, {_n}, event-entity)
+
+function atmClick(p: player, n: text, e: entity):
+	if heistBuilder({_p}) is true:
+		lootBar({_p}, "&7Builder: switch to survival to rob.")
+		stop
+	if {_p} is not alive:
+		stop
+	if distance between (eye location of {_p}) and (location of {_e}) > {-cfg::atm::reach}:
+		stop
+	if heistOf({_p}) is not "":
+		stop
+	if isSafeZone(location of {_p}) is true:
+		lootBar({_p}, "&7Not in a safe zone.")
+		stop
+	if levelOf({_p}) < {-cfg::atm::level}:
+		lootBar({_p}, "&7ATMs need level %{-cfg::atm::level}%.")
+		stop
+	set {_left} to atmLeft({_n})
+	if {_left} > 0:
+		lootBar({_p}, "&cOut of order &7· %formatClock(ceil({_left}))%")
+		stop
+	if bagRoom({_p}) <= 0:
+		lootBagFull({_p})
+		stop
+	set {_need} to {-cfg::atm::hold}
+	if lootHold({_p}, "atm:%{_n}%", {_need}) is false:
+		lootBar({_p}, "&fHold right-click · Crack the ATM %lootMeter(lootHeld({_p}) / {_need})%")
+		stop
+	set {-lootw::%{_p}%::t} to 0
+	# Rolled in steps of $10.
+	set {_v} to 10 * (random integer between ({-cfg::atm::min} / 10) and ({-cfg::atm::max} / 10))
+	set {_tag} to "atm#%floor(unix timestamp of now)%"
+	set {_got} to bagAddTag({_p}, {_tag}, {_v})
+	if {_got} <= 0:
+		lootBagFull({_p})
+		stop
+	set {-atm::ready::%{_n}%} to (unix timestamp of now) + ({-cfg::atm::cooldown} / 1 second)
+	atmEnsure({_n})
+	progEvent({_p}, "rob", {_got}, {_tag})
+	play sound "block.chain.break" with volume 1 at location of {_e}
+	play sound "item.bundle.insert" with volume 0.8 at location of {_p}
+	lootBar({_p}, "&a+%formatMoney({_got})% &7ATM · %bagFillText({_p})% &7(%formatMoney(bagTotal({_p}))%/%formatMoney(bagCapacity({_p}))%)")
+	atmLog("crack %name of {_p}% %uuid of {_p}% atm=%{_n}% rolled=%{_v}% got=%{_got}%")
+
+command /datm [<text>] [<text>] [<text>] [<text>]:
+	permission: donating.staff
+	permission message: Unknown command. Type "/help" for help.
+	executable by: players and console
+	trigger:
+		set {_sub} to arg-1
+		if {_sub} is "add":
+			if arg-4 is set:
+				if sender is a player:
+					set {_w} to world of player
+				else:
+					set {_w} to poiMainWorld()
+				set {_l} to location((arg-2 parsed as number), (arg-3 parsed as number), (arg-4 parsed as number), {_w})
+			else if sender is a player:
+				set {_l} to location of target block of player
+			if {_l} is not set:
+				send "ATM usage: /datm add [<x> <y> <z>] (the block you look at by default)" to sender
+				stop
+			add 1 to {atmcounter}
+			set {_n} to "%{atmcounter}%"
+			set {atm::%{_n}%} to "%world of {_l}%|%floor(x-coordinate of {_l})%|%floor(y-coordinate of {_l})%|%floor(z-coordinate of {_l})%"
+			atmEnsure({_n})
+			atmLog("add %{_n}% %{atm::%{_n}%}% by=%sender%")
+			send "ATM %{_n}% at %{atm::%{_n}%}%" to sender
+		else if {_sub} is "remove":
+			set {_n} to arg-2
+			if {atm::%{_n}%} is not set:
+				send "ATM no ATM %{_n}%" to sender
+				stop
+			atmDespawn({_n})
+			delete {atm::%{_n}%}
+			delete {-atm::ready::%{_n}%}
+			atmLog("remove %{_n}% by=%sender%")
+			send "ATM %{_n}% removed" to sender
+		else if {_sub} is "list":
+			set {_c} to 0
+			loop {atm::*}:
+				add 1 to {_c}
+				send "ATM %loop-index%: %loop-value% left=%atmLeft(loop-index)%" to sender
+			send "ATM %{_c}% ATM(s)" to sender
+		else if {_sub} is "dump":
+			loop {atm::*}:
+				set {_p::*} to loop-value split at "|"
+				send "datm add %{_p::2}% %{_p::3}% %{_p::4}%" to sender
+		else if {_sub} is "ready":
+			if arg-2 is set:
+				delete {-atm::ready::%arg-2%}
+			else:
+				delete {-atm::ready::*}
+			send "ATM ready" to sender
+		else:
+			send "ATM /datm add [<x> <y> <z>] | remove <n> | list | dump | ready [n]" to sender
