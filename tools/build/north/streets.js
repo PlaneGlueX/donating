@@ -48,7 +48,7 @@ const BOX = {
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then the whole box)
 const REGION = {
-  reserve: [700, 56, 150, 780, 78, 200],
+  reserve: [683, 51, 153, 748, 77, 200],
   gallery: [564, 64, 140, 628, 78, 214],
   club: [670, 64, 230, 738, 78, 276],
   pawn: [602, 63, 68, 634, 75, 104],
@@ -160,8 +160,8 @@ for (let x = CITY.x1; x <= CITY.x2; x++) for (let z = CITY.z1; z <= CITY.z2; z++
 // armored-truck gate on Bank Street North, z 205..214).
 const CUTS = [[500, 112, 509, 112], [500, 123, 509, 123], [520, 123, 529, 123], [661, 205, 661, 214]]
 // ATMs on the street (PLAN 1.1): Gallery Row's north walk at x 700, Bank Street North's west side at z 60 (on the grass
-// beside the walk). [x, z, facing]: the screen side.
-const ATMS = [[700, 110, 'south'], [639, 60, 'east']]
+// beside the walk). [x, z, yaw]: the screen faces the street (yaw as in the displays: south 0, east -90).
+const ATMS = [[700, 110, 0], [639, 60, -90]]
 const LAMPS = []
 
 function surface () {
@@ -190,13 +190,9 @@ function lamps () {
     streetLamp(S, x, z, 0, dz); LAMPS.push([x, z])
   }
 }
-// An ATM (atm.sk): an iron body, a dark screen block, a slab cap; atm.sk adds the click box and the floating screen.
-function atm ([x, z, facing]) {
-  S(x, 65, z, 'iron_block')
-  S(x, 66, z, 'polished_blackstone')
-  S(x, 67, z, 'smooth_stone_slab[type=bottom,waterlogged=false]')
-  void facing
-}
+// An ATM (atm.sk): three barriers under the furniture model (like the Bank's, the display in DISPLAYS); atm.sk adds the
+// click box and the floating screen.
+function atm ([x, z]) { for (let y = 65; y <= 67; y++) S(x, y, z, 'barrier') }
 
 // ---- GPS (ids from 5001; the city's 3017 is Bank Street at z 262) -------------------------------------------------------
 const GPS = {
@@ -218,7 +214,7 @@ module.exports.build = () => module.exports()
 module.exports.labels = [
   { x: 640.0, y: 70.0, z: 108.5, facing: 'west', text: 'GALLERY ROW', color: '#ffffff', scale: 0.8 }
 ].filter(() => false) // none yet: street signs come with the buildings
-module.exports.displays = []
+module.exports.displays = ATMS.map(([x, z, yaw]) => ({ x: x + 0.5, y: 66.5, z: z + 0.5, item: 'iron_ingot', cmd: 'donating:furn_atm', yaw, pitch: 0, scale: 1 }))
 module.exports.points = {}
 module.exports.setup = {
   regions: [{ id: 'district_rising_city', box: [481, 0, 0, 940, 200, 470], flags: ['passthrough allow'], launch: true,

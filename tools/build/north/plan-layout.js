@@ -49,7 +49,7 @@ const BOX = {
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then the whole box)
 const REGION = {
-  reserve: [700, 56, 150, 780, 78, 200],
+  reserve: [683, 51, 153, 748, 77, 200],
   gallery: [564, 64, 140, 628, 78, 214],
   club: [670, 64, 230, 738, 78, 276],
   pawn: [602, 63, 68, 634, 75, 104],

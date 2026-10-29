@@ -19,7 +19,7 @@ module.exports = async ({ check }) => {
   let id = ''
   const platform = `${X - 4} ${Y - 1} ${Z - 4} ${X + 4} ${Y - 1} ${Z + 4}`
   const logLen = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0
-  const logged = () => fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').slice(logLen) : ''
+  const logged = () => fs.existsSync(LOG) ? fs.readFileSync(LOG).subarray(logLen).toString('utf8') : ''
   try {
     await cmd(`forceload add ${X - 4} ${Z - 4} ${X + 4} ${Z + 4}`)
     await sleep(1500)
