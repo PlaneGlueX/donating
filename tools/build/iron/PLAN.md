@@ -101,3 +101,44 @@ Changed from the site plan: cops can't stand inside a heist region (`/dcops add`
 
 **Spots:** exit (1009.5, 65, 455.5) facing north, the hologram (1015.5, 70, 455.5), the chase centre (1010.5, 60, 490.5), cops on the plaza (1009.5, 65, 450.5) and in the back lot (1009.5, 65, 530.5). GPS 6020 the plaza (1009.5, 65, 455.5), linked to 6002. No POI (the heist shows on the locator bar while open). Budget 90,000 blocks.
 - **Built 2026-10-29**: 38,895 blocks (`city.js check` passes), pasted with `--box 950,445,1070,555` (backup-2026-10-29-1120 before); the label "IRONVALE POLICE" placed; region, heist (advanced), 2 gates (the sergeant's safe G1, the evidence cage door G2), 5 piles, the traps, lockdown boxes, 2 cop spots (in front and behind), the snapshot, the hologram, the POI and GPS 6020 (linked to 6002) set up once over RCON; the first opening rolled $26,000. `bots/run.js iron evidence` 7/7: open and armed, level 29 kept out at the door, level 30 in, the fines drawer paid into the bag, the safe and the cage door with their hitboxes.
+
+## 4. The Mansion (`iron/mansion.js`)
+
+The finale (expand/PLAN.md 1.3): difficulty 4, level 60, **advanced** (alarm, cops, lockdown), pool $70,000, escape 10:00 / cooldown 30:00 (difficulty 4's defaults). Holloway Manor: a white quartz two-storey house with a dark tile roof on top of Mansion Hill; the cops' assaults come up Hill Drive.
+
+**Mansion Hill** (a hollow shell, like the site plan's other hills): a plateau x 1195..1305, z 601..705 at y 90 (grass, feet 91), sloping down 1 block every 1.2 to the ground (y 64) by the box's edge: the column's top is y 90 − floor(d / 1.2), d = the distance from the plateau's rectangle, with grass on top and 2 blocks of dirt under it (hollow below). On the north the slope stays under Hill Drive's road, so its retaining walls show. A hedge round the plateau's edge (a gap at the drive), oaks on the plateau, pines on the slopes, a fountain in the back garden at (1250, 692).
+
+**The front court** x 1238..1262, z 601..619 (polished andesite, not asphalt), where Hill Drive arrives (x 1242..1249); four lantern posts; a portico (quartz pillars at x 1245 / 1255, z 616, its roof y 97 over x 1244..1256, z 614..619).
+
+**The house**: walls x 1220..1280, z 620..670 (inside x 1221..1279, z 621..669). Floor y 90, ground rooms y 91..96, the upper floor y 97, upper rooms y 98..102, the roof y 103 (deepslate tiles; a glass skylight over the gallery), a parapet y 104. Walls smooth quartz with quartz pillars at the corners. The front door x 1249..1251 in z 620 (y 91..94, open). Windows 3 wide (y 92..94 and 99..101): the front x 1223, 1230, 1242, 1256, 1268, 1275 (+2); both sides z 628, 640, 655, 663 (+2); the back x 1244, 1254, 1266, 1273 (+2). "HOLLOWAY MANOR" over the portico (a label, y 99.4).
+
+**Heist region** `heist_mansion` x 1218..1282, y 84..104, z 618..672 (75,075 blocks): the house and the library's pit; the court and the gardens stay outside.
+
+**The way in, room by room** (ground floor, then up):
+1. **The foyer** x 1240..1260, z 621..636: a red runner to the gallery's door, two cameras in its north corners, the grand stair up the east side (x 1256..1259, z 625..631, y 91..97 rising south; the upper floor open over z 627..630).
+2. **The laser hall** x 1221..1238, z 621..624 (through x 1239 at z 622..624), west along the front wall: six lasers across it (low 91.4 to jump, high 92.65 to duck, one blinking pair), to its doorway into the library at its west end (z 625, x 1221..1223).
+3. **The library** x 1221..1238, z 626..650: bookshelves on both long walls. Its middle x 1223..1236, z 633..644 is a **collapsing floor** over a pit (floor y 85, a ladder back up at its north end, x 1230, z 632); the 1-wide ledges along the shelves (x 1222, x 1237) are safe but two cameras at the north end look straight down them. **The code door** G1 (safe, x 1229..1230, z 651, y 91..93) in the south wall.
+4. **The vault room** x 1221..1238, z 652..669: two plates in front of **the vault** (deepslate walls x 1224..1235, z 659..670) and its door G2 (drill, x 1229..1231, z 659, y 91..93; time 120, jams 3, claim 15, alarm=true). Inside: two bullion pallets and the cash pallets.
+5. **The gallery** x 1240..1260, z 638..669 (double height to the skylight), through the foyer's back door (x 1249..1251, z 637): four smash cases (G3..G6, the Jewelry store's island), two sculptures, the masterpiece at the back; three plates in the aisle. No camera (a camera's cone can't hold a gate).
+6. **The dining room** x 1262..1279, z 621..645 (through x 1261 at z 628..630): the long table, the silverware on the sideboard (x 1278); one camera. The kitchen behind (z 647..669).
+7. **Upstairs**: the hall over the foyer; **the master bedroom** (west, x 1221..1238, z 621..645, through x 1239 at z 632..634) with the jewelry box on the dresser; **the study** (east, x 1262..1279, z 621..645, through x 1261 at z 632..634) with a camera, two plates and **the master safe** G7 (safe, x 1277, z 640..641, y 98..99) in a steel cabinet (x 1277..1279, z 639..642, y 98..101). The rest of the upper floor is closed attic.
+
+**Loot** (≈ $68,000 on an average roll):
+
+| Pile | Where | Value | Style | Behind |
+|---|---|---|---|---|
+| Silverware | x 1278, z 630..632, y 91 | $1,000-2,000 | goods (500, 2 s) | — |
+| Sculpture ×2 | x 1243..1244 / 1256..1257, z 652, y 91 | $2,000-4,000 each | art | — |
+| Masterpiece | x 1250..1251, z 667, y 91 | $4,000-6,000 | art | — |
+| Display case ×4 | the islands' middle rows, y 91 | $2,000-3,500 each | jewel | G3..G6 |
+| Bullion ×2 | x 1226..1227 / 1232..1233, z 668, y 91 | $10,000-15,000 each | bullion | G2 |
+| Cash pallets | x 1225, z 662..667, y 91 | $8,000-12,000 | cash (1,000, 4 s) | G2 |
+| Master safe | x 1278, z 640..641, y 98 | $6,000-9,000 | cash (2,500, 4 s) | G7 |
+| Jewelry box | x 1222..1223, z 640, y 98 | $1,500-3,000 | jewel | — |
+
+**Traps** (damage 2): cameras (alarm) in the foyer's north corners, the library's north end (2), the dining room, the study; the laser hall's six lasers; the library's collapsing floor (depth 4); 7 plates.
+
+**Lockdown** (iron bars): the 36 windows. The front door stays open.
+
+**Spots:** exit (1250.5, 91, 611.5) facing north, the hologram (1256.5, 95, 611.5), the chase centre (1250.5, 95, 645.5), cops in the front court (1250.5, 91, 605.5) and the back garden (1250.5, 91, 682.5). GPS 6030 the court (1250.5, 91, 611.5), linked to 6005. Budget 200,000 blocks.
+- **Built 2026-10-29**: 97,302 blocks (`city.js check` passes first time), pasted with `--box 1160,560,1340,740` (backup-2026-10-29-1216 before); the label placed; region (75,075 blocks), heist (advanced), 7 gates, 13 piles, 6 cameras, 6 lasers, the library's floor, 7 plates, 36 lockdown boxes, 2 cop spots, the snapshot, the hologram and GPS 6030 (linked to 6005) set up once over RCON. Changed while setting up: the masterpiece ($3,000 a piece; 2 cells hold 2 art pieces) and the jewelry box ($500 a piece) were refused at the default piece sizes and added again last (in-game ids 19 and 20; the module lists them in that order). `/dloot check`: $56,000-82,500, about $69,250; one robber clears it in about 6:00 of the 10:00 clock (a crew heist). `bots/run.js iron mansion` 8/8: open and armed, level 59 kept out at the door, level 60 in, the silverware paid into the bag, the code door, the vault door and the master safe with their hitboxes.

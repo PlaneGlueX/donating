@@ -15,6 +15,13 @@ const HEISTS = {
     door: [1009.5, 65, 455.5], yaw: 0, inside: [1009.5, 65, 465.5],
     take: { stand: [1010.5, 65, 471.5], aim: [1010.5, 66, 470.5], pile: 3, name: 'the fines drawer (no gate)' },
     hitboxes: [{ stand: [980.5, 65, 510.5], gate: 1, name: "the sergeant's safe G1" }, { stand: [1010.5, 57, 474.5], gate: 2, name: 'the cage door G2' }]
+  },
+  mansion: {
+    level: 60, piles: 13,
+    door: [1250.5, 91, 616.5], yaw: 0, inside: [1250.5, 91, 625.5],
+    take: { stand: [1276.5, 91, 631.5], aim: [1278.5, 92, 631.5], pile: 8, name: 'the silverware (no gate)' },
+    hitboxes: [{ stand: [1229.5, 91, 649.5], gate: 1, name: 'the code door G1' }, { stand: [1230.5, 91, 657.5], gate: 2, name: 'the vault door G2' },
+      { stand: [1275.5, 98, 640.5], gate: 7, name: 'the master safe G7' }]
   }
 }
 

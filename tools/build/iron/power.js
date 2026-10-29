@@ -48,7 +48,7 @@ const BUILDINGS = Object.keys(BOX)
 const REGION = {
   power: [1020, 59, 320, 1090, 81, 370],
   evidence: [975, 55, 460, 1045, 72, 520],
-  mansion: [1235, 89, 635, 1265, 101, 665]
+  mansion: [1218, 84, 618, 1282, 104, 672]
 }
 const KEEP_FREE = []
 
