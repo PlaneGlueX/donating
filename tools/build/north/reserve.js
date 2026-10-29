@@ -41,7 +41,7 @@ const LABEL_TAG = 'north_label', DISPLAY_TAG = 'north_display'
 const BOX = {
   reserve: [664, 132, 800, 222], // the Federal Reserve and its plaza on Bank Street North (x 664..669)
   gallery: [556, 126, 636, 222], // the Art Gallery, its front on Gallery Row
-  club: [668, 228, 740, 278],    // the Nightclub, on Rising City's old kept-free strip, its door on Bank Street (x 664..667 walk)
+  club: [664, 228, 740, 278],    // the Nightclub, on Rising City's old kept-free strip, its forecourt from Bank Street's east walk
   pawn: [600, 66, 636, 109],     // Lucky Pawn, its front on Gallery Row
   carwash: [490, 126, 550, 200]  // the Car Wash, its front on Gallery Row
 }
@@ -50,7 +50,7 @@ const BUILDINGS = Object.keys(BOX)
 const REGION = {
   reserve: [683, 51, 153, 748, 77, 200],
   gallery: [561, 60, 139, 631, 77, 201],
-  club: [670, 64, 230, 738, 78, 276],
+  club: [669, 63, 239, 738, 77, 277],
   pawn: [602, 63, 68, 634, 75, 104],
   carwash: [492, 63, 134, 548, 75, 198]
 }

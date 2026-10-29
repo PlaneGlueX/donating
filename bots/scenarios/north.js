@@ -27,6 +27,14 @@ const HEISTS = {
     take: { stand: [603.5, 65, 162.5], aim: [603.5, 66, 160.5], pile: 5 },
     open: { stand: [570.5, 65, 167.5], aim: [570.5, 66, 166.5], pile: 9, name: 'a sculpture (no gate)' },
     hitboxes: []
+  },
+  club: {
+    level: 10, piles: 7,
+    door: [666.5, 65, 262.5], yaw: -90, inside: [676.5, 65, 262.5],
+    smash: { stand: [701.5, 65, 247.5], aim: [701.5, 66, 246.5], gate: 1 },
+    take: { stand: [702.5, 65, 244.5], aim: [702.5, 66, 242.5], pile: 4 },
+    open: { stand: [727.5, 65, 247.5], aim: [729.5, 66, 247.5], pile: 7, name: 'a VIP table (no gate)' },
+    hitboxes: [{ stand: [732.5, 65, 270.5], gate: 2, name: 'the office safe G2' }]
   }
 }
 

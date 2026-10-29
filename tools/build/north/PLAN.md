@@ -80,3 +80,37 @@ Changed before building (COMMON): the Gallery's and the Car Wash's lots start at
 
 **Spots:** exit (595.5, 65, 133.5) facing north, the hologram (595.5, 70, 133.5). No cops (not advanced). GPS 5020 the plaza (595.5, 65, 131.5), linked to 5006. POI: landmark "Art Gallery". Budget 90,000 blocks.
 - **Built 2026-10-29**: 14,380 blocks (`city.js check` passes), pasted with `--box 556,126,636,222`; the label placed; region, heist (not advanced), 4 smash gates, 7 piles, 15 traps (11 blinking lasers, 3 turret cameras at damage 0.5, the collapsing floor), the snapshot, the hologram, POI 38 and GPS 5020 set up over RCON. Its 34-long lasers warn "less than 2 blocks inside" in game: harmless, their ends are inside the walls. The roll came to $15,250 on its first opening. `bots/run.js north gallery` 7/7: open and armed, level 11 kept out at the door, level 12 in, G1 smashed, the jewels behind it and a sculpture paid into the bag; it ends the run and reopens the Gallery after. `bots/scenarios/north.js` (was reserve.js) takes a heist id; `north reserve` still 8/8.
+
+## 4. The Nightclub (`north/club.js`)
+
+A medium heist (expand/PLAN.md 1.3): difficulty 2, level 10, **not advanced** (no alarm or cops; its cameras are turrets, `effect=damage`), pool $14,000, escape 6:00 / cooldown 10:00. "Club Neon": a black box with a neon band, its door on the city's Bank Street.
+
+Changed before building (COMMON): the club's box starts at x 664 (was 668), so the module lays its own forecourt from the end of Bank Street's east walk (x 663); the region is the building's (below). Its door lines up with the city's GPS node 3017 (BANK_ST_N, z 262.5).
+
+**Footprint** (the module owns x 664..740, z 228..278):
+- The forecourt x 664..669 (sidewalk, light gray), a red carpet z 261..264 to the door, a black canopy x 666..669, z 259..266 at y 69, and an ATM at (667, 256) facing the street.
+- The building: walls x 670..737, z 240..276, one tall floor (floor 64, rooms y 65..74, roof 75 with a parapet). Dark stone walls, a pink and light blue neon band at y 70 and "CLUB NEON" (a label) above the door. The doorway x 670, z 261..264, y 65..68. The rest of the lot grass, a few trees.
+
+**Heist region** `heist_club` x 669..738, y 63..77, z 239..277 (40,950 blocks; from y 63 so the plates sit 2 inside).
+
+**Rooms** (inside x 671..736, z 241..275):
+1. **The lobby** x 671..680: the coat check (counter along the north), the bouncer's stand, couches on the south wall. An opening in the wall x 681 at z 261..264.
+2. **The main room** x 682..722:
+   - The bar along the north: the back counter z 242 with three tills (P1-P3), the bartenders' lane z 243..245, the front counter z 246 (x 686..718) with glass on top; G1 the glass over the counter at x 700..703 (smash), the bar's ends closed.
+   - The dance floor x 688..716, z 251..271: lit glass (magenta and light blue over sea lanterns), speakers at its corners.
+   - **Six lasers blinking to a beat** across the whole room (x 689.5, 693.5, 697.5 | 707.5, 711.5, 715.5; z 247.0..276.0, y 66.2: too high to jump, so you time the gap), on 2 s / off 2 s, rippling west to east (offsets 0, 1, 2); the strip x 699..706 in front of the bar is a breather. A turret over the bar's east end.
+   - The DJ booth x 717..721, z 265..274 (raised one block): the decks and the DJ's cash box (P4, open).
+3. **The VIP lounge** x 724..736, z 241..264 (the wall x 723, a rope gap at z 249..252): red couches round two tables with cash (P5, P6, open); a row of 4 plates just inside the gap (jump it); a sweeping turret on the east wall.
+4. **The manager's office** x 724..736, z 266..275 (the wall z 265; a staff door in x 723 at z 270..271): the desk, a bookshelf row at x 731 with a 2-wide gap of plates (z 270..271), and the wall safe G2 (x 733, z 270..271, y 65..66, a Safe Kit) into a closet holding P7.
+
+**Loot** (≈ $10,450 on an average roll; the pool caps it at $14,000):
+
+| Pile | Where | Value | Style | Behind |
+|---|---|---|---|---|
+| P1-P3 Tills | x 691 / 702 / 713, z 242, y 65 | $600-1,200 each | register (250, 2 s) | G1 |
+| P4 DJ's cash box | (720, 66, 266) | $500-1,000 | cash (250, 2 s) | open |
+| P5 / P6 VIP tables | x 729..730, z 247 / 258, y 65 | $1,000-2,000 each | cash (500, 3 s) | open |
+| P7 The office safe | x 736, z 270..271, y 65 | $3,000-5,000 | cash (1,000, 4 s) | G2 (safe, 4 digits) |
+
+**Spots:** exit (666.5, 65, 262.5) facing west, the hologram (666.5, 70, 262.5). No cops. GPS 5030 the forecourt (666.5, 65, 262.5), linked to 3017. POI: landmark "Nightclub". ATM 7 at (667, 65, 256). Budget 70,000 blocks.
+- **Built 2026-10-29**: 10,542 blocks (`city.js check` passes), pasted with `--box 664,228,740,278`; the label and the ATM display placed; region, heist (not advanced), 2 gates, 7 piles, 14 traps (6 blinking lasers, 2 turrets at damage 0.5, 6 plates), the snapshot, the hologram, ATM 7, POI 39 and GPS 5030 (linked to 3017) set up over RCON. The lasers warn "less than 2 blocks inside" in game: harmless, their ends are in the south wall. The roll came to $9,250 and $12,250 on its first two openings. `bots/run.js north club` 8/8: open and armed, level 9 kept out at the door, level 10 in, the bar glass smashed, a till and a VIP table paid into the bag, the office safe with its hitboxes.
