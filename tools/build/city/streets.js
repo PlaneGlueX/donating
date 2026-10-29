@@ -353,7 +353,8 @@ function surface () {
         const floor = x >= LEG.x1 && x <= LEG.x2 && z >= LEG.z1 ? legFloor(z) : CHAN.floor
         if (c.mouth) { S(x, CHAN.floor, z, pick(x, CHAN.floor, z, MIX.plaza)); for (let y = CHAN.floor + 1; y <= GROUND_Y; y++) S(x, y, z, 'air'); break }
         for (let y = floor - 1; y <= c.top; y++) S(x, y, z, stone(x, y, z))
-        S(x, c.top + 1, z, 'iron_bars[east=false,north=false,south=false,waterlogged=false,west=false]'); break
+        const rail = (a, d) => { const n = cellAt(a, d); return !!n && n.kind === 'wall' && !n.mouth }
+        S(x, c.top + 1, z, `iron_bars[east=${rail(x + 1, z)},north=${rail(x, z - 1)},south=${rail(x, z + 1)},waterlogged=false,west=${rail(x - 1, z)}]`); break
       }
       default: throw new Error(`unknown street kind ${c.kind} at ${x},${z}`)
     }

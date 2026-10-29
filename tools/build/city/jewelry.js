@@ -486,7 +486,7 @@ function carpets () {
 }
 function connect () {
   const pane = s => s && /^(glass_pane|iron_bars)$/.test(s)
-  const joins = s => s && (/(glass_pane|iron_bars)/.test(s) || SOLIDISH(s))
+  const joins = s => !!s && (/(glass_pane|iron_bars)/.test(s) || !!SOLIDISH(s))
   for (const [k, s] of [...B.blocks]) {
     if (!pane(s)) continue
     const [x, y, z] = k.split(',').map(Number)

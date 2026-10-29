@@ -278,7 +278,7 @@ function underground () {
   F(599, 56, 291, 606, 56, 312, 'red_nether_bricks')
   for (const z of [295, 301, 307]) { S(598, 61, z, 'sea_lantern'); S(607, 61, z, 'sea_lantern') }
   // the counting room: plain walls, dark floor, a light strip; its doorway x 607, z 304..305 with the plates T13-T15
-  F(608, 56, 299, 615, 63, 309, 'polished_andesite')
+  F(608, 57, 299, 615, 63, 309, 'polished_andesite')
   F(608, 57, 300, 614, 63, 308, 'air')
   F(608, 56, 300, 614, 56, 308, 'dark_oak_planks')
   for (const z of [302, 306]) S(615, 61, z, 'sea_lantern')
@@ -290,9 +290,9 @@ function underground () {
   F(614, 58, 301, 614, 58, 307, 'gray_concrete')
   F(608, 57, 301, 608, 58, 302, 'iron_block')                       // a cash-sorting cabinet in the NW corner
 
-  // the stair from the bay's north end down to B2: north along x 603..604 (feet 56 at z 290 .. 50 at z 284) onto the
-  // landing (feet 49, z 282..283), then the corridor x 606..607 back south (a wall x 605 between)
-  for (const x of [603, 604]) for (let z = 290; z >= 284; z--) { const feet = 56 - (290 - z); step(x, z, feet, 'south', feet + 3) }
+  // the stair from the bay's north end down to B2: north along x 603..604 (feet 57 at z 290, level with the bay, .. 50 at z 283) onto the
+  // landing (feet 49, z 282), then the corridor x 606..607 back south (a wall x 605 between)
+  for (const x of [603, 604]) for (let z = 290; z >= 283; z--) { const feet = 57 - (290 - z); step(x, z, feet, 'south', feet + 3) }
   F(603, 48, 282, 607, 48, 283, 'polished_blackstone_bricks'); F(606, 48, 284, 607, 48, 293, 'polished_blackstone_bricks')
 
   // the tunnel to the manhole (outside the region): floor y 48, feet 49..52, froglights every 6; the shaft x 575, z 300
@@ -337,14 +337,14 @@ function lobby () {
   rect(598, 283, 607, 318, (x, z) => S(x, MEZZ_Y, z, (x % 4 === 1 && z % 5 === 3 && z > 290) ? 'sea_lantern' : 'dark_prismarine'))
   for (let z = 283; z <= 318; z++) if (z !== 289 && z !== 290) F(607, 71, z, 607, 74, z, 'green_stained_glass')
   for (const z of [294, 309]) F(607, 65, z, 607, 69, z, 'quartz_pillar[axis=y]') // the mezzanine's edge posts
-  // the mezzanine stair: west along z 289..290 from feet 65 (x 613) to feet 70 (x 608), onto the mezzanine at x 607
-  for (const z of [289, 290]) for (let x = 612; x >= 608; x--) {
-    const top = 65 + (612 - x)
+  // the mezzanine stair: west along z 289..290 stair blocks y 65 (x 613) .. 70 (x 608), so the top step is level with the mezzanine (feet 71) at x 607
+  for (const z of [289, 290]) for (let x = 613; x >= 608; x--) {
+    const top = 65 + (613 - x)
     if (top > 65) F(x, 65, z, x, top - 1, z, 'light_gray_concrete')
     S(x, top, z, stairs('dark_prismarine', 'west'))
   }
-  for (let x = 608; x <= 612; x++) {                              // its sides: stringers to the step, a glass rail on the open one
-    const top = 65 + (612 - x)
+  for (let x = 608; x <= 613; x++) {                              // its sides: stringers to the step, a glass rail on the open one
+    const top = 65 + (613 - x)
     F(x, 65, 288, x, top, 288, 'light_gray_concrete'); F(x, 65, 291, x, top, 291, 'light_gray_concrete')
     S(x, top + 1, 291, 'light_gray_stained_glass_pane')
   }
@@ -393,15 +393,14 @@ function lobby () {
 
 // ---- the stair behind G3 (after the lobby: it cuts the lobby floor and the stairwell's block) ------------------------------
 function gateStair () {
-  // the stair from the lobby (G3) down to the bay: east along z 317..318 (feet 64, 63, 62), a landing at feet 61
-  // (x 605..606), then north along x 605..606 (feet 60, 59, 58) onto the bay floor at z 313
+  // the stair from the lobby (G3) down to the bay: east along z 317..318 (feet 65 right behind G3, 64, 63, 62), a landing at feet 61
+  // (x 605..606), then north along x 605..606 (feet 61, 60, 59, 58 at z 316..313) onto the bay floor (feet 57) at z 312
   for (const z of [317, 318]) {
-    step(602, z, 64, 'west', 69); step(603, z, 63, 'west', 69); step(604, z, 62, 'west', 64)
+    step(601, z, 65, 'west', 69); step(602, z, 64, 'west', 69); step(603, z, 63, 'west', 69); step(604, z, 62, 'west', 64)
     S(605, 60, z, 'polished_blackstone'); S(606, 60, z, 'polished_blackstone'); F(605, 61, z, 606, 63, z, 'air')
   }
   for (const x of [605, 606]) {
-    step(x, 316, 60, 'south', 63); step(x, 315, 59, 'south', 63); step(x, 314, 58, 'south', 63)
-    S(x, 56, 313, 'red_nether_bricks'); F(x, 57, 313, x, 60, 313, 'air')
+    step(x, 316, 61, 'south', 63); step(x, 315, 60, 'south', 63); step(x, 314, 59, 'south', 63); step(x, 313, 58, 'south', 63)
   }
 }
 
@@ -428,7 +427,10 @@ function tower () {
     S(x, ROOF_Y, z, d < 9 ? (H || (d >= 7.6 && d < 8.6) ? 'yellow_terracotta' : 'calcite') : 'smooth_quartz')
   })
   rect(BLD.x1, BLD.z1, BLD.x2, BLD.z2, (x, z) => { if (edge(x, z) && !inPylon(x, z)) S(x, ROOF_Y + 1, z, 'polished_deepslate') })
-  for (const [x, z] of [[602, 287], [602, 313]]) F(x, 99, z, x + 2, 100, z + 2, 'smooth_stone') // the roof's plant boxes
+  for (const [x, z] of [[602, 287], [602, 313]]) {                // the roof's plant boxes: a smooth-stone rim, moss and an azalea in it
+    F(x, 99, z, x + 2, 100, z + 2, 'smooth_stone'); F(x + 1, 100, z, x + 1, 100, z + 2, 'moss_block'); F(x, 100, z + 1, x + 2, 100, z + 1, 'moss_block')
+    S(x + 1, 101, z + 1, 'azalea_leaves[persistent=true,distance=7,waterlogged=false]')
+  }
   for (const [x, z] of [[603, 291], [622, 291], [603, 310], [622, 310]]) S(x, 99, z, 'sea_lantern')
   // the pylon: brick from the lobby floor to y 102
   F(PYLON.x1, LOBBY_Y, PYLON.z1, PYLON.x2, PYLON.top, PYLON.z2, M(MIX.brick))

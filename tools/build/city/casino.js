@@ -349,7 +349,9 @@ function region () {
 }
 // The staff stair (from the floor's hole down north to the landing) and the back stair (B1 down south to B2).
 function stairs () {
-  // staff stair x 844..846: feet 72 at z 344 .. feet 66 at z 338 (the top step is the floor at z 345, feet 73)
+  // staff stair x 844..846: feet 72 at z 344 .. feet 66 at z 338 (the top step is the floor at z 345, feet 73).
+  // The hole is cut first, so the stair's y 71 step at z 344 stands in it (the cut at y 71 is open over z 341..343)
+  rect(HOLE[0], HOLE[1], HOLE[2], HOLE[3], (x, z) => { S(x, 71, z, AIR); S(x, 72, z, AIR) })
   for (let z = 338; z <= 344; z++) {
     const feet = 66 + (z - 338)
     for (let x = 844; x <= 846; x++) {
@@ -358,7 +360,6 @@ function stairs () {
       for (let y = feet; y <= 70; y++) S(x, y, z, AIR)
     }
   }
-  rect(HOLE[0], HOLE[1], HOLE[2], HOLE[3], (x, z) => { S(x, 71, z, AIR); S(x, 72, z, AIR) })
   // back stair x 893..896: feet 65 at z 338 down south to feet 58 at z 345, the landing z 346..349 at feet 57
   for (let z = 338; z <= 345; z++) {
     const feet = 65 - (z - 338)
@@ -387,10 +388,10 @@ function b1 () {
     S(x, y, 350, edge ? 'black_concrete' : ['light_blue_concrete', 'cyan_concrete', 'lime_concrete'][(x + y) % 3])
   }
   F(850, 65, 348, 860, 65, 348, slabTop('polished_blackstone'))                // the monitor desk
-  for (const x of [851, 854, 857]) S(x, 65, 347, stair('dark_oak', 'south'))   // its chairs, backs to the room
+  for (const x of [851, 853]) S(x, 65, 347, stair('dark_oak', 'north'))        // its chairs, facing the monitors
   F(850, 65, 343, 852, 65, 345, slabTop('polished_blackstone'))                // the PC desk
   S(851, 66, 344, OBS('east'))                                                // the security PC (a prop until M2)
-  S(853, 65, 344, stair('dark_oak', 'west'))
+  S(853, 65, 344, stair('dark_oak', 'east'))
   F(855, 65, 346, 857, 65, 347, 'spruce_planks')                             // P1 Seized cash (the table top)
   F(858, 65, 338, 861, 66, 338, 'iron_block')                                 // lockers
   // the counting room: the cash cage (G2 glass, permanent glass above, bars either side), plates, carts and racks
@@ -408,7 +409,7 @@ function b1 () {
   for (const x of [881, 882]) for (let z = 340; z <= 348; z++) if (z !== 344) for (let y = 65; y <= 67; y++) if (x === 881) S(x, y, z, 'bookshelf')
   F(885, 65, 344, 888, 65, 345, slabTop('dark_oak')); S(886, 65, 346, stair('dark_oak', 'south'))
   F(884, 65, 338, 885, 65, 338, PLATE)                                         // T11, T12
-  S(891, 65, 339, 'potted_fern')
+  S(891, 65, 339, 'azalea_leaves[persistent=true,distance=7,waterlogged=false]')
   for (const x of [884, 885]) S(x, 64, 338, 'dark_oak_planks')
 }
 // B2's rooms: the readers, the mantrap, the antechamber's three gates, the deposit room, the daily vault, the vault.
@@ -521,8 +522,9 @@ function hall () {
   for (let z = 333; z <= 336; z++) S(844, 73, z, slabTop('polished_blackstone'))
   // the cashier cage x 850..858, z 351..358: bars, the counter on x 858 (a window at y 74), a quartz top
   for (let x = 850; x <= 857; x++) for (let y = 73; y <= 76; y++) { S(x, y, 351, BARS_X); S(x, y, 358, BARS_X) }
+  for (let z = 351; z <= 358; z++) for (let y = 73; y <= 76; y++) S(849, y, z, z === 351 ? bars(true, false, true, false) : z === 358 ? bars(true, true, false, false) : BARS_Z) // the cage's west side
   for (let z = 351; z <= 358; z++) { S(858, 73, z, 'polished_blackstone'); if (z > 351 && z < 358) { S(858, 75, z, BARS_Z); S(858, 76, z, BARS_Z) } else for (let y = 74; y <= 76; y++) S(858, y, z, 'gold_block') }
-  F(850, 77, 351, 858, 77, 358, 'smooth_quartz')
+  F(849, 77, 351, 858, 77, 358, 'smooth_quartz')
   for (let z = 352; z <= 357; z++) S(850, 73, z, z % 2 ? 'gold_block' : 'yellow_wool') // chip stacks behind the cashier
   // slots: four rows of six facing south (cabinet, light-blue screen, a lit topper)
   for (const z of [335, 339, 343, 347]) for (const x of SLOT_X) {
@@ -589,7 +591,7 @@ module.exports.labels = [
   { x: 850.03, y: 76.15, z: 349.0, facing: 'east', text: 'STAFF ONLY', color: '#ffffff', scale: 0.6 },     // over the staff doorway
   { x: 859.03, y: 77.25, z: 355.0, facing: 'east', text: 'CASHIER', color: '#ffc928', scale: 1.2 },        // the cage's top
   { x: 870.0, y: 78.3, z: 365.03, facing: 'south', text: 'LUCKY WHEEL', color: '#ffc928', scale: 1.0 },    // over the wheel
-  { x: 894.97, y: 82.1, z: 339.5, facing: 'west', text: 'INSIDE TRACK', color: '#ffffff', scale: 1.4 },    // over the screen
+  { x: 895.97, y: 82.1, z: 339.5, facing: 'west', text: 'INSIDE TRACK', color: '#ffffff', scale: 1.4 },    // over the screen
   { x: 859.03, y: 73.3, z: 355.0, facing: 'east', text: 'GAMES OPENING SOON', color: '#ffffff', scale: 0.5, note: 'launch fallback (6.2): remove when casino.sk opens the floor' }
 ]
 module.exports.displays = [] // launch fallback (6.2): the floor's games are plain block props, nothing is summoned
