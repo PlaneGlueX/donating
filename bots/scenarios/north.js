@@ -9,7 +9,6 @@ const path = require('path')
 const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
 
-const P = 'NorthBot'
 const LOG = path.join(__dirname, '..', '..', 'server', 'plugins', 'Skript', 'logs', 'loot.log')
 // [x, y, z] spots: `door` = where the short robber starts, walking in along `yaw`; `inside` = a spot in the heist;
 // smash: stand, aim (the glass), the gate's number; take: stand, aim (the loot), the pile's number; hitboxes: stand, gate.
@@ -54,7 +53,8 @@ const HEISTS = {
   }
 }
 
-module.exports = async ({ check, args }) => {
+// The runner takes a table like HEISTS (bots/scenarios/iron.js runs Ironvale's with it).
+const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
   const rcon = await rconLib.connect()
   const cmd = async c => (await rcon.cmd(c)).trim()
   let bot = null
@@ -151,3 +151,5 @@ module.exports = async ({ check, args }) => {
     rcon.close()
   }
 }
+module.exports = run(HEISTS)
+module.exports.run = run

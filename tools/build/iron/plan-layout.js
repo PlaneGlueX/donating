@@ -47,7 +47,7 @@ const BOX = {
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then a small placeholder)
 const REGION = {
-  power: [1020, 63, 330, 1050, 75, 360],
+  power: [1020, 59, 320, 1090, 81, 370],
   police: [995, 63, 485, 1025, 75, 515],
   mansion: [1235, 89, 635, 1265, 101, 665]
 }

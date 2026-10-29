@@ -46,7 +46,7 @@ const BOX = {
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then a small placeholder)
 const REGION = {
-  power: [1020, 63, 330, 1050, 75, 360],
+  power: [1020, 59, 320, 1090, 81, 370],
   police: [995, 63, 485, 1025, 75, 515],
   mansion: [1235, 89, 635, 1265, 101, 665]
 }
@@ -156,6 +156,8 @@ for (let x = CITY.x1; x <= CITY.x2; x++) for (let z = CITY.z1; z <= CITY.z2; z++
   const c = streetCell(x, z)
   if (c) CELL.set(`${x},${z}`, c)
 }
+// Curb cuts: no slab where cars cross the sidewalk (the Power Plant's gate, x 1028..1037).
+const CUTS = [[1028, 418, 1037, 418]]
 // ATMs on the avenue's north walk (PLAN 1): [x, z, yaw], the screen facing the street (south, yaw 0).
 const ATMS = [[1000, 416, 0], [1180, 416, 0]]
 const LAMPS = []
@@ -167,7 +169,7 @@ function surface () {
     if (c.kind === 'road') S(x, c.top, z, pick(x, c.top, z, MIX.asphalt))
     else if (c.kind === 'line') S(x, c.top, z, `${c.color}_concrete`)
     else if (c.kind === 'walk') S(x, c.top, z, pick(x, c.top, z, MIX.walk))
-    else if (c.kind === 'curb') { S(x, c.top, z, pick(x, c.top, z, MIX.curb)); S(x, c.top + 1, z, 'smooth_stone_slab[type=bottom,waterlogged=false]') }
+    else if (c.kind === 'curb') { S(x, c.top, z, pick(x, c.top, z, MIX.curb)); if (!inBox(x, z, CUTS)) S(x, c.top + 1, z, 'smooth_stone_slab[type=bottom,waterlogged=false]') }
     else if (c.kind === 'wall') { S(x, c.top, z, pick(x, c.top, z, MIX.stonebrick)); S(x, c.top + 1, z, 'stone_brick_wall') }
   }
   // shrubs behind the avenue's end curb
@@ -178,6 +180,7 @@ function surface () {
 function lamps () {
   for (let x = 842; x <= 1278; x += 24) for (const [z, dz] of [[416, 1], [444, -1]]) {
     if (z === 444 && x >= 1230 && x <= 1261) continue
+    if (inBox(x, z + dz * 2, CUTS)) continue
     if (ATMS.some(([ax, az]) => Math.abs(ax - x) <= 2 && az === z)) continue
     streetLamp(S, x, z, 0, dz); LAMPS.push([x, z])
   }
