@@ -2311,7 +2311,7 @@ function loadSettings():
 	# ---------- The prison (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk, jailjobs.sk; owner, 2026-10-14) ----------
 	# The master switch: off until the bot suite passes with it on. Data "jail" "off" exempts one player (test bots).
 	set {-cfg::prison::enabled} to false
-	set {-cfg::prison::world} to "jailbreak"
+	set {-cfg::prison::world} to "world"
 	# After an escape: "" = stay where you are (owner, 2026-10-14: "the jailbreak map is supposed to be the entire map not just
 	# the prison, so when you escape you go to the city in the same world and not get teleported"); "spawn" = the
 	# EssentialsX spawn 3 s later.
