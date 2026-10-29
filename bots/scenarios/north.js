@@ -1,5 +1,5 @@
 // Rising City North's heists (tools/build/north/PLAN.md, 2026-10-29), one at a time: `bots/run.js north <heist>`
-// (default: every heist in HEISTS). For each: it's open and every pile is armed, a robber one level short is kept out at
+// (default: every heist in HEISTS; a heist without `smash` skips the gate). For each: it's open and every pile is armed, a robber one level short is kept out at
 // the front door, one at the level gets in, smashes a gate and takes from the pile behind it into the bag, takes from an
 // open pile if the heist has one, and the locked gates further in get their hitboxes. A store (clerk: true): a hit on the clerk
 // opens it first (no level check at level 1: everyone has it). After, the run is ended and the
@@ -43,6 +43,13 @@ const HEISTS = {
     smash: { stand: [624.5, 65, 82.5], aim: [625.5, 66, 82.5], gate: 1 },
     take: { stand: [627.5, 65, 82.5], aim: [629.5, 66, 82.5], pile: 3 },
     open: { stand: [618.5, 65, 92.5], aim: [618.5, 66, 91.5], pile: 2, name: 'the register' },
+    hitboxes: []
+  },
+  carwash: {
+    level: 1, piles: 3,
+    door: [530.5, 65, 132.5], yaw: 0, inside: [530.5, 65, 145.5],
+    take: { stand: [523.5, 65, 160.5], aim: [523.5, 66, 162.5], pile: 1, name: 'a coin box (open, no clerk)' },
+    open: { stand: [539.5, 65, 160.5], aim: [539.5, 66, 162.5], pile: 3, name: 'another coin box' },
     hitboxes: []
   }
 }
@@ -101,23 +108,25 @@ module.exports = async ({ check, args }) => {
         check(`${id}: shut until a hit on the clerk opens it`, shut && hit && /state=active/.test(await cmd(`zzheist ${id}`)), (await cmd(`dclerk ${id} info`)).slice(0, 160))
       }
 
-      await tp(H.smash.stand)
-      // hold until it breaks, 10 s at most. A store's clerk throws things (a hit starts the hold over): hit them first, as a
-      // player would, so they duck for clerk::stun.
-      for (let end = Date.now() + 10000; Date.now() < end && (await spot(H.smash.gate))[1] !== 'open';) {
-        if (H.clerk) await cmd(`zzclerkhit ${id} ${P}`)
-        await hold(H.smash.aim, 2000)
+      if (H.smash) {
+        await tp(H.smash.stand)
+        // hold until it breaks, 10 s at most. A store's clerk throws things (a hit starts the hold over): hit them first, as
+        // a player would, so they duck for clerk::stun.
+        for (let end = Date.now() + 10000; Date.now() < end && (await spot(H.smash.gate))[1] !== 'open';) {
+          if (H.clerk) await cmd(`zzclerkhit ${id} ${P}`)
+          await hold(H.smash.aim, 2000)
+        }
+        const g = await spot(H.smash.gate)
+        const [ax, ay, az] = H.smash.aim.map(Math.floor)
+        check(`${id}: holding on the glass smashes G${H.smash.gate}`, g[1] === 'open' && /passed/i.test(await cmd(`execute if block ${ax} ${ay} ${az} minecraft:air`)), g.join(':'))
       }
-      const g = await spot(H.smash.gate)
-      const [ax, ay, az] = H.smash.aim.map(Math.floor)
-      check(`${id}: holding on the glass smashes G${H.smash.gate}`, g[1] === 'open' && /passed/i.test(await cmd(`execute if block ${ax} ${ay} ${az} minecraft:air`)), g.join(':'))
 
       for (const T of [H.take, H.open].filter(Boolean)) {
         await tp(T.stand)
         await hold(T.aim, 6000)
         await sleep(500)
         const bag = await cmd(`zzbag ${P}`)
-        check(`${id}: ${T.name || `the pile behind G${H.smash.gate}`} pays into the bag`, new RegExp(`${id}#\\d+=\\d+`).test(bag) && new RegExp(`take ${P} \\S+ ${id}-${T.pile} `).test(logged()), bag)
+        check(`${id}: ${T.name || `the pile behind G${H.smash && H.smash.gate}`} pays into the bag`, new RegExp(`${id}#\\d+=\\d+`).test(bag) && new RegExp(`take ${P} \\S+ ${id}-${T.pile} `).test(logged()), bag)
       }
 
       for (const Hb of H.hitboxes) {

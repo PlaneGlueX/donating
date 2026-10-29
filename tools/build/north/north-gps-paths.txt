@@ -1,0 +1,42 @@
+# Rising City North's GPS paths (13 nodes, 13 links), from `dphone path dump world` on 2026-10-29 (the nodes were laid by hand while building).
+# Run every line that isn't a comment, in order, AFTER tools/city-gps-paths.txt: two links join the city's node 3017.
+# The remove lines make a second run safe (an existing id is refused).
+dphone path remove 5001
+dphone path remove 5002
+dphone path remove 5003
+dphone path remove 5004
+dphone path remove 5005
+dphone path remove 5006
+dphone path remove 5007
+dphone path remove 5008
+dphone path remove 5010
+dphone path remove 5020
+dphone path remove 5030
+dphone path remove 5040
+dphone path remove 5050
+dphone path addat world 651.5 65.0 200.5 id=5001 nolink BANK_N_S
+dphone path addat world 651.5 65.0 117.5 id=5002 nolink BANK_N_ROW
+dphone path addat world 651.5 65.0 5.5 id=5003 nolink BANK_N_END
+dphone path addat world 485.5 65.0 117.5 id=5004 nolink ROW_W
+dphone path addat world 926.5 65.0 117.5 id=5005 nolink ROW_E
+dphone path addat world 595.5 65.0 117.5 id=5006 nolink ROW_GALLERY
+dphone path addat world 520.5 65.0 117.5 id=5007 nolink ROW_WASH
+dphone path addat world 618.5 65.0 117.5 id=5008 nolink ROW_PAWN
+dphone path addat world 676.5 65.0 176.5 id=5010 nolink RESERVE
+dphone path addat world 595.5 65.0 131.5 id=5020 nolink GALLERY
+dphone path addat world 666.5 65.0 262.5 id=5030 nolink CLUB
+dphone path addat world 618.5 65.0 107.5 id=5040 nolink PAWN
+dphone path addat world 530.5 65.0 130.5 id=5050 nolink CARWASH
+dphone path link 3017 5001
+dphone path link 3017 5030
+dphone path link 5001 5002
+dphone path link 5001 5010
+dphone path link 5002 5003
+dphone path link 5002 5005
+dphone path link 5002 5008
+dphone path link 5004 5007
+dphone path link 5006 5007
+dphone path link 5006 5008
+dphone path link 5006 5020
+dphone path link 5007 5050
+dphone path link 5008 5040

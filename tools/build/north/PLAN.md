@@ -143,3 +143,26 @@ Changed before building (COMMON): the region is the building's (below).
 
 No traps. **Spots:** exit (618.5, 65, 107.5) facing south, the hologram (623.5, 65, 107.5). The clerk at (618.5, 65, 89.5) yaw 0, shelf spots (610.5, 65, 87.5), (626.5, 65, 87.5), (618.5, 65, 87.5). GPS 5040 the apron (618.5, 65, 107.5), linked to 5008. ATM 9 at (612, 65, 107) (8 was the club's duplicate, removed). No POI (a store: its locator dot shows while it's open). Budget 25,000 blocks.
 - **Built 2026-10-29**: 2,726 blocks (`city.js check` passes), pasted with `--box 600,66,636,109`; the label and the ATM display placed; region, the store (difficulty 0, no police), 1 gate, 2 piles, the clerk and 3 shelf spots, the snapshot, the hologram, ATM 9 and GPS 5040 (linked to 5008) set up over RCON. `bots/run.js north pawn` 7/7: open and armed, in, shut until the clerk is hit, the cabinet smashed (the clerk stunned first), the jewelry and the register paid into the bag. The bot test needed a fix: a respawned hitbox can leave its old copy in the bot's entity list, so `box()` now takes the newest at a tie.
+
+## 6. The Car Wash (`north/carwash.js`)
+
+A store (expand/PLAN.md 1.3): difficulty 0, level 1, no clerk, no police, pool $2,400. "Suds Car Wash": two drive-through bays and an office whose coin room holds three open cash boxes (no clerk, so they're open from the start: the robbery starts at the first grab).
+
+Changed before building (COMMON): the region is the building's (below).
+
+**Footprint** (the module owns x 490..550, z 126..200):
+- The building: walls x 496..544, z 136..164, one floor (floor 64, rooms y 65..71, roof 72 with a parapet). White and light blue; "SUDS CAR WASH" (a blue label) on the north face over the bays.
+- **The bays** (drive-through, north to south): bay 1 inside x 497..506, bay 2 x 508..517 (walls x 507 and 518), each open at both ends (x 499..504 / 510..515, y 65..69). Inside: blue and red brush rollers (wool columns) on both sides, a sprayer bar of iron bars overhead, a wet strip down the middle.
+- **The office** x 519..543: the waiting room z 137..149 (the door in the north face at x 529..531, windows, chairs, a vending machine); the wall z 150 with a staff door at x 541..542; the **coin room** z 151..163: the coin counter and three cash boxes on the south wall.
+- The apron z 126..135 (andesite) from Gallery Row's south walk to the bays and the door, an ATM at (536, 65, 134) facing the street; the exit drive z 165..172 behind, then vacuum posts and grass with trees.
+
+**Heist region** `heist_carwash` x 495..545, y 63..73, z 136..164 (16,269 blocks).
+
+**Loot** (≈ $1,800 on an average roll):
+
+| Pile | Where | Value | Style |
+|---|---|---|---|
+| P1-P3 Coin boxes | x 523 / 531 / 539, z 162, y 65 | $400-800 each | cash (100, 1.5 s) |
+
+No traps. **Spots:** exit (530.5, 65, 132.5) facing north, the hologram (526.5, 65, 132.5). GPS 5050 the apron (530.5, 65, 130.5), linked to 5007. ATM at (536, 65, 134). No POI (a store). Budget 30,000 blocks.
+- **Built 2026-10-29**: 6,210 blocks (`city.js check` passes), pasted with `--box 490,126,550,200`; the label and the ATM display placed; region, the heist (difficulty 0, no police, no clerk: the coin boxes are open loot), 3 piles, the snapshot, the hologram, ATM 10 and GPS 5050 (linked to 5007) set up over RCON. `bots/run.js north carwash` 5/5: open and armed, level 1 in, two coin boxes paid into the bag. North's GPS lines are saved in `tools/build/north/north-gps-paths.txt` (13 nodes, 13 links; run after the city's file).
