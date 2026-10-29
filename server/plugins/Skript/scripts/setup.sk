@@ -335,7 +335,7 @@ function setupFlags(s: command sender):
 			if flag "passthrough" of loop-value is not true:
 				setupLine({_s}, "no", "%{_id}% protects everything inside (no PvP, doors, NPC or loot clicks) (/rg flag -w %{_w}% %{_id}% passthrough allow)")
 				add 1 to {_bad}
-			if {_id} starts with {_sp}:
+			if isSafeId({_id}) is true:
 				if flag "weapon-shoot" of loop-value is not false:
 					setupLine({_s}, "warn", "%{_id}%: guns fire in this safe zone (/rg flag -w %{_w}% %{_id}% weapon-shoot deny)")
 			else if flag "weapon-shoot" of loop-value is false:

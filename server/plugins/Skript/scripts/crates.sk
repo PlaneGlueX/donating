@@ -1207,7 +1207,7 @@ command /dcrate [<text>]:
 			# Crates open only in safe zones (owner, 2026-09-26).
 			if isSafeZone(location of {_b}) is false:
 				set {_sp} to cfg("pvp::safe-prefix")
-				dcrateReply(sender, "CRATE warning: that block isn't in a safe zone, so nobody can open this crate there. Put crate stands inside a safe zone (a region whose id starts with %{_sp}%).")
+				dcrateReply(sender, "CRATE warning: that block isn't in a safe zone, so nobody can open this crate there. Put crate stands inside a safe zone (a region whose id starts with %{_sp}% or %cfg("pvp::safe-zone-prefix")%).")
 			stop
 		if {_sub} is "remove":
 			# In game: the block you look at. Anywhere (also the console): remove <x> <y> <z> [world].

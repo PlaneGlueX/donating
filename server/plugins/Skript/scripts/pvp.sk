@@ -35,10 +35,17 @@ on damage of player:
 #     (skript-worldguard's enter event, cancelled). Respawning inside one is always allowed.
 # So a wanted robber can't reach the base (and sell) until they lose the cops (CLAUDE.md, Default rules).
 
+# A safe zone's region id: a base (safe_base*, sells loot) or a plain safe zone (safe_zone*, the dealership).
+function isSafeId(id: text) :: boolean:
+	if {_id} starts with cfg("pvp::safe-prefix"):
+		return true
+	if {_id} starts with cfg("pvp::safe-zone-prefix"):
+		return true
+	return false
+
 function isSafeZone(l: location) :: boolean:
-	set {_prefix} to cfg("pvp::safe-prefix")
 	loop regions at {_l}:
-		if name of loop-value starts with {_prefix}:
+		if isSafeId(name of loop-value) is true:
 			return true
 	return false
 
@@ -67,7 +74,7 @@ function pvpGarageSafe(p: player) :: boolean:
 
 on region enter:
 	isCombatTagged(player) is true
-	name of the worldguard region starts with cfg("pvp::safe-prefix")
+	isSafeId(name of the worldguard region) is true
 	cancel event
 	hudBar(player, "&cYou can't enter a safe zone while in combat.", 3)
 

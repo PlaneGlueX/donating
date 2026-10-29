@@ -42,6 +42,9 @@ function loadSettings():
 	# 2026-10-21: "only safe zone is bases that have the crates"); garages, shops and spawn aren't safe any more, except a
 	# player in the garage menu at a garage (pvp.sk).
 	set {-cfg::pvp::safe-prefix} to "safe_base"
+	# Safe zones that don't sell loot (owner, 2026-10-29: "make the car shop/where the crates are a safe zone"):
+	# safe_zone_dealer over the 1M Dealership and its supercar/hypercar crate stands.
+	set {-cfg::pvp::safe-zone-prefix} to "safe_zone"
 	set {-cfg::passive::switch-cooldown} to 10 minutes
 	set {-cfg::bounty::repeat-kill-window} to 15 minutes
 	set {-cfg::duffel::despawn} to 2 minutes
@@ -2309,8 +2312,10 @@ function loadSettings():
 		add {_rt::1} to {-cfg::cosmetics::*}
 
 	# ---------- The prison (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk, jailjobs.sk; owner, 2026-10-14) ----------
-	# The master switch: off until the bot suite passes with it on. Data "jail" "off" exempts one player (test bots).
-	set {-cfg::prison::enabled} to false
+	# The master switch. On since 2026-10-29 (owner: "make the player spawn as a prisoner in the new map, just like
+	# jailbreak"): a first join starts in a cell on the course, every death respawns in the prison. Data "jail" "off"
+	# exempts one player (test bots).
+	set {-cfg::prison::enabled} to true
 	set {-cfg::prison::world} to "world"
 	# After an escape: "" = stay where you are (owner, 2026-10-14: "the jailbreak map is supposed to be the entire map not just
 	# the prison, so when you escape you go to the city in the same world and not get teleported"); "spawn" = the

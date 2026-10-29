@@ -1256,7 +1256,7 @@ on mtv vehicle region enter:
 		cancel event
 		hudBar(player, "&cNo cars in heists. &7Go in on foot.", 2)
 		stop
-	if {_r} starts with cfg("pvp::safe-prefix"):
+	if isSafeId({_r}) is true:
 		# The driver, or anyone riding along (passengers fire no region events of their own).
 		set {_tagged} to isCombatTagged(player)
 		set {_plate} to {-car::riding::%uuid of player%}
