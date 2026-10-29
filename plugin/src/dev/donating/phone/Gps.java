@@ -534,7 +534,16 @@ final class Gps {
         UUID who = p.getUniqueId();
         String key = cacheKey(r, car, goal);
         worker.execute(() -> {
-            FlowField f = new FlowField(r.w, r.h, r.kind, cost, goal);
+            FlowField f;
+            try {
+                f = new FlowField(r.w, r.h, r.kind, cost, goal);
+            } catch (Throwable e) {
+                // 2026-10-29: a throw here killed the worker thread silently and left t.pending set for good, so that
+                // target stayed "direct" until a restart. Log it and let the next pass ask again.
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "GPS flow field failed (" + r.w + "x" + r.h + ", " + goal.length + " target cells)", e);
+                if (plugin.isEnabled()) Bukkit.getScheduler().runTask(plugin, () -> t.pending = false);
+                return;
+            }
             if (!plugin.isEnabled()) return;
             Bukkit.getScheduler().runTask(plugin, () -> {
                 t.pending = false;
@@ -912,7 +921,7 @@ final class Gps {
             b.append(" label=").append(t.label.replace(' ', '_')).append(" target=").append(fmt(t.x)).append(',').append(fmt(t.y)).append(',').append(fmt(t.z))
                     .append(" spots=").append(t.pts.length).append(" r=").append(fmt(t.radius)).append(" state=").append(t.state).append(" left=").append(fmt(t.left))
                     .append(" next=").append(t.next == null ? "none" : fmt(t.next.getX()) + "," + fmt(t.next.getY()) + "," + fmt(t.next.getZ()))
-                    .append(" turn=").append(t.turn.isEmpty() ? "none" : t.turn + "@" + fmt(t.turnIn)).append(" field=").append(t.field != null).append(" car=").append(t.fieldCar)
+                    .append(" turn=").append(t.turn.isEmpty() ? "none" : t.turn + "@" + fmt(t.turnIn)).append(" field=").append(t.field != null).append(" cells=").append(t.cells.length).append(" pending=").append(t.pending).append(" grid=").append(roads == null ? "none" : roads.world).append(" car=").append(t.fieldCar)
                     .append(" walk=").append(t.walk.length).append(" way=").append(t.way);
             if (t.line != null) {
                 StringBuilder v = new StringBuilder();

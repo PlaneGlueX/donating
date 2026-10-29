@@ -11,15 +11,16 @@ const rconLib = require('../rcon')
 const A = 'GpsA'
 const B = 'GpsB'
 const Y = 200 // standing height (the platform is at Y - 1)
-// Inside the local test city (maps 0/20/23/24: x -64..191, z -704..-449).
-const X1 = 40, X2 = 110, Z1 = -690, Z2 = -630
+// Inside the main city (2026-10-28: the jailbreak city scan, x -40..940, z -30..1300), in the sky above it: the old test
+// city's spots moved 1300 blocks south (z -704..-449 then).
+const X1 = 40, X2 = 110, Z1 = 610, Z2 = 670
 const PLATFORM = `${X1} ${Y - 1} ${Z1} ${X2} ${Y - 1} ${Z2}`
 const CHUNKS = `${X1} ${Z1} ${X2} ${Z2}`
 const HID = 'zgps'
-const FAR = '0.5 68 -656.5'
-// A U of road (black concrete): west x 45-47, south z -642..-640, east x 103-105; a plaza between, a pool in it.
-const START = [46.5, Y, -678.5] // the west road's north end
-const PIN = [104.5, Y, -678.5]  // the east road's north end
+const FAR = '268.5 65 911.5' // the Safehouse
+// A U of road (black concrete): west x 45-47, south z 658..660, east x 103-105; a plaza between, a pool in it.
+const START = [46.5, Y, 621.5] // the west road's north end
+const PIN = [104.5, Y, 621.5]  // the east road's north end
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
@@ -52,11 +53,11 @@ module.exports = async ({ check }) => {
     await cmd(`rg remove -w world heist_${HID}`)
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} smooth_stone`)
-    await cmd(`fill 45 ${Y - 1} -680 47 ${Y - 1} -640 black_concrete`)
-    await cmd(`fill 45 ${Y - 1} -642 105 ${Y - 1} -640 black_concrete`)
-    await cmd(`fill 103 ${Y - 1} -680 105 ${Y - 1} -640 black_concrete`)
-    await cmd(`fill 60 ${Y} -685 90 ${Y} -667 glass`) // the pool's rim (across the straight line)...
-    await cmd(`fill 61 ${Y} -684 89 ${Y} -668 water`) // ...and its water
+    await cmd(`fill 45 ${Y - 1} 620 47 ${Y - 1} 660 black_concrete`)
+    await cmd(`fill 45 ${Y - 1} 658 105 ${Y - 1} 660 black_concrete`)
+    await cmd(`fill 103 ${Y - 1} 620 105 ${Y - 1} 660 black_concrete`)
+    await cmd(`fill 60 ${Y} 615 90 ${Y} 633 glass`) // the pool's rim (across the straight line)...
+    await cmd(`fill 61 ${Y} 616 89 ${Y} 632 water`) // ...and its water
     await cmd(`fill ${X1} ${Y} ${Z1} ${X2} ${Y + 6} ${Z2} air replace smooth_stone`) // nothing left standing on the road
     for (const name of [A, B]) {
       bots[name] = await join(name)
@@ -87,7 +88,7 @@ module.exports = async ({ check }) => {
     })
     await sleep(2500)
     await cmd(`minecraft:tp ${A} ${START.join(' ')} 180 0`) // on the west road, facing north
-    await cmd(`zzheisttp ${B} 60.5 ${Y} -645.5`)
+    await cmd(`zzheisttp ${B} 60.5 ${Y} 654.5`)
     await sleep(1500)
 
     // ---------- The road scan ----------
@@ -95,6 +96,7 @@ module.exports = async ({ check }) => {
     await cmd(`dphone roads scan ${X1} ${Z1} ${X2} ${Z2}`)
     const scanned = await until(async () => { const r = await cmd('dphone roads info'); return /road=\d+/.test(r) && !/scanning=/.test(r) && Number((r.match(/road=(\d+)/) || [])[1]) > 100 }, 60000)
     const info = await cmd('dphone roads info')
+    const cell = Number((info.match(/cell=(\d+)b/) || [])[1] || 1) // blocks a cell: a big city groups them (the jailbreak city: 3)
     check('staff scan the city for roads: road, open ground and water (blocked) cells', scanned && Number(info.match(/road=(\d+)/)[1]) >= 200 && Number(info.match(/blocked=(\d+)/)[1]) >= 200, `${info} (${Date.now() - t0} ms)`)
 
     // ---------- A pin: the way along the roads ----------
@@ -106,21 +108,21 @@ module.exports = async ({ check }) => {
     let s = ''
     await until(async () => { s = await gps(A); return /state=route/.test(s) && /car=true/.test(s) }, 5000)
     const straight = Math.hypot(PIN[0] - START[0], PIN[2] - START[2])
-    check('in a car the way keeps to the road: down the west road, along the south road, up the east one', /state=route/.test(s) && num(s, 'walk') > 90 && num(s, 'walkRoad') === num(s, 'walk') && num(s, 'left') > straight * 1.8, `${s} (straight ${straight.toFixed(1)})`)
-    check('...and the next corner (where the dot sits) is down the west road, with a left turn there', field(s, 'next') !== 'none' && /turn=left@/.test(s) && Number(field(s, 'next').split(',')[2]) > -678, s)
+    check('in a car the way keeps to the road: down the west road, along the south road, up the east one', /state=route/.test(s) && num(s, 'walk') * cell > 90 && num(s, 'walkRoad') === num(s, 'walk') && num(s, 'left') > straight * 1.8, `${s} (straight ${straight.toFixed(1)})`)
+    check('...and the next corner (where the dot sits) is down the west road, with a left turn there', field(s, 'next') !== 'none' && /turn=left@/.test(s) && Number(field(s, 'next').split(',')[2]) > 622, s)
     await cmd(`ride ${A} dismount`)
     await cmd('minecraft:kill @e[tag=gpstest]')
     await cmd(`minecraft:tp ${A} ${START.join(' ')} 180 0`)
     await until(async () => { s = await gps(A); return /car=false/.test(s) && /state=route/.test(s) }, 5000)
     await sleep(500) // one more update: the way is walked again with the walkers' field
     s = await gps(A)
-    check('on foot the way cuts across the plaza (shorter), but around the water, never through it', num(s, 'walkRoad') < num(s, 'walk') && num(s, 'walkBlocked') === 0 && num(s, 'walk') < 90 && num(s, 'left') < straight * 1.6, s)
+    check('on foot the way cuts across the plaza (shorter), but around the water, never through it', num(s, 'walkRoad') < num(s, 'walk') && num(s, 'walkBlocked') === 0 && num(s, 'walk') * cell < 90 && num(s, 'left') < straight * 1.6, s)
     // Taking another street: the best way from the new spot is known at once (no new search).
     const version = num(s, 'version')
-    await cmd(`minecraft:tp ${A} 75.5 ${Y} -641.5 180 0`) // the south road
+    await cmd(`minecraft:tp ${A} 75.5 ${Y} 658.5 180 0`) // the south road
     await sleep(600)
     s = await gps(A)
-    check('taking another street: at once a new way from there (the same flow field, no new search)', /state=route/.test(s) && num(s, 'version') === version && Math.abs(num(s, 'left') - (Math.abs(PIN[2] + 641.5) + Math.abs(PIN[0] - 75.5))) < 20, s)
+    check('taking another street: at once a new way from there (the same flow field, no new search)', /state=route/.test(s) && num(s, 'version') === version && Math.abs(num(s, 'left') - (Math.abs(PIN[2] - 658.5) + Math.abs(PIN[0] - 75.5))) < 20, s)
 
     // ---------- Shown only to that player ----------
     await sleep(1500)
@@ -154,31 +156,31 @@ module.exports = async ({ check }) => {
     if (arrived) await until(async () => /Arrived/.test(text(A, t)), 1500)
     check('arriving inside the pin\'s area: the pin is cleared ("Arrived")', arrived && /Arrived/.test(text(A, t)), `${await gps(A)} ${text(A, t)}`)
     // Passing through the area between two checks (a car at speed).
-    await pin(A, PIN[0], -660.5)
+    await pin(A, PIN[0], 639.5)
     // A car's step between two checks (18 blocks, both ends outside the 8-block area) counts...
-    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} -669.5 0 0`)
+    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} 630.5 0 0`)
     await sleep(700)
-    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} -651.5 0 0`)
+    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} 648.5 0 0`)
     const passed = await until(async () => !/slots=\S*pin/.test(await gps(A)), 3000)
     check('passing right through the area between two checks (an 18-block step) still counts as arriving', passed, await gps(A))
     // ...a teleport across it (40 blocks: a respawn, /spawn, an eviction) doesn't.
-    await pin(A, PIN[0], -660.5)
-    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} -680.5 0 0`)
+    await pin(A, PIN[0], 639.5)
+    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} 619.5 0 0`)
     await sleep(700)
-    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} -640.5 0 0`)
+    await cmd(`minecraft:tp ${A} ${PIN[0]} ${Y} 659.5 0 0`)
     await sleep(1500)
     check('...but a teleport across it doesn\'t (the pin stays)', /slots=\S*pin/.test(await gps(A)), await gps(A))
 
     // ---------- Inside a heist: nothing in the world ----------
-    await cmd(`zzregion heist_${HID} 86 ${Y - 1} -672 100 ${Y + 6} -662`)
+    await cmd(`zzregion heist_${HID} 86 ${Y - 1} 628 100 ${Y + 6} 638`)
     await cmd(`dheist create ${HID} 1`)
     await cmd(`dheist set ${HID} level 0`)
-    await cmd(`dheist exit ${HID} 95.5 ${Y} -650.5`)
+    await cmd(`dheist exit ${HID} 95.5 ${Y} 649.5`)
     await cmd(`dheist snapshot ${HID}`)
     await cmd(`dheist enable ${HID}`)
     await until(async () => /state=open/.test(await cmd(`zzheist ${HID}`)), 10000)
-    await pin(A, 50.5, -690.5)
-    await cmd(`zzheisttp ${A} 93.5 ${Y} -667.5`)
+    await pin(A, 50.5, 609.5)
+    await cmd(`zzheisttp ${A} 93.5 ${Y} 632.5`)
     const paused = await until(async () => /state=paused/.test(await gps(A)) && /stand=false/.test(await gps(A)), 4000)
     particles[A] = 0
     await sleep(1200)
@@ -248,18 +250,18 @@ module.exports = async ({ check }) => {
     const clickClose = async (n, button = 0) => { bots[A].clickWindow(n, button, 0).catch(() => {}); await sleep(1200) }
 
     // A heist to list (open), a gun shopkeeper and a landmark POI, all a way off from where A stands.
-    await cmd(`zzregion heist_${HID} 86 ${Y - 1} -672 100 ${Y + 6} -662`)
-    for (const c of [`dheist create ${HID} 1`, `dheist set ${HID} level 0`, `dheist set ${HID} name GPS Bank`, `dheist exit ${HID} 95.5 ${Y} -650.5`, `dheist snapshot ${HID}`, `dheist enable ${HID}`]) await cmd(c)
+    await cmd(`zzregion heist_${HID} 86 ${Y - 1} 628 100 ${Y + 6} 638`)
+    for (const c of [`dheist create ${HID} 1`, `dheist set ${HID} level 0`, `dheist set ${HID} name GPS Bank`, `dheist exit ${HID} 95.5 ${Y} 649.5`, `dheist snapshot ${HID}`, `dheist enable ${HID}`]) await cmd(c)
     const heistOpen = await until(async () => /state=open/.test(await cmd(`zzheist ${HID}`)), 10000)
     await cmd(`lp user ${A} permission set donating.staff true`)
     await sleep(1500)
-    await cmd(`zzheisttp ${A} 60.5 ${Y} -660.5`)
+    await cmd(`zzheisttp ${A} 60.5 ${Y} 639.5`)
     await sleep(600)
     t = Date.now()
     bots[A].chat('/dshopkeeper add gun')
     await sleep(800)
     keeperId = (text(A, t).match(/Shopkeeper (\d+) \(gun\) added/) || [])[1] || ''
-    await cmd(`zzheisttp ${A} 104.5 ${Y} -660.5`)
+    await cmd(`zzheisttp ${A} 104.5 ${Y} 639.5`)
     await sleep(600)
     t = Date.now()
     bots[A].chat('/dpoi add landmark GPS Test Spot')
@@ -269,7 +271,7 @@ module.exports = async ({ check }) => {
     await sleep(800)
 
     // The main page: ◀ Phone, where you're headed (a click removes the pin), the four categories, Home.
-    await pin(A, 80.5, -641.5)
+    await pin(A, 80.5, 658.5)
     await until(async () => /state=route/.test(await gps(A)), 3000)
     await sleep(500)
     let w = await chatOpen('/gps')

@@ -30,11 +30,17 @@ module.exports = async ({ check }) => {
     await cmd('save-all flush')
     const config = fs.readFileSync(path.join(SERVER, 'plugins', 'DonatingPhone', 'config.yml'), 'utf8')
     const grid = JSON.parse((config.match(/^city-maps:\s*(\[.*\])\s*$/m) || [])[1] || '[]')
-    check('a city is set (city-maps), so the phone has a map', grid.length > 0, config.match(/^city-maps:.*$/m))
-    const first = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${grid[0][0]}.dat`)))).parsed).data
-    const unit = 1 << (first.scale || 0)
-    const cx = first.xCenter
-    const cz = first.zCenter
+    // The city: the first city map's centre, or (2026-10-28, the jailbreak city scanned as the main city) the scan's centre.
+    let cx, cz
+    if (grid.length > 0) {
+      const first = nbt.simplify((await nbt.parse(fs.readFileSync(path.join(SERVER, 'world', 'data', 'minecraft', 'maps', `${grid[0][0]}.dat`)))).parsed).data
+      cx = first.xCenter
+      cz = first.zCenter
+    } else {
+      const m = (await cmd('dphone city info')).match(/shown=scan \S+ (-?\d+) (-?\d+) (-?\d+) (-?\d+)/)
+      if (m) { cx = Math.floor((+m[1] + +m[3]) / 2); cz = Math.floor((+m[2] + +m[4]) / 2) }
+    }
+    check('a city is set (city-maps or a scan), so the phone has a map', cx !== undefined, config.match(/^city-maps:.*$/m))
     platform = `${cx + 8} ${Y - 1} ${cz + 8} ${cx + 30} ${Y - 1} ${cz + 23}`
 
     // ---------- A bot with its phone out ----------
