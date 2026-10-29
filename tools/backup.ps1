@@ -5,6 +5,7 @@
 # Usage: powershell -ExecutionPolicy Bypass -File tools\backup.ps1 [-NoUpload]
 # Restore: tools\stop-server.ps1, rename server\world (keep it), gh release download <tag> -R PlaneGlueX/donating-backups,
 #          then tar -xf donating-<stamp>.zip -C server (it holds world\, plugins\ and the json lists).
+#          A backup made while the server ran has no LuckPerms h2 file: start, then /lp import donating-backup.
 param([switch]$NoUpload, [string]$Repo = 'PlaneGlueX/donating-backups')
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -17,15 +18,25 @@ $zip = Join-Path $outDir "donating-$stamp.zip"
 $pidFile = Join-Path $serverDir 'server.pid'
 $running = (Test-Path $pidFile) -and (Get-Process -Id ([int](Get-Content $pidFile)) -ErrorAction SilentlyContinue)
 $rcon = Join-Path $PSScriptRoot 'rcon.ps1'
-if ($running) { & $rcon 'save-off' 'save-all flush'; Start-Sleep -Seconds 3 }
+$skip = @('world/session.lock', 'plugins/Tebex', 'plugins/ViaBackwards', 'plugins/spark', 'plugins/bStats',
+  'plugins/.paper-remapped', 'plugins/*/libs', 'plugins/*/lib', 'plugins/*/logs', '*.jar', '*.log', 'zz-*.sk')
+if ($running) {
+  # A running server holds LuckPerms' h2 file locked: its own export goes in instead (restore: /lp import donating-backup).
+  $lpx = Join-Path $serverDir 'plugins\LuckPerms\donating-backup.json.gz'
+  Remove-Item $lpx -ErrorAction SilentlyContinue
+  & $rcon 'lp export donating-backup' | Out-Null
+  for ($i = 0; $i -lt 60 -and -not (Test-Path $lpx); $i++) { Start-Sleep -Milliseconds 500 }
+  if (-not (Test-Path $lpx)) { throw 'lp export wrote nothing in 30 s' }
+  Start-Sleep -Seconds 2 # it writes after creating the file
+  $skip += 'plugins/LuckPerms/*.mv.db'
+  & $rcon 'save-off' 'save-all flush'; Start-Sleep -Seconds 3
+}
 try {
   $items = @('world', 'plugins') + @('whitelist.json', 'ops.json', 'banned-players.json', 'banned-ips.json', 'usercache.json' |
     Where-Object { Test-Path (Join-Path $serverDir $_) })
-  $excludes = @('world/session.lock', 'plugins/Tebex', 'plugins/ViaBackwards', 'plugins/spark', 'plugins/bStats',
-    'plugins/.paper-remapped', 'plugins/*/libs', 'plugins/*/lib', 'plugins/*/logs', '*.jar', '*.log', 'zz-*.sk') |
-    ForEach-Object { '--exclude', $_ }
+  $excludes = $skip | ForEach-Object { '--exclude', $_ }
   & "$env:SystemRoot\System32\tar.exe" -a -c -f $zip -C $serverDir @excludes @items
-  if ($LASTEXITCODE -ne 0) { throw "tar failed ($LASTEXITCODE)" }
+  if ($LASTEXITCODE -ne 0) { Remove-Item $zip -ErrorAction SilentlyContinue; throw "tar failed ($LASTEXITCODE)" }
 } finally {
   if ($running) { & $rcon 'save-on' }
 }
