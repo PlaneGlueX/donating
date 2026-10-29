@@ -41,16 +41,16 @@ const LABEL_TAG = 'north_label', DISPLAY_TAG = 'north_display'
 // module boxes [x1, z1, x2, z2]: the module owns every column inside, y CITY.y1..CITY.y2
 const BOX = {
   reserve: [664, 132, 800, 222], // the Federal Reserve and its plaza on Bank Street North (x 664..669)
-  gallery: [556, 132, 636, 222], // the Art Gallery, its front on Gallery Row
+  gallery: [556, 126, 636, 222], // the Art Gallery, its front on Gallery Row
   club: [668, 228, 740, 278],    // the Nightclub, on Rising City's old kept-free strip, its door on Bank Street (x 664..667 walk)
-  pawn: [600, 66, 636, 106],     // Lucky Pawn, its front on Gallery Row
-  carwash: [490, 132, 550, 200]  // the Car Wash, its front on Gallery Row
+  pawn: [600, 66, 636, 109],     // Lucky Pawn, its front on Gallery Row
+  carwash: [490, 126, 550, 200]  // the Car Wash, its front on Gallery Row
 }
 const BUILDINGS = Object.keys(BOX)
 // the heist regions [x1, y1, z1, x2, y2, z2]: each module sets its own when it's built (until then the whole box)
 const REGION = {
   reserve: [683, 51, 153, 748, 77, 200],
-  gallery: [564, 64, 140, 628, 78, 214],
+  gallery: [561, 60, 139, 631, 77, 201],
   club: [670, 64, 230, 738, 78, 276],
   pawn: [602, 63, 68, 634, 75, 104],
   carwash: [492, 63, 134, 548, 75, 198]

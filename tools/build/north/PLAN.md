@@ -51,3 +51,32 @@ The biggest heist in North (expand/PLAN.md 1.3): difficulty 4, level 50, advance
 
 **Spots:** exit (676.5, 65, 176.5) facing west, the hologram (672.5, 71, 176.5), the chase centre (715.5, 60, 176.5), cops on Bank Street North (655.5, 65, 168.5) and (655.5, 65, 185.5). GPS 5010 the portico, linked to 5001. POI: landmark "Federal Reserve". Budget 150,000 blocks.
 - **Built 2026-10-29**: 55,498 blocks (`city.js check` passes, 48 block states valid against the 26.1 registry from bots/node_modules/minecraft-data), pasted with `--box 664,132,800,222`; the label and the ATM display placed; region, heist, 6 gates, 10 piles, 31 traps, 21 lockdown boxes, 2 cop spots, the snapshot (6 sections), the hologram, ATM 6, POI 37 and GPS 5010 set up over RCON (`zzregion` locally: on Minehut the //pos lines). The roll came to $71,000 on its first opening. `bots/run.js reserve` 8/8: open and armed, level 49 kept out, level 50 in, G1 smashed, a till paid into the bag, G2 and G3 with hitboxes; it ends the run and reopens the Reserve after.
+
+## 3. The Art Gallery (`north/gallery.js`)
+
+A medium heist (expand/PLAN.md 1.3): difficulty 2, level 12, **not advanced** (no alarm, no cops: cameras here are turrets that shoot, `effect=damage`), pool $18,000, escape 6:00 / cooldown 10:00. A white modern gallery with a glass front on Gallery Row.
+
+Changed before building (COMMON): the Gallery's and the Car Wash's lots start at z 126 (Gallery Row's south walk ends at 125) and Lucky Pawn's ends at z 109 (the north walk starts at 110), so their fronts meet the sidewalk; Gallery Row has GPS junctions 5006 (x 595, the Gallery), 5007 (x 520, the Car Wash) and 5008 (x 618, the Pawn) on the road, the link 5002-5004 split through them.
+
+**Footprint** (the module owns x 556..636, z 126..222):
+- The building: walls x 562..630, z 140..200, one tall floor (floor 64, rooms y 65..74, roof y 75 with skylight strips, a parapet). White walls; the north front a glass curtain (x 566..626, y 66..73) with black mullions, the doorway x 594..597, y 65..68; "ART GALLERY" on the white band above (a label).
+- The plaza x 576..615, z 126..139 from the sidewalk to the door, planters and benches.
+
+**Heist region** `heist_gallery` x 561..631, y 60..77, z 139..201 (80,514 blocks; down to y 60 for the collapsing floor's pit).
+
+**Rooms** (inside x 563..629):
+1. **The lobby** z 141..152: the reception desk, benches, plants. Openings in the wall z 153: x 576..579 into the Sculpture Court, x 612..615 into the Jewel Room.
+2. **The Sculpture Court** x 563..594, z 154..199 (the wall x 595 to the east): two art plinths (P5 x 570..571, z 166; P6 x 586..587, z 186), open to grab but behind nine blinking floor lasers across the court (y 65.4, jump them, alternate offsets). Paintings (block art in frames) on both long walls.
+3. **The Jewel Room** x 596..629, z 154..176: four glass-case islands (the Jewelry store's: a 1 x 4 plinth, the smash front 4 x 2, permanent glass behind, a lid), the cases' fronts G1-G4 and the jewels P1-P4 behind them; two sweeping turret cameras. The opening x 611..614 in the wall z 177 leads on.
+4. **The Modern Wing** x 596..629, z 178..199: the masterpiece P7 (x 612..613, z 189) on a quartz dais; a collapsing floor x 611..614, z 183..185 (pit 3 deep) in the straight path from the doorway; two blinking lasers across the wing; one turret camera. Paintings on the walls.
+
+**Loot** (≈ $15,000 on an average roll):
+
+| Pile | Where | Value | Style | Behind |
+|---|---|---|---|---|
+| P1-P4 Display cases | islands x 602..605 / 618..621, z 160 / 170, y 65 | $1,000-2,000 each | jewel | G1-G4 |
+| P5 / P6 Sculptures | x 570..571, z 166 / x 586..587, z 186, y 65 | $2,000-4,000 each | art (2,000, 3 s) | open |
+| P7 Masterpiece | x 612..613, z 189, y 65 | $2,000-4,000 | art | open |
+
+**Spots:** exit (595.5, 65, 133.5) facing north, the hologram (595.5, 70, 133.5). No cops (not advanced). GPS 5020 the plaza (595.5, 65, 131.5), linked to 5006. POI: landmark "Art Gallery". Budget 90,000 blocks.
+- **Built 2026-10-29**: 14,380 blocks (`city.js check` passes), pasted with `--box 556,126,636,222`; the label placed; region, heist (not advanced), 4 smash gates, 7 piles, 15 traps (11 blinking lasers, 3 turret cameras at damage 0.5, the collapsing floor), the snapshot, the hologram, POI 38 and GPS 5020 set up over RCON. Its 34-long lasers warn "less than 2 blocks inside" in game: harmless, their ends are inside the walls. The roll came to $15,250 on its first opening. `bots/run.js north gallery` 7/7: open and armed, level 11 kept out at the door, level 12 in, G1 smashed, the jewels behind it and a sculpture paid into the bag; it ends the run and reopens the Gallery after. `bots/scenarios/north.js` (was reserve.js) takes a heist id; `north reserve` still 8/8.
