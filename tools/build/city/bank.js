@@ -388,7 +388,7 @@ function lobby () {
   for (let x = 610; x <= 622; x++) if (x % 6 !== 3) S(x, 65, 318, stairs('dark_oak', 'south'))
   for (const [x, z] of [[627, 284], [627, 296], [627, 303], [624, 315], [609, 283], [609, 318]]) { S(x, 65, z, 'moss_block'); S(x, 66, z, 'azalea_leaves[persistent=true,distance=7,waterlogged=false]') }
   // camera housings: a dark block over each lens (the lens stays in air) hung on chains from the ceiling
-  for (const [x, y, z] of [[608, 72, 306], [612, 73, 288], [611, 71, 293]]) { S(x, y + 1, z, 'polished_blackstone'); F(x, y + 2, z, x, 76, z, 'iron_chain[axis=y,waterlogged=false]') }
+  for (const [x, y, z] of [[612, 73, 288], [611, 71, 293]]) { S(x, y + 1, z, 'polished_blackstone'); F(x, y + 2, z, x, 76, z, 'iron_chain[axis=y,waterlogged=false]') }
 }
 
 // ---- the stair behind G3 (after the lobby: it cuts the lobby floor and the stairwell's block) ------------------------------
@@ -529,12 +529,12 @@ const HEIST_LINES = `(G) /dheist create bank 3
 (G) /dloot add bank pile 623 49 305 625 49 306 value=12000-24000 style=gold piece=2000 take=4.5 behind=6 name=Reserve
 (G) /dloot check bank
 # traps (T1..T19)
-(G) /dtrap add bank camera 608.5 72.0 306.5 50 36 effect=alarm angle=30 range=12 sweep=60 period=8   # T1 gate floor
+(G) /dtrap add bank camera 604.5 69.5 306.5 50 36 effect=alarm angle=30 range=9 sweep=60 period=8   # T1 gate floor
 (G) /dtrap add bank camera 612.5 73.5 288.5 70 15 effect=alarm angle=20 range=9                       # T2 mezzanine stair top
 (G) /dtrap add bank laser 599.0 57.4 310.5 607.0 57.4 310.5 damage=2    # T3 bay low
 (G) /dtrap add bank laser 599.0 57.4 307.5 607.0 57.4 307.5 damage=2    # T4
 (G) /dtrap add bank laser 599.0 57.4 300.5 607.0 57.4 300.5 damage=2    # T5
-(G) /dtrap add bank laser 599.0 57.4 297.5 607.0 57.4 297.5 damage=2    # T6
+(G) /dtrap add bank laser 599.0 57.4 296.5 607.0 57.4 296.5 damage=2    # T6
 (G) /dtrap add bank laser 599.0 58.65 305.5 607.0 58.65 305.5 damage=2  # T7 duck
 (G) /dtrap add bank laser 599.0 58.65 298.5 607.0 58.65 298.5 damage=2  # T8
 (G) /dtrap add bank laser 599.0 57.4 302.5 607.0 57.4 302.5 damage=2 blink=true on=2 off=2 offset=0     # T9 timed wall (low)
