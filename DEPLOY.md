@@ -139,6 +139,15 @@ Places, standing where they go:
 - Districts (districts.sk, 2026-09-29): wand two corners, `//expand vert` (a district must reach from under the streets to above the roofs, or players standing on the street are outside it), then `/rg define district_<id>` over each part of the city (e.g. `district_downtown`), `/rg flag district_<id> passthrough allow`, then `/ddistrict name <id> <Name>` (else the id made readable: "old_town" -> "Old Town"). `/ddistrict dump` prints the name lines for Minehut (the regions travel with the world). Entering one shows its name; the sidebar's Area line follows. Copy `plugins/TAB/config.yml` (the Area line).
 - The phone's city map: stand anywhere and run `/dphone city scan <x1> <z1> <x2> <z2>` over the whole city (corners in blocks; scale 1 by default: add 0 for 1 block a pixel, 2 for 4 blocks), wait for "CITY done" (about 15-20 chunks a second), then `/dphone roads scan` for the GPS. Or scan on the local server and upload `plugins/DonatingPhone/city.bin`, `city.yml` and `roads.bin`. (The older way, locked city maps in `city-maps` of `plugins/DonatingPhone/config.yml` and `/dphone`, still works: `/dphone city use maps`.) Every POI (/dpoi), open heist and quest giver then shows on the phones as a colored banner by itself (nav.sk; `places.enabled` / `places.held` in that config turn it off or off on the held phone).
 
+### The map expansion: Rising City North and Ironvale (2026-10-29; PLAYTEST 276-285)
+
+Eight heists (`reserve`, `gallery`, `club`, `pawn`, `carwash`, `power`, `evidence`, `mansion`), 12 ATMs, two new street sets. Built and bot-tested locally (`bots/run.js north`, `iron`, `irontraps`).
+- Upload every script again (`core.sk` and `traps.sk` changed; `atm.sk` is new).
+- The world goes up with the pastes in it. Heists, traps, loot, ATMs and POIs travel in `plugins/Skript/variables.csv`, the regions in WorldGuard's `regions.yml`: upload them with the world, or run the setup lines on Minehut with `CITY_SET=north|iron tools/node/node.exe tools/build/city.js setup --world world`.
+- The phone map and GPS: upload `plugins/DonatingPhone/city.bin`, `city.yml` and `roads.bin` (scanned over x -40..1500, z -30..1300). They don't fit the old box: without them run `/dphone city scan -40 -30 1500 1300 0 world confirm`, then `/dphone roads scan`, with nobody on (about 9 minutes each).
+- GPS paths: `plugins/DonatingPhone/paths.yml`, or the lines of `tools/city-gps-paths.txt`, then `tools/build/north/north-gps-paths.txt`, then `tools/build/iron/iron-gps-paths.txt`, in that order.
+- Check with `/dsetup`: every heist listed. "Car Wash: no clerk" is on purpose.
+
 ### The town's last buildings, fuel and the stolen bikes (2026-10-21, a cloud session; PLAYTEST 224-229)
 
 Built and checked offline only: test it all on the local server first (handoff/2026-10-21/README.md), then:
