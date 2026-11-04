@@ -1311,6 +1311,26 @@ function loadSettings():
 	set {-cfg::loot::art::thick} to 0.3
 	set {-cfg::loot::art::scale} to 0.5
 	# ATMs (atm.sk, 2026-10-29): hold to crack, a rolled payout into the bag, then out of order for a while.
+	# casino.sk (tools/build/city/design/casino-games.md section 5; PROPOSAL; cashout: the owner chose it, 2026-10-28)
+	set {-cfg::casino::enabled} to true
+	set {-cfg::casino::cashout} to true
+	set {-cfg::casino::cashout-fee} to 0.02
+	set {-cfg::casino::level} to 5
+	set {-cfg::casino::buy-day} to 100000
+	set {-cfg::casino::cashout-day} to 250000
+	set {-cfg::casino::max-chips} to 250000
+	set {-cfg::casino::slot-gap} to 1.5 seconds
+	set {-cfg::casino::big-win} to 50000
+	set {-cfg::casino::wheel-gap} to 20 hours
+	set {-cfg::casino::turn-time} to 20 seconds
+	set {-cfg::casino::bj-min} to 100
+	set {-cfg::casino::bj-max} to 10000
+	set {-cfg::casino::roulette-max} to 20000
+	set {-cfg::casino::roulette-number-max} to 1000
+	# kind|value|segments of 20. The drill, the title and the podium skin pay their "already owned" chips until those prizes exist.
+	set {-cfg::casino::wheel-table::*} to "chips|1000|4", "chips|2500|4", "chips|5000|3", "chips|10000|1", "xp|500|2", "key|common|2", "chips|2500|3" and "chips|25000|1"
+	# name|pays x bet|chance: RTP = sum(pays x chance) = 0.95
+	set {-cfg::casino::slot-table::*} to "3 Diamonds|100|0.0005", "3 Sevens|25|0.004", "3 Bars|10|0.012", "3 Bells|5|0.03", "3 Cherries|3|0.06", "2 Cherries|2|0.1" and "1 Cherry|1|0.15"
 	set {-cfg::atm::level} to 1
 	set {-cfg::atm::hold} to 6
 	set {-cfg::atm::min} to 300

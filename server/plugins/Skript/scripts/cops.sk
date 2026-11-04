@@ -23,7 +23,7 @@
 # - Cops are tracked by their Citizens id (entity metadata "NPC-ID"), never by the entity: Citizens
 #   respawns a new player NPC a moment after making it (to put its skin on), so the first entity, and
 #   anything set on it, is gone. The gun goes on through Citizens (npc setequipment), which keeps it.
-# Staff: /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump. Log: plugins\Skript\logs\cops.log.
+# Staff: /dcops <heist> add [x y z] | way x y z | list | clear | spawn | removeall | dump. Log: plugins\Skript\logs\cops.log.
 
 function copLog(text: text):
 	log {_text} to "cops"
@@ -236,6 +236,7 @@ function copRemove(id: text, why: text):
 	delete {-cop::heist::%{_id}%}
 	if {_h} is set:
 		delete {-cop::ids::%{_h}%::%{_id}%}
+		delete {-cop::way::%{_id}%}
 	delete {cops::ids::%{_id}%}
 	delete {-cop::heavy::%{_id}%}
 	execute console command "npc remove %{_id}%"
@@ -273,6 +274,69 @@ on load:
 			copLog("cleanup id=%loop-index% heist=%loop-value%")
 			delete {cops::ids::%loop-index%}
 	copSweep()
+
+# Sentinel only engages a target it sees within cop::range, so a robber in a vault never drew the cops in from their
+# street spots. Every 5 s the cops of a heist with a hunted robber walk towards that robber; once one sees them, Sentinel
+# takes over. Minecraft's pathfinder only finds short routes (Citizens' own cost up to 2.2 s a pass at the range these need),
+# so a big building has hops: /dcops <heist> way x y z, in order from the door inwards.
+# shortcut: the first hunted robber per heist, not the nearest to each cop; a crew spread over two floors draws all cops to one.
+every 5 seconds:
+	loop all players:
+		set {_h} to heistHuntedBy(loop-player)
+		if {_h} is not "":
+			if {_to::%{_h}%} is not set:
+				if heistInRange(loop-player, {_h}) is true:
+					set {_to::%{_h}%} to location of loop-player
+	if size of {_to::*} > 0:
+		delete {-cop::at::*}
+		loop all entities:
+			if loop-entity has metadata "NPC":
+				set {_raw} to metadata value "NPC-ID" of loop-entity
+				if {-cop::heist::%{_raw}%} is set:
+					set {-cop::at::%{_raw}%} to location of loop-entity
+		loop indices of {_to::*}:
+			copWalk(loop-value, {_to::%loop-value%})
+
+function copWalk(h: text, to: location):
+	set {_w} to world({heist::%{_h}%::world})
+	set {_n} to 0
+	loop {heist::%{_h}%::copway::*}:
+		add 1 to {_n}
+		set {_p::*} to loop-value split at " "
+		set {_way::%{_n}%} to location(({_p::1} parsed as number), ({_p::2} parsed as number), ({_p::3} parsed as number), {_w})
+	# The robber's end of the route: the hop nearest them.
+	set {_last} to 0
+	set {_best} to 9999
+	loop {_n} times:
+		set {_d} to distance between {_way::%loop-number%} and {_to}
+		if {_d} < {_best}:
+			set {_best} to {_d}
+			set {_last} to loop-number
+	loop indices of {-cop::ids::%{_h}%::*}:
+		set {_id} to loop-value
+		set {_at} to {-cop::at::%{_id}%}
+		if {_at} is set:
+			set {_i} to {-cop::way::%{_id}%}
+			if {_i} is not set:
+				# A new cop joins at the nearest hop on its own level (a back-lot cop isn't sent round the front).
+				set {_i} to 1
+				set {_near} to 9999
+				loop {_n} times:
+					set {_l} to {_way::%loop-number%}
+					if abs(y-coordinate of {_l} - y-coordinate of {_at}) <= 2:
+						set {_d} to distance between {_l} and {_at}
+						if {_d} < {_near}:
+							set {_near} to {_d}
+							set {_i} to loop-number
+			if {_i} <= {_n}:
+				if distance between {_way::%{_i}%} and {_at} <= 3:
+					add 1 to {_i}
+			set {-cop::way::%{_id}%} to {_i}
+			if {_i} <= {_last}:
+				set {_l} to {_way::%{_i}%}
+				execute console command "npc pathto %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}% --margin 1 --id %{_id}%"
+			else:
+				execute console command "npc pathto %floor(x-coordinate of {_to})% %floor(y-coordinate of {_to})% %floor(z-coordinate of {_to})% --margin 6 --id %{_id}%"
 
 # Any "Cop" NPC that isn't a known cop (a spawn that timed out, or one that comes back with its chunk
 # after a restart) is removed. Never while a cop is being made (it's unknown for a tick or two then).
@@ -352,7 +416,7 @@ command /dcops [<text>]:
 		set {_h} to {_a::1}
 		set {_sub} to {_a::2}
 		if {_h} is not set:
-			dcopsReply(sender, "COPS usage: /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump")
+			dcopsReply(sender, "COPS usage: /dcops <heist> add [x y z] | way x y z | list | clear | spawn | removeall | dump")
 			stop
 		if heistExists({_h}) is false:
 			dcopsReply(sender, "COPS %{_h}%: no such heist")
@@ -378,6 +442,15 @@ command /dcops [<text>]:
 				stop
 			add "%{_x}% %{_y}% %{_z}%" to {heist::%{_h}%::cops::*}
 			dcopsReply(sender, "COPS %{_h}% spot %size of {heist::%{_h}%::cops::*}% at %{_x}% %{_y}% %{_z}%")
+		else if {_sub} is "way":
+			# /dcops <heist> way <x> <y> <z> adds a hop, /dcops <heist> way clear wipes them
+			if {_a::3} is "clear":
+				delete {heist::%{_h}%::copway::*}
+				dcopsReply(sender, "COPS %{_h}%: hops cleared")
+				stop
+			set {_v} to "%{_a::3}% %{_a::4}% %{_a::5}%"
+			add {_v} to {heist::%{_h}%::copway::*}
+			dcopsReply(sender, "COPS %{_h}% hop %size of {heist::%{_h}%::copway::*}% at %{_v}%")
 		else if {_sub} is "list":
 			loop {heist::%{_h}%::cops::*}:
 				dcopsReply(sender, "COPS %{_h}% spot %loop-index%: %loop-value%")
@@ -400,5 +473,7 @@ command /dcops [<text>]:
 		else if {_sub} is "dump":
 			loop {heist::%{_h}%::cops::*}:
 				dcopsReply(sender, "/dcops %{_h}% add %loop-value%")
+			loop {heist::%{_h}%::copway::*}:
+				dcopsReply(sender, "/dcops %{_h}% way %loop-value%")
 		else:
-			dcopsReply(sender, "COPS usage: /dcops <heist> add [x y z] | list | clear | spawn | removeall | dump")
+			dcopsReply(sender, "COPS usage: /dcops <heist> add [x y z] | way x y z | list | clear | spawn | removeall | dump")

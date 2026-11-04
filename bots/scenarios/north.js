@@ -82,6 +82,7 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
       await cmd(`gamemode survival ${P}`)
       await cmd(`zzpassive ${P} off`)
       await cmd(`zztestkit ${P}`)
+      await cmd(`effect give ${P} minecraft:instant_health 1 10 true`) // the last heist's traps: a store's clerk would finish a hurt bot
       bot.setQuickBarSlot(0)
 
       // One level short, walking in through the front door: kept out.
@@ -108,20 +109,22 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
         check(`${id}: shut until a hit on the clerk opens it`, shut && hit && /state=active/.test(await cmd(`zzheist ${id}`)), (await cmd(`dclerk ${id} info`)).slice(0, 160))
       }
 
-      if (H.smash) {
-        await tp(H.smash.stand)
+      for (const S of [H.entry, H.smash].filter(Boolean)) {
+        if (S === H.smash) bot.setControlState('sneak', Boolean(H.sneak)) // a turret room: sneak, as a player would
+        await tp(S.stand)
         // hold until it breaks, 10 s at most. A store's clerk throws things (a hit starts the hold over): hit them first, as
         // a player would, so they duck for clerk::stun.
-        for (let end = Date.now() + 10000; Date.now() < end && (await spot(H.smash.gate))[1] !== 'open';) {
+        for (let end = Date.now() + 10000; Date.now() < end && (await spot(S.gate))[1] !== 'open';) {
           if (H.clerk) await cmd(`zzclerkhit ${id} ${P}`)
-          await hold(H.smash.aim, 2000)
+          await hold(S.aim, 2000)
         }
-        const g = await spot(H.smash.gate)
-        const [ax, ay, az] = H.smash.aim.map(Math.floor)
-        check(`${id}: holding on the glass smashes G${H.smash.gate}`, g[1] === 'open' && /passed/i.test(await cmd(`execute if block ${ax} ${ay} ${az} minecraft:air`)), g.join(':'))
+        const g = await spot(S.gate)
+        const [ax, ay, az] = S.aim.map(Math.floor)
+        check(`${id}: holding on the glass smashes G${S.gate}`, g[1] === 'open' && /passed/i.test(await cmd(`execute if block ${ax} ${ay} ${az} minecraft:air`)), g.join(':'))
       }
 
       for (const T of [H.take, H.open].filter(Boolean)) {
+        if (/room=0/.test(await cmd(`zzbag ${P}`))) await cmd(`zzbagclear ${P}`) // a starter bag fills on one pile
         await tp(T.stand)
         await hold(T.aim, 6000)
         await sleep(500)
@@ -129,6 +132,7 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
         check(`${id}: ${T.name || `the pile behind G${H.smash && H.smash.gate}`} pays into the bag`, new RegExp(`${id}#\\d+=\\d+`).test(bag) && new RegExp(`take ${P} \\S+ ${id}-${T.pile} `).test(logged()), bag)
       }
 
+      bot.setControlState('sneak', false)
       for (const Hb of H.hitboxes) {
         await tp(Hb.stand)
         await sleep(500)

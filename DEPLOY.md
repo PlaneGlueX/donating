@@ -199,3 +199,39 @@ Every new player starts in a prison cell and every death sends you back (prison.
 - Send Minehut the new MONETIZATION.md (2026-10-14): Valet doesn't work inside the prison, and no paid perk shortens or skips it.
 - The sidebar (TAB config.yml) shows the mission, jobs (`%donating_jobs%`) and hit (`%donating_hit%`) lines: upload TAB's config.yml again.
 - `/hits` at the Broker, `/jobs`, a garage: `/garage` inside a site, a bay's car, driving into a return lane (PARKED).
+
+## Cop routes and the casino (2026-11-04)
+Upload `casino.sk`, `cops.sk` and `core.sk` (the casino is live as soon as it loads; `casino::enabled` false in core.sk closes it). Read Mojang's and Tebex's current rules first: chips cash out (casino-games.md section 1). Then run these in the console so cops can walk into the big heists (the Casino and the Power Plant need none):
+```
+dcops bank way 640.5 65 300.5
+dcops bank way 625.5 65 300.5
+dcops bank way 610.5 65 312.5
+dcops bank way 600.5 65 313.5
+dcops bank way 600.5 65 318.5
+dcops bank way 600.5 57 310.5
+dcops bank way 603.5 57 294.5
+dcops bank way 610.5 49 296.5
+dcops reserve way 678.5 65 176.5
+dcops reserve way 700.5 65 176.5
+dcops reserve way 716.5 65 176.5
+dcops evidence way 1009.5 65 458.5
+dcops evidence way 1026.5 65 467.5
+dcops evidence way 1026.5 65 473.5
+dcops evidence way 1010.5 65 473.5
+dcops evidence way 1010.5 65 480.5
+dcops evidence way 1009.5 65 498.5
+dcops evidence way 1009.5 65 503.5
+dcops evidence way 1009.5 57 513.5
+dcops evidence way 1015.5 57 513.5
+dcops evidence way 1015.5 57 495.5
+dcops evidence way 1015.5 57 480.5
+dcops mansion way 1250.5 91 615.5
+dcops mansion way 1250.5 91 628.5
+dcops mansion way 1241.5 91 623.5
+dcops mansion way 1230.5 91 622.5
+dcops mansion way 1222.5 91 623.5
+dcops mansion way 1222.5 91 630.5
+dcops mansion way 1222.5 91 649.5
+dcops mansion way 1229.5 91 650.5
+dcops mansion way 1229.5 91 654.5
+```

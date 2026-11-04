@@ -1722,6 +1722,85 @@ command /zzbike <player>:
 
 # clerk.sk (2026-10-21): a hit on a store's clerk by that player (as if they punched them), and the clerk's state.
 # "CLERKHIT <store> st=<state> hit=<date>"
+# Where a heist's cops are: /zzcoppos <heist>: "COPPOS <id>=x,y,z ..."
+command /zzcoppos <text>:
+	executable by: players and console
+	trigger:
+		set {_out} to "COPPOS"
+		loop all entities:
+			if loop-entity has metadata "NPC":
+				set {_raw} to metadata value "NPC-ID" of loop-entity
+				if {-cop::heist::%{_raw}%} is arg-1:
+					set {_l} to location of loop-entity
+					set {_out} to "%{_out}% %{_raw}%=%floor(x-coord of {_l})%,%floor(y-coord of {_l})%,%floor(z-coord of {_l})%"
+		send {_out}
+
+# casino.sk: /zzchips <player> [n] (sets, then prints), /zzcasinoforce <outcome|none> (the next slot results)
+command /zzchips <player> [<number>]:
+	executable by: players and console
+	trigger:
+		if arg-2 is set:
+			chipsSet(arg-1, arg-2)
+		send "CHIPS %arg-1% %chipsOf(arg-1)%"
+
+# casino.sk: /zzcasinodeck <K:S,7:H,...|none> (dealt in order: you, dealer, you, dealer, then draws), /zzcasinorl <n|none>,
+# /zzcasinowheel <segment|none>, /zzcasinort <second of the round>, /zzcasinoreset <player> (wheel and today's totals)
+command /zzcasinodeck <text>:
+	executable by: players and console
+	trigger:
+		delete {-casino::force::deck::*}
+		set {-casino::force::at} to 0
+		if arg-1 is not "none":
+			set {-casino::force::deck::*} to arg-1 split at ","
+		send "CASINODECK %arg-1%"
+
+command /zzcasinorl <text>:
+	executable by: players and console
+	trigger:
+		delete {-casino::force::rl}
+		if arg-1 is not "none":
+			set {-casino::force::rl} to arg-1 parsed as number
+		send "CASINORL %arg-1%"
+
+command /zzcasinowheel <text>:
+	executable by: players and console
+	trigger:
+		delete {-casino::force::wheel}
+		if arg-1 is not "none":
+			set {-casino::force::wheel} to arg-1 parsed as number
+		send "CASINOWHEEL %arg-1%"
+
+command /zzcasinort <number>:
+	executable by: players and console
+	trigger:
+		set {-casino::rl::t} to arg-1
+		send "CASINORT %arg-1%"
+
+command /zzcasinoreset <player>:
+	executable by: players and console
+	trigger:
+		deleteData(arg-1, "wheel-at")
+		deleteData(arg-1, "chips-locked")
+		deleteData(arg-1, "chips-locked-at")
+		delete {casino::wheelip::*}
+		delete {casino::day::*}
+		send "CASINORESET %arg-1%"
+
+command /zzcasinoforce <text>:
+	executable by: players and console
+	trigger:
+		delete {-casino::force::slot}
+		if arg-1 is not "none":
+			set {-casino::force::slot} to arg-1
+		send "CASINOFORCE %arg-1%"
+
+# Opens a loot gate as if cracked: /zzlootopen <heist> <n>
+command /zzlootopen <text> <text>:
+	executable by: players and console
+	trigger:
+		lootOpenGate(arg-1, arg-2, "test")
+		send "LOOTOPEN %arg-1% %arg-2%"
+
 command /zzclerkhit <text> <player>:
 	executable by: players and console
 	trigger:

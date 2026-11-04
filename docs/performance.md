@@ -20,11 +20,13 @@ After: p50 6.8, p90 14.6, p99 45.8, 14 of 2037 ticks over 50 ms; tasks 2.88 ms a
 
 Every bot scenario touching these still passes (PLAYTEST 286).
 
+With 1 GB, like Minehut's heap but on this PC's CPU (14 NPCs, warm): mean 9.4, p50 7.5, p90 14.6, p99 39.9, 8 of 1826 ticks over 50 ms, heap 733 of 1024 MB, no out-of-memory errors: no worse than 2 GB.
+
 Left: most remaining ticks over 50 ms have almost no task cost, so they look like GC pauses and world work rather than scripts (not traced tick by tick).
 
 ## Tried, no gain
 - `simulation-distance` 6 instead of 10: same numbers (with random ticks off and no mobs chunks cost little), put back.
-- Splitting DonatingPhone into several plugins: no runtime gain.
+- Splitting DonatingPhone into several plugins (checked again 2026-11-04, not built): no runtime gain (its main repeating task about 0.13 ms of a 10 ms tick, about 1 s of a 149 s start, against Skript's 72 s), and PhonePlugin and the features use each other in circles, which Bukkit's `depend` can't express. Break big classes up inside the one plugin instead.
 
 ## Rules for repeating scripts
 - Exit early when nobody qualifies; keep per-heist or per-spot work to where a player is.
