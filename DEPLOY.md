@@ -104,6 +104,7 @@ dranks setup
 Game rules (keep_inventory is set by inventory.sk itself):
 ```
 gamerule spawn_mobs false
+gamerule random_tick_speed 0
 ```
 
 The store (type your own key; never paste it anywhere else):

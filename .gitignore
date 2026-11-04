@@ -68,3 +68,4 @@
 # tools/guns/dev/lint.js writes its build and icon next to itself
 /tools/guns/dev/out-lint-*/
 /tools/guns/dev/lint-*-gui.png
+/graphify-out/

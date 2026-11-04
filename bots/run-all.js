@@ -13,7 +13,7 @@ fs.mkdirSync(out, { recursive: true })
 const summary = []
 for (const name of names) {
   const t = Date.now()
-  const r = spawnSync(process.execPath, [path.join(__dirname, 'run.js'), name], { encoding: 'utf8', timeout: 15 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 })
+  const r = spawnSync(process.execPath, [path.join(__dirname, 'run.js'), name, '--json'], { encoding: 'utf8', timeout: 15 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 })
   const text = (r.stdout || '') + (r.stderr || '')
   fs.writeFileSync(path.join(out, `${name}.txt`), text)
   let rep = null

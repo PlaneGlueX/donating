@@ -35,6 +35,8 @@ module.exports = async ({ check }) => {
     const tfield = async (h, k) => ((await traps(h)).match(new RegExp(` ${k}=(\\S*)`)) || [])[1]
     const state = async id => cmd(`zztrapstate ${id}`)
     const displays = async tag => Number(((await cmd(`execute if entity @e[type=minecraft:block_display,tag=${tag}]`)).match(/Count: (\d+)/i) || [0, 0])[1])
+    // the test's own traps: real heists elsewhere have displays too
+    const testDisplays = async () => Number(((await cmd('execute if entity @e[type=minecraft:block_display,tag=donating_trap,x=785,y=200,z=780,distance=..40]')).match(/Count: (\d+)/i) || [0, 0])[1])
     const hallDisplays = async () => Number(((await cmd('execute if entity @e[type=minecraft:block_display,tag=donating_trap,x=768,y=190,z=768,dx=14,dy=18,dz=26]')).match(/Count: (\d+)/i) || [0, 0])[1])
     const pos = async name => {
       const m = (await cmd(`data get entity ${name} Pos`)).match(/\[(-?[\d.]+)d, (-?[\d.]+)d, (-?[\d.]+)d\]/)
@@ -138,14 +140,14 @@ module.exports = async ({ check }) => {
     bots[A].chat('/dtrap list ztrap')
     await sleep(800)
     check('/dtrap is staff only', /Staff only/.test(text(A, t)), text(A, t))
-    check('no displays while the heist is disabled', (await displays('donating_trap')) === 0 && /armed=false/.test(await traps('ztrap')))
+    check('no displays while the heist is disabled', (await testDisplays()) === 0 && /armed=false/.test(await traps('ztrap')))
     await cmd('dheist enable ztrap')
     await cmd('dheist enable ztrapa')
     const armed = await until(async () => /armed=true/.test(await traps('ztrap')) && /armed=true/.test(await traps('ztrapa')), 6000)
     await sleep(1000)
     const scale1 = await cmd('data get entity @e[type=minecraft:block_display,tag=donating_trap,limit=1,sort=nearest,x=771.5,y=200.9,z=769] transformation.scale')
     const rot5 = await cmd('data get entity @e[type=minecraft:block_display,tag=donating_trap,limit=1,sort=nearest,x=769.5,y=200.5,z=781] Rotation')
-    check('enabled: traps arm, one display per laser and camera (5 + 1)', armed && (await displays('donating_trap')) === 6, `${await traps('ztrap')} / ${await traps('ztrapa')} / ${await displays('donating_trap')}`)
+    check('enabled: traps arm, one display per laser and camera (5 + 1)', armed && (await testDisplays()) === 6, `${await traps('ztrap')} / ${await traps('ztrapa')} / ${await testDisplays()}`)
     check('a laser display is a thin rod as long as the beam; a sloped one is turned to match', /\[0\.06f, 0\.06f, 3\.0f\]/.test(scale1) && /\[306\.8\d*f, -11\.3\d*f\]/.test(rot5), `${scale1} / ${rot5}`)
     await place(A, 772.5, 768.5) // inside, clear of every trap
     const addInside = await cmd('dtrap add ztrap laser 771.5 200.9 769 771.5 200.9 772')
@@ -423,7 +425,7 @@ module.exports = async ({ check }) => {
     await until(async () => /armed=true/.test(await traps('ztrap')), 12000)
     await cmd('sk reload traps')
     await sleep(2500)
-    check('/sk reload traps: displays come back once, no duplicates', (await displays('donating_trap')) === 6 && /displays=5/.test(await traps('ztrap')), `${await displays('donating_trap')} ${await traps('ztrap')}`)
+    check('/sk reload traps: displays come back once, no duplicates', (await testDisplays()) === 6 && /displays=5/.test(await traps('ztrap')), `${await testDisplays()} ${await traps('ztrap')}`)
     const dump = (await cmd('dtrap dump ztrap')).split(/\r?\n/).map(l => l.trim()).filter(l => l.startsWith('dtrap add'))
     const before = (await cmd('dtrap list ztrap')).replace(/armed=\w+/, '')
     await cmd('dheist disable ztrap')

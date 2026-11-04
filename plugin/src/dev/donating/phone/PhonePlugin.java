@@ -226,6 +226,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             getServer().getPluginManager().registerEvents(meleeFx, this); // the melee weapons' swings (MeleeFx)
         } else getLogger().info("WeaponMechanics not found: no gun animations");
         getServer().getScheduler().runTaskTimer(this, this::watch, 1L, 1L);
+        getServer().getScheduler().runTaskLater(this, () -> getLogger().info(TaskSpread.run()), 100L); // Skript's scripts have loaded by the first tick
         marks.start();
         // TAB loads first (softdepend); its API is ready once the server has started.
         Bukkit.getScheduler().runTask(this, () -> {
@@ -724,7 +725,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         String a0 = n > 0 ? args[0].toLowerCase() : "", a1 = n > 1 ? args[1].toLowerCase() : "";
         boolean markTarget = n > 2 && !args[2].equalsIgnoreCase("off") && !args[2].equalsIgnoreCase("status");
         if (n == 1) {
-            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "carfuel", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee"));
+            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "carfuel", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee", "prof", "spread"));
         } else if (n == 2) {
             switch (a0) {
                 case "status", "gps", "mark", "nametag", "melee", "zoom" -> options.addAll(players);
@@ -806,6 +807,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         if (n >= 2 && a0.equals("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
         if (n >= 2 && a0.equals("path")) options.addAll(gps.paths.complete(args, me));
         if (n == 2 && a0.equals("gunfx")) options.add("spin");
+        if (n == 2 && a0.equals("prof")) options.addAll(List.of("start", "stop"));
         if (n == 3 && a0.equals("gunfx") && a1.equals("spin")) options.addAll(players);
         String typed = n == 0 ? "" : args[n - 1].toLowerCase();
         java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
@@ -822,10 +824,13 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
 
     /** Car mods (CarStats), made at first use: MTVehicles may load after this plugin. */
     private CarStats carStats;
+    private final TaskProf prof = new TaskProf(this);
 
     /** /dphone: reload. /dphone status <player>: one line for tests and staff. /dphone gps|roads: the GPS. */
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if (args.length >= 1 && args[0].equalsIgnoreCase("prof")) return prof.command(sender, args);
+        if (args.length >= 1 && args[0].equalsIgnoreCase("spread")) { sender.sendMessage(TaskSpread.run()); return true; }
         if (args.length >= 1 && args[0].equalsIgnoreCase("carstat")) {
             // carstat <plate> [<max speed> <acceleration> <steering>]: garage.sk's car mods (a driven car's stats).
             if (carStats == null) carStats = new CarStats(carSmooth.steer);

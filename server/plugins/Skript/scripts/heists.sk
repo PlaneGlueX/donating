@@ -333,6 +333,9 @@ function heistIndexRegions():
 		set {-heistregion::%{_prefix}%%loop-index%} to loop-index
 
 every second:
+	# A room's reset and an opening are the heavy steps: at most this many a pass, or a restart does every heist's at once
+	# (ticks of 200-700 ms for 7 s, just as Minehut wakes for the first player).
+	set {-heist::stepsleft} to {-cfg::heist::steps-per-second} ? 2
 	loop {heists::*}:
 		heistTick(loop-index)
 	loop all players:
@@ -369,10 +372,13 @@ function heistTick(h: text):
 			if {-heist::%{_h}%::until} <= now:
 				heistEndRun({_h}, "time")
 	else if {_s} is "cooldown":
-		if {-heist::%{_h}%::reset-next} is set:
-			heistResetStep({_h})
-		else if {-heist::%{_h}%::until} <= now:
-			heistOpen({_h})
+		if {-heist::stepsleft} > 0:
+			if {-heist::%{_h}%::reset-next} is set:
+				remove 1 from {-heist::stepsleft}
+				heistResetStep({_h})
+			else if {-heist::%{_h}%::until} <= now:
+				remove 1 from {-heist::stepsleft}
+				heistOpen({_h})
 	heistAlarmTick({_h})
 	heistRefreshText({_h})
 
@@ -643,6 +649,9 @@ function heistJoin(p: player, h: text):
 		if cfg("heist::start-on") is "enter":
 			heistStartRun({_h})
 	set {-heist::%{_h}%::members::%{_p}%} to {_p}
+	# traps.sk's 2-tick loop runs now, not at its next once-a-second pass (a teleport in).
+	if {-trap::armed::%{_h}%} is true:
+		set {-trap::near::%{_h}%} to true
 	if {-heist::%{_h}%::alarm} is set:
 		heistHunt({_p}, {_h})
 	applyWaypointReceive({_p})

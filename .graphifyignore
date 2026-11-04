@@ -1,0 +1,21 @@
+# Never index secrets or player data (Tebex key in logs, RCON password in server.properties)
+logs/
+server/logs/
+server/server.properties
+server/plugins/Tebex/
+server/world/
+server/libraries/
+server/versions/
+server/cache/
+server/voicelines/
+server/plugins/LuckPerms/
+server/plugins/Essentials/
+extras/
+backups/
+tools/node/
+tools/jdk25/
+bots/node_modules/
+bots/results/
+STORE IMAGES/
+${m2}/
+graphify-out/

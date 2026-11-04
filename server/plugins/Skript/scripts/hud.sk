@@ -63,7 +63,7 @@ every 2 ticks:
 		ammoBar(loop-player)
 
 # ---------- The boss bar ----------
-# One bar per player (Skript 2.16 boss bars, {-hud::boss::<p>}), worked out every 5 ticks; only what
+# One bar per player (Skript 2.16 boss bars, {-hud::boss::<p>}), worked out every 10 ticks; only what
 # changed is sent. What it shows:
 #   - inside an open heist: "Bank · the clock starts at the first robbery" (white, full).
 #   - inside an active heist: "Bank · Escape 3:42"; the bar is T / E (T = time left, E = the heist's
@@ -208,7 +208,7 @@ function hudAlarmBar(p: player, h: text, tail: text):
 		set {_cops} to heistCopsAlive({_h}) + heistPool({_h})
 		hudBossSet({_p}, "&4&lASSAULT %{_a}%&r &c· %formatClock({_n})% · %{_cops}% cops &7· %{_tail}%", "red", {_f})
 
-every 5 ticks:
+every 10 ticks:
 	loop all players:
 		hudBoss(loop-player)
 

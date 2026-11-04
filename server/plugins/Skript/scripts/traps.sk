@@ -101,6 +101,7 @@ function trapCompile(h: text):
 	delete {-trapc::%{_h}%::*}
 	delete {-trapcell::%{_h}%::*}
 	delete {-trapcams::%{_h}%::*}
+	delete {-trapfloors::%{_h}%::*}
 	delete {-trapblink::%{_h}%::*}
 	loop {-trapplate::*}:
 		loop-value starts with "%{_h}%-"
@@ -167,6 +168,7 @@ function trapCompileOne(h: text, n: text):
 		set {_e} to {_w} + {_r}
 		trapIndex({_h}, {_n}, min({_ax}, {_bx}) - {_e}, min({_ay}, {_by}) - 1.8 + {_g} - {_r}, min({_az}, {_bz}) - {_e}, max({_ax}, {_bx}) + {_e}, max({_ay}, {_by}) - {_g} + {_r}, max({_az}, {_bz}) + {_e})
 	else if {_k} is "floor":
+		set {-trapfloors::%{_h}%::%{_n}%} to {_n}
 		set {_x1} to min(x-coordinate of {_a}, x-coordinate of {_b})
 		set {_x2} to max(x-coordinate of {_a}, x-coordinate of {_b}) + 1
 		set {_z1} to min(z-coordinate of {_a}, z-coordinate of {_b})
@@ -242,6 +244,7 @@ function trapUnpress(l: location):
 
 function trapDisarm(h: text):
 	delete {-trap::armed::%{_h}%}
+	delete {-trap::near::%{_h}%}
 	delete {-trapseen::%{_h}%::*}
 	delete {-traptouch::%{_h}%::*}
 	delete {-traphit::%{_h}%::*}
@@ -339,6 +342,7 @@ function trapCameraTip(h: text, n: text, yaw: number) :: location:
 every second:
 	loop {heists::*}:
 		trapReconcile(loop-index)
+	trapNearPass()
 	trapFloorRestores()
 	trapShowOutlines()
 
@@ -365,6 +369,24 @@ every 10 seconds:
 		set {-traporph::%loop-index%} to true
 	if {_n} > 0:
 		trapLog("orphans removed %{_n}%")
+
+# Which armed heists have anyone around: only those run the 2-tick loop (blinking beams, sweeping cameras, fuses; they
+# catch up from the clock). A robber counts, or a player within trap::near-range of the heist; heistEnter also sets it at
+# once for a teleport in. Owner, 2026-11-03: the loop was the biggest repeating cost, with nobody near most heists.
+function trapNearPass():
+	delete {-trap::near::*}
+	loop {-trap::armed::*}:
+		set {_h} to loop-index
+		set {_c} to heistCenter({_h})
+		if {_c} is not set:
+			set {-trap::near::%{_h}%} to true
+		else if heistRobberCount({_h}) > 0:
+			set {-trap::near::%{_h}%} to true
+		else:
+			loop all players:
+				if distance between loop-player and {_c} <= {-cfg::trap::near-range}:
+					set {-trap::near::%{_h}%} to true
+					exit loop
 
 function trapReconcile(h: text):
 	set {_s} to heistState({_h})
@@ -400,6 +422,8 @@ on load:
 	delete {-trapd::*}
 	delete {-trapvis::*}
 	delete {-trap::armed::*}
+	delete {-trap::near::*}
+	delete {-trapfloors::*}
 	delete {-trapprev::*}
 	delete {-trapc::*}
 	delete {-trapcell::*}
@@ -416,7 +440,7 @@ on unload:
 
 every 2 ticks:
 	add 2 to {-trap::tick}
-	loop {-trap::armed::*}:
+	loop {-trap::near::*}:
 		trapTick(loop-index)
 
 function trapTick(h: text):
@@ -956,9 +980,8 @@ function trapFloorCracks(h: text, n: text, progress: number):
 
 # Every tick pass: fuses that ran out collapse; half way the crack deepens.
 function trapFloorsDue(h: text):
-	loop {traps::%{_h}%::*}:
-		loop-value is "floor"
-		set {_n} to loop-index
+	loop {-trapfloors::%{_h}%::*}:
+		set {_n} to loop-value
 		set {_c} to "%{_h}%::%{_n}%"
 		if {-trapfloor::%{_c}%} is "crack":
 			if {-trapfloor::%{_c}%::at} <= now:

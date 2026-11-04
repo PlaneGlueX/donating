@@ -1050,6 +1050,7 @@ function loadSettings():
 	# "The Bank is open!" / "The Bank is closed." to everyone. The only heist chat everyone gets (owner,
 	# 2026-09-26): the rest (the clock, warnings, the alarm) goes only to the robbers inside.
 	set {-cfg::heist::announce} to true
+	set {-cfg::heist::steps-per-second} to 2
 	# Room resets place one section of at most this many blocks per side per second.
 	set {-cfg::heist::reset-section} to 32
 	# Largest room a heist may save (blocks). SkBee keeps saved rooms in memory.
@@ -1193,7 +1194,8 @@ function loadSettings():
 	set {-cfg::trap::step} to 0.5              # max blocks between path samples (the hit window is 0.56)
 	set {-cfg::trap::max-samples} to 16        # a fall is up to 3.9 blocks per tick
 	set {-cfg::trap::grace} to 0.05            # hitbox shrink per side: grazes are forgiven
-	set {-cfg::trap::lead} to 4 ticks          # a blinking beam shows this long before it can hurt (ping)
+	set {-cfg::trap::near-range} to 64
+	set {-cfg::trap::lead} to 4 ticks         # a blinking beam shows this long before it can hurt (ping)
 	# Traps hurt, not kill (owner, 2026-09-25). A trap hits on each new touch (off it longer than rearm),
 	# never twice within min-gap; lasers again every `every` while you stay in them, plates once per step.
 	set {-cfg::trap::rearm} to 4 ticks
