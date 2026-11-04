@@ -1786,6 +1786,13 @@ command /zzcasinoreset <player>:
 		delete {casino::day::*}
 		send "CASINORESET %arg-1%"
 
+# A stake left by a server stop, for the next join to refund: /zzcasinopending <uuid> <n>
+command /zzcasinopending <text> <number>:
+	executable by: players and console
+	trigger:
+		set {casinopending::%arg-1%::bj} to arg-2
+		send "CASINOPENDING %arg-1% %arg-2%"
+
 command /zzcasinoforce <text>:
 	executable by: players and console
 	trigger:

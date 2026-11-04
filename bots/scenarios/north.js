@@ -82,6 +82,7 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
       await cmd(`gamemode survival ${P}`)
       await cmd(`zzpassive ${P} off`)
       await cmd(`zztestkit ${P}`)
+      await cmd(`zzcombatend ${P}`) // the last heist's turret hits: a store refuses anyone in combat
       await cmd(`effect give ${P} minecraft:instant_health 1 10 true`) // the last heist's traps: a store's clerk would finish a hurt bot
       bot.setQuickBarSlot(0)
 
@@ -98,6 +99,7 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
       }
 
       await cmd(`dlevel set ${P} ${H.level}`)
+      if (H.level <= 1) { await cmd(`minecraft:tp ${P} ${H.door.join(' ')} ${H.yaw} 0`); await sleep(2500) } // the area loaded, as the level check does
       await tp(H.inside)
       const inside = await until(async () => new RegExp(` ${id} `).test(await cmd(`zzinheist ${P}`)), 8000) // heists.sk's reconcile decides
       check(`${id}: level ${H.level} is in`, inside, await cmd(`zzinheist ${P}`))
@@ -127,6 +129,7 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
         if (/room=0/.test(await cmd(`zzbag ${P}`))) await cmd(`zzbagclear ${P}`) // a starter bag fills on one pile
         await tp(T.stand)
         await hold(T.aim, 6000)
+        if (!new RegExp(`take ${P} \\S+ ${id}-${T.pile} `).test(logged())) await hold(T.aim, 6000) // a camera or clerk hit restarts a hold
         await sleep(500)
         const bag = await cmd(`zzbag ${P}`)
         check(`${id}: ${T.name || `the pile behind G${H.smash && H.smash.gate}`} pays into the bag`, new RegExp(`${id}#\\d+=\\d+`).test(bag) && new RegExp(`take ${P} \\S+ ${id}-${T.pile} `).test(logged()), bag)
