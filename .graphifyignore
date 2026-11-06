@@ -19,3 +19,18 @@ bots/results/
 STORE IMAGES/
 ${m2}/
 graphify-out/
+# The graph's scope (owner, 2026-11-05, "the realistic one"): docs, bots, tools, plugin, testing/notes, the scripts.
+.claude/
+pack/
+handoff/
+/*.md
+*.png
+*gps-paths.txt
+testing/*
+!testing/notes/
+server/*
+!server/plugins/
+server/plugins/*
+!server/plugins/Skript/
+server/plugins/Skript/*
+!server/plugins/Skript/scripts/

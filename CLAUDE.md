@@ -71,4 +71,4 @@ This file loads in every session and every subagent, so it stays under 8 KB: onl
 | DEPLOY.md, MONETIZATION.md, GUNS-PLAN.md | 44K, 35K, 16K | The Minehut upload list, pricing, the gun plan |
 | PLAYTEST.md | 270K | Every check and result: Grep it or append, never read it whole |
 
-Scripts are in `server\plugins\Skript\scripts\` (2.1 MB; core.sk alone 190 KB): Grep the function, read that part. `/graphify` builds a knowledge graph on demand; it can't read `.sk` files, so it's no help with scripts.
+Scripts are in `server\plugins\Skript\scripts\` (2.1 MB; core.sk alone 190 KB): Grep the function, read that part. `/graphify` builds a knowledge graph on demand, scripts included (`.sk` support: tools/graphify-skript, docs/setup.md).
