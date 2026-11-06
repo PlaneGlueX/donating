@@ -15,7 +15,7 @@
 #     hitter) are wanted at once, the police come after the store's response time and attack in assaults (heists.sk;
 #     a store's numbers are core.sk difficulty::0::alarm::*);
 #   - the clerk panics: runs to a shelf (/dclerk <store> shelf add; none: they grab from under the counter), grabs
-#     something (clerk::props), finds a robber in sight within clerk::range and throws it at them (a snowball showing
+#     something (clerk::store-props::<h>, else clerk::props), finds a robber in sight within clerk::range and throws it at them (a snowball showing
 #     the prop, aimed with gravity and a little spread: clerk::damage a hit), then the next shelf, every clerk::every at
 #     most. Another hit makes them duck for clerk::stun (they drop what they hold). With nobody inside they walk back
 #     to the register. A thrown prop that kills counts like a trap (the store's own p, death.sk "clerk").
@@ -168,6 +168,10 @@ function clerkCalm(h: text):
 	set {_l} to clerkSpot({_h})
 	{_l} is set
 	{-clerk::id::%{_h}%} is set
+	# Citizens throws a stack trace for pathto or rotate on an unspawned NPC (nobody near: its chunk is unloaded; bots, 2026-11-05).
+	# shortcut: that clerk stays where it stood instead of walking back, upgrade if a clerk is found away from the register.
+	set {_e} to clerkEntity({_h})
+	{_e} is set
 	clerkCmd({-clerk::id::%{_h}%}, "pathto %x-coordinate of {_l}% %y-coordinate of {_l}% %z-coordinate of {_l}%")
 	wait 3 seconds
 	{-clerk::%{_h}%::st} is "idle"
@@ -264,6 +268,8 @@ function clerkFace(h: text):
 	{_id} is set
 	set {_l} to clerkSpot({_h})
 	{_l} is set
+	set {_e} to clerkEntity({_h})
+	{_e} is set
 	set {_yaw} to yaw of {_l}
 	clerkCmd({_id}, "rotate --body %{_yaw}% --head %{_yaw}%")
 
@@ -526,7 +532,9 @@ function clerkFetch(h: text, e: entity):
 	if difference between {-clerk::%{_h}%::at} and now >= 4 seconds:
 		set {_near} to true
 	{_near} is true
-	set {_props::*} to {-cfg::clerk::props::*}
+	set {_props::*} to {-cfg::clerk::store-props::%{_h}%::*}
+	if size of {_props::*} is 0:
+		set {_props::*} to {-cfg::clerk::props::*}
 	set {_prop} to random element out of {_props::*}
 	clerkHold({_h}, {_prop})
 	make {_e} swing their main hand
@@ -651,9 +659,13 @@ function clerkThrow(h: text, e: entity, t: player):
 	{_pr} is set
 	set velocity of {_pr} to vector({_dx} / {_ticks}, {_dy} / {_ticks} + 0.015 * {_ticks}, {_dz} / {_ticks})
 	if {_prop} is set:
-		set {_it} to cfg("clerk::prop-item::%{_prop}%")
-		if {_it} is set:
-			set item of {_pr} to {_it}
+		set {_tool} to cfg("clerk::prop-tool::%{_prop}%")
+		if {_tool} is set:
+			set item of {_pr} to toolItem({_tool}, 1)
+		else:
+			set {_it} to cfg("clerk::prop-item::%{_prop}%")
+			if {_it} is set:
+				set item of {_pr} to {_it}
 	set {-clerk::proj::%uuid of {_pr}%} to {_h}
 	play sound "entity.snowball.throw" with volume 0.8 and pitch 0.8 at location of {_e}
 	clerkLog("throw %{_h}% at %name of {_t}% d=%round({_d})% prop=%{_prop}%")
@@ -741,6 +753,10 @@ every 5 seconds:
 on right click on entity:
 	set {_h} to clerkOfEntity(event-entity)
 	{_h} is not ""
+	# A gun in hand is a shot while there's a robbery to start or running: the bullet's hit starts it, no menu in the way.
+	if wmTitle(player's tool) is not "":
+		if heistStoreCustomer({_h}) is not true:
+			stop
 	cancel event
 	if {-clerk::%{_h}%::st} is not "idle":
 		hudBar(player, "&cNot now!", 2)

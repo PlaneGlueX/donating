@@ -135,6 +135,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
     private final Renderer renderer = new Renderer();
     private final Gps gps = new Gps(this);
     private final Marks marks = new Marks(this);
+    private Waypoints waypoints; // POIs on the locator bar; needs PacketEvents
     private final CarSmooth carSmooth = new CarSmooth(this);
     private final CarCam carCam = new CarCam(this);
     // The guns' first-person animation clock (only with WeaponMechanics: its classes load only then).
@@ -173,6 +174,15 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             case "heist2" -> Map.entry(MapCursor.Type.BANNER_YELLOW, NamedTextColor.YELLOW);
             case "heist3" -> Map.entry(MapCursor.Type.BANNER_RED, NamedTextColor.RED);
             case "heist4" -> Map.entry(MapCursor.Type.BANNER_BLACK, NamedTextColor.DARK_RED);
+            // Each has its own icon in the pack (tools/make-phone-art.js).
+            case "gun" -> Map.entry(MapCursor.Type.BANNER_BROWN, NamedTextColor.GOLD);
+            case "gear" -> Map.entry(MapCursor.Type.BANNER_GREEN, NamedTextColor.GOLD);
+            case "bag" -> Map.entry(MapCursor.Type.BANNER_PURPLE, NamedTextColor.GOLD);
+            case "cars" -> Map.entry(MapCursor.Type.BANNER_PINK, NamedTextColor.GOLD);
+            case "gas" -> Map.entry(MapCursor.Type.BANNER_GRAY, NamedTextColor.LIGHT_PURPLE);
+            case "police" -> Map.entry(MapCursor.Type.VILLAGE_PLAINS, NamedTextColor.LIGHT_PURPLE);
+            case "casino" -> Map.entry(MapCursor.Type.VILLAGE_DESERT, NamedTextColor.LIGHT_PURPLE);
+            case "tower" -> Map.entry(MapCursor.Type.VILLAGE_TAIGA, NamedTextColor.LIGHT_PURPLE);
             default -> null;
         };
     }
@@ -214,12 +224,18 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(carCam, this);
         carSmooth.start();
         carCam.start();
+        if (getServer().getPluginManager().isPluginEnabled("packetevents")) {
+            waypoints = new Waypoints(this);
+            getServer().getPluginManager().registerEvents(waypoints, this);
+            waypoints.start();
+        }
         if (getServer().getPluginManager().isPluginEnabled("WeaponMechanics")) {
             gunFx = new GunFx(this);
             gunFx.configure(getConfig());
             getServer().getPluginManager().registerEvents(gunFx, this);
             getServer().getPluginManager().registerEvents(gunFx.spin, this); // the spin guns' spin-up (GunSpin)
             getServer().getPluginManager().registerEvents(gunFx.bag, this); // the offhand hidden while a gun reloads (BagHide)
+            getServer().getPluginManager().registerEvents(gunFx.arm, this); // the player's own arm in a reload (RealArm)
             getServer().getPluginManager().registerEvents(gunFx.shells, this); // the ends of a shell-by-shell reload (ShellLoad), after GunFx
             meleeFx = new MeleeFx(this);
             meleeFx.configure(getConfig());
@@ -500,7 +516,8 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPersonalSpawn(EntitySpawnEvent e) {
-        if (e.getEntity().getScoreboardTags().contains(PV_TAG)) e.getEntity().setVisibleByDefault(false);
+        // donating_team: loot markers, shown by loot.sk only to the people in that heist.
+        if (e.getEntity().getScoreboardTags().contains(PV_TAG) || e.getEntity().getScoreboardTags().contains("donating_team")) e.getEntity().setVisibleByDefault(false);
     }
 
     /**
@@ -725,7 +742,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         String a0 = n > 0 ? args[0].toLowerCase() : "", a1 = n > 1 ? args[1].toLowerCase() : "";
         boolean markTarget = n > 2 && !args[2].equalsIgnoreCase("off") && !args[2].equalsIgnoreCase("status");
         if (n == 1) {
-            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "carfuel", "place", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee", "prof", "spread"));
+            options.addAll(List.of("reload", "status", "roads", "path", "zoom", "city", "wall", "gps", "mark", "pv", "nametag", "carstat", "carfuel", "place", "way", "carsmooth", "carprobe", "carbundle", "cam", "steer", "gunfx", "gunskin", "melee", "prof", "spread"));
         } else if (n == 2) {
             switch (a0) {
                 case "status", "gps", "mark", "nametag", "melee", "zoom" -> options.addAll(players);
@@ -806,7 +823,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         if (n >= 2 && a0.equals("cam")) options.addAll(carCam.complete(args, players));
         if (n >= 2 && a0.equals("gunskin") && gunFx != null) options.addAll(gunFx.gunskinComplete(args, players));
         if (n >= 2 && a0.equals("path")) options.addAll(gps.paths.complete(args, me));
-        if (n == 2 && a0.equals("gunfx")) options.add("spin");
+        if (n == 2 && a0.equals("gunfx")) options.addAll(List.of("spin", "realarm"));
         if (n == 2 && a0.equals("prof")) options.addAll(List.of("start", "stop"));
         if (n == 3 && a0.equals("gunfx") && a1.equals("spin")) options.addAll(players);
         String typed = n == 0 ? "" : args[n - 1].toLowerCase();
@@ -878,6 +895,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
         }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("carsmooth") || args[0].equalsIgnoreCase("carprobe") || args[0].equalsIgnoreCase("carbundle"))) return carSmooth.command(sender, args);
         if (args.length >= 2 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("spin")) { if (gunFx == null) { sender.sendMessage("GUNSPIN off (no WeaponMechanics)"); return true; } return gunFx.spin.command(sender, args); }
+        if (args.length >= 3 && args[0].equalsIgnoreCase("gunfx") && args[1].equalsIgnoreCase("realarm") && gunFx != null) { gunFx.arm.set(args[2].equalsIgnoreCase("on")); sender.sendMessage(gunFx.arm.summary()); return true; }
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunfx")) { sender.sendMessage(gunFx == null ? "GUNFX off (no WeaponMechanics)" : gunFx.status() + (meleeFx == null ? "" : " " + meleeFx.summary())); return true; }
         if (args.length >= 1 && args[0].equalsIgnoreCase("melee")) { if (meleeFx == null) { sender.sendMessage("MELEE off (no WeaponMechanics)"); return true; } return meleeFx.command(sender, args); }
         if (args.length >= 1 && args[0].equalsIgnoreCase("gunskin")) { if (gunFx == null) { sender.sendMessage("GUNSKIN off (no WeaponMechanics)"); return true; } return gunFx.gunskinCommand(sender, args); }
@@ -931,6 +949,7 @@ public final class PhonePlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("place")) return placeCommand(sender, args);
+        if (args.length >= 2 && args[0].equalsIgnoreCase("way") && waypoints != null) return waypoints.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("city")) return cityScan.command(sender, args);
         if (args.length >= 1 && args[0].equalsIgnoreCase("wall")) return wallMaps.command(sender, args);
         if (args.length == 2 && args[0].equalsIgnoreCase("status")) {

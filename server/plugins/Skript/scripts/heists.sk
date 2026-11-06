@@ -902,6 +902,7 @@ function heistRelease(p: player, reason: text):
 	delete {-heist::%{_h}%::hunted::%{_p}%}
 	if {_reason} is "range":
 		heistNotify({_p}, "lost-cops", "&aYou lost the cops.")
+		salePop({_p})
 		# A getaway (progress.sk; seasons.sk counts it only with that run's loot, once, after a wave).
 		if {_car} is {_h}:
 			progRunMark({_p}, {_h}, "car", true)
@@ -1149,12 +1150,7 @@ function heistRefreshText(h: text):
 	set {-heist::%{_h}%::title} to "%{_color}%&l%{_name}%"
 	set {_s} to heistState({_h})
 	if {_s} is "open":
-		if heistIsStore({_h}) is true:
-			set {_status} to "&aOPEN &7· no clock"
-		else if cfg("heist::start-on") is "enter":
-			set {_status} to "&aOPEN &7· walk in to start"
-		else:
-			set {_status} to "&aOPEN &7· the clock starts at the first robbery"
+		set {_status} to "&aOPEN"
 		set {_n} to heistRobberCount({_h})
 		if {_n} > 0:
 			set {_status} to "&aOPEN &7· %{_n}% inside"
@@ -1285,6 +1281,8 @@ command /dheist [<text>]:
 			dheistHolo(sender, {_h}, {_a::*})
 		else if {_sub} is "lock":
 			dheistLock(sender, {_h}, {_a::*})
+		else if {_sub} is "pick":
+			dheistPick(sender, {_h}, {_a::*})
 		else if {_sub} is "enable":
 			if heistState({_h}) is not "disabled":
 				dheistReply(sender, "HEIST %{_h}% enable: already enabled (use reset, open or end; or disable first)")
@@ -1584,11 +1582,59 @@ function dheistExit(s: command sender, h: text, a: texts):
 	set {heist::%{_h}%::exit} to {_l}
 	dheistReply({_s}, "HEIST %{_h}% exit set")
 
-# A DecentHolograms hologram whose lines are this script's placeholders (never updated by command:
-# DecentHolograms writes its file on every line change).
+# The sign over a heist's door (owner, 2026-11-04: readable, at about player height): a big text display, shown while someone is within 32 blocks,
+# its bottom 1.7 above the ground under the spot. It isn't saved. Only its x and z come from {heist::<h>::holo} (the map and GPS use that too).
+function heistHoloOff(h: text):
+	if {-heistholo::%{_h}%} is set:
+		kill {-heistholo::%{_h}%}
+	delete {-heistholo::%{_h}%}
+	delete {-heistholo::%{_h}%::text}
+
+function heistHoloDraw(h: text):
+	set {_l} to {heist::%{_h}%::holo}
+	set {_near} to false
+	if {_l} is set:
+		loop all players:
+			if distance between loop-player and {_l} < 32:
+				set {_near} to true
+	if {_near} is false:
+		heistHoloOff({_h})
+		stop
+	chunk at {_l} is loaded
+	set {_d} to {-heistholo::%{_h}%}
+	set {_ok} to false
+	if {_d} is set:
+		if {_d} is valid:
+			set {_ok} to true
+	if {_ok} is false:
+		set {_at} to {_l}
+		loop 16 times:
+			if block below {_at} is not air:
+				exit loop
+			remove 1 from y-coordinate of {_at}
+		add 1.7 to y-coordinate of {_at}
+		spawn a text display at {_at}:
+			make event-display not persistent
+			add "donating_heist_holo" to scoreboard tags of event-display
+			set billboard of event-display to center
+			set display scale of event-display to vector(1.5, 1.5, 1.5)
+			set brightness override of event-display to 15
+		set {_d} to last spawned entity
+		set {-heistholo::%{_h}%} to {_d}
+		delete {-heistholo::%{_h}%::text}
+	set {_t} to "%{-heist::%{_h}%::title}%%nl%%{-heist::%{_h}%::status}%%nl%%{-heist::%{_h}%::info}%"
+	if {-heistholo::%{_h}%::text} is not {_t}:
+		set {-heistholo::%{_h}%::text} to {_t}
+		set text of {_d} to colored {_t}
+
+every 1 second:
+	if size of all players is 0:
+		stop
+	loop {heists::*}:
+		heistHoloDraw(loop-index)
+
 function dheistHolo(s: command sender, h: text, a: texts):
-	set {_hn} to "donating_heist_%{_h}%"
-	execute console command "dh hologram delete %{_hn}%"
+	heistHoloOff({_h})
 	if {_a::3} is "remove":
 		delete {heist::%{_h}%::holo}
 		dheistReply({_s}, "HEIST %{_h}% hologram removed")
@@ -1609,10 +1655,6 @@ function dheistHolo(s: command sender, h: text, a: texts):
 	set {_x} to round({_x} * 10) / 10
 	set {_y} to round({_y} * 10) / 10
 	set {_z} to round({_z} * 10) / 10
-	set {_wn} to {heist::%{_h}%::world}
-	execute console command "dh hologram create %{_hn}% -l:%{_wn}%:%{_x}%:%{_y}%:%{_z}% %%donating_heist_title_%{_h}%%%"
-	execute console command "dh line add %{_hn}% 1 %%donating_heist_status_%{_h}%%%"
-	execute console command "dh line add %{_hn}% 1 %%donating_heist_info_%{_h}%%%"
 	set {heist::%{_h}%::holo} to location({_x}, {_y}, {_z}, {_w})
 	dheistReply({_s}, "HEIST %{_h}% hologram at %{_x}% %{_y}% %{_z}%")
 
@@ -1678,6 +1720,9 @@ function dheistInfo(s: command sender, h: text):
 	dheistReply({_s}, "HEIST %{_h}% name=%heistName({_h})% difficulty=%{_d}% escape=%{_esc}% cooldown=%{_cool}% pool=%{_pool}% level=%heistLevel({_h})% advanced=%heistIsAdvanced({_h})% pvp=%heistIsPvp({_h})% police=%heistPolice({_h})%")
 	set {_locks} to size of {heist::%{_h}%::lock::*}
 	dheistReply({_s}, "HEIST %{_h}% state=%heistState({_h})% run=%heistRun({_h})% left=%heistSecondsLeft({_h})% inside=%heistRobberCount({_h})% alarm=%heistAlarmStage({_h})% exit=%{_exit}% snapshot=%{_snap}% holo=%{_holo}% locks=%{_locks}%")
+	set {_pk} to pickText({_h})
+	if {_pk} is not "":
+		dheistReply({_s}, "HEIST %{_h}% picks%{_pk}%")
 
 # The commands that recreate this heist on another server (Minehut): regions, the world and the
 # DecentHolograms file travel with the world; run these after /rg define.
@@ -1713,6 +1758,10 @@ function dheistDump(s: command sender, h: text):
 	loop {store::%{_h}%::shelf::*}:
 		set {_sp::*} to "%loop-value%" split at "|"
 		add "dclerk %{_h}% shelfat %{_sp::1}% %{_sp::2}% %{_sp::3}%" to {_l::*}
+	loop {heist::%{_h}%::pick::k::*}:
+		add "dheist pick %{_h}% k %loop-index% %loop-value%" to {_l::*}
+	loop {heist::%{_h}%::pick::chance::*}:
+		add "dheist pick %{_h}% chance %loop-index% %loop-value%" to {_l::*}
 	add "dheist snapshot %{_h}%" and "dheist enable %{_h}%" to {_l::*}
 	loop {_l::*}:
 		dheistReply({_s}, loop-value)
@@ -1829,6 +1878,7 @@ function heistOnDisable(h: text):
 
 # /dheist delete: traps.sk deletes the heist's traps.
 function heistOnDelete(h: text):
+	switchOnDelete({_h})
 	trapOnDelete({_h})
 	lootOnDelete({_h})
 	clerkOnClose({_h}, "delete")

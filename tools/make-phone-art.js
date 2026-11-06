@@ -136,6 +136,44 @@ fs.writeFileSync(path.join(deco, 'jungle_temple.png'), arrow([250, 250, 250, 255
 fs.writeFileSync(path.join(deco, 'swamp_hut.png'), arrow([40, 230, 90, 255], [20, 160, 60, 255])) // passive players
 console.log(`wrote the small arrows to ${deco}`)
 
+// ---------- The places' icons on the map ----------
+// Unused decoration sprites repainted (PhonePlugin placeStyle picks them): without the pack these show as vanilla banners and village marks.
+const ICON_COLORS = { K: [15, 15, 18, 255], W: [245, 245, 245, 255], g: [130, 135, 145, 255], d: [70, 74, 82, 255], o: [235, 140, 40, 255], y: [245, 205, 60, 255], b: [70, 130, 230, 255], r: [215, 55, 50, 255], G: [70, 170, 80, 255], n: [125, 85, 50, 255], p: [150, 90, 200, 255], c: [50, 190, 200, 255], m: [215, 90, 200, 255] }
+const ICONS = {
+  house: ['.......KK.......', '......KooK......', '.....KooooK.....', '....KooooooK....', '...KooooooooK...', '..KooooooooooK..', '.KKKKKKKKKKKKKK.', '...KWWWWWWWWK...', '...KWWWKKWWWK...', '...KWWWKKWWWK...', '...KWWWKKWWWK...', '...KKKKKKKKKK...'],
+  cart: ['.KKK............', '.K.K............', '...KKKKKKKKKKKK.', '...KooooooooooK.', '...KooooooooooK.', '...KooooooooooK.', '....KooooooooK..', '....KKKKKKKKKK..', '.....K.....K....', '....KKK...KKK...', '....KWK...KWK...', '....KKK...KKK...'],
+  star: ['.......KK.......', '......KWWK......', '......KWWK......', '.....KWWWWK.....', 'KKKKKKWWWWKKKKKK', 'KWWWWWWWWWWWWWWK', '.KWWWWWWWWWWWWK.', '..KWWWWWWWWWWK..', '...KWWWWWWWWK...', '...KWWWKKWWWK...', '..KWWKK..KKWWK..', '..KKK......KKK..'],
+  pin: ['....KKKKKKKK....', '...KmmmmmmmmK...', '..KmmmmmmmmmmK..', '..KmmmKKKKmmmK..', '..KmmmKWWKmmmK..', '..KmmmKWWKmmmK..', '..KmmmKKKKmmmK..', '...KmmmmmmmmK...', '....KmmmmmmK....', '.....KmmmmK.....', '......KmmK......', '.......KK.......'],
+  wrench: ['.........KKKK...', '........KccK....', '.......KccK..KK.', '.......KccKKKcK.', '.......KcccccK..', '......KcccccK...', '.....KcccKKK....', '....KcccK.......', '...KcccK........', '..KcccK.........', '..KccK..........', '...KK...........'],
+  quest: ['.....KKKKKK.....', '....KbbbbbbK....', '....KbbbbbbK....', '....KbbbbbbK....', '.....KbbbbK.....', '.....KbbbbK.....', '.....KbbbbK.....', '......KbbK......', '......KKKK......', '......KbbK......', '......KbbK......', '......KKKK......'],
+  gun: ['................', '.KKKKKKKKKKKKKK.', '.KddddddddddddK.', '.KddddddddddddK.', '.KKKKKKKKKKKKKK.', '.KnnnnKK.K......', '.KnnnnK.KK......', '.KnnnnKKK.......', '.KnnnnK.........', '.KnnnnK.........', '.KnnnnK.........', '.KKKKKK.........'],
+  vest: ['...KKK....KKK...', '...KGK....KGK...', '..KKGKKKKKKGKK..', '.KGGGGGGGGGGGGK.', '.KGGGGGKKGGGGGK.', '.KGGGGGKKGGGGGK.', '.KKKGGGKKGGGKKK.', '...KGGGKKGGGK...', '...KGGGGGGGGK...', '...KGGGGGGGGK...', '...KGGGGGGGGK...', '...KKKKKKKKKK...'],
+  bag: ['......KKKK......', '.....K....K.....', '.....K....K.....', '...KKKKKKKKKK...', '..KppppppppppK..', '.KppppppppppppK.', '.KppppKyyKppppK.', '.KppppKyyKppppK.', '.KppppKKKKppppK.', '.KppppppppppppK.', '..KppppppppppK..', '...KKKKKKKKKK...'],
+  car: ['................', '....KKKKKKKK....', '...KbbbbbbbbK...', '..KbbWWbbWWbbK..', '.KKbbWWbbWWbbKK.', 'KrrrrrrrrrrrrrrK', 'KrrrrrrrrrrrrrrK', 'KyyrrrrrrrrrryyK', 'KKKKKKKKKKKKKKKK', '..KKK......KKK..', '..KgK......KgK..', '..KKK......KKK..'],
+  pump: ['.KKKKKKKKK......', '.KrrrrrrrK.KK...', '.KrWWWWWrK..KK..', '.KrWWWWWrK...K..', '.KrrrrrrrKK..K..', '.KrrrrrrrK.K.K..', '.KrrrrrrrK.K.K..', '.KrrrrrrrK.K.K..', '.KrrrrrrrK..KK..', '.KrrrrrrrK......', 'KKKKKKKKKKK.....', 'KdddddddddK.....'],
+  badge: ['KKKKK..KK..KKKKK', 'KbbbbKKyyKKbbbbK', 'KbbbbbbyybbbbbbK', 'KbbbbbyyyybbbbbK', 'KbbbbyyyyyybbbbK', 'KbbbbbyyyybbbbbK', '.KbbbbyyyybbbbK.', '.KbbbbbyybbbbbK.', '..KbbbbbbbbbbK..', '...KbbbbbbbbK...', '....KKbbbbKK....', '......KKKK......'],
+  chip: ['.....KKKKKK.....', '...KKWWrrWWKK...', '..KWrrrrrrrrWK..', '.KWrrKKKKKKrrWK.', '.KrrKyyyyyyKrrK.', 'KWrrKyyWWyyKrrWK', 'KWrrKyyWWyyKrrWK', '.KrrKyyyyyyKrrK.', '.KWrrKKKKKKrrWK.', '..KWrrrrrrrrWK..', '...KKWWrrWWKK...', '.....KKKKKK.....'],
+  tower: ['....KKKKKKKK....', '...KccccccccK...', '..KccccccccccK..', '..KccccccccccK..', '..KKKKKKKKKKKK..', '...K.K..K.K.....', '...KK.KK.KK.....', '...K.K..K.K.....', '..KK.KKKK.KK....', '..K.KK..KK.K....', '.KK.K....K.KK...', '.K..K....K..K...']
+}
+const mask = shade => ({ K: [15, 15, 18, 255], H: shade, e: [245, 245, 245, 255] })
+const MASK = ['....KKKKKKKK....', '..KKHHHHHHHHKK..', '.KHHHHHHHHHHHHK.', '.KHHHHHHHHHHHHK.', '.KHKKKKHHKKKKHK.', '.KHKeeKHHKeeKHK.', '.KHKeeKHHKeeKHK.', '.KHKKKKHHKKKKHK.', '.KHHHHHHHHHHHHK.', '..KHHHKKKKHHHK..', '...KHHHHHHHHK...', '....KKKKKKKK....']
+const drawIcon = (rows, colors) => {
+  const rgba = Buffer.alloc(16 * 16 * 4)
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (colors[ch]) colors[ch].forEach((v, i) => { rgba[((y + 2) * 16 + x) * 4 + i] = v })
+  }))
+  return encode(16, 16, rgba)
+}
+const SPRITES = { light_blue_banner: 'house', orange_banner: 'cart', white_banner: 'star', magenta_banner: 'pin', cyan_banner: 'wrench', blue_banner: 'quest', brown_banner: 'gun', green_banner: 'vest', purple_banner: 'bag', pink_banner: 'car', gray_banner: 'pump', plains_village: 'badge', desert_village: 'chip', taiga_village: 'tower' }
+for (const [sprite, name] of Object.entries(SPRITES)) {
+  if (ICONS[name].some(r => r.length !== 16)) throw new Error('icon width ' + name)
+  fs.writeFileSync(path.join(deco, sprite + '.png'), drawIcon(ICONS[name], ICON_COLORS))
+}
+// Heists: a mask in the difficulty's color.
+const HEISTS = { light_gray_banner: [170, 175, 180, 255], lime_banner: [90, 215, 80, 255], yellow_banner: [245, 215, 60, 255], red_banner: [220, 50, 45, 255], black_banner: [55, 50, 60, 255] }
+for (const [sprite, shade] of Object.entries(HEISTS)) fs.writeFileSync(path.join(deco, sprite + '.png'), drawIcon(MASK, mask(shade)))
+console.log('wrote the places icons to ' + deco)
+
 // ---------- Phone icon ----------
 // The phone item's look in the inventory, on the ground and in other players' hands: a small phone
 // with a map on its screen. pack\assets\minecraft\items\filled_map.json picks it for maps whose

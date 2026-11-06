@@ -56,109 +56,41 @@ on respawn:
 	applyWaypointReceive(player)
 
 # ---------- Points of interest on the locator bar (2026-09-26) ----------
-# A POI is an invisible marker armor stand that sends a colored waypoint to every player: the base,
-# shops, the spawn, landmarks (staff: /dpoi), and every heist while it's open or running (at its
-# hologram, in its difficulty's color; off while it cools down). Robbers inside a heist receive no
-# waypoints (applyWaypointReceive above), so the ammo bar stays there. A waypoint entity is only sent
-# while its chunk is loaded, so every POI's chunk is force-loaded. Stands are summoned like the
-# shopkeepers: every 10 s each POI gets exactly one (a missing one comes back, extras go). Quest givers
-# (quests.sk) get one too ("q_<n>", poi::quest::color), always shown.
-# Saved: {poi::<n>} = "type|world|x|y|z|name" (only POIs under poi::, the counter is {poicounter}). Colors: core.sk poi::<type>::color and
-# difficulty::<d>::waypoint (names from Minecraft's /waypoint command: aqua, yellow, gold, ...). Staff POIs live
-# in the main world (/dpoi refuses other worlds); since 2026-10-14 a stand can be in any world (the prison world's
-# quest givers): the console summons and force-loads with "execute in" (core.sk worldDim). Each POI remembers where
-# its stand is ({poiat::<id>}) and which chunk it force-loaded ({poichunk::<id>} = "cx:cz", {poichunkw::<id>} = its
-# world, unset = the main world): a POI that moves (a heist's hologram set again) loses its old stand, and a chunk no
-# POI uses any more is released.
-
-function poiTag(id: text) :: text:
-	return "poi_%{_id}%"
-
-# The world the console's summon lands in (the first world the server lists).
+# A POI is a colored waypoint DonatingPhone sends straight to every client (Waypoints.java, /dphone way): the base, shops,
+# the spawn, landmarks (staff: /dpoi), every heist while it's open or running (at its hologram, in its difficulty's color;
+# off while it cools down), and quest givers ("q_<n>", poi::quest::color). Robbers inside a heist receive no waypoints
+# (applyWaypointReceive above: the plugin reads that attribute), so the ammo bar stays there.
+# No stands or forced chunks since 2026-11-05: a forced chunk keeps every chunk within 13 of it in memory once visited, about
+# 250 MB of Minehut's 1 GB and a full GC every few seconds (docs/performance.md).
+# Saved: {poi::<n>} = "type|world|x|y|z|name" (only POIs under poi::, the counter is {poicounter}). Colors: core.sk
+# poi::<type>::color and difficulty::<d>::waypoint (names from Minecraft's /waypoint command: aqua, yellow, gold, ...). Staff
+# POIs live in the main world (/dpoi refuses other worlds). {-poi::state::<id>} = what the plugin was last told.
+# The main world (the first world the server lists).
 function poiMainWorld() :: world:
 	loop all worlds:
 		return loop-value
 
-# Releases a POI's force-loaded chunk unless another POI still sits in it, and forgets its stand.
-# {poichunkw::<id>} = the chunk's world (2026-10-14: POIs in the prison world; unset = the main world).
-function poiRelease(id: text):
-	set {_c} to {poichunk::%{_id}%}
-	set {_cw} to {poichunkw::%{_id}%}
-	delete {poichunk::%{_id}%}
-	delete {poichunkw::%{_id}%}
-	delete {poiat::%{_id}%}
-	delete {-poi::state::%{_id}%}
-	{_c} is set
-	set {_w} to poiMainWorld()
-	if {_cw} is set:
-		if world({_cw}) is set:
-			set {_w} to world({_cw})
-	loop {poichunk::*}:
-		if loop-value is {_c}:
-			set {_ow} to {poichunkw::%loop-index%}
-			if {_ow} is not set:
-				set {_ow} to "%poiMainWorld()%"
-			if {_ow} is "%{_w}%":
-				stop
-	set {_p::*} to {_c} split at ":"
-	set {_bx} to ({_p::1} parsed as number) * 16
-	set {_bz} to ({_p::2} parsed as number) * 16
-	execute console command "execute in %worldDim({_w})% run forceload remove %{_bx}% %{_bz}%"
-
-# The stand of a POI (staff ones by number, heists by "h_<id>"), summoned if missing.
+# Tells the plugin when a POI's place, look or visibility changes.
 function poiEnsure(id: text, l: location, color: text, on: boolean):
-	set {_tag} to poiTag({_id})
-	# Any world (2026-10-14: the prison world's quest givers): the console runs "execute in" that world.
-	set {_dim} to worldDim(world of {_l})
-	# Moved (a heist's hologram set again): the old stand and its chunk go first.
-	set {_ax} to x-coordinate of {_l}
-	set {_ay} to y-coordinate of {_l}
-	set {_az} to z-coordinate of {_l}
-	set {_ax} to round({_ax} * 100) / 100
-	set {_ay} to round({_ay} * 100) / 100
-	set {_az} to round({_az} * 100) / 100
-	set {_at} to "%world of {_l}%:%{_ax}%:%{_ay}%:%{_az}%"
-	if {poiat::%{_id}%} is set:
-		if {poiat::%{_id}%} is not {_at}:
-			execute console command "minecraft:kill @e[tag=%{_tag}%]"
-			poiRelease({_id})
-			stop
-	set {poiat::%{_id}%} to {_at}
-	set {_n} to 0
-	loop all entities in radius 2 around {_l}:
-		if loop-entity has scoreboard tag {_tag}:
-			add 1 to {_n}
-			if {_n} > 1:
-				kill loop-entity
-	set {_range} to 0
-	if {_on} is true:
-		set {_range} to cfg("poi::range")
-	if {_n} is 0:
-		set {_x} to x-coordinate of {_l}
-		set {_y} to y-coordinate of {_l}
-		set {_z} to z-coordinate of {_l}
-		set {_cx} to floor({_x} / 16)
-		set {_cz} to floor({_z} / 16)
-		execute console command "execute in %{_dim}% run forceload add %{_cx} * 16% %{_cz} * 16%"
-		set {poichunk::%{_id}%} to "%{_cx}%:%{_cz}%"
-		set {poichunkw::%{_id}%} to "%world of {_l}%"
-		execute console command "execute in %{_dim}% run summon minecraft:armor_stand %{_x}% %{_y}% %{_z}% {Tags:[""donating_poi"",""%{_tag}%""],Invisible:1b,Invulnerable:1b,NoGravity:1b,Silent:1b,Marker:1b}"
-		# A new stand has the default range and color: always set them.
-		delete {-poi::state::%{_id}%}
-	# A stand summoned before chunks were tracked: remember its chunk now.
-	if {poichunk::%{_id}%} is not set:
-		set {poichunk::%{_id}%} to "%floor(x-coordinate of {_l} / 16)%:%floor(z-coordinate of {_l} / 16)%"
-		set {poichunkw::%{_id}%} to "%world of {_l}%"
-	# Every pass: the color, the icon and whether it's shown (cheap, and survives /waypoint or attribute edits).
+	{_l} is set
 	set {_style} to poiStyle({_id})
-	if {-poi::state::%{_id}%} is not "%{_color}%:%{_range}%:%{_style}%":
-		execute console command "attribute @e[tag=%{_tag}%,limit=1] minecraft:waypoint_transmit_range base set %{_range}%"
-		execute console command "waypoint modify @e[tag=%{_tag}%,limit=1] color %{_color}%"
-		if {_style} is "default":
-			execute console command "waypoint modify @e[tag=%{_tag}%,limit=1] style reset"
-		else:
-			execute console command "waypoint modify @e[tag=%{_tag}%,limit=1] style set %{_style}%"
-		set {-poi::state::%{_id}%} to "%{_color}%:%{_range}%:%{_style}%"
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_want} to "%world of {_l}% %{_x}% %{_y}% %{_z}% %{_color}% %{_style}%"
+	if {_on} is false:
+		set {_want} to "off"
+	if {-poi::state::%{_id}%} is {_want}:
+		stop
+	set {-poi::state::%{_id}%} to {_want}
+	if {_on} is true:
+		execute console command "dphone way set %{_id}% %{_want}%"
+	else:
+		execute console command "dphone way remove %{_id}%"
+
+function poiForget(id: text):
+	delete {-poi::state::%{_id}%}
+	execute console command "dphone way remove %{_id}%"
 
 # A POI's locator-bar icon (core.sk poi::<kind>::style): heists "h_<id>", quest givers "q_<n>", staff POIs by their type.
 function poiStyle(id: text) :: text:
@@ -216,27 +148,8 @@ function poiReconcile():
 			if questSecret(questKind(loop-index)) is true:
 				set {_on} to false
 			poiEnsure("q_%loop-index%", {_l}, {_color}, {_on})
-	# Stands nothing refers to any more (a removed POI, a deleted heist) go.
-	loop all entities:
-		if loop-entity has scoreboard tag "donating_poi":
-			set {_known} to false
-			loop scoreboard tags of loop-entity:
-				if loop-value-2 starts with "poi_h_":
-					set {_hid} to subtext of loop-value-2 from characters 7 to (length of loop-value-2)
-					if {heists::%{_hid}%} is set:
-						set {_known} to true
-				else if loop-value-2 starts with "poi_q_":
-					set {_qid} to subtext of loop-value-2 from characters 7 to (length of loop-value-2)
-					if {quest::giver::%{_qid}%} is set:
-						set {_known} to true
-				else if loop-value-2 starts with "poi_":
-					set {_pid} to subtext of loop-value-2 from characters 5 to (length of loop-value-2)
-					if {poi::%{_pid}%} is set:
-						set {_known} to true
-			if {_known} is false:
-				kill loop-entity
-	# ...and their force-loaded chunks.
-	loop {poichunk::*}:
+	# Waypoints nothing refers to any more (a removed POI, a deleted heist) go.
+	loop {-poi::state::*}:
 		set {_id} to loop-index
 		set {_known} to false
 		if {_id} starts with "h_":
@@ -250,7 +163,7 @@ function poiReconcile():
 		else if {poi::%{_id}%} is set:
 			set {_known} to true
 		if {_known} is false:
-			poiRelease({_id})
+			poiForget({_id})
 
 every 10 seconds:
 	poiReconcile()
@@ -267,6 +180,26 @@ function poiMapWant(id: text, type: text, l: location, name: text):
 	set {_z} to z-coordinate of {_l}
 	set {-mapwant::%{_id}%} to "%{_type}% %world of {_l}% %round({_x})% %round({_z})% %{_name}%"
 
+# A place's icon on the map: some have their own by name; the rest by their POI type.
+function poiMapKind(type: text, name: text) :: text:
+	if {_name} contains "Gun Shop":
+		return "gun"
+	if {_name} contains "Gear Shop":
+		return "gear"
+	if {_name} contains "Bag Shop":
+		return "bag"
+	if {_name} contains "Car Dealer":
+		return "cars"
+	if {_name} contains "Gas Station":
+		return "gas"
+	if {_name} contains "Police HQ":
+		return "police"
+	if {_name} contains "Casino":
+		return "casino"
+	if {_name} contains "Water Tower":
+		return "tower"
+	return {_type}
+
 function poiMapReconcile():
 	delete {-mapwant::*}
 	loop {poi::*}:
@@ -276,7 +209,7 @@ function poiMapReconcile():
 			set {_name} to "%{_p::1}%"
 		if "%{_name}%" is "":
 			set {_name} to "%{_p::1}%"
-		poiMapWant("p%loop-index%", {_p::1}, poiLocation(loop-value), "%{_name}%")
+		poiMapWant("p%loop-index%", poiMapKind({_p::1}, "%{_name}%"), poiLocation(loop-value), "%{_name}%")
 	loop {heists::*}:
 		set {_h} to loop-index
 		set {_s} to heistState({_h})
@@ -318,6 +251,13 @@ function poiMapReconcile():
 on load:
 	wait 3 seconds
 	delete {-poi::state::*}
+	# Once per server: the old stands' forced chunks and what remembered them (the plugin removes the stands as they load).
+	if {poimigrated} is not set:
+		set {poimigrated} to true
+		execute console command "execute in minecraft:overworld run forceload remove all"
+		delete {poichunk::*}
+		delete {poichunkw::*}
+		delete {poiat::*}
 	# The counter used to live inside the list (it was read as a POI): moved out.
 	if {poi::next} is set:
 		set {poicounter} to {poi::next}
@@ -380,10 +320,8 @@ command /dpoi [<text>]:
 			if {poi::%{_id}%} is not set:
 				send "POI remove: no POI %{_id}% (/dpoi list)" to sender
 				stop
-			set {_tag} to poiTag({_id})
-			execute console command "minecraft:kill @e[tag=%{_tag}%]"
 			delete {poi::%{_id}%}
-			poiRelease({_id})
+			poiForget({_id})
 			send "POI %{_id}% removed" to sender
 		else if {_sub} is "list":
 			loop {poi::*}:

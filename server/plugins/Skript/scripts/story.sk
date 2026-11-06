@@ -1137,6 +1137,8 @@ function questOwns(by: text) :: boolean:
 		return true
 	if {_by} is "jjob":
 		return true
+	if {_by} is "jailout":
+		return true
 	return storyIsChain({_by})
 
 # The GPS's quest slot: one owner for every chain and job. Never over a car job (contracts.sk owns the slot while
@@ -1148,6 +1150,12 @@ function questGps(p: player):
 	delete {-quest::pick::%{_u}%}
 	set {_by} to {-gps::questby::%{_u}%}
 	if {_by} is not set:
+		set {_by} to ""
+	# The prison course owns the slot while it runs (jailcourse.sk jcWay).
+	if {_by} is "course":
+		if jailState({_p}) is "course":
+			stop
+		gpsQuestClear({_p}, "course")
 		set {_by} to ""
 	set {_ours} to true
 	if {_by} is not "":
@@ -1169,6 +1177,11 @@ function questGps(p: player):
 						if questTarget({_p}, loop-value) is true:
 							set {_pick} to loop-value
 	if {_pick} is "":
+		# Back inside after the lessons are done (every death after the first escape): the way out still shows.
+		if {_jailed} is true:
+			if jailState({_p}) is "in":
+				questWayOut({_p})
+				stop
 		if {_by} is not "":
 			gpsQuestClear({_p}, {_by})
 		stop
@@ -1178,6 +1191,25 @@ function questGps(p: player):
 		set {-gps::questobj::%{_u}%} to {_obj}
 	set {-gps::seenobj::%{_u}%::%{_obj}%} to true
 	gpsQuest({_p}, {-qt::%{_u}%::world}, {-qt::%{_u}%::spots}, {-qt::%{_u}%::label}, {-qt::%{_u}%::radius}, {-qt::%{_u}%::by}, {_obj})
+
+# The GPS for a prisoner with nothing else to do: into the lot by the way that needs no items (the punch box and the annex
+# fence), then the lot's two ways out.
+function questWayOut(p: player):
+	set {_pts::*} to "PUNCH_STAND"
+	set {_obj} to "jailout:yard"
+	if {-jail::lot::%uuid of {_p}%} is set:
+		set {_pts::*} to "BOOTH_OUT" and "LADDER_IN"
+		set {_obj} to "jailout:lot"
+	set {_spots} to ""
+	loop {_pts::*}:
+		set {_l} to jailPt(loop-value)
+		if {_l} is set:
+			if {_spots} is "":
+				set {_spots} to gpsSpot({_l})
+			else:
+				set {_spots} to "%{_spots}%;%gpsSpot({_l})%"
+	{_spots} is not ""
+	gpsQuest({_p}, "%world of {_p}%", {_spots}, "Way out", 6, "jailout", {_obj})
 
 # In the prison only Lefty's lessons and a prison job lead the GPS and the sidebar (the city's quests wait for the escape).
 function questJailOk(k: text) :: boolean:
@@ -1259,6 +1291,9 @@ function questShow(p: player):
 				if {_ok} is true:
 					set {_line} to questLine({_p}, loop-value)
 	if {_line} is "":
+		if {-gps::questby::%{_u}%} is "jailout":
+			set {_line} to "&c▶ Way out: &fFollow the trail"
+	if {_line} is "":
 		set {_line} to "&r"
 	set {-ph::mission::%{_p}%} to {_line}
 
@@ -1267,6 +1302,9 @@ function storyHud(p: player) :: boolean:
 	set {_u} to "%uuid of {_p}%"
 	if gpsActive({_p}) is "quest":
 		set {_c} to {-gps::questby::%{_u}%}
+		if {_c} is "jailout":
+			hudBossSet({_p}, "&c&lWAY OUT&r &7· &fFollow the trail %gpsWay({_p})%", "red", 1)
+			return true
 		if {_c} is set:
 			if storyIsChain({_c}) is true:
 				set {_id} to storyIdOf({_p}, {_c})

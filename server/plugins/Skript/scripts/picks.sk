@@ -1,0 +1,200 @@
+# picks.sk: pick groups (tools/build/city/PLAN.md M1): each run of a heist draws which variants of a layout are live, so runs differ.
+# A loot spot or trap joins with pick=<group>[:<variant>] (/dloot set, /dtrap set, or on add). At each opening a group draws k variants
+# (/dheist pick <h> k <group> <k>, default 1), with chance% of drawing any (/dheist pick <h> chance <group> <p>, default 100), redrawn once
+# if it repeats last run's set. Not drawn: a pile rolls nothing, a gate is a plain wall, a trap isn't armed. A heist without picks is untouched.
+# The draw is memory only: {-pickon::<h>::<group>:<variant>}, for run {-pickrun::<h>}. A restart draws again.
+
+# "vault" (the spot is its own variant: 1 of N spots) or "vault:gold"; nothing when bad. Letters and digits only: this goes in variable names and command lines.
+function pickParse(value: text) :: text:
+	set {_p::*} to {_value} split at ":"
+	if size of {_p::*} > 2:
+		stop
+	if {_p::1} doesn't match "[a-zA-Z0-9]+":
+		stop
+	if {_p::2} is not set:
+		return {_value}
+	if {_p::2} doesn't match "[a-zA-Z0-9]+":
+		stop
+	return {_value}
+
+function pickK(h: text, g: text) :: number:
+	set {_k} to {heist::%{_h}%::pick::k::%{_g}%}
+	if {_k} is set:
+		return {_k}
+	return 1
+
+function pickSpot(h: text, kind: text, n: text) :: text:
+	set {_t} to {trap::%{_h}%::%{_n}%::pick}
+	if {_kind} is "loot":
+		set {_t} to {loot::%{_h}%::%{_n}%::pick}
+	if {_t} is not set:
+		stop
+	if {_t} contains ":":
+		return {_t}
+	return "%{_t}%:%{_kind}%%{_n}%"
+
+# Is this spot left out of this run? Spots without a pick return at once (compile and arm only, never per tick).
+function pickOff(h: text, kind: text, n: text) :: boolean:
+	set {_t} to pickSpot({_h}, {_kind}, {_n})
+	if {_t} is not set:
+		return false
+	pickEnsure({_h})
+	if {-pickon::%{_h}%::%{_t}%} is true:
+		return false
+	return true
+
+function pickEnsure(h: text):
+	if {-pickrun::%{_h}%} is not heistRun({_h}):
+		pickDraw({_h})
+
+function pickDraw(h: text):
+	set {-pickrun::%{_h}%} to heistRun({_h})
+	delete {-pickon::%{_h}%::*}
+	loop {loots::%{_h}%::*}:
+		set {_t} to pickSpot({_h}, "loot", loop-index)
+		if {_t} is set:
+			set {_all::%{_t}%} to {_t}
+	loop {traps::%{_h}%::*}:
+		set {_t} to pickSpot({_h}, "trap", loop-index)
+		if {_t} is set:
+			set {_all::%{_t}%} to {_t}
+	loop {_all::*}:
+		set {_p::*} to loop-value split at ":"
+		set {_gs::%{_p::1}%} to {_p::1}
+	set {_line} to ""
+	loop {_gs::*}:
+		set {_g} to loop-value
+		delete {_vars::*}
+		loop {_all::*}:
+			if loop-value-2 starts with "%{_g}%:":
+				add loop-value-2 to {_vars::*}
+		set {_set} to pickRoll({_h}, {_g}, {_vars::*})
+		# Same as last run and another set exists: once more.
+		if {_set} is {-picklast::%{_h}%::%{_g}%}:
+			if size of {_vars::*} > pickK({_h}, {_g}):
+				set {_set} to pickRoll({_h}, {_g}, {_vars::*})
+		set {-picklast::%{_h}%::%{_g}%} to {_set}
+		set {_line} to "%{_line}% %{_g}%=[%{_set}%]"
+		pickApply({_h}, {_set})
+	if {_line} is not "":
+		lootLog("picks %{_h}% run=%heistRun({_h})%%{_line}%")
+
+# k variants at random, as a sorted comma list ("" when the group's chance says none this run).
+function pickRoll(h: text, g: text, vars: texts) :: text:
+	set {_c} to {heist::%{_h}%::pick::chance::%{_g}%}
+	if {_c} is set:
+		if random number between 0 and 100 >= {_c}:
+			return ""
+	set {_order::*} to shuffled {_vars::*}
+	set {_i} to 0
+	loop {_order::*}:
+		if {_i} >= pickK({_h}, {_g}):
+			exit loop
+		add 1 to {_i}
+		add loop-value to {_on::*}
+	set {_on::*} to sorted {_on::*}
+	return join {_on::*} with ","
+
+function pickApply(h: text, list: text):
+	{_list} is not ""
+	loop ({_list} split at ","):
+		set {-pickon::%{_h}%::%loop-value%} to true
+
+# " vault=[vault:2] lasers=[]": what's live this run; "" without picks.
+function pickText(h: text) :: text:
+	pickEnsure({_h})
+	set {_t} to ""
+	loop {-picklast::%{_h}%::*}:
+		set {_t} to "%{_t}% %loop-index%=[%loop-value%]"
+	return {_t}
+
+# /dheist pick <h> | k <group> <k> | chance <group> <percent> | force <group> <variant[,variant]> | draw
+function dheistPick(s: command sender, h: text, a: texts):
+	set {_what} to {_a::3}
+	if {_what} is not set:
+		dheistReply({_s}, "HEIST %{_h}% picks%pickText({_h})%")
+		stop
+	if {_what} is "k" or "chance":
+		set {_n} to {_a::5} parsed as number
+		if {_n} is not set:
+			dheistReply({_s}, "HEIST pick: /dheist pick %{_h}% %{_what}% <group> <number>")
+			stop
+		if {_a::4} doesn't match "[a-zA-Z0-9]+":
+			dheistReply({_s}, "HEIST pick: a group is letters and digits")
+			stop
+		if {_what} is "k":
+			if {_n} < 1:
+				dheistReply({_s}, "HEIST pick: k is at least 1")
+				stop
+		else if {_n} > 100:
+			dheistReply({_s}, "HEIST pick: chance is 0-100")
+			stop
+		else if {_n} < 0:
+			dheistReply({_s}, "HEIST pick: chance is 0-100")
+			stop
+		set {heist::%{_h}%::pick::%{_what}%::%{_a::4}%} to {_n}
+		dheistReply({_s}, "HEIST %{_h}% pick %{_what}% %{_a::4}% = %{_n}% (from the next draw)")
+		stop
+	if heistRobberCount({_h}) > 0:
+		dheistReply({_s}, "HEIST pick: robbers are inside")
+		stop
+	if {_what} is "draw":
+		pickDraw({_h})
+	else if {_what} is "force":
+		if {_a::5} is not set:
+			dheistReply({_s}, "HEIST pick: /dheist pick %{_h}% force <group> <variant[,variant]>")
+			stop
+		pickEnsure({_h})
+		loop {-pickon::%{_h}%::*}:
+			if loop-index starts with "%{_a::4}%:":
+				delete {-pickon::%{_h}%::%loop-index%}
+		loop ({_a::5} split at ","):
+			add "%{_a::4}%:%loop-value%" to {_on::*}
+		set {_list} to join {_on::*} with ","
+		set {-picklast::%{_h}%::%{_a::4}%} to {_list}
+		pickApply({_h}, {_list})
+	else:
+		dheistReply({_s}, "HEIST pick: /dheist pick %{_h}% [k|chance|force|draw]")
+		stop
+	pickRearm({_h})
+	dheistReply({_s}, "HEIST %{_h}% picks%pickText({_h})%")
+
+function pickRearm(h: text):
+	if trapArmed({_h}) is true:
+		trapDisarm({_h})
+		trapArm({_h})
+	else:
+		trapCompile({_h})
+	if lootArmed({_h}) is true:
+		lootArm({_h})
+
+# The most pieces one run can hold: piles in no pick, plus the k largest variants of each group.
+# shortcut: read when a pile changes, so a later /dheist pick k isn't checked against the cap; check it if k is raised on a full heist.
+function pickMaxPieces(h: text) :: number:
+	set {_sum} to 0
+	loop {loots::%{_h}%::*}:
+		loop-value is "pile"
+		set {_rr::*} to lootPileRange({_h}, loop-index) split at ":"
+		set {_hi} to {_rr::2} parsed as number
+		set {_v} to pickSpot({_h}, "loot", loop-index)
+		if {_v} is set:
+			add {_hi} to {_var::%{_v}%}
+		else:
+			add {_hi} to {_sum}
+	loop {_var::*}:
+		set {_p::*} to loop-index split at ":"
+		set {_gn} to {_p::1}
+		set {_gs::%{_gn}%} to {_gn}
+	loop {_gs::*}:
+		set {_gn} to loop-value
+		delete {_gv::*}
+		loop {_var::*}:
+			if loop-index-2 starts with "%{_gn}%:":
+				add loop-value-2 to {_gv::*}
+		set {_sorted::*} to reversed sorted {_gv::*}
+		set {_i} to 0
+		loop {_sorted::*}:
+			if {_i} < pickK({_h}, {_gn}):
+				add loop-value-2 to {_sum}
+			add 1 to {_i}
+	return {_sum}

@@ -57,6 +57,14 @@ Moved word for word from CLAUDE.md on 2026-11-03. Grep a heading, then read that
 - `data get entity` output is truncated with "..." for big NBT. Use `/zzdump <player>` for inventories.
 - The recipe book moves items into the 2x2 crafting grid without an inventory click (closing puts them in the first free hotbar slot). Blocked with `on recipe book click` (found in the computer-use playtest; bots can't send it).
 
+### Item and text displays, clicks (2026-11-04, casino.sk)
+- An item display's model is flipped 180° about Y: a flat icon upright for a viewer at the south is yaw 180, pitch 0; flat on a table with its top away from that viewer is yaw 180, pitch 90 (then local x is west, y north, z down). Text displays read from local +z (yaw 0 from the south, yaw 90 from the west).
+- `vector from yaw Y and pitch P` matches Bukkit's convention: `eye location` plus that gives where a look crosses a plane, for buttons on a block.
+- `on left click` with `event-block` set fires on a barrier in survival, and can be cancelled. A right-click can come twice (both hands): keep a short guard.
+- WeaponMechanics fires on the same click Skript sees and cancelling in Skript doesn't stop it: use its WeaponPreShootEvent (GunFx.onPreShoot).
+- `/zzcfgreload` doesn't read a core.sk edited on disk: `sk reload core.sk`.
+- Bots: Mineflayer's `activateBlock` turns to the block's centre by itself: for an aimed click stub `bot.lookAt` around it (bots/scenarios/casino.js useBlock). A left click is `block_dig` status 0 then 1.
+
 ### Fixed-inventory rules for later scripts
 - The boots slot (Skript slot 36) is free since the phone plugin (it held the map cloak before).
 - The offhand is empty while the phone's big map is open: use `applyBag()` / `closePhoneMap()`, never set the offhand directly then (see Phone plugin).

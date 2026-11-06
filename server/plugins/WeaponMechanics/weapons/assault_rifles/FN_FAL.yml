@@ -9,6 +9,7 @@ FN_FAL:
       Lore:
         - "<gray>Four spinning barrels on a rifle frame."
         - "<gray>Spins up before it fires; a 100-round box."
+        - "<gray>Ammo: <yellow>Rifle Rounds"
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 52.2"
         - "<gold>➣<gray> 50 <gold>⟸ <gray>Accuracy"
@@ -27,7 +28,7 @@ FN_FAL:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>Hand Minigun<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Hand Minigun<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload> <gray>Rifle Rounds"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65);
     # ours are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:

@@ -195,6 +195,12 @@ module.exports = ({ write, canvas, addCase }) => {
   ])
 
   // ---- The ATM (by the gas mart's windows): three blocks tall from the floor, a screen and a keypad in a lit bezel.
+  // A chair (seats.sk): sits on a barrier; the back is at +z.
+  model('chair', [[92, 62, 38], [70, 46, 28], [150, 40, 44], [118, 30, 34]], [
+    { from: [3, 0, 3], to: [5, 8, 5], c: 0 }, { from: [11, 0, 3], to: [13, 8, 5], c: 0 }, { from: [3, 0, 11], to: [5, 8, 13], c: 0 }, { from: [11, 0, 11], to: [13, 8, 13], c: 0 },
+    { from: [2, 8, 2], to: [14, 10, 14], c: { all: 0, up: 2 } },
+    { from: [3, 10, 12], to: [13, 22, 14], c: { all: 1, north: 3 } }
+  ])
   model('atm', [
     [60, 64, 74], [86, 92, 104], [40, 42, 50], [24, 24, 28], [30, 110, 200], [120, 200, 250], [200, 204, 214], [40, 180, 80], [236, 236, 240], [214, 40, 40]
   ], [
@@ -321,6 +327,9 @@ module.exports = ({ write, canvas, addCase }) => {
     box(2, 4, 3, 14, 4.05, 4.5, 1, { dirs: ['up'] }), box(2, 4, 11.5, 14, 4.05, 13, 1, { dirs: ['up'] }),
     box(2, 4, 4.5, 4, 4.05, 11.5, 1, { dirs: ['up'] }), box(12, 4, 4.5, 14, 4.05, 11.5, 1, { dirs: ['up'] })
   ])
+
+  // The Casino's machines, tables and rack (tools/casino-art.js).
+  require('./casino-art').furniture({ model, box, mix, rgba })
 
   // Block letters (3x5) for the painted signs.
   function glyphs (c, text, x, y, col) {

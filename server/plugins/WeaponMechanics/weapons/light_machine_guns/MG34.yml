@@ -9,6 +9,7 @@ MG34:
       Lore:
         - "<gray>A WWII light machine gun on a bipod."
         - "<gray>A 50-round magazine; it holds up at range."
+        - "<gray>Ammo: <yellow>Rifle Rounds"
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 59.8"
         - "<gold>➣<gray> 60 <gold>⟸ <gray>Accuracy"
@@ -26,7 +27,7 @@ MG34:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>Veteran<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Veteran<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload> <gray>Rifle Rounds"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65);
     # ours are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:

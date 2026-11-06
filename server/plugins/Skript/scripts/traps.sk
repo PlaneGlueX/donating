@@ -62,6 +62,10 @@ function trapKeyType(key: text) :: text:
 		return "boolean"
 	if {_key} is "effect":
 		return "effect"
+	if {_key} is "pick":
+		return "pick"
+	if {_key} is "tag":
+		return "tag"
 	return ""
 
 # key=value (as typed) -> the stored value, or nothing when the value is bad.
@@ -83,6 +87,12 @@ function trapParseValue(key: text, value: text) :: object:
 			if {_n} > 20:
 				stop
 		return {_n}
+	if {_t} is "pick":
+		return pickParse({_value})
+	if {_t} is "tag":
+		if {_value} matches "[a-zA-Z0-9,]+":
+			return {_value}
+		stop
 	if {_t} is "boolean":
 		if {_value} is "true":
 			return true
@@ -108,9 +118,21 @@ function trapCompile(h: text):
 		delete {-trapplate::%loop-index%}
 	loop {traps::%{_h}%::*}:
 		trapCompileOne({_h}, loop-index)
+	# Not drawn this run (picks.sk): compiled for /dtrap, but nothing can reach it.
+	loop {traps::%{_h}%::*}:
+		if pickOff({_h}, "trap", loop-index) is true:
+			delete {-trapblink::%{_h}%::%loop-index%}
+			delete {-trapfloors::%{_h}%::%loop-index%}
+			delete {-trapcams::%{_h}%::%loop-index%}
+			set {_off::%loop-index%} to "%{_h}%-%loop-index%"
+	if size of {_off::*} > 0:
+		loop {-trapplate::*}:
+			if {_off::*} contains loop-value:
+				delete {-trapplate::%loop-index%}
 
 # Adds trap n to every cell its box (feet space) touches.
 function trapIndex(h: text, n: text, x1: number, y1: number, z1: number, x2: number, y2: number, z2: number):
+	pickOff({_h}, "trap", {_n}) is false
 	set {_s} to {-cfg::trap::cell}
 	loop integers from floor({_x1} / {_s}) to floor({_x2} / {_s}):
 		loop integers from floor({_y1} / {_s}) to floor({_y2} / {_s}):
@@ -248,6 +270,7 @@ function trapDisarm(h: text):
 	delete {-trapseen::%{_h}%::*}
 	delete {-traptouch::%{_h}%::*}
 	delete {-traphit::%{_h}%::*}
+	delete {-trapoff::%{_h}%::*}
 	loop {traps::%{_h}%::*}:
 		trapDespawn({_h}, loop-index)
 
@@ -256,6 +279,9 @@ function trapSpawn(h: text, n: text):
 	set {_k} to trapKind({_h}, {_n})
 	set {_c} to "%{_h}%::%{_n}%"
 	trapDespawn({_h}, {_n})
+	pickOff({_h}, "trap", {_n}) is false
+	# Shut off by a switch (switch.sk).
+	{-trapoff::%{_h}%::%{_n}%} is not true
 	set {_a} to {trap::%{_h}%::%{_n}%::a}
 	{_a} is set
 	chunk at {_a} is loaded
@@ -547,6 +573,9 @@ function trapScan(h: text, x: number, y: number, z: number, hh: number, who: tex
 		else if {_k} is "plate":
 			if trapPlateHit({_h}, {_n}, {_x}, {_y}, {_z}) is true:
 				set {_hit} to true
+		if {_hit} is true:
+			if {-trapoff::%{_h}%::%{_n}%} is set:
+				set {_hit} to false
 		if {_hit} is true:
 			# A damage trap wins over an alarm trap in the same spot (an alarm hit must not hide it).
 			if {-trapc::%{_h}%::%{_n}%::effect} is not "alarm":
@@ -858,6 +887,7 @@ on pressure plate:
 	if trapCooldown("click::%player%", 500 milliseconds) is true:
 		play sound "block.stone_pressure_plate.click_on" with volume 0.8 at location of event-block
 	# Once per step (the event fires every tick while they stand on it).
+	{-trapoff::%{_parts::1}%::%{_parts::2}%} is not set
 	trapReady({_parts::1}, {_parts::2}, "%player%") is true
 	trapFire(player, {_parts::1}, {_parts::2})
 
@@ -892,7 +922,8 @@ function trapFloorStep(p: player, h: text, x: number, y: number, z: number, clea
 			if trapOnFloor({_c}, {_x}, {_y}, {_z}, 0.3) is true:
 				set {_st} to {-trapfloor::%{_c}%}
 				if {_st} is not set:
-					trapFloorCrack({_h}, {_n})
+					if {-trapoff::%{_c}%} is not set:
+						trapFloorCrack({_h}, {_n})
 				else if {_st} is "crack":
 					tagCombat({_p}, "trap")
 	if {_over} is false:
@@ -1081,6 +1112,7 @@ function trapCameras(h: text):
 
 function trapCamera(h: text, n: text, m: players):
 	set {_c} to "%{_h}%::%{_n}%"
+	{-trapoff::%{_c}%} is not set
 	# Alarm cameras stand down while the alarm runs, and in heists that aren't advanced.
 	if {-trapc::%{_c}%::effect} is "alarm":
 		if {-trap::alarmed::%{_h}%} is true:
@@ -1613,7 +1645,7 @@ function trapDescribe(h: text, n: text) :: text:
 		set {_t} to "%{_t}% %yaw of {_a}% %pitch of {_a}%"
 	if {_k} is "laser":
 		set {_t} to "%{_t}% len=%round(distance between {_a} and {_b} * 100) / 100%"
-	loop "effect", "damage", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "grace" and "period":
+	loop "effect", "damage", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "grace", "period", "pick" and "tag":
 		set {_v} to {trap::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		if trapKeyType(loop-value) is "time":

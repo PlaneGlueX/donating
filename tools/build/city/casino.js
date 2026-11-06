@@ -526,22 +526,21 @@ function hall () {
   for (let z = 351; z <= 358; z++) { S(858, 73, z, 'polished_blackstone'); if (z > 351 && z < 358) { S(858, 75, z, BARS_Z); S(858, 76, z, BARS_Z) } else for (let y = 74; y <= 76; y++) S(858, y, z, 'gold_block') }
   F(849, 77, 351, 858, 77, 358, 'smooth_quartz')
   for (let z = 352; z <= 357; z++) S(850, 73, z, z % 2 ? 'gold_block' : 'yellow_wool') // chip stacks behind the cashier
-  // slots: four rows of six facing south (cabinet, light-blue screen, a lit topper)
+  // slots: four rows of six facing south, a cabinet display (module.exports.displays) over three barriers
   for (const z of [335, 339, 343, 347]) for (const x of SLOT_X) {
-    S(x, 73, z, 'polished_blackstone'); S(x, 74, z, 'light_blue_stained_glass'); S(x, 75, z, PFROG); S(x, 76, z, slabTop('polished_blackstone').replace('type=top', 'type=bottom'))
+    S(x, 73, z, 'barrier'); S(x, 74, z, 'barrier'); S(x, 75, z, 'barrier'); S(x, 76, z, 'light[level=15]') // the cabinets' old froglights lit the room
   }
-  // the table pit: two blackjack tables, roulette (green carpet on dark oak slabs), a gold rope line round it
+  // the table pit: two blackjack tables and roulette, displays over barriers
   for (const [x1, x2] of [[865, 867], [873, 875], [882, 886]]) for (let x = x1; x <= x2; x++) for (let z = 356; z <= 358; z++) {
-    S(x, 73, z, slabTop('dark_oak'))
-    S(x, 74, z, x === 886 ? (z === 357 ? 'black_carpet' : 'red_carpet') : 'green_carpet')
+    S(x, 73, z, 'barrier')
+    S(x, 74, z, AIR)
   }
-  // the Lucky Wheel on its podium (x 868..871, z 363..366), its disc facing the entrance
+  // the Lucky Wheel on its podium (x 868..871, z 363..366): a disc display facing the entrance, over barriers, gold feet
   for (let x = 868; x <= 871; x++) for (let z = 363; z <= 366; z++) S(x, 73, z, (x === 868 || x === 871) && (z === 363 || z === 366) ? 'gold_block' : 'smooth_quartz')
-  const WHEEL = ['red_concrete', 'white_concrete', 'black_concrete', 'lime_concrete', 'light_blue_concrete', 'orange_concrete', 'magenta_concrete', 'yellow_concrete']
   for (let x = 868; x <= 871; x++) for (let y = 74; y <= 77; y++) {
-    const corner = (x === 868 || x === 871) && (y === 74 || y === 77)
-    S(x, y, 364, corner ? 'gold_block' : WHEEL[(x * 3 + y * 5) % WHEEL.length])
+    S(x, y, 364, 'barrier')
   }
+  for (const x of [868, 871]) S(x, 74, 363, 'gold_block') // behind the disc: in its row they hide its lower segments
   S(869, 78, 364, 'gold_block'); S(870, 78, 364, 'gold_block')
   // the Inside Track: a screen on the east wall (x 895, z 333..345, y 75..81), six seats facing it at x 889..890
   for (let z = 333; z <= 345; z++) for (let y = 75; y <= 81; y++) {
@@ -550,6 +549,8 @@ function hall () {
     S(895, y, z, edge ? 'black_concrete' : horse ? ['red_concrete', 'yellow_concrete', 'blue_concrete', 'white_concrete'][z % 4] : y <= 77 ? 'green_concrete' : y === 78 ? 'lime_concrete' : 'light_blue_concrete')
   }
   for (const z of [334, 336, 338, 340, 342, 344]) { S(889, 73, z, stair('red_nether_brick', 'west')); S(890, 73, z, slabTop('dark_oak')) }
+  // the floor's light, day and night: invisible light blocks over the table pit and the aisles
+  for (let x = 860; x <= 892; x += 8) for (const z of [350, 356, 362, 368]) S(x, 77, z, 'light[level=15]')
   // chandeliers: a gold ring and a pearlescent froglight under six of the roof lights
   for (const [x, z] of [[858, 340], [876, 340], [858, 364], [882, 352], [864, 352], [882, 364]]) {
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) S(x + dx, 83, z + dz, dx || dz ? 'gold_block' : PFROG)
@@ -590,14 +591,28 @@ module.exports.labels = [
   { x: 870.0, y: 88.6, z: 372.03, facing: 'south', text: 'CASINO', color: '#ffc928', scale: 6 },          // the marquee tower's panel (y 86..95)
   { x: 850.03, y: 76.15, z: 349.0, facing: 'east', text: 'STAFF ONLY', color: '#ffffff', scale: 0.6 },     // over the staff doorway
   { x: 859.03, y: 77.25, z: 355.0, facing: 'east', text: 'CASHIER', color: '#ffc928', scale: 1.2 },        // the cage's top
-  { x: 870.0, y: 78.3, z: 365.03, facing: 'south', text: 'LUCKY WHEEL', color: '#ffc928', scale: 1.0 },    // over the wheel
-  { x: 895.97, y: 82.1, z: 339.5, facing: 'west', text: 'INSIDE TRACK', color: '#ffffff', scale: 1.4 },    // over the screen
-  { x: 859.03, y: 73.3, z: 355.0, facing: 'east', text: 'GAMES OPENING SOON', color: '#ffffff', scale: 0.5, note: 'launch fallback (6.2): remove when casino.sk opens the floor' }
+  { x: 870.0, y: 78.3, z: 365.03, facing: 'south', text: 'LUCKY WHEEL', color: '#2b1700', scale: 1.0 },    // over the wheel
+  { x: 895.97, y: 82.1, z: 339.5, facing: 'west', text: 'INSIDE TRACK', color: '#ffffff', scale: 1.4 }     // over the screen
 ]
-module.exports.displays = [] // launch fallback (6.2): the floor's games are plain block props, nothing is summoned
+// The floor's games (tools/casino-art.js), over barriers: casino.sk clicks those blocks, so a machine costs no script.
+const furn = (x, y, z, m, yaw = 0, scale = 1, tag) => ({ x, y, z, item: 'iron_ingot', cmd: `donating:furn_${m}`, yaw, pitch: 0, scale, tag })
+module.exports.displays = [
+  ...[335, 339, 343, 347].flatMap((z, r) => SLOT_X.map(x => furn(x + 0.5, 74.5, z + 0.5, `slot_${['red', 'blue', 'gold', 'violet'][r]}`))),
+  furn(866.5, 73.5, 357.5, 'bjtable'), furn(874.5, 73.5, 357.5, 'bjtable'),
+  furn(883.5, 73.5, 357.5, 'roulette_wheel'), furn(885.5, 73.5, 357.5, 'roulette_felt'),
+  // casino.sk turns these three by their tags. The disc sits a hair over the bowl's rim (model y 15.5 of the table).
+  furn(883.5, 73.98, 357.5, 'roulette_disc', 0, 1, 'casino_rl_disc'), furn(883.5, 73.98, 357.5, 'roulette_ball', 0, 1, 'casino_rl_ball'),
+  furn(870, 76, 364.5, 'wheel', 0, 4 / 3, 'casino_wheel'), furn(870, 77.75, 364.82, 'wheel_pointer'), // hangs from the gold block over the disc
+  furn(858.5, 74.5, 354.5, 'cashier', -90),
+  // The Inside Track: the picture on the screen, and six runners casino.sk moves south along their lanes (the lanes' rows in casino-art.js).
+  { ...furn(894.97, 78.5, 339.5, 'track_screen', 90, 11 / 3), brightness: { sky: 15, block: 15 } },
+  ...[79.656, 79.0, 78.344, 77.656, 77.0, 76.344].map((y, i) => ({ ...furn(894.93, y, 335.1, 'x', 90, 0.8, `casino_horse_${i + 1}`), item: 'paper', cmd: `donating:track_horse_${i + 1}`, brightness: { sky: 15, block: 15 } })),
+  // A seat's pad of buttons, on the ledge before it.
+  ...[334, 336, 338, 340, 342, 344].map(z => furn(890.5, 74.5, z + 0.5, 'track_pad', 90))
+]
 module.exports.points = {
   CASINO_EXIT: [869.5, 73, 380.5, 0], CASINO_HOLO: [869.5, 80, 373.5, 0], CASINO_CHASE: [869.5, 63.5, 350.5, 0],
-  CASHIER: [854.5, 73, 354.5, -90], BJ_1: [866.5, 73, 357.5, 0], BJ_2: [874.5, 73, 357.5, 0], ROULETTE: [884.5, 73, 357.5, 0],
+  CASHIER: [857.5, 73, 354.5, -90], BJ_1: [866.5, 73, 355.5, 0], BJ_2: [874.5, 73, 355.5, 0], ROULETTE: [884.5, 73, 355.5, 0], // casino.sk's mannequins, behind the counter and tables
   WHEEL: [870.0, 73, 367.5, 180], // where a player stands to spin: in front of the disc (x 868..871, z 364), facing north
   TRACK: [889.5, 73, 339.5, -90], // the middle of the six seats, facing the screen on the east wall
   ...Object.fromEntries([335, 339, 343, 347].flatMap((z, r) => SLOT_X.map((x, i) => [`SLOT_${r * 6 + i + 1}`, [x + 0.5, 73, z + 0.5, 0]]))),
@@ -678,7 +693,8 @@ module.exports.setup = {
   heists: [{ id: 'casino', difficulty: 4, name: 'Casino', exit: [869.5, 73, 380.5, 0], holo: [869.5, 80, 373.5], chase: [869.5, 63.5, 350.5],
     settings: { advanced: true, escape: '10:00', cooldown: '30:00', level: 45, pool: 240000, police: true },
     snapshot: 'the room clean: every gate as built, G7 closed, no L1 bars', lines: HEIST_LINES }],
-  keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], pois: [], walls: [], holos: [],
+  keepers: [], givers: [], crates: [], carSpots: [], chops: [], garages: [], walls: [], holos: [],
+  pois: [{ at: [869.5, 73, 380.5], tag: 'C', cmd: 'dpoi addat landmark 869.5 73 380.5 Casino' }],
   bikes: BIKE_LINES.map(l => { const [x, y, z, yaw] = l.split(' ').slice(-4).map(Number); return { at: [x, y, z, yaw], tag: 'C', cmd: l.slice(4) } })
 }
 

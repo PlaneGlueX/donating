@@ -19,6 +19,7 @@ function showHelp(p: player):
 	send colored "&7• &eQuests: &7Mara's missions, car contracts, side jobs, Vic's Wanted List and hits, all in the GPS. &f/gps quests" to {_p}
 	send colored "&7• &eCars: &7buy them at the Car Dealer; take them out and tune them at a garage (&f/garage&7). Driving: &fF &7locks your car, the key's right-click shows the big map. Car crates give rare wraps and mods." to {_p}
 	send colored "&7• &eCrates: &7a free key every day (&f/daily&7), more in &f/crates&7; open them at crate stands. &f/cosmetics &7to wear what you won." to {_p}
+	send colored "&7• &eCasino: &7from level 5 buy chips at the cashier, then right-click the machines and tables to play slots, blackjack, roulette and the Inside Track; chips cash out for a 2%% fee. The Lucky Wheel is free once a day. No fighting on the floor. &f/chips" to {_p}
 	send colored "&7• &eDying &7drops your loot for others to grab and costs a bit of your balance." to {_p}
 	send colored "&7• &ePrison: &7every death sends you back to the prison. Break out: a keycard through the police station, C4 on the vehicle gate, or the parkour by the Gun Shop; then the front gate from the gatehouse, or dig under the lot's west fence. The yard's Gun Shop needs a keycard; Sparks in the workshop makes weapons from junk. &f/prison" to {_p}
 	send colored "&7• &eTrading: &7stand next to someone and &f/trade &7their name: cars and crate cosmetics." to {_p}
@@ -58,6 +59,7 @@ function showCommands(p: player):
 	helpLine({_p}, "/daily", "your free daily crate key")
 	helpLine({_p}, "/crates", "your keys, what each crate holds, buy keys")
 	helpLine({_p}, "/booster", "the boosters running now")
+	helpLine({_p}, "/chips", "your casino chips")
 	helpLine({_p}, "/heistrefresh [heist]", "reopen a heist early (Elite, Legend)")
 	helpLine({_p}, "/store &7(/donate), &e/ranks", "support the server")
 	send colored "&6Looks" to {_p}
@@ -108,6 +110,7 @@ function helpPage(p: player):
 	helpTile({_p}, {_gui}, 31, appIcon("passive_off", "&ePassive mode"), "No PvP, you show on maps;;Heists pay %{_cut}%%% less", "")
 	helpTile({_p}, {_gui}, 32, appIcon("season", "&eSeasons"), "Three leaderboards, prizes", "lb")
 	helpTile({_p}, {_gui}, 33, gold ingot named "&eRanks", "Support the server: /ranks;;A tag, a bag look, more room", "")
+	helpTile({_p}, {_gui}, 40, casinoArt(gold ingot named "&eCasino", "chips"), "Level 5+: chips at the cashier;;Slots, cards, roulette, races;;A free wheel spin a day", "gps:places")
 	helpButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	set {-help::gui::%{_p}%} to {_gui}
 	if {-help::gen::%{_p}%} is not set:
@@ -228,6 +231,7 @@ function showAdminHelp(s: command sender, topic: text):
 		ahLine({_s}, "/dphone status/gps/mark/nametag/carstat ...", "the phone plugin, for tests")
 		ahLine({_s}, "/dphone carsmooth [off/sync/track/all | together on/off] | carprobe <plate> [ticks] | cam <player> | cam tune <key> <value> | cam probe <player> <ticks>", "smoother cars and the chase camera")
 		ahLine({_s}, "/dphone steer [on/off] | steer <player/plate> | steer tune <key> <value> | steer profile <name> <rmin> <grip>", "car steering by speed (off: MTVehicles' own)")
+		ahLine({_s}, "/dcasino info <player> | give/take <player> <chips> | stats [days] | enable/disable", "the casino: give and take are logged, for refunds")
 		ahLine({_s}, "/staffchat &7(/sc)&e, /broadcast &7(/bc)", "staff chat, a server message")
 	else if {_topic} is "store":
 		ahTitle({_s}, "Owner and store (donating.store / donating.season.admin; Tebex runs these)")

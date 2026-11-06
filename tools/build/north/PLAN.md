@@ -34,7 +34,7 @@ The biggest heist in North (expand/PLAN.md 1.3): difficulty 4, level 50, advance
 3. **The security door** G2 (safe, x 727, z 175..177, y 65..67) in the back wall into **the secure wing** x 728..746: the cash carts P4, a camera, and the stair down (z 176..177, east from x 730 at feet 65 to x 742 at feet 53, rails along it).
 4. **B1** (floor 52, feet 53..57, ceiling 58): the stair's landing x 743..746, z 168..179, then **the laser gallery** x 712..742, z 168..172 west: 10 laser lines across it (low, duck, timed pairs, two alarm lines).
 5. **Vault door 1** G3 (drill, x 711, z 168..172, y 53..57; time 90, jams 2, claim 10) into **the cage room** x 697..710, z 160..180: the cash pallets P7, plates in front of each alcove, and two deposit alcoves behind safes: north G4 (x 702..704, z 159, y 53..55) with deposit boxes P5, south G5 (x 702..704, z 181) with P6.
-6. **Vault door 2** G6 (drill, x 696, z 168..172, y 53..57; time 120, jams 3, claim 15) into **the gold vault** x 686..695, z 157..183: bullion pallets P8 (north end), P9 (south end), P10 (west wall), timed lasers across both ends.
+6. **Vault door 2** G6 (a blast door since 2026-11-04: reserve-17, fuse 20, tools/build/city/blast-setup.txt; first built as a drill, x 696, z 168..172, y 53..57; time 120, jams 3, claim 15) into **the gold vault** x 686..695, z 157..183: bullion pallets P8 (north end), P9 (south end), P10 (west wall), timed lasers across both ends.
 
 **Loot** (≈ $65,000 on an average roll):
 

@@ -53,7 +53,7 @@ function lootKind(h: text, n: text) :: text:
 	return ""
 
 function lootIsGate(k: text) :: boolean:
-	if {_k} is "smash" or "safe" or "drill":
+	if {_k} is "smash" or "safe" or "drill" or "blast":
 		return true
 	return false
 
@@ -76,6 +76,8 @@ function lootSetting(h: text, n: text, key: text) :: object:
 			return "glass case"
 		if {_k} is "safe":
 			return "safe"
+		if {_k} is "blast":
+			return "blast door"
 		return "vault door"
 	return {-cfg::loot::%{_k}%::%{_key}%}
 
@@ -83,6 +85,8 @@ function lootSetting(h: text, n: text, key: text) :: object:
 function lootKeyType(k: text, key: text) :: text:
 	if {_key} is "name":
 		return "text"
+	if {_key} is "pick":
+		return "pick"
 	if {_k} is "pile":
 		if {_key} is "value":
 			return "range"
@@ -109,6 +113,11 @@ function lootKeyType(k: text, key: text) :: text:
 	if {_k} is "safe":
 		if {_key} is "digits":
 			return "digits"
+		if {_key} is "claim":
+			return "secs0"
+	if {_k} is "blast":
+		if {_key} is "fuse" or "radius" or "damage":
+			return "secs"
 		if {_key} is "claim":
 			return "secs0"
 	if {_k} is "drill":
@@ -151,6 +160,8 @@ function lootParse(t: text, value: text) :: object:
 		stop
 	if {_t} is "id":
 		return {_value}
+	if {_t} is "pick":
+		return pickParse({_value})
 	if {_t} is "bool":
 		if {_value} is "true":
 			return true
@@ -301,6 +312,12 @@ function lootCompileOne(h: text, n: text):
 			set {-lootc::%{_c}%::jams} to lootSetting({_h}, {_n}, "jams")
 			set {-lootc::%{_c}%::mount} to lootSetting({_h}, {_n}, "mount")
 			set {-lootc::%{_c}%::claim} to lootSetting({_h}, {_n}, "claim")
+		else if {_k} is "blast":
+			set {-lootc::%{_c}%::plant} to lootSetting({_h}, {_n}, "plant")
+			set {-lootc::%{_c}%::fuse} to lootSetting({_h}, {_n}, "fuse")
+			set {-lootc::%{_c}%::claim} to lootSetting({_h}, {_n}, "claim")
+			set {-lootc::%{_c}%::radius} to lootSetting({_h}, {_n}, "radius")
+			set {-lootc::%{_c}%::damage} to lootSetting({_h}, {_n}, "damage")
 
 # ---------- Arming, rolling ----------
 
@@ -329,7 +346,10 @@ function lootArm(h: text):
 			add {_v} to {_total}
 			set {_lines} to "%{_lines}% %loop-index%=%{_v}%"
 		else:
+			# A gate not drawn this run (picks.sk) is a plain wall.
 			set {-lootst::%{_h}%::%loop-index%} to "closed"
+			if pickOff({_h}, "loot", loop-index) is true:
+				set {-lootst::%{_h}%::%loop-index%} to "off"
 			lootGateRestore({_h}, loop-index)
 	loop {loots::%{_h}%::*}:
 		loop-value is "pile"
@@ -377,6 +397,10 @@ function lootRollPile(h: text, n: text) :: number:
 	set {_c} to "%{_h}%::%{_n}%"
 	delete {-lootv::%{_c}%::*}
 	delete {-lootcn::%{_c}%::*}
+	if pickOff({_h}, "loot", {_n}) is true:
+		set {-lootn::%{_c}%} to 0
+		set {-lootleft::%{_c}%} to 0
+		return 0
 	set {_v} to {-lootc::%{_c}%::piece}
 	set {_per} to {-lootc::%{_c}%::per}
 	set {_layers} to {-lootc::%{_c}%::layers}
@@ -489,10 +513,14 @@ function lootSpawnSpot(h: text, n: text):
 			lootGateAir({_h}, {_n})
 		else:
 			lootGateRestore({_h}, {_n})
+			if {_st} is "off":
+				stop
 			loop {loot::%{_h}%::%{_n}%::gate::*}:
 				lootSpawnHitbox({_h}, {_n}, loop-index parsed as number)
 		if {_st} is "drilling" or "jammed":
 			lootDrillDisplays({_h}, {_n})
+		if {_st} is "planted":
+			lootBlastDisplays({_h}, {_n})
 	lootMarker({_h}, {_n}, true)
 
 function lootDespawnSpot(h: text, n: text):
@@ -738,7 +766,7 @@ function lootMarkerWant(h: text, n: text) :: text:
 		return "none"
 	if {_st} is "closed":
 		return "white"
-	if {_st} is "jammed":
+	if {_st} is "jammed" or "planted":
 		return "red"
 	return "none"
 
@@ -772,10 +800,14 @@ function lootMarker(h: text, n: text, force: boolean = false):
 	set {_d} to last spawned entity
 	set {-lootmk::%{_c}%} to {_d}
 	lootReg({_c}, {_d})
+	loop heistRobbers({_h}):
+		reveal {_d} to loop-value
 
 function lootMarkerSetup(d: entity, color: text):
 	make {_d} not persistent
 	add "donating_loot" to scoreboard tags of {_d}
+	# Only the people in the heist see the glow (owner, 2026-11-04): DonatingPhone hides this tag before it's in the world, lootOnEnter reveals, lootForget hides.
+	add "donating_team" to scoreboard tags of {_d}
 	set {_i} to gold nugget
 	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:marker"
 	set item of {_d} to {_i}
@@ -997,6 +1029,8 @@ function lootClick(p: player, hit: text):
 		lootClickSafe({_p}, {_h}, {_n})
 	else if {_k} is "drill":
 		lootClickDrill({_p}, {_h}, {_n})
+	else if {_k} is "blast":
+		lootClickBlast({_p}, {_h}, {_n})
 
 # ---------- Piles ----------
 
@@ -1138,6 +1172,8 @@ function lootTake(p: player, h: text, n: text, i: number) :: number:
 	progEvent({_p}, "rob", {_got}, "%{_h}%#%heistRun({_h})%")
 	set {_pct} to bagPct({_p})
 	play sound "item.bundle.insert" with volume 0.8 and pitch (0.9 + 0.5 * {_pct} / 100) at location of {_p}
+	play sound "entity.experience_orb.pickup" with volume 0.5 and pitch (0.8 + 0.8 * {_pct} / 100) to {_p}
+	draw 12 rgb(255, 205, 40) dust particles of size 1 with offset vector(0.3, 0.4, 0.3) at location of {_p} ~ vector(0, 1, 0)
 	if bagRoom({_p}) <= 0:
 		play sound "block.amethyst_block.chime" with volume 1 to {_p}
 		lootBar({_p}, "&a+%formatMoney({_got})% &7· &6&l%bagFullWord({_p})%&r &7· sell it at the base")
@@ -1515,19 +1551,7 @@ function lootMount(p: player, h: text, n: text):
 		loop integers from 1 to {_j}:
 			set {-lootdrill::%{_c}%::jam::%loop-value%} to floor(loop-value * {_need} / ({_j} + 1))
 	# The drill sits on the door face toward the one who mounted it.
-	set {_ctr} to lootGateCenter({_h}, {_n})
-	set {_dx} to (x-coordinate of {_p}) - (x-coordinate of {_ctr})
-	set {_dz} to (z-coordinate of {_p}) - (z-coordinate of {_ctr})
-	set {_hx} to ({-lootc::%{_c}%::x2} - {-lootc::%{_c}%::x1} + 1) / 2
-	set {_hz} to ({-lootc::%{_c}%::z2} - {-lootc::%{_c}%::z1} + 1) / 2
-	if abs({_dx}) >= abs({_dz}):
-		set {_fx} to (x-coordinate of {_ctr}) + ({_hx} + 0.3) * ({_dx} / max(0.001, abs({_dx})))
-		set {_fz} to z-coordinate of {_ctr}
-	else:
-		set {_fx} to x-coordinate of {_ctr}
-		set {_fz} to (z-coordinate of {_ctr}) + ({_hz} + 0.3) * ({_dz} / max(0.001, abs({_dz})))
-	set {_face} to location({_fx}, y-coordinate of {_ctr}, {_fz}, world of {_ctr})
-	set yaw of {_face} to yaw of (vector from {_face} to {_ctr})
+	set {_face} to lootGateFace({_h}, {_n}, {_p})
 	set {-lootdrill::%{_c}%::face} to {_face}
 	lootDrillDisplays({_h}, {_n})
 	lootMarker({_h}, {_n})
@@ -1893,6 +1917,7 @@ function lootSpotsText(h: text) :: text:
 	set {_left} to 0
 	loop {loots::%{_h}%::*}:
 		loop-value is "pile"
+		pickOff({_h}, "loot", loop-index) is false
 		add 1 to {_all}
 		{-lootn::%{_h}%::%loop-index%} > 0
 		add 1 to {_left}
@@ -1920,6 +1945,8 @@ function lootSecond(h: text):
 	loop {loots::%{_h}%::*}:
 		if loop-value is "drill":
 			lootDrillTick({_h}, loop-index)
+		if loop-value is "blast":
+			lootBlastTick({_h}, loop-index)
 		if loop-value is not "pile":
 			lootClaimCheck({_h}, loop-index)
 	set {-ph::heistloot::%{_h}%} to formatMoneyShort(lootLeft({_h}))
@@ -1946,11 +1973,7 @@ function lootPlayerSecond(p: player):
 				set {_far} to false
 		if {_far} is true:
 			lootQteClose({_p}, "far")
-	set {_t} to bagTier({_p})
-	if {_t} > 0:
-		set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))%"
-	else:
-		set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))% (hands)"
+	set {-ph::bag::%{_p}%} to "%formatMoneyShort(bagTotal({_p}))%/%formatMoneyShort(bagCapacity({_p}))%"
 	set {-ph::bagpct::%{_p}%} to "%bagPct({_p})%%%"
 	set {_h} to heistOf({_p})
 	if {_h} is not "":
@@ -2032,7 +2055,7 @@ function lootPrompt(p: player, h: text):
 		set {_st} to {-lootst::%{_c}%}
 		# Empty piles, locked piles and open gates have nothing to do.
 		set {_skip} to false
-		if {_st} is "empty" or "locked":
+		if {_st} is "empty" or "locked" or "off":
 			set {_skip} to true
 		else if {_st} is "open":
 			if loop-value is not "pile":
@@ -2042,10 +2065,10 @@ function lootPrompt(p: player, h: text):
 		if {_d2} < {_bd}:
 			set {_bd} to {_d2}
 			set {_best} to {_n}
-	if {_best} is "":
-		delete {-lootprompt::%{_p}%}
-		stop
-	set {_text} to lootPromptText({_p}, {_h}, {_best})
+	# Nothing near: the controls stay on the bar for the whole heist (owner, 2026-11-04).
+	set {_text} to "&eHold right-click &7on glowing loot to grab it &8| &7Then get out with your bag"
+	if {_best} is not "":
+		set {_text} to lootPromptText({_p}, {_h}, {_best})
 	{_text} is not ""
 	if {-lootprompt::%{_p}%} is {_text}:
 		if difference between {-lootprompt::%{_p}%::at} and now < 2 seconds:
@@ -2070,6 +2093,10 @@ function lootPromptText(p: player, h: text, n: text) :: text:
 		return "&eHold right-click &7· Grab &6%{_name}% &7(%formatMoney({-lootleft::%{_c}%})% left)"
 	if {_k} is "smash":
 		return "&eHold right-click &7· Smash the glass"
+	if {_k} is "blast":
+		if {_st} is "planted":
+			return "&c&lGET BACK! &7The charge is lit"
+		return "&eHold right-click &7· Plant a charge"
 	if {_k} is "safe":
 		if toolCount({_p}, "safe-kit") < 1:
 			return "&eCrack the safe &7· needs a &fSafe Kit"
@@ -2082,15 +2109,192 @@ function lootPromptText(p: player, h: text, n: text) :: text:
 		return "&cRight-click &7· The drill jammed: fix it"
 	return "&7Drilling: &f%lootDrillPct({_c})%%% &7· %formatClock({-lootdrill::%{_c}%::need} - {-lootdrill::%{_c}%::done})% left"
 
+# ---------- Blast charges ----------
+
+# The spot on the door's face toward p, looking at the door: where a drill or a charge sits.
+function lootGateFace(h: text, n: text, p: player) :: location:
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_ctr} to lootGateCenter({_h}, {_n})
+	set {_dx} to (x-coordinate of {_p}) - (x-coordinate of {_ctr})
+	set {_dz} to (z-coordinate of {_p}) - (z-coordinate of {_ctr})
+	set {_hx} to ({-lootc::%{_c}%::x2} - {-lootc::%{_c}%::x1} + 1) / 2
+	set {_hz} to ({-lootc::%{_c}%::z2} - {-lootc::%{_c}%::z1} + 1) / 2
+	if abs({_dx}) >= abs({_dz}):
+		set {_fx} to (x-coordinate of {_ctr}) + ({_hx} + 0.3) * ({_dx} / max(0.001, abs({_dx})))
+		set {_fz} to z-coordinate of {_ctr}
+	else:
+		set {_fx} to x-coordinate of {_ctr}
+		set {_fz} to (z-coordinate of {_ctr}) + ({_hz} + 0.3) * ({_dz} / max(0.001, abs({_dz})))
+	set {_face} to location({_fx}, y-coordinate of {_ctr}, {_fz}, world of {_ctr})
+	set yaw of {_face} to yaw of (vector from {_face} to {_ctr})
+	return {_face}
+
+# Hold to plant, no item, once a run. Then the fuse burns on its own (lootBlastTick); nobody can stop it.
+function lootClickBlast(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	if {-lootst::%{_c}%} is "planted":
+		lootBar({_p}, "&c&lGET BACK! &7The charge is lit")
+		stop
+	{-lootst::%{_c}%} is "closed"
+	set {_plant} to {-lootc::%{_c}%::plant}
+	if lootHold({_p}, "%{_c}%|blast", {_plant}) is true:
+		lootBlastPlant({_p}, {_h}, {_n})
+		stop
+	lootBar({_p}, "&ePLANT %lootMeter(lootHeld({_p}) / {_plant})%")
+
+function lootBlastPlant(p: player, h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {-lootst::%{_c}%} to "planted"
+	delete {-lootdrill::%{_c}%::*}
+	set {-lootdrill::%{_c}%::owner} to {_p}
+	set {-lootdrill::%{_c}%::left} to {-lootc::%{_c}%::fuse}
+	set {_face} to lootGateFace({_h}, {_n}, {_p})
+	set {-lootdrill::%{_c}%::face} to {_face}
+	lootBlastDisplays({_h}, {_n})
+	lootMarker({_h}, {_n})
+	play sound "entity.tnt.primed" with volume 1.5 at {_face}
+	loop heistRobbers({_h}):
+		lootBar(loop-value, "&c&lCHARGE LIT &7· %formatClock({-lootc::%{_c}%::fuse})%: get back!")
+	lootLog("blast plant %name of {_p}% %{_h}%-%{_n}% run=%heistRun({_h})%")
+	heistStartRun({_h})
+
+function lootBlastDisplays(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootup::%{_c}%} is true
+	set {_face} to {-lootdrill::%{_c}%::face}
+	{_face} is set
+	lootDrillClear({_h}, {_n})
+	spawn an item display at {_face}:
+		lootDisplaySetup(event-display, 1 of tnt, 0.8, {-cfg::loot::piece-view})
+	set {_d} to last spawned entity
+	set {-lootdrill::%{_c}%::disp} to {_d}
+	lootReg({_c}, {_d})
+	set {_tl} to location(x-coordinate of {_face}, (y-coordinate of {_face}) + 1.1, z-coordinate of {_face}, world of {_face})
+	spawn a text display at {_tl}:
+		lootTextSetup(event-display)
+	set {_t} to last spawned entity
+	set {-lootdrill::%{_c}%::text} to {_t}
+	lootReg({_c}, {_t})
+	lootBlastText({_h}, {_n})
+
+function lootBlastText(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_t} to {-lootdrill::%{_c}%::text}
+	{_t} is set
+	{_t} is valid
+	set text of {_t} to colored "&c&l%formatClock({-lootdrill::%{_c}%::left})%"
+
+function lootBlastTick(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	{-lootst::%{_c}%} is "planted"
+	remove 1 from {-lootdrill::%{_c}%::left}
+	if {-lootdrill::%{_c}%::left} > 0:
+		lootBlastText({_h}, {_n})
+		play sound "block.note_block.hat" with volume 1 and pitch 1.6 at {-lootdrill::%{_c}%::face}
+		draw 3 large smoke particles with offset vector(0.1, 0.1, 0.1) at {-lootdrill::%{_c}%::face} ~ vector(0, 0.5, 0)
+		lootBlastPulse({-lootdrill::%{_c}%::disp}, {-lootdrill::%{_c}%::left}, {-lootdrill::%{_c}%::face})
+		stop
+	lootBlastBang({_h}, {_n})
+
+# The charge breathes each second; the last 5 seconds it throbs harder, with sparks and a higher beep.
+function lootBlastPulse(d: entity, left: number, face: location):
+	{_d} is valid
+	set {_big} to 0.88
+	if {_left} <= 5:
+		set {_big} to 1
+		draw 8 electric spark particles with offset vector(0.3, 0.3, 0.3) at {_face}
+	set interpolation delay of {_d} to 0 ticks
+	set interpolation duration of {_d} to 8 ticks
+	set display scale of {_d} to vector({_big}, {_big}, {_big})
+	wait 10 ticks
+	{_d} is valid
+	if {_left} <= 5:
+		play sound "block.note_block.hat" with volume 1.2 and pitch 2 at {_face}
+	set interpolation delay of {_d} to 0 ticks
+	set interpolation duration of {_d} to 8 ticks
+	set display scale of {_d} to vector(0.8, 0.8, 0.8)
+
+# Pieces of the door fly out and drop. Client-side movement: two updates each, whatever the distance.
+function lootBlastDebris(l: location, i: item):
+	loop 12 times:
+		spawn an item display at {_l}:
+			lootDisplaySetup(event-display, {_i}, 0.45, {-cfg::loot::piece-view})
+		lootBlastShard(last spawned entity)
+
+function lootBlastShard(d: entity):
+	set {_x} to random number between -3.5 and 3.5
+	set {_z} to random number between -3.5 and 3.5
+	wait 2 ticks
+	{_d} is valid
+	set interpolation delay of {_d} to 0 ticks
+	set interpolation duration of {_d} to 8 ticks
+	set display translation of {_d} to vector({_x} * 0.7, random number between 0.5 and 1.8, {_z} * 0.7)
+	wait 8 ticks
+	{_d} is valid
+	set interpolation delay of {_d} to 0 ticks
+	set interpolation duration of {_d} to 10 ticks
+	set display translation of {_d} to vector({_x}, -1.5, {_z})
+	set display scale of {_d} to vector(0.05, 0.05, 0.05)
+	wait 11 ticks
+	{_d} is valid
+	kill {_d}
+
+# The door goes and nothing else: everyone near takes trap damage (no attacker, through armor) and is pushed away.
+function lootBlastBang(h: text, n: text):
+	set {_c} to "%{_h}%::%{_n}%"
+	set {_who} to {-lootdrill::%{_c}%::owner}
+	set {_l} to lootGateCenter({_h}, {_n})
+	set {_piece} to 1 of (type of block at {_l})
+	if type of block at {_l} is air:
+		set {_piece} to 1 of polished deepslate
+	lootOpenGate({_h}, {_n}, "blast")
+	delete {-lootdrill::%{_c}%::*}
+	play sound "entity.generic.explode" with volume 2 at {_l}
+	draw 3 explosion emitter particles at {_l} for all players
+	draw 40 large smoke particles with offset vector(1.5, 1.2, 1.5) at {_l}
+	lootBlastDebris({_l}, {_piece})
+	set {_dmg} to {-lootc::%{_c}%::damage} / 2
+	loop all players in radius {-lootc::%{_c}%::radius} of {_l}:
+		isNpc(loop-player) is false
+		loop-player is alive
+		gamemode of loop-player is not creative
+		tagCombat(loop-player, "trap")
+		set {-trapkill::%loop-player%} to "%{_h}%-%{_n}%:blast"
+		set invulnerability time of loop-player to 0 ticks
+		damage loop-player by {_dmg}
+		delete {-trapkill::%loop-player%}
+		if loop-player is alive:
+			set {_dx} to (x-coordinate of loop-player) - (x-coordinate of {_l})
+			set {_dz} to (z-coordinate of loop-player) - (z-coordinate of {_l})
+			set {_len} to max(0.1, sqrt({_dx} * {_dx} + {_dz} * {_dz}))
+			set velocity of loop-player to vector(0.8 * {_dx} / {_len}, 0.3, 0.8 * {_dz} / {_len})
+	if {_who} is set:
+		if {_who} is online:
+			if {_who} is alive:
+				if heistOf({_who}) is {_h}:
+					lootClaimStart({_c}, {_who}, {-lootc::%{_c}%::claim})
+	# Not "is true": unset counts as loud, the design's default.
+	if {-lootc::%{_c}%::alarm} is not false:
+		heistTripAlarm({_h}, "loot:blast:%{_h}%-%{_n}%")
+	lootLog("blast bang %{_h}%-%{_n}%")
+
 # ---------- Heist hooks (called from heists.sk) ----------
 
 function lootOnEnter(p: player, h: text):
 	size of {loots::%{_h}%::*} > 0
+	loop {loots::%{_h}%::*}:
+		set {_m} to {-lootmk::%{_h}%::%loop-index%}
+		if {_m} is set:
+			reveal {_m} to {_p}
 	{-loottip::%{_p}%} is not set
 	set {-loottip::%{_p}%} to true
 	msg({_p}, "&7Hold &fright-click &7on loot to grab it: the fastest robbers get the most.")
 
 function lootForget(p: player, h: text):
+	loop {loots::%{_h}%::*}:
+		set {_m} to {-lootmk::%{_h}%::%loop-index%}
+		if {_m} is set:
+			hide {_m} from {_p}
 	delete {-lootw::%{_p}%}
 	delete {-lootw::%{_p}%::*}
 	delete {-lootprompt::%{_p}%}
@@ -2279,11 +2483,7 @@ function lootValidate(h: text, n: text) :: text:
 		return "at most %{-cfg::loot::max-pieces}% pieces per pile (this needs %{_hi}%): raise piece="
 	if {-lootc::%{_c}%::cells} > {-cfg::loot::max-cells}:
 		return "at most %{-cfg::loot::max-cells}% cells per pile"
-	set {_sum} to 0
-	loop {loots::%{_h}%::*}:
-		loop-value is "pile"
-		set {_rr::*} to lootPileRange({_h}, loop-index) split at ":"
-		add ({_rr::2} parsed as number) to {_sum}
+	set {_sum} to pickMaxPieces({_h})
 	if {_sum} > {-cfg::loot::max-heist-pieces}:
 		return "the heist would hold up to %{_sum}% pieces (at most %{-cfg::loot::max-heist-pieces}%): raise piece="
 	set {_g} to {-lootc::%{_c}%::behind}
@@ -2310,12 +2510,12 @@ function dlootAdd(s: command sender, a: texts):
 	if heistExists({_h}) is false:
 		dlootReply({_s}, "LOOT %{_h}%: unknown heist")
 		stop
-	if {_k} is not "pile" or "smash" or "safe" or "drill":
-		dlootReply({_s}, "LOOT add: /dloot add <heist> pile|smash|safe|drill [x1 y1 z1 x2 y2 z2] key=value...")
+	if {_k} is not "pile" or "smash" or "safe" or "drill" or "blast":
+		dlootReply({_s}, "LOOT add: /dloot add <heist> pile|smash|safe|drill|blast [x1 y1 z1 x2 y2 z2] key=value...")
 		stop
 	# Stores are for new robbers: no Safe Kit or Drill needed (they need levels).
 	if heistIsStore({_h}) is true:
-		if {_k} is "safe" or "drill":
+		if {_k} is "safe" or "drill" or "blast":
 			dlootReply({_s}, "LOOT add: a store (difficulty 0) has piles and glass only, no safes or vault doors")
 			stop
 	if heistRobberCount({_h}) > 0:
@@ -2504,7 +2704,7 @@ function lootDescribe(h: text, n: text) :: text:
 	set {_t} to "%{_k}% %{-lootc::%{_c}%::x1}% %{-lootc::%{_c}%::y1}% %{-lootc::%{_c}%::z1}% %{-lootc::%{_c}%::x2}% %{-lootc::%{_c}%::y2}% %{-lootc::%{_c}%::z2}%"
 	if {_k} is "pile":
 		set {_t} to "%{_t}% value=%{-lootc::%{_c}%::min}%-%{-lootc::%{_c}%::max}%"
-	loop "style", "piece", "take", "per-cell", "layers", "lift", "behind", "digits", "claim", "alarm", "time", "jams" and "mount":
+	loop "style", "piece", "take", "per-cell", "layers", "lift", "behind", "digits", "claim", "alarm", "time", "jams", "mount", "fuse", "radius" and "damage":
 		set {_v} to {loot::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		set {_t} to "%{_t}% %loop-value%=%{_v}%"
@@ -2711,14 +2911,25 @@ function dlootCheck(s: command sender, h: text):
 	loop {loots::%{_h}%::*}:
 		set {_n} to loop-index
 		set {_c} to "%{_h}%::%{_n}%"
+		set {_pk} to {loot::%{_h}%::%{_n}%::pick}
+		if {_pk} is set:
+			set {_bh} to {loot::%{_h}%::%{_n}%::behind}
+			if {_bh} is set:
+				if {loot::%{_h}%::%{_bh}%::pick} is set:
+					if {loot::%{_h}%::%{_bh}%::pick} is not {_pk}:
+						dlootReply({_s}, "LOOT warning: %{_h}%-%{_n}% can stay locked: its gate isn't in the same pick")
 		if loop-value is "pile":
 			set {_r::*} to lootPileRange({_h}, {_n}) split at ":"
 			set {_lo} to {_r::1} parsed as number
 			set {_hi} to {_r::2} parsed as number
 			set {_v} to {-lootc::%{_c}%::piece}
-			add {_lo} * {_v} to {_smin}
-			add {_hi} * {_v} to {_smax}
-			add {_v} * ({_lo} + {_hi}) / 2 to {_sev}
+			if {_pk} is set:
+				set {_pv} to pickSpot({_h}, "loot", {_n})
+				add {_hi} * {_v} to {_vmax::%{_pv}%}
+			else:
+				add {_lo} * {_v} to {_smin}
+				add {_hi} * {_v} to {_smax}
+				add {_v} * ({_lo} + {_hi}) / 2 to {_sev}
 			add {_hi} * {-lootc::%{_c}%::take} to {_g}
 			dlootReply({_s}, "LOOT %{_h}%-%{_n}%: %formatMoney({_lo} * {_v})%-%formatMoney({_hi} * {_v})%, rate %formatMoney({_v} / {-lootc::%{_c}%::take})%/s")
 		else if loop-value is "smash":
@@ -2727,6 +2938,8 @@ function dlootCheck(s: command sender, h: text):
 			add 30 to {_g}
 		else if loop-value is "drill":
 			add {-lootc::%{_c}%::mount} + {-lootc::%{_c}%::time} to {_g}
+		else if loop-value is "blast":
+			add {-lootc::%{_c}%::plant} + {-lootc::%{_c}%::fuse} to {_g}
 		if lootNearEdge({_h}, {loot::%{_h}%::%{_n}%::a}) is true:
 			dlootReply({_s}, "LOOT warning: %{_h}%-%{_n}% is less than 1 block inside the edge")
 		if lootIsGate(loop-value) is true:
@@ -2737,6 +2950,24 @@ function dlootCheck(s: command sender, h: text):
 				heistState({_h}) is "disabled"
 				dlootReply({_s}, "LOOT warning: %{_h}%-%{_n}%'s blocks changed since they were saved (/dloot regate %{_h}%-%{_n}%)")
 				exit loop
+	# Picks: only the top of the roll counts them, the k richest variants of each group.
+	# shortcut: the clear time still counts every variant, longer than any run; split it if the warning misleads.
+	loop {_vmax::*}:
+		set {_vp::*} to loop-index split at ":"
+		set {_gn} to {_vp::1}
+		set {_gs::%{_gn}%} to {_gn}
+	loop {_gs::*}:
+		set {_gn} to loop-value
+		delete {_gv::*}
+		loop {_vmax::*}:
+			if loop-index-2 starts with "%{_gn}%:":
+				add loop-value-2 to {_gv::*}
+		set {_sorted::*} to reversed sorted {_gv::*}
+		set {_i} to 0
+		loop {_sorted::*}:
+			if {_i} < pickK({_h}, {_gn}):
+				add loop-value-2 to {_smax}
+			add 1 to {_i}
 	set {_pool} to heistSetting({_h}, "loot-pool")
 	set {_e} to heistEscape({_h}) / 1 second
 	dlootReply({_s}, "LOOT %{_h}%: rolls %formatMoney({_smin})%-%formatMoney({_smax})%, about %formatMoney({_sev})% on average; pool setting %formatMoney({_pool})%")
@@ -2779,7 +3010,7 @@ function lootDumpLine(h: text, n: text, behind: text) :: text:
 	set {_t} to "dloot add %{_h}% %{_k}% %{-lootc::%{_c}%::x1}% %{-lootc::%{_c}%::y1}% %{-lootc::%{_c}%::z1}% %{-lootc::%{_c}%::x2}% %{-lootc::%{_c}%::y2}% %{-lootc::%{_c}%::z2}%"
 	if {_k} is "pile":
 		set {_t} to "%{_t}% value=%{loot::%{_h}%::%{_n}%::min}%-%{loot::%{_h}%::%{_n}%::max}%"
-	loop "style", "piece", "take", "per-cell", "layers", "lift", "digits", "claim", "alarm", "time", "jams" and "mount":
+	loop "style", "piece", "take", "per-cell", "layers", "lift", "digits", "claim", "alarm", "time", "jams", "mount", "pick", "fuse", "radius" and "damage":
 		set {_v} to {loot::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		set {_t} to "%{_t}% %loop-value%=%{_v}%"

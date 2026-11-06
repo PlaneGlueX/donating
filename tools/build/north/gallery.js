@@ -272,6 +272,7 @@ module.exports = (b = new (require('../mcstruct').Build)()) => {
   B = b
   artN = 0
   shell(); inside(); plaza()
+  b.lightLayer(BLD.x1 + 1, BLD.z1 + 1, BLD.x2 - 1, BLD.z2 - 1, 69) // the roof's lanterns are 10 up: the Jewel Room's black floor stayed dark
   B = null
   return b
 }

@@ -10,6 +10,13 @@
           "type": "minecraft:model",
           "model": "donating:item/loot_gold"
         }
+      },
+      {
+        "when": "donating:chips",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chips"
+        }
       }
     ],
     "fallback": {

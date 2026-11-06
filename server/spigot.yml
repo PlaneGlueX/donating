@@ -44,7 +44,7 @@ settings:
 advancements:
   disable-saving: false
   disabled:
-  - minecraft:story/disabled
+  - minecraft
 players:
   disable-saving: false
 world-settings:

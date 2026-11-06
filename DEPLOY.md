@@ -71,7 +71,7 @@ Start the server once so every plugin makes its folders, then stop it and upload
 | `plugins/WorldGuard/config.yml` | same |
 | `plugins/CoreProtect/config.yml` (`error-reporting: false`: it would send error reports to its author) | same |
 | `plugins/MTVehicles/config.yml` (no auto-update, no trunks or pickup; `fuelEnabled: true` since 2026-10-21, fuel.sk), `vehicles.yml` (Donating's cars: the dealer colors, the extreme families Racecar, Motor and SUV Cabrio, and every car's wrap variants; never remove a variant once cars of it exist), `supersecretsettings.yml` (English messages). Never `vehicleData.yml` (local test cars) | same |
-| `bukkit.yml` (`allow-end: false`: the End stays off), `spigot.yml` | server root |
+| `bukkit.yml` (`allow-end: false`: the End stays off), `spigot.yml` (since 2026-11-04 `advancements.disabled: - minecraft`: no vanilla advancements, so no "New Recipe" toasts and less work per player) | server root |
 | `plugins/Essentials/motd.txt` (empty: no join text) | same |
 | The world folder (`world/`, with `world/generated/donating/structure/` = the heist rooms, `world/data/minecraft/maps/<id>.dat` = the phone maps, wall maps and any old city maps) and `plugins/WorldGuard/worlds/world/regions.yml` (safe zones, heist regions) | server root / same |
 | The phone's city and GPS roads, made together on the same server (see the city map step): `plugins/DonatingPhone/city.bin`, `city.yml`, `roads.bin`, and `walls.yml` if there are wall maps; `paths.yml` (the GPS paths, or run their lines: the prison step) and `cities/<world>.bin` (another world's own map, e.g. `cities/jailbreak.bin`; or scan it there) | `plugins/DonatingPhone/` |
@@ -200,8 +200,11 @@ Every new player starts in a prison cell and every death sends you back (prison.
 - The sidebar (TAB config.yml) shows the mission, jobs (`%donating_jobs%`) and hit (`%donating_hit%`) lines: upload TAB's config.yml again.
 - `/hits` at the Broker, `/jobs`, a garage: `/garage` inside a site, a bay's car, driving into a return lane (PARKED).
 
+## The casino on its tables, the real arm in a reload (2026-11-04)
+Upload `casino.sk`, `clerk.sk`, `atm.sk`, `skins.sk`, `core.sk`, `help.sk`, `tabcomplete.sk`, `DonatingPhone.jar` (RealArm; WeaponMechanics' PacketEvents plugin must stay installed) and `plugins/DonatingPhone/config.yml` with the new `gunfx.real-arm` line, and the rebuilt pack in the dashboard. The world: the casino's displays redone (`city.js displays --world overworld`, 48 in all, 46 on the floor), and the Gallery, Reserve, Power Plant and Evidence rooms as re-saved with their lights. In the console: `dpoi addat landmark 869.5 73 380.5 Casino` and `dheist set mansion name Mansion`. Set `broadcast-console-to-ops=false` in server.properties if Minehut lets you edit it. Run `tools\backup.ps1` first.
+
 ## Cop routes and the casino (2026-11-04)
-Upload `casino.sk`, `cops.sk` and `core.sk` (the casino is live as soon as it loads; `casino::enabled` false in core.sk closes it). Read Mojang's and Tebex's current rules first: chips cash out (casino-games.md section 1). Then run these in the console so cops can walk into the big heists (the Casino and the Power Plant need none):
+Upload `casino.sk`, `skins.sk`, `cops.sk` and `core.sk`, the rebuilt pack in the dashboard, and a world with the casino re-pasted and its displays and labels redone (`city.js paste|labels|displays --world overworld`; the city is in the main world, whose key is `overworld`) (the casino is live as soon as it loads; `casino::enabled` false in core.sk closes it). Read Mojang's and Tebex's current rules first: chips cash out (casino-games.md section 1). Then run these in the console so cops can walk into the big heists (the Casino and the Power Plant need none):
 ```
 dcops bank way 640.5 65 300.5
 dcops bank way 625.5 65 300.5
@@ -235,3 +238,26 @@ dcops mansion way 1222.5 91 649.5
 dcops mansion way 1229.5 91 650.5
 dcops mansion way 1229.5 91 654.5
 ```
+
+## GSit and chairs (2026-11-04)
+- Upload `GSit-3.7.0.jar` and `plugins/GSit/config.yml` (stairs only; no sitting on players, no crawling, no update check).
+- Console, once: for each of Sit, SitToggle, PlayerSit, PlayerSitToggle, Lay, LegsUp, BellyFlop, Spin, Crawl, CrawlSneak, CrawlToggle run `lp group default permission set GSit.<name> false`, then `lp group default permission set GSit.SitClick true`.
+- Heist signs are text displays now (heists.sk): delete any `donating_heist_*` file from `plugins/DecentHolograms/holograms/` on Minehut; crate holograms stay. Custom chairs: `/dchair <yaw>` at your feet (the pack has the model).
+
+## Pick groups (2026-11-04)
+- Upload `picks.sk` with loot.sk, traps.sk, heists.sk and tabcomplete.sk. Nothing else: no heist uses a pick until staff set one.
+- Heist signs moved off their canopies (2026-11-04): if Minehut's heists were set up before this, console: `dheist holo casino 869.5 80 377.5`, `dheist holo club 662.5 70 262.5`.
+- Pick groups on the real heists: run every line of `tools/build/city/picks-setup.txt` in the console after the heists are set up, in order (new spots are numbered from the existing ones).
+
+## Security switches and blast charges (2026-11-04)
+- Upload `switch.sk` (new) with loot.sk, traps.sk, core.sk, heists.sk and tabcomplete.sk.
+- Switches on the real heists: run every line of `tools/build/city/switches-setup.txt` in the console, after picks-setup.
+- Blast doors on the real heists: run every line of `tools/build/city/blast-setup.txt` in the console, after switches-setup, with the heists empty.
+
+## Locator-bar places without forced chunks, and the 20-player fixes (2026-11-05)
+Upload `nav.sk`, `quests.sk`, `clerk.sk`, `contracts.sk`, `prison.sk` and `DonatingPhone.jar` (Waypoints; WeaponMechanics' PacketEvents plugin must stay installed). Nothing to run: at its first load nav.sk clears the old forced chunks once, and the plugin removes the old stands as their chunks load.
+Check: `/forceload query` says none; the locator bar shows the same icons as before (shop bags, the house, the safes, the "!"); inside a heist the bar goes back to the ammo bar.
+
+Also upload `atm.sk`, `bag.sk`, `levels.sk`, `core.sk` (2026-11-05: ATM sweep, the sale's celebration). Nothing to run.
+
+Also upload `tutorial.sk`, `jailcourse.sk`, `prison.sk`, `story.sk`, `placeholders.sk`, `loot.sk`, `heists.sk`, `bag.sk`, `core.sk`, `clerk.sk` and `plugins/TAB/config.yml` (2026-11-05: a death respawns in a cell, each clerk throws what fits their store, teaching the game, the new sidebars, the sale without words). Restart once. Nothing to run.

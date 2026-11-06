@@ -1,0 +1,10 @@
+dloot remove bank-7
+dloot add bank blast 595 49 299 595 51 300 fuse=10 alarm=true name=Alternate_exit
+dloot set reserve-14 behind 3
+dloot set reserve-15 behind 3
+dloot set reserve-16 behind 3
+dloot remove reserve-6
+dloot add reserve blast 696 53 168 696 57 172 fuse=20 alarm=true claim=15 radius=5 damage=6 name=Vault_door_2
+dloot set reserve-14 behind 17
+dloot set reserve-15 behind 17
+dloot set reserve-16 behind 17

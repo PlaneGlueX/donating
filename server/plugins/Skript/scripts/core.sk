@@ -1007,6 +1007,11 @@ function loadSettings():
 	set {-cfg::money::start} to 1000
 	# Bag tiers: capacity = the most loot value ($) the bag holds. Owner, 2026-09-26: unlocking a tier
 	# costs 120% of what it holds (price = 1.2 × capacity), a new one after losing it 20% (replace below).
+	# The sale's celebration (bag.sk saleParty; owner, 2026-11-05: big reactions, same money, no words). Dollars.
+	# The short sidebar for new players (TAB's board "new"; owner, 2026-11-05).
+	set {-cfg::tutorial::simple-board-level} to 5
+	set {-cfg::bag::big-sale} to 5000
+	set {-cfg::bag::huge-sale} to 25000
 	set {-cfg::bag::1::name} to "Gym Bag"
 	set {-cfg::bag::1::capacity} to 2000
 	set {-cfg::bag::1::price} to 2400
@@ -1116,14 +1121,33 @@ function loadSettings():
 	set {-cfg::clerk::blind-time} to 1.5 seconds
 	set {-cfg::clerk::slow-time} to 2 seconds
 	set {-cfg::clerk::give-up} to 3
-	# What they throw: a Citizens item id (in their hand) and the item the thrown snowball shows.
-	set {-cfg::clerk::props::*} to "honey_bottle", "glass_bottle", "cookie", "bread", "apple" and "melon_slice"
+	# What they throw (owner, 2026-11-05: things that fit the store): a Citizens item id (in their hand) and the item the
+	# thrown snowball shows. clerk::props is for a store with no list of its own. PROPOSAL lists.
+	set {-cfg::clerk::props::*} to "paper", "book" and "glass_bottle"
+	set {-cfg::clerk::store-props::donut::*} to "pumpkin_pie", "cookie", "cake", "honey_bottle" and "sugar"
+	set {-cfg::clerk::store-props::gas::*} to "bucket", "glass_bottle", "honey_bottle", "dried_kelp" and "cooked_porkchop"
+	set {-cfg::clerk::store-props::pawn::*} to "clock", "compass", "gold_ingot", "spyglass", "goat_horn" and "emerald"
+	set {-cfg::clerk::store-props::carwash::*} to "sponge", "bucket", "slime_ball" and "glass_bottle"
+	# Shown as the shop's food instead (shop.sk toolItem): the pie flies as the Donut, the pork chop as the Hot Dog.
+	set {-cfg::clerk::prop-tool::pumpkin_pie} to "donut"
+	set {-cfg::clerk::prop-tool::cooked_porkchop} to "hotdog"
+	set {-cfg::clerk::prop-item::paper} to paper
+	set {-cfg::clerk::prop-item::book} to book
+	set {-cfg::clerk::prop-item::cake} to cake
+	set {-cfg::clerk::prop-item::sugar} to sugar
+	set {-cfg::clerk::prop-item::bucket} to bucket
+	set {-cfg::clerk::prop-item::dried_kelp} to dried kelp
+	set {-cfg::clerk::prop-item::clock} to clock
+	set {-cfg::clerk::prop-item::compass} to compass
+	set {-cfg::clerk::prop-item::gold_ingot} to gold ingot
+	set {-cfg::clerk::prop-item::spyglass} to spyglass
+	set {-cfg::clerk::prop-item::goat_horn} to goat horn
+	set {-cfg::clerk::prop-item::emerald} to emerald
+	set {-cfg::clerk::prop-item::sponge} to sponge
+	set {-cfg::clerk::prop-item::slime_ball} to slime ball
 	set {-cfg::clerk::prop-item::honey_bottle} to honey bottle
 	set {-cfg::clerk::prop-item::glass_bottle} to glass bottle
 	set {-cfg::clerk::prop-item::cookie} to cookie
-	set {-cfg::clerk::prop-item::bread} to bread
-	set {-cfg::clerk::prop-item::apple} to apple
-	set {-cfg::clerk::prop-item::melon_slice} to melon slice
 	set {-cfg::clerk::lines::panic::*} to "Okay, okay! Don't hurt me!", "Not again..." and "The money's not even mine!"
 	set {-cfg::clerk::lines::throw::*} to "Get out of my store!", "Take THIS!" and "Get OUT!"
 	# Added to the throws in a store with police.
@@ -1239,6 +1263,7 @@ function loadSettings():
 	set {-cfg::trap::camera::pointer} to true
 	set {-cfg::trap::camera::thickness} to 0.05
 	# Trap death messages: {name}, {heist} are filled in.
+	set {-cfg::trap::death::blast} to "&c{name} &7stood too close to a blast charge in the &f{heist}&7."
 	set {-cfg::trap::death::laser} to "&c{name} &7walked into a laser in the &f{heist}&7."
 	set {-cfg::trap::death::plate} to "&c{name} &7stepped on a trap in the &f{heist}&7."
 	set {-cfg::trap::death::floor} to "&c{name} &7fell through a trapped floor in the &f{heist}&7."
@@ -1313,6 +1338,7 @@ function loadSettings():
 	# ATMs (atm.sk, 2026-10-29): hold to crack, a rolled payout into the bag, then out of order for a while.
 	# casino.sk (tools/build/city/design/casino-games.md section 5; PROPOSAL; cashout: the owner chose it, 2026-10-28)
 	set {-cfg::casino::enabled} to true
+	set {-cfg::casino::no-pvp} to true
 	set {-cfg::casino::cashout} to true
 	set {-cfg::casino::cashout-fee} to 0.02
 	set {-cfg::casino::level} to 5
@@ -1327,8 +1353,14 @@ function loadSettings():
 	set {-cfg::casino::bj-max} to 10000
 	set {-cfg::casino::roulette-max} to 20000
 	set {-cfg::casino::roulette-number-max} to 1000
-	# kind|value|segments of 20. The drill, the title and the podium skin pay their "already owned" chips until those prizes exist.
-	set {-cfg::casino::wheel-table::*} to "chips|1000|4", "chips|2500|4", "chips|5000|3", "chips|10000|1", "xp|500|2", "key|common|2", "chips|2500|3" and "chips|25000|1"
+	# The Inside Track, in seconds: bets, the race, the result on the screen. A horse pays floor(10 x (1 - edge) / chance) / 10 x the bet.
+	set {-cfg::casino::track-bets} to 45
+	set {-cfg::casino::track-race} to 30
+	set {-cfg::casino::track-end} to 10
+	set {-cfg::casino::track-edge} to 0.08
+	# The wheel's 20 equal segments (kind|value) clockwise from the top: the same order as the picture in tools/casino-art.js (tools/casino-sim.js checks).
+	# The drill, the title and the podium skin pay their "already owned" chips until those prizes exist.
+	set {-cfg::casino::wheel-segments::*} to "chips|1000", "chips|2500", "chips|5000", "key|common", "chips|1000", "chips|2500", "xp|500", "chips|5000", "chips|2500", "chips|10000", "chips|1000", "chips|2500", "key|common", "chips|5000", "chips|2500", "chips|25000", "chips|1000", "chips|2500", "xp|500" and "chips|2500"
 	# name|pays x bet|chance: RTP = sum(pays x chance) = 0.95
 	set {-cfg::casino::slot-table::*} to "3 Diamonds|100|0.0005", "3 Sevens|25|0.004", "3 Bars|10|0.012", "3 Bells|5|0.03", "3 Cherries|3|0.06", "2 Cherries|2|0.1" and "1 Cherry|1|0.15"
 	set {-cfg::atm::level} to 1
@@ -1383,6 +1415,13 @@ function loadSettings():
 	set {-cfg::loot::drill::qte-hit-lock} to 6
 	set {-cfg::loot::drill::claim} to 10
 	set {-cfg::loot::drill::alarm} to true
+	# A blast door (loot.sk): hold `plant` s, the fuse runs `fuse` s; `damage` HP within `radius` blocks of the door.
+	set {-cfg::loot::blast::plant} to 2
+	set {-cfg::loot::blast::fuse} to 10
+	set {-cfg::loot::blast::claim} to 6
+	set {-cfg::loot::blast::radius} to 4
+	set {-cfg::loot::blast::damage} to 3
+	set {-cfg::loot::blast::alarm} to true
 	# Where bags sell: safe zones whose region id starts with this (bag.sk).
 	set {-cfg::bag::base-prefix} to "safe_base"
 	set {-cfg::bounty::per-kill} to 250
@@ -1412,6 +1451,9 @@ function loadSettings():
 	set {-cfg::shop::title::cars} to "Car Dealer"
 	set {-cfg::shop::title::garage} to "City Garage"
 	set {-cfg::shop::title::store} to "Store"
+	set {-cfg::shop::title::cashier} to "Cashier"
+	set {-cfg::shop::title::blackjack} to "Blackjack"
+	set {-cfg::shop::title::roulette} to "Roulette"
 
 	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles. Owner, 2026-09-26:
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics

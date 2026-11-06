@@ -310,6 +310,7 @@ function inside () {
 module.exports = (b = new (require('../mcstruct').Build)()) => {
   B = b
   yard(); towers(); transformers(); shell(); inside()
+  b.lightLayer(BLD.x1 + 1, 321, BLD.x2 - 1, 356, 69) // the hall's lanterns are 10 up: lasers, plates and the catwalk's cracks must show
   B = null
   return b
 }

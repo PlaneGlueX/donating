@@ -330,6 +330,7 @@ function front () {
 module.exports = (b = new (require('../mcstruct').Build)()) => {
   B = b
   underground(); shell(); inside(); front()
+  b.lightLayer(BLD.x1 + 1, BLD.z1 + 1, BLD.x2 - 1, BLD.z2 - 1, 69) // the ceiling's lanterns are 12 up: the teller line's dark floor stayed black
   B = null
   return b
 }

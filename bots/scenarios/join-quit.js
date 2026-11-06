@@ -46,7 +46,7 @@ module.exports = async ({ check }) => {
     check('newbie gets the welcome title', titles.some(t => /DONATING/.test(t)), JSON.stringify(titles))
     const welcome = own.find(m => /Welcome to Donating!/.test(m.text))
     check('newbie gets the welcome message with the prefix', welcome && /^DONATING » Welcome to Donating!/.test(welcome.text), own.map(m => m.text).join(' | '))
-    check('newbie is pointed to /help', own.some(m => /Type \/help to learn how heists work\./.test(m.text)), own.map(m => m.text).join(' | '))
+    check('newbie is told what comes first (the ropes, the way out)', own.some(m => /Learn the ropes, then break out/.test(m.text)), own.map(m => m.text).join(' | '))
     const bold = codesBefore(welcome, 'Welcome')
     check("the prefix's bold doesn't leak into the message", bold !== null && !bold.includes('§l'), welcome ? welcome.motd : 'no welcome message')
     check('newbie got the start money once', await balance() === start, `balance ${await balance()}, expected ${start}`)

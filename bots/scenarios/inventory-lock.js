@@ -7,6 +7,10 @@ const { join, sleep, quit } = require('../lib')
 const rconLib = require('../rcon')
 
 const NAME = 'InvBot'
+const PAD_Y = 200
+const PAD_AREA = '1100 1100 1120 1120'
+const PAD_FLOOR = `1100 ${PAD_Y - 1} 1100 1120 ${PAD_Y - 1} 1120`
+const PAD_ALL = `1100 ${PAD_Y - 1} 1100 1120 ${PAD_Y + 4} 1120`
 const LOG = path.join(__dirname, '..', '..', 'server', 'logs', 'latest.log')
 
 // Window slot numbers in the player inventory window (not Skript slot numbers).
@@ -14,7 +18,14 @@ const W = { hotbar1: 36, hotbar2: 37, hotbar8: 43, hotbar9: 44, upper1: 9, upper
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
+  // A pad no region covers: in the prison (block use denied) the controls can't work and the locked checks pass without the lock.
+  await rcon.cmd(`forceload add ${PAD_AREA}`)
+  await rcon.cmd(`fill ${PAD_FLOOR} glass`)
   const bot = await join(NAME)
+  await sleep(2500)
+  await rcon.cmd(`zzheisttp ${NAME} 1110.5 ${PAD_Y} 1110.5`)
+  await bot.waitForChunksToLoad().catch(() => {})
+  await sleep(1500)
   // Every non-empty slot (0-40) plus the cursor, from zz-testkit.sk's /zzdump.
   const snapshot = async () => (await rcon.cmd(`zzdump ${NAME}`)).trim()
   const PHONE = /(^| )8=filled map x1 \[phone\]/
@@ -355,6 +366,8 @@ module.exports = async ({ check }) => {
   } finally {
     await rcon.cmd(`zzclear ${NAME}`).catch(() => {})
     await quit(bot)
+    await rcon.cmd(`fill ${PAD_ALL} air`).catch(() => {})
+    await rcon.cmd(`forceload remove ${PAD_AREA}`).catch(() => {})
     rcon.close()
   }
 }

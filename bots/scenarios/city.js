@@ -21,7 +21,7 @@ const HEISTS = {
     take: { stand: [602.5, 65, 298.5], aim: [600.5, 65.5, 298.5], pile: 8, name: 'a register till behind the screen' },
     hitboxes: [{ stand: [601.5, 70, 286.5], gate: 2, name: "the manager's safe G2" }, { stand: [600.5, 65, 314.5], gate: 3, name: 'the security gate G3' },
       { stand: [612.5, 49, 300.5], gate: 4, name: 'the vault door G4' }, { stand: [623.5, 49, 305.5], gate: 5, name: 'Box 167 G5' },
-      { stand: [624.5, 49, 301.5], gate: 6, name: 'the iron-bar Reserve cage G6' }, { stand: [597.5, 49, 299.5], gate: 7, name: 'the alternate exit G7' }]
+      { stand: [624.5, 49, 301.5], gate: 6, name: 'the iron-bar Reserve cage G6' }, { stand: [597.5, 49, 299.5], gate: 22, name: 'the alternate exit, a blast door' }]
   },
   casino: {
     level: 45, piles: 13,
@@ -36,3 +36,4 @@ const HEISTS = {
 }
 
 module.exports = run(HEISTS, 'CityBot')
+module.exports.HEISTS = HEISTS

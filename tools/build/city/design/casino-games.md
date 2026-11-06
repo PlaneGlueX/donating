@@ -1,6 +1,8 @@
 # The Casino's games (casino.sk): spec
 
-Written 2026-10-28 for the owner's "make the actual casino usable just like gta", next to the Casino heist (PLAN.md section 6). Nothing is built. Every number is a PROPOSAL. casino.sk is a new script; it reuses core.sk (settings, `chargeMoney`, getData), shop.sk's menu rules and the shopkeepers' mannequins.
+**Status (2026-11-04): built, and changed from this spec in two ways.** Every game plays on its table or machine, not in a menu (only the cashier keeps one), and the floor's no-PvP is by coordinates, so no region is needed. The track's clock is 45/30/10 s, not 2:00/0:40/0:20. What's true now is in docs/economy.md (The casino floor).
+
+Written 2026-10-28 for the owner's "make the actual casino usable just like gta", next to the Casino heist (PLAN.md section 6). Nothing was built then. Every number is a PROPOSAL. casino.sk is a new script; it reuses core.sk (settings, `chargeMoney`, getData), shop.sk's menu rules and the shopkeepers' mannequins.
 
 The gaming floor is the public building on the podium (x 843..896, z 331..371, floor y 72). It is never part of `heist_casino` (y 55..71), so the games work whether the heist is open, running or cooling down.
 
@@ -101,7 +103,7 @@ Average chips a spin (chip segments only): (4 × 1,000 + 4 × 2,500 + 3 × 5,000
 
 ## 4. Dealers and the casino's NPCs
 
-- The cashier and the three dealers are **mannequins** like the shopkeepers (look like players, no AI, no locator-bar dot), skin `dealer` (a black vest, white shirt, bow tie; tools/skins), the cashier `cashier`. They stand at the module's points (PLAN.md 6.2: CASHIER, BJ_1, BJ_2, ROULETTE) and never move. The slots, the wheel and the track are item displays with interaction boxes (tag `donating_casino`), like the crate stands.
+- The cashier and the three dealers are **mannequins** like the shopkeepers (look like players, no AI, no locator-bar dot), skin `dealer` (a black vest, white shirt, bow tie; tools/skins), the cashier `cashier`. They stand at the module's points (CASHIER, BJ_1, BJ_2, ROULETTE; built behind the counter and tables, z 355.5) and never move. The slots, the wheel and the track are item displays with interaction boxes (tag `donating_casino`), like the crate stands.
 - Staff: `/dcasino spot <cashier|blackjack|roulette|wheel|slot|track> [x y z yaw]` (where you stand, or the coordinates), `list`, `remove <n>`, `dump` (the lines for Minehut), `enable|disable` (`casino::enabled`), `info <player>` (chips, today's buys / cash-outs / net, pending), `give|take <player> <chips>` (logged; refunds only), `stats [days]`. `/dsetup` lists a missing cashier or dealer as "!".
 - Dealers speak on the action bar of players within 6 blocks: "Place your bets", "No more bets", "Dealer has 19", "Blackjack!".
 - While the Casino heist's alarm runs the games stay open (`casino::close-on-alarm` false); cops only shoot the hunted, and the hunted can't play.

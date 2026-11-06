@@ -148,11 +148,14 @@ module.exports = async ({ check }) => {
     // ---------- The clerk throws things ----------
     await cmd(`minecraft:effect give ${A} minecraft:instant_health 1 5 true`)
     await sleep(600)
+    // Seen as they arrive: a short blindness can be over before the log check below returns.
+    const fxSeen = new Set()
+    bots[A]._client.on('entity_effect', p => fxSeen.add(p.effectId))
     const hp1 = bots[A].health
     const thrownAt = await until(() => bots[A].health < hp1, 9000)
     check('the clerk runs for something and throws it at the robber in sight (hurt before the cops come)', (thrownAt || /hurt zclerk ClerkA/.test(readLog('clerk').slice(log0))) && (await cmd(`zzcops ${ID}`)).includes('alive=0') && /throw zclerk at ClerkA/.test(readLog('clerk').slice(log0)), `hp ${hp1} -> ${bots[A].health} | ${await cmd(`zzcops ${ID}`)} | hp0 ${hp0}`)
     const fx = await until(() => /effect zclerk ClerkA/.test(readLog('clerk').slice(log0)), 6000)
-    const pots = Object.keys(bots[A].entity.effects || {}).map(Number)
+    const pots = [...fxSeen]
     check('...a prop pushes and sometimes blinds or slows (the effect here: chance 100)', fx && pots.some(id => id === 2 || id === 15 || id === 1 || id === 14), `${fx} effects=${JSON.stringify(pots)}`)
     // Another hit: they duck.
     await cmd(`zzclerkhit ${ID} ${A}`)
@@ -276,6 +279,43 @@ module.exports = async ({ check }) => {
     const removed = await cmd(`dclerk ${ID} remove`)
     i = await info()
     check('/dclerk remove: no clerk, the register open', /no clerk any more/.test(removed) && field(i, 'shut') === 'false' && !/id=\d+/.test(i), `${removed} | ${i}`)
+    // ---------- Each real store's clerk throws what fits the store (owner, 2026-11-05) ----------
+    const STORES = {
+      donut: { at: [414.5, 801.5], props: ['pumpkin_pie', 'cookie', 'cake', 'honey_bottle', 'sugar'] },
+      gas: { at: [384.5, 914.5], props: ['bucket', 'glass_bottle', 'honey_bottle', 'dried_kelp', 'cooked_porkchop'] },
+      pawn: { at: [618.5, 93.5], props: ['clock', 'compass', 'gold_ingot', 'spyglass', 'goat_horn', 'emerald'] }
+    }
+    for (const [h, { at, props }] of Object.entries(STORES)) {
+      const listed = await cmd(`zzclerkprops ${h}`)
+      check(`${h}: every prop has an item to show`, props.every(p => listed.includes(`${p}=ok`)) && !/=none/.test(listed), listed)
+      await cmd(`dheist end ${h}`)
+      await cmd(`dheist open ${h}`)
+      await until(async () => field(await cmd(`zzheist ${h}`), 'state') === 'open', 15000)
+      // Armed by a natural opening during the 100% part above: an armed clerk fights, it doesn't throw. A new run rolls again.
+      if (field(await cmd(`dclerk ${h} info`), 'weapon') !== '<none>') {
+        await cmd(`zzcombatend ${A}`)
+        await cmd(`zzheisttp ${A} ${at[0]} 65 ${at[1]}`)
+        await sleep(1500)
+        await cmd(`zzclerkhit ${h} ${A}`)
+        await cmd(`dheist end ${h}`)
+        await cmd(`dheist open ${h}`)
+        await cmd(`zzheisttp ${A} ${FAR}`)
+        await until(async () => field(await cmd(`zzheist ${h}`), 'state') === 'open', 15000)
+      }
+      await cmd(`zzcombatend ${A}`) // in combat a store won't let you in
+      await cmd(`zzdata ${A} level 100`) // the Lucky Pawn needs level 1
+      await cmd(`zzheisttp ${A} ${at[0]} 65 ${at[1]}`)
+      await sleep(2000)
+      const from = readLog('clerk').length
+      await cmd(`zzclerkhit ${h} ${A}`)
+      const thrown = () => [...readLog('clerk').slice(from).matchAll(new RegExp(`throw ${h} at .* prop=(\\S+)`, 'g'))].map(m => m[1])
+      await until(() => thrown().length >= 3, 20000)
+      const got = thrown()
+      check(`${h}: the clerk throws only the store's own things`, got.length > 0 && got.every(p => props.includes(p)), `${got.join(',')} | ${await cmd(`zzinheist ${A}`)} | ${(await cmd(`dclerk ${h} info`)).slice(0, 150)}`)
+      await cmd(`zzheisttp ${A} ${FAR}`)
+      await cmd(`dheist end ${h}`)
+      await cmd(`zzcombatend ${A}`)
+    }
   } finally {
     await rcon.cmd('zzcfgreload').catch(() => {})
     await rcon.cmd(`dheist delete ${ID} confirm`).catch(() => {})

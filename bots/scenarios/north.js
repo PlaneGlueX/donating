@@ -75,7 +75,7 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
       const spot = async n => ((await cmd(`zzloot ${id}`)).match(new RegExp(`\\| ${n}:(\\w+):(\\w*):[^|]*hb=(\\d+)`)) || []).slice(1)
       check(`${id}: open`, await until(async () => /state=open/.test(await cmd(`zzheist ${id}`)), 60000), await cmd(`zzheist ${id}`))
       const zl = await cmd(`zzloot ${id}`)
-      check(`${id}: every pile armed and rolled`, /armed=true/.test(zl) && new RegExp(`spots=${H.piles}/${H.piles}`).test(zl), zl.slice(0, 160))
+      check(`${id}: every pile armed and rolled`, /armed=true/.test(zl) && (m => m && m[1] === m[2] && Math.abs(Number(m[1]) - H.piles) <= 3)(zl.match(/spots=([0-9]+).([0-9]+)/)) /* pick groups change the count a run: 3 either way */, zl.slice(0, 160))
 
       await cmd(`zzclear ${P}`)
       await cmd(`zzbagclear ${P}`)
@@ -126,8 +126,9 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
       }
 
       for (const T of [H.take, H.open].filter(Boolean)) {
-        if (/room=0/.test(await cmd(`zzbag ${P}`))) await cmd(`zzbagclear ${P}`) // a starter bag fills on one pile
         await tp(T.stand)
+        await sleep(300) // after the move: the last hold's final click can still land a piece and fill the bag
+        if (/room=0\b/.test(await cmd(`zzbag ${P}`))) await cmd(`zzbagclear ${P}`) // a starter bag fills on one pile
         await hold(T.aim, 6000)
         if (!new RegExp(`take ${P} \\S+ ${id}-${T.pile} `).test(logged())) await hold(T.aim, 6000) // a camera or clerk hit restarts a hold
         await sleep(500)
@@ -160,3 +161,4 @@ const run = (HEISTS, P = 'NorthBot') => async ({ check, args }) => {
 }
 module.exports = run(HEISTS)
 module.exports.run = run
+module.exports.HEISTS = HEISTS

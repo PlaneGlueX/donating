@@ -31,3 +31,6 @@ Left: most remaining ticks over 50 ms have almost no task cost, so they look lik
 ## Rules for repeating scripts
 - Exit early when nobody qualifies; keep per-heist or per-spot work to where a player is.
 - Use the slowest interval play can't notice. Check a new block's cost with `/dphone prof`.
+
+## Forced chunks and memory (2026-11-05)
+A forced chunk keeps every once-loaded chunk within 13 chunks in memory. POI stands pinned about 5,900 chunks: 250 MB of the 1 GB, a full GC every few seconds. POIs are packets now (docs/gps.md). 10 bots on 1 GB: p99 245 -> 18 ms, ticks over 50 ms about 120 -> 4 of 10,000. 20 bots on 1 GB was still poor before the change and isn't deployable anyway (Minehut has 10 slots).

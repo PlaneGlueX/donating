@@ -1,0 +1,20 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "donating:slot_cherries",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/slot_cherries"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/sweet_berries"
+    }
+  }
+}

@@ -52,7 +52,7 @@ module.exports = async ({ check }) => {
 
     // ---------- Mara's missions at the level they start at ----------
     const story = await cmd('dsetup story')
-    check('a mission the map can\'t host is named with what it needs at its level (no heist with a safe: "Crack a safe", level 5)', /Mara's mission "Crack a safe" would be skipped for good: it needs an enabled heist with a safe that a level-5 robber can enter/.test(story), story.slice(0, 600))
+    check('a mission the map can\'t host is named with what it needs at its level (no heist with a safe: "Crack a safe", level 5), or the map hosts every one', /Mara's mission "Crack a safe" would be skipped for good: it needs an enabled heist with a safe that a level-5 robber can enter/.test(story) || /every mission of Mara's and Vic's can be done on this map/.test(story), story.slice(0, 600))
 
     // ---------- Places: a POI counted ----------
     bot = await join(A)

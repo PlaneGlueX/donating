@@ -299,6 +299,8 @@ const bagTree = {
   cases: Object.keys(BAGS).map(bagCase),
   fallback: { type: 'minecraft:model', model: 'minecraft:item/leather' }
 }
+// RealArm.java: what takes the player's own arm back down at a reload's end. Draws nothing anywhere.
+write('donating/items/hand_nothing.json', { hand_animation_on_swap: true, model: { type: 'minecraft:empty' } })
 write('minecraft/items/leather.json', {
   // Replacing the offhand bag when its fill changes must not play the re-equip dip (26.3 client).
   hand_animation_on_swap: false,
@@ -1474,6 +1476,8 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   addCase('iron_ingot', 'donating:register_bills', 'donating:item/register_bills')
   // The stores' furniture (tools/furniture-art.js: drink fridges, shelves, the slush machine, the menu boards...).
   require('./furniture-art')({ write, canvas, addCase })
+  // The Casino's menu icons: chips, cards, slot symbols.
+  require('./casino-art').icons({ sprite, addCase, canvas })
 
   // The prison guards' handcuffs (owner, 2026-10-20: "make the guards hold hand cuffs while arresting you (make the
   // textures for the item too)"): two steel cuffs on a four-link chain, a lock case with a keyhole and a lock pin on

@@ -6,6 +6,7 @@ R9_0:
       Lore:
         - "<gray>A short pump shotgun with a pistol grip."
         - "<gray>Loads one shell at a time; deadly up close."
+        - "<gray>Ammo: <yellow>Shotgun Shells"
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 62.0"
         - "<gold>➣<gray> 55 <gold>⟸ <gray>Accuracy"
@@ -21,7 +22,7 @@ R9_0:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>Shotgun <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Shotgun <gray>«<gold><ammo_left><gray>»<gold><reload> <gray>Shotgun Shells"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65,
     # 0.5 -> 0.325); WeaponMechanics' own (shots, reloads, scope, whiz) are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:

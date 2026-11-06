@@ -6,6 +6,7 @@
       Lore:
         - "<gray>A chunky chrome pistol with a leather grip."
         - "<gray>Semi-automatic; quick to reload."
+        - "<gray>Ammo: <yellow>Light Rounds"
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 60.2"
         - "<gold>➣<gray> 54 <gold>⟸ <gray>Accuracy"
@@ -21,7 +22,7 @@
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>Classic Pistol<firearm_state> <gray>«<gold><ammo_left><gray>»<reload>"
+        Message: "<gold>Classic Pistol<firearm_state> <gray>«<gold><ammo_left><gray>»<reload> <gray>Light Rounds"
         Dual_Wield:
           Main_Hand: "<gold><ammo_left><gray>»<reload> <gold><firearm_state>Classic Pistol"
           Off_Hand: "<gold>Classic Pistol<firearm_state> <reload><gray>«<gold><ammo_left>"

@@ -17,6 +17,146 @@
           "type": "minecraft:model",
           "model": "donating:item/marker"
         }
+      },
+      {
+        "when": "donating:chip_10",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_10"
+        }
+      },
+      {
+        "when": "donating:chip_50",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_50"
+        }
+      },
+      {
+        "when": "donating:chip_100",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_100"
+        }
+      },
+      {
+        "when": "donating:chip_250",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_250"
+        }
+      },
+      {
+        "when": "donating:chip_500",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_500"
+        }
+      },
+      {
+        "when": "donating:chip_1000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_1000"
+        }
+      },
+      {
+        "when": "donating:chip_5000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_5000"
+        }
+      },
+      {
+        "when": "donating:chip_10000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_10000"
+        }
+      },
+      {
+        "when": "donating:chip_25000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_25000"
+        }
+      },
+      {
+        "when": "donating:chip_100000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chip_100000"
+        }
+      },
+      {
+        "when": "donating:chipbtn_10",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_10"
+        }
+      },
+      {
+        "when": "donating:chipbtn_50",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_50"
+        }
+      },
+      {
+        "when": "donating:chipbtn_100",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_100"
+        }
+      },
+      {
+        "when": "donating:chipbtn_250",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_250"
+        }
+      },
+      {
+        "when": "donating:chipbtn_500",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_500"
+        }
+      },
+      {
+        "when": "donating:chipbtn_1000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_1000"
+        }
+      },
+      {
+        "when": "donating:chipbtn_5000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_5000"
+        }
+      },
+      {
+        "when": "donating:chipbtn_10000",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_10000"
+        }
+      },
+      {
+        "when": "donating:chipbtn_min",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_min"
+        }
+      },
+      {
+        "when": "donating:chipbtn_max",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/chipbtn_max"
+        }
       }
     ],
     "fallback": {

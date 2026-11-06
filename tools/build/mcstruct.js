@@ -54,6 +54,15 @@ class Build {
     }
     return this
   }
+  // Invisible lights in the empty cells of layer y, spaced so no cell of the layer is over 3 steps from one (a diamond tiling):
+  // a floor h blocks below stays at light >= 15 - h - 3 (docs/heists.md asks for level 8+, so plates and cracks show).
+  lightLayer (x1, z1, x2, z2, y) {
+    for (let x = x1; x <= x2; x++) for (let z = z1; z <= z2; z++) {
+      const cell = this.get(x, y, z)
+      if ((4 * x + 3 * z) % 25 === 0 && (cell === undefined || cell === 'air')) this.set(x, y, z, 'light[level=15,waterlogged=false]')
+    }
+    return this
+  }
   // Another Build (or a function placing into this one) moved by dx, dy, dz.
   add (other, dx = 0, dy = 0, dz = 0) {
     for (const [k, s] of other.blocks) { const [x, y, z] = k.split(',').map(Number); this.set(x + dx, y + dy, z + dz, s) }

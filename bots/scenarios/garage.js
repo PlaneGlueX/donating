@@ -85,6 +85,7 @@ module.exports = async ({ check }) => {
 
     // ---------- Setup ----------
     await cmd('zzcfgreload')
+    await cmd('zzgaragesites stash') // the rule without sites: citygarage.js tests the sites
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} glass`)
     await cmd(`dheist delete ${HID} confirm`)
@@ -406,6 +407,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`fill ${PLATFORM} air`).catch(() => {})
     await rcon.cmd(`fill 1355 ${Y - 1} 1220 1368 ${Y - 1} 1232 air`).catch(() => {})
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
+    await rcon.cmd('zzgaragesites restore').catch(() => {})
     rcon.close()
   }
 }

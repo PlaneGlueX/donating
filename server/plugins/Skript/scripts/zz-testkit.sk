@@ -296,8 +296,11 @@ command /zzheist <text>:
 		if heistExists({_h}) is false:
 			send "HEIST %{_h}% unknown"
 			stop
-		set {_names::*} to heistRobbers({_h})
-		set {_names} to join {_names::*} with ","
+		loop heistRobbers({_h}):
+			if {_names} is set:
+				set {_names} to "%{_names}%,%loop-value%"
+			else:
+				set {_names} to "%loop-value%"
 		set {_reset} to {-heist::%{_h}%::reset-next}
 		if {_reset} is not set:
 			set {_reset} to "none"
@@ -1786,6 +1789,28 @@ command /zzcasinoreset <player>:
 		delete {casino::day::*}
 		send "CASINORESET %arg-1%"
 
+# The Inside Track: /zzcasinotrack <horse|none> (the next winner), /zzcasinott <second of the round>, /zzcasinopendingtrack <uuid> <n>
+command /zzcasinotrack <text>:
+	executable by: players and console
+	trigger:
+		delete {-casino::force::track}
+		if arg-1 is not "none":
+			set {-casino::force::track} to arg-1 parsed as number
+		send "CASINOTRACK %arg-1%"
+
+command /zzcasinott <number>:
+	executable by: players and console
+	trigger:
+		set {-casino::track::t} to arg-1
+		send "CASINOTT %arg-1%"
+
+command /zzcasinopendingtrack <text> <number>:
+	executable by: players and console
+	trigger:
+		set {casinopending::%arg-1%::track::horse} to 1
+		set {casinopending::%arg-1%::track::amt} to arg-2
+		send "CASINOPENDINGTRACK %arg-1% %arg-2%"
+
 # A stake left by a server stop, for the next join to refund: /zzcasinopending <uuid> <n>
 command /zzcasinopending <text> <number>:
 	executable by: players and console
@@ -1807,6 +1832,23 @@ command /zzlootopen <text> <text>:
 	trigger:
 		lootOpenGate(arg-1, arg-2, "test")
 		send "LOOTOPEN %arg-1% %arg-2%"
+
+# clerk.js: "PROPS <store> <id>=<item the throw shows>,..." (none = the alias didn't parse).
+command /zzclerkprops <text>:
+	executable by: players and console
+	trigger:
+		set {_out} to ""
+		loop {-cfg::clerk::store-props::%arg-1%::*}:
+			set {_tool} to cfg("clerk::prop-tool::%loop-value%")
+			if {_tool} is set:
+				set {_i} to toolItem({_tool}, 1)
+			else:
+				set {_i} to cfg("clerk::prop-item::%loop-value%")
+			if {_i} is set:
+				set {_out} to "%{_out}%%loop-value%=ok,"
+			else:
+				set {_out} to "%{_out}%%loop-value%=none,"
+		send "PROPS %arg-1% %{_out}%"
 
 command /zzclerkhit <text> <player>:
 	executable by: players and console
@@ -1833,3 +1875,80 @@ command /zzclock [<text>]:
 			set {_w} to world(arg-1)
 		send "CLOCKSTATE min=%clockMinutes()% ofday=%clockOfDay()% text=%clockText(clockOfDay())% day=%clockDayName(clockDay())% week=%clockWeek()% world=%{_w}% minute=%clockWorldMinute({_w})% ph=%{-ph::clock}%"
 
+# The map's street nodes out of the way for a test that needs only its own (hits.js: a walker starts anywhere on the graph).
+# Saved variables, so a crash in between loses nothing: "zzhitnodes restore" brings them back.
+command /zzhitnodes <text>:
+	executable by: players and console
+	trigger:
+		if arg-1 is "stash":
+			if {zzstash::hitnodes} is true:
+				send "HITNODES already stashed" to sender
+				stop
+			set {zzstash::hitnodes} to true
+			loop {hit::node::*}:
+				set {_n} to loop-index
+				set {zzstash::hitnode::%{_n}%} to loop-value
+				loop {hit::edge::%{_n}%::*}:
+					set {zzstash::hitedge::%{_n}%::%loop-index-2%} to loop-value-2
+				delete {hit::edge::%{_n}%::*}
+			delete {hit::node::*}
+			send "HITNODES stashed" to sender
+		else if {zzstash::hitnodes} is true:
+			loop {zzstash::hitnode::*}:
+				set {_n} to loop-index
+				set {hit::node::%{_n}%} to loop-value
+				loop {zzstash::hitedge::%{_n}%::*}:
+					set {hit::edge::%{_n}%::%loop-index-2%} to loop-value-2
+				delete {zzstash::hitedge::%{_n}%::*}
+			delete {zzstash::hitnode::*}
+			delete {zzstash::hitnodes}
+			send "HITNODES restored %size of {hit::node::*}%" to sender
+		else:
+			send "HITNODES nothing stashed" to sender
+
+# The garage sites out of the way: the rule without sites, for garage.js and fuel.js (citygarage.js tests the sites).
+command /zzgaragesites <text>:
+	executable by: players and console
+	trigger:
+		if arg-1 is "stash":
+			if {zzstash::garagesites} is true:
+				send "GARAGESITES already stashed" to sender
+				stop
+			set {zzstash::garagesites} to true
+			loop {garagesites::*}:
+				set {zzstash::gsite::%loop-index%} to loop-value
+			delete {garagesites::*}
+			send "GARAGESITES stashed" to sender
+		else if {zzstash::garagesites} is true:
+			loop {zzstash::gsite::*}:
+				set {garagesites::%loop-index%} to loop-value
+			delete {zzstash::gsite::*}
+			delete {zzstash::garagesites}
+			send "GARAGESITES restored %size of {garagesites::*}%" to sender
+		else:
+			send "GARAGESITES nothing stashed" to sender
+
+# Entities near a spot by type, and any of a type on the very same spot (the second copy a chunk reload leaves): /zzents <x> <z> <radius>
+command /zzents <number> <number> <number>:
+	executable by: players and console
+	trigger:
+		loop all entities:
+			loop-entity is not a player
+			set {_x} to x-coordinate of loop-entity
+			set {_y} to y-coordinate of loop-entity
+			set {_z} to z-coordinate of loop-entity
+			set {_t} to "%type of loop-entity%[%scoreboard tags of loop-entity%]"
+			replace all ", " with "+" in {_t}
+			set {_k} to "%{_t}%@%round({_x} * 20)%,%round({_y} * 20)%,%round({_z} * 20)%"
+			add 1 to {_same::%{_k}%}
+			if abs({_x} - arg-1) <= arg-3:
+				if abs({_z} - arg-2) <= arg-3:
+					add 1 to {_n::%{_t}%}
+		set {_ents} to ""
+		loop {_n::*}:
+			set {_ents} to "%{_ents}%%loop-index%=%loop-value%,"
+		set {_dup} to ""
+		loop {_same::*}:
+			if loop-value > 1:
+				set {_dup} to "%{_dup}%%loop-index%=%loop-value%;"
+		send "ENTS %{_ents}% DUPES %{_dup}%"

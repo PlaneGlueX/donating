@@ -3,7 +3,7 @@
 #
 # Who's in prison: data "jail" = "course" (a first-joiner in the B1 controls course, jailcourse.sk), "in" (an inmate),
 # "out" (free) or "off" (exempt: test bots, staff tests); unset = an account from before the prison (free). Every
-# death respawns in the prison (R_SPAWN, empty-handed); nobody dies inside the walls (lethal damage downs you: back to
+# death respawns in a prison cell (empty-handed); nobody dies inside the walls (lethal damage downs you: back to
 # your cell, the escape starts over). The outline (jailpoints.sk {-jailwall::*}) is the outer fence: leaving it is the
 # escape, and only the front gate gets anyone out. The inner outline ({-jailinner::*}) tells the yard from the lot.
 # The master switch: core.sk prison::enabled (read directly: unset = off) and the prison world loaded.
@@ -760,6 +760,15 @@ every 5 ticks:
 
 # ---------- Catching: arrest, down, quit, stuck, surrender, staff ----------
 
+# Gives the player an east-wing cell with its door shut for prison::cell-open; returns where they stand in it.
+function jailCellLock(p: player) :: location:
+	set {_c} to jailCellAssign({_p}, "vet")
+	jailCellWait({_p}, cfg("prison::cell-open") / 1 second)
+	# The door shuts now: a pulse left from someone who just walked out of this cell would let them skip the wait.
+	delete {-jail::doorclose::cell_%{_c}%}
+	jailDoor("cell_%{_c}%", false)
+	return jailPt("T_CELL_%{_c}%")
+
 # Back to the cell (a course player: back to the course checkpoint). Everything but "stuck" also takes the jail items and
 # the weapons in hotbar 1-5 and clears the search cooldowns, so the escape starts over at once.
 function jailCatch(p: player, why: text):
@@ -816,15 +825,10 @@ function jailCatch(p: player, why: text):
 	jailLog("catch %{_p}% %{_u}% %{_why}%")
 	wait 1 second
 	{_p} is online
-	set {_c} to jailCellAssign({_p}, "vet")
-	set {_l} to jailPt("T_CELL_%{_c}%")
+	set {_l} to jailCellLock({_p})
 	if {_l} is set:
 		teleport {_p} to {_l}
 	set {_secs} to cfg("prison::cell-open") / 1 second
-	jailCellWait({_p}, {_secs})
-	# The door shuts now: a pulse left from someone who just walked out of this cell would let them skip the wait.
-	delete {-jail::doorclose::cell_%{_c}%}
-	jailDoor("cell_%{_c}%", false)
 	msg({_p}, "&7Your cell opens in %{_secs}%s. The escape starts over.")
 	if {_armed} is true:
 		msg({_p}, "&7They took your weapons. Sparks in the workshop makes new ones from junk; with a keycard, the Gun Shop in the yard gives back the weapons you own.")
@@ -855,6 +859,13 @@ function jailCourseDone(p: player):
 	jailLog("course-done %{_p}% %{_u}% replay=%{_rp}%")
 
 # ---------- The escape ----------
+
+# Fireworks for getting out (bag.sk salePop). A wait here doesn't hold up jailEscape.
+function jailEscapePop(p: player):
+	loop 3 times:
+		{_p} is online
+		salePop({_p})
+		wait 8 ticks
 
 function jailEscape(p: player):
 	set {_u} to "%uuid of {_p}%"
@@ -893,6 +904,7 @@ function jailEscape(p: player):
 				set {_sub} to "Over the lot fence"
 	send title colored "&a&lESCAPED" with subtitle colored "&7%{_sub}%" to {_p} for 4 seconds
 	play sound "ui.toast.challenge_complete" with volume 1 to {_p}
+	jailEscapePop({_p})
 	progEvent({_p}, "escape", 1, {_m})
 	jailLog("escape %{_p}% %{_u}% %{_m}% %x-coordinate of {_l}% %z-coordinate of {_l}%")
 	set {_n} to getData({_p}, "jail-escapes")
@@ -1030,7 +1042,12 @@ function jailOffMove(p: player):
 		# Only from inside the walls: at launch the prison is the main world, and a player already at the city spawn
 		# would be sent there again every 30 s.
 		jailPolyRaw(location of {_p}, "wall") is true
-		execute console command "essentialsspawn:spawn %name of {_p}%"
+		# Out past the fence: /spawn is inside the walls now that the prison is the only map (2026-11-05: nobody got out).
+		set {_to} to jailPt("LOT_EXIT")
+		if {_to} is set:
+			teleport {_p} to {_to}
+		else:
+			execute console command "essentialsspawn:spawn %name of {_p}%"
 		# When the prison is on again, an "in" player found outside the walls is freed, not escaped (prison.sk's pass).
 		if {_s} is "in":
 			setData({_p}, "jail-offmoved", true)
@@ -1144,23 +1161,30 @@ on respawn with priority highest:
 			set {_cp} to "T_SPAWN"
 		set respawn location to jailPt({_cp})
 	else if {-jail::diedin::%{_u}%} is set:
-		set respawn location to jailPt("R_SPAWN")
+		set {_l} to jailCellLock(player)
+		if {_l} is not set:
+			set {_l} to jailPt("R_SPAWN")
+		set respawn location to {_l}
 		wait 1 tick
 		player is online
 		delete {-jail::diedin::%{_u}%}
 		jailCatch(player, "down")
 		stop
 	else:
-		set {_l} to jailPt("R_SPAWN")
-		set {_dx} to random number between -1 and 1
-		set {_dz} to random number between -1 and 1
-		set {_l} to {_l} ~ vector({_dx}, 0, {_dz})
+		# Owner, 2026-11-05: "the player should spawn back into the cell", "drop the wait after a death" (the cell rule opens
+		# the door for them).
+		delete {-jail::cellopen::%{_u}%}
+		delete {-jail::cellwait::%{_u}%}
+		set {_l} to jailPt("T_CELL_%jailCellAssign(player, "vet")%")
+		if {_l} is not set:
+			set {_l} to jailPt("R_SPAWN")
 		set respawn location to {_l}
 		setData(player, "jail", "in")
 		delete {-jail::mark::%{_u}%}
 		delete {-jail::lot::%{_u}%}
 		delete {-jail::gunmag::%{_u}%::*}
-		msg(player, "&7Locked up again. Find a way out.")
+		msg(player, "&7Locked up again. Follow the trail: punch the box by the Gun Shop's gate, over the annex fence, out through the lot.")
+		set {_again} to true
 		jailLog("respawn-in %player% %{_u}%")
 	wait 1 tick
 	player is online
@@ -1169,6 +1193,9 @@ on respawn with priority highest:
 	heal player
 	set food level of player to 10
 	jailShieldOn(player)
+	if {_again} is true:
+		send title colored "&c&lLOCKED UP" with subtitle colored "&7You lost your bag and gear. Follow the trail out" to player for 4 seconds
+		play sound "block.iron_door.close" with volume 1 and pitch 0.8 to player
 
 # A death inside the walls anyway (staff /kill, the void, /suicide): the respawn downs them (their cell, the hostility
 # gone, jail items taken).

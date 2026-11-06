@@ -1,5 +1,5 @@
 // Runs every scenario one after another (or the ones named) and writes a summary: bots\results\summary.json and a
-// line per scenario on the console. Usage: tools\node\node.exe bots\run-all.js [name ...]   (load is a benchmark:
+// line per scenario on the console. Usage: tools\node\node.exe bots\run-all.js [name ...]   (load and swarm are benchmarks:
 // never run here).
 const { spawnSync } = require('child_process')
 const fs = require('fs')
@@ -7,7 +7,7 @@ const path = require('path')
 
 const dir = path.join(__dirname, 'scenarios')
 const names = process.argv.slice(2).length ? process.argv.slice(2)
-  : fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).filter(n => n !== 'load').sort()
+  : fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).filter(n => n !== 'load' && n !== 'swarm').sort()
 const out = path.join(__dirname, 'results')
 fs.mkdirSync(out, { recursive: true })
 const summary = []

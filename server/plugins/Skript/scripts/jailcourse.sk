@@ -78,13 +78,13 @@ function jcPrompt(p: player, s: text):
 	set {_t} to jcTitle({_s})
 	if {_s} is "cell":
 		set {_sub} to "&7Your cell opens in a moment"
-		set {_c} to "New inmates learn the ropes down here first. Your cell opens in a moment."
+		set {_c} to "New inmates learn the ropes down here. Your cell opens in a moment."
 	else if {_s} is "sneak":
-		set {_sub} to "&7Hold &fShift&7 and take the keycard off his desk"
-		set {_c} to "Guards notice inmates who aren't sneaking: get near him without sneaking and he wakes up. Sneak into the guard post and take the keycard off the desk."
+		set {_sub} to "&7Follow the trail, hold &fShift&7 near him, take his keycard"
+		set {_c} to "Guards notice inmates who aren't sneaking. Follow the orange trail, hold Shift near him and take the keycard."
 	else if {_s} is "vent":
 		set {_sub} to "&7Right-click the vent's &cred reader"
-		set {_c} to "Keycards and quest items sit in hotbar 6-8 and work from there: no need to hold one, right-click a red reader to open its door."
+		set {_c} to "Keycards work from hotbar 6-8: no need to hold one, just right-click a red reader."
 	else if {_s} is "crawl":
 		set {_sub} to "&7Follow it to the other side"
 		set {_c} to "Follow the vent to the other side."
@@ -93,7 +93,7 @@ function jcPrompt(p: player, s: text):
 		set {_c} to "There's a way into the next cell from the boiler room."
 	else if {_s} is "hotbar":
 		set {_sub} to "&7Press &f%jcKnifeKey({_p})%"
-		set {_c} to "Your hotbar is fixed: 1-5 weapons and items, 6-8 quest items, 9 your phone; your bag rides in the offhand. A weapon in your hand gets a guard's attention."
+		set {_c} to "Hotbar: 1-5 weapons and items, 6-8 quest items, 9 your phone. A weapon in your hand gets a guard's attention."
 	else if {_s} is "phone":
 		set {_sub} to "&7Press &f9&7, then &fright-click"
 		set {_c} to "Right-click with the phone: the map (your GPS in the city). F with the phone: the apps."
@@ -145,6 +145,33 @@ function jcKnifeKey(p: player) :: number:
 		set {_s} to 0
 	return {_s} + 1
 
+# The point the step's way leads to (the phone's GPS: an orange trail, a ring and a locator dot; owner, 2026-11-05: a new player
+# has to know where to go). "" = none. The hotbar and phone steps keep Rusty's cell, where they already are.
+function jcWayPoint(s: text) :: text:
+	if {_s} is "sneak":
+		return "T_KEYCARD"
+	if {_s} is "vent":
+		return "T_VENT_DOOR"
+	if {_s} is "crawl":
+		return "BOILER_IN"
+	if {_s} is "boiler" or "hotbar" or "phone":
+		return "RUSTY_IN"
+	if {_s} is "office":
+		return "T_SO_READER_IN"
+	if {_s} is "upstairs":
+		return "COURSE_DONE"
+	return ""
+
+# Gives the GPS's quest slot to the step (by "course": story.sk questGps leaves it alone, and frees it once the course ends).
+function jcWay(p: player, s: text):
+	set {_pt} to jcWayPoint({_s})
+	if {_pt} is "":
+		gpsQuestClear({_p}, "course")
+		stop
+	set {_l} to jailPt({_pt})
+	{_l} is set
+	gpsQuest({_p}, "%world of {_l}%", gpsSpot({_l}), jcTitle({_s}), 3, "course", "course:%{_s}%")
+
 function jcBar(p: player, s: text) :: text:
 	set {_t} to "Your cell opens in a moment"
 	if {_s} is "sneak":
@@ -163,7 +190,10 @@ function jcBar(p: player, s: text) :: text:
 		set {_t} to "The Security Office is down the hall: same keycard"
 	else if {_s} is "upstairs":
 		set {_t} to "Out through the SECURITY door"
-	return "&e&lTUTORIAL&r &7· %{_t}%"
+	set {_w} to ""
+	if {_s} is "sneak" or "vent" or "crawl" or "boiler" or "office" or "upstairs":
+		set {_w} to gpsWay({_p})
+	return "&e&lTUTORIAL&r &7· %{_t}% %{_w}%"
 
 # ---------- The sleeping guard (a mannequin, the prison guard skin: skins.sk jailGuardSkinId) ----------
 
@@ -240,6 +270,9 @@ function jcPass(p: player):
 	set {_s} to jcStepOf({_p})
 	set {_l} to location of {_p}
 	set {-jail::checkpoint::%{_u}%} to jcCheckpoint({_p}, {_s})
+	if {-jc::way::%{_u}%} is not {_s}:
+		set {-jc::way::%{_u}%} to {_s}
+		jcWay({_p}, {_s})
 	set {-jail::coursebar::%{_u}%} to jcBar({_p}, {_s})
 	# The sidebar's quest line (story.sk questShow): "▶ Tutorial: Sneak past the guard 2/9".
 	set {-jail::courseline::%{_u}%} to "&e▶ Tutorial: &f%jcTitle({_s})% &7%jcStepNum({_s})%/%size of jcSteps()%"
@@ -515,6 +548,7 @@ on join:
 	jcReplayStale(player)
 
 on quit:
+	delete {-jc::way::%uuid of player%}
 	set {_u} to "%uuid of player%"
 	delete {-jc::unsneak::%{_u}%}
 	delete {-jc::sprintat::%{_u}%}

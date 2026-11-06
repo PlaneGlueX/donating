@@ -1,0 +1,33 @@
+dtrap set bank-3 tag bay
+dtrap set bank-4 tag bay
+dtrap set bank-5 tag bay
+dtrap set bank-6 tag bay
+dtrap set bank-7 tag bay
+dtrap set bank-8 tag bay
+dtrap set bank-9 tag bay
+dtrap set bank-10 tag bay
+dtrap set bank-20 tag bay
+dtrap set bank-21 tag bay
+dtrap set bank-22 tag bay
+dtrap set bank-23 tag bay
+dtrap set bank-24 tag bay
+dswitch add bank 606 58 311 kind=box tags=bay block=minecraft:lever[face=wall,facing=west,powered=false] hold=3 for=45 rearm=90 name=Breaker
+dtrap set jewelry-24 tag curtain
+dtrap set jewelry-25 tag curtain
+dtrap set jewelry-26 tag curtain
+dtrap set jewelry-37 tag curtain
+dtrap set jewelry-38 tag curtain
+dtrap set jewelry-39 tag curtain
+dswitch add jewelry 629 81 389 kind=box tags=curtain block=minecraft:lever[face=wall,facing=west,powered=false] hold=3 for=60 rearm=60 name=Fuse_box
+dtrap set casino-16 tag mantrap
+dtrap set casino-17 tag mantrap
+dtrap set casino-18 tag mantrap
+dtrap set casino-1 tag cams
+dtrap set casino-2 tag cams
+dtrap set casino-15 tag cams
+dtrap set casino-19 tag deposit
+dtrap set casino-20 tag deposit
+dtrap set casino-21 tag deposit
+dswitch add casino 885 58 351 kind=lever tags=mantrap block=minecraft:lever[face=wall,facing=east,powered=false] link=mantrap need=2 within=3 for=run miss=alarm name=Reader_A
+dswitch add casino 885 58 357 kind=lever tags=mantrap block=minecraft:lever[face=wall,facing=east,powered=false] link=mantrap need=2 within=3 for=run miss=alarm name=Reader_B
+dswitch add casino 851 66 344 kind=box tags=cams,deposit hold=3 for=60 rearm=120 name=Security_PC

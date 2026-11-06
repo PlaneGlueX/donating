@@ -282,6 +282,9 @@ gunfx:
   # 2026-10-12, untested): lookalike (only the holder is sent a copy that slides out and back; nothing on the server
   # changes), cooldown (a cooldown on leather and paper: the pack dips them out; the offhand slot shows the sweep), off.
   bag-hide: lookalike
+  # Guns whose reload uses the player's own arm (RealArm.java, 2026-11-04): main hand empty and main arm flipped for the holder alone.
+  # Their pack frames draw no left glove (spec.hands.realArm). Not the Shotgun: its shells chain, each its own reload.
+  real-arm: [50_GS, Uzi, AK_47, 357_Magnum, STG44, M4A1, AX_50, MG34, FN_FAL]
   guns:
     50_GS: { shot: 6, draw: 0 }
     Uzi: { shot: 0, draw: 20, fire: 5 }

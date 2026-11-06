@@ -115,7 +115,8 @@ const readWeapons = () => {
         if (/^\s*(#.*)?$/.test(l)) continue
         const item = l.match(/^(\s*)-(?:\s(.*))?$/)
         if (!item || item[1].length < indent) break
-        lore.push(scalar(item[2] ?? '', `${rel(file)}:${m + 1} (${title})`))
+        const text = scalar(item[2] ?? '', `${rel(file)}:${m + 1} (${title})`)
+        if (!text.startsWith('<gray>Ammo: ')) lore.push(text) // the shop writes its own ammo line, with the magazine (shop.sk)
       }
       if (index.get(title).lore) fail(`${where}: a second Info.Weapon_Item.Lore`)
       index.get(title).lore = lore

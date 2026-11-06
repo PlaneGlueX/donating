@@ -1,0 +1,76 @@
+# seats.sk: custom-texture chairs (owner, 2026-11-04). Stairs are GSit's (plugins/GSit/config.yml). A custom chair is an item display tagged
+# donating_chair over a barrier, which GSit can't tell from other furniture: an empty-handed right-click here sits the player on a display
+# that isn't saved. Sneak gets up (vanilla dismount); the loop below then removes the seat. /dchair <yaw> places one at your feet.
+
+function seatFree(b: location) :: boolean:
+	loop {-seat::at::*}:
+		if loop-value is {_b}:
+			return false
+	return true
+
+on right click:
+	event-block is barrier
+	tool of player is air
+	player is not sneaking
+	player is not riding
+	set {_c} to location(floor(x-coordinate of event-block) + 0.5, floor(y-coordinate of event-block) + 0.5, floor(z-coordinate of event-block) + 0.5, world of event-block)
+	set {_found} to false
+	loop entities in radius 0.7 of {_c}:
+		if loop-entity has scoreboard tag "donating_chair":
+			set {_found} to true
+	{_found} is true
+	if seatFree({_c}) is false:
+		stop
+	set {_at} to {_c}
+	add 0.15 to y-coordinate of {_at}
+	spawn an item display at {_at}:
+		make event-display not persistent
+		add "donating_seat" to scoreboard tags of event-display
+	set {_s} to last spawned entity
+	make player ride {_s}
+	set {-seat::e::%player%} to {_s}
+	set {-seat::p::%player%} to player
+	set {-seat::at::%player%} to {_c}
+
+function seatEnd(k: text, p: player):
+	set {_s} to {-seat::e::%{_k}%}
+	set {_c} to {-seat::at::%{_k}%}
+	if {_s} is valid:
+		kill {_s}
+	delete {-seat::e::%{_k}%}
+	delete {-seat::p::%{_k}%}
+	delete {-seat::at::%{_k}%}
+	if {_p} is online:
+		add 0.5 to y-coordinate of {_c}
+		teleport {_p} to {_c}
+
+# Costs nothing while nobody sits.
+every 10 ticks:
+	loop {-seat::p::*}:
+		set {_p} to loop-value
+		if {_p} is not online:
+			add loop-index to {_gone::*}
+		else if {_p} is not riding:
+			add loop-index to {_gone::*}
+	loop {_gone::*}:
+		seatEnd(loop-value, {-seat::p::%loop-value%})
+
+on quit:
+	{-seat::e::%player%} is set
+	kill {-seat::e::%player%}
+	delete {-seat::e::%player%}
+	delete {-seat::p::%player%}
+	delete {-seat::at::%player%}
+
+command /dchair <number>:
+	permission: donating.staff
+	permission message: &cStaff only.
+	executable by: players
+	trigger:
+		set {_b} to block at player
+		set {_x} to x-coordinate of {_b}
+		set {_y} to y-coordinate of {_b}
+		set {_z} to z-coordinate of {_b}
+		execute console command "minecraft:setblock %{_x}% %{_y}% %{_z}% minecraft:barrier"
+		execute console command "minecraft:summon minecraft:item_display %{_x} + 0.5% %{_y} + 0.5% %{_z} + 0.5% {Tags:[""donating_chair""],Rotation:[%arg-1%f,0f],item:{id:""minecraft:iron_ingot"",components:{""minecraft:custom_model_data"":{strings:[""donating:furn_chair""]}}}}"
+		send "CHAIR placed at %{_x}% %{_y}% %{_z}%" to player

@@ -357,7 +357,7 @@ const laser = (x, y, o) => `(G) /dtrap add mansion laser ${x} ${y} 620.0 ${x} ${
 const BLINK = n => `damage=2 blink=true on=2 off=2 offset=${n}`
 const HEIST_LINES = [
   '(G) /dheist create mansion 4',
-  '(G) /dheist set mansion name The Mansion',
+  '(G) /dheist set mansion name Mansion',
   '(G) /dheist set mansion advanced true',
   '(G) /dheist set mansion pool 70000',
   '(G) /dheist set mansion level 60',
@@ -405,7 +405,7 @@ module.exports.setup = {
   regions: [{ id: 'heist_mansion', box: REGION.mansion, flags: ['passthrough allow'], lines: REGION_LINES,
     note: 'the house and the library\'s pit (y 84..104); the court and the gardens stay outside' }],
   heists: [{
-    id: 'mansion', difficulty: 4, level: 60, advanced: true, name: 'The Mansion', pool: 70000, escape: '10:00', cooldown: '30:00',
+    id: 'mansion', difficulty: 4, level: 60, advanced: true, name: 'Mansion', pool: 70000, escape: '10:00', cooldown: '30:00',
     exit: [1250.5, 91, 611.5, 180], holo: [1256.5, 95, 611.5], chase: [1250.5, 95, 645.5],
     snapshot: 'with the house clean: G1-G7 closed, the floor and the plates up, no bars in the windows',
     lines: HEIST_LINES

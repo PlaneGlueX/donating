@@ -1,5 +1,5 @@
 // Every death sends you to the prison, and nobody dies inside the walls (prison.sk; ESCAPE-SPEC 4.3, 4.5 and 7.2-3): a
-// free bot killed in the city respawns at R_SPAWN as an inmate with an empty hotbar 1-5 and its car job ended without
+// free bot killed in the city respawns in a shut cell as an inmate with an empty hotbar 1-5 and its car job ended without
 // a cooldown; an exempt bot (data jail "off") respawns at the city spawn; a /kill inside costs nothing and is a downing
 // (its cell, the hunt gone); lethal damage inside downs instead of killing (no death, its cell, the door after 12 s,
 // the jail items, the weapons in hotbar 1-5 and the search waits gone, no money lost; owner, 2026-10-14: "getting
@@ -41,17 +41,27 @@ module.exports = async ({ check }) => {
     check('setup: a free bot in the city with a car job, a knife and a keycard in hotbar 6-8', (await dim(A)) === 'minecraft:overworld' && /job=street/.test(await cmd(`zzctstate ${A}`)) && /Combat_Knife/.test(await cmd(`zzwm ${A}`)) && /keycard:[5-7]x1/.test(field(await info(A), 'items')), `${await cmd(`zzctstate ${A}`)} ${await info(A)}`)
     let since = Date.now()
     await cmd(`minecraft:kill ${A}`)
-    await until(async () => (await dim(A)) === 'minecraft:overworld', 8000)
+    await until(async () => VET_CELLS.includes(field(await info(A), 'cell')), 8000)
     await sleep(1500)
     let p = await pos(A)
     let s = await info(A)
-    check('killed in the city: respawns in jailbreak at R_SPAWN (86.5, 65, 198.5)', (await dim(A)) === 'minecraft:overworld' && p && Math.abs(p[0] - 86.5) <= 1.1 && Math.abs(p[2] - 198.5) <= 1.1, `${await dim(A)} ${p}`)
+    const cell0 = field(s, 'cell')
+    check('killed in the city: respawns in an east-wing cell (owner: "spawn back into the cell")', (await dim(A)) === 'minecraft:overworld' && VET_CELLS.includes(cell0) && p && p[1] < 60, `${s} at ${p}`)
+    check('...no wait: its door opens at once', await until(() => doorOpen(CELL_DOOR[cell0]), 3000, 200), await door(CELL_DOOR[cell0] || 'x'))
     check('...as an inmate (state in), "Locked up again"', field(s, 'state') === 'in' && said(a, /Locked up again/, since), s)
+    check('...told with a title what happened', said(a, /LOCKED UP/, since))
+    // Lessons done: the GPS still shows a way out, and the sidebar says so (owner, 2026-11-05: a new player must know what to do).
+    await cmd(`zzdatatext ${A} lefty done`)
+    await until(async () => /label=Way_out/.test(await cmd(`dphone gps ${A}`)), 5000)
+    const out0 = await cmd(`dphone gps ${A}`)
+    check('...with no lesson left the GPS leads to the way out', /label=Way_out/.test(out0), out0)
+    await cmd(`zzdata ${A} lefty none`)
     const dump = await cmd(`zzdump ${A}`)
     check('...with hotbar 1-5 empty (the knife gone)', !/(DUMP |\| )[0-4]=/.test(dump), dump)
     check('...and the keycard in hotbar 6-8 gone (every death takes the jail items)', field(s, 'items') === '' && !/(DUMP |\| )[5-7]=/.test(dump), `${s} ${dump}`)
     const ct = await cmd(`zzctstate ${A}`)
     check('...the car job ended without a cooldown ("You got locked up")', /job=<none>/.test(ct) && /cd=0/.test(ct) && said(a, /You got locked up: the .* job is off/, since), ct)
+    s = await info(A)
     check('...protected for 30 s after the respawn', Number(field(s, 'shield')) >= 20, s)
 
     // ---- an exempt bot (state off) respawns at the city spawn
@@ -186,7 +196,7 @@ module.exports = async ({ check }) => {
       await into(A, 200.5, 65, 150.5, 0)
       await sleep(1200)
       await t.prisonOff()
-      const moved = await until(async () => (await dim(A)) === 'minecraft:overworld', 34000, 1000)
+      const moved = await until(async () => /= true/.test(await cmd('zzdata '+A+' jail-offmoved')), 34000, 1000) // jailOffMove's flag: every 30 s
       check('the prison switched off: an inmate in jailbreak is moved to the city within 30 s (state kept)', moved && field(await info(A), 'state') === 'in', `${await dim(A)} ${await info(A)}`)
       await t.prisonOn()
       const freed = await until(async () => field(await info(A), 'state') === 'out', 4000)

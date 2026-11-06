@@ -26,3 +26,4 @@ const HEISTS = {
 }
 
 module.exports = run(HEISTS, 'IronBot')
+module.exports.HEISTS = HEISTS

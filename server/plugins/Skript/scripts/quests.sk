@@ -444,9 +444,8 @@ command /dquest [<text>]:
 				stop
 			execute console command "minecraft:kill @e[tag=questg_%{_n}%]"
 			delete {quest::giver::%{_n}%}
-			# Its locator-bar dot and force-loaded chunk (nav.sk).
-			execute console command "minecraft:kill @e[tag=poi_q_%{_n}%]"
-			poiRelease("q_%{_n}%")
+			# Its locator-bar dot (nav.sk).
+			poiForget("q_%{_n}%")
 			questLog("remove %{_n}% by=%sender%")
 			send "QUEST giver %{_n}% removed" to sender
 		else if {_sub} is "list":

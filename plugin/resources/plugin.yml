@@ -4,12 +4,12 @@ version: 1.0
 api-version: '1.21.11'
 # TAB draws the nametags; Nametags.java hides them behind walls through its API (optional). WeaponMechanics: GunFx
 # starts the guns' animation clocks from its events (optional: without it, no gun animations).
-softdepend: [TAB, WeaponMechanics, MechanicsCore]
+softdepend: [TAB, WeaponMechanics, MechanicsCore, packetevents]
 description: Draws the Donating phone map. Game rules live in Skript.
 commands:
   dphone:
     description: Reload the phone config and re-read the city map (pixels + banner labels), or show one player's phone.
-    usage: /dphone [reload | status <player> | roads [info|scan|cancel|show] | path [add|addat|link|unlink|remove|move|name|select|wand|list|show|near|clear|dump] | zoom <player> [level] | gps <player> [set ...|clear] | nametag <viewer> <target> | carstat <plate> [max accel steering] | carsmooth [off|sync|track|all] | carprobe <plate> [ticks] | cam <player>]
+    usage: /dphone [reload | status <player> | roads [info|scan|cancel|show] | path [add|addat|link|unlink|remove|move|name|select|wand|list|show|near|clear|dump] | zoom <player> [level] | gps <player> [set ...|clear] | nametag <viewer> <target> | carstat <plate> [max accel steering] | carsmooth [off|sync|track|all] | carprobe <plate> [ticks] | cam <player> | way set <id> <world> <x> <y> <z> <color> <style> | way remove <id> | way list]
     permission: donating.phone.admin
 permissions:
   donating.phone.admin:

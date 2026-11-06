@@ -45,6 +45,9 @@ module.exports = async ({ check }) => {
     // escapes": nothing at all, so TAB drops the lines).
     const side0 = await until(async () => /Tutorial: .*Sneak past the guard .*2\/9/.test(await t.papi(A, 'donating_mission')), 3000)
     check('the sidebar\'s quest line on the course: "▶ Tutorial: Sneak past the guard 2/9"', side0, await t.papi(A, 'donating_mission'))
+    check('a new player gets the short course sidebar', (await t.papi(A, 'donating_board')) === 'course', await t.papi(A, 'donating_board'))
+    const way0 = await cmd(`dphone gps ${A}`)
+    check('the GPS leads to the sneak step\'s keycard', /Sneak_past_the_guard/.test(way0), way0)
     check('...and no Jobs or hit line while a prisoner (empty: TAB drops them)', (await t.papi(A, 'donating_jobs')) === '' && (await t.papi(A, 'donating_hit')) === '', `${await t.papi(A, 'donating_jobs')} | ${await t.papi(A, 'donating_hit')}`)
     await tp(A, 78.5, 58, 59.5, 180)
     await sleep(3200)
@@ -127,7 +130,7 @@ module.exports = async ({ check }) => {
     s = await info(A)
     check('walking into Rusty\'s cell: step hotbar, Rusty says "Took you long enough"', field(s, 'step') === 'hotbar' && said(a, /Took you long enough/, since), s)
     check('the Combat Knife unlocked and in slot 1 (the bot holds slot 0), "Press 2"', knifeSay && /(WM |\| )1=Combat_Knife:/.test(await cmd(`zzwm ${A}`)) && /= true/.test(await cmd(`zzdata ${A} wpn::Combat_Knife`)), dump.slice(0, 300))
-    check('the hotbar step told after the knife: "Hold the knife" and the fixed-hotbar TUTORIAL line', said(a, /Hold the knife/, since) && said(a, /TUTORIAL.*hotbar is fixed/, since))
+    check('the hotbar step told after the knife: "Hold the knife" and the fixed-hotbar TUTORIAL line', said(a, /Hold the knife/, since) && said(a, /TUTORIAL.*Hotbar: 1-5/, since))
     check('the bar says "press 2"', await until(() => a.bars.some(b => /Hold the knife: press 2/.test(b.text)), 2000), (a.bars.slice(-1)[0] || {}).text)
     // The way out: from the hotbar step on, Rusty's door opens from inside (the hotbar and phone steps work anywhere).
     check("in Rusty's cell at step hotbar: the door shut until the bot walks up", !(await doorOpen('rusty')), await door('rusty'))

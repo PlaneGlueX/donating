@@ -102,6 +102,23 @@ scoreboard:
         - "&7Bag: &f%donating_bag% &7(%donating_bag_pct%)"
         - "&7At risk: &c%donating_heist_risk%"
         - "%donating_wanted%"
+    # A new player sees only what they need (owner, 2026-11-05): the course's step; then money, level, bag and the next mission.
+    course:
+      title: "&e&lTUTORIAL"
+      display-condition: "%donating_board%=course"
+      lines:
+        - "%donating_mission_a%"
+        - "%donating_mission_b%"
+    new:
+      title: "&6&lDONATING"
+      display-condition: "%donating_board%=new"
+      lines:
+        - "&7Cash &a%donating_balance%"
+        - "&7Lvl &f%donating_level_num% %donating_level%"
+        - "&7Bag &f%donating_bag%"
+        - "%donating_mission_a%"
+        - "%donating_mission_b%"
+        - "%donating_wanted%"
     # Compact (owner, 2026-10-21: "more compact, or wrap long lines"): no blank lines, short labels, and the long lines
     # (season, quest, jobs, hit) wrapped at 22 characters onto a second line; an empty one ("") is dropped. The first line
     # is the city's clock (clock.sk, 2026-10-21: "☀ Tue 3:45 PM").

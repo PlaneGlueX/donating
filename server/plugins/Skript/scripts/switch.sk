@@ -1,0 +1,532 @@
+# switch.sk: security switches (tools/build/city/PLAN.md M2): levers and breaker boxes that shut off tagged traps.
+# Traps join with tag=<t1,t2> (/dtrap set). /dswitch add <h> [x y z] kind=lever|box tags=<t1,t2> [block=<block data>] [hold=3] [for=<s>|run] [rearm=<s>]
+# [quiet=true] [link=<name> need=<n> within=<s>] [miss=alarm|none] [name=Fuse_box]. A lever is pulled once a run; a box is a hold, usable again rearm s after the power returns.
+# Linked: fires when `need` different robbers pull within `within` s of the first pull. quiet: dead once the alarm has tripped.
+# Saved: {switches::<h>::<n>} = kind, {switch::<h>::<n>::<key>}. Memory, per run: {-swon::<h>::<n>} fired, {-swuntil::..} power returns, {-swrearm::..} usable again,
+# {-trapoff::<h>::<trap>} (traps.sk: true = off, no display; "flick" = off, display flickering). {-swheists::<h>} heists with switches, {-swbusy::<h>} heists with a timer running.
+# The room reset removes a placed block: it's put back whenever its hitbox spawns.
+
+function switchKeyOk(k: text) :: boolean:
+	if {_k} is "kind" or "tags" or "block" or "hold" or "for" or "rearm" or "quiet" or "link" or "need" or "within" or "miss" or "name":
+		return true
+	return false
+
+function switchHeists():
+	delete {-swheists::*}
+	loop {heists::*}:
+		set {_h} to loop-index
+		if size of {switches::%{_h}%::*} > 0:
+			set {-swheists::%{_h}%} to {_h}
+
+function switchCovers(h: text, n: text, t: text) :: boolean:
+	set {_have} to {trap::%{_h}%::%{_t}%::tag}
+	if {_have} is not set:
+		return false
+	set {_mine::*} to {switch::%{_h}%::%{_n}%::tags} split at ","
+	loop ({_have} split at ","):
+		if {_mine::*} contains loop-value:
+			return true
+	return false
+
+# Every trap off exactly while a fired switch covers it.
+function switchApply(h: text):
+	loop {traps::%{_h}%::*}:
+		set {_t} to loop-index
+		set {_off} to false
+		loop {switches::%{_h}%::*}:
+			if {-swon::%{_h}%::%loop-index-2%} is set:
+				if switchCovers({_h}, loop-index-2, {_t}) is true:
+					set {_off} to true
+		if {_off} is true:
+			if {-trapoff::%{_h}%::%{_t}%} is not true:
+				set {-trapoff::%{_h}%::%{_t}%} to true
+				trapDespawn({_h}, {_t})
+		else if {-trapoff::%{_h}%::%{_t}%} is set:
+			delete {-trapoff::%{_h}%::%{_t}%}
+			if trapArmed({_h}) is true:
+				trapSpawn({_h}, {_t})
+
+function switchTell(h: text, text: text):
+	loop heistRobbers({_h}):
+		heistNotify(loop-value, "warn", {_text})
+
+function switchFire(h: text, n: text):
+	set {-swon::%{_h}%::%{_n}%} to true
+	set {_for} to {switch::%{_h}%::%{_n}%::for}
+	if {_for} is not set:
+		set {_for} to "60"
+	set {_name} to {switch::%{_h}%::%{_n}%::name}
+	if {_for} is "run":
+		switchTell({_h}, "&a%{_name}%: &fsecurity off for the rest of the run.")
+	else:
+		set {_u} to now
+		add "%{_for}% seconds" parsed as timespan to {_u}
+		set {-swuntil::%{_h}%::%{_n}%} to {_u}
+		set {-swbusy::%{_h}%} to {_h}
+		switchTell({_h}, "&a%{_name}%: &fsecurity off for %{_for}% seconds.")
+	lootLog("switch fire %{_h}%-%{_n}%")
+	switchApply({_h})
+	switchDraw({_h}, {_n})
+	# Counts as a task: an open heist's clock starts.
+	heistStartRun({_h})
+
+# A pull. Linked switches wait for `need` different robbers.
+function switchPull(p: player, h: text, n: text):
+	set {_link} to {switch::%{_h}%::%{_n}%::link}
+	if {_link} is not set:
+		switchFire({_h}, {_n})
+		stop
+	if {-swfirst::%{_h}%::%{_link}%} is not set:
+		set {-swfirst::%{_h}%::%{_link}%} to now
+		set {-swbusy::%{_h}%} to {_h}
+	set {-swpull::%{_h}%::%{_link}%::%{_n}%} to "%{_p}%"
+	set {-swpulled::%{_h}%::%{_n}%} to true
+	switchBlock({_h}, {_n})
+	loop {-swpull::%{_h}%::%{_link}%::*}:
+		set {_who::%loop-value%} to loop-value
+	set {_need} to {switch::%{_h}%::%{_n}%::need}
+	if {_need} is not set:
+		set {_need} to 2
+	if size of {_who::*} >= {_need}:
+		delete {-swfirst::%{_h}%::%{_link}%}
+		loop {-swpull::%{_h}%::%{_link}%::*}:
+			switchFire({_h}, loop-index)
+		delete {-swpull::%{_h}%::%{_link}%::*}
+	else:
+		loop heistRobbers({_h}):
+			lootBar(loop-value, "&e%{switch::%{_h}%::%{_n}%::name}%: &7another robber has to pull theirs, now!")
+
+function switchMiss(h: text, link: text):
+	delete {-swfirst::%{_h}%::%{_link}%}
+	set {_alarm} to false
+	loop {-swpull::%{_h}%::%{_link}%::*}:
+		delete {-swpulled::%{_h}%::%loop-index%}
+		switchBlock({_h}, loop-index)
+		if {switch::%{_h}%::%loop-index%::miss} is "alarm":
+			set {_alarm} to true
+	delete {-swpull::%{_h}%::%{_link}%::*}
+	switchTell({_h}, "&cToo slow: the switches reset.")
+	lootLog("switch miss %{_h}% %{_link}%")
+	if {_alarm} is true:
+		heistTripAlarm({_h}, "switch")
+
+# 5 s before the power returns: lasers flicker (still harmless), the robbers are told once.
+function switchFlick(h: text, n: text):
+	if {-swwarned::%{_h}%::%{_n}%} is not set:
+		set {-swwarned::%{_h}%::%{_n}%} to true
+		switchTell({_h}, "&ePOWER BACK IN 5")
+	set {_show} to true
+	if {-swflick::%{_h}%::%{_n}%} is true:
+		set {_show} to false
+	set {-swflick::%{_h}%::%{_n}%} to {_show}
+	loop {traps::%{_h}%::*}:
+		if loop-value is "laser":
+			if switchCovers({_h}, {_n}, loop-index) is true:
+				if {-trapoff::%{_h}%::%loop-index%} is true:
+					set {-trapoff::%{_h}%::%loop-index%} to "flick"
+					trapSpawn({_h}, loop-index)
+				else if {-trapoff::%{_h}%::%loop-index%} is set:
+					trapShow({_h}, loop-index, {_show})
+
+function switchTick(h: text):
+	set {_busy} to false
+	set {_apply} to false
+	loop {switches::%{_h}%::*}:
+		set {_n} to loop-index
+		set {_u} to {-swuntil::%{_h}%::%{_n}%}
+		if {_u} is set:
+			set {_busy} to true
+			if {_u} <= now:
+				delete {-swuntil::%{_h}%::%{_n}%}
+				delete {-swon::%{_h}%::%{_n}%}
+				delete {-swwarned::%{_h}%::%{_n}%}
+				delete {-swflick::%{_h}%::%{_n}%}
+				set {_re} to {switch::%{_h}%::%{_n}%::rearm}
+				if {_re} is set:
+					set {_r} to now
+					add "%{_re}% seconds" parsed as timespan to {_r}
+					set {-swrearm::%{_h}%::%{_n}%} to {_r}
+				else:
+					set {-swspent::%{_h}%::%{_n}%} to true
+				set {_apply} to true
+				switchDraw({_h}, {_n})
+			else if difference between {_u} and now <= 5 seconds:
+				switchFlick({_h}, {_n})
+	if {_apply} is true:
+		switchTell({_h}, "&cThe power's back.")
+		switchApply({_h})
+	loop {-swfirst::%{_h}%::*}:
+		set {_busy} to true
+		set {_link} to loop-index
+		set {_within} to 3
+		loop {-swpull::%{_h}%::%{_link}%::*}:
+			set {_w} to {switch::%{_h}%::%loop-index-2%::within}
+			if {_w} is set:
+				set {_within} to {_w}
+		if (difference between loop-value-1 and now) / 1 second > {_within}:
+			switchMiss({_h}, {_link})
+	if {_busy} is false:
+		delete {-swbusy::%{_h}%}
+
+# Costs nothing while no timer runs.
+every 5 ticks:
+	loop {-swbusy::*}:
+		switchTick(loop-value)
+
+# ---------- The block, the hitbox and the sign ----------
+
+function switchDead(h: text, n: text) :: boolean:
+	if {switch::%{_h}%::%{_n}%::quiet} is true:
+		if heistAlarmStage({_h}) is not "none":
+			return true
+	return false
+
+function switchBlock(h: text, n: text):
+	set {_a} to {switch::%{_h}%::%{_n}%::a}
+	chunk at {_a} is loaded
+	set {_d} to {switch::%{_h}%::%{_n}%::block}
+	{_d} is set
+	if {-swon::%{_h}%::%{_n}%} is set:
+		replace all "powered=false" with "powered=true" in {_d}
+	else if {-swpulled::%{_h}%::%{_n}%} is set:
+		replace all "powered=false" with "powered=true" in {_d}
+	"%block data of block at {_a}%" is not {_d}
+	set {_bd} to {_d} parsed as block data
+	{_bd} is set
+	update block at {_a} as {_bd} without neighbour updates
+
+# Red live, green fired, gray dead or spent.
+function switchDraw(h: text, n: text):
+	set {_tx} to {-swtx::%{_h}%::%{_n}%}
+	{_tx} is set
+	{_tx} is valid
+	set {_name} to {switch::%{_h}%::%{_n}%::name}
+	set {_t} to "&c%{_name}%%nl%&7Right-click"
+	if {-swkind::%{_h}%::%{_n}%} is "box":
+		set {_t} to "&c%{_name}%%nl%&7Hold right-click"
+	if {-swon::%{_h}%::%{_n}%} is set:
+		set {_t} to "&a%{_name}%"
+	else if {-swspent::%{_h}%::%{_n}%} is set:
+		set {_t} to "&7%{_name}%"
+	else if {-swrearm::%{_h}%::%{_n}%} is set:
+		set {_t} to "&7%{_name}%"
+	else if switchDead({_h}, {_n}) is true:
+		set {_t} to "&7%{_name}%"
+	if {-swtext::%{_h}%::%{_n}%} is not {_t}:
+		set {-swtext::%{_h}%::%{_n}%} to {_t}
+		set text of {_tx} to colored {_t}
+
+function switchDespawn(h: text, n: text):
+	set {_e} to {-swhb::%{_h}%::%{_n}%}
+	if {_e} is set:
+		delete {-swent::%uuid of {_e}%}
+		if {_e} is valid:
+			kill {_e}
+	set {_x} to {-swtx::%{_h}%::%{_n}%}
+	if {_x} is set:
+		if {_x} is valid:
+			kill {_x}
+	delete {-swhb::%{_h}%::%{_n}%}
+	delete {-swtx::%{_h}%::%{_n}%}
+	delete {-swtext::%{_h}%::%{_n}%}
+
+function switchEnsure(h: text, n: text):
+	set {_a} to {switch::%{_h}%::%{_n}%::a}
+	{_a} is set
+	if chunk at {_a} is not loaded:
+		switchDespawn({_h}, {_n})
+		stop
+	set {_ok} to false
+	set {_e} to {-swhb::%{_h}%::%{_n}%}
+	if {_e} is set:
+		if {_e} is valid:
+			set {_ok} to true
+	if {_ok} is false:
+		switchDespawn({_h}, {_n})
+		switchBlock({_h}, {_n})
+		set {_at} to {_a}
+		add 0.5 to x-coordinate of {_at}
+		add 0.5 to z-coordinate of {_at}
+		spawn an interaction at {_at}:
+			make event-entity not persistent
+			add "donating_switch" to scoreboard tags of event-entity
+			set interaction width of event-entity to 1.02
+			set interaction height of event-entity to 1.02
+			make event-entity unresponsive
+		set {_e} to last spawned entity
+		set {-swhb::%{_h}%::%{_n}%} to {_e}
+		set {-swent::%uuid of {_e}%} to "%{_h}%|%{_n}%"
+		set {-swkind::%{_h}%::%{_n}%} to {switches::%{_h}%::%{_n}%}
+		add 1.15 to y-coordinate of {_at}
+		spawn a text display at {_at}:
+			make event-display not persistent
+			add "donating_switch" to scoreboard tags of event-display
+			set billboard of event-display to center
+			set brightness override of event-display to 15
+			set view range of event-display to 0.25
+		set {-swtx::%{_h}%::%{_n}%} to last spawned entity
+	switchStrays({_h}, {_n})
+	switchDraw({_h}, {_n})
+
+# A chunk reload can leave a second box on the switch; clicks on it would do nothing, so only the registered pair stays.
+function switchStrays(h: text, n: text):
+	set {_at} to {switch::%{_h}%::%{_n}%::a}
+	add 0.5 to x-coordinate of {_at}
+	add 0.5 to z-coordinate of {_at}
+	loop all entities in radius 2 of {_at}:
+		scoreboard tags of loop-entity contain "donating_switch"
+		loop-entity is not {-swhb::%{_h}%::%{_n}%}
+		loop-entity is not {-swtx::%{_h}%::%{_n}%}
+		kill loop-entity
+
+# A new run: everything as it was built.
+function switchNewRun(h: text):
+	set {-swrun::%{_h}%} to heistRun({_h})
+	delete {-swon::%{_h}%::*}
+	delete {-swuntil::%{_h}%::*}
+	delete {-swrearm::%{_h}%::*}
+	delete {-swspent::%{_h}%::*}
+	delete {-swpulled::%{_h}%::*}
+	delete {-swwarned::%{_h}%::*}
+	delete {-swflick::%{_h}%::*}
+	delete {-swfirst::%{_h}%::*}
+	loop {switches::%{_h}%::*}:
+		delete {-swpull::%{_h}%::%{switch::%{_h}%::%loop-index%::link}%::*}
+		switchBlock({_h}, loop-index)
+	delete {-swbusy::%{_h}%}
+	switchApply({_h})
+
+function switchReconcile(h: text):
+	if trapArmed({_h}) is false:
+		loop {switches::%{_h}%::*}:
+			switchDespawn({_h}, loop-index)
+		stop
+	if {-swrun::%{_h}%} is not heistRun({_h}):
+		switchNewRun({_h})
+	loop {switches::%{_h}%::*}:
+		switchEnsure({_h}, loop-index)
+		set {_r} to {-swrearm::%{_h}%::%loop-index%}
+		if {_r} is set:
+			if {_r} <= now:
+				delete {-swrearm::%{_h}%::%loop-index%}
+
+every 2 seconds:
+	loop {-swheists::*}:
+		switchReconcile(loop-value)
+
+on load:
+	execute console command "minecraft:kill @e[type=minecraft:interaction,tag=donating_switch]"
+	execute console command "minecraft:kill @e[type=minecraft:text_display,tag=donating_switch]"
+	delete {-swhb::*}
+	delete {-swtx::*}
+	delete {-swent::*}
+	delete {-swtext::*}
+	switchHeists()
+
+on unload:
+	execute console command "minecraft:kill @e[type=minecraft:interaction,tag=donating_switch]"
+	execute console command "minecraft:kill @e[type=minecraft:text_display,tag=donating_switch]"
+
+# ---------- Clicking ----------
+
+on right click on interaction:
+	set {_hit} to {-swent::%uuid of event-entity%}
+	{_hit} is set
+	cancel event
+	set {-lootguard::%player%} to now
+	if itemId(player's tool) is "phone":
+		phoneHint(player, "use a switch")
+		stop
+	set {_p::*} to {_hit} split at "|"
+	switchClick(player, {_p::1}, {_p::2}, event-entity)
+
+function switchClick(p: player, h: text, n: text, e: entity):
+	if heistBuilder({_p}) is true:
+		lootBar({_p}, "&7Builder: switch to survival to rob.")
+		stop
+	if heistOf({_p}) is not {_h}:
+		stop
+	if {_p} is not alive:
+		stop
+	if distance between (eye location of {_p}) and (location of {_e}) > {-cfg::loot::reach} + 1:
+		stop
+	set {_name} to {switch::%{_h}%::%{_n}%::name}
+	if switchDead({_h}, {_n}) is true:
+		lootBar({_p}, "&7The panel's dead.")
+		stop
+	if {-swon::%{_h}%::%{_n}%} is set:
+		lootBar({_p}, "&a%{_name}%: &7already off.")
+		stop
+	if {-swspent::%{_h}%::%{_n}%} is set:
+		lootBar({_p}, "&7%{_name}%: spent.")
+		stop
+	if {-swrearm::%{_h}%::%{_n}%} is set:
+		if {-swrearm::%{_h}%::%{_n}%} > now:
+			lootBar({_p}, "&7%{_name}%: still resetting.")
+			stop
+		delete {-swrearm::%{_h}%::%{_n}%}
+	if {switches::%{_h}%::%{_n}%} is "lever":
+		if {-swpulled::%{_h}%::%{_n}%} is set:
+			lootBar({_p}, "&e%{_name}%: &7already pulled.")
+			stop
+		play sound "block.lever.click" with volume 1 at location of {_e}
+		switchPull({_p}, {_h}, {_n})
+		stop
+	set {_hold} to {switch::%{_h}%::%{_n}%::hold}
+	if {_hold} is not set:
+		set {_hold} to 3
+	if lootHold({_p}, "switch|%{_h}%|%{_n}%", {_hold}) is true:
+		play sound "block.lever.click" with volume 1 at location of {_e}
+		switchPull({_p}, {_h}, {_n})
+		stop
+	lootBar({_p}, "&eHOLD %lootMeter(lootHeld({_p}) / {_hold})% &6%{_name}%")
+
+# ---------- /dswitch ----------
+
+command /dswitch [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is "add":
+			dswitchAdd(sender, {_a::*})
+		else if {_sub} is "list" or "dump":
+			if {heists::%{_a::2}%} is not set:
+				send "SWITCH %{_a::2}%: unknown heist" to sender
+				stop
+			loop {switches::%{_a::2}%::*}:
+				send switchLine({_a::2}, loop-index, {_sub}) to sender
+			if {_sub} is "list":
+				send "SWITCH %{_a::2}%: %size of {switches::%{_a::2}%::*}% switches" to sender
+		else if {_sub} is "remove":
+			set {_p::*} to "%{_a::2}%" split at "-"
+			if {switches::%{_p::1}%::%{_p::2}%} is not set:
+				send "SWITCH %{_a::2}%: no such switch" to sender
+				stop
+			if heistRobberCount({_p::1}) > 0:
+				send "SWITCH remove: robbers are inside" to sender
+				stop
+			switchDespawn({_p::1}, {_p::2})
+			delete {switches::%{_p::1}%::%{_p::2}%}
+			delete {switch::%{_p::1}%::%{_p::2}%::*}
+			delete {-swon::%{_p::1}%::%{_p::2}%}
+			delete {-swuntil::%{_p::1}%::%{_p::2}%}
+			switchApply({_p::1})
+			switchHeists()
+			send "SWITCH %{_a::2}% removed" to sender
+		else:
+			send "SWITCH: /dswitch add|list|dump|remove" to sender
+
+function switchLine(h: text, n: text, sub: text) :: text:
+	set {_a} to {switch::%{_h}%::%{_n}%::a}
+	set {_t} to "dswitch add %{_h}% %x-coordinate of {_a}% %y-coordinate of {_a}% %z-coordinate of {_a}% kind=%{switches::%{_h}%::%{_n}%}%"
+	if {_sub} is "list":
+		set {_t} to "SWITCH %{_h}%-%{_n}% %x-coordinate of {_a}% %y-coordinate of {_a}% %z-coordinate of {_a}% kind=%{switches::%{_h}%::%{_n}%}%"
+	loop "tags", "block", "hold", "for", "rearm", "quiet", "link", "need", "within" and "miss":
+		set {_v} to {switch::%{_h}%::%{_n}%::%loop-value%}
+		if {_v} is set:
+			set {_t} to "%{_t}% %loop-value%=%{_v}%"
+	set {_nm} to {switch::%{_h}%::%{_n}%::name}
+	replace all " " with "_" in {_nm}
+	return "%{_t}% name=%{_nm}%"
+
+function dswitchAdd(s: command sender, a: texts):
+	set {_h} to {_a::2}
+	if {heists::%{_h}%} is not set:
+		send "SWITCH add: unknown heist" to {_s}
+		stop
+	if heistRobberCount({_h}) > 0:
+		send "SWITCH add: robbers are inside" to {_s}
+		stop
+	if size of {switches::%{_h}%::*} >= 8:
+		send "SWITCH add: at most 8 a heist" to {_s}
+		stop
+	# key=value: only the first "=" splits (block data has its own).
+	loop {_a::*}:
+		loop-index parsed as number > 2
+		if loop-value contains "=":
+			set {_kv::*} to loop-value split at "="
+			set {_k} to {_kv::1}
+			if switchKeyOk({_k}) is false:
+				send "SWITCH add: unknown setting %{_k}%" to {_s}
+				stop
+			set {_v} to subtext of loop-value from characters (length of {_k} + 2) to (length of loop-value)
+			set {_o::%{_k}%} to {_v}
+		else if loop-value parsed as number is set:
+			add loop-value parsed as number to {_nums::*}
+	set {_w} to world({heist::%{_h}%::world})
+	if size of {_nums::*} >= 3:
+		set {_l} to location(floor({_nums::1}), floor({_nums::2}), floor({_nums::3}), {_w})
+	else if {_s} is a player:
+		set {_l} to location of block at {_s}
+	else:
+		send "SWITCH add: give x y z" to {_s}
+		stop
+	if heistAt({_l}) is not {_h}:
+		send "SWITCH add: that spot is outside the heist" to {_s}
+		stop
+	set {_kind} to {_o::kind}
+	if {_kind} is not "lever":
+		if {_kind} is not "box":
+			send "SWITCH add: kind=lever or kind=box" to {_s}
+			stop
+	if {_o::tags} is not set:
+		send "SWITCH add: tags=<t1,t2>" to {_s}
+		stop
+	if {_o::tags} doesn't match "[a-zA-Z0-9,]+":
+		send "SWITCH add: tags are letters and digits, with commas" to {_s}
+		stop
+	loop "hold", "rearm", "need" and "within":
+		if {_o::%loop-value%} is set:
+			if {_o::%loop-value%} parsed as number is not set:
+				send "SWITCH add: bad %loop-value%" to {_s}
+				stop
+	if {_o::for} is set:
+		if {_o::for} is not "run":
+			if {_o::for} parsed as number is not set:
+				send "SWITCH add: for=<seconds> or for=run" to {_s}
+				stop
+	if {_o::block} is set:
+		if {_o::block} parsed as block data is not set:
+			send "SWITCH add: bad block" to {_s}
+			stop
+	else if "%block data of block at {_l}%" does not contain "air":
+		set {_o::block} to "%block data of block at {_l}%"
+	if {_kind} is "lever":
+		if {_o::block} is not set:
+			send "SWITCH add: a lever needs block=<lever data> or a lever there" to {_s}
+			stop
+		if {_o::block} does not contain "lever":
+			send "SWITCH add: a lever needs block=<lever data> or a lever there" to {_s}
+			stop
+	set {_n} to 1
+	while {switches::%{_h}%::%{_n}%} is set:
+		add 1 to {_n}
+	set {switches::%{_h}%::%{_n}%} to {_kind}
+	set {switch::%{_h}%::%{_n}%::a} to {_l}
+	set {_nm} to {_o::name}
+	if {_nm} is not set:
+		set {_nm} to "Security"
+	replace all "_" with " " in {_nm}
+	set {switch::%{_h}%::%{_n}%::name} to {_nm}
+	loop "tags", "block", "for", "link" and "miss":
+		if {_o::%loop-value%} is set:
+			set {switch::%{_h}%::%{_n}%::%loop-value%} to {_o::%loop-value%}
+	loop "hold", "rearm", "need" and "within":
+		if {_o::%loop-value%} is set:
+			set {switch::%{_h}%::%{_n}%::%loop-value%} to {_o::%loop-value%} parsed as number
+	if {_o::quiet} is "true":
+		set {switch::%{_h}%::%{_n}%::quiet} to true
+	switchHeists()
+	if trapArmed({_h}) is true:
+		switchEnsure({_h}, "%{_n}%")
+	send switchLine({_h}, "%{_n}%", "list") to {_s}
+
+function switchOnDelete(h: text):
+	loop {switches::%{_h}%::*}:
+		switchDespawn({_h}, loop-index)
+	delete {switches::%{_h}%::*}
+	delete {switch::%{_h}%::*}
+	delete {-swbusy::%{_h}%}
+	switchHeists()

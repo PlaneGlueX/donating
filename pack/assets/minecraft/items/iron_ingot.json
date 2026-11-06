@@ -131,6 +131,13 @@
         }
       },
       {
+        "when": "donating:furn_chair",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/chair"
+        }
+      },
+      {
         "when": "donating:furn_atm",
         "model": {
           "type": "minecraft:model",
@@ -240,6 +247,104 @@
         "model": {
           "type": "minecraft:model",
           "model": "donating:item/furn/bakerybox"
+        }
+      },
+      {
+        "when": "donating:furn_slot_red",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slot_red"
+        }
+      },
+      {
+        "when": "donating:furn_slot_blue",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slot_blue"
+        }
+      },
+      {
+        "when": "donating:furn_slot_gold",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slot_gold"
+        }
+      },
+      {
+        "when": "donating:furn_slot_violet",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/slot_violet"
+        }
+      },
+      {
+        "when": "donating:furn_bjtable",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/bjtable"
+        }
+      },
+      {
+        "when": "donating:furn_roulette_wheel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/roulette_wheel"
+        }
+      },
+      {
+        "when": "donating:furn_roulette_disc",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/roulette_disc"
+        }
+      },
+      {
+        "when": "donating:furn_roulette_ball",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/roulette_ball"
+        }
+      },
+      {
+        "when": "donating:furn_roulette_felt",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/roulette_felt"
+        }
+      },
+      {
+        "when": "donating:furn_wheel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/wheel"
+        }
+      },
+      {
+        "when": "donating:furn_wheel_pointer",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/wheel_pointer"
+        }
+      },
+      {
+        "when": "donating:furn_track_screen",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/track_screen"
+        }
+      },
+      {
+        "when": "donating:furn_track_pad",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/track_pad"
+        }
+      },
+      {
+        "when": "donating:furn_cashier",
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/furn/cashier"
         }
       }
     ],

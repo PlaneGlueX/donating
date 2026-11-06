@@ -24,19 +24,27 @@ function tutorialStep(p: player) :: text:
 function tutorialNeedsBag(p: player) :: boolean:
 	return false
 
+# The whole game in four cards (owner, 2026-11-05: "make sure the player knows how to play"; kids don't read chat), the chat lines
+# for whoever wants them.
 function tutorialWelcome(p: player):
-	send title colored "&6&lWELCOME TO THE CITY" with subtitle colored "&7Mara gets new faces started: follow your GPS" to {_p} for 5 seconds
-	play sound "block.note_block.pling" with volume 0.7 to {_p}
 	tutorialSteps({_p})
+	set {_t::*} to "&6&lROB", "&c&lGET OUT ALIVE", "&a&lSELL IT" and "&6&lFIND MARA"
+	set {_s::*} to "&7Stores and heists are full of loot", "&7Die and your loot drops for anyone to grab", "&7At the base: money, levels, better gear" and "&7Follow the orange trail"
+	set {_i} to 0
+	loop {_t::*}:
+		{_p} is online
+		add 1 to {_i}
+		send title colored loop-value with subtitle colored {_s::%{_i}%} to {_p} for 3 seconds with fade in 0 ticks and fade out 5 ticks
+		play sound "block.note_block.pling" with volume 0.8 and pitch (0.8 + {_i} * 0.2) to {_p}
+		play sound "block.note_block.bass" with volume 0.5 and pitch (0.8 + {_i} * 0.2) to {_p}
+		wait 3 seconds
 
 function tutorialSteps(p: player):
 	set {_start} to formatMoney(cfg("money::start"))
 	set {_hands} to formatMoney(cfg("bag::hands::capacity"))
-	msg({_p}, "&6New in town? &7You've got %{_start}% and nothing else. Here's how it starts:")
-	send colored "&7 1. &eMeet Mara &7at the Safehouse: the orange line on your phone (slot 9) and the dot above your hotbar lead there." to {_p}
-	send colored "&7 2. &eYour first job: &7steal a car for the Scrap Yard with her lockpick. It pays for a bag." to {_p}
-	send colored "&7 3. &eLoot &7goes in your &ebag &7(your hands carry %{_hands}% without one). It sells by itself at the base." to {_p}
-	send colored "&7 4. &eGuns need level 5. &7Once you have your bag, a knife does until then. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
+	msg({_p}, "&7You've got %{_start}%. &eMeet Mara &7at the Safehouse: follow the orange trail.")
+	send colored "&7 Your first job: &7steal a car for the Scrap Yard. It pays for a bag (your hands carry %{_hands}%)." to {_p}
+	send colored "&7 Loot sells by itself at the base. Guns need level 5. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
 
 on join:
 	getData(player, "tutorial") is not set

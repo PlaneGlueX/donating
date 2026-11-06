@@ -6,6 +6,7 @@ STG44:
       Lore:
         - "<gray>A drum-fed tommy gun with a wooden stock."
         - "<gray>A 50-round drum and steady full-auto."
+        - "<gray>Ammo: <yellow>Light Rounds"
         - ""
         - "<gray>Weapon Statistics <gold>-<gray> 65.8"
         - "<gold>➣<gray> 66 <gold>⟸ <gray>Accuracy"
@@ -21,7 +22,7 @@ STG44:
       Deny_Use_In_Crafting: true
     Weapon_Info_Display:
       Action_Bar:
-        Message: "<gold>Brave Patriot<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload>"
+        Message: "<gold>Brave Patriot<firearm_state> <gray>«<gold><ammo_left><gray>»<gold><reload> <gray>Light Rounds"
     # Donating (owner, 2026-09-29): gun noises 35% quieter. The vanilla sounds in this file play at 65% of before (volume 1 -> 0.65);
     # ours are lowered in the pack (tools\build-pack.js GUN_SOUND_VOLUME).
     Weapon_Get_Mechanics:

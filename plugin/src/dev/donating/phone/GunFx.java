@@ -136,14 +136,16 @@ final class GunFx implements Listener {
     final GunSpin spin; // the spin guns' spin-up (PhonePlugin registers it)
     final BagHide bag; // the offhand hidden while a gun reloads (PhonePlugin registers it)
     final ShellLoad shells; // the ends of a shell-by-shell reload (PhonePlugin registers it)
+    final RealArm arm; // the player's own arm in a reload (PhonePlugin registers it)
 
-    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); this.bag = new BagHide(plugin, this); this.shells = new ShellLoad(plugin, this); }
+    GunFx(PhonePlugin plugin) { this.plugin = plugin; this.spin = new GunSpin(plugin, this); this.bag = new BagHide(plugin, this); this.arm = new RealArm(plugin, this); this.shells = new ShellLoad(plugin, this); }
 
     void configure(FileConfiguration c) {
         enabled = c.getBoolean("gunfx.enabled", true);
         swing = c.getBoolean("gunfx.swing", false);
         skins = c.getBoolean("gunfx.skins.enabled", true);
         bag.configure(c.getString("gunfx.bag-hide", "lookalike"));
+        arm.configure(c.getStringList("gunfx.real-arm"));
         guns.clear();
         ConfigurationSection s = c.getConfigurationSection("gunfx.guns");
         if (s != null) for (String title : s.getKeys(false)) {
@@ -156,7 +158,7 @@ final class GunFx implements Listener {
     }
 
     String status() {
-        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " " + bag.summary() + " " + shells.summary() + " guns=");
+        StringBuilder b = new StringBuilder("GUNFX enabled=" + enabled + " swing=" + swing + " skins=" + (skins ? "on" : "off") + " glints=" + glints.size() + " started=" + started + " firing=" + firing.size() + " " + spin.summary() + " " + bag.summary() + " " + arm.summary() + " " + shells.summary() + " guns=");
         guns.forEach((t, g) -> b.append(t).append('{').append(g.group.asString()).append(" shot=").append(g.shot).append(" draw=").append(g.draw)
             .append(" alone=").append(g.alone).append(" fire=").append(g.fire).append(" action=").append(g.action).append(g.glint > 0 ? " glint=" + g.glint : "").append(g.exit > 0 ? " exit=" + g.exit : "")
             .append(g.spin != null ? " spin=" + g.spin : "").append('}'));
@@ -279,6 +281,18 @@ final class GunFx implements Listener {
         if (!enabled) return;
         prepare(e.getWeaponStack());
         if (e.getShooter() instanceof Player p) applySkin(p, e.getWeaponStack());
+    }
+
+    // A click on a casino table or machine plays it (casino.sk): a gun in hand mustn't go off as well. Only aimed at a game: the
+    // floor isn't a safe zone. shortcut: the coordinates repeat casino.sk's casinoFloorClick, change them together.
+    @EventHandler(ignoreCancelled = true)
+    public void onPreShoot(me.deecaad.weaponmechanics.weapon.weaponevents.WeaponPreShootEvent e) {
+        if (!(e.getShooter() instanceof Player p)) return;
+        org.bukkit.Location l = p.getLocation();
+        if (l.getX() < 838 || l.getX() > 901 || l.getY() < 70 || l.getY() > 80 || l.getZ() < 326 || l.getZ() > 376) return;
+        org.bukkit.block.Block b = p.getTargetBlockExact(5);
+        if (b == null || b.getX() < 843 || b.getX() > 896 || b.getY() < 73 || b.getY() > 78 || b.getZ() < 331 || b.getZ() > 371) return;
+        if (b.getType() == org.bukkit.Material.BARRIER || (b.getY() == 73 && (b.getX() == 889 || b.getX() == 890))) e.setCancelled(true);
     }
 
     // WeaponMechanics 4.3.1 (ReloadHandler.startReloadWithoutTrigger, bytecode) fires the reload event before it checks
@@ -557,6 +571,7 @@ final class GunFx implements Listener {
     void shutdown() {
         spin.shutdown();
         bag.shutdown(); // every hidden bag back
+        arm.shutdown();
         for (Player p : plugin.getServer().getOnlinePlayers()) unflagAll(p);
         firing.clear();
         for (BukkitTask t : glints.values()) t.cancel();

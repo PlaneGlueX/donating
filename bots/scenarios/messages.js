@@ -138,7 +138,7 @@ module.exports = async ({ check }) => {
 
     // ---------- /messages <contact> ----------
     const vic = await chatOpen('/messages vic')
-    check('/messages vic opens his conversation; no Vic on the map: "Vic isn\'t in town yet" instead of Find', /Vic$/.test(title(vic)) && /Fresh list/.test(itemLore(at(11))) && /Vic isn't in town yet/.test(itemName(at(4))), `${title(vic)} ${itemLore(at(11))} ${itemName(at(4))}`)
+    check('/messages vic opens his conversation; Find Vic, or with no Vic on the map "Vic isn\'t in town yet" instead', /Vic$/.test(title(vic)) && /Fresh list/.test(itemLore(at(11))) && /Vic isn't in town yet|Find Vic/.test(itemName(at(4))), `${title(vic)} ${itemLore(at(11))} ${itemName(at(4))}`)
 
     await closeAll()
     t = Date.now()

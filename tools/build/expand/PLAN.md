@@ -91,7 +91,7 @@ Everything else north of Gallery Row stays grass and kept free for later.
 - **Federal Reserve:**
   - the lobby, with cameras;
   - vault door 1 (a drill), then the antechamber's lasers;
-  - vault door 2 (a drill until M3's blast charges exist);
+  - vault door 2 (a blast charge since 2026-11-04);
   - bullion piles;
   - deposit boxes (safes).
 - **Art Gallery:**

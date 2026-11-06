@@ -111,6 +111,8 @@ function tabLootKeys(kind: text) :: texts:
 		return "name", "alarm", "digits" and "claim"
 	if {_kind} is "drill":
 		return "name", "alarm", "time", "mount", "claim" and "jams"
+	if {_kind} is "blast":
+		return "name", "alarm", "fuse", "claim", "radius" and "damage"
 	return "name"
 
 # A trap's key=value settings (traps.sk trapKeyType), effect=alarm only in an advanced heist.
@@ -239,7 +241,7 @@ on tab complete of "/dshop", "/gpspick", "/skript:dshop" and "/skript:gpspick":
 # ---------- Staff ----------
 
 on tab complete of "/dheist" and "/skript:dheist":
-	set tab completions for position 1 to "create", "set", "exit", "snapshot", "holo", "lock", "enable", "disable", "open", "start", "end", "reset", "alarm", "kick", "info", "list", "dump" and "delete"
+	set tab completions for position 1 to "create", "set", "exit", "snapshot", "holo", "lock", "pick", "enable", "disable", "open", "start", "end", "reset", "alarm", "kick", "info", "list", "dump" and "delete"
 	set {_s} to tab arg-1
 	if {_s} is "list":
 		stop
@@ -327,6 +329,9 @@ on tab complete of "/dheist" and "/skript:dheist":
 			set tab completions for position 3 to "remove"
 		else if {_s} is "delete":
 			set tab completions for position 3 to "confirm"
+
+on tab complete of "/dswitch" and "/skript:dswitch":
+	set tab completions for position 1 to "add", "list", "dump" and "remove"
 
 on tab complete of "/dtrap" and "/skript:dtrap":
 	set tab completions for position 1 to "pos1", "pos2", "add", "set", "list", "info", "remove", "clear", "show", "dry", "dump" and "reload"
@@ -427,11 +432,11 @@ on tab complete of "/dloot" and "/skript:dloot":
 		if {_l::*} is set:
 			set tab completions for position 2 to {_l::*}
 		if {_s} is "add":
-			set tab completions for position 3 to "pile", "smash", "safe" and "drill"
+			set tab completions for position 3 to "pile", "smash", "safe", "drill" and "blast"
 			# Then that kind's key=value settings (corners from /dloot pos1 and pos2, or typed numbers); a pile needs
 			# value=MIN-MAX.
 			set {_kind} to tab arg-3
-			if {_kind} is "pile" or "smash" or "safe" or "drill":
+			if {_kind} is "pile" or "smash" or "safe" or "drill" or "blast":
 				loop tabLootKeys({_kind}):
 					if loop-value is "value":
 						add "value=500-2000" to {_kv::*}
@@ -457,6 +462,16 @@ on tab complete of "/dcops" and "/skript:dcops":
 		set tab completions for position 3 to tabPos(player, "cx")
 		set tab completions for position 4 to tabPos(player, "y")
 		set tab completions for position 5 to tabPos(player, "cz")
+
+on tab complete of "/dcasino" and "/skript:dcasino":
+	set tab completions for position 1 to "info", "give", "take", "stats", "enable" and "disable"
+	set {_s} to tab arg-1
+	if {_s} is "info" or "give" or "take":
+		set tab completions for position 2 to tabPlayerNames(player)
+		if {_s} is "give" or "take":
+			set tab completions for position 3 to "1000", "5000" and "25000"
+	else if {_s} is "stats":
+		set tab completions for position 2 to "1", "7" and "30"
 
 on tab complete of "/dcrate" and "/skript:dcrate":
 	set tab completions for position 1 to "give", "take", "info", "place", "remove" and "list"

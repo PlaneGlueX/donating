@@ -40,8 +40,9 @@ function atmDespawn(n: text):
 	loop "hb" and "tx":
 		set {_e} to {-atm::e::%{_n}%::%loop-value%}
 		if {_e} is set:
+			# Hidden copies too: left in the list, the orphan sweep would take them for real ones.
+			delete {-atment::%uuid of {_e}%}
 			if {_e} is valid:
-				delete {-atment::%uuid of {_e}%}
 				kill {_e}
 		delete {-atm::e::%{_n}%::%loop-value%}
 	delete {-atm::shown::%{_n}%}
@@ -76,7 +77,7 @@ function atmEnsure(n: text):
 		set {_hb} to last spawned entity
 		set {-atm::e::%{_n}%::hb} to {_hb}
 		set {-atment::%uuid of {_hb}%} to {_n}
-		spawn a text display at {_l} ~ vector(0.5, 2.3, 0.5):
+		spawn a text display at {_l} ~ vector(0.5, 2.8, 0.5):
 			make event-display not persistent
 			add "donating_atm" to scoreboard tags of event-display
 			set billboard of event-display to center
@@ -91,6 +92,26 @@ function atmEnsure(n: text):
 every 2 seconds:
 	loop {atm::*}:
 		atmEnsure(loop-index)
+
+# Orphans (the same cause as loot.sk's sweep): a chunk on its way out hides its entities, atmDespawn can't kill them, and they
+# come back beside the new ones: a second box whose clicks do nothing. Two passes apart, so a new one is never taken for one.
+every 10 seconds:
+	loop all entities:
+		if loop-entity has scoreboard tag "donating_atm":
+			set {_u} to "%uuid of loop-entity%"
+			if {-atment::%{_u}%} is not set:
+				set {_tx} to false
+				loop {atm::*}:
+					if {-atm::e::%loop-index%::tx} is loop-entity:
+						set {_tx} to true
+				if {_tx} is false:
+					if {-atmorph::%{_u}%} is set:
+						kill loop-entity
+					else:
+						set {_seen::%{_u}%} to true
+	delete {-atmorph::*}
+	loop {_seen::*}:
+		set {-atmorph::%loop-index%} to true
 
 on load:
 	# Stray copies from before a reload (not persistent, but a reload doesn't unload them).

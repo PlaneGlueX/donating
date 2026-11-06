@@ -1030,6 +1030,13 @@ function ctCrush(p: player, c: text, l: location, dmg: number, yaw: number):
 		set {_dx} to 0
 		set {_dz} to 1
 		set {_len} to 1
+	# Straight out along the nearer side: on a diagonal the 6 blocks land in the press frame's corner post (a thief suffocated
+	# there, found by the 20-player bots, 2026-11-05).
+	if abs({_dx}) >= abs({_dz}):
+		set {_dz} to 0
+	else:
+		set {_dx} to 0
+	set {_len} to sqrt({_dx} ^ 2 + {_dz} ^ 2)
 	set {_out} to location({_cx} + {_dx} / {_len} * 6, {_cy}, {_cz} + {_dz} / {_len} * 6, {_w})
 	if {_p} is online:
 		teleport {_p} to {_out}

@@ -198,8 +198,8 @@ module.exports = async ({ check }) => {
     const xp1 = Number(((await cmd(`zzdata ${M1} level-xp`)).match(/= (\d+)/) || [])[1] || 0)
     check('the escape: l_out passes (+$250, +50 XP), the chain done', out && (await bal(M1)) === b0 + 250 && xp1 - xp0 >= 50, `${await story(M1, 'lefty')} bal ${await bal(M1)} vs ${b0} xp ${xp0} -> ${xp1}`)
     const mara = await until(async () => /id=c1_meet/.test(await story(M1, 'story')), 10000, 500)
-    await until(() => said(m1, /WELCOME TO THE CITY/, since), 8000) // 4 s after the escape, where it stands (the : sparks|world world)
-    check('...then Mara\'s chain starts (c1_meet) with WELCOME TO THE CITY and the "broke out" brief', mara && said(m1, /WELCOME TO THE CITY/, since) && said(m1, /Heard you broke out/, since), `${await story(M1, 'story')} ${t.text(m1, since).slice(0, 300)}`)
+    await until(() => said(m1, /GET OUT ALIVE/, since), 8000) // 4 s after the escape, where it stands (the : sparks|world world)
+    check('...then Mara\'s chain starts (c1_meet) with WELCOME TO THE CITY and the "broke out" brief', mara && said(m1, /GET OUT ALIVE/, since) && said(m1, /Heard you broke out/, since), `${await story(M1, 'story')} ${t.text(m1, since).slice(0, 300)}`)
     // c1_knife: a state|weapon mission, done at once for a bot holding the knife.
     await cmd(`zzjail ${M1} own Combat_Knife`)
     await cmd(`wm give ${M1} Combat_Knife 1 {slot:0}`)

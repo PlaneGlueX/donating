@@ -20,7 +20,7 @@ Installed and verified loading (2026-09-24):
 - skript-worldguard 1.0.1: https://github.com/SkriptLang/skript-worldguard/releases (needs Skript 2.14+; replaces Skript's deprecated WorldGuard hook)
 - WeaponMechanics 4.3.1: https://github.com/WeaponMechanics/WeaponMechanics/releases (repo moved from MechanicsMain)
 - MechanicsCore 4.3.1: https://github.com/WeaponMechanics/MechanicsCore/releases (own repo now)
-- PacketEvents **2.13.0**: https://modrinth.com/plugin/packetevents (required by WeaponMechanics, needs 2.12.1+; 2.14.0 was 1 day old, so it was skipped)
+- PacketEvents **2.13.0**: https://modrinth.com/plugin/packetevents (required by WeaponMechanics, needs 2.12.1+; 2.14.0 was 1 day old, so it was skipped; DonatingPhone's RealArm sends its entity data through it)
 - TAB 6.2.0: https://modrinth.com/plugin/tab-was-taken (6.x, not 5.x)
 - DecentHolograms 2.10.1: https://modrinth.com/plugin/decentholograms (official, SpigotMC not needed)
 - CoreProtect CE 24.1: https://modrinth.com/plugin/coreprotect (the author's official free build; GitHub releases have no jars). `error-reporting: false` in its config.yml (it would send error reports to its author).
@@ -53,3 +53,5 @@ Config notes (applied locally 2026-09-24; copy these files to Minehut):
 - EssentialsX `starting-balance: 0` stays: join-quit.sk gives `cfg("money::start")` on the first join, so the number lives in core.sk with the other money values.
 - Heists on Minehut: the regions (WorldGuard `worlds/world/regions.yml`) and room snapshots (`world/generated/donating/structure/`) travel with the world, the holograms in `plugins/DecentHolograms/holograms/`. The heist definitions are saved Skript variables: run the lines `/dheist dump <id>` prints (also in `plugins/Skript/logs/heists.log`) on Minehut instead of uploading variables.csv (it's full of test data).
 - Server-list text (MOTD): set it in the Minehut dashboard. Minehut's proxy answers server-list pings, and the server is asleep when nobody's on, so a Skript ping handler would never be seen. Owner, 2026-09-28: "MOTD c": line 1 `&6&lDONATING &7| &fA city of heists`, line 2 `&aStart with nothing. &6Leave with everything.` (DEPLOY.md).
+
+- GSit 3.7.0 (2026-11-04): https://modrinth.com/plugin/gsit (GPL-3.0). Click the top of a stair with an empty hand to sit, sneak to get up. Restricted to that by plugins/GSit/config.yml and LuckPerms (DEPLOY.md). Custom chairs are seats.sk, not GSit.

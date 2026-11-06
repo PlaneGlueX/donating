@@ -84,6 +84,7 @@ module.exports = async ({ check }) => {
     await sleep(1500)
     await bot.look(0, Math.PI / 4, true)
 
+    await rcon.cmd('dphone gunfx realarm off') // RealArm takes these guns' reloads; this checks the bag on its own
     const st0 = await status()
     check('/dphone gunfx: bag-hide is lookalike (the default), nothing hidden', st0.mode === 'lookalike' && st0.hidden === 0, st0.raw)
 
@@ -258,6 +259,7 @@ module.exports = async ({ check }) => {
     }
     check('the other player never got a look-alike of the holder\'s offhand in the whole run', !seen.some(s => s.k === 'hidden' || s.k === 'shown'), JSON.stringify(seen))
   } finally {
+    await rcon.cmd('dphone gunfx realarm on').catch(() => {})
     await rcon.cmd(`zzbagclear ${NAME}`).catch(() => {})
     for (const n of [NAME, OTHER]) await rcon.cmd(`zzclear ${n}`).catch(() => {})
     await quit(bot)

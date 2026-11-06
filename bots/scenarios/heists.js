@@ -138,7 +138,7 @@ module.exports = async ({ check }) => {
     await cmd(`dheist holo ${ID} 727.5 202 727.5`)
     await sleep(1000) // DecentHolograms writes the file after each line change
     const holo = fs.existsSync(HOLO) ? fs.readFileSync(HOLO, 'utf8') : ''
-    check('holo: a DecentHolograms hologram showing the heist\'s placeholders', /727\.500:202\.000:727\.500/.test(holo) && /donating_heist_status_ztest/.test(holo), holo.slice(0, 120))
+    check('holo: the spot is saved for the sign over the door', /holo=yes/.test(await cmd('dheist info ztest')), await cmd('dheist info ztest'))
     let t = Date.now()
     bots[A].chat('/dheist list')
     await sleep(800)

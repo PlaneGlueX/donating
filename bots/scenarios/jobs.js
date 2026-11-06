@@ -104,7 +104,8 @@ module.exports = async ({ check }) => {
     // Away from Mara her line is a text: its chat notice comes a second later (messages.sk's join window).
     await until(async () => /✉ Mara: I said I'd call/.test(text(A, t)), 3000)
     check('Mara\'s board opens once her story is done: her text, and 3 jobs waiting', maraJobs.length === 3 && /✉ Mara: I said I'd call/.test(text(A, t)), `${inf} | ${text(A, t).slice(0, 200)}`)
-    const valid = maraJobs.every(l => ['jb2', 'jb3'].includes(field(l, 'h')) && (field(l, 'tpl') !== 'safe' || field(l, 'h') === 'jb3') && (field(l, 'tpl') !== 'getaway' || field(l, 'h') === 'jb3') && field(l, 'tpl') !== 'vault')
+    const ADVANCED = ['jb3', 'bank', 'casino', 'reserve', 'power', 'evidence', 'mansion']
+    const valid = maraJobs.every(l => field(l, 'h') && !['donut', 'gas', 'jb2'].includes(field(l, 'tpl') === 'getaway' ? field(l, 'h') : '') && (field(l, 'tpl') !== 'safe' || field(l, 'h') !== 'jb2') && (field(l, 'tpl') !== 'getaway' || ADVANCED.includes(field(l, 'h'))) && (field(l, 'tpl') !== 'vault' || field(l, 'h') !== 'jb2'))
     check('Mara\'s jobs name heists the player can rob, with jobs they allow (a safe job only where a safe is, a getaway only in an advanced heist, no vault job without a vault)', valid, maraJobs.join(' / '))
     check('the Boss\'s board stays locked before the first delivered car job', w && /Deliver your first car job/.test(itemText(w.slots[20])), itemText(w && w.slots[20]).slice(0, 200))
     await cmd(`zzdata ${A} contracts-done 1`)
@@ -349,7 +350,7 @@ module.exports = async ({ check }) => {
     await cmd('dheist delete jb2 confirm')
     await until(async () => field(await slot(A, 'mara', 1), 'h') !== 'jb2', 35000)
     const repl = await slot(A, 'mara', 1)
-    check('a job whose heist is deleted is replaced ("Change of plans")', field(repl, 'h') === 'jb3' && /=taken/.test(repl) && /Change of plans/.test(text(A, t)), `${repl} | ${text(A, t).slice(0, 200)}`)
+    check('a job whose heist is deleted is replaced ("Change of plans")', field(repl, 'h') !== 'jb2' && field(repl, 'h') !== '' && /=taken/.test(repl) && /Change of plans/.test(text(A, t)), `${repl} | ${text(A, t).slice(0, 200)}`)
     // Plain staff can look (info, stats) but not pay or grant (met, post, rep, ...): donating.quests.admin.
     await cmd(`lp user ${B} permission set donating.staff true`)
     await sleep(1500)

@@ -225,7 +225,7 @@ function basement () {
 // ---- the station: floor, walls, roof, the rooms ----------------------------------------------------------------------------
 function station () {
   for (let x = BLD.x1; x <= BLD.x2; x++) for (let z = BLD.z1; z <= BLD.z2; z++) {
-    if (!(x >= STAIR.x1 && x <= STAIR.x2 && z >= STAIR.z1)) S(x, 64, z, z < LOBBY_Z ? ((x + z) % 2 ? 'polished_diorite' : 'polished_andesite') : 'light_gray_concrete')
+    if (!(x >= STAIR.x1 && x <= STAIR.x2 && z >= STAIR.z1 && z < BLD.z2)) S(x, 64, z, z < LOBBY_Z ? ((x + z) % 2 ? 'polished_diorite' : 'polished_andesite') : 'light_gray_concrete')
     const edge = x === BLD.x1 || x === BLD.x2 || z === BLD.z1 || z === BLD.z2
     if (edge) {
       for (let y = 65; y <= 71; y++) S(x, y, z, inWin(x, y, z) ? 'gray_stained_glass' : y >= 70 ? mix(MIX.navy) : 'white_concrete')

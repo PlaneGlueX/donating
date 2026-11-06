@@ -14,6 +14,8 @@ const Y = 200
 const CHUNKS = '4000 4000 4040 4030'
 const PLATFORM = `4000 ${Y - 1} 4000 4040 ${Y - 1} 4030`
 const SAFE = 'safe_base_cars_test'
+const GSITE = 'carstest'
+const GSITE_REGION = `safe_garage_${GSITE}`
 const STAND = [4010, Y, 4020]
 
 module.exports = async ({ check }) => {
@@ -53,6 +55,11 @@ module.exports = async ({ check }) => {
     await cmd(`rg remove -w world ${SAFE}`)
     await cmd(`zzregion ${SAFE} 4000 195 4000 4040 210 4030`)
     await cmd(`rg flag -w world ${SAFE} passthrough allow`)
+    // The garage's clicks and shops work at a garage (citygarage.sk): the platform is one.
+    await cmd(`rg remove -w world ${GSITE_REGION}`)
+    await cmd(`zzregion ${GSITE_REGION} 4000 195 4000 4040 210 4030`)
+    await cmd(`rg flag -w world ${GSITE_REGION} passthrough allow`)
+    await cmd(`dgaragesite exitat ${GSITE} 4030.5 ${Y} 4025.5 0`)
     for (const name of [A, B]) {
       bots[name] = await join(name)
       await cmd(`gamemode survival ${name}`)
@@ -233,6 +240,8 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`dcrate remove ${STAND.join(' ')} world`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot).catch(() => {})
     await rcon.cmd(`rg remove -w world ${SAFE}`).catch(() => {})
+    for (const m of String(await rcon.cmd('dgaragesite list').catch(() => '')).matchAll(new RegExp(`GSITE ${GSITE} (exit|return|bay) (\\d+)`, 'g'))) await rcon.cmd(`dgaragesite remove ${GSITE} ${m[1]} ${m[2]}`).catch(() => {})
+    await rcon.cmd(`rg remove -w world ${GSITE_REGION}`).catch(() => {})
     await rcon.cmd(`fill ${PLATFORM} air`).catch(() => {})
     await rcon.cmd(`setblock ${STAND.join(' ')} air`).catch(() => {})
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
