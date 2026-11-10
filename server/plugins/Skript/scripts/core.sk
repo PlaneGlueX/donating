@@ -27,7 +27,7 @@ function loadSettings():
 	# &r after bold matters: Skript's formatter keeps bold across later color codes.
 	set {-cfg::prefix} to "&6&lDONATING&r &8» &7"
 
-	# ---------- Timers (decided in CLAUDE.md unless marked PROPOSAL) ----------
+	# ---------- Timers (decided in docs/design.md unless marked PROPOSAL) ----------
 	set {-cfg::afk::after} to 5 minutes
 	set {-cfg::chat::cooldown} to 2 seconds # PROPOSAL
 	set {-cfg::chat::tip-interval} to 5 minutes # PROPOSAL
@@ -166,8 +166,8 @@ function loadSettings():
 	set {-cfg::car::other-car-despawn} to 1 minute
 
 	# ---------- Cars (garage.sk, car-cleanup.sk): PROPOSALS ----------
-	# Owner, 2026-09-26: cars are a mid-game goal (no starter car; the cheapest about $40,000 at level 2, the
-	# best about $1M at level 6). A model is bought once, in a color; it can be repainted in the garage.
+	# Owner, 2026-09-26: cars are a mid-game goal (no starter car). On the 2026-09-27 level scale: the cheapest $40,000 at
+	# level 20 (the Sedan), the dealer's dearest $1M at level 150; the extreme cars cost more. A model is bought once, in a color; it can be repainted in the garage.
 	# colors: "Label=MTV uuid=itemDamage" (server\plugins\MTVehicles\vehicles.yml; every uuid there is used here;
 	# the damage picks the model in the pack, for the menu icons).
 	# crate = only from crates (never sold at the dealer); a crate car needs no level.
@@ -401,7 +401,7 @@ function loadSettings():
 	# slower than a bike. A spot's kind: /dbike spotat ... <kind>. bike::<kind>::<key> overrides the bike's bike::<key>.
 	# look = the MTVehicles variant "uuid=itemDamage" (tools/car-wraps.json families, models: tools/make-small-rides.js).
 	# qte-hits 0 = no hotwiring (a skateboard has no wires). fuel false = no tank.
-	set {-cfg::bike::kinds} to "bike|scooter|skateboard"
+	set {-cfg::bike::kinds} to "bike|scooter|skateboard|bicycle"
 	set {-cfg::bike::bike::name} to "bike"
 	set {-cfg::bike::bike::fuel} to true
 	set {-cfg::bike::scooter::name} to "scooter"
@@ -414,6 +414,13 @@ function loadSettings():
 	set {-cfg::bike::skateboard::stats} to "0.4|0.009|10" # PROPOSAL
 	set {-cfg::bike::skateboard::qte-hits} to 0
 	set {-cfg::bike::skateboard::fuel} to false
+	# The bicycle (owner, 2026-10-22: "skateboards and bicycles ... free rental racks stolen with the basic hotwire minigame"):
+	# MTVehicles' own model (Fiets Man Red), one hit to break its lock, pedalled (no tank).
+	set {-cfg::bike::bicycle::name} to "bicycle"
+	set {-cfg::bike::bicycle::look} to "2A85ZB=1146"
+	set {-cfg::bike::bicycle::stats} to "0.44|0.008|9" # PROPOSAL
+	set {-cfg::bike::bicycle::qte-hits} to 1
+	set {-cfg::bike::bicycle::fuel} to false
 	# The City Garage (citygarage.sk, PROPOSAL): sites are safe-zone regions whose id starts with region-prefix; a car
 	# comes out there every takeout-cooldown (Valet anywhere every car::call-cooldown) and goes back if nobody gets in
 	# within pickup-idle; driving within return-radius of a return spot parks it. A car standing unused waits while its
@@ -1035,8 +1042,7 @@ function loadSettings():
 	set {-cfg::difficulty::4::cop-p} to 0.10
 
 	# ---------- Money: ALL PROPOSALS, waiting for the owner ----------
-	# Start money (owner, 2026-09-26: more, and the first-join tutorial makes you buy a bag with it:
-	# tutorial.sk). $5,000 = the Gym Bag ($2,400) + a .50 GS ($1,500) + ammo.
+	# Start money (owner, 2026-09-26; the first-join tutorial sends you to buy a bag: tutorial.sk).
 	# Owner, 2026-09-27: the bag is earned. $1,000 + the starter car job's $1,500 = $2,500 >= the Gym Bag's $2,400.
 	set {-cfg::money::start} to 1000
 	# Bag tiers: capacity = the most loot value ($) the bag holds. Owner, 2026-09-26: unlocking a tier
@@ -2151,8 +2157,6 @@ function loadSettings():
 	set {-cfg::bag::3::replace} to 3000
 	set {-cfg::bag::4::replace} to 8000
 	set {-cfg::bag::5::replace} to 20000
-	# A player who can't pay for a new Gym Bag (tier 1, already unlocked) gets one free, so a robber who
-	# lost everything is never stuck without a bag (PROPOSAL).
 	# Owner, 2026-09-27: no free bag. With none, a robber carries up to this much loot in their hands (bag.sk; the
 	# cash shows in the offhand). No rank bonus: it isn't a bag.
 	set {-cfg::bag::hands::capacity} to 1000

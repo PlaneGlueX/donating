@@ -241,7 +241,7 @@ Wraps: Common (Matte Black, Primer, Two-Tone, Racing Stripes, Checkered), Rare (
   - One of each kind runs at a time (a money, an XP booster and a Heist Rush can run together); more of a kind queue behind it.
   - The time only counts down while someone is online.
   - The start and end are announced, and everyone's tab list shows the booster and who bought it.
-- **Robber levels can't be bought.** They're earned by selling loot and doing car contracts. An XP booster multiplies the XP a player earns that way while it runs (for everyone); nothing gives XP by itself, and crates never give XP.
+- **Robber levels can't be bought.** They're earned by selling loot and doing car contracts. An XP booster multiplies the XP a player earns that way while it runs (for everyone). Nothing sells XP: besides sales and contracts only the story and the casino's free wheel (one 500 XP segment) give some, and crates never give XP.
 - **Seasons and leaderboards** (added 2026-09-27; nothing about them is sold): three boards per season (Top Earners, Master Thieves, Wheelmen) with prizes for the top 10 (a title that can't be traded, in-game money, Season keys).
   - **A rank's bigger bag counts** on Top Earners (it counts money from loot sold, and a rank's bag holds 5-25% more); the other two boards count points per heist run (capped per run: a bigger bag, a rank's included, only reaches the cap in fewer trips), safes, vaults, getaways and car contracts.
   - **A booster's extra never counts** (Top Earners counts loot at its normal price; an XP booster only changes levels). Heist Refresh and Heist Rush open heists for everyone and count like any other run.

@@ -92,7 +92,7 @@ One line per PROPOSAL group. "Keep" unless noted.
 | Inmate names and texts | `core.sk:2674-2845` | Lefty, Rusty, Tank, Whisper, Sparks | Keep |
 | Prison jobs | `core.sk:2846-2880` | $150 / $150 / $200, cooldown 10-15 min | Keep |
 
-Stale text to fix while you're there (comments only, the game doesn't use them):
+Stale text (comments only, the game doesn't use them; all five fixed 2026-11-10):
 - `core.sk:162-163` says cars cost "about $40,000 at level 2 ... $1M at level 6" (also `docs/cars.md:19`). The real gates are 20 to 150.
 - `core.sk:1013-1014` talks about $5,000 start money. It's $1,000 now (the next line explains).
 - `core.sk:2129-2131` still mentions a free Gym Bag. You chose no free bag.

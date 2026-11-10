@@ -1,7 +1,8 @@
 // Scooters and skateboards (bikes.sk spot kinds, 2026-11-10; owner: "low level scooters and skateboards outside the
 // prison ... same way jailbreak uses the default camaro"). Two spots on a platform: a skateboard (no hotwiring: a
 // right-click rides it, no fuel tank, skateboard stats) and a scooter ("Hotwire the scooter", 2 hits, scooter stats,
-// a part-full tank). A wrong kind is refused; /dbike list names each spot's kind.
+// a part-full tank), and a bicycle ("Hotwire the bicycle", 1 hit, bicycle stats, no tank). A wrong kind is refused; /dbike list
+// names each spot's kind.
 const { Vec3 } = require('vec3')
 const { join, sleep, quit, messagesSince } = require('../lib')
 const rconLib = require('../rcon')
@@ -12,6 +13,7 @@ const X0 = 7900, X1 = 7930, Z0 = 7820, Z1 = 7840
 const CHUNKS = `${X0} ${Z0} ${X1} ${Z1}`
 const SKATE = [7908.5, Y, 7830.5]
 const SCOOT = [7918.5, Y, 7830.5]
+const BICY = [7926.5, Y, 7830.5]
 
 module.exports = async ({ check }) => {
   const rcon = await rconLib.connect()
@@ -53,22 +55,22 @@ module.exports = async ({ check }) => {
     await cmd(`fill ${X0} ${Y - 1} ${Z0} ${X1} ${Y - 1} ${Z1} smooth_stone`)
     const bad = await cmd(`dbike spotat world ${SKATE[0]} ${Y} ${SKATE[2]} 0 hoverboard`)
     check('a kind that doesn\'t exist is refused', /no kind hoverboard/.test(bad), bad)
-    for (const [s, k] of [[SKATE, 'skateboard'], [SCOOT, 'scooter']]) {
+    for (const [s, k] of [[SKATE, 'skateboard'], [SCOOT, 'scooter'], [BICY, 'bicycle']]) {
       const r = await cmd(`dbike spotat world ${s[0]} ${Y} ${s[2]} 0 ${k}`)
       const n = (r.match(/BIKE spot (\d+)/) || [])[1]
       if (n) spots.push(n)
       check(`/dbike spotat ... ${k} adds a ${k} spot`, Boolean(n) && r.includes(k), r)
     }
     const list = await cmd('dbike list')
-    check('/dbike list names the kinds', spots.length === 2 && new RegExp(`${spots[0]}: .* skateboard`).test(list) && new RegExp(`${spots[1]}: .* scooter`).test(list), list.slice(-400))
+    check('/dbike list names the kinds', spots.length === 3 && new RegExp(`${spots[2]}: .* bicycle`).test(list) && new RegExp(`${spots[0]}: .* skateboard`).test(list) && new RegExp(`${spots[1]}: .* scooter`).test(list), list.slice(-400))
     bot = await join(A)
     await cmd(`gamemode survival ${A}`)
     await cmd(`zzclear ${A}`)
     await cmd(`zzcombatend ${A}`)
     await cmd(`tag ${A} add donating_carcam_off`)
     await cmd(`zzheisttp ${A} ${SKATE[0] + 2} ${Y} ${SKATE[2] - 2}`)
-    await until(async () => parked(SKATE) && parked(SCOOT), 6000)
-    check('both are parked (an item display and an interaction box each)', parked(SKATE) && parked(SCOOT), `skate=${parked(SKATE)} scooter=${parked(SCOOT)}`)
+    await until(async () => parked(SKATE) && parked(SCOOT) && parked(BICY), 6000)
+    check('all three are parked (an item display and an interaction box each)', parked(SKATE) && parked(SCOOT) && parked(BICY), `skate=${parked(SKATE)} scooter=${parked(SCOOT)} bicycle=${parked(BICY)}`)
 
     // ---------- The skateboard: no hotwiring ----------
     let t = Date.now()
@@ -103,6 +105,25 @@ module.exports = async ({ check }) => {
     const fuel = await cmd(`dfuel car ${plate}`)
     const lv = Number(field(fuel, 'level'))
     check('the scooter has a part-full tank (40-100%)', lv >= 40 && lv <= 100 && /enabled=true/.test(fuel), fuel)
+    await getOff()
+
+    // ---------- The bicycle: a 1-hit lock, no tank ----------
+    await cmd(`zzheisttp ${A} ${BICY[0] + 2} ${Y} ${BICY[2] - 2}`)
+    await sleep(800)
+    const wb = await click(BICY)
+    check('right-clicking the bicycle opens "Hotwire the bicycle"', wb && /Hotwire the bicycle/.test(JSON.stringify(wb.title)), JSON.stringify(wb && wb.title))
+    await sleep(300)
+    if (bot.currentWindow) await hitOnce()
+    await sleep(1200)
+    s = await state()
+    plate = field(s, 'of')
+    if (plate) plates.push(plate)
+    seat = await cmd(`zzcarseat ${A}`)
+    check('1 hit: the thief rides the bicycle', plate !== '' && plate !== plates[1] && seat.includes(`driver:${plate}`), `${s} | ${seat}`)
+    stat = await cmd(`dphone carstat ${plate}`)
+    check('the bicycle has its own stats (top speed 0.44)', /max=0.44/.test(stat), stat)
+    const fuelB = await cmd(`dfuel car ${plate}`)
+    check('the bicycle has no fuel tank (pedalled)', /enabled=false/.test(fuelB), fuelB)
   } finally {
     await cmd(`minecraft:ride ${A} dismount`).catch(() => {})
     for (const n of spots) await cmd(`dbike remove ${n}`).catch(() => {})

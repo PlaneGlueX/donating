@@ -655,4 +655,4 @@ command /dbike [<text>]:
 						bikePark({_n})
 			send "BIKE every free spot has a bike now (players near it only)" to sender
 		else:
-			send "BIKE usage: /dbike spotat <world> <x> <y> <z> <yaw> [bike|scooter|skateboard] | spot add [kind] | remove <n> | list | dump | reset" to sender
+			send "BIKE usage: /dbike spotat <world> <x> <y> <z> <yaw> [bike|scooter|skateboard|bicycle] | spot add [kind] | remove <n> | list | dump | reset" to sender

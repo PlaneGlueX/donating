@@ -49,6 +49,13 @@
       ]
     },
     {
+      "name": "Bicycle", "car": "bicycle", "itemDamage": 1146, "maxHealth": 100.0, "acceleratieSpeed": 0.008, "maxSpeed": 0.44, "rotateSpeed": 9,
+      "seats": [[-0.5, -0.85, 0.0]],
+      "cars": [
+        { "name": "Fiets Man Red", "label": "Red", "itemDamage": 1146, "uuid": "2A85ZB", "price": 400.0 }
+      ]
+    },
+    {
       "name": "SUV Cabrio", "car": "riviera", "itemDamage": 1198, "maxHealth": 300.0, "acceleratieSpeed": 0.013, "maxSpeed": 0.72, "rotateSpeed": 8,
       "seats": [[0.0, -1.15, 0.4], [0.0, -1.15, -0.4], [-0.8, -1.15, 0.4], [-0.8, -1.15, -0.4]],
       "cars": [

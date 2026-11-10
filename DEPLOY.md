@@ -78,7 +78,7 @@ Start the server once so every plugin makes its folders, then stop it and upload
 | The phone's city and GPS roads, made together on the same server (see the city map step): `plugins/DonatingPhone/city.bin`, `city.yml`, `roads.bin`, and `walls.yml` if there are wall maps; `paths.yml` (the GPS paths, or run their lines: the prison step) and `cities/<world>.bin` (another world's own map, e.g. `cities/jailbreak.bin`; or scan it there) | `plugins/DonatingPhone/` |
 | `plugins/DecentHolograms/holograms/` (heist and crate stand holograms; not `gbay_*`, the garage bay labels: see Places) | same |
 
-Never upload: `server.properties`, `plugins/Skript/variables.csv` (full of test data), `plugins/MTVehicles/vehicleData.yml` (test cars), `plugins/Tebex/config.yml` (holds the local secret key), `plugins/LuckPerms/` data, CoreProtect's database, `logs/`.
+Never upload: `server.properties`, `plugins/Skript/variables.csv` (full of test data), `plugins/MTVehicles/vehicleData.yml` (test cars), `plugins/Tebex/config.yml` (holds the local secret key), `plugins/LuckPerms/` data, CoreProtect's database, `logs/`, `plugins/Skript/logs/` (local test logs: 7.5 MB by 2026-11-10; copy the dump lines you need out of them first). On Minehut those logs grow without limit (heists.log the most): delete old ones in the File Manager once a month.
 
 ## 5. First start: console commands
 
@@ -272,3 +272,6 @@ Also upload `tutorial.sk`, `jailcourse.sk`, `prison.sk`, `story.sk`, `placeholde
 ## Scooters and skateboards (2026-11-10; PLAYTEST 306)
 - Upload together, in one restart: `plugins/MTVehicles/vehicles.yml` (the Scooter and Skateboard families), the pack (two new models) with its new URL in the dashboard, the scripts `core.sk`, `bikes.sk`, `fuel.sk`.
 - Then the spot lines (console): `dbike spotat world 312.5 65 401.5 0 scooter`, `dbike spotat world 317.5 65 401.5 0 skateboard`, `dbike spotat world 322.5 65 401.5 0 skateboard`, `dbike spotat world 607.5 65 360.5 90 scooter`, `dbike spotat world 609.5 65 360.5 90 skateboard`, `dbike spotat world 565.5 65 294.5 90 scooter`, `dbike spotat world 565.5 65 306.5 90 skateboard`, `dbike spotat world 875.5 60 290.5 90 scooter`, `dbike spotat world 878.5 60 290.5 90 skateboard` (or `/dbike dump` on the local server prints them).
+
+## Bicycles (2026-11-10; PLAYTEST 307)
+- With the scooters' upload: `vehicles.yml` (the Bicycle family), the pack, `core.sk`, `bikes.sk`. Then: `dbike spotat world 327.5 65 401.5 0 bicycle`, `dbike spotat world 611.5 65 360.5 90 bicycle`, `dbike spotat world 565.5 65 300.5 90 bicycle`, `dbike spotat world 881.5 60 290.5 90 bicycle`.

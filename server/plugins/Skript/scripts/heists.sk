@@ -655,6 +655,15 @@ function heistJoin(p: player, h: text):
 	if {-heist::%{_h}%::alarm} is set:
 		heistHunt({_p}, {_h})
 	applyWaypointReceive({_p})
+	# A robber stepping back and forth in the doorway gets these once per 10 s, not on every step.
+	if heistDoorBounce({_p}, {_h}, "enter") is false:
+		heistEnterNotes({_p}, {_h})
+	heistLog("join %name of {_p}% %{_h}% run=%heistRun({_h})%")
+	heistOnEnter({_p}, {_h})
+
+# The entry lines (heistJoin).
+function heistEnterNotes(p: player, h: text):
+	set {_name} to heistName({_h})
 	if heistIsStore({_h}) is true:
 		if storeShut({_h}) is true:
 			if heistPolice({_h}) is true:
@@ -678,8 +687,18 @@ function heistJoin(p: player, h: text):
 	if {_bag} <= 0:
 		set {_hands} to formatMoney(cfg("bag::hands::capacity"))
 		heistNotify({_p}, "enter", "&eNo bag: your hands carry up to %{_hands}% of loot. A bag holds more (Bag Shop).")
-	heistLog("join %name of {_p}% %{_h}% run=%heistRun({_h})%")
-	heistOnEnter({_p}, {_h})
+
+# True when this robber got the same kind of door notice ("enter", "leave") for this heist's run under 10 s ago;
+# otherwise remembers this one and gives false.
+function heistDoorBounce(p: player, h: text, kind: text) :: boolean:
+	set {_key} to "%uuid of {_p}%::%{_kind}%"
+	set {_run} to "%{_h}%#%heistRun({_h})%"
+	if {-heist::door::%{_key}%} is {_run}:
+		if difference between now and {-heist::doorat::%{_key}%} < 10 seconds:
+			return true
+	set {-heist::door::%{_key}%} to {_run}
+	set {-heist::doorat::%{_key}%} to now
+	return false
 
 # reason: "exit" (walked out), "time", "staff", "death", "quit", "kick", "builder".
 function heistLeave(p: player, h: text, reason: text):
@@ -688,7 +707,8 @@ function heistLeave(p: player, h: text, reason: text):
 	delete {-heist::%{_h}%::members::%{_p}%}
 	if {_reason} is "exit":
 		applyWaypointReceive({_p})
-		heistNotify({_p}, "leave", "&aYou got out of the %heistName({_h})%.")
+		if heistDoorBounce({_p}, {_h}, "leave") is false:
+			heistNotify({_p}, "leave", "&aYou got out of the %heistName({_h})%.")
 	else if {_reason} is "time":
 		applyWaypointReceive({_p})
 	else if {_reason} is "staff":

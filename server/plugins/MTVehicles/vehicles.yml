@@ -771,6 +771,31 @@ voertuigen:
         itemDamage: 1447
         uuid: 5BZ1X4
         price: 300.0
+  - name: "Bicycle"
+    # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the bicycle): change it there.
+    vehicleType: CAR
+    skinItem: DIAMOND_HOE
+    itemDamage: 1146
+    benzineEnabled: true
+    kofferbakEnabled: false
+    hornEnabled: true
+    maxHealth: 100.0
+    acceleratieSpeed: 0.008
+    maxSpeed: 0.44
+    brakingSpeed: 0.03
+    aftrekkenSpeed: 0.005
+    rotateSpeed: 9
+    maxSpeedBackwards: 0.35
+    seats:
+      - x: -0.5
+        y: -0.85
+        z: 0.0
+    cars:
+      - name: "Fiets Man Red"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1146
+        uuid: 2A85ZB
+        price: 400.0
   - name: "SUV Cabrio"
     # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the riviera): change it there.
     vehicleType: CAR
