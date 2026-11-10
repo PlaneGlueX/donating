@@ -10,15 +10,15 @@
 
 function wpnLore(w: text) :: texts:
 	if {_w} is "Combat_Knife":
-		return "&7Short, quick and simple: the street's starter blade.", "&r", "&7Weapon Statistics", "&6➣&7 5 &6⟸ &7Damage", "&6➣&7 1 &6⟸ &7Hits per second" and "&6➣&7 4 &6⟸ &7Range in blocks"
+		return "&7Short, quick and simple: the street's starter blade.", "&cBleed: &73 more damage over 3 seconds", "&r", "&7Weapon Statistics", "&6➣&7 5 &6⟸ &7Damage", "&6➣&7 1 &6⟸ &7Hits per second" and "&6➣&7 4 &6⟸ &7Range in blocks"
 	if {_w} is "Baseball_Bat":
-		return "&7Slow, heavy swings that knock people back.", "&r", "&7Weapon Statistics", "&6➣&7 5 &6⟸ &7Damage", "&6➣&7 0.7 &6⟸ &7Hits per second", "&6➣&7 4 &6⟸ &7Range in blocks" and "&6➣&7 High &6⟸ &7Knockback"
+		return "&7Slow, heavy swings that knock people back.", "&cDaze: &7slows who it hits for 2 seconds", "&r", "&7Weapon Statistics", "&6➣&7 5 &6⟸ &7Damage", "&6➣&7 0.7 &6⟸ &7Hits per second", "&6➣&7 4 &6⟸ &7Range in blocks" and "&6➣&7 High &6⟸ &7Knockback"
 	if {_w} is "Brass_Knuckles":
-		return "&7A brass duster over a tactical glove.", "&7Quick jabs, but only at arm's length.", "&r", "&7Weapon Statistics", "&6➣&7 3.5 &6⟸ &7Damage", "&6➣&7 1.7 &6⟸ &7Hits per second" and "&6➣&7 3 &6⟸ &7Range in blocks"
+		return "&7A brass duster over a tactical glove.", "&cStagger: &7every 3rd hit in a row stops them short", "&7Quick jabs, but only at arm's length.", "&r", "&7Weapon Statistics", "&6➣&7 3.5 &6⟸ &7Damage", "&6➣&7 1.7 &6⟸ &7Hits per second" and "&6➣&7 3 &6⟸ &7Range in blocks"
 	if {_w} is "Dagger":
-		return "&7A long blade with a red-wrapped hilt.", "&7The longest reach of any melee.", "&r", "&7Weapon Statistics", "&6➣&7 5 &6⟸ &7Damage", "&6➣&7 1.25 &6⟸ &7Hits per second" and "&6➣&7 4.5 &6⟸ &7Range in blocks"
+		return "&7A long blade with a red-wrapped hilt.", "&cLunge: &7a hit gives you speed for 2 seconds", "&7The longest reach of any melee.", "&r", "&7Weapon Statistics", "&6➣&7 5 &6⟸ &7Damage", "&6➣&7 1.25 &6⟸ &7Hits per second" and "&6➣&7 4.5 &6⟸ &7Range in blocks"
 	if {_w} is "Gold_Nunchucks":
-		return "&7Gold-plated and paid for with heist cash.", "&7Every hit rings the till.", "&r", "&7Weapon Statistics", "&6➣&7 3 &6⟸ &7Damage", "&6➣&7 2.2 &6⟸ &7Hits per second" and "&6➣&7 3.5 &6⟸ &7Range in blocks"
+		return "&7Gold-plated and paid for with heist cash.", "&cJackpot: &7every 4th hit in a row hits harder", "&7Every hit rings the till.", "&r", "&7Weapon Statistics", "&6➣&7 3 &6⟸ &7Damage", "&6➣&7 2.2 &6⟸ &7Hits per second" and "&6➣&7 3.5 &6⟸ &7Range in blocks"
 	if {_w} is "50_GS":
 		return "&7A chunky chrome pistol with a leather grip.", "&7Semi-automatic; quick to reload.", "&r", "&7Weapon Statistics &6-&7 60.2", "&6➣&7 54 &6⟸ &7Accuracy", "&6➣&7 65 &6⟸ &7Damage", "&6➣&7 52 &6⟸ &7Range", "&6➣&7 53 &6⟸ &7Fire Rate", "&6➣&7 77 &6⟸ &7Mobility" and "&6➣&7 60 &6⟸ &7Control"
 	if {_w} is "357_Magnum":

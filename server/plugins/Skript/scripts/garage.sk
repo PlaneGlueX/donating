@@ -284,6 +284,8 @@ function carTuneBlock(plate: text) :: text:
 		return "Crate cars stay as they came"
 	if carIsExtreme({_m}) is true:
 		return "Extreme cars can't be tuned"
+	if {-cfg::car::%{_m}%::ride} is true:
+		return "Rides can't be tuned"
 	if carIsCrate({_m}) is true:
 		return "Crate cars stay as they came"
 	if {-cfg::car::%{_m}%::price} is not set:
@@ -1342,10 +1344,16 @@ function carLevelText(p: player, need: number) :: text:
 		set {_c} to "&a"
 	return "%{_c}%Level %{_need}% (%levelName({_need})%)"
 
-# The Car Dealer: every model sold (not crate cars), extreme ones last, then a model's colors.
-function garageDealer(p: player):
+# The Car Dealer: every model sold (not crate cars), extreme ones last, then a model's colors. shop "rides": the Ride Shop,
+# the ride models only (car::<id>::ride); "last": the one this player had open (the colors page's Back).
+function garageDealer(p: player, shop: text = "last"):
+	if {_shop} is "last":
+		set {_shop} to {-car::dealer::%{_p}%}
+		if {_shop} is not set:
+			set {_shop} to "cars"
+	set {-car::dealer::%{_p}%} to {_shop}
 	closePhoneMap({_p})
-	set {_title} to "&8%{-cfg::shop::title::cars}%"
+	set {_title} to "&8%{-cfg::shop::title::%{_shop}%}%"
 	set {_gui} to chest inventory with 3 rows named {_title}
 	carClearGui({_p})
 	carPane({_gui}, 3)
@@ -1354,6 +1362,11 @@ function garageDealer(p: player):
 	loop {-cfg::cars::*}:
 		set {_id} to loop-value
 		set {_see} to true
+		set {_here} to "cars"
+		if {-cfg::car::%{_id}%::ride} is true:
+			set {_here} to "rides"
+		if {_here} is not {_shop}:
+			set {_see} to false
 		# Models far above the player's level stay hidden until they get near it (phone.sk phoneSeesLevel).
 		if carIsCrate({_id}) is false:
 			if phoneSeesLevel({_p}, carLevelOf({_id})) is false:

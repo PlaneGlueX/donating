@@ -1382,6 +1382,19 @@ on command:
 			msg(player, "&cNot from in here. Break out first.")
 			stop
 
+# The phone's hidden apps as commands: locked the same way until the first escape (core.sk prison::phone-commands).
+on command:
+	player is set
+	phoneFree(player) is false
+	player does not have permission "donating.staff"
+	set {_parts::*} to command split at ":"
+	set {_cmd} to last element of {_parts::*} in lower case
+	loop {-cfg::prison::phone-commands::*}:
+		if loop-value is {_cmd}:
+			cancel event
+			msg(player, "&cThat opens once you've broken out of the prison.")
+			stop
+
 # The gate: a prisoner is never teleported out of the prison by anything but this server's own moves (plugin teleports:
 # a catch, the course, /dprison free). A command's teleport (/espawn, /eback, a /tpa someone accepts, staff /tp) or an
 # ender pearl that would land outside the outline (or in another world) is refused, so the only way out is the front

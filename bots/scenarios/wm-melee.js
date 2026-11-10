@@ -468,9 +468,15 @@ module.exports = async ({ check, args = [] }) => {
           await heal()
           // Swings every 250 ms (5 ticks): a 9-tick pace lands every 2nd (~500 ms apart).
           // 300 ms apart: the swings 600 ms after a hit land (150 ms past the 450 ms gate), those 300 ms after are refused.
-          const nuPace = await swing(4, 7, 300)
-          const nuGaps = gapsOf()
+          // The 4th hit in 4 s is the jackpot (items.sk meleeCombo): +0.75 a tick later, its own 1.5 drop under 150 ms after.
+          const nuRaw = await swing(4, 7, 300)
+          const nuAt = dropAt.slice()
+          const jack = nuRaw.filter((d, i) => i > 0 && nuAt[i] - nuAt[i - 1] < 150)
+          const nuPace = nuRaw.filter((d, i) => !(i > 0 && nuAt[i] - nuAt[i - 1] < 150))
+          const nuAtHits = nuAt.filter((x, i) => !(i > 0 && nuAt[i] - nuAt[i - 1] < 150))
+          const nuGaps = nuAtHits.slice(1).map((x, i) => x - nuAtHits[i])
           check('...a hit every 9 ticks: of 7 swings 300 ms apart exactly 4 land, 520-720 ms apart', nuPace.length === 4 && near(nuPace, 3) && nuGaps.length === 3 && nuGaps.every(g => g >= 520 && g <= 720), `drops ${nuPace.join(', ')}; gaps ${nuGaps.join(', ')} ms`)
+          check('...the 4th hit in a row adds the gold jackpot: one extra 1.5 drop', jack.length === 1 && near(jack, 1.5), `jackpot drops ${jack.join(', ')}`)
           const nuReach = await swingOnly(4, 3.6)
           check('...a swing alone lands at 3.6 blocks (its reach is 3.5): 3', nuReach.length === 1 && near(nuReach, 3), `drops ${nuReach.join(', ')}`)
           const nuFar = await swingOnly(4, 4.1)

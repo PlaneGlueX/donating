@@ -72,3 +72,78 @@ on damage of player with priority monitor:
 	set {_l} to (location of victim) ~ vector(0, 1.2, 0)
 	draw 10 rgb(255, 212, 64) dust particles of size 1.1 with offset vector(0.3, 0.35, 0.3) at {_l}
 	draw 6 rgb(214, 158, 30) dust particles of size 0.8 with offset vector(0.4, 0.45, 0.4) at {_l}
+
+# ---------- Melee specials (owner, 2026-11-10: "make melees more desirable since guns are op, so like have each melee
+# have its own special effect") ----------
+# Only melee hits that land (priority monitor) between real players, like the wrench's knockback. PROPOSAL numbers:
+#   Combat Knife    bleed: 3 more ticks of 1 damage, a second apart (never the killing blow: it stops at 1 heart)
+#   Pipe Wrench     daze: Slowness I for 2 s (with its knockback above)
+#   Brass Knuckles  stagger: every 3rd hit in a row on the same player (each within 4 s) slows them nearly to a stop
+#   Katana          lunge: its swinger gets Speed I for 2 s
+#   Gold Nunchucks  jackpot: every 4th hit in a row on the same player hits for 1.5 more
+on damage of player with priority monitor:
+	attacker is a player
+	attacker is not victim
+	isNpc(attacker) is false
+	isNpc(victim) is false
+	damage cause is attack
+	set {_w} to wmTitle(attacker's tool)
+	if {_w} is "Combat_Knife":
+		meleeBleed(victim)
+	else if {_w} is "Baseball_Bat":
+		apply potion effect of slowness of tier 1 to victim for 2 seconds
+	else if {_w} is "Brass_Knuckles":
+		if meleeCombo(attacker, victim, 3) is true:
+			apply potion effect of slowness of tier 5 to victim for 15 ticks
+			play sound "entity.player.attack.strong" with volume 1 and pitch 0.6 at victim
+			draw 12 crit particles with offset vector(0.3, 0.4, 0.3) at (location of victim) ~ vector(0, 1.6, 0)
+	else if {_w} is "Dagger":
+		apply potion effect of speed of tier 1 to attacker for 2 seconds
+	else if {_w} is "Gold_Nunchucks":
+		if meleeCombo(attacker, victim, 4) is true:
+			wait 1 tick
+			victim is alive
+			damage victim by 0.75
+			play sound "block.note_block.bell" with volume 1 and pitch 1.6 at victim
+			draw 20 rgb(255, 212, 64) dust particles of size 1.4 with offset vector(0.5, 0.6, 0.5) at (location of victim) ~ vector(0, 1.2, 0)
+
+# True on every n-th hit in a row by a on v (each within 4 s of the last), then counts again from 0.
+function meleeCombo(a: player, v: player, n: number) :: boolean:
+	set {_k} to "%uuid of {_a}%>%uuid of {_v}%"
+	set {_last} to {-melee::comboat::%{_k}%}
+	set {_c} to {-melee::combo::%{_k}%}
+	if {_c} is not set:
+		set {_c} to 0
+	if {_last} is set:
+		if difference between {_last} and now > 4 seconds:
+			set {_c} to 0
+	add 1 to {_c}
+	set {-melee::comboat::%{_k}%} to now
+	if {_c} >= {_n}:
+		delete {-melee::combo::%{_k}%}
+		return true
+	set {-melee::combo::%{_k}%} to {_c}
+	return false
+
+# The knife's bleed: a new cut while bleeding starts the 3 ticks over (no stacking).
+function meleeBleed(v: player):
+	set {_u} to "%uuid of {_v}%"
+	set {-melee::bleed::%{_u}%} to 3
+	{-melee::bleeding::%{_u}%} is not set
+	set {-melee::bleeding::%{_u}%} to true
+	while {-melee::bleed::%{_u}%} > 0:
+		wait 1 second
+		if {_v} is not online:
+			delete {-melee::bleed::%{_u}%}
+		else if {_v} is dead:
+			delete {-melee::bleed::%{_u}%}
+		else:
+			remove 1 from {-melee::bleed::%{_u}%}
+			draw 8 rgb(170, 20, 20) dust particles of size 1 with offset vector(0.25, 0.4, 0.25) at (location of {_v}) ~ vector(0, 1, 0)
+			if health of {_v} > 1.5:
+				damage {_v} by 0.5
+	delete {-melee::bleeding::%{_u}%}
+	delete {-melee::bleed::%{_u}%}
+
+on quit:
+	delete {-melee::bleed::%uuid of player%}

@@ -46,6 +46,8 @@ function tutorialSteps(p: player):
 	msg({_p}, "&7You've got %{_start}%. &eMeet Mara &7at the Safehouse: follow the orange trail.")
 	send colored "&7 Your first job: &7steal a car for the Scrap Yard. It pays for a bag (your hands carry %{_hands}%)." to {_p}
 	send colored "&7 Loot sells by itself at the base. Guns need level 5. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
+	# Street patrols (owner, 2026-11-10, DECISIONS B: "keep no floor, make sure to mention street patrol in the tutorial").
+	send colored "&7 Carrying loot on the street? &cPolice patrols &7chase you if they see you: lose them or get it to the base." to {_p}
 
 on join:
 	getData(player, "tutorial") is not set

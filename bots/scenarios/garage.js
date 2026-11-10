@@ -146,6 +146,26 @@ module.exports = async ({ check }) => {
     const two = await platesOf(A)
     const vins = [...(await info(A)).matchAll(/vin=(\d+)/g)].map(m => Number(m[1]))
     check('several of a model now: a second Sedan (Gray) is its own car, plate and the next serial number', two.length === 2 && (await bal(A)) === 20000 && vins.length === 2 && vins[0] !== vins[1] && /=sedan\(Gray,/.test(await info(A)), `${await info(A)} bal=${await bal(A)} ${text(A, t)}`)
+    // ---------- The Ride Shop (owner, 2026-11-10: a separate dealer for the low-level rides) ----------
+    const carsW = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
+    const carsHasRide = /Skateboard|Scooter|Bicycle/.test(JSON.stringify(carsW && carsW.slots))
+    await closeAll(A)
+    w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} rides`); const r = await o; await sleep(300); return r })()
+    const rideSlots = w ? w.slots.slice(0, 27).map((s, i) => [i, itemText(s)]).filter(([, x]) => /Skateboard|Scooter|Bicycle|Sedan/.test(x)) : []
+    check('the Ride Shop sells only the rides (skateboard, bicycle, scooter), and the Car Dealer none of them', w && /Ride Shop/.test(JSON.stringify(w.title)) && rideSlots.length === 3 && !rideSlots.some(([, x]) => /Sedan/.test(x)) && !carsHasRide, `${JSON.stringify(w && w.title)} ${rideSlots.map(([i, x]) => i + ':' + x.slice(0, 40)).join(' | ')} carsHasRide=${carsHasRide}`)
+    const sk = (rideSlots.find(([, x]) => /Skateboard/.test(x)) || [])[0]
+    let skPlate = ''
+    if (sk !== undefined) {
+      await click(A, sk)
+      await click(A, 10)
+      bots[A].clickWindow(10, 0, 0).catch(() => {})
+      await sleep(1200)
+      skPlate = await plateOf(A, 'skateboard')
+    }
+    check('buying a skateboard there: $600, it is yours in the garage', skPlate !== '' && (await bal(A)) === 19400, `plate=${skPlate} bal=${await bal(A)} ${await info(A)}`)
+    await closeAll(A)
+    if (skPlate) { await cmd(`dgarage take ${A} ${skPlate}`); await cmd(`zzcardelete ${skPlate}`) }
+    await cmd(`eco set ${A} 20000`)
     // One Sedan from here on (the rest of the test calls "the" car).
     for (const p of two) if (p !== plate) { await cmd(`dgarage take ${A} ${p}`); await cmd(`zzcardelete ${p}`) }
     await cmd(`eco set ${A} 60000`)

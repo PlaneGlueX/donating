@@ -53,7 +53,8 @@ function loadSettings():
 	# safe_zone_dealer over the 1M Dealership and its supercar/hypercar crate stands.
 	set {-cfg::pvp::safe-zone-prefix} to "safe_zone"
 	set {-cfg::passive::switch-cooldown} to 10 minutes
-	set {-cfg::bounty::repeat-kill-window} to 15 minutes
+	# Owner, 2026-11-10: a kill bounty from the same victim only once every 10 min.
+	set {-cfg::bounty::repeat-kill-window} to 10 minutes
 	set {-cfg::duffel::despawn} to 2 minutes
 	# Hot loot (review 2026-09-28; owner: 5 minutes): what a robber the cops hunt drops can't be sold for this long, by
 	# anyone who picks it up (the robber too), so a friend can't carry it home past the cops.
@@ -171,7 +172,23 @@ function loadSettings():
 	# colors: "Label=MTV uuid=itemDamage" (server\plugins\MTVehicles\vehicles.yml; every uuid there is used here;
 	# the damage picks the model in the pack, for the menu icons).
 	# crate = only from crates (never sold at the dealer); a crate car needs no level.
-	set {-cfg::cars::*} to "sedan", "sportsedan", "jeep", "sports", "hotrod", "suv", "viper", "riviera", "apex", "vandal", "specter" and "overclock"
+	set {-cfg::cars::*} to "sedan", "sportsedan", "jeep", "sports", "hotrod", "suv", "viper", "riviera", "apex", "vandal", "specter", "overclock", "scooter", "skateboard" and "bicycle"
+	# Rides (owner, 2026-11-10: "a separate dealer outside the prison for the low level rides like scooters"): owned like
+	# cars (the garage, the City Garage), sold only at the Ride Shop (/dshopkeeper add rides), never at the Car Dealer;
+	# no tuning or wraps; fuel false = no tank. The same MTVehicles variants as the free ones at the bike spots.
+	loop "skateboard|Skateboard|600|0|Street=5BZ1X4=1447|0.4|0.009|10|false", "bicycle|Bicycle|1500|2|Red=2A85ZB=1146|0.44|0.008|9|false" and "scooter|Scooter|3500|5|Street=V47P1Z=1446|0.5|0.011|9|true":
+		set {_r::*} to loop-value split at "|"
+		set {-cfg::car::%{_r::1}%::name} to {_r::2}
+		set {-cfg::car::%{_r::1}%::price} to {_r::3} parsed as number # PROPOSAL
+		set {-cfg::car::%{_r::1}%::level} to {_r::4} parsed as number
+		set {-cfg::carcolors::%{_r::1}%::*} to {_r::5}
+		set {-cfg::car::%{_r::1}%::stats} to "%{_r::6}%|%{_r::7}%|%{_r::8}%"
+		set {-cfg::car::%{_r::1}%::ride} to true
+		set {-cfg::car::%{_r::1}%::fuel} to false
+		if {_r::9} is "true":
+			set {-cfg::car::%{_r::1}%::fuel} to true
+		set {-cfg::car::%{_r::1}%::tank} to 10
+		set {-cfg::car::%{_r::1}%::burn} to 20
 	set {-cfg::car::sedan::name} to "Sedan"
 	set {-cfg::car::sedan::price} to 40000
 	# Levels on the 2026-09-27 scale (level 150 at about 60 h of play).
@@ -217,7 +234,9 @@ function loadSettings():
 	set {-cfg::car::vandal::stats} to "0.67|0.012|8"
 	set {-cfg::car::hotrod::stats} to "0.7|0.012|8"
 	set {-cfg::car::overclock::stats} to "0.7|0.012|8"
-	set {-cfg::car::suv::stats} to "0.6|0.009|8"
+	# Owner, 2026-11-10 (DECISIONS 5): "make it faster but a little less fast since it can carry a whole squad": above the
+	# Hotrod (0.7), under the Riviera (0.72) and the extreme cars.
+	set {-cfg::car::suv::stats} to "0.71|0.012|8"
 
 	# ---------- The car expansion (owner, 2026-09-28): extreme cars, wraps, mods, serial numbers, car crates ----------
 	# Owner: "expanding the car trading with the high rarity cars, so add a extreme tier car category ($1M+), some
@@ -421,6 +440,13 @@ function loadSettings():
 	set {-cfg::bike::bicycle::stats} to "0.44|0.008|9" # PROPOSAL
 	set {-cfg::bike::bicycle::qte-hits} to 1
 	set {-cfg::bike::bicycle::fuel} to false
+	# The level each ride needs (owner, 2026-11-10: "only steal rarities that correlate to their level (so have level
+	# checkpoints that can steal better cars)"): skateboard, bicycle, scooter, then the Viper motorbike. Cars: the car
+	# jobs' tiers (contract::<tier>::level).
+	set {-cfg::bike::level} to 10 # PROPOSAL
+	set {-cfg::bike::skateboard::level} to 0
+	set {-cfg::bike::bicycle::level} to 2 # PROPOSAL
+	set {-cfg::bike::scooter::level} to 5 # PROPOSAL
 	# The City Garage (citygarage.sk, PROPOSAL): sites are safe-zone regions whose id starts with region-prefix; a car
 	# comes out there every takeout-cooldown (Valet anywhere every car::call-cooldown) and goes back if nobody gets in
 	# within pickup-idle; driving within return-radius of a return spot parks it. A car standing unused waits while its
@@ -956,11 +982,13 @@ function loadSettings():
 	set {-cfg::season::contract::pro::points} to 40
 	set {-cfg::season::contract::master::points} to 80
 	# Prizes per place on every board (#1, #2-3, #4-10): money and Season keys (and the board's title).
-	set {-cfg::season::prize::1::money} to 25000
-	set {-cfg::season::prize::1::keys} to 3
-	set {-cfg::season::prize::3::money} to 10000
-	set {-cfg::season::prize::3::keys} to 2
-	set {-cfg::season::prize::10::money} to 5000
+	# Owner, 2026-11-10 (DECISIONS 10): "money prizes for the lower ranked players (still raise the money a bit), titles
+	# and keys for top ranks".
+	set {-cfg::season::prize::1::money} to 0
+	set {-cfg::season::prize::1::keys} to 5
+	set {-cfg::season::prize::3::money} to 0
+	set {-cfg::season::prize::3::keys} to 3
+	set {-cfg::season::prize::10::money} to 25000
 	set {-cfg::season::prize::10::keys} to 1
 	# Prizes need this many hours played this season (not AFK); they're paid this long after the end (a check).
 	set {-cfg::season::min-hours} to 5
@@ -1489,6 +1517,7 @@ function loadSettings():
 	set {-cfg::shop::title::bag} to "Bag Shop"
 	set {-cfg::shop::title::tools} to "Heist Tools"
 	set {-cfg::shop::title::cars} to "Car Dealer"
+	set {-cfg::shop::title::rides} to "Ride Shop"
 	set {-cfg::shop::title::garage} to "City Garage"
 	set {-cfg::shop::title::store} to "Store"
 	set {-cfg::shop::title::cashier} to "Cashier"
@@ -2111,10 +2140,11 @@ function loadSettings():
 	# everyone). Each kind: its name in messages, the most its multiplier may be, and its buyer's extra.
 	set {-cfg::booster::kinds::*} to "money", "xp" and "rush"
 	set {-cfg::booster::money::name} to "money"
-	set {-cfg::booster::money::max-multiplier} to 2
+	# Owner, 2026-11-10 (DECISIONS 9): 1.5x for everyone, the buyer 2x, as MONETIZATION.md says.
+	set {-cfg::booster::money::max-multiplier} to 1.5
 	set {-cfg::booster::money::buyer-bonus} to 0.5
 	set {-cfg::booster::xp::name} to "XP"
-	set {-cfg::booster::xp::max-multiplier} to 2
+	set {-cfg::booster::xp::max-multiplier} to 1.5
 	set {-cfg::booster::xp::buyer-bonus} to 0.5
 	set {-cfg::booster::rush::name} to "Heist Rush"
 	set {-cfg::booster::rush::max-multiplier} to 2
@@ -2123,7 +2153,7 @@ function loadSettings():
 	# top (owner, 2026-09-26: 1.5× for everyone, 2× for the buyer; 0 = the same for all). Listed in
 	# MONETIZATION.md. PROPOSAL: the largest multiplier and the longest booster.
 	set {-cfg::booster::buyer-bonus} to 0.5
-	set {-cfg::booster::max-multiplier} to 2
+	set {-cfg::booster::max-multiplier} to 1.5
 	set {-cfg::booster::max-minutes} to 240
 
 	# Helmets and vests: lost on death, bought again. Gun damage D' = D × (1 − 0.03 × armor points).
@@ -2463,6 +2493,9 @@ function loadSettings():
 	# prison.sk also blocks each with EssentialsX's "e" in front (/espawn, /eback, /etpaccept); the rest are EssentialsX's
 	# other names for the same teleports, and Multiverse's. A teleport out of the prison is refused anyway (prison.sk).
 	set {-cfg::prison::blocked-commands::*} to "spawn", "home", "homes", "sethome", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp", "hub", "mv", "mvtp", "return", "call", "tpask", "tele", "teleport", "tp2p", "tpo", "tpohere", "tppos", "tpall", "tpaall", "tpr", "jump", "j", "jumpto", "top", "world", "mvspawn" and "mvs"
+	# What the phone hides until the first escape (phone.sk phoneFree) is locked as a command too (owner, 2026-11-10, DECISIONS
+	# D: "lock the commands in the prison too": otherwise typing /crates gets around what the phone hides).
+	set {-cfg::prison::phone-commands::*} to "crates", "crate", "cosmetics", "wardrobe", "titles", "title", "gunskin", "gunskins", "season", "bounty", "garage", "cars" and "heists"
 	set {-cfg::prison::search::hold} to 2 seconds
 	# Per search spot and player; every catch clears them (the escape starts over at once).
 	set {-cfg::prison::search::cooldown} to 10 minutes

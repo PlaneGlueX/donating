@@ -57,6 +57,7 @@ module.exports = async ({ check }) => {
     bot = await join(A)
     await cmd(`gamemode survival ${A}`)
     await cmd(`zzclear ${A}`)
+    await cmd(`zzdata ${A} level 10`) // the bike needs level 10 (bike::level)
     await cmd(`zzcombatend ${A}`)
     await cmd(`tag ${A} add donating_carcam_off`)
     await cmd(`zzheisttp ${A} ${SPOT[0] + 2} ${Y} ${SPOT[2]}`)

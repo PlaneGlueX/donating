@@ -66,6 +66,7 @@ module.exports = async ({ check }) => {
     bot = await join(A)
     await cmd(`gamemode survival ${A}`)
     await cmd(`zzclear ${A}`)
+    await cmd(`zzdata ${A} level 1`) // the skateboard needs no level; the bicycle 2, the scooter 5
     await cmd(`zzcombatend ${A}`)
     await cmd(`tag ${A} add donating_carcam_off`)
     await cmd(`zzheisttp ${A} ${SKATE[0] + 2} ${Y} ${SKATE[2] - 2}`)
@@ -87,9 +88,15 @@ module.exports = async ({ check }) => {
     check('the skateboard has no fuel tank (fuel off for it)', /enabled=false/.test(fuel0), fuel0)
     await getOff()
 
-    // ---------- The scooter: a 2-hit hotwire ----------
+    // ---------- The scooter: a 2-hit hotwire (level 5) ----------
     await cmd(`zzheisttp ${A} ${SCOOT[0] + 2} ${Y} ${SCOOT[2] - 2}`)
     await sleep(800)
+    t = Date.now()
+    const wl = await click(SCOOT)
+    await sleep(500)
+    check('below level 5 the scooter is refused, with the level it needs', !wl && /Level 5 to take a scooter/.test(text(t)), text(t))
+    await cmd(`zzdata ${A} level 5`)
+    await sleep(400)
     const w = await click(SCOOT)
     check('right-clicking the scooter opens "Hotwire the scooter"', w && /Hotwire the scooter/.test(JSON.stringify(w.title)), JSON.stringify(w && w.title))
     await sleep(300)

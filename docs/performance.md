@@ -34,3 +34,7 @@ Left: most remaining ticks over 50 ms have almost no task cost, so they look lik
 
 ## Forced chunks and memory (2026-11-05)
 A forced chunk keeps every once-loaded chunk within 13 chunks in memory. POI stands pinned about 5,900 chunks: 250 MB of the 1 GB, a full GC every few seconds. POIs are packets now (docs/gps.md). 10 bots on 1 GB: p99 245 -> 18 ms, ticks over 50 ms about 120 -> 4 of 10,000. 20 bots on 1 GB was still poor before the change and isn't deployable anyway (Minehut has 10 slots).
+
+### View distance on Minehut (2026-11-10; owner: "default for minehut is 6 and goes up to 16. check to see if 10 is good")
+- Measured locally at 1 GB (Minehut's free plan), 10 bots spread over the map (no shared chunks), each moved 64 blocks back and forth twice, chunks already generated; live heap after a full GC: view 10: 890 of 1,024 MB (87%), ticks ~5 ms, one 300 ms spike; view 8: 847 MB (83%), ~4 ms, worst 58 ms. Idle the server holds ~600 MB. Each player at view v keeps (2v + 1)² chunks: 441 at 10, 289 at 8, 169 at 6.
+- Recommendation: 8 (realistic: 10 fits but leaves ~130 MB for heists, cops and cars with 10 players); 6 is the cautious option. Simulation distance 6-8 (only ticking, little memory). The local server stays at 10. Scratch test: viewload.js (not a bot scenario).

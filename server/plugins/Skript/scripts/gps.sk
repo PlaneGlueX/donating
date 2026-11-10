@@ -48,6 +48,24 @@ function gpsState(p: player) :: text:
 		return "%{_v}%"
 	return "none"
 
+# After the tutorial (Mara's chapter 1, up to c1_gun) a quest's new objective doesn't take the GPS by itself, except the
+# first time of each kind (data gps-first::<story|contract|hit|jailout|...>): it waits on the map and in /gps until the
+# player picks it ({-gps::active::<u>} "hold" = nothing routes). The owner, 2026-11-10: "after the tutorial, no need for
+# automatic gps waypoints (unless player is doing something new for the first time), i want them to manually start
+# making the waypoints on their map".
+function gpsTutorial(p: player) :: boolean:
+	if storyReached({_p}, "c1_gun") is true:
+		return false
+	return true
+
+function gpsAuto(p: player, kind: text) :: boolean:
+	if gpsTutorial({_p}) is true:
+		return true
+	if getData({_p}, "gps-first::%{_kind}%") is set:
+		return false
+	setData({_p}, "gps-first::%{_kind}%", true)
+	return true
+
 # "pin", "quest", "loot" or "": what the GPS is showing now.
 function gpsActive(p: player) :: text:
 	set {_u} to "%uuid of {_p}%"
@@ -55,12 +73,16 @@ function gpsActive(p: player) :: text:
 	if {_a} is "pin":
 		if {-gps::pin::%{_u}%} is set:
 			return "pin"
+	if {_a} is "hold":
+		return ""
 	if {-gps::quest::%{_u}%} is set:
 		return "quest"
 	if {-gps::pin::%{_u}%} is set:
 		return "pin"
-	if gpsLootSpots({_p}) is not "":
-		return "loot"
+	# The base on its own only in the tutorial (afterwards: the Places page or a pin).
+	if gpsTutorial({_p}) is true:
+		if gpsLootSpots({_p}) is not "":
+			return "loot"
 	return ""
 
 # The base while carrying loot (outside heists): every staff base POI (nav.sk), the nearest by road wins.
@@ -240,9 +262,13 @@ function gpsPlaces(p: player) :: texts:
 function gpsQuest(p: player, w: text, spots: text, label: text, radius: number, by: text, obj: text):
 	set {_u} to "%uuid of {_p}%"
 	if {-gps::questobj::%{_u}%} is not {_obj}:
-		set {-gps::active::%{_u}%} to "quest"
-		if {-gps::pin::%{_u}%} is set:
-			hudBar({_p}, "&6New objective: &f%{_label}% &7· your pin is on hold: &f/gps", 1)
+		if gpsAuto({_p}, {_by}) is true:
+			set {-gps::active::%{_u}%} to "quest"
+			if {-gps::pin::%{_u}%} is set:
+				hudBar({_p}, "&6New objective: &f%{_label}% &7· your pin is on hold: &f/gps", 1)
+		else if {-gps::active::%{_u}%} is not "pin":
+			set {-gps::active::%{_u}%} to "hold"
+			hudBar({_p}, "&6New objective: &f%{_label}% &7· it's on your map: &f/gps &7to set the route", 1)
 	set {-gps::quest::%{_u}%} to {_spots}
 	set {-gps::questworld::%{_u}%} to {_w}
 	set {-gps::questlabel::%{_u}%} to {_label}

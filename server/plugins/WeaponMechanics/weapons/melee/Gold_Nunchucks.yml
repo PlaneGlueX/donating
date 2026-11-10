@@ -13,6 +13,7 @@ Gold_Nunchucks:
       Name: "<gold>Gold Nunchucks"
       Lore:
         - "<gray>Gold-plated and paid for with heist cash."
+        - "<red>Jackpot: <gray>every 4th hit in a row hits harder"
         - "<gray>Every hit rings the till."
         - ""
         - "<gray>Weapon Statistics"

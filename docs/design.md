@@ -91,6 +91,7 @@ Moved word for word from CLAUDE.md on 2026-11-03. Grep a heading, then read that
   - A bounty stays until a player kills you, then goes to that player (new money for the killer). Owner, 2026-09-28: the victim of that kill also pays 10% of their bounty on top of the death's cost (`bounty::victim-fee`; it disappears: a money sink). The same-IP rule also covers a killer who is offline at the claim (their data `last-ip`).
   - You can't go passive while you have a bounty. Passive players can't gain one, and nobody can place one on them.
 - `/bounty <name> <amount>` takes the name as text and looks it up in the server's own name cache (`offlineplayer(name, false)`): an `<offline player>` argument made Paper ask Mojang on the main thread for a name that never joined, a freeze per command (lag audit, 2026-11-10). Open (owner's call, DECISIONS.md): two friends can farm earned bounty (the killer is paid new money for the victim's 10% robbery share).
+- Owner, 2026-11-10: a kill bounty from the same victim only once every 10 minutes (core.sk bounty::repeat-kill-window, was 15).
 
 ### Cars (MTVehicles)
 - You can only drive car models you own. No stealing other players' cars (one plate per car keeps ownership clean for trading).

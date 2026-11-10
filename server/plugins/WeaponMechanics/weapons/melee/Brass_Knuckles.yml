@@ -13,6 +13,7 @@ Brass_Knuckles:
       Name: "<gold>Brass Knuckles"
       Lore:
         - "<gray>A brass duster over a tactical glove."
+        - "<red>Stagger: <gray>every 3rd hit in a row stops them short"
         - "<gray>Quick jabs, but only at arm's length."
         - ""
         - "<gray>Weapon Statistics"

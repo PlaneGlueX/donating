@@ -191,6 +191,11 @@ function bikeBlock(p: player, n: text) :: text:
 		return "-"
 	if bikeParked({_n}) is false:
 		return "-"
+	set {_k} to bikeKind({_n})
+	set {_lv} to bikeCfg({_k}, "level")
+	if {_lv} is set:
+		if levelOf({_p}) < {_lv}:
+			return "Level %{_lv}% to take a %bikeCfg({_k}, "name")%. You're level %levelOf({_p})%."
 	set {_lock} to {-bike::lock::%{_n}%::%uuid of {_p}%}
 	if {_lock} is set:
 		if {_lock} > now:

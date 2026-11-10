@@ -1,5 +1,8 @@
 # Status log, newest first
 
+## 2026-11-10 (evening): the owner's 9-point list and form answers
+The Ride Shop (keeper 7 in the bike shop by the prison) and ride levels, one Viper spot at the prison, bounty window 10 min, GPS routes by hand after the tutorial, melee specials, prison command lock, patrols in the welcome, SUV/boosters/season prizes, blockier sign fonts (PLAYTEST 308-310; bots garage 36, smallrides 18, bikes 11, fuel 16, wm-melee 69, gps 30, prison-course 79). View distance measured (8 recommended). Lefty: nothing left to record. Open: standing rides (a proposal, not built), the phone map's "in between" zoom (the big map already has 4 levels by sneaking: which two does the owner mean?), teams and Pistol in the Window (the owner's later ideas), wheel chips unchanged.
+
 ## 2026-11-10 (later): small rides, audit fixes, bicycles
 Scooters, skateboards and bicycles as free bike-spot kinds (PLAYTEST 306-307, bots smallrides 17/17); exploit audit fixes (prison catch-quit, wheel chip lock, /bounty names, tutorial confirm cooldown, chat cooldown); heist door notices once per 10 s; stale comments fixed. Start time measured: 52 s warm (Skript 22 s of it); the 149 s was a cold start. Open: small rides at the dealer (owner), the DECISIONS.md items.
 

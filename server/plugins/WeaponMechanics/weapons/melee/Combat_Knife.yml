@@ -8,6 +8,7 @@ Combat_Knife:
       Name: "<gold>Combat Knife"
       Lore:
         - "<gray>Short, quick and simple: the street's starter blade."
+        - "<red>Bleed: <gray>3 more damage over 3 seconds"
         - ""
         - "<gray>Weapon Statistics"
         - "<gold>➣<gray> 5 <gold>⟸ <gray>Damage"

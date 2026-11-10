@@ -13,6 +13,7 @@ Baseball_Bat:
       Name: "<gold>Pipe Wrench"
       Lore:
         - "<gray>Slow, heavy swings that knock people back."
+        - "<red>Daze: <gray>slows who it hits for 2 seconds"
         - ""
         - "<gray>Weapon Statistics"
         - "<gold>➣<gray> 5 <gold>⟸ <gray>Damage"

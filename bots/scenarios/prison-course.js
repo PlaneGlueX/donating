@@ -167,6 +167,17 @@ module.exports = async ({ check }) => {
       check('a prisoner\'s phone hides Crates, Cosmetics, Season, Bounties and Garage (Messages, GPS and Missions stay)', Boolean(w) && /GPS/.test(names) && /Messages/.test(names) && !/Crates|Cosmetics|Season|Bounties|Garage/.test(names), names.slice(0, 400))
       if (a.currentWindow) a.closeWindow(a.currentWindow)
       await sleep(300)
+      // ...and the same things typed as commands (owner, 2026-11-10: "lock the commands in the prison").
+      const tc = Date.now()
+      let anyWin = false
+      const onWin = () => { anyWin = true }
+      a.on('windowOpen', onWin)
+      for (const c of ['/crates', '/garage', '/season', '/cosmetics', '/heists']) { a.chat(c); await sleep(400) }
+      await sleep(600)
+      a.removeListener('windowOpen', onWin)
+      const locked = a.log.filter(m => m.t >= tc && /once you've broken out/.test(m.text)).length
+      check('...and /crates, /garage, /season, /cosmetics, /heists are refused until the first escape', locked === 5 && !anyWin, `refused ${locked} of 5, a window opened: ${anyWin}`)
+      if (a.currentWindow) a.closeWindow(a.currentWindow)
     }
     a.setQuickBarSlot(2)
 

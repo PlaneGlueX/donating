@@ -122,3 +122,27 @@ Each has my recommended answer. Reply "yes to all" or name the ones you'd change
 | M | Building looks: showroom cars, dealership colors, houses, safehouse, crane, Pool Hall neon (PLAYTEST 225) | Look at them in-game once; no number depends on them |
 | N | Older ones still open (PLAYTEST 158, 253): Energy Drink carry limit, Grappler 15 s, a tuning level gate, clerk throw pace, store's 30 s response time | Keep all as built. Add no tuning gate: cars already have level gates |
 | O | Quest messages: does the chat feel right during a mission? (PLAYTEST 272); Shotgun reload 2.8 s? (PLAYTEST line 501) | Judge both in one playtest; keep until something feels off |
+
+---
+
+## The owner's answers (2026-11-10, the form)
+
+| # | Answer | Done? |
+|---|---|---|
+| 5 SUV | Keep $1M L150; make it faster, a little below the top cars ("it can carry a whole squad") | see status |
+| 9 Boosters | Cap money/XP at 1.5x (buyer 2x) | see status |
+| 10 Season prizes | Money for the lower ranks (raised a bit); titles and keys for the top ranks | see status |
+| A Knife | Keep the order; make melees more desirable: each melee gets its own special effect | see status |
+| B Patrols | Keep, no floor; mention street patrols in the tutorial | see status |
+| C Bag resale | Keep half of the new price | no change |
+| D Phone | 5 levels; lock the commands in the prison too | see status |
+| E Later ideas | Pistol in the Window; teams (max 4 = the biggest car's seats; disband when everyone leaves or disconnects) | see status |
+| F Season length | Decide after launch | open |
+| G Bounties | Keep all four; a kill bounty from the same victim only every 10 min | see status |
+| H Getaway rides | Yes | no change |
+| I Fuel Tank | Crate cars yes, extreme no; keep the map pause | no change |
+| J Prison | Keep; tune after launch | no change |
+| K Sparks | Keep both | no change |
+| L Lefty lines | Record them | see status |
+| N Older items | Keep all | no change |
+| Wheel chips | Can be cashed out (keep the 24 h rule) | no change |

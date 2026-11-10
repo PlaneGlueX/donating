@@ -544,7 +544,12 @@ function seasonGive(p: player, s: number, rw: text):
 	set {_pl} to join {_places::*} with ", "
 	set {_tl} to join {_titles::*} with "&7, "
 	seasonLog("give s%{_s}% %{_p}% %uuid of {_p}% %{_rw}%")
-	msg({_p}, "&6&lSeason %{_s}% prize!&r &7You placed %{_pl}%: %{_tl}%&7, &a%formatMoney({_money})%&7, &b%{_keys}% Season keys&7. &f/titles")
+	set {_got::*} to {_tl}
+	if {_money} > 0:
+		add "&a%formatMoney({_money})%" to {_got::*}
+	if {_keys} > 0:
+		add "&b%{_keys}% Season keys" to {_got::*}
+	msg({_p}, "&6&lSeason %{_s}% prize!&r &7You placed %{_pl}%: %join {_got::*} with "&7, "%&7. &f/titles")
 	send title colored "&6&lSEASON %{_s}% PRIZE" with subtitle colored "&f%{_pl}%" to {_p} for 3 seconds
 	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
 
@@ -712,7 +717,7 @@ function lbMenu(p: player, b: text, last: boolean):
 	else:
 		lbButton({_p}, {_gui}, 2, phoneBackIcon("Phone"), "phone")
 	set {_mh} to cfg("season::min-hours")
-	set slot 40 of {_gui} to paper named "&6Prizes" with lore "&7#1 %formatMoney({-cfg::season::prize::1::money})% · #2-3 %formatMoney({-cfg::season::prize::3::money})% · #4-10 %formatMoney({-cfg::season::prize::10::money})%" and "&7+ Season keys and a title" and "&7Needs %{_mh}%h played, not AFK"
+	set slot 40 of {_gui} to paper named "&6Prizes" with lore "&7#1 %seasonPrizeText(1)% · #2-3 %seasonPrizeText(3)%" and "&7#4-10 %seasonPrizeText(10)%" and "&7+ the board's title" and "&7Needs %{_mh}%h played, not AFK"
 	lbButton({_p}, {_gui}, 49, phoneHomeIcon(), "phone")
 	lbShow({_p}, {_gui})
 
@@ -960,3 +965,15 @@ command /dseason [<text>]:
 			send "SEASON reset %{_who}%" to sender
 		else:
 			send "SEASON usage: /dseason info | finals <season> <board> | rank | holo <board> | start [days] | end | extend <days> | approve [season] | void <player> [season] | reset <player>" to sender
+
+# "5 Season keys", "$25,000 + 1 Season key": a place tier's prize (core.sk season::prize::<tier>::*).
+function seasonPrizeText(tier: number) :: text:
+	set {_m} to {-cfg::season::prize::%{_tier}%::money}
+	set {_k} to {-cfg::season::prize::%{_tier}%::keys}
+	if {_m} > 0:
+		add formatMoney({_m}) to {_parts::*}
+	if {_k} is 1:
+		add "1 Season key" to {_parts::*}
+	else if {_k} > 1:
+		add "%{_k}% Season keys" to {_parts::*}
+	return join {_parts::*} with " + "

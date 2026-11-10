@@ -14,6 +14,7 @@ Dagger:
       Name: "<gold>Katana"
       Lore:
         - "<gray>A long blade with a red-wrapped hilt."
+        - "<red>Lunge: <gray>a hit gives you speed for 2 seconds"
         - "<gray>The longest reach of any melee."
         - ""
         - "<gray>Weapon Statistics"

@@ -137,6 +137,9 @@ function fuelPrepare(plate: text):
 	set {_want} to "off"
 	if fuelOn() is true:
 		set {_want} to "on"
+		# A ride with no tank (core.sk car::<id>::fuel false: the skateboard, the bicycle).
+		if {-cfg::car::%fuelModel({_plate})%::fuel} is false:
+			set {_want} to "off"
 	{-fuel::set::%{_plate}%} is not {_want}
 	if {_want} is "on":
 		fuelCmd({_plate}, "usage %fuelNum(fuelUsageOf({_plate}))% enabled true")

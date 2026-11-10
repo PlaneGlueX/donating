@@ -528,7 +528,10 @@ on right click on entity:
 	cancel event
 	# The Car Dealer is garage.sk's, the garage attendant citygarage.sk's.
 	if event-entity has scoreboard tag "shop_cars":
-		garageDealer(player)
+		garageDealer(player, "cars")
+		stop
+	if event-entity has scoreboard tag "shop_rides":
+		garageDealer(player, "rides")
 		stop
 	if event-entity has scoreboard tag "shop_garage":
 		garageMenu(player)
@@ -1634,9 +1637,9 @@ command /dshop <text> <player> [<text>]:
 			if arg-3 is not set:
 				send "usage: dshop open <player> gun|gear|bag|tools|store|cars|garage"
 				stop
-			if arg-3 is "cars":
-				garageDealer(arg-2)
-				send "SHOP opened cars for %arg-2%"
+			if arg-3 is "cars" or "rides":
+				garageDealer(arg-2, arg-3)
+				send "SHOP opened %arg-3% for %arg-2%"
 				stop
 			if arg-3 is "garage":
 				garageMenu(arg-2)
@@ -1674,7 +1677,7 @@ command /dshopkeeper [<text>] [<text>]:
 	trigger:
 		if arg-1 is "add":
 			if {-cfg::shop::title::%arg-2%} is not set:
-				msg(player, "&cKinds: gun, gear, bag, tools, cars, garage.")
+				msg(player, "&cKinds: gun, gear, bag, tools, cars, rides, garage.")
 				stop
 			# The lowest free number, so ids of removed shopkeepers are used again.
 			set {_n} to 1
@@ -1712,7 +1715,7 @@ command /dshopkeeper [<text>] [<text>]:
 				set {_l} to {shop::keeper::%loop-index%::loc}
 				msg(player, "%loop-index%: %loop-value% at %{_l}%")
 		else:
-			msg(player, "/dshopkeeper add <gun|gear|bag|tools|cars|garage> | remove <id> | list")
+			msg(player, "/dshopkeeper add <gun|gear|bag|tools|cars|rides|garage> | remove <id> | list")
 
 function spawnKeeper(id: text):
 	set {_loc} to {shop::keeper::%{_id}%::loc}

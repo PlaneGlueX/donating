@@ -275,3 +275,9 @@ Also upload `tutorial.sk`, `jailcourse.sk`, `prison.sk`, `story.sk`, `placeholde
 
 ## Bicycles (2026-11-10; PLAYTEST 307)
 - With the scooters' upload: `vehicles.yml` (the Bicycle family), the pack, `core.sk`, `bikes.sk`. Then: `dbike spotat world 327.5 65 401.5 0 bicycle`, `dbike spotat world 611.5 65 360.5 90 bicycle`, `dbike spotat world 565.5 65 300.5 90 bicycle`, `dbike spotat world 881.5 60 290.5 90 bicycle`.
+
+## The Ride Shop, melee specials, the owner's 2026-11-10 list (PLAYTEST 308-310)
+- Upload together, in one restart: `plugins/MTVehicles/vehicles.yml` (the SUV's speed), the WeaponMechanics melee files (Combat_Knife, Baseball_Bat, Brass_Knuckles, Dagger, Gold_Nunchucks: a lore line each), the pack (sign fonts' oversample) with its new URL in the dashboard, and the scripts `core.sk`, `bikes.sk`, `garage.sk`, `shop.sk`, `tabcomplete.sk`, `fuel.sk`, `gps.sk`, `items.sk`, `weaponlore.sk`, `seasons.sk`, `prison.sk`, `tutorial.sk`.
+- Console: `dbike remove` the prison lot's Viper spots 2, 3 and 4 (keep 1 at 310.5 65 406.5; check `/dbike list` first, the numbers there may differ).
+- In game, standing at 336.5 65 406.5 inside the bike shop, facing the doorway (west): `/dshopkeeper add rides`.
+- Minehut panel: view distance 8 (docs/performance.md); simulation distance 6-8.
