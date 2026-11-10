@@ -1,5 +1,8 @@
 # Status log, newest first
 
+## 2026-11-10 (later): small rides, audit fixes, bicycles
+Scooters, skateboards and bicycles as free bike-spot kinds (PLAYTEST 306-307, bots smallrides 17/17); exploit audit fixes (prison catch-quit, wheel chip lock, /bounty names, tutorial confirm cooldown, chat cooldown); heist door notices once per 10 s; stale comments fixed. Start time measured: 52 s warm (Skript 22 s of it); the 149 s was a cold start. Open: small rides at the dealer (owner), the DECISIONS.md items.
+
 ## 2026-11-10: anti-cheat, chat filter, decisions list
 GrimAC 2.3.74 (kicks only clear cheats), a light chat filter and a repeat block (chat-extras.sk), DECISIONS.md (the owner's 12 launch decisions, 15 open questions), test heist zboard deleted. PLAYTEST 305. The Malakai voice (removed from ElevenLabs) is used by no character.
 
