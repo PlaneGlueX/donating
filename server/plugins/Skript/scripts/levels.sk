@@ -227,10 +227,26 @@ function levelBoosted(p: player, xp: number, why: text) :: number:
 		return {_xp}
 	return floor({_xp} * boosterForKind({_p}, "xp"))
 
-function levelUp(p: player, old: number, new: number):
+# Waits for a sale's count-up (the sale's money is the moment), then shows what's new: kids don't read chat.
+function levelUpShow(p: player, new: number):
+	set {_at} to {-salefx::%uuid of {_p}%}
+	if {_at} is set:
+		if difference between now and {_at} < 3 seconds:
+			wait 3 seconds
+	{_p} is online
 	set {_name} to levelColored({_new})
 	send title colored "&6&lLEVEL UP&r" with subtitle colored "&7Level %{_new}% · %{_name}%" to {_p} for 3 seconds
-	play sound "ui.toast.challenge_complete" with volume 0.8 to {_p}
+	play sound "ui.toast.challenge_complete" with volume 0.8 at location of {_p}
+	draw 80 totem of undying particles with offset vector(0.6, 1, 0.6) at location of {_p}
+	set {_u::*} to levelUnlocks({_new})
+	{_u::1} is set
+	wait 3 seconds
+	{_p} is online
+	send title colored "&a&lUNLOCKED" with subtitle colored "&f%{_u::1}%" to {_p} for 3 seconds
+
+function levelUp(p: player, old: number, new: number):
+	levelUpShow({_p}, {_new})
+	set {_name} to levelColored({_new})
 	msg({_p}, "&6Level up! &fYou're level %{_new}% now: %{_name}%&f.")
 	set {_from} to {_old} + 1
 	loop integers from {_from} to {_new}:

@@ -1,0 +1,213 @@
+# clock.sk: the city's clock. Built 2026-10-21 (owner: "add a 12 hour clock system for the server"); rebuilt the same day
+# around Minecraft's own day/night cycle (owner: "the clock time is making the server lag, build it around the default
+# minecraft day/night cycle time"): the clock READS the play world's time and never sets it or changes its speed.
+#
+# The play world: core.sk clock::world, else prison::world (the whole map), else "world". Its time of day is the clock's
+# (0 ticks = 6:00 AM, 1000 ticks a game hour, a vanilla day 20 real minutes: 1.2 game minutes a real second, clock::rate).
+# The day count is ours ({clock::day}, saved): it goes up whenever the time of day wraps back (midnight, a bed's
+# morning, a staff /time set earlier). G = day × 1440 + the time of day, the week floor(G / 10080) (7 game days = 140
+# real minutes). The time only runs while the server does (Minehut asleep: nothing moves).
+# Shown as a 12-hour clock ("3:45 PM"): the sidebar's first line (%donating_clock%: "☀ Tue 3:45 PM", ☾ at night), the
+# phone's status bar (ui.sk phoneClock), /clock.
+# What follows the game clock: progress.sk's progWeek (the hit contracts' target and windows, Vic's Wanted List, the
+# heists' weekly heat) and the hit contracts' sightings by game day. Cooldowns and rewards that pace the economy stay
+# on real time (/daily, car job and contact job timers, seasons, boosters, cooldowns).
+# Staff: /dclock info | set <h:mm> [am|pm] | day <n>. Log: pluginsSkriptlogsclock.log.
+
+function clockLog(text: text):
+	log {_text} to "clock"
+
+# Game minutes a real second (vanilla: 1440 / 1200 = 1.2).
+function clockRate() :: number:
+	set {_r} to {-cfg::clock::rate}
+	if {_r} is set:
+		if {_r} > 0:
+			return {_r}
+	return 1.2
+
+function clockDayCount() :: number:
+	set {_d} to {clock::day}
+	if {_d} is set:
+		return {_d}
+	return 0
+
+# The play world (the clock's sky).
+function clockWorld() :: world:
+	set {_n} to {-cfg::clock::world}
+	if {_n} is not set:
+		set {_n} to {-cfg::prison::world}
+	if {_n} is set:
+		set {_w} to world("%{_n}%")
+		if {_w} is set:
+			return {_w}
+	return world("world")
+
+# The time of day in game minutes (0 = midnight, 1439 = 11:59 PM): the play world's, else the last one read.
+function clockOfDay() :: number:
+	set {_w} to clockWorld()
+	if {_w} is set:
+		set {_m} to clockWorldMinute({_w})
+		if {_m} >= 0:
+			return {_m}
+	if {-clock::last} is set:
+		return {-clock::last}
+	return 360
+
+# Game minutes since the clock's start.
+function clockMinutes() :: number:
+	return clockDayCount() * 1440 + clockOfDay()
+
+# Game seconds since the clock's start (hits.sk's windows are kept in these).
+function clockSecs() :: number:
+	return clockMinutes() * 60
+
+function clockDay() :: number:
+	return floor(clockMinutes() / 1440)
+
+function clockWeek() :: number:
+	return floor(clockMinutes() / 10080)
+
+# Real seconds an amount of game seconds takes (a game time shown as a real countdown).
+function clockRealSecs(g: number) :: number:
+	return ceil({_g} / (60 * clockRate()))
+
+# Real seconds to the next game week.
+function clockWeekLeft() :: number:
+	return clockRealSecs(((clockWeek() + 1) * 10080 - clockMinutes()) * 60)
+
+# "3:45 PM" for a time of day in game minutes.
+function clockText(m: number) :: text:
+	set {_m} to mod(floor({_m}), 1440)
+	set {_h} to floor({_m} / 60)
+	set {_mm} to mod({_m}, 60)
+	set {_ap} to "AM"
+	if {_h} >= 12:
+		set {_ap} to "PM"
+	set {_h12} to mod({_h}, 12)
+	if {_h12} is 0:
+		set {_h12} to 12
+	set {_ms} to "%{_mm}%"
+	if {_mm} < 10:
+		set {_ms} to "0%{_mm}%"
+	return "%{_h12}%:%{_ms}% %{_ap}%"
+
+# The game day's name ("Tue"; core.sk clock::days, the first is day 0).
+function clockDayName(d: number) :: text:
+	set {_i} to mod(floor({_d}), 7) + 1
+	set {_n} to {-cfg::clock::days::%{_i}%}
+	if {_n} is set:
+		return "%{_n}%"
+	return "Day %{_i}%"
+
+# Night on the clock (the sky is dark from about 7 PM to 5 AM).
+function clockNight(m: number) :: boolean:
+	set {_m} to mod(floor({_m}), 1440)
+	if {_m} >= 1140:
+		return true
+	if {_m} < 300:
+		return true
+	return false
+
+# Minecraft's ticks for a time of day (0 ticks = 6:00 AM, 1000 an hour).
+function clockTicks(m: number) :: number:
+	return mod(round(({_m} - 360) * 1000 / 60), 24000)
+
+# The world's time of day in game minutes ("6:30" read back from Skript's time: minute precision).
+function clockWorldMinute(w: world) :: number:
+	set {_t} to "%time in {_w}%"
+	set {_a::*} to {_t} split at ":"
+	set {_h} to {_a::1} parsed as number
+	set {_mm} to {_a::2} parsed as number
+	if {_mm} is not set:
+		return -1
+	return mod({_h} * 60 + {_mm}, 1440)
+
+every second:
+	set {_m} to clockOfDay()
+	# The time of day went back (midnight, a bed's morning, a staff /time): a new day.
+	if {-clock::last} is set:
+		if {_m} < {-clock::last} - 2:
+			set {clock::day} to clockDayCount() + 1
+			clockLog("day %{clock::day}% (%clockText({-clock::last})% -> %clockText({_m})%)")
+	set {-clock::last} to {_m}
+	set {_icon} to "&e☀"
+	if clockNight({_m}) is true:
+		set {_icon} to "&9☾"
+	set {-ph::clock} to "%{_icon}% &f%clockDayName(clockDay())% %clockText({_m})%"
+	set {-ph::clocktext} to clockText({_m})
+
+# The sidebar's clock (TAB asks from its own thread: memory only).
+placeholderapi placeholder with the prefix "donating":
+	set {_i} to the placeholder identifier
+	if {_i} is "clock":
+		set the placeholder result to "&r"
+		if {-ph::clock} is set:
+			set the placeholder result to {-ph::clock}
+	else if {_i} is "clock_time":
+		set the placeholder result to "&r"
+		if {-ph::clocktext} is set:
+			set the placeholder result to {-ph::clocktext}
+
+command /clock:
+	description: The city's time.
+	trigger:
+		set {_m} to clockOfDay()
+		set {_txt} to "&7It's &f%clockText({_m})% &7on &f%clockDayName(clockDay())%&7. A day is 20 real minutes."
+		if clockNight({_m}) is true:
+			set {_dawn} to mod(300 - {_m} + 1440, 1440)
+			set {_txt} to "%{_txt}% &7Dawn in %formatClock(clockRealSecs({_dawn} * 60))%."
+		else:
+			set {_dusk} to mod(1140 - {_m} + 1440, 1440)
+			set {_txt} to "%{_txt}% &7Night falls in %formatClock(clockRealSecs({_dusk} * 60))%."
+		if sender is a player:
+			msg(player, {_txt})
+		else:
+			send colored {_txt} to sender
+
+command /dclock [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		set {_a::*} to arg-1 split at " "
+		set {_sub} to {_a::1}
+		if {_sub} is not set:
+			set {_sub} to "info"
+		if {_sub} is "info":
+			send "CLOCK %clockText(clockOfDay())% %clockDayName(clockDay())% min=%clockMinutes()% day=%clockDay()% week=%clockWeek()% weekleft=%clockWeekLeft()% secs=%clockSecs()% rate=%clockRate()% world=%clockWorld()% time=%time in clockWorld()%" to sender
+		else if {_sub} is "set":
+			# /dclock set 7:30 pm: the play world's time of day (an earlier time than now starts a new day).
+			set {_t} to {_a::2}
+			if {_t} is not set:
+				send "CLOCK usage: /dclock set <h:mm> [am|pm]" to sender
+				stop
+			set {_hm::*} to {_t} split at ":"
+			set {_h} to {_hm::1} parsed as number
+			set {_mm} to 0
+			if {_hm::2} is set:
+				set {_mm} to {_hm::2} parsed as number
+			if {_h} is not set:
+				send "CLOCK set: a time like 7:30 pm" to sender
+				stop
+			if {_mm} is not set:
+				send "CLOCK set: a time like 7:30 pm" to sender
+				stop
+			if {_a::3} is "pm":
+				if {_h} < 12:
+					add 12 to {_h}
+			else if {_a::3} is "am":
+				if {_h} is 12:
+					set {_h} to 0
+			set {_want} to mod({_h} * 60 + {_mm}, 1440)
+			execute console command "execute in %worldDim(clockWorld())% run minecraft:time set %clockTicks({_want})%"
+			clockLog("staff-set %sender% to %clockText({_want})%")
+			send "CLOCK now %clockText({_want})%" to sender
+		else if {_sub} is "day":
+			set {_d} to {_a::2} parsed as number
+			if {_d} is not set:
+				send "CLOCK usage: /dclock day <n>" to sender
+				stop
+			set {clock::day} to max(0, floor({_d}))
+			clockLog("staff-day %sender% %{clock::day}%")
+			send "CLOCK day %{clock::day}%: %clockDayName(clockDay())% %clockText(clockOfDay())%, week %clockWeek()%" to sender
+		else:
+			send "CLOCK usage: /dclock info | set <h:mm> [am|pm] | day <n>" to sender

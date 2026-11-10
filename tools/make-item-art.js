@@ -4,7 +4,10 @@
 //   - ammo icons: light (pistol/SMG rounds), shells (shotgun), rifle
 //   - the XP bar as a brass ammo belt (the XP bar shows the held gun's ammo, hud.sk)
 //   - tab-list glyphs: the DONATING logo, a coin, a skull (bounty), a person (online), ping bars
-//   - melee weapons and consumables (pipe wrench, throwing knife, energy drink, bandage) and the Grappler:
+//   - the prison's jail items on brick (keycards, the C4 and its parts, a donut, a note, the stash, Sparks' weapon
+//     parts: prison.sk), and the guards' handcuffs
+//   - melee weapons and consumables (pipe wrench, throwing knife, energy drink, bandage, the prison's makeshift
+//     shiv, mop spear and taped club) and the Grappler:
 //     3D models (in menus too), and the thrown knife in flight; the Katana, the Brass Knuckles and the Gold
 //     Nunchucks are pg-kit modules in tools\guns\ (katana.js, knuckles.js, nunchucks.js; amethyst_shard.json)
 //   - the sold WeaponMechanics guns (.50 GS, Uzi, AK-47, R9-0), the Combat Knife and the Stim, each in its
@@ -296,6 +299,8 @@ const bagTree = {
   cases: Object.keys(BAGS).map(bagCase),
   fallback: { type: 'minecraft:model', model: 'minecraft:item/leather' }
 }
+// RealArm.java: what takes the player's own arm back down at a reload's end. Draws nothing anywhere.
+write('donating/items/hand_nothing.json', { hand_animation_on_swap: true, model: { type: 'minecraft:empty' } })
 write('minecraft/items/leather.json', {
   // Replacing the offhand bag when its fill changes must not play the re-equip dip (26.3 client).
   hand_animation_on_swap: false,
@@ -491,6 +496,273 @@ for (const [type, a] of Object.entries(AMMO)) {
     addCase('flint', 'donating:lockpick_' + tier, 'donating:item/lockpick_' + tier)
   }
 }
+// ---------- Jail items (prison.sk jailItem, 2026-10-14; ESCAPE-SPEC 4.12) ----------
+// 16x16 sprites on brick (no other script uses it), picked by donating:jail_<kind>; the vanilla brick otherwise. They
+// sit in the upper inventory (E) and the C4 in hotbar 1-5; a cop's keycard also lies on the ground as a dropped item, and
+// the search spots' markers and a planted C4 show them as item displays. Redrawn with shading the same day (owner: "add
+// icon textures to donuts, keycards, etc.", "make the textures for each part").
+{
+  const K = [28, 24, 20, 255]
+  const art = (rows, colors) => {
+    if (rows.length !== 16 || rows.some(r => r.length !== 16)) throw new Error('a jail sprite must be 16 rows of 16')
+    const c = canvas(16, 16); c.draw(rows, { k: K, ...colors }); return c.png()
+  }
+  const JAIL = {
+    // A guard's keycard (the escape one): white, a blue band with a clip hole, a gold chip, a magnetic stripe.
+    keycard: art([
+      '................',
+      '................',
+      '................',
+      '.kkkkkkkkkkkkkk.',
+      '.kbbbbbbbbbbbbk.',
+      '.kBBBBBBBBBkBBk.',
+      '.kBBBBBBBBBBBBk.',
+      '.kWWWWWWWWWWWWk.',
+      '.kWYYYYWlllllsk.',
+      '.kWYyYYWWWWWWsk.',
+      '.kWYYyYWllllWsk.',
+      '.kWWWWWWWWWWWsk.',
+      '.kDDDDDDDDDDDDk.',
+      '.kkkkkkkkkkkkkk.',
+      '................',
+      '................'
+    ], { b: [130, 190, 245, 255], B: [42, 112, 214, 255], W: [242, 245, 250, 255], s: [196, 204, 216, 255], Y: [250, 206, 72, 255], y: [176, 128, 34, 255], l: [146, 156, 172, 255], D: [34, 36, 44, 255] }),
+    // The sleeping guard's card (the course): an orange staff badge on a clip, a photo.
+    coursecard: art([
+      '................',
+      '......kkkk......',
+      '......kSSk......',
+      '...kkkkSSkkkk...',
+      '...koooooooak...',
+      '...kOOOOOOOOk...',
+      '...kWWWWWWWWk...',
+      '...kWkkkkWWWk...',
+      '...kWkFFkWllk...',
+      '...kWkHHkWWWk...',
+      '...kWkkkkWllk...',
+      '...kWWWWWWWWk...',
+      '...kWllllllWk...',
+      '...kDDDDDDDDk...',
+      '...kkkkkkkkkk...',
+      '................'
+    ], { S: [180, 186, 196, 255], o: [255, 180, 90, 255], a: [240, 140, 40, 255], O: [240, 140, 40, 255], W: [244, 242, 236, 255], F: [232, 186, 150, 255], H: [40, 60, 110, 255], l: [150, 150, 160, 255], D: [176, 90, 20, 255] }),
+    // C4 putty: an off-white slab in an olive wrapper stamped "C4".
+    putty: art([
+      '................',
+      '................',
+      '................',
+      '..kkkkkkkkkkkk..',
+      '.khhhhhhhhhhhhk.',
+      '.kWWWWWWWWWWWWk.',
+      '.kGGGGGGGGGGGGk.',
+      '.kGGYYYGYGYGGGk.',
+      '.kGGYGGGYYYGGGk.',
+      '.kGGYYYGGGYGGGk.',
+      '.kGGGGGGGGGGGGk.',
+      '.kWWWWWWWWWWWWk.',
+      '.kwwwwwwwwwwwwk.',
+      '..kkkkkkkkkkkk..',
+      '................',
+      '................'
+    ], { h: [250, 248, 240, 255], W: [232, 228, 216, 255], w: [190, 184, 170, 255], G: [92, 104, 52, 255], Y: [236, 210, 70, 255] }),
+    // Detonator wires: a red, blue and yellow bundle bent round black tape, copper ends.
+    wires: art([
+      '................',
+      '..........kkkk..',
+      '.........kCCCk..',
+      '........kRBYk...',
+      '.......kRBYk....',
+      '......kRBYk.....',
+      '.....kTTTTk.....',
+      '.....kTTTTk.....',
+      '......kRBYk.....',
+      '.......kRBYk....',
+      '........kRBYk...',
+      '.........kCCCk..',
+      '..........kkkk..',
+      '................',
+      '................',
+      '................'
+    ], { R: [222, 46, 46, 255], B: [56, 110, 230, 255], Y: [240, 200, 50, 255], T: [44, 44, 48, 255], C: [224, 140, 70, 255] }),
+    // The timer: a black box with a red "0:05" and two buttons.
+    timer: art([
+      '................',
+      '................',
+      '.kkkkkkkkkkkkkk.',
+      '.kggggggggggggk.',
+      '.kGGGGGGGGGGGGk.',
+      '.kGdddRRRdRRRGk.',
+      '.kGdRdRdRdRddGk.',
+      '.kGdddRdRdRRRGk.',
+      '.kGdRdRdRdddRGk.',
+      '.kGdddRRRdRRRGk.',
+      '.kGGGGGGGGGGGGk.',
+      '.kGcGGGGGGGGeGk.',
+      '.kSSSSSSSSSSSSk.',
+      '.kkkkkkkkkkkkkk.',
+      '................',
+      '................'
+    ], { g: [112, 112, 120, 255], G: [70, 70, 78, 255], S: [44, 44, 50, 255], d: [40, 12, 10, 255], R: [255, 60, 44, 255], c: [220, 40, 40, 255], e: [70, 200, 90, 255] }),
+    // The C4 (Lefty puts it together): the putty slab taped up, the timer strapped on, wires to the tape.
+    c4: art([
+      '................',
+      '................',
+      '................',
+      '.kkkkkkkkkkkkkk.',
+      '.khThhhhhhhhThk.',
+      '.kWTWkkkkkkWTWk.',
+      '.kWTWkddddkWTWk.',
+      '.kwTrkRdRRkBTwk.',
+      '.kwTWkddddkWTwk.',
+      '.kWTWkkkkkkWTWk.',
+      '.kWTWWWWWWWWTWk.',
+      '.kwTwwwwwwwwTwk.',
+      '.kkkkkkkkkkkkkk.',
+      '................',
+      '................',
+      '................'
+    ], { h: [250, 248, 240, 255], W: [232, 230, 222, 255], w: [196, 192, 180, 255], T: [64, 70, 42, 255], d: [40, 12, 10, 255], R: [255, 54, 40, 255], r: [210, 40, 40, 255], B: [56, 110, 230, 255] }),
+    // A donut: pink frosting, sprinkles, the hole.
+    donut: art([
+      '................',
+      '................',
+      '.....kkkkkk.....',
+      '...kkppPPPPkk...',
+      '..kppyPPPPbPPk..',
+      '..kpPPPPPgPPPk..',
+      '.kpPbPPkkPPPyPk.',
+      '.kPPPPk..kPPPPk.',
+      '.kPPgPk..kPbPPk.',
+      '.kOPPPPkkPPPPOk.',
+      '..kOPPyPPPPgOk..',
+      '..kOOPPbPPPOOk..',
+      '...kkoOOOOokk...',
+      '.....kkkkkk.....',
+      '................',
+      '................'
+    ], { P: [246, 140, 190, 255], p: [255, 190, 220, 255], O: [214, 150, 80, 255], o: [170, 108, 52, 255], y: [255, 236, 90, 255], b: [90, 170, 255, 255], g: [120, 220, 110, 255] }),
+    // A folded note with a red seal.
+    note: art([
+      '................',
+      '................',
+      '................',
+      '..kkkkkkkkkkkk..',
+      '..kWWWWWWWWWWk..',
+      '..kWllllllWWWk..',
+      '..kWWWWWWWWWWk..',
+      '..kWlllllWWWWk..',
+      '..kSSSSSSSSSSk..',
+      '..kwwwwwwwwwwk..',
+      '..kwlllwwwrrwk..',
+      '..kwwwwwwwrrwk..',
+      '..kkkkkkkkkkkk..',
+      '................',
+      '................',
+      '................'
+    ], { W: [248, 246, 236, 255], w: [222, 218, 202, 255], l: [150, 150, 160, 255], S: [176, 170, 150, 255], r: [190, 30, 40, 255] }),
+    // The stash: a burlap sack tied at the neck.
+    stash: art([
+      '................',
+      '.....kk...kk....',
+      '....kCck.kcCk...',
+      '.....kCkkkCk....',
+      '......kssSk.....',
+      '.....kCCCCCk....',
+      '....kCCcCCCCk...',
+      '...kCCCCCCcCCk..',
+      '..kCCcCCCCCCCck.',
+      '..kCCCCCCcCCCck.',
+      '..kCCCCCCCCCCck.',
+      '..kcCCCCCCCCcck.',
+      '...kccccccccck..',
+      '....kkkkkkkkk...',
+      '................',
+      '................'
+    ], { C: [168, 126, 80, 255], c: [126, 90, 56, 255], s: [230, 214, 170, 255], S: [190, 170, 130, 255] }),
+    // Not an item: the Yard Run's icon in Lefty's job menu (jailjobs.sk jjIcon; a plain feather until 2026-10-15, owner:
+    // "feather placeholder for lefty mission"): a running shoe (a red heel and toe cap, zigzag laces) with speed lines.
+    yardrun: art([
+      '................',
+      '................',
+      '................',
+      '................',
+      '....kkkk........',
+      '...kRRWWk.......',
+      'ss.kRWWWWkk.....',
+      '...kRWWLWLWkk...',
+      'ss.kRWWWLWLWWkk.',
+      '...kRWWWWWWWWRRk',
+      'ss.kwwwwwwwwwRRk',
+      '..kGGGGGGGGGGGGk',
+      '..kghghghghghghk',
+      '...kkkkkkkkkkkk.',
+      '................',
+      '................'
+    ], { W: [246, 246, 242, 255], w: [206, 208, 216, 255], R: [222, 48, 48, 255], L: [96, 100, 114, 255], G: [228, 222, 208, 255], g: [52, 52, 58, 255], h: [96, 96, 104, 255], s: [176, 196, 226, 255] }),
+    // Sparks' weapon parts (2026-10-20, prison round 3; jailjobs.sk): the Scrap Metal, a torn steel plate with a rivet
+    // hole and a rust spot (also what Sparks holds: core.sk quest::sparks::hold-model) ...
+    scrap: art([
+      '................',
+      '..kkk...........',
+      '..kHHkkk........',
+      '..kHHHHHkkk.....',
+      '..kHHSSSSSSkk...',
+      '..kHSSSSSSSSSk..',
+      '..kHSSkkSSSSSk..',
+      '..kHSk..kSSSdk..',
+      '..kHSk..kSSSdk..',
+      '..kSSSkkSSSddk..',
+      '..kSSSSSSSdddk..',
+      '...kSSSrSSddk...',
+      '...kSSSSSddk....',
+      '....kSSddkk.....',
+      '.....kddk.......',
+      '......kk........'
+    ], { H: [224, 228, 234, 255], S: [160, 166, 176, 255], d: [104, 108, 118, 255], r: [158, 94, 52, 255] }),
+    // ... the Duct Tape, a grey roll on its cardboard core with a torn strip pulled off ...
+    tape: art([
+      '................',
+      '................',
+      '....kkkkkk......',
+      '...kGGGGGGk.....',
+      '..kGGGGGGGGk....',
+      '..kGGkkkkGGk....',
+      '..kGkCCCCkGk....',
+      '..kGkC..CkGk....',
+      '..kGkC..CkGk....',
+      '..kGkCCCCkGk....',
+      '..kgGkkkkGgkkkk.',
+      '..kggGGGGggTTTTk',
+      '...kggggggTTkTk.',
+      '....kkkkkk.k.k..',
+      '................',
+      '................'
+    ], { G: [178, 182, 190, 255], g: [126, 130, 140, 255], C: [198, 166, 114, 255], T: [204, 208, 214, 255] }),
+    // ... and the Mop Handle, a pale stick with a blue clamp and the frayed grey stub of the mop.
+    handle: art([
+      '.............kk.',
+      '............kWWk',
+      '...........kWWwk',
+      '..........kWWwk.',
+      '.........kWWwk..',
+      '........kWWwk...',
+      '.......kWWwk....',
+      '......kWWwk.....',
+      '.....kBBBk......',
+      '....kMMMMk......',
+      '...kMmMmMMk.....',
+      '..kMmMMmMmk.....',
+      '.kmMkmMkmMk.....',
+      '.kmk.mk.mk......',
+      '..k..k..k.......',
+      '................'
+    ], { W: [234, 216, 172, 255], w: [192, 170, 124, 255], B: [60, 98, 172, 255], M: [178, 178, 172, 255], m: [128, 128, 124, 255] })
+  }
+  for (const [kind, png] of Object.entries(JAIL)) {
+    sprite('jail_' + kind, png)
+    addCase('brick', 'donating:jail_' + kind, 'donating:item/jail_' + kind)
+  }
+}
 // ---------- The car key as a tripwire hook ----------
 // While the car camera is on, DonatingPhone swaps the map key (filled map + map_id: the client's map path
 // would draw arms whatever the model) for a tripwire hook with the same donating:carkey string. Same model
@@ -612,7 +884,9 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
 // title Dagger draws the Katana (tools\guns\katana.js; the Karambit before) and Baseball_Bat the Pipe Wrench
 // (titles kept, like the guns'), the new titles Brass_Knuckles (6) and Gold_Nunchucks (7) the Brass Knuckles and
 // the Gold Nunchucks (knuckles.js, nunchucks.js: first-person frames on DonatingPhone MeleeFx's clocks), and every
-// one of them is its 3D model everywhere, the shop and the hotbar too (a gui transform each, no 2D icons). The Grappler (grapple.sk, a heist tool like the Drill) is
+// one of them is its 3D model everywhere, the shop and the hotbar too (a gui transform each, no 2D icons). Shards 8-10
+// (2026-10-20) are the prison's makeshift weapons Sparks makes (Shiv.yml, Mop_Spear.yml, Taped_Club.yml); the plain
+// shard starts at 11. The Grappler (grapple.sk, a heist tool like the Drill) is
 // a breeze rod picked by the string donating:tool_grappler (shop.sk's toolItem) and held like a pistol; its
 // hook (donating:grapple_hook) and a rope (donating:grapple_rope) are breeze rods too, for item displays.
 // A thrown knife in flight is the bullets' iron nugget with custom model data 7004 (see Bullets).
@@ -731,6 +1005,73 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     // edge shows along the top like the old sprite's; the model's middle is off (4.5, 4.5), hence the translation.
     gui: { rotation: [-158, -21, -86], translation: [4.75, 4.75, 0], scale: [1.35, 1.35, 1.35] }
   })
+
+  // Sparks' makeshift weapons (2026-10-20, prison round 3; WeaponMechanics weapons\melee\Shiv.yml, Mop_Spear.yml,
+  // Taped_Club.yml, shards 8-10): junk from around the prison, so scrap steel, grey duct tape and a pale mop handle.
+  // Built upright like the wrench (grip around y 0) and turned onto a sword's diagonal; plain boxes with no glove, so
+  // DonatingPhone's MeleeFx gives them the client's own swing (a stab for the shiv and the spear, a whack for the club).
+  // Lit faces are east and up.
+  const junk = [
+    ...steel, // 0-2 scrap light, mid, dark
+    [190, 194, 200], [150, 154, 162], [104, 108, 116], // 3-5 tape light, tape, tape dark
+    [234, 216, 172], [206, 184, 138], [164, 140, 98], // 6-8 mop handle light, mid, dark
+    [158, 94, 52], [60, 98, 172] // 9 rust, 10 the handle's blue clamp
+  ]
+  // fp = [y translation, scale] in first person (the short ones higher, so the blade or the head shows where the wrench's
+  // jaws do); gui and fixed centre the model's middle (its local y mid c: the diagonal puts it at 8 + 0.707 (c - 8)).
+  const junkDisplay = ([fy, fs], gui, fixed) => ({
+    ...HANDHELD,
+    firstperson_righthand: { rotation: [0, -90, 25], translation: [-1.5, fy, 0.5], scale: [fs, fs, fs] },
+    firstperson_lefthand: { rotation: [0, 90, -25], translation: [-1.5, fy, 0.5], scale: [fs, fs, fs] },
+    gui,
+    fixed
+  })
+  // The Shiv: a flat scrap blade torn into steps toward the point, a rust spot, the grip wrapped in dark tape with a loose
+  // end.
+  solid('shiv', junk, diag([
+    bar(0.62, 0.55, -3.6, 2.2, { all: 5, east: 4, up: 4 }), // the taped grip
+    ...[-2.8, -1.2, 0.4].map(y => bar(0.72, 0.65, y, y + 0.55, { all: 4, east: 3, down: 5 })), // its wraps
+    { from: [8.6, 0.6, 7.5], to: [9.5, 1.9, 8.5], c: 4 }, // the tape's loose end
+    bar(1.35, 0.2, 2.2, 5.0, { all: 1, south: 0, east: 0, west: 2 }), // the blade, wide at the grip (a bright flat)
+    { from: [7.1, 3.2, 8.2], to: [8.0, 4.1, 8.25], c: 9, dirs: ['south'] }, // rust on it
+    { from: [6.7, 5.0, 7.82], to: [8.9, 7.4, 8.18], c: { all: 1, south: 0, east: 0, west: 2 } }, // torn in steps
+    { from: [6.9, 7.4, 7.85], to: [8.4, 9.6, 8.15], c: { all: 1, south: 0, east: 0, west: 2 } },
+    { from: [7.1, 9.6, 7.88], to: [7.8, 11.0, 8.12], c: 0 } // the point
+  ]), junkDisplay([6.0, 0.6],
+    { rotation: [-22.2, -20.7, -4.1], translation: [3.6, 3.4, 0], scale: [1.2, 1.2, 1.2] },
+    { rotation: [0, 180, 0], translation: [-3.2, 3.2, 0], scale: [1.1, 1.1, 1.1] }))
+
+  // The Mop Spear: a long mop handle with a blue clamp, a taped-on scrap blade at the top and the mop's metal cap at the
+  // butt; a tape grip halfway. Long: smaller in first person.
+  solid('mop_spear', junk, diag([
+    bar(0.7, 0.7, -6.6, -5.8, { all: 1, up: 0, down: 2 }), // the butt cap
+    bar(0.55, 0.55, -5.8, 17.4, { all: 7, east: 6, up: 6, down: 8 }), // the handle
+    bar(0.68, 0.68, 1.0, 4.4, { all: 4, east: 3, up: 3 }), // the grip tape
+    bar(0.7, 0.7, -4.6, -3.9, 10), // the clamp
+    bar(0.78, 0.78, 15.6, 18.4, { all: 4, east: 3, up: 3, down: 5 }), // the blade's tape
+    ...[16.2, 17.4].map(y => bar(0.86, 0.86, y, y + 0.4, 5)),
+    bar(1.15, 0.2, 18.4, 21.4, { all: 1, east: 0, west: 2 }), // the blade
+    { from: [7.3, 19.3, 8.15], to: [8.0, 20.0, 8.25], c: 9, dirs: ['south'] }, // rust on it
+    bar(0.75, 0.18, 21.4, 23.2, { all: 1, east: 0, west: 2 }),
+    bar(0.35, 0.15, 23.2, 24.4, 0) // the point
+  ]), junkDisplay([0.4, 0.5],
+    { rotation: [-22.2, -20.7, -4.1], translation: [-0.45, -0.45, 0], scale: [0.68, 0.68, 0.68] },
+    { rotation: [0, 180, 0], translation: [0.45, -0.45, 0], scale: [0.68, 0.68, 0.68] }))
+
+  // The Taped Club: half a mop handle with its end wrapped thick in duct tape, wider toward the end (bands and a loose
+  // strip), tape on the grip.
+  solid('taped_club', junk, diag([
+    bar(0.6, 0.6, -3.6, 4.4, { all: 7, east: 6, up: 6, down: 8 }), // the handle
+    bar(0.7, 0.7, -3.0, -0.8, { all: 4, east: 3, up: 3, down: 5 }), // the grip tape
+    bar(1.1, 1.1, 4.0, 6.6, { all: 4, east: 3, up: 3, down: 5 }), // the taped head, wider in steps
+    bar(1.4, 1.4, 6.6, 10.0, { all: 4, east: 3, up: 3, down: 5 }),
+    bar(1.6, 1.6, 10.0, 12.6, { all: 4, east: 3, up: 3, down: 5 }),
+    ...[[5.6, 1.2], [8.0, 1.5], [11.0, 1.7]].map(([y, w]) => bar(w, w, y, y + 0.5, { all: 3, down: 5 })), // bands
+    bar(1.4, 1.4, 12.6, 13.2, { all: 5, up: 4 }), // the end
+    { from: [9.4, 7.0, 7.4], to: [9.75, 9.2, 8.6], c: 3 } // a loose strip
+  ]), junkDisplay([3.2, 0.6],
+    { rotation: [-22.2, -20.7, -4.1], translation: [2.6, 2.4, 0], scale: [1.1, 1.1, 1.1] },
+    { rotation: [0, 180, 0], translation: [-2.4, 2.4, 0], scale: [1.0, 1.0, 1.0] }))
 
   // Energy drink: a black can with a lime bolt. The label and lid are drawn on their own 32x32 texture
   // (2 texels per unit): the side at uv 0,0-6,11 (12x22), the lid at 6,0-12,6 (12x12). The side is shaded
@@ -999,6 +1340,182 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
   })
   addCase('flint', 'donating:tool_safe-kit', 'donating:item/tool_safe_kit')
 
+  // The pump's fuel nozzle (fuel.sk fuelNozzle: a stick with "donating:nozzle", hotbar 9 while it's out): held like the
+  // Drill, its spout toward -z with the tip bent down; a steel valve body under a red rubber boot, the lever inside its
+  // guard, the black grip raked back and the hose leaving its bottom through a steel ferrule.
+  solid('fuel_nozzle', [
+    [220, 224, 232], [168, 174, 186], [110, 116, 128], [34, 34, 38], // 0-3 steel light, steel, steel dark, grip
+    [60, 60, 66], [226, 70, 56], [184, 44, 36], [124, 28, 24], // 4-7 grip lit, boot light, boot, boot dark
+    [24, 24, 28] // 8 hose
+  ], [
+    { from: [6.6, 9, 7.2], to: [9.4, 12.2, 12.4], c: { all: 1, up: 0, down: 2 } }, // valve body
+    { from: [6.5, 10.4, 10.2], to: [9.5, 12.3, 12.5], c: { all: 6, up: 5, down: 7 } }, // rubber boot over its back
+    { from: [7.1, 9.8, 6.4], to: [8.9, 11.6, 7.2], c: 2 }, // spout collar
+    { from: [7.5, 10.2, 2.8], to: [8.5, 11.2, 6.4], c: { all: 1, up: 0, down: 2 } }, // spout
+    { from: [7.4, 10.1, 4.6], to: [8.6, 11.3, 5], c: 2 }, // its spring band
+    { from: [7.55, 10.25, 0.6], to: [8.45, 11.15, 2.9], c: { all: 1, up: 0, down: 2 }, rot: { angle: -22.5, axis: 'x', origin: [8, 10.7, 2.9] } }, // tip, bent down
+    { from: [7.3, 8, 7.8], to: [8.7, 8.7, 10.6], c: { all: 2, down: 1 } }, // lever
+    { from: [7.4, 7, 7.2], to: [8.6, 9.1, 7.7], c: 1 }, // guard: front post and bottom bar
+    { from: [7.4, 7, 7.2], to: [8.6, 7.4, 11.7], c: { all: 1, down: 2 } },
+    { from: [6.9, 4, 10.6], to: [9.1, 9.2, 12.8], c: { all: 3, up: 4, south: 4 }, rot: { angle: -22.5, axis: 'x', origin: [8, 9.2, 11.7] } }, // grip, raked back
+    { from: [6.8, 3.6, 10.5], to: [9.2, 4.4, 12.9], c: { all: 1, up: 0 }, rot: { angle: -22.5, axis: 'x', origin: [8, 9.2, 11.7] } }, // ferrule
+    { from: [7.1, 1.4, 10.8], to: [8.9, 3.6, 12.6], c: 8, rot: { angle: -22.5, axis: 'x', origin: [8, 9.2, 11.7] } } // hose stub
+  ], {
+    thirdperson_righthand: { translation: [0, 2.5, -1], scale: [0.7, 0.7, 0.7] },
+    thirdperson_lefthand: { translation: [0, 2.5, -1], scale: [0.7, 0.7, 0.7] },
+    firstperson_righthand: { rotation: [4, 28, 0], translation: [-1, 4.5, -1], scale: [0.75, 0.75, 0.75] },
+    firstperson_lefthand: { rotation: [4, 28, 0], translation: [-1, 4.5, -1], scale: [0.75, 0.75, 0.75] },
+    gui: { rotation: [20, -135, 0], translation: [0.5, 1.5, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { rotation: [0, 90, 0], scale: [0.8, 0.8, 0.8] }
+  })
+  addCase('stick', 'donating:nozzle', 'donating:item/fuel_nozzle')
+
+  // Store food (owner, 2026-10-21: "allow players to actually buy things in the stores (food, other consumables)"):
+  // shop.sk tools on vanilla foods (tool:donut on a pumpkin pie, tool:sandwich on bread, tool:hotdog on a cooked
+  // porkchop), so eating is vanilla's with that food's hunger. Small 3D models, held like any item, 3D in menus too.
+  const FOOD = {
+    thirdperson_righthand: { rotation: [0, 0, 0], translation: [0, 2.5, 1], scale: [0.55, 0.55, 0.55] },
+    thirdperson_lefthand: { rotation: [0, 0, 0], translation: [0, 2.5, 1], scale: [0.55, 0.55, 0.55] },
+    firstperson_righthand: { rotation: [10, -30, 0], translation: [1.5, 4, 0], scale: [0.6, 0.6, 0.6] },
+    firstperson_lefthand: { rotation: [10, -30, 0], translation: [1.5, 4, 0], scale: [0.6, 0.6, 0.6] },
+    gui: { rotation: [30, -35, 0], translation: [0, 0, 0], scale: [0.85, 0.85, 0.85] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { scale: [0.8, 0.8, 0.8] }
+  }
+  // The donut: a square ring of dough with pink icing on top and sprinkles.
+  solid('food_donut', [
+    [226, 170, 102], [198, 138, 74], [150, 98, 50], [250, 156, 196], // 0-3 dough light, dough, dough dark, icing
+    [230, 120, 168], [255, 255, 255], [96, 196, 236], [250, 220, 80] // 4-7 icing dark, sprinkles white, blue, yellow
+  ], [
+    { from: [3, 4, 3], to: [13, 7, 6], c: { all: 1, up: 0, down: 2 } },
+    { from: [3, 4, 10], to: [13, 7, 13], c: { all: 1, up: 0, down: 2 } },
+    { from: [3, 4, 6], to: [6, 7, 10], c: { all: 1, up: 0, down: 2 } },
+    { from: [10, 4, 6], to: [13, 7, 10], c: { all: 1, up: 0, down: 2 } },
+    { from: [3.4, 7, 3.4], to: [12.6, 7.6, 5.8], c: { all: 4, up: 3 } },
+    { from: [3.4, 7, 10.2], to: [12.6, 7.6, 12.6], c: { all: 4, up: 3 } },
+    { from: [3.4, 7, 5.8], to: [5.8, 7.6, 10.2], c: { all: 4, up: 3 } },
+    { from: [10.2, 7, 5.8], to: [12.6, 7.6, 10.2], c: { all: 4, up: 3 } },
+    ...[[4.5, 4.2, 5], [8, 4.5, 6], [11, 4, 7], [11.5, 8, 5], [4.5, 11, 6], [8.5, 11.5, 7], [11, 11, 5], [4.2, 7.8, 7]]
+      .map(([x, z, c]) => ({ from: [x, 7.6, z], to: [x + 0.8, 7.8, z + 0.4], c }))
+  ], FOOD)
+  addCase('pumpkin_pie', 'donating:tool_donut', 'donating:item/food_donut')
+  // The sandwich: two slices of bread with ham, cheese and lettuce sticking out.
+  solid('food_sandwich', [
+    [236, 200, 140], [214, 172, 108], [168, 120, 64], [236, 152, 150], // 0-3 bread light, bread, crust, ham
+    [250, 214, 80], [110, 190, 70] // 4-5 cheese, lettuce
+  ], [
+    { from: [3, 2, 3], to: [13, 4, 13], c: { all: 2, up: 1, down: 2 } },
+    { from: [2.6, 4, 2.6], to: [13.4, 4.6, 13.4], c: 5 },
+    { from: [3.2, 4.6, 3.2], to: [12.8, 5.6, 12.8], c: 3 },
+    { from: [2.8, 5.6, 2.8], to: [13.2, 6, 13.2], c: 4 },
+    { from: [3, 6, 3], to: [13, 8, 13], c: { all: 2, up: 0, down: 1 } }
+  ], FOOD)
+  addCase('bread', 'donating:tool_sandwich', 'donating:item/food_sandwich')
+  // The hot dog: a long bun with the sausage in it and a line of mustard.
+  solid('food_hotdog', [
+    [236, 196, 126], [210, 160, 90], [164, 112, 56], [196, 84, 60], // 0-3 bun light, bun, bun dark, sausage
+    [150, 56, 40], [250, 214, 40] // 4-5 sausage dark, mustard
+  ], [
+    { from: [4.5, 3, 2], to: [7, 6.5, 14], c: { all: 1, up: 0, down: 2 } },
+    { from: [9, 3, 2], to: [11.5, 6.5, 14], c: { all: 1, up: 0, down: 2 } },
+    { from: [7, 3, 2], to: [9, 4, 14], c: 2 },
+    { from: [6.6, 4, 1], to: [9.4, 6.8, 15], c: { all: 3, down: 4 } },
+    { from: [7.4, 6.8, 2], to: [8.6, 7.1, 14], c: 5 }
+  ], FOOD)
+  addCase('cooked_porkchop', 'donating:tool_hotdog', 'donating:item/food_hotdog')
+
+  // A store's cash register (owner, 2026-10-21: "an actual register (custom texture) that opens and actually has the
+  // cash"): loot.sk puts three item displays (no display transform) on the counter, front toward the customers (-z):
+  // the body, the drawer and the bill bundles in it. The drawer is drawn shut (its front panel at z 2.4-3, the rest
+  // hidden in the body); loot.sk slides the display 8 units out when the clerk is hit. Its four bins are 2 units wide,
+  // centred at x 4.6, 6.9, 9.1 and 11.4, the floor's top at y 1, the bundles (0.5 high, 4 long) at z 4.75-8.75.
+  const REGISTER = [
+    [245, 240, 226], [220, 214, 196], [176, 168, 148], [52, 54, 60], // 0-3 cream light, cream, cream dark, keypad
+    [200, 204, 212], [88, 180, 92], [210, 70, 60], [24, 30, 28], // 4-7 key, green key, red key, screen
+    [96, 232, 120], [210, 214, 222], [20, 20, 22], [250, 250, 246] // 8-11 digits, chrome, slot, receipt
+  ]
+  const keys = []
+  for (const [row, z] of [4.3, 5.6, 6.9].entries()) {
+    for (const x of [4.3, 5.8, 7.3, 8.8]) keys.push({ from: [x, 5.5, z], to: [x + 1, 5.9, z + 0.9], c: { all: 4, up: 4 } })
+    keys.push({ from: [10.8, 5.5, z], to: [12.3, 5.9, z + 0.9], c: row === 2 ? 6 : 5 })
+  }
+  solid('register_body', REGISTER, [
+    { from: [2, 0, 3], to: [14, 4, 13], c: { all: 1, up: 0, down: 2 } }, // the drawer's housing
+    { from: [3, 0.5, 2.98], to: [13, 4, 2.99], c: 10, dirs: ['north'] }, // the dark slot the drawer slides out of
+    { from: [3, 4, 3.5], to: [13, 5.5, 8], c: 3 }, // the keypad
+    ...keys,
+    { from: [2, 4, 8], to: [14, 8.5, 13], c: { all: 1, up: 0, down: 2 } }, // the top case
+    { from: [9.5, 8.5, 9], to: [13, 9.3, 12], c: 2 }, // the receipt printer and its roll
+    { from: [10, 9.3, 10], to: [12.5, 10.2, 10.6], c: 11 },
+    { from: [7.3, 8.5, 10.8], to: [8.7, 11, 11.8], c: 9 }, // the screen's post
+    { from: [4, 11, 10.3], to: [12, 14.5, 12], c: 3 }, // the customer screen, its glass and digits
+    { from: [4.6, 11.6, 10.25], to: [11.4, 13.9, 10.3], c: 7, dirs: ['north'] },
+    { from: [5.5, 12.3, 10.2], to: [10.5, 13.1, 10.25], c: 8, dirs: ['north'] }
+  ], { gui: { rotation: [25, 200, 0], scale: [0.9, 0.9, 0.9] } })
+  solid('register_drawer', REGISTER, [
+    { from: [2.5, 0.5, 2.4], to: [13.5, 4, 3], c: { all: 1, up: 0, down: 2 } }, // the front panel
+    { from: [6.5, 1.8, 2.1], to: [9.5, 2.6, 2.4], c: 9 }, // its pull
+    { from: [11.5, 2.6, 2.35], to: [12.1, 3.2, 2.4], c: 10, dirs: ['north'] }, // the keyhole
+    { from: [3, 0.5, 3], to: [13, 1, 11], c: { all: 2, up: 3 } }, // the floor
+    { from: [3, 1, 3], to: [3.5, 4, 11], c: 2 }, // the sides and the back
+    { from: [12.5, 1, 3], to: [13, 4, 11], c: 2 },
+    { from: [3.5, 1, 10.5], to: [12.5, 4, 11], c: 2 },
+    { from: [5.625, 1, 3], to: [5.875, 3, 10.5], c: 9 }, // the bins' dividers
+    { from: [7.875, 1, 3], to: [8.125, 3, 10.5], c: 9 },
+    { from: [10.125, 1, 3], to: [10.375, 3, 10.5], c: 9 }
+  ], {})
+  solid('register_bills', [
+    [140, 204, 128], [104, 166, 96], [68, 118, 62], [232, 212, 160] // 0-2 bills light, mid, dark, the paper band
+  ], [
+    { from: [7.05, 7.75, 6], to: [8.95, 8.25, 10], c: { all: 1, up: 0, down: 2 } },
+    { from: [7, 7.7, 7.5], to: [9, 8.3, 8.5], c: 3 }
+  ], {})
+  addCase('iron_ingot', 'donating:register_body', 'donating:item/register_body')
+  addCase('iron_ingot', 'donating:register_drawer', 'donating:item/register_drawer')
+  addCase('iron_ingot', 'donating:register_bills', 'donating:item/register_bills')
+  // The stores' furniture (tools/furniture-art.js: drink fridges, shelves, the slush machine, the menu boards...).
+  require('./furniture-art')({ write, canvas, addCase })
+  // The Casino's menu icons: chips, cards, slot symbols.
+  require('./casino-art').icons({ sprite, addCase, canvas })
+
+  // The prison guards' handcuffs (owner, 2026-10-20: "make the guards hold hand cuffs while arresting you (make the
+  // textures for the item too)"): two steel cuffs on a four-link chain, a lock case with a keyhole and a lock pin on
+  // each; held by the top cuff with the chain and the bottom cuff hanging below. Art only (jailcops.sk's jcopHold puts
+  // it in a guard's hand, core.sk jailcop::cuffs::item): never a jail item, never carried by players.
+  solid('jail_cuffs', [
+    [232, 236, 242], [178, 184, 196], [112, 118, 132], [70, 74, 86], // 0-3 steel light, mid, dark, case
+    [20, 20, 24], [150, 156, 168] // 4-5 keyhole, chain
+  ], [
+    { from: [5.25, 15, 7.4], to: [10.75, 16, 8.6], c: { all: 1, up: 0, down: 2 } }, // the top cuff: its bow
+    { from: [5.25, 12.5, 7.4], to: [6.25, 15, 8.6], c: { all: 1, west: 2 } },
+    { from: [9.75, 12.5, 7.4], to: [10.75, 15, 8.6], c: { all: 1, east: 0 } },
+    { from: [5, 10.8, 7], to: [11, 12.5, 9], c: { all: 3, up: 1, down: 2 } }, // its lock case
+    { from: [7.6, 11.2, 8.95], to: [8.4, 12, 9.05], c: 4 }, // the keyhole
+    { from: [9.3, 11.3, 8.95], to: [9.9, 11.9, 9.05], c: 0 }, // the lock pin
+    { from: [7.4, 9.6, 7.6], to: [8.6, 10.8, 8.4], c: { all: 5, up: 0 } }, // the chain, four links turned in turn
+    { from: [7.6, 8.4, 7.4], to: [8.4, 9.6, 8.6], c: { all: 5, east: 0 } },
+    { from: [7.4, 7.2, 7.6], to: [8.6, 8.4, 8.4], c: { all: 5, up: 0 } },
+    { from: [7.6, 6.2, 7.4], to: [8.4, 7.2, 8.6], c: { all: 5, east: 0 } },
+    { from: [5, 4.5, 7], to: [11, 6.2, 9], c: { all: 3, up: 1, down: 2 } }, // the bottom cuff's lock case
+    { from: [7.6, 4.9, 8.95], to: [8.4, 5.7, 9.05], c: 4 },
+    { from: [6.1, 5.0, 8.95], to: [6.7, 5.6, 9.05], c: 0 },
+    { from: [5.25, 1, 7.4], to: [6.25, 4.5, 8.6], c: { all: 1, west: 2 } }, // its bow
+    { from: [9.75, 1, 7.4], to: [10.75, 4.5, 8.6], c: { all: 1, east: 0 } },
+    { from: [5.25, 0, 7.4], to: [10.75, 1, 8.6], c: { all: 1, up: 0, down: 2 } }
+  ], {
+    // tuned with render-item.js (side, tp): the top cuff in the fist, turned 45 degrees so the rings show from the
+    // front and the side
+    thirdperson_righthand: { rotation: [90, 45, 0], translation: [0, -0.8, -1.8], scale: [0.55, 0.55, 0.55] },
+    thirdperson_lefthand: { rotation: [90, 45, 0], translation: [0, -0.8, -1.8], scale: [0.55, 0.55, 0.55] },
+    firstperson_righthand: { rotation: [10, -70, 0], translation: [1.5, 4.5, -1], scale: [0.55, 0.55, 0.55] },
+    firstperson_lefthand: { rotation: [10, -70, 0], translation: [1.5, 4.5, -1], scale: [0.55, 0.55, 0.55] },
+    gui: { rotation: [15, -30, 0], translation: [0, 0, 0], scale: [0.95, 0.95, 0.95] },
+    ground: { translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
+    fixed: { scale: [0.8, 0.8, 0.8] }
+  })
+  addCase('brick', 'donating:jail_cuffs', 'donating:item/jail_cuffs')
+
   // The thrown knife in flight (iron_nugget.json, custom model data 7004, see Bullets): point first
   // along -z like the bullets, the blade upright, 10.5 units from the point (z = -3) to the ring (z =
   // 7.5, just ahead of the true position at z = 8), and no south (backward) faces, so the thrower sees
@@ -1151,11 +1668,12 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
     for (const v of Object.values(m)) if (typeof v === 'object') Array.isArray(v) ? v.forEach(walkModels) : walkModels(v)
   }
   feather.forEach(e => walkModels(e.model))
-  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard (8 up, and
-  // the fallback for no number).
+  // amethyst_shard.json: WeaponMechanics' skin number picks the item; any other number is a plain shard (11 up, and
+  // the fallback for no number). 8-10 are Sparks' makeshift weapons (2026-10-20). The plain entry must sit right after
+  // the last of ours, or the next number would draw the previous weapon.
   if (!only) {
     const model = n => ({ type: 'minecraft:model', model: `donating:item/${n}` })
-    const SHARD = { 1: melee[1], 2: model('pipe_wrench'), 3: model('throwing_knife'), 4: model('energy_drink'), 5: model('bandage'), 6: melee[6], 7: melee[7] }
+    const SHARD = { 1: melee[1], 2: model('pipe_wrench'), 3: model('throwing_knife'), 4: model('energy_drink'), 5: model('bandage'), 6: melee[6], 7: melee[7], 8: model('shiv'), 9: model('mop_spear'), 10: model('taped_club') }
     Object.values(SHARD).forEach(walkModels) // ours only: before the plain shard is added (checkModel refuses minecraft:)
     write('minecraft/items/amethyst_shard.json', {
       // A drink or a throw lowers the stack: no re-equip dip (like WeaponMechanics' feather.json).
@@ -1169,7 +1687,7 @@ addCase('tripwire_hook', 'donating:carkey', 'minecraft:item/tripwire_hook')
         index: 0,
         entries: [
           ...Object.entries(SHARD).map(([n, m]) => ({ threshold: Number(n), model: m })).sort((a, b) => a.threshold - b.threshold),
-          { threshold: 8, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
+          { threshold: 11, model: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' } }
         ],
         fallback: { type: 'minecraft:model', model: 'minecraft:item/amethyst_shard' }
       }

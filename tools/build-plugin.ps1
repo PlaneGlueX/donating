@@ -24,7 +24,7 @@ $tab = Get-ChildItem (Join-Path $root 'server\plugins') -Filter 'TAB-*.jar' | Se
 if (-not $tab) { throw 'TAB-*.jar not found in server\plugins (Nametags.java compiles against its API)' }
 $libs = @($libs) + $tab.FullName
 # WeaponMechanics' API (GunFx.java listens to its reload, equip and firearm events; a soft dependency at runtime).
-foreach ($p in 'WeaponMechanics-*.jar', 'MechanicsCore-*.jar') {
+foreach ($p in 'WeaponMechanics-*.jar', 'MechanicsCore-*.jar', 'packetevents-spigot-*.jar') {
   $j = Get-ChildItem (Join-Path $root 'server\plugins') -Filter $p | Select-Object -First 1
   if (-not $j) { throw "$p not found in server\plugins (GunFx.java compiles against its API)" }
   $libs += $j.FullName

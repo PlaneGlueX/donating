@@ -484,9 +484,9 @@ function jobsTalk(p: player, c: text, menu: boolean):
 	set {_who} to {-cfg::jobs::%{_c}%::name}
 	if {_n} > 0:
 		if {_n} is 1:
-			storyText({_p}, {_who}, "One for you. Check /jobs.")
+			storySay({_p}, {_who}, "One for you. Check /jobs.")
 		else:
-			storyText({_p}, {_who}, "%{_n}% for you. Check /jobs.")
+			storySay({_p}, {_who}, "%{_n}% for you. Check /jobs.")
 		hudBar({_p}, "&e✉ %{_who}%: %{_n}% job(s) for you &7· /jobs", 1)
 	else:
 		set {_g} to {-cfg::jobs::%{_c}%::greet::%jobsTier({_p}, {_c})%}
@@ -675,7 +675,7 @@ function jobsComplete(p: player, c: text, k: number):
 		set {_star} to " &7· &e★"
 	msg({_p}, "&6Job done: &f%{_name}% &7· &a%formatMoney({_pay})% &7· &b+%{_xp}% XP &7· &d+%{_rep}% rep%{_star}%")
 	set {_lines::*} to {-cfg::jobs::%{_c}%::line::done::*}
-	storyText({_p}, {-cfg::jobs::%{_c}%::name}, random element out of {_lines::*})
+	storyQuest({_p}, {-cfg::jobs::%{_c}%::name}, random element out of {_lines::*})
 	if getData({_p}, "quest-track") is "job:%{_c}%:%{_k}%":
 		deleteData({_p}, "quest-track")
 	jobsForget({_p}, {_c}, {_k})
@@ -779,7 +779,7 @@ function jobsReplace(p: player, c: text, k: number, s: text):
 			setData({_p}, "job::%{_c}%::%{_k}%", "taken")
 			jobsSet({_p}, {_c}, {_k}, "takenat", progUnix())
 			jobsOfferReset({_p}, {_c}, {_k})
-		storyText({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::void})
+		storyQuest({_p}, {-cfg::jobs::%{_c}%::name}, {-cfg::jobs::%{_c}%::line::void})
 	else:
 		jobsForget({_p}, {_c}, {_k})
 
@@ -1000,7 +1000,9 @@ function jobsLine(p: player, key: text) :: text:
 		return ""
 	if jobsState({_p}, {_c}, {_k}) is not "taken":
 		return ""
-	return "&e✉ &f%jobsTitleOf({_p}, {_c}, {_k})% &7%jobsProgText({_p}, {_c}, {_k})%"
+	# "▶ Boss: Special Delivery 0/1" (the contact, the job, its progress: story.sk questShow's line).
+	set {_who} to {-cfg::jobs::%{_c}%::name}
+	return "&e▶ %{_who}%: &f%jobsTitleOf({_p}, {_c}, {_k})% &7%jobsProgText({_p}, {_c}, {_k})%"
 
 # The tracked job's boss bar (hud.sk, after the missions').
 function jobsHud(p: player) :: boolean:

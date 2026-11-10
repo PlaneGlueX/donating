@@ -222,7 +222,7 @@ module.exports = async ({ check }) => {
 
     await sleep(1500)
     const bar = messagesSince(bots[D], t).filter(m => m.kind === 'game_info').map(m => m.text)
-    check('while the chase view is on the action bar shows the driver\'s health and how to get out (the client hides the hearts)', bar.some(s => /❤ \d+(\.\d+)?\/\d+/.test(s) && /Sneak: get out/.test(s)), bar.slice(-5).join(' | '))
+    check('while the chase view is on the action bar shows the driver\'s health and how to get out (the client hides the hearts)', bar.some(s => /❤ \d+(\.\d+)?\/\d+/.test(s) && /Sneak: (get )?out/.test(s)), bar.slice(-5).join(' | '))
     const dist = await cmd(`execute as ${D} on vehicle run attribute @s minecraft:camera_distance base get`)
     check('the fallback for everyone: the driver\'s seat stand has camera_distance 7 (F5 in a car sits farther back)', /\s7(\.0+)?\s*$/.test(dist), dist)
 
@@ -379,20 +379,55 @@ module.exports = async ({ check }) => {
     cam = camOf(await status())
     for (let i = 0; i < 20 && Math.abs(cam.orbit[0]) >= 1; i++) { await sleep(200); cam = camOf(await status()) } // back behind the car
 
-    // ---------- Locking and unlocking with the key (a map: the minimap) ----------
+    // ---------- Locking and unlocking with F (2026-10-21: the key's right-click is the big map; untested (cloud)) ----------
+    const pressF = b => b._client.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: 0 })
     const lock0 = await lockedOf()
     t = Date.now()
-    bots[D].activateItem()
-    await sleep(150)
-    bots[D].deactivateItem()
+    pressF(bots[D])
     await sleep(600)
     const lock1 = await lockedOf()
     st = await status()
     dmp = await dump()
     const lockBar = messagesSince(bots[D], t).filter(m => m.kind === 'game_info').map(m => m.text)
-    check('right-clicking the key locks or unlocks the car (garage.sk matches the key by its id), and the refreshed key is still the map (carKey builds the hook only while donating_carcam_hook is set)',
+    check('F locks or unlocks the car (garage.sk, the driver\'s own car), and the refreshed key is still the map (carKey builds the hook only while donating_carcam_hook is set)',
       lock0 && lock1 && lock0 !== lock1 && lockBar.some(s => /Locked|Unlocked/.test(s)) && camOf(st).key === 'key-map' && /^filled map x1 \[carkey:/.test(slot8(dmp)),
       `locked ${lock0} -> ${lock1} | bar ${lockBar.slice(-3).join(' | ')} | ${st} | ${dmp}`)
+
+    // ---------- The key's right-click: the big map while driving; the chase view pauses and comes back (untested (cloud)) ----------
+    bots[D].activateItem()
+    await sleep(150)
+    bots[D].deactivateItem()
+    await sleep(800)
+    const paused = await status()
+    const openNow = /open=true/.test(await cmd(`dphone status ${D}`))
+    bots[D].activateItem()
+    await sleep(150)
+    bots[D].deactivateItem()
+    await sleep(1200)
+    const resumed = await status()
+    check('the key\'s right-click opens the big map: the chase view pauses (reason=phone-open), the slot stays on the key; again: the map closes and the view is back',
+      openNow && /none reason=phone-open/.test(paused) && /slot=8/.test(paused) && /plate=/.test(resumed) && bots[D].quickBarSlot === 8,
+      `${paused} | ${resumed} | slot ${bots[D].quickBarSlot}`)
+    // Owner, 2026-10-22: with the map open the camera looks down at the car, so a right-click lands on its own stands
+    // (an entity click): that closes the map too.
+    bots[D].activateItem()
+    await sleep(150)
+    bots[D].deactivateItem()
+    await sleep(800)
+    const open2 = /open=true/.test(await cmd(`dphone status ${D}`))
+    // The car's stands nearest first; some are markers the client can't click (the server ignores those), so try each.
+    const stands = Object.values(bots[D].entities).filter(e => e.name === 'armor_stand' && e.position.distanceTo(bots[D].entity.position) < 4)
+      .sort((x, y) => x.position.distanceTo(bots[D].entity.position) - y.position.distanceTo(bots[D].entity.position))
+    const stand = stands[0]
+    let closed2 = false
+    for (const e of stands) {
+      bots[D].activateEntity(e).catch(() => {})
+      await sleep(700)
+      if ((closed2 = /open=false/.test(await cmd(`dphone status ${D}`)))) break
+    }
+    await sleep(500)
+    check('...a right-click on the car itself (the camera looks down at it) closes the map too, and the view is back',
+      open2 && Boolean(stand) && closed2 && /plate=/.test(await status()), `open ${open2} stand ${Boolean(stand)} closed ${closed2} | ${await status()}`)
 
     // ---------- Nothing in the offhand: the key is the hook (a held map would be drawn big in the middle) ----------
     await cmd(`zzdata ${D} bag-tier none`)
@@ -405,14 +440,12 @@ module.exports = async ({ check }) => {
       `offhand=${JSON.stringify(bots[D].inventory.slots[45])} | ${st} | ${dmp} | bot: ${botKey() && botKey().name}`)
     const lock2 = await lockedOf()
     t = Date.now()
-    bots[D].activateItem()
-    await sleep(150)
-    bots[D].deactivateItem()
+    pressF(bots[D])
     await sleep(600)
     const lock3 = await lockedOf()
     st = await status()
     dmp = await dump()
-    check('...right-clicking the hook key locks or unlocks the car, and the refreshed key is still the hook (carKey builds it while donating_carcam_hook is set)',
+    check('...F with the hook key locks or unlocks the car, and the refreshed key is still the hook (carKey builds it while donating_carcam_hook is set)',
       lock2 && lock3 && lock2 !== lock3 && camOf(st).key === 'key-hook' && /^tripwire hook x1 \[carkey:/.test(slot8(dmp)),
       `locked ${lock2} -> ${lock3} | ${st} | ${dmp}`)
     await cmd(`zzdata ${D} bag-tier 1`)
@@ -422,6 +455,7 @@ module.exports = async ({ check }) => {
     check('...and with the bag back in the offhand the key is the map again (the minimap)', camOf(st).key === 'key-map' && camOf(st).hook === 'false' && botKey() && botKey().name === 'filled_map' && hasMapId(botKey()), st)
 
     // ---------- Getting out: first person again ----------
+    cam = camOf(await status()) // the big map's pause and resume made a new camera stand
     t = Date.now()
     await cmd(`minecraft:ride ${D} dismount`)
     await sleep(800)

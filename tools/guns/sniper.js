@@ -133,7 +133,7 @@ module.exports = ({ pg, aim, display }) => {
   const RH = rig({ t: [19.1 - OR[0], 8.2 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 55]], pivot: OR })
   const LH = rig({ t: [12.75 - OL[0], 4.9 - OL[1], 8 - OL[2]], pivot: OL })
   const gun = pgGun(name, inBounds({
-    hands: { right: { at: RH, scale: 1.0, armScale: 0.85 }, left: { at: LH, shown: false, scale: 1.15, armScale: 0.9 }, leftTree: false },
+    hands: { grip: false, right: { at: RH, scale: 1.0, armScale: 0.85 }, left: { at: LH, shown: false, scale: 1.15, armScale: 0.9 }, leftTree: false, realArm: true },
     style: 'pg',
     density: 4,
     palette: {

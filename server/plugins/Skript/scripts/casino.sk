@@ -1,0 +1,1977 @@
+# casino.sk: the Casino's gaming floor (tools/build/city/design/casino-games.md; the owner chose chips that cash out, 2026-10-28).
+# Built: chips, the cashier, slots, the Lucky Wheel, blackjack, roulette, the Inside Track, /dcasino.
+#   Saved: {casinopending::<uuid>::bj|rl::<key>} chips on a hand or on the table (refunded at the next join after a restart);
+#   {casinopending::<uuid>::wheel} a prize the wheel hasn't stopped on yet (paid when it stops, or at the next join);
+#   {casinopending::<uuid>::track::horse|amt} a bet on the race.
+#   Data: "chips" (whole numbers). Not money: no death loss, boosters or XP.
+#   Memory, per player: {-casino::gui::<p>} the cashier's menu, ::act::<p>::<slot>, ::gen::<p> (one action per screen),
+#   ::machine::<p>, ::bet::<p>, ::spun::<p>, ::confirm::<p>, ::confirmat::<p>. {-casino::inuse::<n>} a machine's player.
+#   Saved: {casino::day::<account or ip>::buy|cashout} today's totals, wiped when the day changes.
+#   Saved: {casino::stats::<day>::<game>::bet|paid|rounds}, {casino::net::<uuid>} (chips won or lost in all), {casino::off} (/dcasino disable).
+# Staff: shop.sk's mannequins (kinds cashier, blackjack, roulette; ids casino_*), put back at every load, so a server needs no setup.
+# The machines and tables are displays over barriers (tools/build/city/casino.js, tools/casino-art.js): clicks are block clicks,
+# and every game plays on them (the only menus: the cashier and the chip picker).
+# The results are drawn at the click (the roulette number when bets close); the reels and wheels only show them.
+
+on load:
+	wait 5 seconds
+	casinoKeeper("casino_cashier", "cashier", 857.5, 354.5, -90)
+	casinoKeeper("casino_bj1", "blackjack", 866.5, 355.5, 0)
+	casinoKeeper("casino_bj2", "blackjack", 874.5, 355.5, 0)
+	casinoKeeper("casino_roulette", "roulette", 884.5, 355.5, 0)
+
+function casinoKeeper(id: text, kind: text, x: number, z: number, yaw: number):
+	set {shop::keepers::%{_id}%} to {_kind}
+	set {shop::keeper::%{_id}%::loc} to location({_x}, 73, {_z}, jailWorld(), {_yaw}, 0)
+
+function casinoLog(text: text):
+	log {_text} to "casino"
+
+# A round's totals for /dcasino stats.
+function casinoStat(p: offline player, game: text, bet: number, paid: number):
+	set {_d} to now formatted as "yyyy-MM-dd"
+	add {_bet} to {casino::stats::%{_d}%::%{_game}%::bet}
+	add {_paid} to {casino::stats::%{_d}%::%{_game}%::paid}
+	add 1 to {casino::stats::%{_d}%::%{_game}%::rounds}
+	set {_u} to uuid of {_p}
+	add {_paid} - {_bet} to {casino::net::%{_u}%}
+	set {casino::netname::%{_u}%} to name of {_p}
+
+function chipsOf(p: offline player) :: number:
+	set {_c} to getData({_p}, "chips")
+	if {_c} is set:
+		return {_c}
+	return 0
+
+function chipsSet(p: offline player, n: number):
+	setData({_p}, "chips", max({_n}, 0))
+
+# Why this player can't start anything new here; "" = they can.
+function casinoRefuse(p: player) :: text:
+	if {-cfg::casino::enabled} is not true:
+		return "The casino is closed."
+	if {casino::off} is true:
+		return "The casino is closed."
+	if phoneFree({_p}) is not true:
+		return "Not while you're a prisoner."
+	if levelOf({_p}) < {-cfg::casino::level}:
+		return "Level %{-cfg::casino::level}% or more."
+	if isCombatTagged({_p}) is true:
+		return "Not in combat."
+	if isWanted({_p}) is true:
+		return "Not while you're wanted."
+	if heistOf({_p}) is not "":
+		return "Not during a heist."
+	if bagTotal({_p}) > 0:
+		return "Sell your loot first."
+	if isAfk({_p}) is true:
+		return "You're AFK."
+	return ""
+
+# Today's total for a key ("<uuid or ip>::buy"). A new day wipes every total.
+function casinoDayCheck():
+	set {_d} to now formatted as "yyyy-MM-dd"
+	if {casino::today} is not {_d}:
+		delete {casino::day::*}
+		set {casino::today} to {_d}
+
+function casinoDay(key: text) :: number:
+	casinoDayCheck()
+	set {_v} to {casino::day::%{_key}%}
+	if {_v} is set:
+		return {_v}
+	return 0
+
+function casinoOpen(p: player, rows: number, title: text):
+	delete {-casino::act::%{_p}%::*}
+	set {_gui} to chest inventory with {_rows} rows named {_title}
+	set {-casino::gui::%{_p}%} to {_gui}
+	if {-casino::gen::%{_p}%} is not set:
+		set {-casino::gen::%{_p}%} to 0
+
+function casinoButton(p: player, slot: number, i: item, act: text):
+	set slot {_slot} of {-casino::gui::%{_p}%} to {_i}
+	set {-casino::act::%{_p}%::%{_slot}%} to {_act}
+
+# An item drawn by the pack's art (tools/casino-art.js); without the pack it's the plain item.
+function casinoArt(i: item, model: text) :: item:
+	set string list tag "minecraft:custom_model_data;strings" of nbt of {_i} to "donating:%{_model}%"
+	return {_i}
+
+function chipIcon(p: player) :: item:
+	return casinoArt(gold ingot named "&6%chipsOf({_p})% chips", "chips")
+
+function casinoBar(p: player, text: text):
+	send action bar colored "%{_text}% &8| &6%chipsOf({_p})% chips" to {_p}
+
+# A result or an error: holds the bar for casinoControlsLoop's 2.5 s, then the game's controls come back.
+function casinoStatus(p: player, text: text):
+	casinoBar({_p}, {_text})
+	set {-casino::said::%{_p}%} to now
+
+# ---------- The cashier ----------
+
+function casinoCashier(p: player):
+	casinoOpen({_p}, 3, "Cashier")
+	set {_u} to uuid of {_p}
+	set {_i} to 10
+	loop 1000, 5000, 25000 and 100000:
+		set {_n} to loop-value
+		set {_lore} to "&7$%{_n}%"
+		if {-casino::confirm::%{_p}%} is "buy:%{_n}%":
+			set {_lore} to "&eClick again to confirm"
+		casinoButton({_p}, {_i}, casinoArt(gold nugget named "&6Buy %{_n}% chips" with lore {_lore}, "chip_%{_n}%"), "buy:%{_n}%")
+		add 1 to {_i}
+	if {-cfg::casino::cashout} is true:
+		set {_c} to chipsOf({_p})
+		set {_fee} to {-cfg::casino::cashout-fee}
+		casinoButton({_p}, 15, emerald named "&aCash out all" with lore "&7Pays $%floor({_c} * (1 - {_fee}))%", "cashout")
+	set {_left} to max({-cfg::casino::buy-day} - casinoDay("%{_u}%::buy"), 0)
+	set slot 22 of {-casino::gui::%{_p}%} to paper named "&7Today" with lore "&7Can still buy: %{_left}%"
+	set slot 26 of {-casino::gui::%{_p}%} to chipIcon({_p})
+	open {-casino::gui::%{_p}%} to {_p}
+
+function casinoBuy(p: player, n: number):
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		casinoStatus({_p}, "&c%{_why}%")
+		casinoLog("refuse %{_p}% %uuid of {_p}% buy %{_why}%")
+		stop
+	if chipsOf({_p}) + {_n} > {-cfg::casino::max-chips}:
+		casinoStatus({_p}, "&cYou can hold %{-cfg::casino::max-chips}% chips.")
+		stop
+	set {_u} to uuid of {_p}
+	set {_ip} to ip of {_p}
+	if casinoDay("%{_u}%::buy") + {_n} > {-cfg::casino::buy-day}:
+		casinoStatus({_p}, "&cToday's limit.")
+		stop
+	if casinoDay("%{_ip}%::buy") + {_n} > {-cfg::casino::buy-day}:
+		casinoStatus({_p}, "&cToday's limit.")
+		stop
+	if chargeMoney({_p}, {_n}) is not true:
+		casinoStatus({_p}, "&cNot enough money.")
+		stop
+	set {_before} to chipsOf({_p})
+	chipsSet({_p}, {_before} + {_n})
+	if chipsOf({_p}) is not {_before} + {_n}:
+		giveMoney({_p}, {_n})
+		casinoLog("buy-failed %{_p}% %{_u}% amt=%{_n}% refunded")
+		stop
+	add {_n} to {casino::day::%{_u}%::buy}
+	add {_n} to {casino::day::%{_ip}%::buy}
+	casinoLog("buy %{_p}% %{_u}% amt=%{_n}% money=%{_n}% bal=%{_before}%->%chipsOf({_p})% ip=%{_ip}%")
+	casinoStatus({_p}, "&a+%{_n}% chips")
+
+function casinoCashout(p: player):
+	{-cfg::casino::cashout} is true
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		casinoStatus({_p}, "&c%{_why}%")
+		stop
+	set {_u} to uuid of {_p}
+	set {_ip} to ip of {_p}
+	set {_room} to min({-cfg::casino::cashout-day} - casinoDay("%{_u}%::cashout"), {-cfg::casino::cashout-day} - casinoDay("%{_ip}%::cashout"))
+	set {_before} to chipsOf({_p})
+	set {_free} to {_before}
+	set {_at} to getData({_p}, "chips-locked-at")
+	if {_at} is set:
+		if difference between now and {_at} < 24 hours:
+			set {_free} to max({_before} - getData({_p}, "chips-locked"), 0)
+	set {_n} to min({_free}, {_room})
+	if {_n} <= 0:
+		casinoStatus({_p}, "&cNothing to cash out today.")
+		stop
+	set {_paid} to floor({_n} * (1 - {-cfg::casino::cashout-fee}))
+	chipsSet({_p}, {_before} - {_n})
+	giveMoney({_p}, {_paid})
+	add {_n} to {casino::day::%{_u}%::cashout}
+	add {_n} to {casino::day::%{_ip}%::cashout}
+	casinoLog("cashout %{_p}% %{_u}% amt=%{_n}% paid=%{_paid}% bal=%{_before}%->%chipsOf({_p})% ip=%{_ip}%")
+	casinoStatus({_p}, "&a+$%{_paid}%")
+
+# ---------- The chip you bet with ----------
+# The owner, 2026-11-04: right-click puts down the game's lowest chip, again to stack it; shift + right-click opens a menu to choose
+# another chip, with Min and Max. Memory: {-casino::chip::<p>::<game>}, a chip's value, or 0 for Max (what the game still takes, or all
+# you have, worked out at each click). Games: slot, bj, rl, track.
+# shortcut: blackjack's chips are fixed here while its limits are core.sk's bj-min and bj-max, change both together.
+function chipLadder(game: text) :: text:
+	if {_game} is "slot":
+		return "10|50|250|1000"
+	if {_game} is "bj":
+		return "100|250|1000|5000|10000"
+	if {_game} is "rl":
+		return "50|250|1000|5000"
+	return "100|500|1000|5000|10000"
+
+function casinoGameMax(game: text) :: number:
+	if {_game} is "slot":
+		return 1000
+	if {_game} is "bj":
+		return {-cfg::casino::bj-max}
+	if {_game} is "rl":
+		return {-cfg::casino::roulette-max}
+	return 10000
+
+function casinoLowest(game: text) :: number:
+	set {_s::*} to chipLadder({_game}) split at "|"
+	return {_s::1} parsed as number
+
+# The value chosen, the lowest if none was, 0 for Max.
+function casinoChipOf(p: player, game: text) :: number:
+	set {_c} to {-casino::chip::%{_p}%::%{_game}%}
+	if {_c} is set:
+		return {_c}
+	return casinoLowest({_game})
+
+# What a click puts down. room = what this bet can still take. Under the lowest chip, the lowest: the game then says not enough, or its limit.
+function casinoChipSize(p: player, game: text, room: number) :: number:
+	set {_c} to casinoChipOf({_p}, {_game})
+	if {_c} > 0:
+		return {_c}
+	return max(casinoLowest({_game}), min({_room}, chipsOf({_p})))
+
+function casinoChipName(p: player, game: text) :: text:
+	set {_c} to casinoChipOf({_p}, {_game})
+	if {_c} > 0:
+		return "Chip %{_c}%"
+	return "Max bet"
+
+function casinoChipButton(p: player, slot: number, game: text, value: number, name: text, chosen: number, art: text):
+	set {_i} to casinoArt(gold nugget named " ", "chipbtn_%{_art}%")
+	set name of {_i} to colored {_name}
+	if {_chosen} is {_value}:
+		set {_i} to glint({_i})
+		set lore of {_i} to colored "&aIn use"
+	else if {_value} is 0:
+		set lore of {_i} to colored "&7As much as this game takes, or all you have"
+	else if chipsOf({_p}) < {_value}:
+		set lore of {_i} to colored "&cYou have %chipsOf({_p})% chips"
+	else:
+		set lore of {_i} to colored "&7Click to use"
+	casinoButton({_p}, {_slot}, {_i}, "chip:%{_game}%:%{_value}%")
+
+# Slot 10 Min, then the game's chips, then Max.
+function casinoChipMenu(p: player, game: text):
+	casinoOpen({_p}, 3, "Choose a chip")
+	set {_c} to casinoChipOf({_p}, {_game})
+	set {_low} to casinoLowest({_game})
+	casinoChipButton({_p}, 10, {_game}, {_low}, "&aMin: %{_low}%", {_c}, "min")
+	set {_at} to 10
+	set {_s::*} to chipLadder({_game}) split at "|"
+	loop {_s::*}:
+		add 1 to {_at}
+		set {_n} to loop-value parsed as number
+		casinoChipButton({_p}, {_at}, {_game}, {_n}, "&6%{_n}% chip", {_c}, "%{_n}%")
+	casinoChipButton({_p}, {_at} + 1, {_game}, 0, "&cMax: %casinoGameMax({_game})%", {_c}, "max")
+	set slot 26 of {-casino::gui::%{_p}%} to chipIcon({_p})
+	open {-casino::gui::%{_p}%} to {_p}
+
+function casinoChipPicked(p: player, game: text, value: number):
+	set {-casino::chip::%{_p}%::%{_game}%} to {_value}
+	close {_p}'s inventory
+	play sound "block.note_block.hat" with volume 0.5 to {_p}
+	if {_game} is "slot":
+		set {_n} to casinoChipSize({_p}, "slot", 1000)
+		if {-casino::machine::%{_p}%} is set:
+			slotLed({-casino::machine::%{_p}%}, "&aBET %{_n}%")
+		casinoStatus({_p}, "&fBet %{_n}%. &aRight-click: spin.")
+	else:
+		set {_name} to casinoChipName({_p}, {_game})
+		casinoStatus({_p}, "&f%{_name}%. &aRight-click to put it down.")
+
+# ---------- On the machines and tables ----------
+# Only the chip menu (sneak + right-click) and the cashier open a menu. A click lands on a barrier; casinoAimY says where on the display under it the
+# player aims. Right-click plays or puts down a chip, sneak + right-click opens the chip menu, left-click takes back, deals or stands.
+# What a game shows while it's played (reels, cards, chips, read-outs) are displays that aren't saved: {-casino::props::<key>::*}.
+
+# Where the player's look crosses the height y: a display sits a little under the barrier's top, so the block's hit point would be off.
+function casinoAimY(p: player, y: number) :: location:
+	set {_e} to eye location of {_p}
+	set {_d} to vector from yaw (yaw of {_e}) and pitch (pitch of {_e})
+	set {_dy} to y of {_d}
+	set {_t} to 0
+	if abs({_dy}) > 0.01:
+		set {_t} to ({_y} - (y-coordinate of {_e})) / {_dy}
+	return location((x-coordinate of {_e}) + (x of {_d}) * {_t}, {_y}, (z-coordinate of {_e}) + (z of {_d}) * {_t}, jailWorld())
+
+function casinoProp(key: text, l: location, i: item, scale: number) :: entity:
+	spawn an item display at {_l}:
+		make event-display not persistent
+		add "casino_prop" to scoreboard tags of event-display
+		set item of event-display to {_i}
+		set display scale of event-display to vector({_scale}, {_scale}, {_scale})
+		set view range of event-display to 0.4
+		set brightness override of event-display to 15
+	set {_d} to last spawned entity
+	add {_d} to {-casino::props::%{_key}%::*}
+	return {_d}
+
+function casinoLabel(key: text, l: location, text: text, scale: number) :: entity:
+	spawn a text display at {_l}:
+		make event-display not persistent
+		add "casino_prop" to scoreboard tags of event-display
+		set display scale of event-display to vector({_scale}, {_scale}, {_scale})
+		set view range of event-display to 0.4
+		set brightness override of event-display to 15
+	set {_d} to last spawned entity
+	set text of {_d} to colored {_text}
+	add {_d} to {-casino::props::%{_key}%::*}
+	return {_d}
+
+function casinoPropsClear(key: text):
+	loop {-casino::props::%{_key}%::*}:
+		kill loop-value
+	delete {-casino::props::%{_key}%::*}
+
+# One line of big text over a game while a round runs.
+function casinoBoard(name: text, x: number, y: number, z: number, yaw: number, scale: number, text: text):
+	set {_l} to location({_x}, {_y}, {_z}, jailWorld(), {_yaw}, 0)
+	chunk at {_l} is loaded
+	set {_b} to {-casino::board::%{_name}%}
+	set {_ok} to true
+	if {_b} is not set:
+		set {_ok} to false
+	else if {_b} is not valid:
+		set {_ok} to false
+	if {_ok} is false:
+		spawn a text display at {_l}:
+			make event-display not persistent
+			add "casino_prop" to scoreboard tags of event-display
+			set display scale of event-display to vector({_scale}, {_scale}, {_scale})
+			set brightness override of event-display to 15
+		set {_b} to last spawned entity
+		set {-casino::board::%{_name}%} to {_b}
+	set text of {_b} to colored {_text}
+
+function casinoBoardOff(name: text):
+	{-casino::board::%{_name}%} is set
+	kill {-casino::board::%{_name}%}
+	delete {-casino::board::%{_name}%}
+
+# The chip that looks right for a stake.
+function chipItem(n: number) :: item:
+	set {_c} to 10
+	loop 50, 100, 250, 500, 1000, 5000, 10000, 25000 and 100000:
+		if {_n} >= loop-value:
+			set {_c} to loop-value
+	return casinoArt(gold nugget named " ", "chip_%{_c}%")
+
+# The next size up or down a ladder like "10|50|250|1000", wrapping round.
+function casinoLadder(ladder: text, at: number, dir: number) :: number:
+	set {_s::*} to {_ladder} split at "|"
+	set {_n} to size of {_s::*}
+	set {_i} to 1
+	loop {_n} times:
+		if ({_s::%loop-number%} parsed as number) is {_at}:
+			set {_i} to loop-number
+	add {_dir} to {_i}
+	if {_i} > {_n}:
+		set {_i} to 1
+	else if {_i} < 1:
+		set {_i} to {_n}
+	return {_s::%{_i}%} parsed as number
+
+# ---------- Slots ----------
+# A machine plays on its own cabinet: three reels and a read-out over the painted screen while someone is at it, gone when they walk
+# off. Right-click spins at the chip in use; the gold and red buttons on the deck, or the chip menu, change the bet.
+
+function reelItem(sym: text) :: item:
+	return casinoArt(paper named " ", "reel_%{_sym}%")
+
+function slotClaim(p: player, m: text, x: number, z: number):
+	set {-casino::inuse::%{_m}%} to "%{_p}%"
+	set {-casino::machine::%{_p}%} to {_m}
+	set {-casino::slotter::%{_p}%} to {_p}
+	set {-casino::machineat::%{_p}%} to location({_x} + 0.5, 74, {_z} + 1, jailWorld())
+	set {_bet} to casinoChipSize({_p}, "slot", 1000)
+	set {_i} to 0
+	# Over the painted symbols (tools/casino-art.js: a reel's middle is 17 i - 6 of the screen's 56 px, the screen 3/4 of a block wide).
+	loop "Bars", "Sevens" and "Bells":
+		add 1 to {_i}
+		set {-casino::reel::%{_m}%::%{_i}%} to casinoProp("slot:%{_m}%", location({_x} + 0.125 + 0.75 * (17 * {_i} - 6) / 56, 74.4375, {_z} + 0.77, jailWorld(), 180, 0), reelItem(loop-value), 0.2143)
+	set {-casino::led::%{_m}%} to casinoLabel("slot:%{_m}%", location({_x} + 0.493, 74.05, {_z} + 0.77, jailWorld(), 0, 0), "&aBET %{_bet}%", 0.35)
+	casinoStatus({_p}, "&fRight-click: spin. &7Shift + right-click: choose the bet.")
+
+function slotRelease(p: player):
+	set {_m} to {-casino::machine::%{_p}%}
+	{_m} is set
+	delete {-casino::inuse::%{_m}%}
+	delete {-casino::machine::%{_p}%}
+	delete {-casino::slotter::%{_p}%}
+	delete {-casino::machineat::%{_p}%}
+	delete {-casino::used::%{_p}%}
+	delete {-casino::reeling::%{_p}%}
+	delete {-casino::reel::%{_m}%::*}
+	delete {-casino::led::%{_m}%}
+	casinoPropsClear("slot:%{_m}%")
+
+function slotLed(m: text, text: text):
+	{-casino::led::%{_m}%} is set
+	set text of {-casino::led::%{_m}%} to colored {_text}
+
+function slotBet(p: player, m: text, dir: number):
+	set {_n} to casinoLadder(chipLadder("slot"), casinoChipOf({_p}, "slot"), {_dir})
+	set {-casino::chip::%{_p}%::slot} to {_n}
+	slotLed({_m}, "&aBET %{_n}%")
+	casinoStatus({_p}, "&fBet %{_n}%")
+	play sound "block.note_block.hat" with volume 0.5 to {_p}
+
+function slotClick(p: player, x: number, z: number, kind: text):
+	set {_m} to "%{_x}%-%{_z}%"
+	if {-casino::inuse::%{_m}%} is set:
+		if {-casino::inuse::%{_m}%} is not "%{_p}%":
+			casinoStatus({_p}, "&cIn use")
+			stop
+	if {-casino::machine::%{_p}%} is not {_m}:
+		slotRelease({_p})
+		slotClaim({_p}, {_m}, {_x}, {_z})
+	set {-casino::used::%{_p}%} to now
+	if {_kind} is "sneak":
+		casinoChipMenu({_p}, "slot")
+		stop
+	if {_kind} is not "right":
+		stop
+	# The deck's buttons, by where the look crosses their tops: the gold one (viewer's left) down, the red one up, anything else spins.
+	set {_a} to casinoAimY({_p}, 73.91)
+	set {_dz} to (z-coordinate of {_a}) - {_z}
+	if {_dz} is between 0.4 and 1.15:
+		set {_dx} to (x-coordinate of {_a}) - {_x}
+		if {_dx} is between 0.1 and 0.38:
+			slotBet({_p}, {_m}, -1)
+			stop
+		if {_dx} is between 0.62 and 0.9:
+			slotBet({_p}, {_m}, 1)
+			stop
+	casinoSpin({_p})
+
+# The result is drawn, the bet taken and the win paid in this one call.
+function casinoSpin(p: player):
+	set {_bet} to casinoChipSize({_p}, "slot", 1000)
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		casinoStatus({_p}, "&c%{_why}%")
+		stop
+	if {-casino::reeling::%{_p}%} is set:
+		stop
+	set {_at} to {-casino::spun::%{_p}%}
+	if {_at} is set:
+		if difference between now and {_at} < {-cfg::casino::slot-gap}:
+			stop
+	set {_before} to chipsOf({_p})
+	if {_before} < {_bet}:
+		casinoStatus({_p}, "&cNot enough chips.")
+		stop
+	set {-casino::spun::%{_p}%} to now
+	set {-casino::reeling::%{_p}%} to true
+	set {_r} to random number between 0 and 1
+	set {_name} to "Nothing"
+	set {_pays} to 0
+	loop {-cfg::casino::slot-table::*}:
+		set {_row::*} to loop-value split at "|"
+		set {_chance} to {_row::3} parsed as number
+		if {_found} is not set:
+			if {_r} < {_chance}:
+				set {_found} to true
+				set {_name} to {_row::1}
+				set {_pays} to {_row::2} parsed as number
+			else:
+				remove {_chance} from {_r}
+	if {-casino::force::slot} is set:
+		set {_name} to "Nothing"
+		set {_pays} to 0
+		loop {-cfg::casino::slot-table::*}:
+			set {_row::*} to loop-value split at "|"
+			if {_row::1} is {-casino::force::slot}:
+				set {_name} to {_row::1}
+				set {_pays} to {_row::2} parsed as number
+	set {_won} to {_bet} * {_pays}
+	chipsSet({_p}, {_before} - {_bet} + {_won})
+	casinoStat({_p}, "slots", {_bet}, {_won})
+	casinoLog("result slots %{_p}% %uuid of {_p}% machine=%{-casino::machine::%{_p}%}% bet=%{_bet}% outcome=%{_name}% won=%{_won}% bal=%{_before}%->%chipsOf({_p})%")
+	if {_won} >= {-cfg::casino::big-win}:
+		casinoLog("big-win %{_p}% %uuid of {_p}% slots %{_won}%")
+	set {_a} to "Bells"
+	set {_b} to "Bars"
+	set {_c} to "Sevens"
+	if {_name} starts with "3 ":
+		set {_a} to subtext of {_name} from characters 3 to length of {_name}
+		set {_b} to {_a}
+		set {_c} to {_a}
+	else if {_name} is "2 Cherries":
+		set {_a} to "Cherries"
+		set {_b} to "Cherries"
+	else if {_name} is "1 Cherry":
+		set {_a} to "Cherries"
+	casinoReels({_p}, {_a}, {_b}, {_c}, {_won})
+	if {_name} is "3 Diamonds":
+		{_bet} >= 1000
+		wait 2 seconds
+		casinoFloor("&6%{_p}% hit 3 Diamonds: %{_won}% chips!")
+
+# For show: the chips moved in casinoSpin. Leaving the machine ends it.
+function casinoReels(p: player, a: text, b: text, c: text, won: number):
+	set {_m} to {-casino::machine::%{_p}%}
+	set {_r1} to {-casino::reel::%{_m}%::1}
+	set {_r2} to {-casino::reel::%{_m}%::2}
+	set {_r3} to {-casino::reel::%{_m}%::3}
+	set {_i::*} to reelItem("Diamonds"), reelItem("Sevens"), reelItem("Bars"), reelItem("Bells") and reelItem("Cherries")
+	slotLed({_m}, "&eSPIN")
+	# 39 ticks: the left reel stops after 15, the middle after 27.
+	loop 13 times:
+		wait 3 ticks
+		if {-casino::machine::%{_p}%} is not {_m}:
+			stop
+		set {_n} to loop-number
+		if {_n} < 5:
+			set item of {_r1} to random element out of {_i::*}
+		else if {_n} is 5:
+			set item of {_r1} to reelItem({_a})
+			play sound "block.note_block.hat" with volume 0.5 to {_p}
+		if {_n} < 9:
+			set item of {_r2} to random element out of {_i::*}
+		else if {_n} is 9:
+			set item of {_r2} to reelItem({_b})
+			play sound "block.note_block.hat" with volume 0.5 to {_p}
+		if {_n} < 13:
+			set item of {_r3} to random element out of {_i::*}
+		else:
+			set item of {_r3} to reelItem({_c})
+	delete {-casino::reeling::%{_p}%}
+	if {_won} > 0:
+		slotLed({_m}, "&6+%{_won}%")
+		casinoStatus({_p}, "&a+%{_won}% chips")
+		play sound "entity.player.levelup" with volume 0.6 to {_p}
+	else:
+		set {_bet} to casinoChipSize({_p}, "slot", 1000)
+		slotLed({_m}, "&aBET %{_bet}%")
+		casinoStatus({_p}, "&7No win")
+		play sound "block.note_block.hat" with volume 0.5 to {_p}
+
+# The gaming floor. By coordinates, not a region: a server needs no setup. The vault (y 55..71) isn't part of it.
+function casinoOnFloor(l: location) :: boolean:
+	if world of {_l} is jailWorld():
+		if x-coordinate of {_l} is between 843 and 897:
+			if y-coordinate of {_l} is between 72 and 98:
+				if z-coordinate of {_l} is between 331 and 372:
+					return true
+	return false
+
+# A line for everyone on the floor, and nobody else.
+function casinoFloor(text: text):
+	loop all players:
+		if casinoOnFloor(location of loop-player) is true:
+			send colored {_text} to loop-player
+
+# Nobody hurts or is hurt by a player on the floor. Cops and traps are unchanged.
+on damage of player:
+	attacker is a player
+	attacker does not have metadata "NPC"
+	attacker is not victim
+	{-cfg::casino::no-pvp} is true
+	set {_on} to casinoOnFloor(location of victim)
+	if {_on} is not true:
+		set {_on} to casinoOnFloor(location of attacker)
+	{_on} is true
+	cancel event
+	hudBar(attacker, "&aNo fighting in the casino.", 3)
+
+# ---------- Clicks ----------
+
+on right click on entity:
+	event-entity has scoreboard tag "donating_shop"
+	event-entity does not have metadata "NPC"
+	if event-entity has scoreboard tag "shop_cashier":
+		casinoCashier(player)
+	else if event-entity has scoreboard tag "shop_blackjack":
+		casinoStatus(player, "&fRight-click the table in front of you to sit down")
+	else if event-entity has scoreboard tag "shop_roulette":
+		casinoStatus(player, "&fRight-click a number on the felt")
+
+# Which game a block on the floor belongs to, and plays it. kind: right, sneak, left or sneakleft. False: not a game.
+function casinoFloorClick(p: player, b: block, kind: text) :: boolean:
+	set {_x} to floor(x-coordinate of {_b})
+	if {_x} is not between 843 and 896:
+		return false
+	set {_y} to floor(y-coordinate of {_b})
+	if {_y} is not between 73 and 78:
+		return false
+	set {_z} to floor(z-coordinate of {_b})
+	if {_z} is not between 331 and 371:
+		return false
+	if world of {_b} is not jailWorld():
+		return false
+	set {_game} to ""
+	if {_x} is 858:
+		if {_z} is between 351 and 358:
+			if {_kind} is "right" or "sneak":
+				set {_game} to "cashier"
+	else if {_y} is 73:
+		if {_z} is between 356 and 358:
+			if {_x} is between 865 and 867:
+				set {_game} to "bj1"
+			else if {_x} is between 873 and 875:
+				set {_game} to "bj2"
+			else if {_x} is between 882 and 886:
+				set {_game} to "roulette"
+		if {_x} is 889 or 890:
+			if {_z} is between 334 and 344:
+				if mod({_z}, 2) is 0:
+					set {_game} to "track"
+	if {_game} is "":
+		if {_x} is between 868 and 871:
+			if {_z} is between 363 and 366:
+				set {_game} to "wheel"
+	if {_game} is "":
+		if {_z} is 335 or 339 or 343 or 347:
+			if {_x} is 862 or 866 or 871 or 875 or 880 or 884:
+				set {_game} to "slot"
+	if {_game} is "":
+		return false
+	# The same click can come twice (both hands); a held button repeats every 4 ticks and that's fine.
+	set {_at} to {-casino::clicked::%{_p}%}
+	if {_at} is set:
+		if difference between now and {_at} < 150 milliseconds:
+			return true
+	set {-casino::clicked::%{_p}%} to now
+	# A player at a machine doesn't move or look around: their clicks are what keeps them from going AFK.
+	markActive({_p})
+	if {_game} is not "cashier" or "wheel":
+		set {-casino::playing::%{_p}%} to {_p}
+		set {-casino::playgame::%{_p}%} to {_game}
+		set {-casino::playat::%{_p}%} to location of {_p}
+	if {_game} is "cashier":
+		casinoCashier({_p})
+	else if {_game} is "bj1":
+		bjClick({_p}, 1, {_kind})
+	else if {_game} is "bj2":
+		bjClick({_p}, 2, {_kind})
+	else if {_game} is "roulette":
+		rlClick({_p}, {_x}, {_kind})
+	else if {_game} is "wheel":
+		if {_kind} is "right":
+			casinoWheel({_p})
+	else if {_game} is "track":
+		trackClick({_p}, {_x}, {_z}, {_kind})
+	else:
+		slotClick({_p}, {_x}, {_z}, {_kind})
+	return true
+
+on right click:
+	event-block is set
+	set {_k} to "right"
+	if player is sneaking:
+		set {_k} to "sneak"
+	if casinoFloorClick(player, event-block, {_k}) is true:
+		cancel event
+
+on left click:
+	event-block is set
+	set {_k} to "left"
+	if player is sneaking:
+		set {_k} to "sneakleft"
+	if casinoFloorClick(player, event-block, {_k}) is true:
+		cancel event
+
+on inventory click:
+	{-casino::gui::%player%} is set
+	player's current inventory is {-casino::gui::%player%}
+	cancel event
+	event-inventory is {-casino::gui::%player%}
+	set {_act} to {-casino::act::%player%::%index of event-slot%}
+	{_act} is set
+	markActive(player)
+	click type is left mouse button
+	set {_gen} to {-casino::gen::%player%}
+	wait 1 tick
+	player is online
+	{-casino::gui::%player%} is set
+	{-casino::gen::%player%} is {_gen}
+	add 1 to {-casino::gen::%player%}
+	casinoAction(player, {_act})
+
+# The buttons of the casino's two menus, the cashier and the chip picker.
+function casinoAction(p: player, act: text):
+	if {_act} starts with "buy:":
+		set {_n} to (subtext of {_act} from characters 5 to length of {_act}) parsed as number
+		# Every button is $1,000 or more: a second click within 5 s (shop::confirm-above).
+		set {_at} to {-casino::confirmat::%{_p}%}
+		if {-casino::confirm::%{_p}%} is {_act}:
+			if {_at} is set:
+				if difference between now and {_at} < 5 seconds:
+					delete {-casino::confirm::%{_p}%}
+					casinoBuy({_p}, {_n})
+					casinoCashier({_p})
+					stop
+		set {-casino::confirm::%{_p}%} to {_act}
+		set {-casino::confirmat::%{_p}%} to now
+		casinoCashier({_p})
+	else if {_act} is "cashout":
+		casinoCashout({_p})
+		casinoCashier({_p})
+	else if {_act} starts with "chip:":
+		set {_r::*} to {_act} split at ":"
+		casinoChipPicked({_p}, {_r::2}, {_r::3} parsed as number)
+
+function casinoClose(p: player):
+	delete {-casino::gui::%{_p}%}
+	delete {-casino::act::%{_p}%::*}
+
+on inventory close:
+	{-casino::gui::%player%} is set
+	event-inventory is {-casino::gui::%player%}
+	set {_g} to {-casino::gui::%player%}
+	# A redraw opens a new menu in the same tick: only a menu still current after a tick is really closed.
+	wait 1 tick
+	{-casino::gui::%player%} is {_g}
+	player's current inventory is not {_g}
+	casinoClose(player)
+
+on quit:
+	delete {-casino::chip::%player%::*}
+	casinoClose(player)
+	bjFinish(player, "quit")
+	bjStandUp(player)
+	slotRelease(player)
+	delete {-casino::rl::viewers::%player%}
+	delete {-casino::track::viewers::%player%}
+	delete {-casino::clicked::%player%}
+	casinoStopBar(player)
+
+command /chips:
+	executable by: players
+	trigger:
+		send colored "&6%chipsOf(player)% chips" to player
+
+# ---------- The Lucky Wheel ----------
+
+# "19h 33m", "12m", "45s": what's left of a wait.
+function casinoWait(left: timespan) :: text:
+	set {_s} to ceil({_left} / 1 second)
+	if {_s} >= 3600:
+		return "%floor({_s} / 3600)%h %floor(mod({_s}, 3600) / 60)%m"
+	if {_s} >= 60:
+		return "%ceil({_s} / 60)%m"
+	return "%{_s}%s"
+
+# The display casino.sk turns: one of the three tagged in tools/build/city/casino.js, near the point it stands at.
+function casinoTurning(tag: text, x: number, y: number, z: number) :: entity:
+	loop entities in radius 2 around location({_x}, {_y}, {_z}, jailWorld()):
+		if loop-entity has scoreboard tag {_tag}:
+			return loop-entity
+
+# Turns a display about one of its own axes (a unit vector) to an angle over 4 ticks. A step of over half a circle would go the
+# short way round: the steps stay under that.
+function casinoTurn(d: entity, axis: vector, angle: number):
+	set interpolation delay of {_d} to 0 ticks
+	set interpolation duration of {_d} to 4 ticks
+	set left rotation of {_d} to axisAngle({_angle}, {_axis})
+
+# shortcut: the drill, the "Lucky" title and the podium bag skin pay their "already owned" chips (core.sk's segments) until those prizes exist.
+function casinoWheel(p: player):
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		# The wheel has no level limit.
+		if {_why} does not start with "Level":
+			casinoStatus({_p}, "&c%{_why}%")
+			stop
+	set {_ip} to ip of {_p}
+	set {_gap} to {-cfg::casino::wheel-gap}
+	set {_at} to getData({_p}, "wheel-at")
+	if {_at} is set:
+		if difference between now and {_at} < {_gap}:
+			casinoStatus({_p}, "&cAgain in %casinoWait({_gap} - (difference between now and {_at}))%")
+			stop
+	set {_at} to {casino::wheelip::%{_ip}%}
+	if {_at} is set:
+		if difference between now and {_at} < {_gap}:
+			casinoStatus({_p}, "&cAgain in %casinoWait({_gap} - (difference between now and {_at}))%")
+			stop
+	# One wheel: a second player waits for it to stop.
+	set {_at} to {-casino::wheelturn}
+	if {_at} is set:
+		if difference between now and {_at} < 6 seconds:
+			casinoStatus({_p}, "&cThe wheel is turning")
+			stop
+	set {_seg} to random integer between 1 and size of {-cfg::casino::wheel-segments::*}
+	if {-casino::force::wheel} is set:
+		set {_seg} to {-casino::force::wheel}
+	set {_u} to uuid of {_p}
+	set {_prize} to {-cfg::casino::wheel-segments::%{_seg}%}
+	# Saved before it turns: a quit or a restart pays at the next join, and the draw can't be spun again.
+	setData({_p}, "wheel-at", now)
+	set {casino::wheelip::%{_ip}%} to now
+	set {casinopending::%{_u}%::wheel} to {_prize}
+	set {-casino::wheelturn} to now
+	casinoLog("wheel-spin %{_p}% %{_u}% segment=%{_seg}% prize=%{_prize}% ip=%{_ip}%")
+	wheelTurn({_seg})
+	wait 100 ticks
+	delete {-casino::wheelturn}
+	if {_p} is online:
+		casinoWheelPay({_p})
+
+# About 5 s, slowing down, clockwise as the player sees it, stopping with the segment under the pointer. Segment s's middle is
+# (s - 0.5) * 18 degrees clockwise from the top; the display's positive angle turns it the other way, to the top.
+function wheelTurn(seg: number):
+	set {_d} to casinoTurning("casino_wheel", 870, 76, 364.5)
+	{_d} is set
+	set {_from} to {casino::wheelangle} ? 0
+	set {_to} to ({_seg} - 0.5) * 18 + (random number between -6 and 6)
+	set {_turn} to mod({_from} - {_to}, 360) + 1440
+	set {_axis} to vector(0, 0, 1)
+	set {_was} to {_from}
+	loop 25 times:
+		set {_left} to 1 - loop-number / 25
+		set {_angle} to {_from} - {_turn} * (1 - {_left} * {_left})
+		casinoTurn({_d}, {_axis}, {_angle})
+		# A tick for each segment passing, so the sound slows down with the wheel.
+		if floor({_angle} / 18) is not floor({_was} / 18):
+			play sound "block.note_block.hat" with volume 0.5 and pitch 1.6 at location(870, 75, 366, jailWorld())
+		set {_was} to {_angle}
+		wait 4 ticks
+	set {casino::wheelangle} to mod({_to}, 360)
+
+# The pending record goes first: paid once.
+function casinoWheelPay(p: player):
+	set {_u} to uuid of {_p}
+	set {_prize} to {casinopending::%{_u}%::wheel}
+	{_prize} is set
+	delete {casinopending::%{_u}%::wheel}
+	set {_row::*} to {_prize} split at "|"
+	set {_kind} to {_row::1}
+	set {_val} to {_row::2}
+	if {_kind} is "chips":
+		set {_n} to {_val} parsed as number
+		chipsSet({_p}, chipsOf({_p}) + {_n})
+		# The wheel's chips can't be cashed out for a day: it isn't a free daily wage.
+		setData({_p}, "chips-locked", {_n})
+		setData({_p}, "chips-locked-at", now)
+		casinoStat({_p}, "wheel", 0, {_n})
+		casinoStatus({_p}, "&a+%{_n}% chips")
+	else if {_kind} is "xp":
+		levelAddXp({_p}, {_val} parsed as number, "wheel")
+		casinoStatus({_p}, "&a+%{_val}% XP")
+	else if {_kind} is "key":
+		crateAddKeys({_p}, {_val}, 1, "wheel")
+		casinoStatus({_p}, "&aA %{_val}% crate key")
+	play sound "entity.player.levelup" with volume 0.6 to {_p}
+	casinoLog("wheel %{_p}% %{_u}% prize=%{_prize}%")
+
+# ---------- Blackjack ----------
+# Each table has four seats (the circles on its felt). A hand is between one player and the dealer: their own cards in front of them,
+# the dealer's across the felt from them, a read-out by their chip. {-casino::bj::seatof::<p>} "<table>-<seat>", ::seated::<seat> the
+# player, ::busy::<seat> cards still being dealt, ::gen::<seat> counts the hands (a show for an old hand stops).
+
+# A card is "K:S". shortcut: every card is drawn at random (an endless shoe, not 6 decks shuffled per hand), which changes the edge by a fraction of a percent; the sim would check it.
+function bjDraw() :: text:
+	if {-casino::force::deck::1} is set:
+		add 1 to {-casino::force::at}
+		set {_c} to {-casino::force::deck::%{-casino::force::at}%}
+		if {_c} is set:
+			return {_c}
+	set {_r} to random element out of "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q" and "K"
+	set {_s} to random element out of "S", "H", "D" and "C"
+	return "%{_r}%:%{_s}%"
+
+function bjTotal(cards: texts) :: number:
+	set {_t} to 0
+	set {_aces} to 0
+	loop {_cards::*}:
+		set {_c::*} to loop-value split at ":"
+		if {_c::1} is "A":
+			add 11 to {_t}
+			add 1 to {_aces}
+		else if {_c::1} is "K" or "Q" or "J":
+			add 10 to {_t}
+		else:
+			add ({_c::1} parsed as number) to {_t}
+	loop {_aces} times:
+		if {_t} > 21:
+			remove 10 from {_t}
+	return {_t}
+
+function bjArt(card: text) :: item:
+	set {_c::*} to {_card} split at ":"
+	return casinoArt(paper named " ", "card_%{_c::1}%%{_c::2}%")
+
+function bjSit(p: player, t: number, i: number):
+	set {_s} to "%{_t}%-%{_i}%"
+	set {_o::*} to 0.625, 1.219, 1.781 and 2.375
+	set {_west} to 865
+	if {_t} is 2:
+		set {_west} to 873
+	set {_x} to {_west} + {_o::%{_i}%}
+	set {_z} to 357.875
+	if {_i} is 2 or 3:
+		set {_z} to 358.06
+	set {-casino::bj::seatof::%{_p}%} to {_s}
+	set {-casino::bj::tableof::%{_p}%} to {_t}
+	set {-casino::bj::sitter::%{_p}%} to {_p}
+	set {-casino::bj::seated::%{_s}%} to {_p}
+	set {-casino::bj::x::%{_s}%} to {_x}
+	set {-casino::bj::west::%{_s}%} to {_west}
+	set {-casino::bj::seat::%{_p}%} to location({_x}, 74, 358.5, jailWorld())
+	set {-casino::bj::used::%{_p}%} to now
+	set {-casino::bj::chipat::%{_s}%} to location({_x}, 73.89, {_z}, jailWorld(), 180, 90)
+	set {-casino::bj::label::%{_s}%} to casinoLabel("bj:%{_s}%", location({_x}, 73.91, 357.12, jailWorld(), 0, 0), "&7NO BET", 0.45)
+	# Sitting puts down the first chip.
+	set {_n} to casinoChipSize({_p}, "bj", {-cfg::casino::bj-max})
+	if chipsOf({_p}) < {_n}:
+		set {_n} to 0
+	bjPile({_p}, {_s}, {_n})
+	bjSay({_p})
+
+# The chips on your circle, not taken until the deal: one display, its art by the total, and the label over it.
+function bjPile(p: player, s: text, n: number):
+	set {-casino::bjbet::%{_p}%} to {_n}
+	if {_n} <= 0:
+		if {-casino::bj::chip::%{_s}%} is set:
+			kill {-casino::bj::chip::%{_s}%}
+			delete {-casino::bj::chip::%{_s}%}
+		bjLabel({_s}, "&7NO BET")
+		stop
+	if {-casino::bj::chip::%{_s}%} is set:
+		set item of {-casino::bj::chip::%{_s}%} to chipItem({_n})
+	else:
+		set {-casino::bj::chip::%{_s}%} to casinoProp("bj:%{_s}%", {-casino::bj::chipat::%{_s}%}, chipItem({_n}), 0.24)
+	bjLabel({_s}, "&eBET %{_n}%")
+
+function bjControls(p: player) :: text:
+	set {_n} to {-casino::bjbet::%{_p}%} ? 0
+	if {_n} > 0:
+		return "&fBet %{_n}% &8| &aLeft-click: deal &8| &7Right-click: add a chip &8| &7Shift + right-click: choose it"
+	return "&aRight-click: put down a chip &8| &7Shift + right-click: choose it &8| &7Left-click: leave"
+
+function bjSay(p: player):
+	casinoStatus({_p}, bjControls({_p}))
+
+function bjAdd(p: player, s: text):
+	set {_pile} to {-casino::bjbet::%{_p}%} ? 0
+	set {_max} to {-cfg::casino::bj-max}
+	set {_c} to chipsOf({_p})
+	set {_n} to {_pile} + casinoChipSize({_p}, "bj", min({_max} - {_pile}, {_c} - {_pile}))
+	if {_n} > {_max}:
+		casinoStatus({_p}, "&cTable limit %{_max}%")
+		stop
+	if {_n} > {_c}:
+		casinoStatus({_p}, "&cNot enough chips.")
+		stop
+	bjPile({_p}, {_s}, {_n})
+	play sound "block.note_block.hat" with volume 0.4 and pitch 1.5 to {_p}
+	bjSay({_p})
+
+function bjStandUp(p: player):
+	set {_s} to {-casino::bj::seatof::%{_p}%}
+	{_s} is set
+	delete {-casino::bj::seatof::%{_p}%}
+	delete {-casino::bj::tableof::%{_p}%}
+	delete {-casino::bj::sitter::%{_p}%}
+	delete {-casino::bj::seat::%{_p}%}
+	delete {-casino::bj::used::%{_p}%}
+	delete {-casino::bj::seated::%{_s}%}
+	delete {-casino::bj::busy::%{_s}%}
+	delete {-casino::bj::chip::%{_s}%}
+	delete {-casino::bj::chipat::%{_s}%}
+	delete {-casino::bjbet::%{_p}%}
+	delete {-casino::bj::label::%{_s}%}
+	delete {-casino::bj::hole::%{_s}%}
+	add 1 to {-casino::bj::gen::%{_s}%}
+	casinoPropsClear("bj:%{_s}%")
+	casinoPropsClear("bjc:%{_s}%")
+
+function bjLabel(s: text, text: text):
+	{-casino::bj::label::%{_s}%} is set
+	set text of {-casino::bj::label::%{_s}%} to colored {_text}
+
+# Lays card n of a hand ("you" or "dealer"), sliding from the shoe. Flat on the felt, top away from the player: yaw 180, pitch 90, so
+# in the display's own frame x is west, y north and z down.
+function bjCard(s: text, who: text, n: number, i: item) :: entity:
+	set {_x} to {-casino::bj::x::%{_s}%} - 0.1 + ({_n} - 1) * 0.14
+	set {_y} to 73.89 + {_n} * 0.003
+	set {_z} to 357.5
+	if {_who} is "dealer":
+		set {_z} to 356.5
+	set {_d} to casinoProp("bjc:%{_s}%", location({_x}, {_y}, {_z}, jailWorld(), 180, 90), {_i}, 0.45)
+	casinoSlide({_d}, vector({_x} - ({-casino::bj::west::%{_s}%} + 0.44), {_z} - 356.375, {_y} - 74.1))
+	play sound "item.book.page_turn" with volume 0.5 at location({_x}, 74, {_z}, jailWorld())
+	return {_d}
+
+function casinoSlide(d: entity, from: vector):
+	set display translation of {_d} to {_from}
+	wait 2 ticks
+	{_d} is valid
+	set interpolation delay of {_d} to 0 ticks
+	set interpolation duration of {_d} to 5 ticks
+	set display translation of {_d} to vector(0, 0, 0)
+
+function bjTell(p: player):
+	set {_s} to {-casino::bj::seatof::%{_p}%}
+	set {_up::1} to {-casino::bj::dealer::%{_p}%::1}
+	set {_t} to "&f%bjTotal({-casino::bj::you::%{_p}%::*})% &7vs &f%bjTotal({_up::*})%"
+	bjLabel({_s}, {_t})
+	casinoStatus({_p}, "%{_t}% &8| &aRight-click: hit &cLeft-click: stand &6Shift + right-click: double")
+
+function bjClick(p: player, t: number, kind: text):
+	set {_s} to {-casino::bj::seatof::%{_p}%}
+	if {-casino::bj::tableof::%{_p}%} is not {_t}:
+		if {-casino::hands::%{_p}%} is set:
+			casinoStatus({_p}, "&cFinish your hand first")
+			stop
+		if {_kind} is "sneak":
+			casinoChipMenu({_p}, "bj")
+			stop
+		if {_kind} is not "right":
+			stop
+		set {_dx} to (x-coordinate of casinoAimY({_p}, 73.875)) - 865
+		if {_t} is 2:
+			remove 8 from {_dx}
+		set {_i} to 4
+		if {_dx} < 0.92:
+			set {_i} to 1
+		else if {_dx} < 1.5:
+			set {_i} to 2
+		else if {_dx} < 2.08:
+			set {_i} to 3
+		if {-casino::bj::seated::%{_t}%-%{_i}%} is set:
+			casinoStatus({_p}, "&cThat seat is taken")
+			stop
+		bjStandUp({_p})
+		bjSit({_p}, {_t}, {_i})
+		stop
+	if {-casino::bj::busy::%{_s}%} is set:
+		stop
+	set {-casino::bj::used::%{_p}%} to now
+	if {-casino::hands::%{_p}%} is set:
+		if {_kind} is "right":
+			bjHit({_p})
+		else if {_kind} is "sneak":
+			bjDouble({_p})
+		else:
+			bjFinish({_p}, "play")
+		stop
+	set {_pile} to {-casino::bjbet::%{_p}%} ? 0
+	if {_kind} is "right":
+		bjAdd({_p}, {_s})
+	else if {_kind} is "sneak":
+		casinoChipMenu({_p}, "bj")
+	else if {_pile} > 0:
+		if {_kind} is "left":
+			bjDeal({_p})
+		else:
+			bjPile({_p}, {_s}, 0)
+			casinoStatus({_p}, "&7Bet taken back")
+	else:
+		bjStandUp({_p})
+
+function bjDeal(p: player):
+	{-casino::hands::%{_p}%} is not set
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		casinoStatus({_p}, "&c%{_why}%")
+		stop
+	set {_bet} to {-casino::bjbet::%{_p}%}
+	set {_before} to chipsOf({_p})
+	if {_before} < {_bet}:
+		casinoStatus({_p}, "&cNot enough chips.")
+		stop
+	set {_s} to {-casino::bj::seatof::%{_p}%}
+	chipsSet({_p}, {_before} - {_bet})
+	set {casinopending::%uuid of {_p}%::bj} to {_bet}
+	set {-casino::bj::bet::%{_p}%} to {_bet}
+	set {-casino::hands::%{_p}%} to {_p}
+	set {-casino::bj::at::%{_p}%} to now
+	delete {-casino::bj::you::%{_p}%::*}
+	delete {-casino::bj::dealer::%{_p}%::*}
+	delete {-casino::bj::ended::%{_p}%}
+	set {-casino::bj::you::%{_p}%::1} to bjDraw()
+	set {-casino::bj::dealer::%{_p}%::1} to bjDraw()
+	set {-casino::bj::you::%{_p}%::2} to bjDraw()
+	set {-casino::bj::dealer::%{_p}%::2} to bjDraw()
+	casinoLog("bet blackjack %{_p}% %uuid of {_p}% amt=%{_bet}% bal=%{_before}%->%chipsOf({_p})%")
+	add 1 to {-casino::bj::gen::%{_s}%}
+	casinoPropsClear("bjc:%{_s}%")
+	set {-casino::bj::busy::%{_s}%} to true
+	if bjTotal({-casino::bj::you::%{_p}%::*}) is 21:
+		bjFinish({_p}, "blackjack")
+	else if bjTotal({-casino::bj::dealer::%{_p}%::*}) is 21:
+		bjFinish({_p}, "dealer-blackjack")
+	bjShowDeal({_p}, {_s})
+
+# The four cards go out one by one; a natural is settled already and shows when they're down.
+function bjShowDeal(p: player, s: text):
+	set {_gen} to {-casino::bj::gen::%{_s}%}
+	set {_you::*} to {-casino::bj::you::%{_p}%::*}
+	set {_dealer::*} to {-casino::bj::dealer::%{_p}%::*}
+	bjCard({_s}, "you", 1, bjArt({_you::1}))
+	wait 4 ticks
+	{-casino::bj::gen::%{_s}%} is {_gen}
+	bjCard({_s}, "dealer", 1, bjArt({_dealer::1}))
+	wait 4 ticks
+	{-casino::bj::gen::%{_s}%} is {_gen}
+	bjCard({_s}, "you", 2, bjArt({_you::2}))
+	wait 4 ticks
+	{-casino::bj::gen::%{_s}%} is {_gen}
+	set {-casino::bj::hole::%{_s}%} to bjCard({_s}, "dealer", 2, casinoArt(paper named " ", "card_back"))
+	wait 4 ticks
+	{-casino::bj::gen::%{_s}%} is {_gen}
+	delete {-casino::bj::busy::%{_s}%}
+	if {-casino::hands::%{_p}%} is set:
+		bjTell({_p})
+	else if {-casino::bj::ended::%{_p}%} is set:
+		bjShowEnd({_p}, {_s}, {-casino::bj::ended::%{_p}%})
+
+function bjHit(p: player):
+	{-casino::hands::%{_p}%} is set
+	set {_c} to bjDraw()
+	add {_c} to {-casino::bj::you::%{_p}%::*}
+	set {-casino::bj::at::%{_p}%} to now
+	bjCard({-casino::bj::seatof::%{_p}%}, "you", size of {-casino::bj::you::%{_p}%::*}, bjArt({_c}))
+	if bjTotal({-casino::bj::you::%{_p}%::*}) >= 21:
+		bjFinish({_p}, "play")
+	else:
+		bjTell({_p})
+
+function bjDouble(p: player):
+	{-casino::hands::%{_p}%} is set
+	if size of {-casino::bj::you::%{_p}%::*} is not 2:
+		casinoStatus({_p}, "&cOnly on your first two cards")
+		stop
+	set {_stake} to {-casino::bj::bet::%{_p}%}
+	set {_before} to chipsOf({_p})
+	if {_before} < {_stake}:
+		casinoStatus({_p}, "&cNot enough chips.")
+		stop
+	chipsSet({_p}, {_before} - {_stake})
+	set {-casino::bj::bet::%{_p}%} to {_stake} * 2
+	set {casinopending::%uuid of {_p}%::bj} to {_stake} * 2
+	set {_c} to bjDraw()
+	add {_c} to {-casino::bj::you::%{_p}%::*}
+	bjCard({-casino::bj::seatof::%{_p}%}, "you", 3, bjArt({_c}))
+	bjFinish({_p}, "double")
+
+# Plays the dealer out and pays. The hand is forgotten before the chips move: paid once. The cards only show what's settled here.
+function bjFinish(p: player, why: text):
+	{-casino::hands::%{_p}%} is set
+	delete {-casino::hands::%{_p}%}
+	set {_u} to uuid of {_p}
+	set {_stake} to {-casino::bj::bet::%{_p}%}
+	delete {casinopending::%{_u}%::bj}
+	set {_you} to bjTotal({-casino::bj::you::%{_p}%::*})
+	set {_paid} to 0
+	if {_why} is "blackjack":
+		set {_line} to "Push"
+		set {_paid} to {_stake}
+		if bjTotal({-casino::bj::dealer::%{_p}%::*}) is not 21:
+			set {_line} to "Blackjack!"
+			set {_paid} to {_stake} + floor({_stake} * 1.5)
+	else if {_why} is "dealer-blackjack":
+		set {_line} to "Dealer has blackjack"
+	else if {_you} > 21:
+		set {_line} to "Bust"
+	else:
+		while bjTotal({-casino::bj::dealer::%{_p}%::*}) < 17:
+			add bjDraw() to {-casino::bj::dealer::%{_p}%::*}
+		set {_d} to bjTotal({-casino::bj::dealer::%{_p}%::*})
+		if {_d} > 21:
+			set {_line} to "Dealer busts: you win"
+			set {_paid} to {_stake} * 2
+		else if {_you} > {_d}:
+			set {_line} to "You win"
+			set {_paid} to {_stake} * 2
+		else if {_you} is {_d}:
+			set {_line} to "Push"
+			set {_paid} to {_stake}
+		else:
+			set {_line} to "Dealer has %{_d}%"
+	set {_before} to chipsOf({_p})
+	chipsSet({_p}, {_before} + {_paid})
+	casinoStat({_p}, "blackjack", {_stake}, {_paid})
+	casinoLog("result blackjack %{_p}% %{_u}% why=%{_why}% stake=%{_stake}% you=%{_you}% dealer=%bjTotal({-casino::bj::dealer::%{_p}%::*})% paid=%{_paid}% bal=%{_before}%->%chipsOf({_p})%")
+	if {_paid} >= {-cfg::casino::big-win}:
+		casinoLog("big-win %{_p}% %{_u}% blackjack %{_paid}%")
+	set {_out} to "&6%{_line}%"
+	if {_paid} > 0:
+		set {_out} to "&6%{_line}% &a+%{_paid}%"
+	if {_why} is "quit" or "moved":
+		casinoStatus({_p}, "&7Hand stood: %{_out}%")
+	else if {_why} is "blackjack" or "dealer-blackjack":
+		# bjDeal's show gets there when the cards are down.
+		set {-casino::bj::ended::%{_p}%} to {_out}
+	else:
+		bjShowEnd({_p}, {-casino::bj::seatof::%{_p}%}, {_out})
+
+# Turns the dealer's card, draws theirs one by one, says how it went. The cards stay a moment for anyone to see.
+function bjShowEnd(p: player, s: text, out: text):
+	set {_gen} to {-casino::bj::gen::%{_s}%}
+	set {-casino::bj::busy::%{_s}%} to true
+	set {_dealer::*} to {-casino::bj::dealer::%{_p}%::*}
+	if {-casino::bj::hole::%{_s}%} is set:
+		set item of {-casino::bj::hole::%{_s}%} to bjArt({_dealer::2})
+	play sound "item.book.page_turn" with volume 0.5 to {_p}
+	set {_n} to 0
+	loop {_dealer::*}:
+		add 1 to {_n}
+		if {_n} >= 3:
+			wait 8 ticks
+			{-casino::bj::gen::%{_s}%} is {_gen}
+			bjCard({_s}, "dealer", {_n}, bjArt(loop-value))
+	wait 6 ticks
+	{-casino::bj::gen::%{_s}%} is {_gen}
+	delete {-casino::bj::busy::%{_s}%}
+	bjLabel({_s}, {_out})
+	casinoStatus({_p}, "%{_out}% &8| &7Left-click: deal again")
+	if {_out} contains "+":
+		play sound "entity.player.levelup" with volume 0.5 to {_p}
+	wait 5 seconds
+	{-casino::bj::gen::%{_s}%} is {_gen}
+	casinoPropsClear("bjc:%{_s}%")
+	delete {-casino::bj::hole::%{_s}%}
+	bjPile({_p}, {_s}, {-casino::bjbet::%{_p}%} ? 0)
+
+# No action for the turn time, or walking away: the hand stands. A seat or a machine nobody's using frees up. Costs nothing when nobody plays.
+every 2 seconds:
+	loop {-casino::hands::*}:
+		set {_p} to loop-value
+		if difference between now and {-casino::bj::at::%{_p}%} > {-cfg::casino::turn-time}:
+			bjFinish({_p}, "timeout")
+		else if distance between {_p} and {-casino::bj::seat::%{_p}%} > 6:
+			bjFinish({_p}, "moved")
+		else:
+			bjTell({_p})
+	loop {-casino::bj::sitter::*}:
+		set {_p} to loop-value
+		if {-casino::hands::%{_p}%} is not set:
+			if distance between {_p} and {-casino::bj::seat::%{_p}%} > 6:
+				bjStandUp({_p})
+			else if difference between now and {-casino::bj::used::%{_p}%} > 40 seconds:
+				bjStandUp({_p})
+	loop {-casino::slotter::*}:
+		set {_p} to loop-value
+		if distance between {_p} and {-casino::machineat::%{_p}%} > 6:
+			slotRelease({_p})
+		else if difference between now and {-casino::used::%{_p}%} > 40 seconds:
+			slotRelease({_p})
+
+# The controls stay on the bar while someone plays (owner, 2026-11-04): at a machine or a seat, or within 6 blocks of the table they last used.
+# The bar fades after 3 s, so it's sent every second; a result or an error (casinoStatus) keeps it for 2.5 s. Costs nothing when nobody plays.
+every 1 second:
+	loop {-casino::playing::*}:
+		casinoControlsLoop(loop-value)
+
+function casinoStopBar(p: player):
+	delete {-casino::playing::%{_p}%}
+	delete {-casino::playgame::%{_p}%}
+	delete {-casino::playat::%{_p}%}
+	delete {-casino::said::%{_p}%}
+
+function casinoControlsLoop(p: player):
+	set {_at} to {-casino::playat::%{_p}%}
+	if world of {_p} is not world of {_at}:
+		casinoStopBar({_p})
+		stop
+	if distance between {_p} and {_at} > 6:
+		casinoStopBar({_p})
+		stop
+	set {_said} to {-casino::said::%{_p}%}
+	if {_said} is set:
+		if difference between now and {_said} < 2.5 seconds:
+			stop
+	set {_g} to {-casino::playgame::%{_p}%}
+	set {_t} to ""
+	if {_g} is "slot":
+		if {-casino::machine::%{_p}%} is set:
+			set {_t} to "&fBet %casinoChipSize({_p}, "slot", 1000)% &8| &aRight-click: spin &8| &7Shift + right-click: choose the bet"
+	else if {_g} is "roulette":
+		set {_t} to "&f%casinoChipName({_p}, "rl")% &8| &aRight-click a spot: bet &8| &7Left-click: take back &8| &7Shift + right-click: choose a chip"
+		if ({-casino::rl::t} ? 0) >= 20:
+			set {_t} to "&cNo more bets &8| &7The next round opens after this one"
+	else if {_g} is "track":
+		set {_t} to "&f%casinoChipName({_p}, "track")% &8| &aRight-click a colored button: bet &8| &7Left-click: take back &8| &7Shift + right-click: choose a chip"
+		if ({-casino::track::t} ? 0) >= {-cfg::casino::track-bets}:
+			set {_t} to "&eThey're running &8| &7The next race opens after this one"
+	else if {-casino::bj::seatof::%{_p}%} is set:
+		# In a hand bjTell (every 2 s) is on the bar already.
+		if {-casino::hands::%{_p}%} is not set:
+			set {_t} to bjControls({_p})
+		else:
+			stop
+	if {_t} is "":
+		casinoStopBar({_p})
+		stop
+	casinoBar({_p}, {_t})
+
+# ---------- Roulette ----------
+# The felt (tools/casino-art.js, 32 px a block from x 885, z 356): right-click a spot puts a chip on it, left-click takes it back,
+# sneak + right-click the chip menu, sneak + left-click clears all your chips. A round runs only once someone has touched the table.
+
+# What a bet returns for each chip staked, stake included (0 = lost).
+function rlPays(key: text, n: number) :: number:
+	if {_key} is "n%{_n}%":
+		return 36
+	if {_key} starts with "n":
+		return 0
+	if {_n} is 0:
+		return 0
+	if {_key} is "red" or "black":
+		set {_c} to "black"
+		if {_n} is 1 or 3 or 5 or 7 or 9 or 12 or 14 or 16 or 18 or 19 or 21 or 23 or 25 or 27 or 30 or 32 or 34 or 36:
+			set {_c} to "red"
+		if {_c} is {_key}:
+			return 2
+		return 0
+	if {_key} is "odd":
+		if mod({_n}, 2) is 1:
+			return 2
+		return 0
+	if {_key} is "even":
+		if mod({_n}, 2) is 0:
+			return 2
+		return 0
+	if {_key} is "low":
+		if {_n} <= 18:
+			return 2
+		return 0
+	if {_key} is "high":
+		if {_n} >= 19:
+			return 2
+		return 0
+	if {_key} is "d1":
+		if {_n} <= 12:
+			return 3
+		return 0
+	if {_key} is "d2":
+		if {_n} >= 13:
+			if {_n} <= 24:
+				return 3
+		return 0
+	if {_key} is "d3":
+		if {_n} >= 25:
+			return 3
+		return 0
+	if {_key} is "c1":
+		if mod({_n}, 3) is 1:
+			return 3
+		return 0
+	if {_key} is "c2":
+		if mod({_n}, 3) is 2:
+			return 3
+		return 0
+	if {_key} is "c3":
+		if mod({_n}, 3) is 0:
+			return 3
+		return 0
+	return 0
+
+function rlTotal(p: player) :: number:
+	set {_t} to 0
+	loop {casinopending::%uuid of {_p}%::rl::*}:
+		add loop-value to {_t}
+	return {_t}
+
+# The spot under the player's aim, or "". Rows of six px, columns of twelve; the even bets and dozens run down the left.
+function rlSpotAim(p: player) :: text:
+	set {_a} to casinoAimY({_p}, 73.875)
+	set {_ox} to ((x-coordinate of {_a}) - 885) * 32
+	set {_oy} to ((z-coordinate of {_a}) - 356) * 32
+	if {_oy} is not between 3 and 89:
+		return ""
+	if {_ox} is not between 3 and 61:
+		return ""
+	if {_ox} >= 26:
+		if {_oy} < 9.5:
+			return "n0"
+		set {_c} to min(floor(({_ox} - 26) / 12), 2)
+		if {_oy} >= 82:
+			return "c%{_c} + 1%"
+		set {_r} to min(floor(max({_oy} - 10, 0) / 6), 11)
+		return "n%{_r} * 3 + {_c} + 1%"
+	if {_oy} < 10:
+		return ""
+	if {_oy} >= 82:
+		return ""
+	if {_ox} >= 18:
+		return "d%floor(({_oy} - 10) / 24) + 1%"
+	set {_e::*} to "low", "even", "red", "black", "odd" and "high"
+	return {_e::%floor(({_oy} - 10) / 12) + 1%}
+
+# A spot's name on the status line.
+function rlName(key: text) :: text:
+	set {_n} to subtext of {_key} from characters 2 to length of {_key}
+	if {_key} starts with "n":
+		return {_n}
+	if {_key} starts with "d":
+		set {_d::*} to "1st", "2nd" and "3rd"
+		return "%{_d::%{_n}%}% dozen"
+	if {_key} starts with "c":
+		return "Column %{_n}%"
+	return {_key} in proper case
+
+# Flat on the middle of a spot.
+function rlSpotLoc(key: text) :: location:
+	set {_ox} to 43.5
+	set {_oy} to 5.5
+	set {_n} to (subtext of {_key} from characters 2 to length of {_key}) parsed as number
+	if {_key} is "low" or "even" or "red" or "black" or "odd" or "high":
+		set {_ox} to 10
+		set {_e::*} to "low", "even", "red", "black", "odd" and "high"
+		loop 6 times:
+			if {_e::%loop-number%} is {_key}:
+				set {_oy} to 4 + 12 * loop-number
+	else if {_key} starts with "c":
+		set {_ox} to 19.5 + 12 * {_n}
+		set {_oy} to 85
+	else if {_key} starts with "d":
+		set {_ox} to 21.5
+		set {_oy} to 24 * {_n} - 2
+	else if {_n} > 0:
+		set {_ox} to 31.5 + 12 * mod({_n} - 1, 3)
+		set {_oy} to 12.5 + 6 * floor(({_n} - 1) / 3)
+	return location(885 + {_ox} / 32, 73.89, 356 + {_oy} / 32, jailWorld(), 180, 90)
+
+# This player's chip on a spot: what's on it, or nothing. {-casino::rl::chip::<uuid>|<spot>} the display.
+function rlChipShow(p: player, key: text):
+	set {_u} to uuid of {_p}
+	set {_on} to {casinopending::%{_u}%::rl::%{_key}%}
+	set {_d} to {-casino::rl::chip::%{_u}%|%{_key}%}
+	if {_on} is not set:
+		if {_d} is set:
+			kill {_d}
+			delete {-casino::rl::chip::%{_u}%|%{_key}%}
+		stop
+	if {_d} is set:
+		set item of {_d} to chipItem({_on})
+	else:
+		set {_l} to rlSpotLoc({_key}) ~ vector(random number between -0.03 and 0.03, 0, random number between -0.02 and 0.02)
+		set {-casino::rl::chip::%{_u}%|%{_key}%} to casinoProp("rl", {_l}, chipItem({_on}), 0.17)
+
+function rlClick(p: player, x: number, kind: text):
+	set {-casino::rl::viewers::%{_p}%} to {_p}
+	if {_kind} is "sneak":
+		casinoChipMenu({_p}, "rl")
+		stop
+	if {_kind} is "sneakleft":
+		rlClear({_p})
+		stop
+	set {_key} to rlSpotAim({_p})
+	if {_key} is "":
+		set {_name} to casinoChipName({_p}, "rl")
+		casinoStatus({_p}, "&f%{_name}%. &7Right-click a number on the felt. Shift + right-click: choose a chip.")
+		stop
+	if {_kind} is "left":
+		rlBet({_p}, {_key}, true)
+	else:
+		rlBet({_p}, {_key}, false)
+
+function rlBet(p: player, key: text, back: boolean):
+	if ({-casino::rl::t} ? 0) >= 20:
+		casinoStatus({_p}, "&cNo more bets")
+		stop
+	set {_u} to uuid of {_p}
+	set {_on} to {casinopending::%{_u}%::rl::%{_key}%} ? 0
+	set {_before} to chipsOf({_p})
+	if {_back} is true:
+		set {_back2} to casinoChipOf({_p}, "rl")
+		if {_back2} is 0:
+			set {_back2} to {_on}
+		set {_back2} to min({_on}, {_back2})
+		if {_back2} <= 0:
+			stop
+		if {_on} - {_back2} > 0:
+			set {casinopending::%{_u}%::rl::%{_key}%} to {_on} - {_back2}
+		else:
+			delete {casinopending::%{_u}%::rl::%{_key}%}
+		chipsSet({_p}, {_before} + {_back2})
+		rlChipShow({_p}, {_key})
+		casinoStatus({_p}, "&7%rlName({_key})%: %{casinopending::%{_u}%::rl::%{_key}%} ? 0% on it, %rlTotal({_p})% on the table")
+		stop
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		casinoStatus({_p}, "&c%{_why}%")
+		stop
+	set {_room} to {-cfg::casino::roulette-max} - rlTotal({_p})
+	if {_key} starts with "n":
+		set {_room} to min({_room}, {-cfg::casino::roulette-number-max} - {_on})
+	set {_size} to casinoChipSize({_p}, "rl", {_room})
+	if {_before} < {_size}:
+		casinoStatus({_p}, "&cNot enough chips.")
+		stop
+	if rlTotal({_p}) + {_size} > {-cfg::casino::roulette-max}:
+		casinoStatus({_p}, "&cTable limit %{-cfg::casino::roulette-max}%")
+		stop
+	if {_key} starts with "n":
+		if {_on} + {_size} > {-cfg::casino::roulette-number-max}:
+			casinoStatus({_p}, "&cLimit on a number: %{-cfg::casino::roulette-number-max}%")
+			stop
+	chipsSet({_p}, {_before} - {_size})
+	set {casinopending::%{_u}%::rl::%{_key}%} to {_on} + {_size}
+	set {-casino::rl::bets::%{_u}%} to {_p}
+	rlChipShow({_p}, {_key})
+	play sound "block.note_block.hat" with volume 0.4 and pitch 1.5 to {_p}
+	casinoStatus({_p}, "&f%rlName({_key})%: %{_on} + {_size}% on it, %rlTotal({_p})% on the table")
+	casinoLog("bet roulette %{_p}% %{_u}% on=%{_key}% amt=%{_size}% bal=%{_before}%->%chipsOf({_p})%")
+
+function rlClear(p: player):
+	({-casino::rl::t} ? 0) < 20
+	set {_u} to uuid of {_p}
+	set {_back} to rlTotal({_p})
+	loop indices of {casinopending::%{_u}%::rl::*}:
+		set {_keys::%loop-value%} to loop-value
+	delete {casinopending::%{_u}%::rl::*}
+	loop {_keys::*}:
+		rlChipShow({_p}, loop-value)
+	chipsSet({_p}, chipsOf({_p}) + {_back})
+	casinoStatus({_p}, "&7Your chips are off the table")
+
+function rlSay(text: text):
+	casinoBoard("rl", 885.5, 75.2, 356.2, 0, 1, {_text})
+
+# A round runs only once someone has touched the table or has a bet: 20 s of bets, the number drawn, 8 s, paid, 2 s. Then it waits for the next touch.
+every 1 second:
+	if size of {-casino::rl::viewers::*} + size of {-casino::rl::bets::*} is 0:
+		if {-casino::rl::t} is not 0:
+			set {-casino::rl::t} to 0
+			casinoBoardOff("rl")
+			delete {-casino::rl::chip::*}
+			casinoPropsClear("rl")
+		stop
+	add 1 to {-casino::rl::t}
+	set {_t} to {-casino::rl::t}
+	if {_t} < 20:
+		rlSay("&aPlace your bets: %20 - {_t}% s")
+	else if {_t} is 20:
+		set {-casino::rl::n} to random integer between 0 and 36
+		if {-casino::force::rl} is set:
+			set {-casino::rl::n} to {-casino::force::rl}
+		rlSay("&cNo more bets")
+		rlSpin({-casino::rl::n})
+	else if {_t} is 28:
+		rlResult({-casino::rl::n})
+	else if {_t} >= 30:
+		delete {-casino::rl::viewers::*}
+
+# The display casino.sk turns: one of the three tagged in tools/build/city/casino.js, near the point it stands at.
+# The wheel and the ball turn opposite ways for just under the 8 s and stop with the number's pocket under the ball, on the side
+# the players stand. ORDER as in tools/casino-art.js: pocket i's middle is (i + 0.5) / 37 of a turn clockwise from the texture's top.
+function rlSpin(n: number):
+	set {_disc} to casinoTurning("casino_rl_disc", 883.5, 73.98, 357.5)
+	set {_ball} to casinoTurning("casino_rl_ball", 883.5, 73.98, 357.5)
+	{_disc} is set
+	{_ball} is set
+	set {_i} to 0
+	loop 0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3 and 26:
+		if loop-value is {_n}:
+			set {_pocket} to {_i}
+		add 1 to {_i}
+	set {_from} to {casino::rl::angle} ? 0
+	set {_to} to ({_pocket} + 0.5) / 37 * 360
+	set {_turn} to mod({_to} - {_from}, 360) + 1080
+	set {_axis} to vector(0, 1, 0)
+	set {_was} to 0
+	loop 38 times:
+		set {_left} to 1 - loop-number / 38
+		set {_ease} to 1 - {_left} * {_left}
+		casinoTurn({_disc}, {_axis}, {_from} + {_turn} * {_ease})
+		casinoTurn({_ball}, {_axis}, 0 - 2160 * {_ease})
+		# The ball rattles slower as it slows.
+		if floor(2160 * {_ease} / 36) is not {_was}:
+			play sound "block.note_block.hat" with volume 0.3 and pitch 1.8 at location(883.5, 75, 357.5, jailWorld())
+			set {_was} to floor(2160 * {_ease} / 36)
+		wait 4 ticks
+	set {casino::rl::angle} to mod({_to}, 360)
+
+# Pays, clears the losing chips and marks the number; the winners' chips stay until the round's last 2 s are up.
+function rlResult(n: number):
+	rlSay("&6The ball lands on %{_n}%")
+	# The number over the wheel until the round clears the table (casinoPropsClear "rl").
+	set {_c} to "&c"
+	if {_n} is 0:
+		set {_c} to "&a"
+	else if {_n} is 2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33 or 35:
+		set {_c} to "&f"
+	set {_d} to casinoLabel("rl", location(883.5, 75.4, 357.5, jailWorld()), "%{_c}%&l%{_n}%", 1.5)
+	set billboard of {_d} to center
+	casinoProp("rl", rlSpotLoc("n%{_n}%") ~ vector(0, 0.01, 0), casinoArt(gold nugget named " ", "chip_100000"), 0.14)
+	play sound "block.note_block.pling" with volume 0.7 at location(883.5, 75, 357.5, jailWorld())
+	loop indices of {-casino::rl::chip::*}:
+		set {_row::*} to loop-value split at "|"
+		if rlPays({_row::2}, {_n}) is 0:
+			kill {-casino::rl::chip::%loop-value%}
+			delete {-casino::rl::chip::%loop-value%}
+	loop indices of {-casino::rl::bets::*}:
+		set {_u} to loop-value
+		set {_p} to {-casino::rl::bets::%{_u}%}
+		set {_paid} to 0
+		set {_staked} to 0
+		loop indices of {casinopending::%{_u}%::rl::*}:
+			set {_stake} to {casinopending::%{_u}%::rl::%loop-value-2%}
+			add {_stake} to {_staked}
+			add {_stake} * rlPays(loop-value-2, {_n}) to {_paid}
+		delete {casinopending::%{_u}%::rl::*}
+		delete {-casino::rl::bets::%{_u}%}
+		set {_before} to chipsOf({_p})
+		chipsSet({_p}, {_before} + {_paid})
+		casinoStat({_p}, "roulette", {_staked}, {_paid})
+		casinoLog("result roulette %{_p}% %{_u}% n=%{_n}% staked=%{_staked}% paid=%{_paid}% bal=%{_before}%->%chipsOf({_p})%")
+		if {_p} is online:
+			if {_paid} > 0:
+				casinoStatus({_p}, "&6The ball lands on %{_n}%: &a+%{_paid}% chips")
+			else:
+				casinoStatus({_p}, "&6The ball lands on %{_n}%: &7no win")
+		if {_paid} >= {-cfg::casino::big-win}:
+			casinoLog("big-win %{_p}% %{_u}% roulette %{_paid}%")
+
+# ---------- The Inside Track ----------
+# The screen on the east wall, six seats in front of it, a pad of six colored buttons on the ledge before each seat: right-click a
+# horse's button to back it (the chips go on it; again to stack, another button moves the bet), left-click takes the bet back, sneak + right-click the chip menu. One horse a race.
+# A round starts at a touch: bets (cut short once everyone has backed a horse), the race, the result; then it waits for the next touch.
+# {-casino::track::t} the round's second (unset: no round), ::chance::<i>, ::pays::<i>, ::winner, ::shape::<i>::a|c|f the race's look,
+# ::horse::<i> the displays, ::seat::<p> the pad a player used.
+
+# Six random weights, every horse between 4% and 40%; what it pays keeps the house's edge on each.
+function trackRoll():
+	set {_tries} to 0
+	set {_ok} to false
+	while {_ok} is false:
+		add 1 to {_tries}
+		set {_sum} to 0
+		loop 6 times:
+			set {_w::%loop-value%} to random number between 1 and 10
+			add {_w::%loop-value%} to {_sum}
+		set {_ok} to true
+		loop 6 times:
+			set {_c} to {_w::%loop-value%} / {_sum}
+			if {_c} < 0.04:
+				set {_ok} to false
+			else if {_c} > 0.4:
+				set {_ok} to false
+		if {_tries} >= 50:
+			loop 6 times:
+				set {_w::%loop-value%} to 1
+			set {_sum} to 6
+			set {_ok} to true
+	loop 6 times:
+		set {_c} to {_w::%loop-value%} / {_sum}
+		set {-casino::track::chance::%loop-value%} to {_c}
+		set {-casino::track::pays::%loop-value%} to floor(10 * (1 - {-cfg::casino::track-edge}) / {_c}) / 10
+
+function trackStart():
+	set {-casino::track::t} to 0
+	trackRoll()
+	casinoPropsClear("track")
+	set {_y::*} to 79.656, 79.0, 78.344, 77.656, 77.0 and 76.344
+	loop 6 times:
+		set {-casino::track::horse::%loop-value%} to casinoTurning("casino_horse_%loop-value%", 894.93, 78, 335.1)
+		casinoLabel("track", location(894.9, {_y::%loop-value%} - 0.2, 344.3, jailWorld(), 90, 0), "&f%{-casino::track::pays::%loop-value%}%x", 1.3)
+	trackLineUp()
+
+# Everyone back behind the gate.
+function trackLineUp():
+	loop 6 times:
+		set {_h} to {-casino::track::horse::%loop-value%}
+		if {_h} is set:
+			set interpolation delay of {_h} to 0 ticks
+			set interpolation duration of {_h} to 10 ticks
+			set display translation of {_h} to vector(0, 0, 0)
+
+# The winner is drawn when bets close. Everyone else ends short of the line; each horse surges and fades on its own way there.
+function trackDraw():
+	set {_r} to random number between 0 and 1
+	set {_win} to 6
+	set {_found} to false
+	loop 6 times:
+		if {_found} is false:
+			remove {-casino::track::chance::%loop-value%} from {_r}
+			if {_r} < 0:
+				set {_win} to loop-value
+				set {_found} to true
+	if {-casino::force::track} is set:
+		set {_win} to {-casino::force::track}
+	set {-casino::track::winner} to {_win}
+	loop 6 times:
+		set {-casino::track::shape::%loop-value%::a} to random number between -0.06 and 0.06
+		set {-casino::track::shape::%loop-value%::c} to random integer between 1 and 2
+		set {-casino::track::shape::%loop-value%::f} to random number between 0.8 and 0.97
+	set {-casino::track::shape::%{_win}%::f} to 1
+
+# x: how far the race is, 0 to 1; a step lasts the second until the next. The field stays bunched and only spreads out at the end:
+# position = 7.6 x (x + a sin(360 c x)) x (1 - (1 - f) x^2).
+function trackStep(x: number):
+	loop 6 times:
+		set {_h} to {-casino::track::horse::%loop-value%}
+		if {_h} is set:
+			set {_a} to {-casino::track::shape::%loop-value%::a}
+			set {_c} to {-casino::track::shape::%loop-value%::c}
+			set {_f} to {-casino::track::shape::%loop-value%::f}
+			set interpolation delay of {_h} to 0 ticks
+			set interpolation duration of {_h} to 20 ticks
+			set display translation of {_h} to vector(7.6 * ({_x} + {_a} * sin(360 * {_c} * {_x})) * (1 - (1 - {_f}) * {_x} * {_x}), 0, 0)
+
+function trackSay(text: text):
+	casinoBoard("track", 894.9, 80.03, 339.5, 90, 2, {_text})
+
+# A pad is a block of two rows of three, seen from the seat: 1 2 3 far, 4 5 6 near. x, z: the pad's block.
+function trackClick(p: player, x: number, z: number, kind: text):
+	set {-casino::track::viewers::%{_p}%} to {_p}
+	if {-casino::track::t} is not set:
+		trackStart()
+	if {_kind} is "sneak":
+		casinoChipMenu({_p}, "track")
+		stop
+	if {_x} is 889:
+		set {_name} to casinoChipName({_p}, "track")
+		casinoStatus({_p}, "&f%{_name}%. &aRight-click a colored button: that horse. &7Shift + right-click: choose a chip.")
+		stop
+	if {_kind} is not "right":
+		trackClear({_p})
+		stop
+	set {_a} to casinoAimY({_p}, 74.02)
+	set {_c} to floor(max(min((z-coordinate of {_a}) - {_z}, 0.99), 0) * 3)
+	set {_row} to 3
+	if (x-coordinate of {_a}) - 890 >= 0.5:
+		set {_row} to 0
+	set {-casino::track::seat::%{_p}%} to {_z}
+	trackBet({_p}, {_row} + {_c} + 1)
+
+# Who has what on which button: the chip stack shows it.
+function trackChip(p: player):
+	set {_u} to uuid of {_p}
+	casinoPropsClear("trk:%{_u}%")
+	set {_h} to {casinopending::%{_u}%::track::horse}
+	{_h} is set
+	set {_z} to {-casino::track::seat::%{_p}%}
+	{_z} is set
+	set {_x} to 890.25
+	if {_h} <= 3:
+		set {_x} to 890.75
+	set {_l} to location({_x}, 74.05, {_z} + (mod({_h} - 1, 3) + 0.5) / 3, jailWorld(), 180, 90)
+	casinoProp("trk:%{_u}%", {_l}, chipItem({casinopending::%{_u}%::track::amt}), 0.22)
+
+# The first pick or the same horse: one more chip. Another horse: the whole bet moves to it.
+function trackBet(p: player, horse: number):
+	if ({-casino::track::t} ? 0) >= {-cfg::casino::track-bets}:
+		casinoStatus({_p}, "&cNo more bets")
+		stop
+	set {_why} to casinoRefuse({_p})
+	if {_why} is not "":
+		casinoStatus({_p}, "&c%{_why}%")
+		stop
+	set {_u} to uuid of {_p}
+	set {_old} to {casinopending::%{_u}%::track::amt} ? 0
+	set {_before} to chipsOf({_p})
+	set {_size} to {_old}
+	set {_move} to false
+	if {_old} > 0:
+		if {casinopending::%{_u}%::track::horse} is not {_horse}:
+			set {_move} to true
+	if {_move} is false:
+		set {_max} to casinoGameMax("track")
+		add casinoChipSize({_p}, "track", {_max} - {_old}) to {_size}
+		if {_size} > {_max}:
+			casinoStatus({_p}, "&cLimit on a race: %{_max}%")
+			stop
+	if {_before} + {_old} < {_size}:
+		casinoStatus({_p}, "&cNot enough chips.")
+		stop
+	chipsSet({_p}, {_before} + {_old} - {_size})
+	set {casinopending::%{_u}%::track::horse} to {_horse}
+	set {casinopending::%{_u}%::track::amt} to {_size}
+	set {-casino::track::bets::%{_u}%} to {_p}
+	trackChip({_p})
+	play sound "block.note_block.hat" with volume 0.4 and pitch 1.5 to {_p}
+	casinoStatus({_p}, "&fHorse %{_horse}%: %{_size}% at %{-casino::track::pays::%{_horse}%}%x")
+	casinoLog("bet track %{_p}% %{_u}% horse=%{_horse}% amt=%{_size}% bal=%{_before}%->%chipsOf({_p})%")
+
+function trackClear(p: player):
+	({-casino::track::t} ? 0) < {-cfg::casino::track-bets}
+	set {_u} to uuid of {_p}
+	set {_back} to {casinopending::%{_u}%::track::amt} ? 0
+	{_back} > 0
+	delete {casinopending::%{_u}%::track::*}
+	delete {-casino::track::bets::%{_u}%}
+	chipsSet({_p}, chipsOf({_p}) + {_back})
+	trackChip({_p})
+	casinoStatus({_p}, "&7Your bet is back")
+
+# The record goes first: paid once. A player who quit is paid here too.
+function trackResult():
+	set {_n} to {-casino::track::winner}
+	set {_pays} to {-casino::track::pays::%{_n}%}
+	trackSay("&6Horse %{_n}% wins! &fIt paid %{_pays}%x")
+	play sound "block.note_block.pling" with volume 0.7 at location(891, 75, 339.5, jailWorld())
+	loop indices of {-casino::track::bets::*}:
+		set {_u} to loop-value
+		set {_p} to {-casino::track::bets::%{_u}%}
+		set {_h} to {casinopending::%{_u}%::track::horse}
+		set {_amt} to {casinopending::%{_u}%::track::amt}
+		delete {casinopending::%{_u}%::track::*}
+		delete {-casino::track::bets::%{_u}%}
+		casinoPropsClear("trk:%{_u}%")
+		set {_paid} to 0
+		if {_h} is {_n}:
+			set {_paid} to floor({_amt} * {_pays})
+		set {_before} to chipsOf({_p})
+		chipsSet({_p}, {_before} + {_paid})
+		casinoStat({_p}, "track", {_amt}, {_paid})
+		casinoLog("result track %{_p}% %{_u}% horse=%{_h}% winner=%{_n}% stake=%{_amt}% paid=%{_paid}% bal=%{_before}%->%chipsOf({_p})%")
+		if {_paid} >= {-cfg::casino::big-win}:
+			casinoLog("big-win %{_p}% %{_u}% track %{_paid}%")
+		if {_p} is online:
+			if {_paid} > 0:
+				casinoStatus({_p}, "&a+%{_paid}% chips")
+				play sound "entity.player.levelup" with volume 0.6 to {_p}
+			else:
+				casinoStatus({_p}, "&7Horse %{_n}% won: no win")
+
+every 1 second:
+	if size of {-casino::track::viewers::*} + size of {-casino::track::bets::*} is 0:
+		if {-casino::track::t} is set:
+			delete {-casino::track::t}
+			trackLineUp()
+			casinoBoardOff("track")
+			casinoPropsClear("track")
+		stop
+	if {-casino::track::t} is not set:
+		trackStart()
+	add 1 to {-casino::track::t}
+	set {_t} to {-casino::track::t}
+	set {_b} to {-cfg::casino::track-bets}
+	set {_r} to {-cfg::casino::track-race}
+	# Everyone here has backed a horse: no need to wait out the clock, but leave time to stack chips and pick another.
+	if {_t} < {_b} - 15:
+		if size of {-casino::track::viewers::*} > 0:
+			set {_all} to true
+			loop {-casino::track::viewers::*}:
+				if {casinopending::%uuid of loop-value%::track::horse} is not set:
+					set {_all} to false
+			if {_all} is true:
+				set {_t} to {_b} - 15
+				set {-casino::track::t} to {_t}
+	if {_t} < {_b}:
+		trackSay("&fNext race in &a%{_b} - {_t}% s")
+	else if {_t} is {_b}:
+		trackDraw()
+		trackSay("&eThey're off!")
+		play sound "block.note_block.bell" with volume 0.8 at location(891, 75, 339.5, jailWorld())
+	else if {_t} <= {_b} + {_r}:
+		trackStep(({_t} - {_b}) / {_r})
+		play sound "entity.horse.gallop" with volume 0.3 at location(891, 75, 339.5, jailWorld())
+		if {_t} is {_b} + {_r}:
+			trackResult()
+	else if {_t} >= {_b} + {_r} + {-cfg::casino::track-end}:
+		delete {-casino::track::viewers::*}
+
+# ---------- Staff ----------
+
+function casinoStatsLine(s: command sender, game: text, days: number, table: text):
+	set {_t} to now
+	set {_bet} to 0
+	set {_paid} to 0
+	set {_rounds} to 0
+	loop {_days} times:
+		set {_d} to {_t} formatted as "yyyy-MM-dd"
+		add ({casino::stats::%{_d}%::%{_game}%::bet} ? 0) to {_bet}
+		add ({casino::stats::%{_d}%::%{_game}%::paid} ? 0) to {_paid}
+		add ({casino::stats::%{_d}%::%{_game}%::rounds} ? 0) to {_rounds}
+		remove 1 day from {_t}
+	set {_edge} to "-"
+	if {_bet} > 0:
+		set {_edge} to "%round(1000 * (1 - {_paid} / {_bet})) / 10%%%"
+	send "CASINO %{_game}%: rounds=%{_rounds}% bet=%{_bet}% paid=%{_paid}% edge=%{_edge}% (table %{_table}%)" to {_s}
+
+# The real edge next to the table's, and who's far up or down (an exploit or an alt farm shows here).
+function casinoStats(s: command sender, days: number):
+	send "CASINO the last %{_days}% day(s), today included" to {_s}
+	casinoStatsLine({_s}, "slots", {_days}, "5%%")
+	casinoStatsLine({_s}, "blackjack", {_days}, "about 1%%")
+	casinoStatsLine({_s}, "roulette", {_days}, "2.7%%")
+	casinoStatsLine({_s}, "track", {_days}, "8%% or more")
+	casinoStatsLine({_s}, "wheel", {_days}, "a giveaway")
+	set {_n} to 0
+	loop sorted indices of {casino::net::*} in descending order:
+		add 1 to {_n}
+		add loop-value to {_order::*}
+	set {_i} to 0
+	loop {_order::*}:
+		add 1 to {_i}
+		if {_i} <= 10:
+			send "CASINO up %{casino::netname::%loop-value%}% %{casino::net::%loop-value%}%" to {_s}
+		else if {_i} > {_n} - 10:
+			send "CASINO down %{casino::netname::%loop-value%}% %{casino::net::%loop-value%}%" to {_s}
+
+command /dcasino [<text>] [<text>] [<text>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	executable by: players and console
+	trigger:
+		set {_sub} to arg-1
+		if {_sub} is "enable" or "disable":
+			if {_sub} is "disable":
+				set {casino::off} to true
+			else:
+				delete {casino::off}
+			casinoLog("staff %{_sub}% by=%sender%")
+			send "CASINO %{_sub}%d: new bets, chip sales and the wheel %{_sub}%d, rounds already running finish" to sender
+			stop
+		if {_sub} is "stats":
+			set {_days} to 7
+			if arg-2 is set:
+				set {_days} to arg-2 parsed as number
+			if {_days} is not set:
+				send "CASINO usage: /dcasino stats [days]" to sender
+				stop
+			casinoStats(sender, max(1, min(floor({_days}), 90)))
+			stop
+		if {_sub} is not "info" or "give" or "take":
+			send "CASINO usage: /dcasino info <player> | give/take <player> <chips> | stats [days] | enable/disable" to sender
+			stop
+		set {_p} to arg-2 parsed as player
+		if {_p} is not set:
+			send "CASINO that player isn't online" to sender
+			stop
+		set {_u} to uuid of {_p}
+		if {_sub} is "info":
+			set {_ip} to ip of {_p}
+			send "CASINO %{_p}% chips=%chipsOf({_p})% net=%{casino::net::%{_u}%} ? 0%" to sender
+			set {_k1} to "%{_u}%::buy"
+			set {_k2} to "%{_u}%::cashout"
+			set {_k3} to "%{_ip}%::buy"
+			set {_k4} to "%{_ip}%::cashout"
+			send "CASINO today: bought=%casinoDay({_k1})% cashed=%casinoDay({_k2})% same IP: bought=%casinoDay({_k3})% cashed=%casinoDay({_k4})%" to sender
+			send "CASINO pending: hand=%{casinopending::%{_u}%::bj} ? 0% on the table=%rlTotal({_p})% race=%{casinopending::%{_u}%::track::amt} ? 0% wheel=%{casinopending::%{_u}%::wheel} ? 0%" to sender
+			set {_at} to getData({_p}, "wheel-at")
+			if {_at} is set:
+				send "CASINO last wheel spin: %difference between now and {_at}% ago" to sender
+			stop
+		set {_n} to arg-3 parsed as number
+		if {_n} is not set:
+			send "CASINO usage: /dcasino give/take <player> <chips>" to sender
+			stop
+		if {_n} <= 0:
+			send "CASINO a number over 0" to sender
+			stop
+		set {_before} to chipsOf({_p})
+		if {_sub} is "give":
+			chipsSet({_p}, {_before} + floor({_n}))
+		else:
+			chipsSet({_p}, {_before} - floor({_n}))
+		casinoLog("staff %{_sub}% %{_p}% %{_u}% amt=%floor({_n})% bal=%{_before}%->%chipsOf({_p})% by=%sender%")
+		send "CASINO %{_p}%: %{_before}% -> %chipsOf({_p})% chips" to sender
+
+# ---------- After a restart ----------
+
+# A hand or a bet saved but no longer running: the server stopped mid-round. The stake comes back.
+on join:
+	set {_u} to uuid of player
+	set {_back} to {casinopending::%{_u}%::bj} ? 0
+	delete {casinopending::%{_u}%::bj}
+	if {-casino::rl::bets::%{_u}%} is not set:
+		loop {casinopending::%{_u}%::rl::*}:
+			add loop-value to {_back}
+		delete {casinopending::%{_u}%::rl::*}
+	if {-casino::track::bets::%{_u}%} is not set:
+		add ({casinopending::%{_u}%::track::amt} ? 0) to {_back}
+		delete {casinopending::%{_u}%::track::*}
+	if {_back} > 0:
+		chipsSet(player, chipsOf(player) + {_back})
+		casinoLog("pending-refund %player% %{_u}% amt=%{_back}%")
+	# A spin they quit during, or a restart cut short.
+	casinoWheelPay(player)

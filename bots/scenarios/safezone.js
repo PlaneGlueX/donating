@@ -2,7 +2,7 @@
 //   - No PvP when either player is inside a safe zone; a punch between two players outside hurts.
 //   - Combat-tagged players can't walk or teleport into a safe zone; untagged players can.
 //   - For 10 s after respawning (or joining) other players can't hurt you; attacking ends your own shield.
-// Runs on its own glass platform; the east half is the test safe zone "safe_ztest" (passthrough allow,
+// Runs on its own glass platform; the east half is the test safe zone "safe_base_ztest" (passthrough allow,
 // like every Donating region). Hits must show pvp.sk's message, not WorldGuard's.
 const conv = require('mineflayer/lib/conversions')
 const { join, sleep, messagesSince, quit } = require('../lib')
@@ -13,7 +13,7 @@ const B = 'ZoneB'
 const Y = 200
 const PLATFORM = `580 ${Y - 1} 580 600 ${Y - 1} 590`
 const CHUNKS = '580 580 600 590'
-const ZONE = 'safe_ztest' // x 590..600: the east half of the platform
+const ZONE = 'safe_base_ztest' // x 590..600: the east half of the platform
 const EDGE = 590
 
 module.exports = async ({ check }) => {

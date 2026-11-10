@@ -146,7 +146,7 @@ final class BagHide implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onReload(WeaponReloadEvent e) {
-        if (mode == Mode.OFF || !fx.enabled() || !e.isMainHand() || !(e.getShooter() instanceof Player p) || fx.gun(e.getWeaponTitle()) == null || !fx.reloadStarts(e)) return;
+        if (mode == Mode.OFF || !fx.enabled() || !e.isMainHand() || !(e.getShooter() instanceof Player p) || fx.gun(e.getWeaponTitle()) == null || fx.arm.covers(e.getWeaponTitle()) || !fx.reloadStarts(e)) return;
         // A gun that loads a few rounds at a time gets one event per load: the length of the whole chain is unknown.
         int ticks = e.getAmmoPerReload() > 0 ? -1 : Math.max(e.getReloadCompleteTime(), e.getReloadTime());
         if (ticks >= 0 && ticks < MIN_TICKS) return;

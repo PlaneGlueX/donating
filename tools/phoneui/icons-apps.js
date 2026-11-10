@@ -221,6 +221,20 @@ module.exports = {
     '....##....'
   ]),
 
+  // Delete (2026-10-21, Messages: clear a conversation, ui.sk appIcon("trash")): a white bin on a red tile.
+  trash: app(hex('#E5484D'), [
+    '...####...',
+    '##########',
+    '..........',
+    '.########.',
+    '.#.#..#.#.',
+    '.#.#..#.#.',
+    '.#.#..#.#.',
+    '.#.#..#.#.',
+    '.#.#..#.#.',
+    '..######..'
+  ]),
+
   // The home button's clickable item: nothing (the button is drawn in the background).
   blank: c => { },
 

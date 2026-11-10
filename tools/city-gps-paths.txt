@@ -1,0 +1,95 @@
+# Rising City's GPS paths (30 nodes, 32 links), made by `node tools/build/city.js gps` from the city modules.
+# Run every line that isn't a comment, in order, AFTER tools/jail-gps-paths.txt and the town's file: the first link joins
+# the prison's node 1002 (JUNCTION). The remove lines make a second run safe (an existing id is refused).
+dphone path remove 3001
+dphone path remove 3002
+dphone path remove 3003
+dphone path remove 3004
+dphone path remove 3005
+dphone path remove 3006
+dphone path remove 3007
+dphone path remove 3008
+dphone path remove 3009
+dphone path remove 3010
+dphone path remove 3011
+dphone path remove 3012
+dphone path remove 3013
+dphone path remove 3014
+dphone path remove 3015
+dphone path remove 3016
+dphone path remove 3017
+dphone path remove 3018
+dphone path remove 3019
+dphone path remove 3020
+dphone path remove 3021
+dphone path remove 3022
+dphone path remove 3023
+dphone path remove 3024
+dphone path remove 3025
+dphone path remove 3026
+dphone path remove 3027
+dphone path remove 3028
+dphone path remove 3029
+dphone path remove 3030
+dphone path addat world 482.5 65 426.5 id=3001 nolink AVE_W
+dphone path addat world 497.5 65 426.5 id=3002 nolink AVE_WEST_ST
+dphone path addat world 612.5 65 426.5 id=3003 nolink AVE_JEWELRY
+dphone path addat world 651.5 65 426.5 id=3004 nolink AVE_BANK_ST
+dphone path addat world 780.5 65 426.5 id=3005 nolink AVE_E
+dphone path addat world 795.5 65 430.5 id=3006 nolink RB_W
+dphone path addat world 810.5 65 415.5 id=3007 nolink RB_N
+dphone path addat world 825.5 65 430.5 id=3008 nolink RB_E
+dphone path addat world 810.5 65 445.5 id=3009 nolink RB_S
+dphone path addat world 831.5 65 405.5 id=3010 nolink RAMP_FOOT
+dphone path addat world 890.5 73 405.5 id=3011 nolink RAMP_TOP
+dphone path addat world 890.5 73 396.5 id=3012 nolink PLAZA
+dphone path addat world 869.5 73 380.5 id=3013 nolink CASINO_EXIT
+dphone path addat world 651.5 65 347.5 id=3014 nolink BANK_ST_VAULT
+dphone path addat world 651.5 65 300.5 id=3015 nolink BANK_FRONT
+dphone path addat world 636.5 65 300.5 id=3016 nolink BANK_EXIT
+dphone path addat world 651.5 65 262.5 id=3017 nolink BANK_ST_N
+dphone path addat world 497.5 65 347.5 id=3018 nolink WEST_ST_N
+dphone path addat world 619.5 65 347.5 id=3019 nolink VAULT_ALLEY
+dphone path addat world 619.5 65 364.5 id=3020 nolink ALLEY
+dphone path addat world 781.5 65 347.5 id=3021 nolink VAULT_E
+dphone path addat world 781.5 65 337.5 id=3022 nolink CH_LEG_TOP
+dphone path addat world 781.5 60 295.5 id=3023 nolink CH_LEG_FOOT
+dphone path addat world 781.5 60 288.5 id=3024 nolink CH_BEND
+dphone path addat world 869.5 60 288.5 id=3025 nolink CH_CASINO
+dphone path addat world 869.5 60 294.5 id=3026 nolink DRAIN_MOUTH
+dphone path addat world 869.5 65 329.5 id=3027 nolink DRAIN_TOP
+dphone path addat world 497.5 65 300.5 id=3028 nolink WEST_ST_HATCH
+dphone path addat world 570.5 65 300.5 id=3029 nolink HATCH_PLAZA
+dphone path addat world 612.5 65 417.5 id=3030 nolink JEWELRY_EXIT
+dphone path link 1002 3001
+dphone path link 3001 3002
+dphone path link 3002 3003
+dphone path link 3003 3030
+dphone path link 3003 3004
+dphone path link 3004 3005
+dphone path link 3005 3006
+dphone path link 3006 3007
+dphone path link 3007 3008
+dphone path link 3008 3009
+dphone path link 3009 3006
+dphone path link 3007 3010
+dphone path link 3010 3011
+dphone path link 3011 3012
+dphone path link 3012 3013
+dphone path link 3004 3014
+dphone path link 3014 3015
+dphone path link 3015 3016
+dphone path link 3015 3017
+dphone path link 3002 3018
+dphone path link 3018 3019
+dphone path link 3019 3014
+dphone path link 3019 3020
+dphone path link 3014 3021
+dphone path link 3021 3022
+dphone path link 3022 3023
+dphone path link 3023 3024
+dphone path link 3024 3025
+dphone path link 3025 3026
+dphone path link 3026 3027
+dphone path link 3018 3028
+dphone path link 3028 3029

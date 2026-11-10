@@ -60,7 +60,7 @@ module.exports = async ({ check }) => {
     let out = await said('/level')
     check('a new robber is level 0 (Pickpocket) with 0 XP; /level shows the next level at T(1) = 49 XP', /Your level: 0 Pickpocket · 0 XP/.test(out) && /Next: level 1 Pickpocket at 49 XP/.test(out), out)
     out = await said('/levels', 1500)
-    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts (and the rewards)', /5\. Shoplifter - 287 XP · .*the Classic Pistol.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. - 1,281 XP · .*the Machine Gun.*the Drill/.test(out) && /20\. Burglar - 2,078 XP/.test(out) && /100\. Mastermind - 75,514 XP · .*the «Mastermind» title/.test(out) && /150\. Kingpin - 240,190 XP · .*the SUV \(car\).*the Apex \(car\).*the «Kingpin» title/.test(out) && !/ 1\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 2500))
+    check('/levels lists only the levels that unlock something, with T(n) and the title where a range starts (and the rewards)', /5\. Shoplifter - 287 XP · .*the Classic Pistol.*the Duffel Bag.*the Safe Kit/.test(out) && /15\. - 1,281 XP · .*the Machine Gun.*the Drill/.test(out) && /20\. Burglar - 2,078 XP/.test(out) && /100\. Mastermind - 75,514 XP · .*the «Mastermind» title/.test(out) && /150\. Kingpin - 240,190 XP · .*the SUV \(car\).*the Apex \(car\).*the «Kingpin» title/.test(out) && !/ 3\. /.test(out) && !/ 7\. /.test(out), out.slice(0, 2500))
     // The Hand Minigun (2026-10-12): level 125, listed before that level's rewards.
     check('/levels lists the Hand Minigun at level 125', /125\. - 137,877 XP · the Hand Minigun/.test(out), (out.match(/125\..*/) || [out.slice(0, 300)])[0])
     // The melees of 2026-10-13 (PROPOSAL levels): the Brass Knuckles at 2, the Katana at 12, the Gold Nunchucks at 15.
@@ -92,7 +92,7 @@ module.exports = async ({ check }) => {
     // ---------- Level up ----------
     t = Date.now()
     await cmd(`dlevel xp ${R} 228`)
-    await sleep(600)
+    await sleep(3600) // the title waits out a sale's count-up just before
     i = await info()
     check('reaching 287 XP: level 5 (Shoplifter)', i.rank === 5 && i.xp === 287, i.raw)
     check('...with a LEVEL UP title and what it unlocks (guns, the Duffel Bag, the Safe Kit), to that player', messagesSince(bot, t).some(m => m.kind === 'title:title' && /LEVEL UP/.test(m.text)) && /Level up! You're level 5 now: Shoplifter/.test(text(t)) && /Unlocked: the Classic Pistol/.test(text(t)) && /Unlocked: the Duffel Bag/.test(text(t)) && /Unlocked: the Safe Kit/.test(text(t)), text(t))

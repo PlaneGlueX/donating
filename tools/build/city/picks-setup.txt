@@ -1,0 +1,67 @@
+dloot set bank-13 piece 1500
+dloot set bank-13 value 12000-18000
+dloot set bank-13 pick vault:gold
+dloot set bank-14 piece 1500
+dloot set bank-14 value 12000-18000
+dloot set bank-14 pick vault:gold
+dloot set bank-15 piece 750
+dloot set bank-15 value 12000-18000
+dloot set bank-15 take 6
+dloot set bank-15 pick vault:cash
+dloot add bank pile 620 49 303 621 49 305 value=12000-18000 style=cash piece=750 take=6 behind=4 name=Cash_trolley pick=vault:cash
+dloot add bank pile 621 49 300 621 49 300 value=12000-12000 style=art piece=12000 take=6 behind=4 name=Founders_Box pick=rare
+dheist pick bank chance rare 15
+dtrap set bank-3 pick bay:classic
+dtrap set bank-4 pick bay:classic
+dtrap set bank-5 pick bay:classic
+dtrap set bank-6 pick bay:classic
+dtrap set bank-7 pick bay:classic
+dtrap set bank-8 pick bay:classic
+dtrap set bank-9 pick bay:classic
+dtrap set bank-10 pick bay:classic
+dtrap add bank laser 599 57.4 308.5 607 57.4 308.5 damage=1 blink=true on=1.5 off=1.5 offset=0 pick=bay:moving
+dtrap add bank laser 599 58 308.5 607 58 308.5 damage=1 blink=true on=1.5 off=1.5 offset=0.5 pick=bay:moving
+dtrap add bank laser 599 58.65 308.5 607 58.65 308.5 damage=1 blink=true on=1.5 off=1.5 offset=1 pick=bay:moving
+dtrap add bank laser 599 57.4 296.5 607 57.4 296.5 damage=1 blink=true on=1.5 off=1.5 offset=0 pick=bay:moving
+dtrap add bank laser 599 58.65 296.5 607 58.65 296.5 damage=1 blink=true on=1.5 off=1.5 offset=1.5 pick=bay:moving
+dtrap set jewelry-8 pick obby1:layered
+dtrap set jewelry-9 pick obby1:layered
+dtrap set jewelry-10 pick obby1:layered
+dtrap set jewelry-11 pick obby1:layered
+dtrap set jewelry-12 pick obby1:layered
+dtrap set jewelry-13 pick obby1:layered
+dtrap set jewelry-14 pick obby1:layered
+dtrap set jewelry-15 pick obby1:layered
+dtrap set jewelry-22 pick obby2:moving
+dtrap set jewelry-23 pick obby2:moving
+dtrap set jewelry-24 pick obby2:moving
+dtrap set jewelry-25 pick obby2:moving
+dtrap set jewelry-26 pick obby2:moving
+dtrap set jewelry-27 pick obby2:moving
+dtrap add jewelry laser 617 74 383.5 631 74 383.5 damage=2 pick=obby1:gems
+dtrap add jewelry laser 617 74.65 393.5 631 74.65 393.5 damage=2 pick=obby1:gems
+dtrap add jewelry laser 617 74 403.5 631 74 403.5 damage=2 pick=obby1:gems
+dtrap add jewelry laser 601 74.65 403.5 615 74.65 403.5 damage=2 pick=obby1:gems
+dtrap add jewelry laser 601 74 393.5 615 74 393.5 damage=2 pick=obby1:gems
+dtrap add jewelry laser 601 74.65 383.5 615 74.65 383.5 damage=2 pick=obby1:gems
+dtrap add jewelry laser 601 80.4 382.5 615 80.4 382.5 damage=2 pick=obby2:classic
+dtrap add jewelry laser 601 81.65 391.5 615 81.65 391.5 damage=2 pick=obby2:classic
+dtrap add jewelry laser 601 80.4 401.5 615 80.4 401.5 damage=2 pick=obby2:classic
+dtrap add jewelry laser 617 81.65 402.5 631 81.65 402.5 damage=2 pick=obby2:classic
+dtrap add jewelry laser 617 80.4 393.5 631 80.4 393.5 damage=2 pick=obby2:classic
+dtrap add jewelry laser 617 81.65 384.5 631 81.65 384.5 damage=2 pick=obby2:classic
+dloot set casino-15 piece 2250
+dloot set casino-15 value 22500-40500
+dloot set casino-15 pick vault:cash
+dloot set casino-16 piece 2250
+dloot set casino-16 value 22500-40500
+dloot set casino-16 pick vault:cash
+dloot set casino-17 piece 2250
+dloot set casino-17 value 31500-54000
+dloot set casino-17 pick vault:gold
+dloot set casino-18 piece 7500
+dloot set casino-18 value 30000-52500
+dloot set casino-18 pick vault:art
+dloot set casino-19 pick rare
+dheist pick casino k vault 2
+dheist pick casino chance rare 35

@@ -52,6 +52,9 @@ function grappleNearHeist(l: location, gap: number) :: boolean:
 
 # "" when the player may fire the Grappler now, else why not.
 function grappleBlock(p: player) :: text:
+	# A Grappler (a crate reward) would pull a prisoner over the wall (prison.sk).
+	if prisonIn({_p}) is true:
+		return "No grappling in the prison."
 	if {_p} is not alive:
 		return "Not right now."
 	if cfg("tool::grappler::enabled") is not true:

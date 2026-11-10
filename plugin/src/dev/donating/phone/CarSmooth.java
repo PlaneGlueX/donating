@@ -1087,8 +1087,11 @@ final class CarSmooth implements Listener {
     /** Tab completion for /dphone carsmooth and carprobe (args as /dphone gets them). */
     List<String> complete(String[] a, List<String> players) {
         List<String> out = new ArrayList<>();
-        if (a.length == 2 && a[0].equalsIgnoreCase("carsmooth")) out.addAll(List.of("off", "sync", "track", "all", "together", "bundle", "via-clock"));
+        if (a.length == 2 && a[0].equalsIgnoreCase("carsmooth")) out.addAll(List.of("off", "sync", "track", "all", "together", "bundle", "via-clock", "input"));
         if (a.length == 3 && a[0].equalsIgnoreCase("carsmooth") && (a[1].equalsIgnoreCase("together") || a[1].equalsIgnoreCase("bundle") || a[1].equalsIgnoreCase("via-clock"))) out.addAll(List.of("on", "off"));
+        // carsmooth input <player> <w|a|s|d|j...|none> (tests: the keys a driver holds).
+        if (a.length == 3 && a[0].equalsIgnoreCase("carsmooth") && a[1].equalsIgnoreCase("input")) out.addAll(players);
+        if (a.length == 4 && a[0].equalsIgnoreCase("carsmooth") && a[1].equalsIgnoreCase("input")) out.addAll(List.of("w", "s", "wa", "wd", "j", "none"));
         if (a.length == 2 && a[0].equalsIgnoreCase("carbundle")) out.addAll(players);
         if (a.length == 2 && a[0].equalsIgnoreCase("carprobe")) {
             for (Player p : Bukkit.getOnlinePlayers()) { String pl = driverPlate(p); if (pl != null) out.add(pl); }

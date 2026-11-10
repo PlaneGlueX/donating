@@ -25,6 +25,454 @@
             "type": "minecraft:model",
             "model": "donating:item/loot_cash"
           }
+        },
+        {
+          "when": "donating:track_horse_1",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/track_horse_1"
+          }
+        },
+        {
+          "when": "donating:track_horse_2",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/track_horse_2"
+          }
+        },
+        {
+          "when": "donating:track_horse_3",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/track_horse_3"
+          }
+        },
+        {
+          "when": "donating:track_horse_4",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/track_horse_4"
+          }
+        },
+        {
+          "when": "donating:track_horse_5",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/track_horse_5"
+          }
+        },
+        {
+          "when": "donating:track_horse_6",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/track_horse_6"
+          }
+        },
+        {
+          "when": "donating:reel_Diamonds",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/reel_diamonds"
+          }
+        },
+        {
+          "when": "donating:reel_Sevens",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/reel_sevens"
+          }
+        },
+        {
+          "when": "donating:reel_Bars",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/reel_bars"
+          }
+        },
+        {
+          "when": "donating:reel_Bells",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/reel_bells"
+          }
+        },
+        {
+          "when": "donating:reel_Cherries",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/reel_cherries"
+          }
+        },
+        {
+          "when": "donating:card_2S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_2s"
+          }
+        },
+        {
+          "when": "donating:card_3S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_3s"
+          }
+        },
+        {
+          "when": "donating:card_4S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_4s"
+          }
+        },
+        {
+          "when": "donating:card_5S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_5s"
+          }
+        },
+        {
+          "when": "donating:card_6S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_6s"
+          }
+        },
+        {
+          "when": "donating:card_7S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_7s"
+          }
+        },
+        {
+          "when": "donating:card_8S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_8s"
+          }
+        },
+        {
+          "when": "donating:card_9S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_9s"
+          }
+        },
+        {
+          "when": "donating:card_10S",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_10s"
+          }
+        },
+        {
+          "when": "donating:card_JS",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_js"
+          }
+        },
+        {
+          "when": "donating:card_QS",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_qs"
+          }
+        },
+        {
+          "when": "donating:card_KS",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_ks"
+          }
+        },
+        {
+          "when": "donating:card_AS",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_as"
+          }
+        },
+        {
+          "when": "donating:card_2H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_2h"
+          }
+        },
+        {
+          "when": "donating:card_3H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_3h"
+          }
+        },
+        {
+          "when": "donating:card_4H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_4h"
+          }
+        },
+        {
+          "when": "donating:card_5H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_5h"
+          }
+        },
+        {
+          "when": "donating:card_6H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_6h"
+          }
+        },
+        {
+          "when": "donating:card_7H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_7h"
+          }
+        },
+        {
+          "when": "donating:card_8H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_8h"
+          }
+        },
+        {
+          "when": "donating:card_9H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_9h"
+          }
+        },
+        {
+          "when": "donating:card_10H",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_10h"
+          }
+        },
+        {
+          "when": "donating:card_JH",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_jh"
+          }
+        },
+        {
+          "when": "donating:card_QH",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_qh"
+          }
+        },
+        {
+          "when": "donating:card_KH",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_kh"
+          }
+        },
+        {
+          "when": "donating:card_AH",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_ah"
+          }
+        },
+        {
+          "when": "donating:card_2D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_2d"
+          }
+        },
+        {
+          "when": "donating:card_3D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_3d"
+          }
+        },
+        {
+          "when": "donating:card_4D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_4d"
+          }
+        },
+        {
+          "when": "donating:card_5D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_5d"
+          }
+        },
+        {
+          "when": "donating:card_6D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_6d"
+          }
+        },
+        {
+          "when": "donating:card_7D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_7d"
+          }
+        },
+        {
+          "when": "donating:card_8D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_8d"
+          }
+        },
+        {
+          "when": "donating:card_9D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_9d"
+          }
+        },
+        {
+          "when": "donating:card_10D",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_10d"
+          }
+        },
+        {
+          "when": "donating:card_JD",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_jd"
+          }
+        },
+        {
+          "when": "donating:card_QD",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_qd"
+          }
+        },
+        {
+          "when": "donating:card_KD",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_kd"
+          }
+        },
+        {
+          "when": "donating:card_AD",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_ad"
+          }
+        },
+        {
+          "when": "donating:card_2C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_2c"
+          }
+        },
+        {
+          "when": "donating:card_3C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_3c"
+          }
+        },
+        {
+          "when": "donating:card_4C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_4c"
+          }
+        },
+        {
+          "when": "donating:card_5C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_5c"
+          }
+        },
+        {
+          "when": "donating:card_6C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_6c"
+          }
+        },
+        {
+          "when": "donating:card_7C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_7c"
+          }
+        },
+        {
+          "when": "donating:card_8C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_8c"
+          }
+        },
+        {
+          "when": "donating:card_9C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_9c"
+          }
+        },
+        {
+          "when": "donating:card_10C",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_10c"
+          }
+        },
+        {
+          "when": "donating:card_JC",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_jc"
+          }
+        },
+        {
+          "when": "donating:card_QC",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_qc"
+          }
+        },
+        {
+          "when": "donating:card_KC",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_kc"
+          }
+        },
+        {
+          "when": "donating:card_AC",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_ac"
+          }
+        },
+        {
+          "when": "donating:card_back",
+          "model": {
+            "type": "minecraft:model",
+            "model": "donating:item/card_back"
+          }
         }
       ],
       "fallback": {

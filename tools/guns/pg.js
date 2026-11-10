@@ -685,6 +685,7 @@ module.exports = ({ write, canvas, shade, display, both }) => {
     // the screen's corner crosses its bottom).
     const handModels = (state, pose) => handList.flatMap(([h, v]) => {
       if (state === 'ads' && !spec.hands.aimed) return []
+      if (spec.hands.grip === false) return [] // the owner, 2026-11-04: no fake hands on the guns; RealArm draws the real one in most reloads
       if (v.shown === false ? !(pose.show || []).includes(h) : (pose.hide || []).includes(h)) return []
       const HH = HANDS[h]
       const sc = v.scale || 1

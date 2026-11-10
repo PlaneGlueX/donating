@@ -26,7 +26,7 @@
 #   touched (a trap hit you), guesses (the keypad guesses of your crack), car (you lost the cops in a car).
 #   Pruned after a sale: 14 days old, or the run is over and none of its loot is left in the bag.
 # - Heat: {heat::last::<h>} (the last robbery, unix), {heat::w::<week>::<h>} (runs robbed that week).
-# - The week: progWeek() = floor((unix + week::offset) / 604800); unix 0 was a Thursday 00:00 UTC.
+# - The week: progWeek() is the game clock's week (clock.sk clockWeek: floor(game minutes / 10080), 168 real minutes).
 # Tags "<h>#<run>" are only ever built inside strings: a # anywhere else in a script line starts a comment.
 
 function progEvent(p: player, ev: text, n: number, detail: text):
@@ -47,6 +47,9 @@ function progEvent(p: player, ev: text, n: number, detail: text):
 		set {_own} to progOwnTake({_p}, {_detail}, {_n})
 	seasonEvent({_p}, {_ev}, {_n}, {_detail})
 	storyEvent({_p}, {_ev}, {_n}, {_detail})
+	# The prison's head start (jailjobs.sk: Sparks, Rusty, Whisper, Tank, the Gun Shop; 2026-10-21).
+	if {_ev} starts with "jail" or "jjob":
+		jjHeadEvent({_p}, {_ev}, {_detail})
 	jobsEvent({_p}, {_ev}, {_n}, {_detail}, {_own})
 	fenceEvent({_p}, {_ev}, {_n}, {_detail}, {_own})
 
@@ -55,14 +58,13 @@ function progEvent(p: player, ev: text, n: number, detail: text):
 function progUnix() :: number:
 	return floor(unix timestamp of now)
 
-# The week number (Thursday 00:00 UTC to the next; week::offset moves it). {-prog::weekoverride} is for tests.
+# The week number: the game clock's week (clock.sk: 7 game days, 168 real minutes; owner, 2026-10-21: "missions that take
+# days like the hitlist mission will now follow the new clock system"). Until then it was the real week from Thursday
+# 00:00 UTC. {-prog::weekoverride} is for tests.
 function progWeek() :: number:
 	if {-prog::weekoverride} is set:
 		return {-prog::weekoverride}
-	set {_off} to {-cfg::week::offset}
-	if {_off} is not set:
-		set {_off} to 0
-	return floor((progUnix() + {_off}) / 604800)
+	return clockWeek()
 
 # ---------- Heist runs: own loot, notes, heat ----------
 

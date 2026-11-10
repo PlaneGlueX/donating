@@ -62,6 +62,10 @@ function trapKeyType(key: text) :: text:
 		return "boolean"
 	if {_key} is "effect":
 		return "effect"
+	if {_key} is "pick":
+		return "pick"
+	if {_key} is "tag":
+		return "tag"
 	return ""
 
 # key=value (as typed) -> the stored value, or nothing when the value is bad.
@@ -83,6 +87,12 @@ function trapParseValue(key: text, value: text) :: object:
 			if {_n} > 20:
 				stop
 		return {_n}
+	if {_t} is "pick":
+		return pickParse({_value})
+	if {_t} is "tag":
+		if {_value} matches "[a-zA-Z0-9,]+":
+			return {_value}
+		stop
 	if {_t} is "boolean":
 		if {_value} is "true":
 			return true
@@ -101,15 +111,28 @@ function trapCompile(h: text):
 	delete {-trapc::%{_h}%::*}
 	delete {-trapcell::%{_h}%::*}
 	delete {-trapcams::%{_h}%::*}
+	delete {-trapfloors::%{_h}%::*}
 	delete {-trapblink::%{_h}%::*}
 	loop {-trapplate::*}:
 		loop-value starts with "%{_h}%-"
 		delete {-trapplate::%loop-index%}
 	loop {traps::%{_h}%::*}:
 		trapCompileOne({_h}, loop-index)
+	# Not drawn this run (picks.sk): compiled for /dtrap, but nothing can reach it.
+	loop {traps::%{_h}%::*}:
+		if pickOff({_h}, "trap", loop-index) is true:
+			delete {-trapblink::%{_h}%::%loop-index%}
+			delete {-trapfloors::%{_h}%::%loop-index%}
+			delete {-trapcams::%{_h}%::%loop-index%}
+			set {_off::%loop-index%} to "%{_h}%-%loop-index%"
+	if size of {_off::*} > 0:
+		loop {-trapplate::*}:
+			if {_off::*} contains loop-value:
+				delete {-trapplate::%loop-index%}
 
 # Adds trap n to every cell its box (feet space) touches.
 function trapIndex(h: text, n: text, x1: number, y1: number, z1: number, x2: number, y2: number, z2: number):
+	pickOff({_h}, "trap", {_n}) is false
 	set {_s} to {-cfg::trap::cell}
 	loop integers from floor({_x1} / {_s}) to floor({_x2} / {_s}):
 		loop integers from floor({_y1} / {_s}) to floor({_y2} / {_s}):
@@ -167,6 +190,7 @@ function trapCompileOne(h: text, n: text):
 		set {_e} to {_w} + {_r}
 		trapIndex({_h}, {_n}, min({_ax}, {_bx}) - {_e}, min({_ay}, {_by}) - 1.8 + {_g} - {_r}, min({_az}, {_bz}) - {_e}, max({_ax}, {_bx}) + {_e}, max({_ay}, {_by}) - {_g} + {_r}, max({_az}, {_bz}) + {_e})
 	else if {_k} is "floor":
+		set {-trapfloors::%{_h}%::%{_n}%} to {_n}
 		set {_x1} to min(x-coordinate of {_a}, x-coordinate of {_b})
 		set {_x2} to max(x-coordinate of {_a}, x-coordinate of {_b}) + 1
 		set {_z1} to min(z-coordinate of {_a}, z-coordinate of {_b})
@@ -242,9 +266,11 @@ function trapUnpress(l: location):
 
 function trapDisarm(h: text):
 	delete {-trap::armed::%{_h}%}
+	delete {-trap::near::%{_h}%}
 	delete {-trapseen::%{_h}%::*}
 	delete {-traptouch::%{_h}%::*}
 	delete {-traphit::%{_h}%::*}
+	delete {-trapoff::%{_h}%::*}
 	loop {traps::%{_h}%::*}:
 		trapDespawn({_h}, loop-index)
 
@@ -253,6 +279,9 @@ function trapSpawn(h: text, n: text):
 	set {_k} to trapKind({_h}, {_n})
 	set {_c} to "%{_h}%::%{_n}%"
 	trapDespawn({_h}, {_n})
+	pickOff({_h}, "trap", {_n}) is false
+	# Shut off by a switch (switch.sk).
+	{-trapoff::%{_h}%::%{_n}%} is not true
 	set {_a} to {trap::%{_h}%::%{_n}%::a}
 	{_a} is set
 	chunk at {_a} is loaded
@@ -339,8 +368,51 @@ function trapCameraTip(h: text, n: text, yaw: number) :: location:
 every second:
 	loop {heists::*}:
 		trapReconcile(loop-index)
+	trapNearPass()
 	trapFloorRestores()
 	trapShowOutlines()
+
+# Orphans: trap displays no trap tracks (loot.sk's sweep, the same cause). A chunk on its way out hides its entities
+# (not valid: trapDespawn can't kill them, trapReconcile spawns new ones); when it's kept loaded after all, the old
+# copies come back next to the new (found 2026-10-28: every jewelry trap doubled after a forceload was dropped and
+# added again). Two passes apart, so a display spawned between them is never taken for one.
+every 10 seconds:
+	loop {heists::*}:
+		loop {-trapd::%loop-index%::*}:
+			set {_track::%uuid of loop-value-2%} to true
+	set {_n} to 0
+	loop all entities:
+		if loop-entity has scoreboard tag "donating_trap":
+			set {_u} to "%uuid of loop-entity%"
+			if {_track::%{_u}%} is not set:
+				if {-traporph::%{_u}%} is set:
+					kill loop-entity
+					add 1 to {_n}
+				else:
+					set {_seen::%{_u}%} to true
+	delete {-traporph::*}
+	loop {_seen::*}:
+		set {-traporph::%loop-index%} to true
+	if {_n} > 0:
+		trapLog("orphans removed %{_n}%")
+
+# Which armed heists have anyone around: only those run the 2-tick loop (blinking beams, sweeping cameras, fuses; they
+# catch up from the clock). A robber counts, or a player within trap::near-range of the heist; heistEnter also sets it at
+# once for a teleport in. Owner, 2026-11-03: the loop was the biggest repeating cost, with nobody near most heists.
+function trapNearPass():
+	delete {-trap::near::*}
+	loop {-trap::armed::*}:
+		set {_h} to loop-index
+		set {_c} to heistCenter({_h})
+		if {_c} is not set:
+			set {-trap::near::%{_h}%} to true
+		else if heistRobberCount({_h}) > 0:
+			set {-trap::near::%{_h}%} to true
+		else:
+			loop all players:
+				if distance between loop-player and {_c} <= {-cfg::trap::near-range}:
+					set {-trap::near::%{_h}%} to true
+					exit loop
 
 function trapReconcile(h: text):
 	set {_s} to heistState({_h})
@@ -376,6 +448,8 @@ on load:
 	delete {-trapd::*}
 	delete {-trapvis::*}
 	delete {-trap::armed::*}
+	delete {-trap::near::*}
+	delete {-trapfloors::*}
 	delete {-trapprev::*}
 	delete {-trapc::*}
 	delete {-trapcell::*}
@@ -392,7 +466,7 @@ on unload:
 
 every 2 ticks:
 	add 2 to {-trap::tick}
-	loop {-trap::armed::*}:
+	loop {-trap::near::*}:
 		trapTick(loop-index)
 
 function trapTick(h: text):
@@ -499,6 +573,9 @@ function trapScan(h: text, x: number, y: number, z: number, hh: number, who: tex
 		else if {_k} is "plate":
 			if trapPlateHit({_h}, {_n}, {_x}, {_y}, {_z}) is true:
 				set {_hit} to true
+		if {_hit} is true:
+			if {-trapoff::%{_h}%::%{_n}%} is set:
+				set {_hit} to false
 		if {_hit} is true:
 			# A damage trap wins over an alarm trap in the same spot (an alarm hit must not hide it).
 			if {-trapc::%{_h}%::%{_n}%::effect} is not "alarm":
@@ -661,6 +738,16 @@ function trapFire(p: player, h: text, n: text):
 		set {_ok} to heistTripAlarm({_h}, "%{_k}%:%{_id}%")
 		trapLog("alarm %name of {_p}% %{_id}% tripped=%{_ok}%")
 		stop
+	# Put back at the pit's edge still holding forward walks you straight back in: a fall into the same pit
+	# within floor::grace only puts you back again (it was a hit and a death in a second, 2026-10-29).
+	if {_k} is "floor":
+		set {_fell} to {-trapfell::%{_c}%::%{_who}%}
+		if {_fell} is set:
+			if difference between {_fell} and now < {-cfg::trap::floor::grace}:
+				trapPitOut({_p}, {_h})
+				trapLog("refall %name of {_p}% %{_id}%")
+				stop
+		set {-trapfell::%{_c}%::%{_who}%} to now
 	set {_dmg} to {-trapc::%{_c}%::dmg}
 	if {_dmg} is not set:
 		set {_dmg} to 1
@@ -800,6 +887,7 @@ on pressure plate:
 	if trapCooldown("click::%player%", 500 milliseconds) is true:
 		play sound "block.stone_pressure_plate.click_on" with volume 0.8 at location of event-block
 	# Once per step (the event fires every tick while they stand on it).
+	{-trapoff::%{_parts::1}%::%{_parts::2}%} is not set
 	trapReady({_parts::1}, {_parts::2}, "%player%") is true
 	trapFire(player, {_parts::1}, {_parts::2})
 
@@ -834,7 +922,8 @@ function trapFloorStep(p: player, h: text, x: number, y: number, z: number, clea
 			if trapOnFloor({_c}, {_x}, {_y}, {_z}, 0.3) is true:
 				set {_st} to {-trapfloor::%{_c}%}
 				if {_st} is not set:
-					trapFloorCrack({_h}, {_n})
+					if {-trapoff::%{_c}%} is not set:
+						trapFloorCrack({_h}, {_n})
 				else if {_st} is "crack":
 					tagCombat({_p}, "trap")
 	if {_over} is false:
@@ -922,9 +1011,8 @@ function trapFloorCracks(h: text, n: text, progress: number):
 
 # Every tick pass: fuses that ran out collapse; half way the crack deepens.
 function trapFloorsDue(h: text):
-	loop {traps::%{_h}%::*}:
-		loop-value is "floor"
-		set {_n} to loop-index
+	loop {-trapfloors::%{_h}%::*}:
+		set {_n} to loop-value
 		set {_c} to "%{_h}%::%{_n}%"
 		if {-trapfloor::%{_c}%} is "crack":
 			if {-trapfloor::%{_c}%::at} <= now:
@@ -1024,6 +1112,7 @@ function trapCameras(h: text):
 
 function trapCamera(h: text, n: text, m: players):
 	set {_c} to "%{_h}%::%{_n}%"
+	{-trapoff::%{_c}%} is not set
 	# Alarm cameras stand down while the alarm runs, and in heists that aren't advanced.
 	if {-trapc::%{_c}%::effect} is "alarm":
 		if {-trap::alarmed::%{_h}%} is true:
@@ -1556,7 +1645,7 @@ function trapDescribe(h: text, n: text) :: text:
 		set {_t} to "%{_t}% %yaw of {_a}% %pitch of {_a}%"
 	if {_k} is "laser":
 		set {_t} to "%{_t}% len=%round(distance between {_a} and {_b} * 100) / 100%"
-	loop "effect", "damage", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "grace" and "period":
+	loop "effect", "damage", "every", "blink", "on", "off", "offset", "delay", "restore", "depth", "angle", "range", "sweep", "grace", "period", "pick" and "tag":
 		set {_v} to {trap::%{_h}%::%{_n}%::%loop-value%}
 		{_v} is set
 		if trapKeyType(loop-value) is "time":

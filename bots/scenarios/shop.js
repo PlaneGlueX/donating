@@ -104,6 +104,15 @@ module.exports = async ({ check }) => {
 
     // ---------- Buying weapons ----------
     await rcon.cmd(`dlevel set ${NAME} 0`) // the melee level gates below are read at level 0
+    // Guns more than phone::reveal-levels (5) above the player's level are hidden (owner, 2026-10-22); the rest of
+    // this test reads every cell, so it shows them all after this check.
+    await rcon.cmd('zzcfgset phone::reveal-levels 5')
+    await tab('weapons')
+    {
+      const all = JSON.stringify((bot.currentWindow && bot.currentWindow.slots) || [])
+      check('at level 0 the Weapons tab hides guns more than 5 levels up (the Katana, level 12) and says how many more there are', all.includes('Brass Knuckles') && !all.includes('Katana') && /more at higher levels/.test(all), all.slice(0, 300))
+    }
+    await rcon.cmd('zzcfgset phone::reveal-levels 1000')
     await tab('weapons')
     // Lore lines of a shop slot, each as JSON text (a line's colors split it into parts, but each part's text is whole).
     const loreOf = s => {
@@ -370,6 +379,35 @@ module.exports = async ({ check }) => {
     check('a new tier unlocks it (asks first: the old bag is thrown away)', bagArmed && /40=leather x1 \[bag:3\]/.test(await dump()) && (await data('bag-best')) === '3' && (await bal()) === 9250, `${await dump()}; best ${await data('bag-best')}; ${await bal()}`)
     await click(13)
     check('the bag you carry: refused', (await bal()) === 9250 && /carrying the Hockey Bag already/.test(await shop()), await shop())
+
+    // ---------- Selling back (owner, 2026-10-22: 50%; the unlock stays, buying again costs the full price) ----------
+    await rcon.cmd(`zzbagadd ${NAME} zsell#1 500`)
+    await click(13, 0, 1)
+    await click(13, 0, 1)
+    check('selling the bag while it holds loot: refused', (await bal()) === 9250 && (await data('bag-tier')) === '3' && /loot at the base/.test(await shop()), `${await bal()}; ${await shop()}`)
+    await rcon.cmd(`zzbagclear ${NAME}`)
+    await click(13, 0, 1)
+    const sellArmed = (await bal()) === 9250 && /sell the Hockey Bag for \$1,500/.test(await shop())
+    await click(13, 0, 1)
+    check('right-click sells the bag you carry for half a new one ($3,000 -> $1,500, a second click), the tier stays unlocked', sellArmed && (await bal()) === 10750 && (await data('bag-tier')) === '<none>' && (await data('bag-best')) === '3' && !/\[bag:/.test(await dump()), `armed ${sellArmed}; ${await bal()}; tier ${await data('bag-tier')} best ${await data('bag-best')}; ${await dump()}`)
+    await rcon.cmd(`zzdata ${NAME} wpn::Uzi none`)
+    await rcon.cmd(`eco set ${NAME} 10000`)
+    await open()
+    await tab('weapons')
+    await click(WPN.Uzi)
+    await click(WPN.Uzi)
+    const uziPaid = await data('wpn-paid::Uzi')
+    await click(WPN.Uzi, 0, 1)
+    await click(WPN.Uzi, 0, 1)
+    check('right-click sells an owned gun for half what was paid ($3,000 -> $1,500); it leaves the hotbar and is marked sold', uziPaid === '3000' && (await bal()) === 8500 && (await data('wpn::Uzi')) === 'sold' && !/Uzi/.test(await wm()), `paid ${uziPaid}; ${await bal()}; ${await data('wpn::Uzi')}; ${await wm()}`)
+    await rcon.cmd('zzcfgset wpn::Uzi::level 99')
+    await rcon.cmd(`dlevel set ${NAME} 0`)
+    await tab('weapons')
+    const soldLore = loreOf(WPN.Uzi).join(' ')
+    await click(WPN.Uzi)
+    await click(WPN.Uzi)
+    check('a sold gun costs the full price again but needs no level ("Sold: no level needed")', /no level needed/.test(soldLore) && (await bal()) === 5500 && (await data('wpn::Uzi')) === 'true', `${soldLore.slice(0, 300)}; ${await bal()}; ${await data('wpn::Uzi')}`)
+    await rcon.cmd('zzcfgset wpn::Uzi::level 0')
 
     // ---------- A shopkeeper ----------
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow)

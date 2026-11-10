@@ -37,8 +37,8 @@ module.exports = async ({ check }) => {
     const after = line(await cmd('dsetup heists'), /Setup Bank/)
     check('...and a step done leaves the list (the exit spot, the hologram, the room snapshot)', /Setup Bank/.test(after) && !/no exit spot/.test(after) && !/no hologram/.test(after) && !/no room snapshot/.test(after) && /no loot piles/.test(after), after)
     // A safe zone drawn over the exit spot later: tagged robbers couldn't be moved out at 0:00.
-    await cmd(`zzregion safe_zsetup ${X - 8} ${Y - 2} ${Z - 8} ${X - 2} ${Y + 4} ${Z - 2}`)
-    await cmd('rg flag -w world safe_zsetup passthrough allow')
+    await cmd(`zzregion safe_base_zsetup ${X - 8} ${Y - 2} ${Z - 8} ${X - 2} ${Y + 4} ${Z - 2}`)
+    await cmd('rg flag -w world safe_base_zsetup passthrough allow')
     const inSafe = line(await cmd('dsetup heists'), /Setup Bank/)
     check('an exit spot inside a safe zone is flagged (/dheist exit, outside it)', /exit spot is inside a safe zone/.test(inSafe), inSafe)
 
@@ -48,11 +48,11 @@ module.exports = async ({ check }) => {
     check('a region without passthrough: ✘ with the /rg flag command (the heist region has it, set by /dheist create)', /✘ district_zsetup protects everything inside .*passthrough allow/.test(flags) && !/heist_zsetup protects/.test(flags), flags)
     await cmd('rg flag -w world district_zsetup passthrough allow')
     const flags2 = await cmd('dsetup flags')
-    check('...set: no ✘ for it (safe zones without weapon-shoot deny are only worth a look)', !/district_zsetup protects/.test(flags2) && /safe_zsetup: guns fire in this safe zone/.test(flags2), flags2)
+    check('...set: no ✘ for it (safe zones without weapon-shoot deny are only worth a look)', !/district_zsetup protects/.test(flags2) && /safe_base_zsetup: guns fire in this safe zone/.test(flags2), flags2)
 
     // ---------- Mara's missions at the level they start at ----------
     const story = await cmd('dsetup story')
-    check('a mission the map can\'t host is named with what it needs at its level (no heist with a safe: "Crack a safe", level 5)', /Mara's mission "Crack a safe" would be skipped for good: it needs an enabled heist with a safe that a level-5 robber can enter/.test(story), story.slice(0, 600))
+    check('a mission the map can\'t host is named with what it needs at its level (no heist with a safe: "Crack a safe", level 5), or the map hosts every one', /Mara's mission "Crack a safe" would be skipped for good: it needs an enabled heist with a safe that a level-5 robber can enter/.test(story) || /every mission of Mara's and Vic's can be done on this map/.test(story), story.slice(0, 600))
 
     // ---------- Places: a POI counted ----------
     bot = await join(A)
@@ -77,6 +77,9 @@ module.exports = async ({ check }) => {
     check('the plugins and the paid ranks\' LuckPerms groups are checked', /✔ every plugin is running/.test(all) && /✔ the paid ranks' groups exist/.test(all), line(all, /plugin/) + ' | ' + line(all, /paid ranks/))
     const phone = await cmd('dsetup phone')
     check('the phone\'s city and GPS roads as ✔/✘ lines (DonatingPhone\'s state on the main world)', /✔ the phones show the city: /.test(phone) && /(✔ the GPS follows the roads|✘ the GPS points straight at targets)/.test(phone), phone)
+    const prisonS = await cmd('dsetup prison')
+    check('/dsetup prison: the yard\'s Gun Shop door shut, it\'s keycard-only (2026-10-20)', /✔ the Gun Shop is keycard-only/.test(prisonS), line(prisonS, /Gun Shop/))
+    check('/dsetup prison: Sparks (the makeshift weapons, 2026-10-20) is checked with the other inmates', /✔ Sparks stands in the prison/.test(prisonS) && /✔ Lefty stands in the prison/.test(prisonS), line(prisonS, /Sparks/))
     const bogus = await cmd('dsetup heist')
     check('a mistyped section prints the usage, not an empty all-clear', /\/dsetup \[heists \| story/.test(bogus) && !/SETUP/.test(bogus), bogus)
 
@@ -91,7 +94,7 @@ module.exports = async ({ check }) => {
     if (poiId) await rcon.cmd(`zzconsole dpoi remove ${poiId}`).catch(() => {})
     await rcon.cmd(`dheist delete ${HID} confirm`).catch(() => {})
     await rcon.cmd(`rg remove -w world heist_${HID}`).catch(() => {})
-    await rcon.cmd('rg remove -w world safe_zsetup').catch(() => {})
+    await rcon.cmd('rg remove -w world safe_base_zsetup').catch(() => {})
     await rcon.cmd('rg remove -w world district_zsetup').catch(() => {})
     await rcon.cmd(`forceload remove ${X} ${Z} ${X + 10} ${Z + 10}`).catch(() => {})
     await rcon.cmd(`lp user ${A} permission unset donating.staff`).catch(() => {})

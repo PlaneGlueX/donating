@@ -17,9 +17,10 @@ module.exports = async ({ check }) => {
   try {
     await sleep(1000)
     // Leftover persistent mobs near spawn would kill the bot mid-test.
-    await rcon.cmd('minecraft:kill @e[type=!player,tag=!donating_shop,tag=!donating_wall]') // not the shopkeepers or wall maps
+    // Only around the pad: the jailbreak world's labels, furniture and parked cars are entities too.
+    await rcon.cmd('execute in minecraft:overworld positioned 0.5 68 -656.5 run minecraft:kill @e[type=!player,distance=..48,tag=!donating_shop,tag=!donating_wall]') // not the shopkeepers or wall maps
     await sleep(200)
-    await rcon.cmd('minecraft:kill @e[type=item]') // loot from the mobs killed above
+    await rcon.cmd('execute in minecraft:overworld positioned 0.5 68 -656.5 run minecraft:kill @e[type=item,distance=..48]') // loot from the mobs killed above
     await rcon.cmd(`gamemode survival ${NAME}`)
     // Solid ground first: the bot rejoins where it last was (once under water after another test's
     // platform went away, and it drowned mid-test).

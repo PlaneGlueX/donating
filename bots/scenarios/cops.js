@@ -49,6 +49,12 @@ module.exports = async ({ check }) => {
     await cmd('zzcfgtime alarm::wave-interval 4 seconds')
     await cmd('zzcfgset alarm::max-cops 3')
     await cmd('zzcfgset cop::per-wave 2')
+    // The assaults (heists.sk, 2026-10-21) held open, so these checks see the waves refill as before: one long assault
+    // with a pool that doesn't run out (the phases have their own scenario: assault.js).
+    await cmd('zzcfgset alarm::per-wave 2')
+    await cmd('zzcfgset alarm::assault-time 600')
+    await cmd('zzcfgset alarm::assault-max 600')
+    await cmd('zzcfgset alarm::pool 99')
     await cmd(`zzregion ${REGION} 960 199 960 970 205 970`)
     await cmd(`dheist create ${ID} 4`)
     await cmd(`dheist set ${ID} name Cop Bank`)
@@ -168,7 +174,9 @@ module.exports = async ({ check }) => {
     const gone = await until(async () => (await alive()) === 0 && /total=0/.test(await cops()), 6000)
     c = await combat(A)
     check('getting away: the alarm ends, every cop is removed, no longer wanted', gone && /wanted=false/.test(c) && /alarm=none/.test(await heist()), `${await cops()} / ${c} / ${await heist()}`)
-    check('...and no cop NPC is left in the world', /NPCS 0/.test(await npcs()), await npcs())
+    // The prison's guards (jailcops.sk, "Prison Guard": up to 10 minutes after the last inmate) and the stores' clerks (clerk.sk) aren't heist cops.
+    const heistNpcs = s => s.replace(/^NPCS \d+ ?/, '').split(' | ').filter(x => /^id=/.test(x) && !/( Prison Guard| Clerk) at /.test(x)).length
+    check('...and no cop NPC is left in the world', heistNpcs(await npcs()) === 0, await npcs())
     await cmd(`forceload remove 960 1080 970 1100`)
 
     // ---------- Killed by a cop = a cop death ----------

@@ -181,6 +181,10 @@ const wav = b => {
     json[`donating.gun.${ev}`] = { sounds: files }
   }
   if (preview) { console.log(`previewed ${Object.keys(json).length} events in ${preview}`); return }
-  fs.writeFileSync(path.join(OUT, 'sounds.json'), JSON.stringify(json, null, 2) + '\n')
+  // The pack's other events stay (the inmates' donating.voice.* lines: tools\make-voice-lines.js).
+  const file = path.join(OUT, 'sounds.json')
+  const before = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, '')) : {}
+  for (const [k, v] of Object.entries(before)) if (!k.startsWith('donating.gun.')) json[k] = v
+  fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
   console.log(`wrote ${Object.keys(json).length} gun sound events, ${Object.values(json).reduce((a, e) => a + e.sounds.length, 0)} files, ${Math.round(bytes / 1024)} KB`)
 })().catch(e => { console.error(e); process.exit(1) })

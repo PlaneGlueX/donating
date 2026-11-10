@@ -31,6 +31,7 @@ module.exports = async ({ check }) => {
     const bal = async name => Number(((await cmd(`zzbal ${name}`)).match(/: (-?\d+)/) || [])[1])
     const picks = async (name, tier) => Number(((await cmd(`zzpick ${name} ${tier} -1`)).match(/ (\d+) slot/) || [])[1] || 0)
     const gps = async name => cmd(`dphone gps ${name}`)
+    const wayOf = async id => ((await cmd('dphone way list')).match(new RegExp(`(?:^|[ :|] ?)${id}=([0-9a-f-]+)@`)) || [])[1] || null
     const until = async (fn, ms = 5000) => {
       const end = Date.now() + ms
       while (Date.now() < end) { if (await fn()) return true; await sleep(250) }
@@ -51,12 +52,6 @@ module.exports = async ({ check }) => {
       await sleep(300)
       return w
     }
-    const uuidOf = async sel => {
-      const m = (await cmd(`data get entity ${sel} UUID`)).match(/\[I; (-?\d+), (-?\d+), (-?\d+), (-?\d+)\]/)
-      if (!m) return ''
-      const hex = m.slice(1).map(n => (Number(n) >>> 0).toString(16).padStart(8, '0')).join('')
-      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-    }
     const npc = name => Object.values(bots[name].entities).find(e => e.name === 'mannequin' && e.position.distanceTo(new (require('vec3').Vec3)(...GIVER)) < 1)
     const tp = async (name, [x, y, z], yaw = 0) => { await cmd(`zzheisttp ${name} ${x} ${y} ${z}`); await sleep(300); await cmd(`minecraft:tp ${name} ${x} ${y} ${z} ${yaw} 0`) }
     const phoneOpen = async name => /Test passed/.test(await cmd(`execute if entity @a[name=${name},tag=donating_phone_open]`))
@@ -75,6 +70,8 @@ module.exports = async ({ check }) => {
       await cmd(`eco set ${name} 100000`)
       for (const t of ['basic', 'pro', 'master']) await cmd(`zzpick ${name} ${t} 0`)
     }
+    // The checks below lead players to the giver; the found-not-led rule (quest::contracts::secret) is checked at the end.
+    await cmd('zzcfgbool quest::contracts::secret false')
     const waypoints = []
     bots[Q]._client.on('tracked_waypoint', p => waypoints.push(p))
     await tp(Q, AWAY)
@@ -96,15 +93,15 @@ module.exports = async ({ check }) => {
     check('a giver is a named NPC ("Quest Yard Boss", "Car contracts" under it) holding a lockpick', giverN !== '' && /Quest Yard Boss/.test(name) && /text: "Car contracts"/.test(desc) && /flint/.test(hand) && /lockpick_basic/.test(hand), `${r} | ${name} | ${desc} | ${hand}`)
     // An NPC summoned with an older look (before the description changed) is replaced by one with the new look.
     const uuid0 = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] UUID`)
-    await cmd(`tag @e[tag=questg_${giverN}] remove questlook_2`)
-    await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN},tag=questlook_2]`)), 33000)
+    await cmd(`tag @e[tag=questg_${giverN}] remove questlook_3`)
+    await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN},tag=questlook_3]`)), 33000)
     const uuid1 = await cmd(`data get entity @e[tag=questg_${giverN},limit=1] UUID`)
     const count1 = await cmd(`execute if entity @e[tag=questg_${giverN}]`)
     check('an NPC with an older look is replaced by one new NPC (within 30 s)', /\[I;/.test(uuid1) && uuid1 !== uuid0 && /Count: 1\b/.test(count1), `${uuid0} -> ${uuid1} | ${count1}`)
     await until(async () => Boolean(npc(Q)), 3000)
     check('players see it (a mannequin)', Boolean(npc(Q)), Object.values(bots[Q].entities).map(e => e.name).filter(n => n !== 'player').join(','))
-    await until(async () => /Test passed/.test(await cmd(`execute if entity @e[tag=poi_q_${giverN}]`)), 12000)
-    const dotId = await uuidOf(`@e[tag=poi_q_${giverN},limit=1]`)
+    await until(async () => Boolean(await wayOf(`q_${giverN}`)), 12000)
+    const dotId = await wayOf(`q_${giverN}`)
     await until(async () => waypoints.some(p => p.waypoint && p.waypoint.uuid === dotId), 12000)
     const dot = waypoints.filter(p => p.waypoint && p.waypoint.uuid === dotId && p.waypoint.icon && p.waypoint.icon.color).pop()
     const c = dot && dot.waypoint.icon.color
@@ -203,6 +200,23 @@ module.exports = async ({ check }) => {
     check('next to the giver the job is taken', field(await cmd(`zzctstate ${Q}`), 'job') === 'basic' && /steal the Red Sedan/.test(text(Q, t)), `${await cmd(`zzctstate ${Q}`)} ${text(Q, t)}`)
     await cmd(`zzctreset ${Q}`)
 
+    // ---------- Found, not led to (owner, 2026-10-22: "no pins anywhere after the first time going there") ----------
+    await cmd('zzcfgbool quest::contracts::secret true')
+    const noDot = await until(async () => (await wayOf(`q_${giverN}`)) === null, 12000)
+    check('a secret giver (the Scrap Yard Boss) has no dot on the locator bar', noDot, await cmd('dphone way list'))
+    await tp(Q, AWAY)
+    await sleep(3500)
+    bots[Q].chat('/gps clear')
+    await sleep(500)
+    const { qw: sw, s: sSlot } = await gpsQuests()
+    const sEntry = sSlot >= 0 ? itemText(sw.slots[sSlot]) : ''
+    t = Date.now()
+    if (sSlot >= 0) bots[Q].clickWindow(sSlot, 0, 0).catch(() => {})
+    await sleep(1200)
+    g = await gps(Q)
+    check('...and after the first visit (Q talked to him above) the GPS names him without a distance and a click pins nothing', /you know the way/.test(sEntry) && !/Quest Yard Boss . \d+m/.test(sEntry) && field(g, 'active') !== 'pin' && /find your own way back/.test(text(Q, t)), `${sEntry.slice(0, 300)} | ${g} | ${text(Q, t)}`)
+    await closeAll(Q)
+
     // ---------- It stays; staff remove it ----------
     await cmd(`minecraft:kill @e[tag=questg_${giverN}]`)
     // ...and an NPC whose giver has no record (a world uploaded with its NPCs, the records made anew).
@@ -217,7 +231,7 @@ module.exports = async ({ check }) => {
     r = await cmd(`dquest remove ${giverN}`)
     await sleep(500)
     const list = await cmd('dquest list')
-    check('/dquest remove takes the NPC and its dot', /removed/.test(r) && !/Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN}]`)) && !/Test passed/.test(await cmd(`execute if entity @e[tag=poi_q_${giverN}]`)) && !new RegExp(`^QUEST ${giverN}:`, 'm').test(list), `${r} ${list}`)
+    check('/dquest remove takes the NPC and its dot', /removed/.test(r) && !/Test passed/.test(await cmd(`execute if entity @e[tag=questg_${giverN}]`)) && (await wayOf(`q_${giverN}`)) === null && !new RegExp(`^QUEST ${giverN}:`, 'm').test(list), `${r} ${list}`)
     const giverGone = giverN
     giverN = ''
     await tp(Q, AWAY)

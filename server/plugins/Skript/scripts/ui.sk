@@ -47,10 +47,9 @@ function phoneTitle(kind: text, status: text) :: text:
 		return "&8%{_status}%"
 	return "&f%uiSpace(-8)%%{_bg}%%uiSpace(-132)%&f%{_status}%"
 
-# The world's time for the status bar's clock ("22:42").
+# The status bar's clock: the city's 12-hour clock (clock.sk, "3:45 PM"; until 2026-10-21 the world's "22:42").
 function phoneClock(p: player) :: text:
-	set {_w} to world of {_p}
-	return "%time in {_w}%"
+	return clockText(clockOfDay())
 
 # ---------- Phone pages (every app inside the phone looks like the GPS pages) ----------
 # A page: 6 rows, the app background, its name in the status bar (keep it under ~11 characters: the status bar is

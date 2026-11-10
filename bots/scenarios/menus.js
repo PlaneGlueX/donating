@@ -272,8 +272,12 @@ module.exports = async ({ check }) => {
     await closeAll(A)
 
     // ---------- Shops ----------
-    // The gun shop: Weapons, Ammo and Items get "◀ Back" (slot 53) to the Loadout tab, the first page; Loadout has none.
+    // The gun shop: Weapons, Ammo and Items get "◀ Back" (slot 53) to the Loadout tab; Loadout has none. With no weapon it
+    // opens on Weapons (2026-11-05: an empty Loadout page looked like an empty shop).
     w = await opens(A, () => cmd(`dshop open ${A} gun`))
+    const firstTab = await cmd(`zzshop ${A}`)
+    check('the gun shop opens on Weapons for a player who owns none', /tab=weapons/.test(firstTab), firstTab)
+    await clickInPlace(A, 53)
     const loadoutArrows = arrows(A)
     for (const [tab, slot] of [['Weapons', 47], ['Ammo', 49], ['Items', 51]]) {
       await clickInPlace(A, slot)

@@ -22,6 +22,8 @@ module.exports = async ({ check }) => {
       await rcon.cmd(`zzpassive ${name} off`)
       await rcon.cmd(`zzbountyreset ${name}`)
       await rcon.cmd(`zzcombatend ${name}`)
+      // All on the same side of the prison fence (no hits through it): a bot rejoins where it last stood.
+      await rcon.cmd(`zzheisttp ${name} 530.5 65 130.5`)
     }
     for (const name of [A, B, C]) await setup(name)
     await rcon.cmd('zzbountyip off') // every local bot has the same IP
@@ -31,7 +33,9 @@ module.exports = async ({ check }) => {
     const bal = async name => Number(((await rcon.cmd(`zzbal ${name}`)).match(/: (-?\d+)/) || [])[1])
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const said = (name, t, re) => messagesSince(bots[name], t).some(m => re.test(m.text))
+    const together = async (...names) => { for (const n of names) { await rcon.cmd(`zzclear ${n}`); await rcon.cmd(`zzheisttp ${n} 530.5 65 130.5`) } await sleep(500) }
     const kill = async (victim, killer) => {
+      await together(victim, killer)
       await rcon.cmd(`zzshieldoff ${victim}`) // pvp.sk's spawn shield after the last respawn
       await rcon.cmd(`damage ${victim} 1000 minecraft:player_attack by ${killer}`)
       await sleep(1500)
@@ -116,6 +120,7 @@ module.exports = async ({ check }) => {
     // A just respawned: EssentialsX's spawn-on-respawn is a teleport, and its teleport protection
     // blocks player hits for 4 s.
     await sleep(5000)
+    await together(A, B)
     await rcon.cmd(`zzshieldoff ${A}`)
     await rcon.cmd(`damage ${A} 1 minecraft:player_attack by ${B}`) // tags A, credited to B
     await sleep(500)

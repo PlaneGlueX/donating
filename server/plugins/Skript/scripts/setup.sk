@@ -6,7 +6,7 @@
 # stand, crate stands in safe zones, the plugins, the paid-rank groups, and the phone's city and GPS roads (DonatingPhone
 # publishes them as metadata on the main world).
 #   /dsetup            every section
-#   /dsetup <section>  heists | story | places | flags | shops | quests | jobs | crates | cars | server | phone
+#   /dsetup <section>  heists | story | places | flags | shops | quests | jobs | crates | cars | fuel | server | phone | prison
 
 function setupLine(s: command sender, kind: text, text: text):
 	if {_kind} is "ok":
@@ -82,13 +82,10 @@ function setupRegionAt(l: location, prefix: text) :: boolean:
 			return true
 	return false
 
-# Can a robber of this level enter this heist (a store also has a max level)?
+# Can a robber of this level enter this heist (level minimums only since 2026-10-21)?
 function setupEnterable(h: text, lvl: number) :: boolean:
 	if heistLevel({_h}) > {_lvl}:
 		return false
-	if heistIsStore({_h}) is true:
-		if {_lvl} > heistMaxLevel({_h}):
-			return false
 	return true
 
 # How many enabled heists a robber of this level can enter that fit a story need ("" = any).
@@ -153,23 +150,37 @@ function setupHeists(s: command sender):
 			add "disabled (/dheist enable %{_h}% when it's ready)" to {_bad::*}
 		set {_lv} to heistLevel({_h})
 		if heistIsStore({_h}) is true:
-			if {_lv} > heistMaxLevel({_h}):
-				add "its level %{_lv}% is above a store's max level %heistMaxLevel({_h})%: nobody can enter (/dheist set %{_h}% level 0)" to {_bad::*}
-			else:
-				add 1 to {_stores}
+			add 1 to {_stores}
+			# The clerk (clerk.sk, 2026-10-21): without one the register is open to anyone. Stores have no police unless
+			# set (heistPolice): only then the cop spots matter.
+			if clerkOn() is true:
+				set {_cl} to clerkSpot({_h})
+				if {_cl} is not set:
+					add "no clerk: the register is open to anyone (/dclerk %{_h}% set, behind the register)" to {_warn::*}
+				else if heistAt({_cl}) is not {_h}:
+					add "its clerk stands outside the store (/dclerk %{_h}% set, behind the register)" to {_bad::*}
+				else:
+					if size of {store::%{_h}%::shelf::*} is 0:
+						add "the clerk has no shelves to run to: it throws from the counter (/dclerk %{_h}% shelf add)" to {_warn::*}
+					if heistPolice({_h}) is true:
+						if size of {heist::%{_h}%::cops::*} is 0:
+							add "no cop spots, the clerk's police come to the exit spot (/dcops %{_h}% add, a street corner away)" to {_warn::*}
 		if {_lv} > cfg("level::max"):
 			add "its level %{_lv}% is above the highest level (/dheist set %{_h}% level <n>)" to {_bad::*}
 		if heistIsAdvanced({_h}) is true:
-			set {_spots::*} to copSpots({_h})
-			if size of {_spots::*} is 0:
-				add "no cops will come: no cop spot or exit spot outside safe zones (/dcops %{_h}% add)" to {_bad::*}
-			else if size of {heist::%{_h}%::cops::*} is 0:
-				add "no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)" to {_warn::*}
-			# Only a camera, a drill or a trap with effect=alarm trips it: without one, no cops and no getaway (review fix).
-			if {_alarms} + {_alarmtraps} is 0:
-				add "nothing trips its alarm, so no cops and no getaway (a camera, a drill, or a trap with effect=alarm)" to {_bad::*}
-			if size of {heist::%{_h}%::lock::*} is 0:
-				add "no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)" to {_warn::*}
+			if heistPolice({_h}) is not true:
+				add "advanced, but its police are off: no alarm, no cops, no getaway (/dheist set %{_h}% police default)" to {_warn::*}
+			else:
+				set {_spots::*} to copSpots({_h})
+				if size of {_spots::*} is 0:
+					add "no cops will come: no cop spot or exit spot outside safe zones (/dcops %{_h}% add)" to {_bad::*}
+				else if size of {heist::%{_h}%::cops::*} is 0:
+					add "no cop spots, cops come to the exit spot (/dcops %{_h}% add, a street corner or two away)" to {_warn::*}
+				# Only a camera, a drill or a trap with effect=alarm trips it: without one, no cops and no getaway (review fix).
+				if {_alarms} + {_alarmtraps} is 0:
+					add "nothing trips its alarm, so no cops and no getaway (a camera, a drill, or a trap with effect=alarm)" to {_bad::*}
+				if size of {heist::%{_h}%::lock::*} is 0:
+					add "no window locks for the alarm (/dheist lock %{_h}% add x1 y1 z1 x2 y2 z2)" to {_warn::*}
 		else if {_alarmtraps} > 0:
 			add "%{_alarmtraps}% alarm trap(s) do nothing: the heist isn't advanced (/dheist set %{_h}% advanced true)" to {_warn::*}
 		set {_label} to "%heistName({_h})% (%{_h}%, difficulty %heistDifficulty({_h})%, level %{_lv}%, %{_piles}% piles)"
@@ -275,24 +286,11 @@ function setupPlaces(s: command sender):
 	setupHead({_s}, "Places")
 	set {_bp} to cfg("bag::base-prefix")
 	set {_sp} to cfg("pvp::safe-prefix")
-	set {_gp} to cfg("garage::region-prefix")
 	set {_base} to setupRegions({_bp})
 	if {_base} > 0:
 		setupLine({_s}, "ok", "%{_base}% base zone(s) where loot sells (regions %{_bp}%*)")
 	else:
 		setupLine({_s}, "no", "no base zone: loot can't be sold (/rg define %{_bp}%, passthrough allow, weapon-shoot deny)")
-	# Safe zones besides the base and the garages (spawn, the shops).
-	set {_zones} to 0
-	loop all regions in poiMainWorld():
-		set {_id} to name of loop-value
-		if {_id} starts with {_sp}:
-			if {_id} does not start with {_bp}:
-				if {_id} does not start with {_gp}:
-					add 1 to {_zones}
-	if {_zones} > 0:
-		setupLine({_s}, "ok", "%{_zones}% other safe zone(s) (spawn, the shops)")
-	else:
-		setupLine({_s}, "warn", "no safe zone besides the base and garages: spawn and the shops want one (/rg define %{_sp}%_spawn ...)")
 	loop "base", "shop" and "spawn":
 		set {_n} to setupPois(loop-value)
 		if {_n} > 0:
@@ -309,9 +307,6 @@ function setupPlaces(s: command sender):
 			if {_a::1} is "base":
 				if setupRegionAt({_l}, {_bp}) is false:
 					setupLine({_s}, "no", "base POI %loop-index% (%{_a::6}%) isn't inside a base zone: robbers the GPS leads there can't sell (/dpoi remove %loop-index%, add it inside)")
-			else if {_a::1} is "spawn":
-				if isSafeZone({_l}) is false:
-					setupLine({_s}, "warn", "spawn POI %loop-index% isn't inside a safe zone")
 	# Mara's missions find the shops on the GPS by a word in their POI's name (review fix).
 	loop "Gun", "Bag", "Gear" and "Car":
 		if setupPoiNamed("shop", loop-value) is false:
@@ -340,9 +335,11 @@ function setupFlags(s: command sender):
 			if flag "passthrough" of loop-value is not true:
 				setupLine({_s}, "no", "%{_id}% protects everything inside (no PvP, doors, NPC or loot clicks) (/rg flag -w %{_w}% %{_id}% passthrough allow)")
 				add 1 to {_bad}
-			if {_id} starts with {_sp}:
+			if isSafeId({_id}) is true:
 				if flag "weapon-shoot" of loop-value is not false:
 					setupLine({_s}, "warn", "%{_id}%: guns fire in this safe zone (/rg flag -w %{_w}% %{_id}% weapon-shoot deny)")
+			else if flag "weapon-shoot" of loop-value is false:
+				setupLine({_s}, "warn", "%{_id}%: no guns fire here, though only the bases are safe (/rg flag -w %{_w}% %{_id}% weapon-shoot)")
 	if {_bad} is 0:
 		setupLine({_s}, "ok", "%{_n}% region(s), every one with passthrough allow")
 
@@ -366,11 +363,6 @@ function setupShops(s: command sender):
 	if size of {garagesites::*} > 0:
 		if setupKeepers("garage") is 0:
 			setupLine({_s}, "warn", "no garage attendant: /garage still works in the garage (/dshopkeeper add garage)")
-	loop {shop::keepers::*}:
-		set {_l} to {shop::keeper::%loop-index%::loc}
-		if {_l} is set:
-			if isSafeZone({_l}) is false:
-				setupLine({_s}, "warn", "shopkeeper %loop-index% (%loop-value%) isn't inside a safe zone: shoppers can be shot")
 
 # ---------- Quest givers ----------
 
@@ -391,11 +383,6 @@ function setupQuests(s: command sender):
 			setupLine({_s}, "warn", "%{_who}% isn't on the map: her missions wait (/missions has Call Mara) (/dquest add story %{_place}%)")
 		else:
 			setupLine({_s}, "warn", "%{_who}% isn't on the map (/dquest add %{_k}% %{_place}%)")
-	loop {quest::giver::*}:
-		set {_l} to questLoc(loop-index)
-		if {_l} is set:
-			if isSafeZone({_l}) is false:
-				setupLine({_s}, "warn", "quest giver %loop-index% (%questNpcName(loop-index)%) isn't inside a safe zone: players in its menu can be shot")
 
 # ---------- Car jobs and hits ----------
 
@@ -479,6 +466,26 @@ function setupCars(s: command sender):
 				if garageSiteOf({_l}) is "":
 					setupLine({_s}, "no", "garage POI %loop-index% (%{_a::6}%) isn't inside a garage site with an exit lane: ""Find a garage"" leads nowhere (/dpoi remove %loop-index%)")
 
+# Fuel and stolen bikes (2026-10-21, fuel.sk and bikes.sk).
+function setupFuel(s: command sender):
+	setupHead({_s}, "Fuel and bikes")
+	if fuelOn() is true:
+		set {_n} to size of {fuel::pump::*}
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%{_n}% fuel pump(s)")
+		else:
+			setupLine({_s}, "no", "fuel is on but no pump exists: cars run dry with nowhere to fill (the dfuel pumpat lines of town.js setup, or /dfuel pump add <label>)")
+	else:
+		setupLine({_s}, "warn", "fuel is off (core.sk fuel::enabled)")
+	set {_b} to size of {bike::spot::*}
+	if {_b} > 0:
+		if bikeVariant() is "":
+			setupLine({_s}, "no", "%{_b}% bike spot(s) but no bike look: run tools\make-car-wraps.js (the Scrapper wrap), build the pack, /sk reload carwraps")
+		else:
+			setupLine({_s}, "ok", "%{_b}% bike spot(s)")
+	else:
+		setupLine({_s}, "warn", "no bike spots: the bike shop has no bikes (/dbike spotat lines, PLAN 15.3)")
+
 # ---------- Server ----------
 
 function setupServer(s: command sender):
@@ -543,6 +550,162 @@ function setupPhone(s: command sender):
 	else:
 		setupLine({_s}, "no", "the GPS points straight at targets: %{_roads}% (/dphone roads scan, after the city scan)")
 
+# ---------- The prison (prison.sk; ESCAPE-SPEC 4.11) ----------
+
+# A spot inside the prison outline (works with the prison switched off).
+function setupInPrison(l: location) :: boolean:
+	if jailWorld() is not set:
+		return false
+	return jailPolyRaw({_l}, "wall")
+
+function setupPrison(s: command sender):
+	setupHead({_s}, "The prison")
+	set {_w} to jailWorld()
+	if {_w} is set:
+		setupLine({_s}, "ok", "the prison world %{_w}% is loaded")
+	else:
+		setupLine({_s}, "no", "the prison world %{-cfg::prison::world}% isn't loaded (Multiverse: /mv load %{-cfg::prison::world}%)")
+		stop
+	if {-jailpts::loaded} is not set:
+		jailPointsLoad()
+	if {-jailpts::loaded} is true:
+		setupLine({_s}, "ok", "jailpoints.sk loaded (%{-jailpts::count}% points)")
+	else:
+		setupLine({_s}, "no", "jailpoints.sk isn't loaded (node tools/build/jail.js points, then /sk reload jailpoints)")
+		stop
+	set {_nw} to size of {-jailwall::*}
+	set {_ni} to size of {-jailinner::*}
+	if {_nw} >= 20:
+		if {_ni} >= 30:
+			setupLine({_s}, "ok", "the outline (%{_nw}% vertices) and the inner outline (%{_ni}%)")
+		else:
+			setupLine({_s}, "no", "the inner outline has %{_ni}% vertices (30+ expected): regenerate jailpoints.sk")
+	else:
+		setupLine({_s}, "no", "the outline has %{_nw}% vertices (20+ expected): regenerate jailpoints.sk")
+	set {_bad} to ""
+	loop jailDoorNames():
+		if size of {-jaildoor::%loop-value%::*} is 0:
+			set {_bad} to "%{_bad}% %loop-value%"
+	if {_bad} is "":
+		setupLine({_s}, "ok", "every door has its blocks (%size of jailDoorNames()% doors, the gatehouse's too)")
+	else:
+		setupLine({_s}, "no", "doors without blocks:%{_bad}% (regenerate jailpoints.sk)")
+	set {_bad} to ""
+	loop "gate", "punch", "front" and "dig":
+		if size of {-jailbreach::%loop-value%::*} is 0:
+			set {_bad} to "%{_bad}% %loop-value%"
+	if {_bad} is "":
+		setupLine({_s}, "ok", "the breach and the gates have their blocks (gate, punch, front, the dugout)")
+	else:
+		setupLine({_s}, "no", "breaches without blocks:%{_bad}% (regenerate jailpoints.sk)")
+	if {-jailbr::state::front} is "open":
+		setupLine({_s}, "ok", "the front gate is open right now")
+	else:
+		set {_off} to 0
+		loop {-jailbreach::front::*}:
+			set {_a::*} to loop-value split at "|"
+			set {_x} to {_a::1} parsed as number
+			set {_y} to {_a::2} parsed as number
+			set {_z} to {_a::3} parsed as number
+			set {_base::*} to {_a::4} split at "["
+			if "%block data of block at location({_x}, {_y}, {_z}, {_w})%" does not contain {_base::1}:
+				add 1 to {_off}
+		if {_off} is 0:
+			setupLine({_s}, "ok", "the front gate is closed")
+		else:
+			setupLine({_s}, "no", "the front gate has %{_off}% blocks out of place (/dprison setup)")
+	# The yard's Gun Shop is keycard-only (2026-10-20): its door shut as built (or open for a pulse right now).
+	set {_gopen} to false
+	if {-jail::doorclose::gunshop} is set:
+		if {-jail::doorclose::gunshop} > now:
+			set {_gopen} to true
+	set {_gbad} to 0
+	set {_gn} to 0
+	loop {-jaildoor::gunshop::*}:
+		add 1 to {_gn}
+		set {_a::*} to loop-value split at "|"
+		set {_x} to {_a::1} parsed as number
+		set {_y} to {_a::2} parsed as number
+		set {_z} to {_a::3} parsed as number
+		if "%block data of block at location({_x}, {_y}, {_z}, {_w})%" does not contain "open=false":
+			add 1 to {_gbad}
+	if {_gn} is 0:
+		setupLine({_s}, "no", "the Gun Shop's door has no blocks (regenerate jailpoints.sk)")
+	else if {_gopen} is true:
+		setupLine({_s}, "ok", "the Gun Shop is keycard-only (open for a keycard right now)")
+	else if {_gbad} is 0:
+		setupLine({_s}, "ok", "the Gun Shop is keycard-only")
+	else:
+		setupLine({_s}, "no", "the Gun Shop's door stands open: it's keycard-only (/dprison setup)")
+	set {_k} to 0
+	loop {shop::keepers::*}:
+		if loop-value is "gun":
+			set {_kl} to {shop::keeper::%loop-index%::loc}
+			if {_kl} is set:
+				if world of {_kl} is {_w}:
+					add 1 to {_k}
+	if {_k} > 0:
+		setupLine({_s}, "ok", "the Prison Gun Shop has its keeper (%{_k}%)")
+	else:
+		setupLine({_s}, "no", "no gun shopkeeper in the prison world (/dprison setup)")
+	loop "lefty", "rusty", "tank", "whisper" and "sparks":
+		set {_n} to 0
+		loop {quest::giver::*}:
+			set {_a::*} to loop-value-2 split at "|"
+			if {_a::1} is loop-value-1:
+				if {_a::2} is "%{_w}%":
+					add 1 to {_n}
+		if {_n} > 0:
+			setupLine({_s}, "ok", "%setupNpc(loop-value-1)% stands in the prison")
+		else:
+			setupLine({_s}, "no", "%setupNpc(loop-value-1)% isn't in the prison (/djailjobs setup)")
+	set {_m} to 0
+	loop all entities in {_w}:
+		if loop-entity is a monster:
+			add 1 to {_m}
+	if {_m} is 0:
+		setupLine({_s}, "ok", "no monsters in the prison world")
+	else:
+		setupLine({_s}, "no", "%{_m}% monsters in the prison world: run /dprison setup (it turns spawn_mobs off there)")
+	# City things placed inside the outline belong to the city.
+	loop {poi::*}:
+		set {_a::*} to loop-value split at "|"
+		set {_pw} to world({_a::2})
+		if {_pw} is set:
+			set {_l} to location(({_a::3} parsed as number), ({_a::4} parsed as number), ({_a::5} parsed as number), {_pw})
+			if setupInPrison({_l}) is true:
+				setupLine({_s}, "no", "POI %loop-index% (%{_a::6}%) is inside the prison: /dpoi remove %loop-index%")
+	loop {quest::giver::*}:
+		set {_a::*} to loop-value split at "|"
+		if {_a::1} is "contracts" or "story" or "fence" or "hits":
+			set {_l} to questLoc(loop-index)
+			if {_l} is set:
+				if setupInPrison({_l}) is true:
+					setupLine({_s}, "no", "quest giver %loop-index% (%questNpcName(loop-index)%) is inside the prison: /dquest remove %loop-index%")
+	loop {contract::spot::*}:
+		if setupInPrison(loop-value) is true:
+			setupLine({_s}, "no", "car-job spot %loop-index% is inside the prison: /dcontract spot remove %loop-index%")
+	loop {contract::chop::*}:
+		if setupInPrison(loop-value) is true:
+			setupLine({_s}, "no", "chop shop %loop-index% is inside the prison: /dcontract chop remove %loop-index%")
+	loop {crateblock::*}:
+		set {_a::*} to loop-index split at ":"
+		set {_cw} to world({_a::1})
+		if {_cw} is set:
+			set {_l} to location(({_a::2} parsed as number), ({_a::3} parsed as number), ({_a::4} parsed as number), {_cw})
+			if setupInPrison({_l}) is true:
+				setupLine({_s}, "no", "a crate stand (%loop-index%) is inside the prison: /dcrate remove there")
+	loop {garagesites::*}:
+		set {_gs} to loop-index
+		loop {garagesite::%{_gs}%::exit::*}:
+			if setupInPrison(garageSpotLoc(loop-value-2)) is true:
+				setupLine({_s}, "no", "garage site %{_gs}% has an exit lane inside the prison")
+	if {-cfg::prison::enabled} is not true:
+		setupLine({_s}, "warn", "prison::enabled is off (core.sk): new players start in the city, deaths don't send anyone to the prison")
+	set {_c} to size of {-jailcop::id::*}
+	setupLine({_s}, "warn", "prison cops alive: %{_c}% (they spawn when someone is inside)")
+	setupLine({_s}, "warn", "Citizens config.yml: default-stuck-action: none (else a stuck wall cop is teleported to its target)")
+
 command /dsetup [<text>]:
 	permission: donating.staff
 	permission message: &cStaff only.
@@ -552,8 +715,8 @@ command /dsetup [<text>]:
 			set {_w} to "all"
 		set {_w} to {_w} in lower case
 		# A mistyped section would print an empty all-clear (review fix).
-		if {_w} is not "all" or "heists" or "story" or "places" or "flags" or "shops" or "quests" or "jobs" or "crates" or "cars" or "server" or "phone":
-			send "/dsetup [heists | story | places | flags | shops | quests | jobs | crates | cars | server | phone]: the launch checklist" to sender
+		if {_w} is not "all" or "heists" or "story" or "places" or "flags" or "shops" or "quests" or "jobs" or "crates" or "cars" or "fuel" or "server" or "phone" or "prison":
+			send "/dsetup [heists | story | places | flags | shops | quests | jobs | crates | cars | fuel | server | phone | prison]: the launch checklist" to sender
 			stop
 		set {-setup::missing} to 0
 		set {-setup::warn} to 0
@@ -576,10 +739,14 @@ command /dsetup [<text>]:
 			setupCrates(sender)
 		if {_w} is "all" or "cars":
 			setupCars(sender)
+		if {_w} is "all" or "fuel":
+			setupFuel(sender)
 		if {_w} is "all" or "server":
 			setupServer(sender)
 		if {_w} is "all" or "phone":
 			setupPhone(sender)
+		if {_w} is "all" or "prison":
+			setupPrison(sender)
 		send colored "&6SETUP %{-setup::missing}% missing, %{-setup::warn}% to look at" to sender
 		delete {-setup::missing}
 		delete {-setup::warn}

@@ -1,4 +1,4 @@
-// Draws the shopkeepers' skins (group "keepers"): gun, gear, bag, tools, cars, garage.
+// Draws the shopkeepers' skins (group "keepers"): gun, gear, bag, tools, cars, garage, a store's clerk (clerk), and the Casino's dealer and cashier.
 // Standard 64x64 player skin layout (classic, 4-pixel arms), like tools\make-cop-skin.js.
 // Each skin goes to server\plugins\Citizens\skins\<id>.png and tools\skins\<id>.png, and a preview
 // (front, back, both sides, the top of the head, the raw sheet) to tools\skins\preview-<id>.png.
@@ -504,8 +504,120 @@ const garage = (() => {
   }
 })()
 
+
+// ============================================================ clerk: a store's clerk (clerk.sk, 2026-10-21)
+// A red store polo with a white collar and a name badge, a red cap with the store's white dot, short brown hair,
+// khaki trousers with a black belt, black sneakers with white soles.
+const clerk = (() => {
+  const S = hex(228, 180, 142); const H = hex(92, 62, 40); const C = hex(196, 40, 44); const P = hex(206, 50, 54)
+  const K = hex(198, 172, 122)
+  const pal = {
+    S, s: shade(S, 0.86), n: shade(S, 0.78), m: hex(170, 92, 84),
+    H, h: shade(H, 1.2), b: shade(H, 0.8),
+    W: WHITE, i: hex(56, 86, 120),
+    C, c: shade(C, 0.78), B: shade(C, 0.62),
+    P, p: shade(P, 0.84), o: shade(P, 0.7), N: hex(70, 74, 82), w: hex(250, 250, 248),
+    K, k: shade(K, 0.84), x: hex(30, 30, 34), X: hex(44, 44, 48)
+  }
+  return {
+    id: 'clerk',
+    look: 'a red store polo with a white collar and a name badge, a red cap with a white dot, short brown hair, khaki trousers with a black belt, black sneakers with white soles',
+    pal,
+    head: {
+      top: rep(8, 'HHHHHHHH'),
+      bottom: rep(8, 'SSSSSSSS'),
+      front: ['HHHHHHHH', 'HHhHHHHH', 'HSSSSSSH', 'SbbSSbbS', 'SWiSSiWS', 'SSSnnSSS', 'SSmmmmSS', 'sSSSSSSs'],
+      side: ['HHHHHHHH', 'HHHHhHHH', 'HHHHHHSS', 'HHHsSSSS', 'HHHnSSSS', 'HHSSSSSS', 'HSSSSSSS', 'sSSSSSSS'],
+      back: ['HHHHHHHH', 'HHhHHHHH', 'HHHHHhHH', 'HHHHHHHH', 'HHhHHHHH', 'HHHHHHHH', 'HbHHHHbH', 'ssssssss']
+    },
+    hat: { // the cap: a white dot on the front, a dark brim, the strap at the back
+      top: ['CCCCCCCC', 'CCCCCCCC', 'CCcCCCCC', 'CCCCCCCC', 'CCCCCcCC', 'CCCCCCCC', 'CCCCCCCC', 'BBBBBBBB'],
+      front: ['CCCwwCCC', 'BBBBBBBB', ...rows(6, '........')],
+      side: ['CCCCCCCC', 'cccccBBB', ...rows(6, '........')],
+      back: ['CCCCCCCC', 'CCcwwcCC', ...rows(6, '........')]
+    },
+    body: {
+      top: rows(4, 'PPPPPPPP'), bottom: rows(4, 'KKKKKKKK'),
+      front: ['PwSSSSwP', 'PPwSSwPP', 'PPPPwPPP', 'PwwPPPPP', 'PNNPwPPP', 'PPPPPPpP', 'PpPPPPPP', 'PPPPPPPP', 'PPPpPPPP', 'PPPPPPPP', 'xxxxXxxx', 'KKKKKKKK'],
+      back: ['PwwwwwwP', 'PPPPPPPP', 'PPPpPPPP', 'PPPPPPPP', 'PPPPPpPP', 'PpPPPPPP', 'PPPPPPPP', 'PPPPpPPP', 'PPPPPPPP', 'PPPPPPPP', 'xxxxxxxx', 'KKKKKKKK'],
+      side: ['PPPP', 'PPPP', 'PpPP', 'PPPP', 'PPPP', 'PPpP', 'PPPP', 'PPPP', 'PPPP', 'PPPP', 'xxxx', 'KKKK']
+    },
+    arm: { // short polo sleeves with a darker hem
+      top: rep(4, 'PPPP'), bottom: rep(4, 'SSSS'),
+      outer: puts(rep(4, 'PPPoSSSSSSSs'), [[1, 1, 'p'], [2, 7, 'n']]),
+      front: puts(rep(4, 'PPPoSSSSSSSs'), [[2, 6, 's']]),
+      inner: rep(4, 'PPPossSSSSSs'),
+      back: puts(rep(4, 'PPPoSSSSSSSs'), [[1, 8, 's']])
+    },
+    leg: {
+      top: rep(4, 'KKKK'), bottom: rep(4, 'XXXX'),
+      outer: puts(rep(4, 'KKKKKKKKKXXw'), [[1, 4, 'kk']]),
+      front: puts(rep(4, 'KKKKKKKKKXXw'), [[3, 2, 'k'], [3, 3, 'k'], [0, 9, 'xx']]),
+      inner: rep(4, 'kKKKKKKKKXXw'),
+      back: puts(rep(4, 'KKKKKKKKKXXw'), [[1, 6, 'kk']])
+    }
+  }
+})()
+
+// ============================================================ dealer, cashier: the Casino's floor staff (casino.sk)
+// A white shirt, a vest, a bow tie, dark trousers. The dealer: a black vest, a red tie, slicked black hair. The cashier:
+// a burgundy vest, gold sleeve garters, a green eyeshade, brown hair.
+const casinoStaff = ({ id, look, skin, hair, vest, tie, shade: visor, garter }) => {
+  const S = hex(...skin); const H = hex(...hair); const V = hex(...vest); const R = hex(...tie); const K = hex(30, 30, 36)
+  const pal = {
+    S, s: shade(S, 0.86), n: shade(S, 0.78), m: hex(170, 92, 84),
+    H, h: shade(H, 1.25), b: shade(H, 0.8),
+    W: WHITE, i: hex(56, 70, 90),
+    V, v: shade(V, 1.3), R, r: shade(R, 0.72), G: hex(226, 186, 70), g: garter ? hex(...garter) : WHITE,
+    w: hex(246, 246, 244), c: hex(214, 214, 216),
+    T: hex(36, 36, 42), t: hex(28, 28, 32), K, E: visor ? hex(...visor) : H, e: visor ? shade(hex(...visor), 0.7) : H
+  }
+  return {
+    id,
+    look,
+    pal,
+    head: {
+      top: rep(8, 'HHHHHHHH'),
+      bottom: rep(8, 'SSSSSSSS'),
+      front: ['HHHHHHHH', 'HHhHHHHH', 'HSSSSSSH', 'SbbSSbbS', 'SWiSSiWS', 'SSSnnSSS', 'SSmmmmSS', 'sSSSSSSs'],
+      side: ['HHHHHHHH', 'HHHHhHHH', 'HHHHHHSS', 'HHHsSSSS', 'HHHnSSSS', 'HHSSSSSS', 'HSSSSSSS', 'sSSSSSSS'],
+      back: ['HHHHHHHH', 'HHhHHHHH', 'HHHHHhHH', 'HHHHHHHH', 'HHhHHHHH', 'HHHHHHHH', 'HbHHHHbH', 'ssssssss']
+    },
+    hat: visor
+      ? { // the eyeshade: a band round the head, the peak over the eyes
+          top: [...rows(2, '........'), ...rows(6, '........')],
+          front: ['EEEEEEEE', 'eeeeeeee', ...rows(6, '........')],
+          side: ['EEEEEEEE', ...rows(7, '........')],
+          back: ['EEEEEEEE', ...rows(7, '........')]
+        }
+      : undefined,
+    body: {
+      top: rows(4, 'VVVVVVVV'), bottom: rows(4, 'TTTTTTTT'),
+      front: ['VwSSSSwV', 'VwRrrRwV', 'VVwwwwVV', 'VVVwwVVV', 'VVVGVVVV', 'VvVVVVVV', 'VVVGVVVV', 'VVVVVVvV', 'VVVGVVVV', 'VVVVVVVV', 'KKKKKKKK', 'TTTTTTTT'],
+      back: ['wwwwwwww', 'VVVVVVVV', 'VVVvVVVV', 'VVVVVVVV', 'VVVVVvVV', 'VvVVVVVV', 'VVVVVVVV', 'VVVVvVVV', 'VVVVVVVV', 'VVVVVVVV', 'KKKKKKKK', 'TTTTTTTT'],
+      side: ['wwww', 'VVVV', 'VVVV', 'VvVV', 'VVVV', 'VVvV', 'VVVV', 'VVVV', 'VVVV', 'VVVV', 'KKKK', 'TTTT']
+    },
+    arm: { // a white shirt sleeve, a cuff, the hand; the cashier's garter above the elbow
+      top: rep(4, 'wwww'), bottom: rep(4, 'SSSS'),
+      outer: rep(4, 'wwwgwwwwwwcS'),
+      front: rep(4, 'wwwgwwwwwwcS'),
+      inner: rep(4, 'cccgcccccccs'),
+      back: rep(4, 'cwwgwwwwwccS')
+    },
+    leg: {
+      top: rep(4, 'TTTT'), bottom: rep(4, 'KKKK'),
+      outer: rep(4, 'TTTTTTTTTTKK'),
+      front: puts(rep(4, 'TTTTTTTTTTKK'), [[3, 3, 't'], [3, 4, 't']]),
+      inner: rep(4, 'tTTTTTTTTTKK'),
+      back: rep(4, 'TTTTtTTTTTKK')
+    }
+  }
+}
+const dealer = casinoStaff({ id: 'dealer', look: 'a black vest, white shirt and red bow tie, slicked black hair', skin: [226, 182, 146], hair: [26, 24, 26], vest: [28, 28, 34], tie: [176, 28, 36] })
+const cashier = casinoStaff({ id: 'cashier', look: 'a burgundy vest, white shirt, gold sleeve garters and a green eyeshade', skin: [196, 146, 108], hair: [70, 46, 28], vest: [100, 26, 42], tie: [26, 26, 32], shade: [40, 130, 80], garter: [226, 186, 70] })
+
 // ---------- Write everything ----------
-const cast = [gun, gear, bag, tools, cars, garage]
+const cast = [gun, gear, bag, tools, cars, garage, clerk, dealer, cashier]
 for (const dir of OUTS) fs.mkdirSync(dir, { recursive: true })
 for (const ch of cast) {
   const c = render(ch)

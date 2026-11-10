@@ -79,7 +79,9 @@ airplaneTNTCooldown: 3
 # --- Gas ---
 
 # Whether gasoline is used for ALL cars.
-fuelEnabled: false
+# Donating (2026-10-21): on. fuel.sk sells it at the pumps and in the garage; core.sk fuel::enabled false turns it off
+# car by car (as each is driven) without touching this.
+fuelEnabled: true
 
 # Multiplier of the fuel consumption of ALL vehicles. (2 means 2× faster consumption, 0.5 means 2× slower, etc...)
 # Must be between 0.1 and 10. Default: 1 (If lower/higher, the default will be used.)

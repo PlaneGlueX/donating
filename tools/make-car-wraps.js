@@ -906,7 +906,7 @@ const familyHead = f => [
   '    vehicleType: CAR',
   '    skinItem: DIAMOND_HOE',
   `    itemDamage: ${f.itemDamage}`,
-  '    benzineEnabled: false',
+  '    benzineEnabled: true', // fuel.sk (2026-10-21): every family takes fuel
   '    kofferbakEnabled: false',
   '    hornEnabled: true',
   `    maxHealth: ${Number(f.maxHealth).toFixed(1)}`,

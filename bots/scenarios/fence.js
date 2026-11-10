@@ -4,7 +4,7 @@
 // a bound title, a Season key and the first list. The list (rolled for everyone each week: the least robbed heist,
 // never a difficulty 1 one) pays its premium only on loot you robbed yourself, after pickup, up to each order's cap,
 // each dollar once, 75% for passive players; the car order pays once; a new week needs a new pickup; staff only.
-const { join, sleep, quit, messagesSince } = require('../lib')
+const { join, sleep, quit, messagesSince, stashGivers, restoreGivers } = require('../lib')
 const rconLib = require('../rcon')
 const { Vec3 } = require('vec3')
 
@@ -26,7 +26,10 @@ module.exports = async ({ check }) => {
   let boss = ''
   let spot = ''
   let chop = ''
+  let stashed = []
   try {
+    // The town's own givers (Mara, the Boss, Vic, the Broker) off the map for the test; back in the finally.
+    stashed = await stashGivers(cmd, ['story', 'contracts', 'fence', 'hits'])
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const until = async (fn, ms = 5000) => {
       const end = Date.now() + ms
@@ -92,8 +95,8 @@ module.exports = async ({ check }) => {
     let t = Date.now()
     vic = ((await cmd(`dquest addat fence ${VIC.join(' ')} 180 Pawn Shop`)).match(/giver (\d+) \(fence\) added/) || [])[1] || ''
     await onMission(A, 'v1_meet')
-    await until(async () => /✉ Vic/.test(text(A, t)), 3000)
-    check('Vic\'s arc waits for a Vic on the map, then starts at level 45 with his text', noGiver === '' && (await vicId(A)) === 'v1_meet' && /✉ Vic: Mara says/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
+    await until(async () => /Vic: Mara says/.test(text(A, t)), 3000)
+    check('Vic\'s arc waits for a Vic on the map, then starts at level 45, his brief whole in chat', noGiver === '' && (await vicId(A)) === 'v1_meet' && /Vic: Mara says you've got quick hands/.test(text(A, t)) && !/✉ Vic/.test(text(A, t)), `${noGiver} | ${await cmd(`dstory info ${A} vic`)} | ${text(A, t).slice(0, 200)}`)
     await cmd(`dlevel set ${B} 44`)
     await cmd(`zzdata ${B} vic none`)
     await sleep(3000)
@@ -215,6 +218,7 @@ module.exports = async ({ check }) => {
     await sleep(800)
     check('/dfence is staff only', /Staff only/.test(text(B, t)), text(B, t))
   } finally {
+    await restoreGivers(cmd, stashed).catch(() => {})
     await rcon.cmd('zzweek off').catch(() => {})
     if (vic) await rcon.cmd(`dquest remove ${vic}`).catch(() => {})
     if (boss) await rcon.cmd(`dquest remove ${boss}`).catch(() => {})

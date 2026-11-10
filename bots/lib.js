@@ -132,4 +132,19 @@ function quit (bot) {
   })
 }
 
-module.exports = { join, sleep, messagesSince, waitForMessage, colorOf, inventorySnapshot, quit, HOST, PORT, VERSION }
+// Takes the map's quest givers of these kinds away for a test that needs none on the map (the town's own givers),
+// returning the /dquest dump lines that put them back (restoreGivers, in the test's finally).
+async function stashGivers (cmd, kinds) {
+  const ids = (await cmd('dquest list')).split('\n').map(l => l.match(/QUEST (\d+): (\w+)\|/)).filter(m => m && kinds.includes(m[2])).map(m => m[1])
+  const lines = (await cmd('dquest dump')).split('\n').map(l => l.trim()).filter(l => /^dquest addatw? /.test(l) && kinds.includes(l.split(' ')[2]))
+  // /dquest remove needs the NPC's chunk loaded: a refused remove and a restore would leave a copy of the giver.
+  const chunks = lines.map(l => l.match(/^dquest addat \S+ (-?[\d.]+) \S+ (-?[\d.]+) /)).filter(Boolean).map(m => `${Math.floor(m[1])} ${Math.floor(m[2])}`)
+  for (const c of chunks) await cmd(`forceload add ${c}`)
+  if (chunks.length) await sleep(2000)
+  for (const n of ids) await cmd(`dquest remove ${n}`)
+  for (const c of chunks) await cmd(`forceload remove ${c}`)
+  return lines
+}
+async function restoreGivers (cmd, lines) { for (const l of lines || []) await cmd(l) }
+
+module.exports = { stashGivers, restoreGivers, join, sleep, messagesSince, waitForMessage, colorOf, inventorySnapshot, quit, HOST, PORT, VERSION }

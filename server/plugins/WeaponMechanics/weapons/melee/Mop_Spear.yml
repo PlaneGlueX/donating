@@ -1,0 +1,52 @@
+# Donating (2026-10-20, prison round 3): the Mop Spear, a makeshift weapon Sparks makes in the prison's workshop from the
+# Mop Handle and the Scrap Metal (jailjobs.sk). Never sold or unlocked (core.sk wpn::Mop_Spear::makeshift): the one copy
+# is kept until a death. The rule for every melee: Base_Damage + any bonus <= 5.0; the makeshift ones stay weaker than
+# the Combat Knife (5.0 a second). PROPOSAL numbers.
+Mop_Spear:
+  Info:
+    Cancel:
+      Drop_Item: true
+      Swap_Hands: true
+    Weapon_Item:
+      # Donating: an amethyst shard drawn by the pack by its custom model data (tools\make-item-art.js, mop_spear).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Mop Spear"
+      Lore:
+        - "<gray>Scrap jammed in a mop handle."
+        - "<gray>Slow, but it keeps them at a distance."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 3 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 0.9 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 4.5 <gold>⟸ <gray>Range in blocks"
+      Unbreakable: true
+      Hide_Flags: true
+      Attributes:
+        - "attack_speed -3.09"
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_leather, pitch=0.8, listeners=Source{}}"
+    Weapon_Equip_Mechanics:
+      - "Sound{sound=item.armor.equip_leather, volume=0.6, pitch=0.8, listeners=Source{}}"
+  Skin:
+    Default:
+      Custom_Model_Data: 9
+  Damage:
+    # Donating: 3 a hit every 22 ticks (2.7 a second; 7 hits unarmored, a prison guard's 10 HP in 4), the Katana's
+    # reach of 4.5. MeleeFx: the client's stab, 12 ticks (a plain box model with no glove).
+    Base_Damage: 3
+    Armor_Damage: 2
+    Mechanics:
+      - "Sound{sound=item.trident.hit, pitch=1.4, volume=0.6} @Target{}"
+    Head:
+      Bonus_Damage: 0
+    Backstab:
+      Bonus_Damage: 0
+  Melee:
+    Enable_Melee: true
+    Melee_Range: 4.5
+    Melee_Hit_Delay: 22
+    Melee_Miss:
+      Mechanics:
+        - "Sound{sound=entity.player.attack.nodamage, pitch=0.9, noise=0.1}"
+      Melee_Miss_Delay: 22

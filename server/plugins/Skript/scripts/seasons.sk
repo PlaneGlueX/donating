@@ -629,7 +629,7 @@ command /season:
 			if {_next} is "":
 				if {_i} > {_done}:
 					set {_a::*} to loop-value split at "|"
-					set {_next} to "%levelNum({_a::1} parsed as number)% points: %{_a::2}% Season key(s)"
+					set {_next} to "%levelNum({_a::1} parsed as number)% points: %{_a::2}% Season %keyWord({_a::2} parsed as number)%"
 		if {_next} is "":
 			set {_next} to "all done"
 		send colored "&7 Season points &f%levelNum({_pts})% &7(Master Thieves + Wheelmen). Next milestone: &f%{_next}%" to player

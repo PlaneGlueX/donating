@@ -284,6 +284,164 @@ function ctNearestChop(l: location) :: location:
 				set {_bd} to {_d}
 	return {_best}
 
+# ---------- Parked cars ----------
+# Owner, 2026-10-21: "cars will spawn all around the map in different parking lots"; "spots in every lot, non owned/player
+# cars despawn and get replaced with a new one every 5 minutes (unless a player is driving or trying to unlock it)".
+# Every car spot shows a parked car of some tier (an item display like the garage's bays, with a click box), a new one
+# every contract::park-refresh. A job's offer is a car parked somewhere now; taking it turns that display into the real
+# car (the spot stays the job's until it ends: no new car while it's driven or its lock is being picked).
+# Memory: {-ctpark::look::<n>} = "model|label", {-ctpark::at::<n>} when it was parked, {-ctpark::disp|box::<n>},
+#   {-ctpark::shown::<n>} the look the display shows, {-ctpark::hit::<box uuid>} = n.
+
+function ctParkSet(n: text, m: text, label: text):
+	set {-ctpark::look::%{_n}%} to "%{_m}%|%{_label}%"
+	set {-ctpark::at::%{_n}%} to now
+
+# Parks a new car at spot n: of tier t's list ("" = any tier's). False when no car fits.
+function ctParkRoll(n: text, t: text) :: boolean:
+	set {_tiers::*} to {-cfg::contract::tiers::*}
+	if {_t} is not "":
+		set {_tiers::*} to {_t}
+	loop {_tiers::*}:
+		set {_tier} to loop-value
+		loop {-cfg::contractcars::%{_tier}%::*}:
+			if carExists(loop-value-2) is true:
+				add loop-value-2 to {_models::*}
+	set {_m} to random element out of {_models::*}
+	if {_m} is set:
+		set {_labels::*} to carColorLabels({_m})
+		set {_label} to random element out of {_labels::*}
+		if {_label} is set:
+			ctParkSet({_n}, {_m}, {_label})
+			return true
+	return false
+
+# The model parked at spot n ("" = none).
+function ctParkModel(n: text) :: text:
+	set {_lk} to {-ctpark::look::%{_n}%}
+	if {_lk} is set:
+		set {_a::*} to {_lk} split at "|"
+		return {_a::1}
+	return ""
+
+function ctParkHide(n: text):
+	set {_d} to {-ctpark::disp::%{_n}%}
+	if {_d} is set:
+		if {_d} is valid:
+			kill {_d}
+	set {_b} to {-ctpark::box::%{_n}%}
+	if {_b} is set:
+		delete {-ctpark::hit::%uuid of {_b}%}
+		if {_b} is valid:
+			kill {_b}
+	delete {-ctpark::disp::%{_n}%}
+	delete {-ctpark::box::%{_n}%}
+	delete {-ctpark::shown::%{_n}%}
+	# A reference goes stale when its chunk reloads (not valid, yet the entity is back): remove copies by position too,
+	# or every redraw stacked another whole car model on the spot (found 2026-10-21: 130 deep on one spot, it crashed a client).
+	set {_l} to {contract::spot::%{_n}%}
+	if {_l} is set:
+		loop all entities in radius 3 of {_l}:
+			if scoreboard tags of loop-entity contain "donating_ctpark":
+				kill loop-entity
+
+function ctParkShown(n: text) :: boolean:
+	set {_d} to {-ctpark::disp::%{_n}%}
+	set {_b} to {-ctpark::box::%{_n}%}
+	if {_d} is set:
+		if {_b} is set:
+			if {_d} is valid:
+				if {_b} is valid:
+					if {-ctpark::shown::%{_n}%} is {-ctpark::look::%{_n}%}:
+						return true
+	return false
+
+function ctParkShow(n: text):
+	ctParkHide({_n})
+	set {_lk} to {-ctpark::look::%{_n}%}
+	set {_l} to {contract::spot::%{_n}%}
+	if {_lk} is set:
+		if {_l} is set:
+			set {_a::*} to {_lk} split at "|"
+			set {_dmg} to carColorPart({_a::1}, {_a::2}, 3) parsed as number
+			if {_dmg} is set:
+				set {_dl} to {_l} ~ vector(0, cfg("garage::bay-lift"), 0)
+				set {_s} to cfg("garage::bay-scale")
+				spawn an item display at {_dl}:
+					make event-display not persistent
+					add "donating_ctpark" to scoreboard tags of event-display
+					set item of event-display to carIconDamage({_dmg})
+					set display scale of event-display to vector({_s}, {_s}, {_s})
+				set {_d} to last spawned entity
+				set item transform of {_d} to head
+				spawn an interaction at {_l}:
+					make event-entity not persistent
+					add "donating_ctpark" to scoreboard tags of event-entity
+					set interaction width of event-entity to 2
+					set interaction height of event-entity to 1.5
+					make event-entity unresponsive
+				set {_b} to last spawned entity
+				set {-ctpark::disp::%{_n}%} to {_d}
+				set {-ctpark::box::%{_n}%} to {_b}
+				set {-ctpark::hit::%uuid of {_b}%} to {_n}
+				set {-ctpark::shown::%{_n}%} to {_lk}
+
+# A spot taken by a job has no parked car (a new one is parked once the job ends); a free one gets a new car every
+# contract::park-refresh; it's drawn only while a player is within contract::park-range (nothing is made for nobody).
+function ctParkTick(n: text):
+	if ctSpotBusy({_n}) is true:
+		delete {-ctpark::look::%{_n}%}
+		ctParkHide({_n})
+		stop
+	set {_roll} to false
+	if {-ctpark::look::%{_n}%} is not set:
+		set {_roll} to true
+	else if difference between {-ctpark::at::%{_n}%} and now >= cfg("contract::park-refresh"):
+		set {_roll} to true
+	if {_roll} is true:
+		ctParkRoll({_n}, "")
+	set {_near} to false
+	set {_l} to {contract::spot::%{_n}%}
+	if {_l} is set:
+		loop all players in radius cfg("contract::park-range") of {_l}:
+			set {_near} to true
+	if {_near} is true:
+		if ctParkShown({_n}) is false:
+			ctParkShow({_n})
+		else:
+			# Copies saved with the chunk come back when it loads (found 2026-10-21: ~450 car models at the stores, the lag):
+			# keep only this spot's own two.
+			set {_d} to {-ctpark::disp::%{_n}%}
+			set {_b} to {-ctpark::box::%{_n}%}
+			loop all entities in radius 3 of {_l}:
+				if scoreboard tags of loop-entity contain "donating_ctpark":
+					if loop-entity is not {_d}:
+						if loop-entity is not {_b}:
+							kill loop-entity
+	else if {-ctpark::disp::%{_n}%} is set:
+		ctParkHide({_n})
+
+every 2 seconds:
+	loop {contract::spot::*}:
+		ctParkTick("%loop-index%")
+
+on load:
+	execute console command "minecraft:kill @e[tag=donating_ctpark]"
+	execute console command "minecraft:kill @e[tag=donating_crush]"
+	delete {-ctchop::busy::*}
+	delete {-ctpark::disp::*}
+	delete {-ctpark::box::*}
+	delete {-ctpark::hit::*}
+	delete {-ctpark::shown::*}
+
+on right click on interaction:
+	set {_n} to {-ctpark::hit::%uuid of event-entity%}
+	{_n} is set
+	cancel event
+	# The held item's own click right after (a gun, the phone) is cancelled too (quests.sk's guard).
+	set {-quest::guard::%player%} to now
+	hudBar(player, "&7A parked %carName(ctParkModel({_n}))%. Steal it on a car contract: /contracts", 1)
+
 # ---------- Directions ----------
 
 # The compass direction from one spot to another: N, NE, E...
@@ -323,15 +481,32 @@ function ctRollOffer(p: player, t: text):
 		if {_models::*} contains {_want}:
 			set {_m} to {_want}
 	{_m} is set
-	set {_labels::*} to carColorLabels({_m})
-	set {_label} to random element out of {_labels::*}
-	{_label} is set
+	# A free spot where a car of this tier (only the wanted model, if one) is parked now; none: a free spot gets one.
+	set {_only} to ""
+	if {_want} is {_m}:
+		set {_only} to {_m}
 	loop {contract::spot::*}:
-		if ctSpotBusy(loop-index) is false:
-			add loop-index to {_spots::*}
-	set {_s} to random element out of {_spots::*}
-	{_s} is set
-	set {-ctoffer::%{_u}%::%{_t}%} to "%{_m}%|%{_label}%|%{_s}%"
+		set {_n} to loop-index
+		if ctSpotBusy({_n}) is false:
+			add {_n} to {_free::*}
+			set {_pm} to ctParkModel({_n})
+			if {_only} is not "":
+				if {_pm} is {_only}:
+					add {_n} to {_fits::*}
+			else if {_models::*} contains {_pm}:
+				add {_n} to {_fits::*}
+	set {_s} to random element out of {_fits::*}
+	if {_s} is not set:
+		set {_s} to random element out of {_free::*}
+		{_s} is set
+		if {_only} is not "":
+			set {_labels::*} to carColorLabels({_m})
+			set {_label} to random element out of {_labels::*}
+			{_label} is set
+			ctParkSet({_s}, {_m}, {_label})
+		else:
+			ctParkRoll({_s}, {_t}) is true
+	set {-ctoffer::%{_u}%::%{_t}%} to "%{-ctpark::look::%{_s}%}%|%{_s}%"
 
 # Rolls every offer again after contract::refresh, and any that's missing or whose spot is taken.
 function ctOffersFresh(p: player):
@@ -353,6 +528,8 @@ function ctOffersFresh(p: player):
 			if {contract::spot::%{_a::3}%} is not set:
 				set {_roll} to true
 			else if ctSpotBusy({_a::3}) is true:
+				set {_roll} to true
+			else if {-ctpark::look::%{_a::3}%} is not "%{_a::1}%|%{_a::2}%":
 				set {_roll} to true
 		if {_roll} is true:
 			ctRollOffer({_p}, loop-value)
@@ -443,6 +620,11 @@ function ctTake(p: player, t: text):
 		ctRollOffer({_p}, {_t})
 		ctFail({_p}, "Someone else is after that car. Here's a new job: /contracts")
 		stop
+	if {-ctpark::look::%{_n}%} is not "%{_m}%|%{_label}%":
+		ctRollOffer({_p}, {_t})
+		ctFail({_p}, "That car just drove off. Here's a new job: /contracts")
+		stop
+	ctParkHide({_n})
 	if carSpotClear({_spot}) is false:
 		ctRollOffer({_p}, {_t})
 		ctLog("spot-blocked %{_n}% at %{_spot}%")
@@ -473,6 +655,7 @@ function ctTake(p: player, t: text):
 	set {-ctjob::%{_u}%::label} to {_label}
 	set {-ctjob::%{_u}%::plate} to {_plate}
 	set {-ctjob::%{_u}%::spot} to {_n}
+	delete {-ctpark::look::%{_n}%}
 	set {-ctjob::%{_u}%::spotat} to {_spot}
 	set {-ctjob::%{_u}%::carat} to {_spot}
 	set {-ctjob::%{_u}%::until} to {_until}
@@ -536,7 +719,7 @@ function ctQteOpen(p: player):
 	set {_t} to {-ctjob::%{_u}%}
 	ctQteForget({_p})
 	closePhoneMap({_p})
-	set {_gui} to chest inventory with 3 rows named "&8Pick the lock"
+	set {_gui} to chest inventory with 3 rows named "&8Pick the lock: click on green"
 	set {-ctqte::%{_p}%} to {_u}
 	set {-ctqte::%{_p}%::p} to {_p}
 	set {-ctqte::%{_p}%::gui} to {_gui}
@@ -761,6 +944,11 @@ function ctDriveCheck(u: text):
 	set {-ctjob::%{_u}%::carat} to {_l}
 	set {_c} to ctChopNear({_l})
 	if {_c} is not "":
+		if {-ctchop::busy::%{_c}%} is set:
+			if {-ctchop::busy::%{_c}%} > now:
+				set {_left} to ceil(difference between now and {-ctchop::busy::%{_c}%} / 1 second)
+				hudBar({_p}, "&eChop shop busy: &7wait for the crusher (%{_left}%s)", 2)
+				stop
 		ctDeliver({_u}, {_c})
 
 # Delivered: the car is scrapped and the job pays (one call, no wait).
@@ -778,8 +966,16 @@ function ctDeliver(u: text, chop: text):
 	set {_miss} to {-ctjob::%{_u}%::misses}
 	if {_miss} is not set:
 		set {_miss} to 0
+	# The crusher's copy of the car, read while the car still exists (ctEnd scraps it).
+	set {_carl} to carMainLoc({-ctjob::%{_u}%::plate}, location of {_p})
+	if {_carl} is not set:
+		set {_carl} to location of {_p}
+	set {_dmg} to carColorPart({_m}, {_label}, 3) parsed as number
+	set {_yaw} to yaw of {_p}
 	make {_p} dismount
 	ctEnd({_u}, "done")
+	if {_dmg} is set:
+		ctCrush({_p}, {_chop}, {_carl}, {_dmg}, {_yaw})
 	giveMoney({_p}, {_pay})
 	set {_bounty} to 0
 	if {_t} is "starter":
@@ -808,6 +1004,116 @@ function ctDeliver(u: text, chop: text):
 	progEvent({_p}, "contract", {_pay}, {_t})
 	delete {-prog::ct::%{_u}%}
 
+# The crusher (one car at a time: ctDriveCheck keeps the next one waiting): a copy of the car rolls to the middle of
+# the bay, the press plate comes down on it with sparks, and a crushed cube drops; the thief stands at the edge
+# watching. Only displays (tag donating_crush, never persistent); the real car is already scrapped.
+# shortcut: one press for every chop shop (the Scrap Yard's frame: 5 wide, 5 above the spot); per-shop sizes when a
+# second chop shop with another frame is built.
+function ctCrush(p: player, c: text, l: location, dmg: number, yaw: number):
+	set {_ctr} to {contract::chop::%{_c}%}
+	{_ctr} is set
+	set {_until} to now
+	add cfg("contract::crush::time") to {_until}
+	set {-ctchop::busy::%{_c}%} to {_until}
+	ctLog("crush %{_p}% chop=%{_c}%")
+	set {_w} to world of {_ctr}
+	set {_cx} to x-coordinate of {_ctr}
+	set {_cy} to y-coordinate of {_ctr}
+	set {_cz} to z-coordinate of {_ctr}
+	# The thief: out to the bay's edge on the side the car came from, facing the press.
+	set {_dx} to x-coordinate of {_l}
+	set {_dz} to z-coordinate of {_l}
+	set {_dx} to {_dx} - {_cx}
+	set {_dz} to {_dz} - {_cz}
+	set {_len} to sqrt({_dx} ^ 2 + {_dz} ^ 2)
+	if {_len} < 1:
+		set {_dx} to 0
+		set {_dz} to 1
+		set {_len} to 1
+	# Straight out along the nearer side: on a diagonal the 6 blocks land in the press frame's corner post (a thief suffocated
+	# there, found by the 20-player bots, 2026-11-05).
+	if abs({_dx}) >= abs({_dz}):
+		set {_dz} to 0
+	else:
+		set {_dx} to 0
+	set {_len} to sqrt({_dx} ^ 2 + {_dz} ^ 2)
+	set {_out} to location({_cx} + {_dx} / {_len} * 6, {_cy}, {_cz} + {_dz} / {_len} * 6, {_w})
+	if {_p} is online:
+		teleport {_p} to {_out}
+		make {_p} look at {_ctr} ~ vector(0, 1, 0)
+	# The car's copy where it stopped, then rolling under the press.
+	set {_lift} to cfg("garage::bay-lift")
+	set {_s} to cfg("garage::bay-scale")
+	set {_from} to {_l} ~ vector(0, {_lift}, 0)
+	set yaw of {_from} to {_yaw}
+	set pitch of {_from} to 0
+	spawn an item display at {_from}:
+		make event-display not persistent
+		add "donating_crush" to scoreboard tags of event-display
+		set item of event-display to carIconDamage({_dmg})
+		set display scale of event-display to vector({_s}, {_s}, {_s})
+	set {_car} to last spawned entity
+	set item transform of {_car} to head
+	set teleport duration of {_car} to 20 ticks
+	set {_h} to cfg("contract::crush::plate-height")
+	set {_ps} to cfg("contract::crush::plate-size")
+	spawn a block display of iron block at location({_cx} - {_ps} / 2, {_cy} + {_h}, {_cz} - {_ps} / 2, {_w})
+	set {_plate} to last spawned entity
+	make {_plate} not persistent
+	add "donating_crush" to scoreboard tags of {_plate}
+	set display scale of {_plate} to vector({_ps}, 0.6, {_ps})
+	wait 2 ticks
+	set {_to} to {_ctr} ~ vector(0, {_lift}, 0)
+	set yaw of {_to} to {_yaw}
+	set pitch of {_to} to 0
+	teleport {_car} to {_to}
+	play sound "entity.minecart.riding" with volume 0.6 at {_ctr}
+	wait 25 ticks
+	# The press comes down (12 ticks) and flattens the car with it.
+	play sound "block.piston.extend" with volume 1 and pitch 0.5 at {_ctr}
+	set interpolation delay of {_plate} to 0 ticks
+	set interpolation duration of {_plate} to 12 ticks
+	set display translation of {_plate} to vector(0, 1.3 - {_h}, 0)
+	set interpolation delay of {_car} to 0 ticks
+	set interpolation duration of {_car} to 12 ticks
+	set display scale of {_car} to vector({_s}, {_s} * 0.25, {_s})
+	set display translation of {_car} to vector(0, -0.55, 0)
+	wait 12 ticks
+	play sound "block.anvil.land" with volume 1 and pitch 0.6 at {_ctr}
+	play sound "entity.generic.explode" with volume 0.5 and pitch 1.4 at {_ctr}
+	draw 40 crit particles with offset vector(1.6, 0.3, 1.6) at {_ctr} ~ vector(0, 0.8, 0)
+	draw 12 lava particles with offset vector(1.2, 0.2, 1.2) at {_ctr} ~ vector(0, 0.6, 0)
+	draw 20 large smoke particles with offset vector(1.5, 0.3, 1.5) at {_ctr} ~ vector(0, 0.7, 0)
+	wait 10 ticks
+	# The press goes back up; the car is a cube now, dropped off the press onto the pad.
+	set interpolation delay of {_plate} to 0 ticks
+	set interpolation duration of {_plate} to 25 ticks
+	set display translation of {_plate} to vector(0, 0, 0)
+	play sound "block.piston.contract" with volume 1 and pitch 0.5 at {_ctr}
+	kill {_car}
+	set {_cl} to location({_cx} - 0.6, {_cy} + 1.6, {_cz} - 0.6, {_w})
+	set {_k} to random integer between 1 and 3
+	if {_k} is 1:
+		spawn a block display of red terracotta at {_cl}
+	else if {_k} is 2:
+		spawn a block display of blue terracotta at {_cl}
+	else:
+		spawn a block display of cyan terracotta at {_cl}
+	set {_cube} to last spawned entity
+	make {_cube} not persistent
+	add "donating_crush" to scoreboard tags of {_cube}
+	set display scale of {_cube} to vector(1.2, 1.2, 1.2)
+	set teleport duration of {_cube} to 5 ticks
+	wait 2 ticks
+	teleport {_cube} to location({_cx} - 0.6, {_cy}, {_cz} - 0.6, {_w})
+	wait 5 ticks
+	play sound "block.netherite_block.place" with volume 1 and pitch 0.6 at {_ctr}
+	draw 15 poof particles with offset vector(0.6, 0.1, 0.6) at {_ctr}
+	wait 40 ticks
+	kill {_cube}
+	kill {_plate}
+	delete {-ctchop::busy::%{_c}%}
+
 # ---------- Ending a job ----------
 
 # Ends a job: the car is scrapped (despawned and deleted in MTVehicles), the marker goes, the cooldown
@@ -834,10 +1140,12 @@ function ctEnd(u: text, why: text):
 		if {_tcd} is set:
 			if {_p} is online:
 				setData({_p}, "ctready::%{_t}%", progUnix() + {_tcd} / 1 second)
+	# Locked up (prison.sk: a death sends the player to the prison): the job can't be finished, so no cooldown.
 	if {_why} is not "done":
-		set {_cd} to now
-		add cfg("contract::cooldown") to {_cd}
-		set {ctcd::%{_u}%} to {_cd}
+		if {_why} is not "jailed":
+			set {_cd} to now
+			add cfg("contract::cooldown") to {_cd}
+			set {ctcd::%{_u}%} to {_cd}
 	else if {_tcd} is not set:
 		# The tutorial's first job (no tier cooldown): the short one.
 		set {_cd} to now
@@ -858,6 +1166,8 @@ function ctEnd(u: text, why: text):
 		msg({_p}, "&7You dropped the %{_car}% job. &7Next job in %formatClock(cfg("contract::cooldown") / 1 second)%.")
 	else if {_why} is "staff":
 		msg({_p}, "&7Staff ended your %{_car}% job.")
+	else if {_why} is "jailed":
+		msg({_p}, "&7You got locked up: the %{_car}% job is off.")
 
 # Throws everyone out of a car and deletes it from MTVehicles.
 function ctScrap(plate: text):
@@ -1264,7 +1574,7 @@ function ctSpotBlock(l: location, kind: text) :: text:
 					return "less than %{_min}% blocks from car spot %loop-index%"
 	return ""
 
-command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
+command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>] [<text>]:
 	permission: donating.staff
 	permission message: &cStaff only.
 	trigger:
@@ -1273,7 +1583,7 @@ command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
 			set {_list} to "spot"
 			if {_k} is "chop":
 				set {_list} to "chop"
-			if arg-2 is "add" or "addat":
+			if arg-2 is "add" or "addat" or "addatw":
 				if arg-2 is "add":
 					if player is not set:
 						send "CONTRACT use addat from the console" to sender
@@ -1284,14 +1594,24 @@ command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
 					set {_l} to location(floor({_bx}) + 0.5, floor({_by}), floor({_bz}) + 0.5, world of player)
 					set yaw of {_l} to yaw of player
 				else:
+					set {_w} to "world"
 					set {_x} to arg-3 parsed as number
 					set {_y} to arg-4 parsed as number
 					set {_z} to arg-5 parsed as number
 					set {_yaw} to arg-6 parsed as number
+					if arg-2 is "addatw":
+						set {_w} to arg-3
+						set {_x} to arg-4 parsed as number
+						set {_y} to arg-5 parsed as number
+						set {_z} to arg-6 parsed as number
+						set {_yaw} to arg-7 parsed as number
 					if {_z} is not set:
-						send "CONTRACT %{_k}% addat <x> <y> <z> [yaw]" to sender
+						send "CONTRACT %{_k}% addat <x> <y> <z> [yaw] | addatw <world> <x> <y> <z> [yaw]" to sender
 						stop
-					set {_l} to location({_x}, {_y}, {_z}, world "world")
+					if world {_w} is not set:
+						send "CONTRACT no world %{_w}%" to sender
+						stop
+					set {_l} to location({_x}, {_y}, {_z}, world {_w})
 					if {_yaw} is set:
 						set yaw of {_l} to {_yaw}
 				set {_why} to ctSpotBlock({_l}, {_k})
@@ -1309,6 +1629,9 @@ command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
 					send "CONTRACT no %{_list}% %{_n}%" to sender
 					stop
 				delete {contract::%{_list}%::%{_n}%}
+				if {_list} is "spot":
+					ctParkHide({_n})
+					delete {-ctpark::look::%{_n}%}
 				ctLog("%{_list}%-remove %{_n}% by=%sender%")
 				send "CONTRACT %{_list}% %{_n}% removed" to sender
 			else:
@@ -1321,11 +1644,17 @@ command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
 		else if {_k} is "dump":
 			# The lines that recreate every spot and chop shop (for Minehut).
 			loop {contract::spot::*}:
-				send "dcontract spot addat %ctSpotText(loop-value)%" to sender
-				log "dcontract spot addat %ctSpotText(loop-value)%" to "contracts"
+				set {_line} to "dcontract spot addat %ctSpotText(loop-value)%"
+				if world of loop-value is not world "world":
+					set {_line} to "dcontract spot addatw %world of loop-value% %ctSpotText(loop-value)%"
+				send {_line} to sender
+				log {_line} to "contracts"
 			loop {contract::chop::*}:
-				send "dcontract chop addat %ctSpotText(loop-value)%" to sender
-				log "dcontract chop addat %ctSpotText(loop-value)%" to "contracts"
+				set {_line} to "dcontract chop addat %ctSpotText(loop-value)%"
+				if world of loop-value is not world "world":
+					set {_line} to "dcontract chop addatw %world of loop-value% %ctSpotText(loop-value)%"
+				send {_line} to sender
+				log {_line} to "contracts"
 		else if {_k} is "info":
 			set {_who} to arg-2 parsed as offline player
 			if {_who} is not set:
@@ -1349,4 +1678,4 @@ command /dcontract <text> [<text>] [<text>] [<text>] [<text>] [<text>]:
 			ctEnd({_u}, "staff")
 			send "CONTRACT ended %{_who}%'s job" to sender
 		else:
-			send "CONTRACT usage: /dcontract spot|chop add|addat|remove|list, dump, info|end <player>" to sender
+			send "CONTRACT usage: /dcontract spot|chop add|addat|addatw|remove|list, dump, info|end <player>" to sender

@@ -1,0 +1,55 @@
+# Donating (2026-10-20, prison round 3): the Shiv, a makeshift weapon Sparks makes in the prison's workshop from the
+# Scrap Metal and the Duct Tape (jailjobs.sk; owner: "collect a couple items around the prison and give it to him to make
+# a makeshift weapon"). Never sold or unlocked (core.sk wpn::Shiv::makeshift): the one copy is kept until a death. The
+# rule for every melee: Base_Damage + any bonus <= 5.0; the makeshift ones stay weaker than the Combat Knife (5 a hit
+# every 20 ticks: 5.0 a second). PROPOSAL numbers.
+Shiv:
+  Info:
+    Cancel:
+      Drop_Item: true
+      Swap_Hands: true
+    Weapon_Item:
+      # Donating: an amethyst shard drawn by the pack by its custom model data (tools\make-item-art.js, shiv).
+      Type: "AMETHYST_SHARD"
+      Name: "<gold>Shiv"
+      Lore:
+        - "<gray>Sharpened scrap, a tape grip."
+        - "<gray>Made by Sparks; gone when you die."
+        - ""
+        - "<gray>Weapon Statistics"
+        - "<gold>➣<gray> 2.5 <gold>⟸ <gray>Damage"
+        - "<gold>➣<gray> 1.7 <gold>⟸ <gray>Hits per second"
+        - "<gold>➣<gray> 3 <gold>⟸ <gray>Range in blocks"
+      Unbreakable: true
+      Hide_Flags: true
+      Attributes:
+        - "movement_speed 0.004"
+        - "attack_speed -2.33"
+      Deny_Use_In_Crafting: true
+    Weapon_Get_Mechanics:
+      - "Sound{sound=item.armor.equip_iron, pitch=1.3, listeners=Source{}}"
+    Weapon_Equip_Mechanics:
+      - "Sound{sound=item.armor.equip_iron, volume=0.6, pitch=1.3, listeners=Source{}}"
+  Skin:
+    Default:
+      Custom_Model_Data: 8
+  Damage:
+    # Donating: 2.5 a hit every 12 ticks (4.2 a second; 8 hits unarmored, a prison guard's 10 HP in 4). Range 3.3: the
+    # client attacks up to 3.0 by its own view, and 3.0 exactly would turn lag-edge hits into misses with a 12-tick
+    # lockout. MeleeFx: the client's stab, 8 ticks (a plain box model with no glove: the swing turns only the shiv).
+    Base_Damage: 2.5
+    Armor_Damage: 2
+    Mechanics:
+      - "Sound{sound=entity.player.attack.sweep, pitch=1.6, volume=0.6} @Target{}"
+    Head:
+      Bonus_Damage: 0
+    Backstab:
+      Bonus_Damage: 0
+  Melee:
+    Enable_Melee: true
+    Melee_Range: 3.3
+    Melee_Hit_Delay: 12
+    Melee_Miss:
+      Mechanics:
+        - "Sound{sound=entity.player.attack.nodamage, pitch=1.4, noise=0.1}"
+      Melee_Miss_Delay: 12

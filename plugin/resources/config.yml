@@ -26,6 +26,27 @@ passive-tag: donating_passive
 open-tag: donating_phone_open
 # Bottom line on the held phone (ASCII only; "" = none).
 hint: "R-click: map  F: apps"
+# Big map zoom (sneak while it's open; not in a vehicle): 1 = the whole city, then that many times closer around you,
+# never past the city's edge (at most 4 screen pixels a city pixel; levels that would look the same are left out).
+# /dphone zoom <player> [level] shows or sets it.
+big-zoom: [1, 2, 4, 8]
+
+# ---------- GPS paths (/dphone path, Paths.java): staff lay nodes and links in game; saved in paths.yml ----------
+# In a world with paths the GPS's way goes along them (floors, doors and fences the road grid can't see): onto the link
+# that makes the whole trip shortest, along the links, then off to the target.
+paths:
+  # Blocks: the player joins a link this close (also the target's end); none that close: the road grid or a straight line.
+  range: 24
+  # Picking the way in, a block of height counts this many (a link on another floor isn't "near").
+  vertical-weight: 3
+  # Walking off the paths counts this many times a block on them.
+  off-cost: 1.5
+  # Blocks: another way in must be this much shorter to replace the current one (no flicker).
+  hysteresis: 2
+  # In a world with paths a quest's area is only this many blocks up or down (12 elsewhere): not the floor above.
+  arrive-height: 4
+  # /dphone path show: nodes and links within this many blocks.
+  show-range: 40
 
 # ---------- GPS (gps.sk sets each player's target; this finds the way along the roads and draws it) ----------
 gps:
@@ -261,6 +282,9 @@ gunfx:
   # 2026-10-12, untested): lookalike (only the holder is sent a copy that slides out and back; nothing on the server
   # changes), cooldown (a cooldown on leather and paper: the pack dips them out; the offhand slot shows the sweep), off.
   bag-hide: lookalike
+  # Guns whose reload uses the player's own arm (RealArm.java, 2026-11-04): main hand empty and main arm flipped for the holder alone.
+  # Their pack frames draw no left glove (spec.hands.realArm). Not the Shotgun: its shells chain, each its own reload.
+  real-arm: [50_GS, Uzi, AK_47, 357_Magnum, STG44, M4A1, AX_50, MG34, FN_FAL]
   guns:
     50_GS: { shot: 6, draw: 0 }
     Uzi: { shot: 0, draw: 20, fire: 5 }
@@ -291,3 +315,7 @@ meleefx:
     Brass_Knuckles: { swing: none, chain: 6 }
     Gold_Nunchucks: { swing: none, chain: 12 } # none: a whack drops the item below the screen and hides the twirl
     Dagger: { swing: none, chain: 10 } # the Katana's slash frames (a whack only tipped the blade aside)
+    # Sparks' makeshift weapons (the prison, 2026-10-20): plain box models with no glove, so the client's swing is fine.
+    Shiv: { swing: stab, ticks: 8 }
+    Mop_Spear: { swing: stab, ticks: 12 }
+    Taped_Club: { swing: whack, ticks: 16 }

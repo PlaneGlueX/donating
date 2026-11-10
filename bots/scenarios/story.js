@@ -7,7 +7,7 @@
 // missing only after a grace period; a mission already done is skipped (veterans); a chapter's end pays money, XP and
 // a tool (cash when the level is too low); without Mara on the map a talk mission waits for a call from /missions;
 // /missions shows it; staff only.
-const { join, sleep, quit, messagesSince } = require('../lib')
+const { join, sleep, quit, messagesSince, stashGivers, restoreGivers } = require('../lib')
 const rconLib = require('../rcon')
 
 const A = 'StoryA'
@@ -26,7 +26,10 @@ module.exports = async ({ check }) => {
   let ctGiver = ''
   let spotN = ''
   let chopN = ''
+  let stashed = []
   try {
+    // The town's own givers (Mara, the Boss, Vic, the Broker) off the map for the test; back in the finally.
+    stashed = await stashGivers(cmd, ['story', 'contracts', 'fence', 'hits'])
     const text = (name, t) => messagesSince(bots[name], t).map(m => m.text).join(' | ')
     const until = async (fn, ms = 5000) => {
       const end = Date.now() + ms
@@ -56,6 +59,8 @@ module.exports = async ({ check }) => {
       bots[name] = await join(name)
       await cmd(`gamemode survival ${name}`)
       await cmd(`zzclear ${name}`)
+      // An empty inbox: a brief kept in the last run would count as a repeat (messages::dedupe) and not be kept again.
+      await cmd(`zzinboxclear ${name}`)
       await cmd(`dlevel reset ${name}`)
       await cmd(`eco set ${name} 10000`)
       await cmd(`zzdata ${name} keys::daily none`)
@@ -76,7 +81,9 @@ module.exports = async ({ check }) => {
     await cmd(`zzdata ${A} story none`)
     await until(async () => (await id(A)) === 'c1_meet', 8000)
     await until(async () => /New in town/.test(text(A, t)), 3000)
-    check('after the tutorial the first mission starts: a text from Mara, the sidebar line', (await id(A)) === 'c1_meet' && /✉ Mara: New in town/.test(text(A, t)) && /Meet Mara at the Safehouse/.test(await papi(A, 'donating_mission')), `${await info(A)} | ${text(A, t).slice(0, 200)} | ${await papi(A, 'donating_mission')}`)
+    // A stands 2 blocks from Mara: her brief is said (no ✉ notice) and kept on the phone as read (messages.sk, 2026-10-19).
+    const ib0 = await cmd(`zzinbox ${A} flush`)
+    check('after the tutorial the first mission starts: Mara\'s brief said in person and kept on the phone (read), the sidebar line', (await id(A)) === 'c1_meet' && /(^| \| )Mara: New in town/.test(text(A, t)) && /last=Mara\|New in town/.test(ib0) && /Mara: .*Meet Mara at the Safehouse/.test(await papi(A, 'donating_mission')), `${await info(A)} | ${ib0} | ${text(A, t).slice(0, 200)} | ${await papi(A, 'donating_mission')}`)
     await until(async () => /active=quest/.test(await cmd(`dphone gps ${A}`)), 4000)
     const g = await cmd(`dphone gps ${A}`)
     check('the GPS leads to Mara', /active=quest/.test(g) && /label=Meet_Mara/.test(g) && /target=2205\.5,200/.test(g), g)
@@ -101,8 +108,13 @@ module.exports = async ({ check }) => {
     await until(async () => (await id(A)) !== 'c1_meet', 9000)
     const lines = text(A, t)
     check('talking to Mara in person plays her lines (not all at once), then the mission is done (no "<none>")', early === 'c1_meet' && /So you're the new face/.test(lines) && /No bag, no gun, no ride/.test(lines) && /Mission passed: Meet Mara/.test(lines) && !/<none>/.test(lines), `early=${early} ${lines.slice(0, 500)}`)
-    check('the next mission arrives as a text (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /first job/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
+    // The Boss isn't there: his brief is about the quest you're on, so the whole line comes in chat (owner, 2026-10-22).
+    await until(async () => /Boss: Mara sent you\? Take my first job/.test(text(A, t)), 3000)
+    check('the next mission\'s brief comes whole in chat, no ✉ notice (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /Boss: Mara sent you\? Take my first job/.test(text(A, t)) && !/✉ Boss/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
     await set(A, 'c1_knife')
+    let gk = ''
+    await until(async () => { gk = await cmd(`dphone gps ${A}`); return /target=496.5,65.0,803.5/.test(gk) }, 3000)
+    check('a shop mission leads to the keeper at the counter, not the door of the shop',/target=496.5,65.0,803.5/.test(gk), gk)
     t = Date.now()
     await cmd(`dshop unlock ${A} Combat_Knife`)
     await until(async () => (await id(A)) !== 'c1_knife', 4000)
@@ -110,6 +122,10 @@ module.exports = async ({ check }) => {
     await until(async () => /MISSION PASSED/.test(text(A, t)), 3000)
     check('...with the MISSION PASSED title although it has no reward (and no "<none>")', /MISSION PASSED/.test(text(A, t)) && !/<none>/.test(text(A, t)), text(A, t).slice(0, 400))
     await set(A, 'c1_sell')
+    let g0 = ''
+    await until(async () => { g0 = await cmd(`dphone gps ${A}`); return /label=Rob_a_store_first/.test(g0) }, 3000)
+    const m0 = await papi(A, 'donating_mission')
+    check('the sale mission with an empty bag says to rob a store first, and leads to one (no "$0/$1")', /label=Rob_a_store_first/.test(g0) && /Rob a store first/.test(m0) && !/\$0/.test(m0), `${g0} | ${m0}`)
     const k0 = await cmd(`dcrate info ${A}`)
     t = Date.now()
     await ev(A, 'sell', 500, 'zh#3')
@@ -211,6 +227,7 @@ module.exports = async ({ check }) => {
     await until(async () => (await id(B)) === 'c1_meet', 9000)
     check('a new robber\'s story starts at once, with no bag yet (the first car job pays for it)', (await id(B)) === 'c1_meet', await info(B))
   } finally {
+    await restoreGivers(cmd, stashed).catch(() => {})
     await rcon.cmd('zzcfgreload').catch(() => {})
     if (giverN) await rcon.cmd(`dquest remove ${giverN}`).catch(() => {})
     if (ctGiver) await rcon.cmd(`dquest remove ${ctGiver}`).catch(() => {})

@@ -1,0 +1,58 @@
+{
+  "textures": {
+    "t": "donating:item/furn/track_screen",
+    "particle": "donating:item/furn/track_screen",
+    "face": "donating:item/furn/track_screen_face"
+  },
+  "elements": [
+    {
+      "from": [
+        -16,
+        -2.91,
+        8
+      ],
+      "to": [
+        32,
+        18.91,
+        8.02
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            7.273
+          ],
+          "texture": "#face"
+        }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        25,
+        200,
+        0
+      ],
+      "scale": [
+        0.45,
+        0.45,
+        0.45
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    }
+  }
+}

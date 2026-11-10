@@ -118,7 +118,7 @@ module.exports = ({ pg, aim, display }) => {
   const RH = rig({ t: [21.3 - OR[0], 4.7 - OR[1], 8 - OR[2]], rot: [[[0, 0, 1], 15]], pivot: OR })
   const LH = rig({ t: [15.6 - OL[0], -1.1 - OL[1], 8 - OL[2]], rot: [[[1, 0, 0], 90]], pivot: OL })
   const gun = pgGun(name, {
-    hands: { right: { at: RH, scale: 1.15, armScale: 0.95 }, left: { at: LH, shown: false, scale: 1.3, armScale: 0.95 }, leftTree: false },
+    hands: { grip: false, right: { at: RH, scale: 1.15, armScale: 0.95 }, left: { at: LH, shown: false, scale: 1.3, armScale: 0.95 }, leftTree: false, realArm: true },
     style: 'pg',
     density: 4,
     palette: {

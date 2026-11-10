@@ -138,7 +138,7 @@ module.exports = async ({ check }) => {
     await sleep(2000)
     check('...and sells it once the heat is over', (await bag(B)).total === 0 && logged(/sell AbuseB .*total=1500 /, 'bag').length === 1 && (await data(B, `hot::${H}#1`)) === '<none>', `${(await bag(B)).raw} ${since('bag')}`)
 
-    // ---------- Store loot stays for new robbers ----------
+    // ---------- Store loot: anyone takes it (no maximum level since 2026-10-21) ----------
     await reset(A)
     await reset(B)
     await tp(B, 1403.5, 1425.5)
@@ -150,10 +150,8 @@ module.exports = async ({ check }) => {
     t = Date.now()
     await tp(B, 1410.5, 1415.5)
     await sleep(1500)
-    check('a robber over a store\'s max level (9) leaves its loot in the duffel, and is told why', (await bag(B)).total === 0 && /lines=astore#1=500/.test(await duffels()) && /Store loot is for new robbers \(up to level 9\)/.test(bar(B, t)), `${(await bag(B)).raw} ${await duffels()} ${bar(B, t)}`)
+    check('a level-20 robber takes a store\'s loot from a duffel like any other (no "for new robbers")', (await bag(B)).lines.includes('astore#1=500') && !/astore#1/.test(await duffels()) && !/for new robbers/.test(bar(B, t)), `${(await bag(B)).raw} ${await duffels()} ${bar(B, t)}`)
     await cmd(`dlevel set ${B} 0`)
-    await sleep(1500)
-    check('...a new robber takes it', (await bag(B)).lines.includes('astore#1=500') && !/astore#1/.test(await duffels()), `${(await bag(B)).raw} ${await duffels()}`)
     await clearItems()
 
     // ---------- Level XP from a sale: own loot only ----------

@@ -11,7 +11,7 @@ const B = 'ImmB'
 const Y = 200
 const PLATFORM = `3180 ${Y - 1} 3180 3200 ${Y - 1} 3190`
 const CHUNKS = '3180 3180 3200 3190'
-const ZONE = 'safe_zimm' // x 3190..3200: the east half
+const ZONE = 'safe_base_zimm' // x 3190..3200: the east half
 const EDGE = 3190
 
 module.exports = async ({ check }) => {

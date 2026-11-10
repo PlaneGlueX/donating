@@ -85,6 +85,7 @@ module.exports = async ({ check }) => {
 
     // ---------- Setup ----------
     await cmd('zzcfgreload')
+    await cmd('zzgaragesites stash') // the rule without sites: citygarage.js tests the sites
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill ${PLATFORM} glass`)
     await cmd(`dheist delete ${HID} confirm`)
@@ -107,13 +108,18 @@ module.exports = async ({ check }) => {
     await sleep(2500)
 
     // ---------- The Car Dealer ----------
+    // Models more than phone::reveal-levels (5) above the player's level stay hidden (owner, 2026-10-22).
     let w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
+    check('at level 0 the Car Dealer hides every car (the Sedan needs 20) and says how many there are', w && !/Sedan/.test(JSON.stringify(w.slots)) && w.slots[18] && /more at higher levels/.test(itemText(w.slots[18])), `${itemText(w && w.slots[10]).slice(0, 100)} | ${itemText(w && w.slots[18]).slice(0, 100)}`)
+    await closeAll(A)
+    await cmd(`dlevel set ${A} 15`)
+    w = await (async () => { const o = windowOpen(bots[A]); await cmd(`dshop open ${A} cars`); const r = await o; await sleep(300); return r })()
     check('the Car Dealer lists the cars for sale (not the crate cars), drawn as cars', w && /Car Dealer/.test(JSON.stringify(w.title)) && w.slots[10] && w.slots[10].name === 'diamond_hoe' && /Sedan/.test(itemText(w.slots[10])) && !/Vandal/.test(JSON.stringify(w.slots)), `${JSON.stringify(w && w.title)} ${itemText(w && w.slots[10]).slice(0, 200)}`)
     w = await click(A, 10)
     let t = Date.now()
     await click(A, 10)
     await sleep(500)
-    check('a car above your level is refused (Sedan: level 20)', /needs level 20/.test(text(A, t)) && (await bal(A)) === 100000, text(A, t))
+    check('at level 15 the Sedan shows, and a car above your level is refused (Sedan: level 20)', /needs level 20/.test(text(A, t)) && (await bal(A)) === 100000, text(A, t))
     await closeAll(A)
     await cmd(`dlevel set ${A} 20`)
     await sleep(1500)
@@ -173,21 +179,33 @@ module.exports = async ({ check }) => {
     t = Date.now()
     await enter(B, 'SEAT2', plate)
     check('a passenger seat while it\'s locked: refused', !/passenger:/.test(await seat(B)), `${await seat(B)} ${text(B, t)}`)
-    // The key: right-click to unlock.
-    bots[A].setQuickBarSlot(8)
+    // F in the driver's seat unlocks (2026-10-21: the key's right-click is the big map now; untested (cloud)).
+    const pressF = b => b._client.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: 0 })
+    bots[A].setQuickBarSlot(0)
     await sleep(300)
     t = Date.now()
-    bots[A].activateItem()
+    pressF(bots[A])
     await sleep(700)
-    bots[A].deactivateItem()
-    check('the key unlocks it', /locked=false/.test(await info(A)) && /Unlocked/.test(text(A, t)), `${await info(A)} ${text(A, t)}`)
+    check('F unlocks it (whatever is in hand)', /locked=false/.test(await info(A)) && /Unlocked/.test(text(A, t)), `${await info(A)} ${text(A, t)}`)
     await enter(B, 'SEAT2', plate)
     check('unlocked: someone else can ride along as a passenger', new RegExp(`passenger:${plate}`).test(await seat(B)), await seat(B))
     await sleep(600)
-    bots[A].activateItem()
+    pressF(bots[A])
     await sleep(700)
-    bots[A].deactivateItem()
     check('...and locks it again', /locked=true/.test(await info(A)), await info(A))
+    // The key's right-click: the big map while driving (the chase view pauses), again closes it.
+    bots[A].setQuickBarSlot(8)
+    await sleep(400)
+    bots[A].activateItem()
+    await sleep(150)
+    bots[A].deactivateItem()
+    await sleep(900)
+    const mapOpen = /open=true/.test(await cmd(`dphone status ${A}`))
+    bots[A].activateItem()
+    await sleep(150)
+    bots[A].deactivateItem()
+    await sleep(900)
+    check('the key\'s right-click opens the big map while driving, again closes it; the car stays locked', mapOpen && /open=false/.test(await cmd(`dphone status ${A}`)) && /locked=true/.test(await info(A)), `${mapOpen} ${await cmd(`dphone status ${A}`)} ${await info(A)}`)
     await getOut(B)
     await enter(B, 'SEAT2', plate)
     check('locked again: the passenger who got out can\'t get back in', !/passenger:/.test(await seat(B)), await seat(B))
@@ -259,9 +277,9 @@ module.exports = async ({ check }) => {
     await sleep(1500)
 
     // ---------- Safe zones by car (combat-tagged) ----------
-    await cmd(`rg remove -w world safe_zgar`)
-    await cmd(`zzregion safe_zgar 1225 ${Y - 1} 1193 1240 ${Y + 6} 1206`)
-    await cmd(`rg flag -w world safe_zgar passthrough allow`)
+    await cmd(`rg remove -w world safe_base_zgar`)
+    await cmd(`zzregion safe_base_zgar 1225 ${Y - 1} 1193 1240 ${Y + 6} 1206`)
+    await cmd(`rg flag -w world safe_base_zgar passthrough allow`)
     await cmd('zzcfgtime car::call-cooldown 1 second')
     await cmd(`minecraft:tp ${A} 1229.5 ${Y} 1199.5 -90 0`)
     await sleep(1500)
@@ -291,7 +309,7 @@ module.exports = async ({ check }) => {
     const swept = await until(async () => (await stands(plate)) === 3, 15000)
     check('a stray copy of a car is removed by the sweep, the car itself stays out', twice === 6 && swept && /,out,/.test(await info(A)), `${twice} ${await car(plate)} ${await info(A)}`)
     await cmd(`dgarage store ${A}`)
-    await cmd(`rg remove -w world safe_zgar`)
+    await cmd(`rg remove -w world safe_base_zgar`)
     await sleep(500)
 
     // ---------- Cleanup: idle, and logging out ----------
@@ -389,6 +407,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd(`fill ${PLATFORM} air`).catch(() => {})
     await rcon.cmd(`fill 1355 ${Y - 1} 1220 1368 ${Y - 1} 1232 air`).catch(() => {})
     await rcon.cmd(`forceload remove ${CHUNKS}`).catch(() => {})
+    await rcon.cmd('zzgaragesites restore').catch(() => {})
     rcon.close()
   }
 }

@@ -83,7 +83,7 @@ module.exports = ({ pg, aim, display }) => {
   // under the cylinder, palm up (the glove's C turned to lie along the cylinder's axis)
   const LH = rig({ t: [8.9 - OL[0], 10.0 - 2.2 - OL[1], 8 - OL[2]], rot: [[[0, 0, 1], 90]], pivot: OL })
   const gun = pgGun(name, {
-    hands: { right: { at: RH, scale: 1.1, armScale: 0.85 }, left: { at: LH, shown: false, armScale: 0.85 }, leftTree: false },
+    hands: { grip: false, right: { at: RH, scale: 1.1, armScale: 0.85 }, left: { at: LH, shown: false, armScale: 0.85 }, leftTree: false, realArm: true },
     style: 'pg',
     density: 4,
     ink: [8, 8, 10],

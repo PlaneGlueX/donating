@@ -1,0 +1,36 @@
+# Never index secrets or player data (Tebex key in logs, RCON password in server.properties)
+logs/
+server/logs/
+server/server.properties
+server/plugins/Tebex/
+server/world/
+server/libraries/
+server/versions/
+server/cache/
+server/voicelines/
+server/plugins/LuckPerms/
+server/plugins/Essentials/
+extras/
+backups/
+tools/node/
+tools/jdk25/
+bots/node_modules/
+bots/results/
+STORE IMAGES/
+${m2}/
+graphify-out/
+# The graph's scope (owner, 2026-11-05, "the realistic one"): docs, bots, tools, plugin, testing/notes, the scripts.
+.claude/
+pack/
+handoff/
+/*.md
+*.png
+*gps-paths.txt
+testing/*
+!testing/notes/
+server/*
+!server/plugins/
+server/plugins/*
+!server/plugins/Skript/
+server/plugins/Skript/*
+!server/plugins/Skript/scripts/

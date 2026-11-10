@@ -4368,6 +4368,27 @@
         "threshold": 8,
         "model": {
           "type": "minecraft:model",
+          "model": "donating:item/shiv"
+        }
+      },
+      {
+        "threshold": 9,
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/mop_spear"
+        }
+      },
+      {
+        "threshold": 10,
+        "model": {
+          "type": "minecraft:model",
+          "model": "donating:item/taped_club"
+        }
+      },
+      {
+        "threshold": 11,
+        "model": {
+          "type": "minecraft:model",
           "model": "minecraft:item/amethyst_shard"
         }
       }

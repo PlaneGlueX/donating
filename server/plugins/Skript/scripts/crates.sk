@@ -39,6 +39,11 @@ function crateExists(t: text) :: boolean:
 function crateName(t: text) :: text:
 	return "%{-cfg::rarity::%{_t}%::name}% Crate"
 
+function keyWord(n: number) :: text:
+	if {_n} is 1:
+		return "key"
+	return "keys"
+
 function crateColored(t: text) :: text:
 	return "%{-cfg::rarity::%{_t}%::color}%%crateName({_t})%"
 
@@ -1207,7 +1212,7 @@ command /dcrate [<text>]:
 			# Crates open only in safe zones (owner, 2026-09-26).
 			if isSafeZone(location of {_b}) is false:
 				set {_sp} to cfg("pvp::safe-prefix")
-				dcrateReply(sender, "CRATE warning: that block isn't in a safe zone, so nobody can open this crate there. Put crate stands inside a safe zone (a region whose id starts with %{_sp}%).")
+				dcrateReply(sender, "CRATE warning: that block isn't in a safe zone, so nobody can open this crate there. Put crate stands inside a safe zone (a region whose id starts with %{_sp}% or %cfg("pvp::safe-zone-prefix")%).")
 			stop
 		if {_sub} is "remove":
 			# In game: the block you look at. Anywhere (also the console): remove <x> <y> <z> [world].
@@ -1303,7 +1308,7 @@ function dcrateKeys(s: command sender, a: texts, sign: number):
 		dcrateReply({_s}, "CRATE %{_a::2}% +%{_n}% %{_t}% (now %crateKeys({_p}, {_t})%)")
 		loop all players:
 			if uuid of loop-player is uuid of {_p}:
-				msg(loop-player, "&aYou got %{_n}% %crateColored({_t})% &akey(s)! &7Open them at a crate stand.")
+				msg(loop-player, "&aYou got %{_n}% %crateColored({_t})% &a%keyWord({_n})%! &7Open at a crate stand.")
 				play sound "entity.player.levelup" with volume 0.6 to loop-player
 		stop
 	# Take back only unused keys; what's already opened can't be.

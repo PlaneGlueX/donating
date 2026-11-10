@@ -328,6 +328,56 @@ function Build-Plugin {
   $false
 }
 
+# The generators that write files into pack\ (and two scripts): each runs when a file it reads is newer than its
+# stamp (extras\packs\gen\<name>.stamp), so an edited art script reaches the pack (found 2026-10-22: furniture art
+# changed but the pack was built from the old files). Their output is deterministic: a run with nothing new changes nothing.
+$generators = @(
+  @{ Name = 'make-item-art'; Inputs = @('tools\make-item-art.js', 'tools\furniture-art.js', 'tools\png.js', 'tools\guns') },
+  @{ Name = 'make-phone-ui'; Inputs = @('tools\make-phone-ui.js', 'tools\phoneui') },
+  @{ Name = 'make-waypoint-art'; Inputs = @('tools\make-waypoint-art.js') },
+  @{ Name = 'make-phone-art'; Inputs = @('tools\make-phone-art.js') },
+  @{ Name = 'make-voice-lines'; Inputs = @('tools\make-voice-lines.js', 'tools\voicelines.json', 'server\voicelines') },
+  @{ Name = 'make-weapon-lore'; Inputs = @('tools\make-weapon-lore.js', 'server\plugins\WeaponMechanics\weapons', 'server\plugins\Skript\scripts\core.sk') },
+  @{ Name = 'make-zz-tab'; Inputs = @('tools\make-zz-tab.js') }
+)
+function Update-Generated {
+  $dir = Join-Path $root 'extras\packs\gen'
+  if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
+  $eap = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    foreach ($g in $generators) {
+      $stamp = Join-Path $dir "$($g.Name).stamp"
+      $why = Get-Stale $stamp @($g.Inputs | ForEach-Object { Join-Path $root $_ })
+      if (-not $why) { continue }
+      Note "Running tools\$($g.Name).js ($why)"
+      $out = @(& $node (Join-Path $PSScriptRoot "$($g.Name).js") 2>&1 | ForEach-Object { "$_" })
+      if ($LASTEXITCODE -ne 0) {
+        Bad "tools\$($g.Name).js failed:"
+        $out | Where-Object { $_.Trim() -and $_ -notmatch '^\s+at ' } | Select-Object -Last 8 | ForEach-Object { Say "       $_" Red }
+        continue
+      }
+      Set-Content -LiteralPath $stamp -Value (Get-Date -Format o) -Encoding ascii
+    }
+  } finally { $ErrorActionPreference = $eap }
+}
+
+# The town's furniture and signs and the prison's signs are entities in the world: a start puts back any that are
+# missing (tools\build\town.js and jail.js with --if-missing; they force-load the chunks and count first).
+function Repair-WorldEntities {
+  $eap = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    foreach ($run in @(@('town.js', 'displays'), @('town.js', 'labels'), @('jail.js', 'labels'))) {
+      $out = @(& $node (Join-Path $PSScriptRoot "build\$($run[0])") $run[1] '--if-missing' 2>&1 | ForEach-Object { "$_" })
+      $last = ($out | Where-Object { $_.Trim() } | Select-Object -Last 1)
+      if ($LASTEXITCODE -ne 0) { Warn "$($run[0]) $($run[1]): $last" }
+      elseif ($out -match 'placing them again') { Ok "$($run[0]) $($run[1]) put back: $last" }
+      else { Ok "$($run[0]) $($run[1]): $last" }
+    }
+  } finally { $ErrorActionPreference = $eap }
+}
+
 function Build-Pack {
   # The car wraps' models are generated (gitignored: MTVehicles' geometry isn't ours to publish); build-pack.js
   # stops without them.
@@ -429,6 +479,7 @@ function Start-All([string]$memory = '2G') {
     }
   } else { Ok 'Phone plugin up to date' }
 
+  Update-Generated
   $why = Get-Stale $packZip $packInputs
   if ($why) {
     Note "The resource pack is out of date ($why)"
@@ -444,6 +495,7 @@ function Start-All([string]$memory = '2G') {
   & (Join-Path $PSScriptRoot 'start-server.ps1') @args2 | ForEach-Object { Note $_ }
   if (-not (Wait-Ready)) { return $false }
   Show-StartReport
+  Repair-WorldEntities
   Show-Ready
   $true
 }
@@ -593,6 +645,7 @@ function Show-Status {
 # Rebuilds the pack; players online get it at once (/zzpack, a local test helper), everyone else at their next join.
 function Update-Pack {
   Say 'Rebuilding the resource pack' Cyan
+  Update-Generated
   if (-not (Build-Pack)) { return $false }
   $procs = Get-ServerProcs
   if (-not $procs) { Ok 'It loads at the next start'; return $true }

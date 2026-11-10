@@ -31,6 +31,13 @@ function loadSettings():
 	set {-cfg::afk::after} to 5 minutes
 	set {-cfg::chat::cooldown} to 2 seconds # PROPOSAL
 	set {-cfg::chat::tip-interval} to 5 minutes # PROPOSAL
+	# Chat filter (chat-extras.sk chatBlocked, 2026-11-10; owner: "keep the swear word moderation light"): slurs, sexual
+	# words and "kys" only, ordinary swearing passes. Whole words, and parts
+	# found even with spaces or symbols between the letters. A blocked line is not sent; the sender is told, it is logged.
+	set {-cfg::chat::filter-words} to "nigga|nigger|niggas|faggot|fag|fags|retard|retarded|porn|rape|rapist|kys"
+	set {-cfg::chat::filter-parts} to "nigger|nigga|faggot|killyourself"
+	# The same line again within this long is refused (chat spam).
+	set {-cfg::chat::repeat-window} to 30 seconds
 	set {-cfg::combat::tag} to 15 seconds # PROPOSAL (combat-tag length isn't set yet)
 	set {-cfg::combat::player-hit-priority} to 5 seconds
 	# Commands a combat-tagged player can't use (combat-log.sk), without the slash.
@@ -38,8 +45,13 @@ function loadSettings():
 	set {-cfg::pvp::spawn-shield} to 10 seconds
 	# After a command teleport or a heist eviction (pvp.sk; owner, 2026-09-27). EssentialsX's own stays 0.
 	set {-cfg::pvp::teleport-immunity} to 3 seconds
-	# WorldGuard regions whose id starts with this are safe zones (pvp.sk).
-	set {-cfg::pvp::safe-prefix} to "safe"
+	# WorldGuard regions whose id starts with this are safe zones (pvp.sk). Only the bases, with their crate stands (owner,
+	# 2026-10-21: "only safe zone is bases that have the crates"); garages, shops and spawn aren't safe any more, except a
+	# player in the garage menu at a garage (pvp.sk).
+	set {-cfg::pvp::safe-prefix} to "safe_base"
+	# Safe zones that don't sell loot (owner, 2026-10-29: "make the car shop/where the crates are a safe zone"):
+	# safe_zone_dealer over the 1M Dealership and its supercar/hypercar crate stands.
+	set {-cfg::pvp::safe-zone-prefix} to "safe_zone"
 	set {-cfg::passive::switch-cooldown} to 10 minutes
 	set {-cfg::bounty::repeat-kill-window} to 15 minutes
 	set {-cfg::duffel::despawn} to 2 minutes
@@ -59,6 +71,54 @@ function loadSettings():
 	# their gun shows; the gun fires arrows (Sentinel treats it as a bow).
 	set {-cfg::alarm::cops-per-extra-robber} to 2
 	set {-cfg::cop::per-wave} to 2
+	# Assaults (heists.sk, owner 2026-10-21: "implement some aspects of the dynamic police waves", Payday's; ALL
+	# PROPOSALS): after the response time (alarm::warning) assault n sends its pool of
+	#   P = pool + (n - 1) × pool-step + max(0, R - 1) × pool-per-robber cops (R = the players hunted)
+	# per-wave at a time every wave-interval, never more alive than the cap C = max-cops + max(0, R - 3) ×
+	# cops-per-extra-robber + (n - 1) × cap-step, for T = min(assault-max, assault-time + (n - 1) × assault-step) seconds;
+	# it's repelled early once the pool is spent and none of its cops are left. Then a break with no reinforcements:
+	# B = max(break-min, break - (n - 1) × break-step) seconds. Cops of assault n have health × (1 + (n - 1) × health-step)
+	# and damage × (1 + (n - 1) × damage-step), aim better by accuracy-step a time (Sentinel: lower is better, at least
+	# half), and from assault heavy-from on every heavy-every-th cop is a heavy (health-heavy × the health, a helmet and
+	# a vest, the rifle). Each key can be set per difficulty: difficulty::<d>::alarm::<key> (stores below).
+	set {-cfg::alarm::per-wave} to 2
+	set {-cfg::alarm::pool} to 6
+	set {-cfg::alarm::pool-step} to 2
+	set {-cfg::alarm::pool-per-robber} to 2
+	set {-cfg::alarm::cap-step} to 1
+	set {-cfg::alarm::assault-time} to 45
+	set {-cfg::alarm::assault-step} to 15
+	set {-cfg::alarm::assault-max} to 90
+	set {-cfg::alarm::break} to 30
+	set {-cfg::alarm::break-step} to 5
+	set {-cfg::alarm::break-min} to 15
+	set {-cfg::alarm::health-step} to 0.15
+	set {-cfg::alarm::damage-step} to 0.1
+	set {-cfg::alarm::accuracy-step} to 0.1
+	set {-cfg::alarm::heavy-from} to 3
+	set {-cfg::alarm::heavy-every} to 3
+	set {-cfg::alarm::health-heavy} to 2
+	set {-cfg::alarm::heavy-model} to 5
+	# A store with its police on (/dheist set <id> police true; stores have none by default: below): a slower response,
+	# a few cops at a time, a short chase, no heavies.
+	set {-cfg::difficulty::0::alarm::warning} to 30 seconds
+	set {-cfg::difficulty::0::alarm::chase-radius} to 60
+	set {-cfg::difficulty::0::alarm::max-cops} to 3
+	set {-cfg::difficulty::0::alarm::cops-per-extra-robber} to 1
+	set {-cfg::difficulty::0::alarm::per-wave} to 1
+	set {-cfg::difficulty::0::alarm::pool} to 3
+	set {-cfg::difficulty::0::alarm::pool-step} to 1
+	set {-cfg::difficulty::0::alarm::pool-per-robber} to 1
+	set {-cfg::difficulty::0::alarm::assault-time} to 30
+	set {-cfg::difficulty::0::alarm::assault-step} to 10
+	set {-cfg::difficulty::0::alarm::assault-max} to 60
+	set {-cfg::difficulty::0::alarm::heavy-from} to 99
+	# Street patrols (patrols.sk): N = min(cap, ceil(A / players-each)), A = active players.
+	set {-cfg::patrol::players-each} to 2
+	set {-cfg::patrol::cap} to 4
+	set {-cfg::patrol::spot} to 18
+	set {-cfg::patrol::lose} to 45
+	set {-cfg::patrol::far} to 120
 	set {-cfg::cop::name} to "Cop"
 	set {-cfg::cop::range} to 30
 	set {-cfg::cop::chase} to 120
@@ -201,11 +261,13 @@ function loadSettings():
 	set {-cfg::carwrap::tier::1} to "Common|&f"
 	set {-cfg::carwrap::tier::2} to "Rare|&9"
 	set {-cfg::carwrap::tier::3} to "Exotic|&d"
-	loop "matte|Matte Black|1", "primer|Primer|1", "twotone|Two-Tone|1", "stripes|Racing Stripes|1", "checker|Checkered|1", "camo|Woodland Camo|2", "arctic|Arctic Camo|2", "carbon|Carbon Fiber|2", "flames|Flames|2", "tiger|Tiger|2", "hacker|H4CK3R|3", "galaxy|Galaxy|3", "goldleaf|Gold Leaf|3", "neon|Neon Grid|3" and "inferno|Inferno|3":
+	loop "matte|Matte Black|1", "primer|Primer|1", "twotone|Two-Tone|1", "stripes|Racing Stripes|1", "checker|Checkered|1", "camo|Woodland Camo|2", "arctic|Arctic Camo|2", "carbon|Carbon Fiber|2", "flames|Flames|2", "tiger|Tiger|2", "hacker|H4CK3R|3", "galaxy|Galaxy|3", "goldleaf|Gold Leaf|3", "neon|Neon Grid|3", "inferno|Inferno|3" and "scrapper|Scrapper|1":
 		set {_cw::*} to loop-value split at "|"
 		add {_cw::1} to {-cfg::carwraps::*}
 		set {-cfg::carwrap::%{_cw::1}%::name} to {_cw::2}
 		set {-cfg::carwrap::%{_cw::1}%::tier} to {_cw::3} parsed as integer
+	# The stolen bikes' rusty look (bikes.sk, 2026-10-21): never rolled, never on a car anyone owns.
+	set {-cfg::carwrap::scrapper::retired} to true
 	# Hardware mods: a part's stage n (1-3) raises the model's stat by that share (engine: top speed, turbo: acceleration)
 	# or that many points (handling: steering). The tuning shop at a garage sells them for dealer cars (not extreme ones)
 	# at the model's price x share (at least min) per stage; crate cars come with theirs and can't be changed.
@@ -231,6 +293,22 @@ function loadSettings():
 	set {-cfg::carmod::min::1} to 5000
 	set {-cfg::carmod::min::2} to 12000
 	set {-cfg::carmod::min::3} to 25000
+	# The Fuel Tank (2026-10-21, the owner: "a new car upgrade for a bigger tank and slower burn"; garage.sk carTankBuy,
+	# fuel.sk fuelTankOf/fuelBurnOf): stage n gives tank T' = T × (1 + t_n) and uses e_n less fuel a minute, so a full
+	# tank lasts B' = B × (1 + t_n) / (1 − e_n) (stage III: × 2.29). Every car, crate and extreme ones too (no look,
+	# speed or grade change). Price max(min_n, floor(dealer price × share_n)); a crate car pays min_n. In-game money only.
+	set {-cfg::carmod::tank::1} to 0.2
+	set {-cfg::carmod::tank::2} to 0.4
+	set {-cfg::carmod::tank::3} to 0.6
+	set {-cfg::carmod::tank::eff::1} to 0.1
+	set {-cfg::carmod::tank::eff::2} to 0.2
+	set {-cfg::carmod::tank::eff::3} to 0.3
+	set {-cfg::carmod::tank::share::1} to 0.02
+	set {-cfg::carmod::tank::share::2} to 0.05
+	set {-cfg::carmod::tank::share::3} to 0.1
+	set {-cfg::carmod::tank::min::1} to 2000
+	set {-cfg::carmod::tank::min::2} to 5000
+	set {-cfg::carmod::tank::min::3} to 10000
 	# Looks from car crates only: neon under the car and a trail behind it (particles while it's driven).
 	set {-cfg::carneons::*} to "cyan", "blue", "green", "purple", "orange" and "white"
 	set {-cfg::carneon::cyan::name} to "Cyan"
@@ -268,6 +346,56 @@ function loadSettings():
 	set {-cfg::car::lock-range} to 0
 	# Regions whose id starts with this are no-lock zones (car spawn areas): no locking there.
 	set {-cfg::car::nolock-prefix} to "nolock"
+
+	# ---------- Fuel (fuel.sk, 2026-10-21; town PLAN 15.2): PROPOSALS ----------
+	# The owner: "enable fuel for cars, and make adding fuel like an actual gas pump (grab pump, fill it into car, wait until
+	# full, pay money, different cars have different size tanks)". MTVehicles keeps a car's level (0..100) and takes its
+	# usage each tick the pedal is held; a tank of T liters lasts burn minutes of pedal: usage u = 100 / (burn x 1200).
+	# fuel::enabled false: fuel.sk turns fuel off on every car as it's driven (MTVehicles' own switch stays as set).
+	set {-cfg::fuel::enabled} to true
+	# $ a liter at a pump, liters a second, how far from the pump a car may stand, the nozzle goes back after this long
+	# with no fuel flowing, the low-fuel warning (percent), the garage's tank service (x the pump's price).
+	set {-cfg::fuel::price} to 25
+	set {-cfg::fuel::flow} to 4
+	set {-cfg::fuel::hose} to 6
+	set {-cfg::fuel::idle} to 60 seconds
+	set {-cfg::fuel::low} to 15
+	set {-cfg::fuel::garage-factor} to 2
+	# A model with no tank of its own: these.
+	set {-cfg::fuel::tank} to 60
+	set {-cfg::fuel::burn} to 30
+	# "car|tank liters|burn minutes" (the crate cars as their family). Burn = minutes of pedal on a full tank; the owner,
+	# 2026-10-21: "cars burn fuel 2-4x slower than now depending on the car": B' = k × B, k = 4 for the Sedan, 3 for the
+	# everyday and big cars (Sport Sedan, Jeep, SUV, Viper, Riviera, Specter, the default), 2 for the fast ones (Sports
+	# Car, Hotrod, Apex, Vandal, Overclock). Was 12, 11, 11, 9, 8, 12, 10, 10, 7, 9, 11, 8 and the default 10.
+	loop "sedan|50|48", "sportsedan|55|33", "jeep|70|33", "sports|60|18", "hotrod|65|16", "suv|90|36", "viper|18|30", "riviera|75|30", "apex|80|14", "vandal|60|18", "specter|55|33" and "overclock|65|16":
+		set {_ft::*} to loop-value split at "|"
+		set {-cfg::car::%{_ft::1}%::tank} to {_ft::2} parsed as number
+		set {-cfg::car::%{_ft::1}%::burn} to {_ft::3} parsed as number
+
+	# ---------- Stolen bikes (bikes.sk, 2026-10-21; town PLAN 15.3): PROPOSALS ----------
+	# The owner: "a small shop in front of the prison with a little parking lot where small vehicles (bikes) spawn; a player
+	# steals one with a quick-time event". A bike is MTVehicles' motorbike (the Viper's shape) in the Scrapper wrap, never a
+	# Viper anyone paid for; slowed to its stats ("top speed|acceleration|steering").
+	set {-cfg::bike::model} to "viper"
+	set {-cfg::bike::wrap} to "scrapper"
+	set {-cfg::bike::stats} to "0.62|0.014|8"
+	set {-cfg::bike::tank} to 12
+	set {-cfg::bike::burn} to 24
+	set {-cfg::bike::fuel-min} to 40
+	set {-cfg::bike::fuel-max} to 100
+	# The hotwire minigame (contracts.sk's lock picking): hits in a row, the marker a slot every qte-step ticks, misses
+	# that sound the bike's alarm and lock that bike for that player for alarm-lock.
+	set {-cfg::bike::qte-hits} to 3
+	set {-cfg::bike::qte-step} to 3
+	set {-cfg::bike::max-fails} to 3
+	set {-cfg::bike::alarm-lock} to 15 seconds
+	# How far from the bike the minigame stays open; the bike is scrapped when it stands with no rider this long, or after
+	# max-ride; its spot gets a new bike respawn after it was stolen.
+	set {-cfg::bike::reach} to 4
+	set {-cfg::bike::abandon} to 60 seconds
+	set {-cfg::bike::max-ride} to 20 minutes
+	set {-cfg::bike::respawn} to 120 seconds
 	# The City Garage (citygarage.sk, PROPOSAL): sites are safe-zone regions whose id starts with region-prefix; a car
 	# comes out there every takeout-cooldown (Valet anywhere every car::call-cooldown) and goes back if nobody gets in
 	# within pickup-idle; driving within return-radius of a return spot parks it. A car standing unused waits while its
@@ -349,12 +477,24 @@ function loadSettings():
 	set {-cfg::contract::cooldown} to 3 minutes
 	# Offers are made again this often (per player).
 	set {-cfg::contract::refresh} to 10 minutes
+	# Every car spot shows a parked car (contracts.sk), a new one this often unless a job holds the spot (owner, 2026-10-21:
+	# "non owned/player cars despawn and get replaced with a new one every 5 minutes (unless a player is driving or trying
+	# to unlock it)"); 30 real minutes since (owner, the same day: "every real life 30 minutes (less lag)"); drawn while a
+	# player is within park-range blocks.
+	set {-cfg::contract::park-refresh} to 30 minutes
+	set {-cfg::contract::park-range} to 80
 	# The lock-picking minigame (like the drill's, loot.sk): the marker moves one slot every qte-step
 	# ticks; clicks are ignored this many ticks after a hit / a miss.
 	set {-cfg::contract::qte-hit-lock} to 6
 	set {-cfg::contract::qte-miss-lock} to 10
 	# Chop shops (staff: /dcontract chop add): the stolen car counts as delivered within this many blocks.
 	set {-cfg::contract::chop-radius} to 6
+	# The crusher (owner, 2026-10-22: "an animation for the chop machine ... one player at a time"): the car rolls under
+	# the press, the plate (crush::plate-height above the spot, crush::plate-size wide, like the Scrap Yard's frame)
+	# comes down, a cube drops; another stolen car waits outside until crush::time is over.
+	set {-cfg::contract::crush::time} to 6 seconds
+	set {-cfg::contract::crush::plate-height} to 5
+	set {-cfg::contract::crush::plate-size} to 5
 	# Car spots and chop shops at least this far apart (/dcontract refuses closer ones).
 	set {-cfg::contract::min-distance} to 50
 
@@ -362,10 +502,13 @@ function loadSettings():
 	# Owner, 2026-09-26: quests are given in person by an NPC at a place (e.g. a scrap yard). Per kind: what it
 	# gives (under the NPC's name), the NPC's name ("{place}" = the giver's place), the default place name,
 	# and what it holds. Jobs and their tools only within quest::reach blocks of a giver of that kind.
-	set {-cfg::quests::*} to "contracts", "story", "fence" and "hits"
+	# lefty, rusty, tank, whisper, sparks: the prison's inmates (jailjobs.sk; their settings are in the prison block below).
+	set {-cfg::quests::*} to "contracts", "story", "fence", "hits", "lefty", "rusty", "tank", "whisper" and "sparks"
 	set {-cfg::quest::contracts::name} to "Car contracts"
 	set {-cfg::quest::contracts::npc} to "{place} Boss"
 	set {-cfg::quest::contracts::place} to "Scrap Yard"
+	# Found on the map, not led to (quests.sk questSecret; owner, 2026-10-22): no dot, no map place, no GPS after the first visit.
+	set {-cfg::quest::contracts::secret} to true
 	set {-cfg::quest::contracts::hold} to "flint"
 	set {-cfg::quest::contracts::hold-model} to "donating:lockpick_basic"
 	set {-cfg::quest::story::name} to "Missions"
@@ -384,6 +527,21 @@ function loadSettings():
 	# District names (districts.sk): a district's name shows again on entering it only after this long.
 	set {-cfg::district::repeat} to 30 seconds
 	set {-cfg::messages::keep} to 60
+	# 2026-10-19 (owner: "theres alot of spam when the quest messages get put into the phone messages"): within this
+	# many blocks of a contact's quest giver a line is said in person (chat only, never kept).
+	set {-cfg::messages::near} to 10
+	# Lines one contact sends within this long are one text (a mission's done line and the next brief).
+	set {-cfg::messages::join-window} to 1 second
+	# The same text from the same contact within this many seconds isn't kept again.
+	set {-cfg::messages::dedupe} to 1800
+	# A kept text shows in chat as one line of at most this many characters (its first words), the rest in /messages.
+	set {-cfg::messages::preview} to 60
+	# The inmates' voice lines (voice.sk, 2026-10-20): a line from the speaker whose clip still plays, said within this
+	# many seconds of their last one (a mission's done line and the next brief, Rusty's two lines), waits for it; any
+	# other line stops it first.
+	set {-cfg::voice::chain} to 2.5
+	# The voice comes from the nearest quest giver of the speaker's kind within this many blocks (else from the player).
+	set {-cfg::voice::range} to 24
 	set {-cfg::msgcontact::mara::skin} to "mara"
 	set {-cfg::msgcontact::mara::kind} to "story"
 	set {-cfg::msgcontact::boss::skin} to "boss"
@@ -393,6 +551,7 @@ function loadSettings():
 	set {-cfg::msgcontact::broker::skin} to "broker"
 	set {-cfg::msgcontact::broker::kind} to "hits"
 	set {-cfg::quest::hits::place} to "Pool Hall"
+	set {-cfg::quest::hits::secret} to true
 	set {-cfg::quest::hits::hold} to "book"
 	set {-cfg::quest::reach} to 6
 
@@ -407,12 +566,16 @@ function loadSettings():
 	# A mission whose needs go missing (a heist disabled for a rebuild) is checked every needs-check seconds and
 	# only skipped after needs-grace seconds in a row.
 	# The chains (story.sk): each runs one mission at a time, side by side. Mara's list is story::missions.
-	set {-cfg::story::chains::*} to "story" and "vic"
+	# lefty: the prison's one-time lessons (Lefty's settings are in the prison block below).
+	set {-cfg::story::chains::*} to "story", "vic" and "lefty"
 	set {-cfg::chain::story::giver} to "story"
 	set {-cfg::chain::story::from} to "Mara"
 	set {-cfg::chain::story::color} to "&d"
 	set {-cfg::chain::story::bar} to "&d&lMISSION"
 	set {-cfg::chain::story::barcolor} to "purple"
+	# Mara starts at the first escape (the prison, 2026-10-14): story.sk's storyState "escaped" is true for everyone
+	# while the prison is off, and for players who are out (or never came in: data jail unset).
+	set {-cfg::chain::story::start} to "state|escaped"
 	# Vic the Fence (owner, 2026-09-27: "Vic the Fence"): his own arc from level 3, next to Mara's; its end hands
 	# over his weekly Wanted List (fence.sk). PROPOSAL texts and rewards.
 	set {-cfg::chain::vic::giver} to "fence"
@@ -431,6 +594,8 @@ function loadSettings():
 	set {-cfg::story::v1_meet::brief} to "Mara says you've got quick hands. I buy what nobody else can sell. Come to the Pawn Shop."
 	set {-cfg::story::v1_meet::talk::*} to "So you're Mara's kid.", "Jewels, cars, art. Things with a history." and "Show me you can bring me something worth my time."
 	set {-cfg::story::v2_appraisal::label} to "Sell $20,000 from difficulty 2+ heists"
+	# story::<id>::side: a shorter step for the sidebar (story.sk storyLine: the quest's name comes first, "▶ Vic: ...").
+	set {-cfg::story::v2_appraisal::side} to "Sell $20,000 from diff. 2+ heists"
 	set {-cfg::story::v2_appraisal::obj} to "ev|sell|20000|d2+"
 	set {-cfg::story::v2_appraisal::gps} to "heist:d2+"
 	set {-cfg::story::v2_appraisal::needs} to "d2+"
@@ -445,6 +610,7 @@ function loadSettings():
 	set {-cfg::story::v3_wheels::done} to "The buyer cried a little. Beautiful."
 	set {-cfg::story::v3_wheels::rewards::*} to "money|3000" and "xp|400"
 	set {-cfg::story::v4_collector::label} to "Crack a safe in a difficulty 3+ heist"
+	set {-cfg::story::v4_collector::side} to "Crack a safe in a diff. 3+ heist"
 	set {-cfg::story::v4_collector::obj} to "ev|crack|1|d3+"
 	set {-cfg::story::v4_collector::gps} to "heist:safe,d3+"
 	set {-cfg::story::v4_collector::needs} to "safe,d3+"
@@ -452,6 +618,7 @@ function loadSettings():
 	set {-cfg::story::v4_collector::done} to "The collector says you have a gift. I say you have a Safe Kit."
 	set {-cfg::story::v4_collector::rewards::*} to "money|4000" and "xp|500"
 	set {-cfg::story::v5_auction::label} to "Drill a vault and lose the cops, in one run"
+	set {-cfg::story::v5_auction::side} to "Vault and getaway in one run"
 	set {-cfg::story::v5_auction::obj} to "combo|adv|drill,getaway"
 	set {-cfg::story::v5_auction::gps} to "heist:adv,drill"
 	set {-cfg::story::v5_auction::needs} to "adv,drill"
@@ -462,12 +629,15 @@ function loadSettings():
 	set {-cfg::story::v6_end::obj} to "talk|fence"
 	set {-cfg::story::v6_end::gps} to "fence"
 	set {-cfg::story::v6_end::brief} to "Come by the shop. I've got a proposition."
-	set {-cfg::story::v6_end::talk::*} to "You've got taste, and you don't get caught.", "Here's my list. New names every Thursday." and "Bring me what's on it and I pay over the odds."
+	set {-cfg::story::v6_end::talk::*} to "You've got taste, and you don't get caught.", "Here's my list. New names every week." and "Bring me what's on it and I pay over the odds."
 	set {-cfg::story::v6_end::rewards::*} to "cos|vic_guy", "key|season|1" and "fence|list"
 	# Vic's weekly Wanted List (fence.sk): 3 orders a week for everyone, picked up in person at the Pawn Shop.
 	# A heist order pays heist::rate on up to L1 = min(cap::<d>, pool-share x the pool) of your own loot from it; a
 	# difficulty order diff::rate on up to cap::<d> of your own loot from heists that hard; a car order a flat pay once.
 	set {-cfg::fence::level} to 45
+	# The phone, the GPS's lists, the gun shop and the Car Dealer show heists, quests, guns and cars at most this many
+	# levels above the player's (owner, 2026-10-22: hide what's still far off; phone.sk phoneSeesLevel).
+	set {-cfg::phone::reveal-levels} to 5
 	set {-cfg::fence::heist::rate} to 0.3
 	set {-cfg::fence::heist::min-difficulty} to 2
 	set {-cfg::fence::heist::pool-share} to 0.5
@@ -482,8 +652,13 @@ function loadSettings():
 	set {-cfg::fence::car::tiers::*} to "basic" and "pro"
 	set {-cfg::fence::car::basic::pay} to 6000
 	set {-cfg::fence::car::pro::pay} to 18000
-	# progress.sk: the week turns Thursday 00:00 UTC (seconds added to unix time move it), and run notes are kept
-	# 14 days at most.
+	# clock.sk (owner, 2026-10-21; rebuilt the same day on Minecraft's own day/night cycle): the clock reads the play
+	# world's time (clock::world, else prison::world); clock::rate is vanilla's pace, 1.2 game minutes a real second (only
+	# for real countdowns: it never changes the sky). The game week is progress.sk's week (the hit contracts, Vic's list).
+	set {-cfg::clock::rate} to 1.2
+	set {-cfg::clock::days::*} to "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" and "Sun"
+	# progress.sk: run notes are kept 14 days at most. (week::offset moved the real Thursday week; since 2026-10-21 the
+	# week is the game clock's: /dclock set or offset moves it.)
 	set {-cfg::week::offset} to 0
 	set {-cfg::progress::run-keep-days} to 14
 	set {-cfg::story::needs-check} to 30
@@ -530,11 +705,14 @@ function loadSettings():
 	set {-cfg::story::c1_rob::obj} to "ev|rob|1"
 	set {-cfg::story::c1_rob::gps} to "heist:store"
 	set {-cfg::story::c1_rob::needs} to "heist"
-	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Grab what fits in your bag and watch for traps."
+	set {-cfg::story::c1_rob::brief} to "Stores are easy money for new faces: no clock. Smack the clerk, grab the register, and duck whatever they throw at you."
 	set {-cfg::story::c1_rob::done} to "That's the spirit. Now get out of there."
 	set {-cfg::story::c1_sell::chapter} to 1
 	set {-cfg::story::c1_sell::label} to "Sell your loot at the base"
 	set {-cfg::story::c1_sell::obj} to "ev|sell|1"
+	# With loot the base route wins (story.sk questGps); after a death with an empty bag: back to a store, and says so.
+	set {-cfg::story::c1_sell::gps} to "heist:store"
+	set {-cfg::story::c1_sell::label-empty} to "Rob a store first: nothing to sell"
 	set {-cfg::story::c1_sell::brief} to "Loot's worth nothing in a bag. Take it to the base: your GPS knows the way."
 	set {-cfg::story::c1_sell::done} to "Cash in hand. Feels good, huh? Here's a crate key for your trouble."
 	set {-cfg::story::c1_sell::rewards::*} to "key|daily|1"
@@ -668,6 +846,7 @@ function loadSettings():
 	set {-cfg::story::c4_pro::done} to "Now that's a car. Nice work."
 	set {-cfg::story::c4_big::chapter} to 4
 	set {-cfg::story::c4_big::label} to "Sell $40,000 from difficulty-4 heists"
+	set {-cfg::story::c4_big::side} to "Sell $40,000 from diff. 4 heists"
 	set {-cfg::story::c4_big::obj} to "ev|sell|40000|d4"
 	set {-cfg::story::c4_big::gps} to "heist:d4"
 	set {-cfg::story::c4_big::needs} to "d4"
@@ -829,7 +1008,8 @@ function loadSettings():
 	set {-cfg::difficulty::4::name} to "Advanced"
 	# Difficulty 0 = a store (owner, 2026-09-27: "easy money for people starting off"): no escape clock, it closes
 	# when it's cleaned out (store::empty-grace later anyone inside is moved out with their loot) or after
-	# store::idle-close with nobody inside; only robbers up to its max-level get in; never announced.
+	# store::idle-close with nobody inside; never announced. Any level may rob one (owner, 2026-10-21: "level minimums only,
+	# no maximum anywhere": the store's max level, its duffel rule and Heist Refresh's store check are gone).
 	set {-cfg::difficulty::0::name} to "Store"
 	set {-cfg::difficulty::0::p} to 0.01
 	set {-cfg::difficulty::0::cop-p} to 0.05
@@ -843,6 +1023,11 @@ function loadSettings():
 	set {-cfg::money::start} to 1000
 	# Bag tiers: capacity = the most loot value ($) the bag holds. Owner, 2026-09-26: unlocking a tier
 	# costs 120% of what it holds (price = 1.2 × capacity), a new one after losing it 20% (replace below).
+	# The sale's celebration (bag.sk saleParty; owner, 2026-11-05: big reactions, same money, no words). Dollars.
+	# The short sidebar for new players (TAB's board "new"; owner, 2026-11-05).
+	set {-cfg::tutorial::simple-board-level} to 5
+	set {-cfg::bag::big-sale} to 5000
+	set {-cfg::bag::huge-sale} to 25000
 	set {-cfg::bag::1::name} to "Gym Bag"
 	set {-cfg::bag::1::capacity} to 2000
 	set {-cfg::bag::1::price} to 2400
@@ -886,6 +1071,7 @@ function loadSettings():
 	# "The Bank is open!" / "The Bank is closed." to everyone. The only heist chat everyone gets (owner,
 	# 2026-09-26): the rest (the clock, warnings, the alarm) goes only to the robbers inside.
 	set {-cfg::heist::announce} to true
+	set {-cfg::heist::steps-per-second} to 2
 	# Room resets place one section of at most this many blocks per side per second.
 	set {-cfg::heist::reset-section} to 32
 	# Largest room a heist may save (blocks). SkBee keeps saved rooms in memory.
@@ -910,12 +1096,6 @@ function loadSettings():
 	# level <n>).
 	set {-cfg::difficulty::0::level} to 0
 	set {-cfg::difficulty::1::level} to 0
-	# The highest robber level that may enter (0 = no limit): stores are for new robbers.
-	set {-cfg::difficulty::0::max-level} to 9
-	set {-cfg::difficulty::1::max-level} to 0
-	set {-cfg::difficulty::2::max-level} to 0
-	set {-cfg::difficulty::3::max-level} to 0
-	set {-cfg::difficulty::4::max-level} to 0
 	# "The Bank is open!" to everyone (heist::announce); stores reopen every few minutes, so they stay quiet.
 	set {-cfg::difficulty::0::announce} to false
 	set {-cfg::difficulty::1::announce} to true
@@ -927,6 +1107,89 @@ function loadSettings():
 	set {-cfg::store::empty-grace} to 15 seconds
 	set {-cfg::store::idle-close} to 10 minutes
 	set {-cfg::store::no-pvp} to true
+	# The clerk (clerk.sk, owner 2026-10-21: Payday's stores; ALL PROPOSALS): a store with a clerk spot (/dclerk) keeps
+	# its register shut until someone hits the clerk; then the register opens, the clerk hits the panic button if the
+	# store has police (none by default: difficulty::0::police below; the alarm's numbers are difficulty::0::alarm::*
+	# above) and runs to the shelves to throw things (one throw every clerk::every at most, clerk::damage HP a hit that
+	# lands, clerk::spread blocks of miss, within clerk::range); another hit makes them duck for clerk::stun.
+	# clerk::give-up failed spawns open the register without a clerk. store::clerk false: stores without clerks (the
+	# register open to anyone, as before).
+	set {-cfg::store::clerk} to true
+	set {-cfg::clerk::name} to "Clerk"
+	set {-cfg::clerk::skin-fallback} to "bag"
+	set {-cfg::clerk::speed} to 1.35
+	set {-cfg::clerk::range} to 14
+	set {-cfg::clerk::every} to 1.5 seconds
+	set {-cfg::clerk::stun} to 3 seconds
+	# Every hit on the clerk shoves them (blocks a tick, lift) and the robbery makes them walk faster (Citizens' speed
+	# modifier; 1 when calm). Owner, 2026-10-22; PROPOSAL.
+	set {-cfg::clerk::hit-knockback} to 0.5
+	set {-cfg::clerk::hit-lift} to 0.25
+	set {-cfg::clerk::panic-speed} to 1.6
+	set {-cfg::clerk::throw-speed} to 1.0
+	set {-cfg::clerk::spread} to 0.6
+	set {-cfg::clerk::damage} to 1.5
+	# A prop's push along the throw (blocks a tick; the Pipe Wrench's is 0.75) and lift; a chance of a short bad
+	# effect, blindness or Slowness I (owner, 2026-10-21; PROPOSAL).
+	set {-cfg::clerk::knockback} to 0.6
+	set {-cfg::clerk::lift} to 0.3
+	set {-cfg::clerk::effect-chance} to 25
+	set {-cfg::clerk::blind-time} to 1.5 seconds
+	set {-cfg::clerk::slow-time} to 2 seconds
+	set {-cfg::clerk::give-up} to 3
+	# What they throw (owner, 2026-11-05: things that fit the store): a Citizens item id (in their hand) and the item the
+	# thrown snowball shows. clerk::props is for a store with no list of its own. PROPOSAL lists.
+	set {-cfg::clerk::props::*} to "paper", "book" and "glass_bottle"
+	set {-cfg::clerk::store-props::donut::*} to "pumpkin_pie", "cookie", "cake", "honey_bottle" and "sugar"
+	set {-cfg::clerk::store-props::gas::*} to "bucket", "glass_bottle", "honey_bottle", "dried_kelp" and "cooked_porkchop"
+	set {-cfg::clerk::store-props::pawn::*} to "clock", "compass", "gold_ingot", "spyglass", "goat_horn" and "emerald"
+	set {-cfg::clerk::store-props::carwash::*} to "sponge", "bucket", "slime_ball" and "glass_bottle"
+	# Shown as the shop's food instead (shop.sk toolItem): the pie flies as the Donut, the pork chop as the Hot Dog.
+	set {-cfg::clerk::prop-tool::pumpkin_pie} to "donut"
+	set {-cfg::clerk::prop-tool::cooked_porkchop} to "hotdog"
+	set {-cfg::clerk::prop-item::paper} to paper
+	set {-cfg::clerk::prop-item::book} to book
+	set {-cfg::clerk::prop-item::cake} to cake
+	set {-cfg::clerk::prop-item::sugar} to sugar
+	set {-cfg::clerk::prop-item::bucket} to bucket
+	set {-cfg::clerk::prop-item::dried_kelp} to dried kelp
+	set {-cfg::clerk::prop-item::clock} to clock
+	set {-cfg::clerk::prop-item::compass} to compass
+	set {-cfg::clerk::prop-item::gold_ingot} to gold ingot
+	set {-cfg::clerk::prop-item::spyglass} to spyglass
+	set {-cfg::clerk::prop-item::goat_horn} to goat horn
+	set {-cfg::clerk::prop-item::emerald} to emerald
+	set {-cfg::clerk::prop-item::sponge} to sponge
+	set {-cfg::clerk::prop-item::slime_ball} to slime ball
+	set {-cfg::clerk::prop-item::honey_bottle} to honey bottle
+	set {-cfg::clerk::prop-item::glass_bottle} to glass bottle
+	set {-cfg::clerk::prop-item::cookie} to cookie
+	set {-cfg::clerk::lines::panic::*} to "Okay, okay! Don't hurt me!", "Not again..." and "The money's not even mine!"
+	set {-cfg::clerk::lines::throw::*} to "Get out of my store!", "Take THIS!" and "Get OUT!"
+	# Added to the throws in a store with police.
+	set {-cfg::clerk::lines::throw-police::*} to "I called the cops!" and "The cops are coming!"
+	set {-cfg::clerk::lines::duck::*} to "Ow! Stop it!" and "Okay! Okay!"
+	# The armed clerk (owner, 2026-10-21: "10% chance ... 75% chance the weapon is melee and 25% armed (armed will have a
+	# little more money)"; PROPOSAL numbers): at each opening a store's clerk is armed clerk::armed-chance % of the time,
+	# with a melee weapon clerk::armed-melee % of those, else a gun; the register then holds clerk::mult-melee or
+	# clerk::mult-gun times its cash (every piece worth that much more). Melee: clerk::melee-damage HP a hit within
+	# clerk::melee-reach, one every clerk::melee-every. Gun: a shot every clerk::gun-every at a robber in sight within
+	# clerk::range, landing clerk::gun-aim % of the time for clerk::gun-damage HP.
+	set {-cfg::clerk::armed-chance} to 10
+	set {-cfg::clerk::armed-melee} to 75
+	set {-cfg::clerk::mult-melee} to 3
+	set {-cfg::clerk::mult-gun} to 3.5
+	set {-cfg::clerk::melee-damage} to 3
+	set {-cfg::clerk::melee-reach} to 2.6
+	set {-cfg::clerk::melee-every} to 1.25 seconds
+	set {-cfg::clerk::melee-push} to 0.5
+	set {-cfg::clerk::gun-damage} to 2.5
+	set {-cfg::clerk::gun-every} to 1.5 seconds
+	set {-cfg::clerk::gun-aim} to 45
+	# What they hold (Citizens item ids): the Pipe Wrench's look, the Classic Pistol's.
+	set {-cfg::clerk::weapon::melee} to "amethyst_shard[custom_model_data={floats:[2f]}]"
+	set {-cfg::clerk::weapon::gun} to "feather[custom_model_data={floats:[9f]}]"
+	set {-cfg::clerk::lines::armed::*} to "Wrong store, pal!", "I've been waiting for this!" and "Not today!"
 	set {-cfg::difficulty::2::level} to 5
 	# Owner, 2026-09-28: heists 0 / 5 / 20 / 45 (difficulty 1-4).
 	set {-cfg::difficulty::3::level} to 20
@@ -937,6 +1200,15 @@ function loadSettings():
 	set {-cfg::difficulty::2::advanced} to false
 	set {-cfg::difficulty::3::advanced} to false
 	set {-cfg::difficulty::4::advanced} to true
+	# Police (owner, 2026-10-21: "for low tier stores like donut shop and grocery store, no need for police"): stores
+	# (difficulty 0) have none: the clerk still opens the register and throws things, nobody is wanted. Per heist:
+	# /dheist set <id> police true|false|default. Off: no alarm at all (the clerk's panic button, traps, cameras, a
+	# drill, staff). On for 1-4: the alarm trips only in advanced heists, as before.
+	set {-cfg::difficulty::0::police} to false
+	set {-cfg::difficulty::1::police} to true
+	set {-cfg::difficulty::2::police} to true
+	set {-cfg::difficulty::3::police} to true
+	set {-cfg::difficulty::4::police} to true
 	# PvP heists: no crew rule inside, no passive players (per heist: /dheist set <id> pvp true).
 	set {-cfg::difficulty::0::pvp-only} to false
 	set {-cfg::difficulty::1::pvp-only} to false
@@ -962,7 +1234,8 @@ function loadSettings():
 	set {-cfg::trap::step} to 0.5              # max blocks between path samples (the hit window is 0.56)
 	set {-cfg::trap::max-samples} to 16        # a fall is up to 3.9 blocks per tick
 	set {-cfg::trap::grace} to 0.05            # hitbox shrink per side: grazes are forgiven
-	set {-cfg::trap::lead} to 4 ticks          # a blinking beam shows this long before it can hurt (ping)
+	set {-cfg::trap::near-range} to 64
+	set {-cfg::trap::lead} to 4 ticks         # a blinking beam shows this long before it can hurt (ping)
 	# Traps hurt, not kill (owner, 2026-09-25). A trap hits on each new touch (off it longer than rearm),
 	# never twice within min-gap; lasers again every `every` while you stay in them, plates once per step.
 	set {-cfg::trap::rearm} to 4 ticks
@@ -973,7 +1246,7 @@ function loadSettings():
 	set {-cfg::trap::laser::damage} to 3        # hearts per hit (10 = full health), × trap-damage
 	set {-cfg::trap::laser::every} to 1 second # again while you stay in the beam
 	set {-cfg::trap::laser::thickness} to 0.06
-	set {-cfg::trap::laser::max-length} to 32
+	set {-cfg::trap::laser::max-length} to 34 # the city jewelry store's obby 2 beams run 33 blocks wall to wall
 	set {-cfg::trap::laser::view-range} to 1.0
 	# "laser here" heights above the feet: low = jump it, mid = a timed jump, high = sneak under it.
 	set {-cfg::trap::laser::low} to 0.4
@@ -992,6 +1265,7 @@ function loadSettings():
 	set {-cfg::trap::floor::drop} to 1.0
 	set {-cfg::trap::floor::depth} to 4
 	set {-cfg::trap::floor::max-tiles} to 64
+	set {-cfg::trap::floor::grace} to 3 seconds # a fall back into the same pit this soon only puts you back
 	set {-cfg::trap::camera::effect} to "alarm"
 	set {-cfg::trap::camera::angle} to 30          # half-angle: a 60° cone
 	set {-cfg::trap::camera::range} to 12
@@ -1005,6 +1279,7 @@ function loadSettings():
 	set {-cfg::trap::camera::pointer} to true
 	set {-cfg::trap::camera::thickness} to 0.05
 	# Trap death messages: {name}, {heist} are filled in.
+	set {-cfg::trap::death::blast} to "&c{name} &7stood too close to a blast charge in the &f{heist}&7."
 	set {-cfg::trap::death::laser} to "&c{name} &7walked into a laser in the &f{heist}&7."
 	set {-cfg::trap::death::plate} to "&c{name} &7stepped on a trap in the &f{heist}&7."
 	set {-cfg::trap::death::floor} to "&c{name} &7fell through a trapped floor in the &f{heist}&7."
@@ -1035,7 +1310,7 @@ function loadSettings():
 	# Pile styles: what a piece looks like and is worth. A pile's value V = n × piece with n rolled at
 	# every opening between ceil(min / piece) and floor(max / piece) (/dloot add ... value=MIN-MAX).
 	# Rate r = piece / take ($ per second of holding); a bag of capacity C fills in C / r seconds.
-	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods", "art" and "register"
+	set {-cfg::loot::styles::*} to "cash", "jewel", "gold", "goods", "art", "register" and "bullion"
 	set {-cfg::loot::cash::name} to "Cash stack"
 	set {-cfg::loot::cash::piece} to 100
 	set {-cfg::loot::cash::take} to 0.8
@@ -1076,17 +1351,63 @@ function loadSettings():
 	set {-cfg::loot::art::layers} to 1
 	set {-cfg::loot::art::thick} to 0.3
 	set {-cfg::loot::art::scale} to 0.5
+	# ATMs (atm.sk, 2026-10-29): hold to crack, a rolled payout into the bag, then out of order for a while.
+	# casino.sk (tools/build/city/design/casino-games.md section 5; PROPOSAL; cashout: the owner chose it, 2026-10-28)
+	set {-cfg::casino::enabled} to true
+	set {-cfg::casino::no-pvp} to true
+	set {-cfg::casino::cashout} to true
+	set {-cfg::casino::cashout-fee} to 0.02
+	set {-cfg::casino::level} to 5
+	set {-cfg::casino::buy-day} to 100000
+	set {-cfg::casino::cashout-day} to 250000
+	set {-cfg::casino::max-chips} to 250000
+	set {-cfg::casino::slot-gap} to 1.5 seconds
+	set {-cfg::casino::big-win} to 50000
+	set {-cfg::casino::wheel-gap} to 20 hours
+	set {-cfg::casino::turn-time} to 20 seconds
+	set {-cfg::casino::bj-min} to 100
+	set {-cfg::casino::bj-max} to 10000
+	set {-cfg::casino::roulette-max} to 20000
+	set {-cfg::casino::roulette-number-max} to 1000
+	# The Inside Track, in seconds: bets, the race, the result on the screen. A horse pays floor(10 x (1 - edge) / chance) / 10 x the bet.
+	set {-cfg::casino::track-bets} to 45
+	set {-cfg::casino::track-race} to 30
+	set {-cfg::casino::track-end} to 10
+	set {-cfg::casino::track-edge} to 0.08
+	# The wheel's 20 equal segments (kind|value) clockwise from the top: the same order as the picture in tools/casino-art.js (tools/casino-sim.js checks).
+	# The drill, the title and the podium skin pay their "already owned" chips until those prizes exist.
+	set {-cfg::casino::wheel-segments::*} to "chips|1000", "chips|2500", "chips|5000", "key|common", "chips|1000", "chips|2500", "xp|500", "chips|5000", "chips|2500", "chips|10000", "chips|1000", "chips|2500", "key|common", "chips|5000", "chips|2500", "chips|25000", "chips|1000", "chips|2500", "xp|500" and "chips|2500"
+	# name|pays x bet|chance: RTP = sum(pays x chance) = 0.95
+	set {-cfg::casino::slot-table::*} to "3 Diamonds|100|0.0005", "3 Sevens|25|0.004", "3 Bars|10|0.012", "3 Bells|5|0.03", "3 Cherries|3|0.06", "2 Cherries|2|0.1" and "1 Cherry|1|0.15"
+	set {-cfg::atm::level} to 1
+	set {-cfg::atm::hold} to 6
+	set {-cfg::atm::min} to 300
+	set {-cfg::atm::max} to 700
+	set {-cfg::atm::cooldown} to 15 minutes
+	set {-cfg::atm::reach} to 5
+	# Big gold bars for the vault heists (tools/build/expand/PLAN.md: the Federal Reserve, the Mansion): one bar fills most
+	# of a starter bag, so the gold is crew work. The gold bar's art, bigger.
+	set {-cfg::loot::bullion::name} to "Bullion"
+	set {-cfg::loot::bullion::piece} to 5000
+	set {-cfg::loot::bullion::take} to 4.0
+	set {-cfg::loot::bullion::item} to gold ingot
+	set {-cfg::loot::bullion::model} to "donating:loot_gold"
+	set {-cfg::loot::bullion::per-cell} to 1
+	set {-cfg::loot::bullion::layers} to 2
+	set {-cfg::loot::bullion::thick} to 0.2
+	set {-cfg::loot::bullion::scale} to 0.85
 	# A store's till (owner, 2026-09-28: stores are small, "all you have to do is rob the cash register"): bills in a
 	# register on the counter, quick to grab. model = the pack's art to use (the cash stack's).
 	set {-cfg::loot::register::name} to "Register cash"
 	set {-cfg::loot::register::piece} to 100
 	set {-cfg::loot::register::take} to 0.6
-	set {-cfg::loot::register::item} to paper
-	set {-cfg::loot::register::model} to "donating:loot_cash"
+	# A real register (loot.sk lootRegSpawn): each piece a bundle of bills in the drawer (the pack's register_* models).
+	set {-cfg::loot::register::item} to iron ingot
+	set {-cfg::loot::register::model} to "donating:register_bills"
 	set {-cfg::loot::register::per-cell} to 4
 	set {-cfg::loot::register::layers} to 3
-	set {-cfg::loot::register::thick} to 0.05
-	set {-cfg::loot::register::scale} to 0.35
+	set {-cfg::loot::register::thick} to 0.03125
+	set {-cfg::loot::register::scale} to 1
 	set {-cfg::loot::pile::lift} to 0             # surface above the block top (auto -0.5 on a bottom slab)
 	# Gates: glass to smash, a safe to crack (keypad, needs a Safe Kit), a vault door to drill (needs a
 	# Drill). claim = the head start of whoever opened it (only they can take from the piles behind it;
@@ -1110,6 +1431,13 @@ function loadSettings():
 	set {-cfg::loot::drill::qte-hit-lock} to 6
 	set {-cfg::loot::drill::claim} to 10
 	set {-cfg::loot::drill::alarm} to true
+	# A blast door (loot.sk): hold `plant` s, the fuse runs `fuse` s; `damage` HP within `radius` blocks of the door.
+	set {-cfg::loot::blast::plant} to 2
+	set {-cfg::loot::blast::fuse} to 10
+	set {-cfg::loot::blast::claim} to 6
+	set {-cfg::loot::blast::radius} to 4
+	set {-cfg::loot::blast::damage} to 3
+	set {-cfg::loot::blast::alarm} to true
 	# Where bags sell: safe zones whose region id starts with this (bag.sk).
 	set {-cfg::bag::base-prefix} to "safe_base"
 	set {-cfg::bounty::per-kill} to 250
@@ -1125,6 +1453,8 @@ function loadSettings():
 	# ---------- Shops (shop.sk): ALL PROPOSALS, waiting for the owner ----------
 	# Purchases at or above this price need a second click within the window.
 	set {-cfg::shop::confirm-above} to 1000
+	# Selling a gun or the carried bag back to the shop (owner, 2026-10-22: "50% of the buying price"; shop.sk sellWeapon, sellBag).
+	set {-cfg::shop::sell-share} to 0.5
 	set {-cfg::shop::confirm-window} to 5 seconds
 	# Restore buys ammo up to this many magazines per saved gun (capped at the type's max).
 	set {-cfg::shop::restock-mags} to 3
@@ -1136,6 +1466,10 @@ function loadSettings():
 	set {-cfg::shop::title::tools} to "Heist Tools"
 	set {-cfg::shop::title::cars} to "Car Dealer"
 	set {-cfg::shop::title::garage} to "City Garage"
+	set {-cfg::shop::title::store} to "Store"
+	set {-cfg::shop::title::cashier} to "Cashier"
+	set {-cfg::shop::title::blackjack} to "Blackjack"
+	set {-cfg::shop::title::roulette} to "Roulette"
 
 	# Weapons sold at gun shops, in shop order. Keys are WeaponMechanics weapon titles. Owner, 2026-09-26:
 	# guns cost 5x the first proposal (the knife isn't a gun); their damage is in the WeaponMechanics
@@ -1182,6 +1516,22 @@ function loadSettings():
 	set {-cfg::wpn::Gold_Nunchucks::model} to 7
 	set {-cfg::wpn::Gold_Nunchucks::item} to amethyst shard
 	set {-cfg::wpn::Gold_Nunchucks::level} to 15
+	# The prison's makeshift weapons (owner, 2026-10-20: "an npc that allows you to collect a couple items around the
+	# prison and give it to him to make a makeshift weapon (you can choose which one to make)"): Sparks in the workshop
+	# makes them from two parts (jailjobs.sk, the craft::* settings in the prison block). Never sold, never unlocked (no
+	# wpn::<W> data, not in shop::weapons): the copy in hotbar 1-5 is the only one, kept until a death (owner, 2026-10-20:
+	# "keep until you die"; a catch takes it like any weapon in hotbar 1-5). Shards 8-10 (the plain shard from 11). All
+	# weaker than the Combat Knife. PROPOSAL names and numbers (their WeaponMechanics files).
+	loop "Shiv", "Mop_Spear" and "Taped_Club":
+		set {-cfg::wpn::%loop-value%::kind} to "Melee"
+		set {-cfg::wpn::%loop-value%::item} to amethyst shard
+		set {-cfg::wpn::%loop-value%::makeshift} to true
+	set {-cfg::wpn::Shiv::name} to "Shiv"
+	set {-cfg::wpn::Shiv::model} to 8
+	set {-cfg::wpn::Mop_Spear::name} to "Mop Spear"
+	set {-cfg::wpn::Mop_Spear::model} to 9
+	set {-cfg::wpn::Taped_Club::name} to "Taped Club"
+	set {-cfg::wpn::Taped_Club::model} to 10
 	set {-cfg::wpn::50_GS::name} to "Classic Pistol"
 	set {-cfg::wpn::50_GS::kind} to "Pistol"
 	set {-cfg::wpn::50_GS::price} to 7500
@@ -1344,6 +1694,30 @@ function loadSettings():
 	set {-cfg::tool::grappler::item} to breeze rod
 	set {-cfg::tool::grappler::about} to "Right-click: pull yourself where you aim"
 	set {-cfg::tool::grappler::level} to 30
+	# Store food (owner, 2026-10-21: "allow players to actually buy things in the stores (food, other consumables). keep
+	# stores open even when heist is on cooldown"): bought from a store's clerk (clerk.sk, shop kind "store"), carried
+	# like a tool in hotbar 1-5 and eaten the vanilla way (the base item's hunger), lost on death. Not in shop::tools,
+	# so the gun shop and /levels leave them out. PROPOSAL prices.
+	set {-cfg::tool::donut::name} to "Donut"
+	set {-cfg::tool::donut::enabled} to true
+	set {-cfg::tool::donut::price} to 40
+	set {-cfg::tool::donut::max} to 8
+	set {-cfg::tool::donut::item} to pumpkin pie
+	set {-cfg::tool::donut::about} to "Hold right-click: eat"
+	set {-cfg::tool::sandwich::name} to "Sandwich"
+	set {-cfg::tool::sandwich::enabled} to true
+	set {-cfg::tool::sandwich::price} to 60
+	set {-cfg::tool::sandwich::max} to 8
+	set {-cfg::tool::sandwich::item} to bread
+	set {-cfg::tool::sandwich::about} to "Hold right-click: eat"
+	set {-cfg::tool::hotdog::name} to "Hot Dog"
+	set {-cfg::tool::hotdog::enabled} to true
+	set {-cfg::tool::hotdog::price} to 80
+	set {-cfg::tool::hotdog::max} to 8
+	set {-cfg::tool::hotdog::item} to cooked porkchop
+	set {-cfg::tool::hotdog::about} to "Hold right-click: eat"
+	# What a store's clerk sells: "tool:<t>" or "con:<consumable>".
+	set {-cfg::shop::store::*} to "tool:donut", "tool:sandwich", "tool:hotdog", "con:Bandage" and "con:Energy_Drink"
 	# The Pipe Wrench's knockback (title Baseball_Bat; items.sk; it was MechanicsCore's Push): blocks a tick along the
 	# hit, and up.
 	set {-cfg::bat::knockback} to 0.75
@@ -1949,7 +2323,7 @@ function loadSettings():
 	# number of chances to catch the target changes. Pay is never boosted and gives no season points.
 	set {-cfg::hit::tiers::*} to "easy", "medium" and "hard"
 	set {-cfg::hit::easy::name} to "Easy contract"
-	set {-cfg::hit::easy::when} to "In town twice a day, an hour each time"
+	set {-cfg::hit::easy::when} to "In town twice a day, 5 hours each time"
 	set {-cfg::hit::easy::windows} to 14
 	set {-cfg::hit::easy::level} to 15
 	set {-cfg::hit::easy::pay} to 10000
@@ -1958,7 +2332,7 @@ function loadSettings():
 	set {-cfg::hit::easy::rmin} to 30
 	set {-cfg::hit::easy::tip} to 60
 	set {-cfg::hit::medium::name} to "Medium contract"
-	set {-cfg::hit::medium::when} to "In town once a day, for an hour"
+	set {-cfg::hit::medium::when} to "In town once a day, for 5 hours"
 	set {-cfg::hit::medium::windows} to 7
 	set {-cfg::hit::medium::level} to 30
 	set {-cfg::hit::medium::pay} to 25000
@@ -1967,7 +2341,7 @@ function loadSettings():
 	set {-cfg::hit::medium::rmin} to 40
 	set {-cfg::hit::medium::tip} to 90
 	set {-cfg::hit::hard::name} to "Hard contract"
-	set {-cfg::hit::hard::when} to "In town 5 times a week, an hour each time"
+	set {-cfg::hit::hard::when} to "In town 5 days a week, 5 hours each time"
 	set {-cfg::hit::hard::windows} to 5
 	set {-cfg::hit::hard::level} to 50
 	set {-cfg::hit::hard::pay} to 60000
@@ -1976,13 +2350,17 @@ function loadSettings():
 	set {-cfg::hit::hard::r0} to 200
 	set {-cfg::hit::hard::rmin} to 50
 	set {-cfg::hit::hard::tip} to 120
-	# A window: its length in active seconds, and up to overtime seconds more while the hunter is fighting.
-	set {-cfg::hit::window-length} to 3600
+	# A window: its length in active REAL seconds (clock.sk, 2026-10-21: the days and weeks are the game clock's, a game
+	# hour is a real minute, so 300 = 5 game hours; PROPOSAL, was 3600 real seconds), and up to overtime seconds more
+	# while the hunter is fighting.
+	set {-cfg::hit::window-length} to 300
 	set {-cfg::hit::overtime} to 300
 	# Dying to a bodyguard: L = min(B x death-p, C), C = the bag's capacity (like a death outside a heist).
 	set {-cfg::hit::death-p} to 0.03
-	# Streaks: each week in a row adds streak-bonus to the pay (at most streak-max weeks' worth; one missed week is
-	# forgiven); titles at 3, 6 and 10 weeks; "Hitman" after pro-at Hard takedowns.
+	# Streaks: each contract in a row adds streak-bonus to the pay (at most streak-max contracts' worth); "in a row" =
+	# at most streak-gap game weeks after the last one (8 game weeks = 22.4 real hours: a daily player keeps it; was
+	# one missed real week); titles at 3, 6 and 10 in a row; "Hitman" after pro-at Hard takedowns.
+	set {-cfg::hit::streak-gap} to 8
 	set {-cfg::hit::streak-bonus} to 0.05
 	set {-cfg::hit::streak-max} to 4
 	set {-cfg::hit::streak-titles::*} to "3|hit_streak_3", "6|hit_streak_6" and "10|hit_streak_10"
@@ -2031,6 +2409,477 @@ function loadSettings():
 		set {-cfg::cos::%{_rt::1}%::rarity} to "story"
 		set {-cfg::cos::%{_rt::1}%::bound} to true
 		add {_rt::1} to {-cfg::cosmetics::*}
+
+	# ---------- The prison (prison.sk, jailcourse.sk, jailescape.sk, jailcops.sk, jailjobs.sk; owner, 2026-10-14) ----------
+	# The master switch. On since 2026-10-29 (owner: "make the player spawn as a prisoner in the new map, just like
+	# jailbreak"): a first join starts in a cell on the course, every death respawns in the prison. Data "jail" "off"
+	# exempts one player (test bots).
+	set {-cfg::prison::enabled} to true
+	set {-cfg::prison::world} to "world"
+	# After an escape: "" = stay where you are (owner, 2026-10-14: "the jailbreak map is supposed to be the entire map not just
+	# the prison, so when you escape you go to the city in the same world and not get teleported"); "spawn" = the
+	# EssentialsX spawn 3 s later.
+	set {-cfg::prison::after-escape} to ""
+	set {-cfg::prison::course::cells::*} to "n46", "n53", "n60", "n67", "s46", "s53", "s60" and "s67"
+	set {-cfg::prison::cells::*} to "n89", "n96", "n103", "n110", "s96", "s103", "s110" and "s117"
+	set {-cfg::prison::cell-open} to 12 seconds
+	set {-cfg::prison::door-open} to 3 seconds
+	# The course's cell opens this long after the first join (after join-quit's title).
+	set {-cfg::prison::course::cell-open} to 5 seconds
+	# A prisoner who joins standing in a cell: its door opens this long after the join.
+	set {-cfg::prison::join-open} to 3 seconds
+	set {-cfg::prison::food} to 9
+	set {-cfg::prison::lowhp} to 3
+	set {-cfg::prison::lowhp-slow} to 0.2
+	set {-cfg::prison::nopvp::*} to "b1", "halla", "hallbsouth" and "parkour"
+	# Inmate protection after the course, after a cell opens and after a respawn (attacking ends your own).
+	set {-cfg::prison::shield} to 30 seconds
+	# After knocking an inmate out, the attacker can't hurt them for this long unless they land a hit first (owner: "dont
+	# want spam killing"; 4.6).
+	set {-cfg::prison::ko-cooldown} to 5 minutes
+	set {-cfg::prison::stuck} to 60 seconds
+	# prison.sk also blocks each with EssentialsX's "e" in front (/espawn, /eback, /etpaccept); the rest are EssentialsX's
+	# other names for the same teleports, and Multiverse's. A teleport out of the prison is refused anyway (prison.sk).
+	set {-cfg::prison::blocked-commands::*} to "spawn", "home", "homes", "sethome", "warp", "warps", "tpa", "tpahere", "tpaccept", "tpyes", "back", "tp", "tphere", "rtp", "hub", "mv", "mvtp", "return", "call", "tpask", "tele", "teleport", "tp2p", "tpo", "tpohere", "tppos", "tpall", "tpaall", "tpr", "jump", "j", "jumpto", "top", "world", "mvspawn" and "mvs"
+	set {-cfg::prison::search::hold} to 2 seconds
+	# Per search spot and player; every catch clears them (the escape starts over at once).
+	set {-cfg::prison::search::cooldown} to 10 minutes
+	# Sparks' weapon parts (the gym's weights, the storage room, the laundry): the same 2 s hold, a shorter wait per spot
+	# (owner, 2026-10-20: "3 minute wait per spot"); searching for them isn't suspicious (the owner's answer, 2026-10-20).
+	set {-cfg::prison::parts::cooldown} to 3 minutes
+	set {-cfg::prison::donut::hold} to 0.5 seconds
+	set {-cfg::prison::donut::cooldown} to 3 minutes
+	set {-cfg::prison::plant::hold} to 3 seconds
+	set {-cfg::prison::c4::fuse} to 5
+	set {-cfg::prison::c4::radius} to 4
+	set {-cfg::prison::c4::damage} to 3
+	# Prisoners carrying contraband this close to a blast go loud with the planter.
+	set {-cfg::prison::c4::loud-range} to 8
+	set {-cfg::prison::breach::open} to 2 minutes
+	# When a breach is due: "rebuilding in 5 s" to players within 16 blocks, then it closes.
+	set {-cfg::prison::breach::warn} to 5 seconds
+	set {-cfg::prison::breach::warn-range} to 16
+	# One C4 target (revision 3: the W5 wall is dropped, it led straight past the front gate).
+	set {-cfg::prison::breaches::*} to "gate"
+	set {-cfg::prison::breach::gate::name} to "the vehicle gate"
+	# The punch boxes (the Gun Shop's and the gatehouse fuse box) share these numbers.
+	set {-cfg::prison::punch::hits} to 10
+	set {-cfg::prison::punch::window} to 12 seconds
+	set {-cfg::prison::punch::shock-every} to 2
+	set {-cfg::prison::punch::shock} to 0.5
+	# The punch gate spans the gap between the Gun Shop and the police station (owner, 2026-10-21) and slides: a column every
+	# punch::slide-ticks ticks (25 columns: 2.5 s each way), all inside punch::open ("counts toward its open time").
+	set {-cfg::prison::punch::open} to 12 seconds
+	set {-cfg::prison::punch::slide-ticks} to 2
+	set {-cfg::prison::punch::cooldown} to 20 seconds
+	# A box refuses while a prison cop is this close to its stand point ("A guard's watching").
+	set {-cfg::prison::punch::guard-range} to 16
+	# The fuse box pops the gatehouse door open this long.
+	set {-cfg::prison::fuse::open} to 5 seconds
+	# The front gate (owner: the lot isn't out; since 2026-10-21 the dugout under the lot's west fence is the other way):
+	# hold the gatehouse console this long; it opens for everyone this long, then can't be opened again for the cooldown.
+	set {-cfg::prison::console::hold} to 3 seconds
+	set {-cfg::prison::front::open} to 15 seconds
+	set {-cfg::prison::front::cooldown} to 30 seconds
+	set {-cfg::prison::drop::despawn} to 60 seconds
+	# The dugout under the lot's west fence (owner, 2026-10-21: "a way out that bypasses the front gate for players with no
+	# keycard, as easy as the gate"): hold right-click on the packed dirt under the fence (dig::hold, an act the guards
+	# notice); it stays dug open dig::open, then caves in (a dig::warn warning first) and can't be dug again for
+	# dig::cooldown. PROPOSAL numbers (the gate's: fuse box 10 punches, the console 3 s, open 15 s, 30 s cooldown).
+	set {-cfg::prison::dig::hold} to 6 seconds
+	set {-cfg::prison::dig::open} to 20 seconds
+	set {-cfg::prison::dig::warn} to 3 seconds
+	set {-cfg::prison::dig::cooldown} to 45 seconds
+	# The fences shock (owner, 2026-10-21: "running into a fence gives a small shock (a little damage + a warning)"):
+	# fence::damage hearts (never below one heart left: it never downs anyone), a push back, at most once per
+	# fence::every per player. Anyone not exempt in the prison world, both sides of the fence. PROPOSAL numbers.
+	set {-cfg::prison::fence::damage} to 0.5
+	set {-cfg::prison::fence::every} to 1.5 seconds
+	set {-cfg::prison::fence::push} to 0.45
+	# Owned guns in the yard's Gun Shop (owner, 2026-10-21: "owned guns can be taken out at the prison gun store and used
+	# INSIDE the walls"; still no buying): a gun taken out there comes with gun-mags magazines loaded the first time in a
+	# stay (until the next catch, death or escape: the ammo can't be bought in here). PROPOSAL
+	set {-cfg::prison::gun-mags} to 1
+	set {-cfg::prison::course::wake} to 0.5 seconds
+	# The sleeping guard wakes for a course player not sneaking this close to him, wherever they are (owner, 2026-10-14).
+	set {-cfg::prison::course::wake-radius} to 5
+	set {-cfg::prison::course::stuck} to 30 seconds
+	# Jail items (prison.sk jailItem): on brick, drawn by the pack (donating:jail_<kind>); one stack per kind in the
+	# upper inventory (slots 9-35), the C4 in hotbar 1-5.
+	set {-cfg::jailitem::kinds::*} to "coursecard", "keycard", "putty", "wires", "timer", "c4", "donut", "note", "stash", "scrap", "tape" and "handle"
+	set {-cfg::jailitem::coursecard::name} to "Guard's Keycard"
+	set {-cfg::jailitem::coursecard::lore} to "The vent and the Security Office"
+	set {-cfg::jailitem::keycard::name} to "Keycard"
+	set {-cfg::jailitem::keycard::lore} to "The police station, the Gun Shop, the gate by the Gun Shop, the gatehouse"
+	set {-cfg::jailitem::putty::name} to "C4 Putty"
+	set {-cfg::jailitem::putty::lore} to "C4 part 1 of 3: Lefty puts the three together"
+	set {-cfg::jailitem::wires::name} to "Detonator Wires"
+	set {-cfg::jailitem::wires::lore} to "C4 part 2 of 3: Lefty puts the three together"
+	set {-cfg::jailitem::timer::name} to "Timer"
+	set {-cfg::jailitem::timer::lore} to "C4 part 3 of 3: Lefty puts the three together"
+	set {-cfg::jailitem::c4::name} to "C4"
+	set {-cfg::jailitem::c4::lore} to "Hold right-click on the vehicle gate by the plaza"
+	set {-cfg::jailitem::donut::name} to "Donut"
+	set {-cfg::jailitem::donut::lore} to "Rusty and Lefty love these"
+	set {-cfg::jailitem::note::name} to "Folded Note"
+	set {-cfg::jailitem::note::lore} to "Don't read it"
+	set {-cfg::jailitem::stash::name} to "Stash"
+	set {-cfg::jailitem::stash::lore} to "Keep it out of sight"
+	# Sparks' weapon parts (craft::parts below); ::where = where a part is found (his menu's missing lines). The Scrap
+	# Metal is sharp: contraband held out in front of a guard (jailcop::held::kinds), never frisked (the owner's answer,
+	# 2026-10-20: the sharp/metal ones are contraband in the hand).
+	set {-cfg::jailitem::scrap::name} to "Scrap Metal"
+	set {-cfg::jailitem::scrap::lore} to "A weapon part: Sparks in the workshop"
+	set {-cfg::jailitem::scrap::where} to "the gym's weights"
+	set {-cfg::jailitem::tape::name} to "Duct Tape"
+	set {-cfg::jailitem::tape::lore} to "A weapon part: Sparks in the workshop"
+	set {-cfg::jailitem::tape::where} to "the storage room"
+	set {-cfg::jailitem::handle::name} to "Mop Handle"
+	set {-cfg::jailitem::handle::lore} to "A weapon part: Sparks in the workshop"
+	set {-cfg::jailitem::handle::where} to "the laundry"
+	# Search spots (jailescape.sk): point|kind|hold setting|cooldown setting
+	set {-cfg::prison::spots::*} to "SEARCH_PUTTY|putty|search|search", "SEARCH_WIRES|wires|search|search", "SEARCH_TIMER|timer|search|search", "DONUT_CAFE|donut|donut|donut", "SEARCH_SCRAP|scrap|search|parts", "SEARCH_TAPE|tape|search|parts" and "SEARCH_HANDLE|handle|search|parts"
+	# ---------- Prison cops (jailcops.sk): level 1 (owner: "not that good aim") ----------
+	set {-cfg::jailcop::name} to "Prison Guard"
+	# gate and lot guard the parking lot and the gatehouse (revision 3). 20 guards (owner, 2026-10-21: "20 (2x) normally,
+	# 30 (3x) while more than 3 players are in the prison"): the first ten routes, the old patrols the other way round, the
+	# field, Hall A, the cafeteria, the west plaza and the station's east wing; roster-busy's ten more while more than
+	# busy-players are in the prison (course or in), removed busy-linger after it's quiet again (not while they hunt).
+	set {-cfg::jailcop::roster::*} to "yardn", "yards", "walk", "w5", "w67", "hallb", "poldesk", "poloffice", "gate", "lot", "yardnr", "yardsr", "walkr", "w5r", "field", "halla", "hallbr", "plaza", "cafe" and "poleast"
+	set {-cfg::jailcop::roster-busy::*} to "fieldr", "hallar", "plazar", "cafer", "lotw", "lote", "annex", "lotr", "gater" and "w67r"
+	set {-cfg::jailcop::busy-players} to 3
+	set {-cfg::jailcop::busy-linger} to 2 minutes
+	# 10 HP: two Combat Knife hits (5 each, a hit a second).
+	set {-cfg::jailcop::health} to 10
+	set {-cfg::jailcop::speed} to 1.05
+	# Sentinel only targets and chases (melee reach 1.5, every Sentinel hit cancelled); jailcops.sk attacks.
+	set {-cfg::jailcop::reach} to 1.5
+	set {-cfg::jailcop::range} to 24
+	set {-cfg::jailcop::chase} to 48
+	set {-cfg::jailcop::respawn} to 60
+	set {-cfg::jailcop::model} to 9
+	# One gunshot or taser shot per cop per attack-rate seconds.
+	set {-cfg::jailcop::attack-rate} to 1.5
+	set {-cfg::jailcop::gun::range} to 24
+	# A cop hit by melee neither tases nor grabs for this long.
+	set {-cfg::jailcop::stagger} to 1.5 seconds
+	# A C4 plant or blast brings every cop within this many blocks.
+	set {-cfg::jailcop::loud-range} to 48
+	set {-cfg::jailcop::taser::range} to 8
+	set {-cfg::jailcop::taser::min} to 2.5
+	set {-cfg::jailcop::taser::hit-near} to 0.8
+	set {-cfg::jailcop::taser::hit-far} to 0.35
+	set {-cfg::jailcop::taser::cooldown} to 4 seconds
+	set {-cfg::jailcop::taser::stun} to 1.5 seconds
+	set {-cfg::jailcop::taser::slow} to 0.6
+	set {-cfg::jailcop::taser::damage} to 0.5
+	set {-cfg::jailcop::gun::hit-near} to 0.45
+	set {-cfg::jailcop::gun::hit-far} to 0.15
+	set {-cfg::jailcop::gun::sprint} to 0.7
+	set {-cfg::jailcop::gun::damage} to 1
+	set {-cfg::jailcop::arrest::range} to 2.5
+	set {-cfg::jailcop::arrest::grab-range} to 2
+	# Every arrest runs a clock, shown as the red CUFFING bar (owner, 2026-10-20: "show a status bar (like how it shows
+	# when picking something up) on the timer while the guard is arresting you"): grab for a plain grab, stun-grab for one
+	# that started while the taser's stun ran (to its end; 0 = the old instant arrest, no bar). Owner's numbers (2026-10-20).
+	set {-cfg::jailcop::arrest::grab} to 2 seconds
+	set {-cfg::jailcop::arrest::stun-grab} to 2.5 seconds
+	# A guard holds the handcuffs while it grabs and this long after its last grab pass (owner, 2026-10-20: "make the
+	# guards hold hand cuffs while arresting you").
+	set {-cfg::jailcop::arrest::cuffs-hold} to 1.5 seconds
+	# What a guard holds while cuffing (Citizens' npc setequipment; the pack draws it: make-item-art.js jail_cuffs).
+	set {-cfg::jailcop::cuffs::item} to "brick[custom_model_data={strings:['donating:jail_cuffs']}]"
+	set {-cfg::jailcop::notice::range} to 24
+	set {-cfg::jailcop::notice::sneak} to 12
+	set {-cfg::jailcop::notice::cone} to 75
+	set {-cfg::jailcop::notice::time} to 1 second
+	# Seen in a restricted area (owner, 2026-10-20: "if a cop sees you inside the area while passing by, you get
+	# targeted (same goes with any restricted area)"): one 10-tick pass in view is enough, anywhere in front of the cop
+	# (notice::time and notice::cone still count for contraband held out and acts). PROPOSAL
+	set {-cfg::jailcop::notice::restricted-time} to 0.5 seconds
+	set {-cfg::jailcop::notice::restricted-cone} to 90
+	# Restricted buildings whose windows don't hide you (owner, 2026-10-20: every restricted building's windows; iron bars
+	# still hide): these blocks (by type name: "glass" covers glass, stained glass and panes; never tinted) and open doors
+	# or trapdoors. Shots, the taser and the arrest still need a clear line (vanilla line of sight).
+	set {-cfg::jailcop::notice::window-zones::*} to "police", "annex", "staff", "gunshop" and "lot"
+	set {-cfg::jailcop::notice::see-through::*} to "glass"
+	# Guards see through gates and fences everywhere (owner, 2026-10-21: "guards see through gates (fences, bars) and spot
+	# or target players in restricted areas through them"; round 3's "iron bars still hide" is gone): these block names
+	# (iron bars, chains, the fences' wall posts, fences and fence gates) never hide a prisoner from a guard's eyes. Shots,
+	# the taser and the arrest still need a clear line (vanilla line of sight).
+	set {-cfg::jailcop::notice::fence-through::*} to "bars", "chain", "fence", "diorite wall", "andesite wall" and "blackstone wall"
+	# What SPOTTED calls each restricted zone ("A guard saw you in the Gun Shop").
+	set {-cfg::jailcop::zonename::police} to "the police station"
+	set {-cfg::jailcop::zonename::annex} to "the annex"
+	set {-cfg::jailcop::zonename::staff} to "a staff room"
+	set {-cfg::jailcop::zonename::lot} to "the lot"
+	set {-cfg::jailcop::zonename::gunshop} to "the Gun Shop"
+	# Lost the guards with contraband on you (owner, 2026-10-20: "once the player loses the cops after getting the
+	# keycard, the other cops wont arrest if they see the player again, unless he is actively holding contraband in his
+	# hand while in vision of the cop"): no frisk until a catch, a death, an escape or a rejoin. Held contraband,
+	# restricted areas and acts still count.
+	set {-cfg::jailcop::grace::enabled} to true
+	# An act (a reader, a punch, a search hold, a plant, the stash, the console, hitting an inmate) stays visible this long.
+	set {-cfg::jailcop::notice::act-window} to 4 seconds
+	# Carried contraband (jailcop::contraband) is spotted this close with line of sight, in any direction (the pockets).
+	set {-cfg::jailcop::notice::frisk} to 4
+	# Contraband held out in the main hand (from any hotbar slot) in front of a cop (owner, 2026-10-15: "cops target you
+	# if you hold out contraband in front of them"): within held::cone degrees of its facing, held::range blocks (never
+	# past the notice range: notice::sneak while sneaking) and line of sight, for notice::time. PROPOSAL numbers. Not the
+	# note or the donut (Whisper's and Rusty's errands: an inmate may carry those) or the course card (B1 only). The Scrap
+	# Metal (a sharp weapon part, the owner's answer, 2026-10-20) is, the tape and the mop handle aren't.
+	set {-cfg::jailcop::held::kinds::*} to "keycard", "putty", "wires", "timer", "c4", "stash" and "scrap"
+	set {-cfg::jailcop::held::range} to 16
+	set {-cfg::jailcop::held::cone} to 65
+	# Any weapon in the hand counts too (owner, 2026-10-21: "a guard who sees you holding any weapon targets you like held
+	# contraband"): guns, melee, the makeshift ones (WeaponMechanics' titles with a wpn::<W>::kind).
+	set {-cfg::jailcop::held::weapons} to true
+	# Spotted with a gun (owner, 2026-10-21: "guards get stronger (damage/health/aim) and extra guards spawn to hunt
+	# you"): while a hunted prisoner is armed (seen holding a gun, or shot a guard with one), the guards hunting them shoot
+	# armed::damage times harder, aim armed::aim better (added to the hit chances, capped at armed::aim-max) and have
+	# armed::health HP (jailcop::health is 10); armed::extra more guards come from the nearest patrol points armed::spawn-min..max blocks away
+	# (armed::cap in all, every armed prisoner together) and go when that hunt ends. PROPOSAL numbers.
+	set {-cfg::jailcop::armed::damage} to 2
+	set {-cfg::jailcop::armed::aim} to 0.25
+	set {-cfg::jailcop::armed::aim-max} to 0.9
+	set {-cfg::jailcop::armed::health} to 20
+	set {-cfg::jailcop::armed::extra} to 3
+	set {-cfg::jailcop::armed::cap} to 9
+	set {-cfg::jailcop::armed::spawn-min} to 20
+	set {-cfg::jailcop::armed::spawn-max} to 64
+	set {-cfg::jailcop::lose::time} to 20 seconds
+	set {-cfg::jailcop::lose::range} to 32
+	set {-cfg::jailcop::keycard-chance} to 1
+	set {-cfg::jailcop::idle-despawn} to 10 minutes
+	# Seen here = hostile. "lot" has no boxes: prison.sk's jailZone answers it from the outlines (jailInLot). The Gun Shop
+	# is keycard-only (owner, 2026-10-20).
+	set {-cfg::jailcop::restricted::*} to "police", "annex", "staff", "gunshop" and "lot"
+	# The lose clock doesn't run here (the lot isn't one: it's big and open, and a prisoner can lose the guards there).
+	# The Gun Shop too: guards can't open its iron door, so its walls would be a hiding place.
+	set {-cfg::jailcop::nolose::*} to "police", "annex", "staff", "gunshop" and "b1"
+	set {-cfg::jailcop::contraband::*} to "keycard", "c4" and "stash"
+	# The stray rule (5.5): a calm cop farther than its route's radius (horizontally) from the polyline of its route,
+	# or more than stray::dy blocks above or below it, for stray::time is moved back to its first point.
+	set {-cfg::jailcop::stray::dy} to 4
+	set {-cfg::jailcop::stray::time} to 20 seconds
+	set {-cfg::jailcop::route::yardn::radius} to 24
+	set {-cfg::jailcop::route::yards::radius} to 24
+	set {-cfg::jailcop::route::walk::radius} to 12
+	set {-cfg::jailcop::route::w5::radius} to 4
+	set {-cfg::jailcop::route::w67::radius} to 4
+	set {-cfg::jailcop::route::hallb::radius} to 5
+	set {-cfg::jailcop::route::poldesk::radius} to 12
+	set {-cfg::jailcop::route::poloffice::radius} to 10
+	set {-cfg::jailcop::route::gate::radius} to 12
+	set {-cfg::jailcop::route::lot::radius} to 24
+	loop "yardnr|24", "yardsr|24", "walkr|12", "w5r|4", "w67r|4", "gater|12", "lotr|24", "field|16", "fieldr|16", "plaza|12", "plazar|12", "lotw|16", "lote|16", "annex|16", "hallbr|5", "halla|6", "hallar|6", "cafe|10", "cafer|10" and "poleast|10":
+		set {_rr::*} to loop-value split at "|"
+		set {-cfg::jailcop::route::%{_rr::1}%::radius} to {_rr::2} parsed as number
+	# A known cop whose entity hasn't been seen for this long while its first point's chunk is loaded is forgotten
+	# (and removed), so it's made again.
+	set {-cfg::jailcop::stale} to 2 minutes
+	# ---------- The prison's inmates (quests.sk givers, jailjobs.sk; ESCAPE-SPEC 6.2): PROPOSAL names and texts ----------
+	# (The quests list and story::chains above include them.)
+	set {-cfg::quest::lefty::name} to "Advice"
+	set {-cfg::quest::lefty::npc} to "Lefty"
+	set {-cfg::quest::lefty::place} to "Hall B"
+	set {-cfg::quest::lefty::hold} to "paper"
+	set {-cfg::quest::rusty::name} to "Trades"
+	set {-cfg::quest::rusty::npc} to "Rusty"
+	set {-cfg::quest::rusty::place} to "B1"
+	set {-cfg::quest::rusty::hold} to "cookie"
+	set {-cfg::quest::tank::name} to "Jobs"
+	set {-cfg::quest::tank::npc} to "Tank"
+	set {-cfg::quest::tank::place} to "the Yard"
+	set {-cfg::quest::tank::hold} to "iron_ingot"
+	set {-cfg::quest::whisper::name} to "Deliveries"
+	set {-cfg::quest::whisper::npc} to "Whisper"
+	set {-cfg::quest::whisper::place} to "the Telephone Room"
+	set {-cfg::quest::whisper::hold} to "paper"
+	# Sparks (2026-10-20): makeshift weapons from two parts found around the prison (jailjobs.sk jjCraftMenu). He never
+	# texts (no msgcontact): everything he says is in person.
+	set {-cfg::quest::sparks::name} to "Makeshift weapons"
+	set {-cfg::quest::sparks::npc} to "Sparks"
+	set {-cfg::quest::sparks::place} to "the Workshop"
+	set {-cfg::quest::sparks::hold} to "brick"
+	set {-cfg::quest::sparks::hold-model} to "donating:jail_scrap"
+	# His recipes: any two parts, one weapon each; the player picks which (owner: "you can choose which one to make").
+	# One text per weapon ("part|part"), so nothing here is a list with single values under it.
+	set {-cfg::craft::weapons::*} to "Shiv", "Mop_Spear" and "Taped_Club"
+	set {-cfg::craft::parts::*} to "scrap", "tape" and "handle"
+	set {-cfg::craft::Shiv::parts} to "scrap|tape"
+	set {-cfg::craft::Mop_Spear::parts} to "handle|scrap"
+	set {-cfg::craft::Taped_Club::parts} to "handle|tape"
+	set {-cfg::craft::Shiv::line} to "Sharp end out. You didn't get it from me."
+	set {-cfg::craft::Mop_Spear::line} to "Keep 'em at arm's length. Longer than that, even."
+	set {-cfg::craft::Taped_Club::line} to "Heavy. Swing it like you mean it."
+	# Their Messages heads wear their skins (skins.sk, id = the kind: tools\skins\make-prison-skins.js).
+	loop "lefty", "rusty", "tank" and "whisper":
+		set {-cfg::msgcontact::%loop-value%::skin} to loop-value
+		set {-cfg::msgcontact::%loop-value%::kind} to loop-value
+	# Lefty's chain: the one-time lessons for a new inmate. Any escape finishes it (finish-on).
+	set {-cfg::chain::lefty::giver} to "lefty"
+	set {-cfg::chain::lefty::from} to "Lefty"
+	set {-cfg::chain::lefty::color} to "&b"
+	set {-cfg::chain::lefty::bar} to "&b&lLEFTY"
+	set {-cfg::chain::lefty::barcolor} to "blue"
+	# Course graduates only (data jail-course "done"): a veteran sent in by a death never gets the chain (4.13).
+	set {-cfg::chain::lefty::start} to "state|jailcourse"
+	set {-cfg::chain::lefty::finish-on} to "escape"
+	# The tutorial's chain (owner, 2026-10-20: "when the player does the tutorial again, the tutorial npcs go back to the
+	# quests they give for the tutorial"): a /tutorial replay starts it over (jailcourse.sk jcReplaySave, story.sk
+	# storyReplaySave), and a lesson paid before pays nothing again (data lefty-paid::<id>). No combo objectives in it.
+	set {-cfg::chain::lefty::tutorial} to true
+	# Lefty's lessons follow the way out the player picks (owner, 2026-10-21: "talking to Lefty lets the player pick the
+	# escape way (C4, keycard, parkour, the new lot fence) and his lessons follow it"): l_meet, l_way (his menu: data
+	# lefty-way, chain::lefty::way-key), then that way's lessons (story::<id>::way: the ways a lesson is for; story.sk
+	# passes over the others, and sends a player with no way picked back to way-pick), the front gate (l_out) or the
+	# dugout (l_dig). l_craft, l_donut and l_shop are retired: they're on the head start's checklist (jhead below).
+	# Every id stays in the list once used (storyNextId walks it: a dropped id would end the chain for anyone saved on it).
+	set {-cfg::chain::lefty::way-key} to "lefty-way"
+	set {-cfg::chain::lefty::way-pick} to "l_way"
+	set {-cfg::chain::lefty::ways::*} to "c4", "keycard", "parkour" and "dig"
+	set {-cfg::chain::lefty::missions::*} to "l_meet", "l_craft", "l_donut", "l_shop", "l_way", "l_c4", "l_c4lot", "l_card", "l_police", "l_parkour", "l_diglot", "l_out" and "l_dig"
+	loop {-cfg::chain::lefty::missions::*}:
+		set {-cfg::story::%loop-value%::chain} to "lefty"
+	set {-cfg::story::l_meet::label} to "Talk to Lefty on the Hall B bench"
+	set {-cfg::story::l_meet::side} to "Meet him on the Hall B bench"
+	set {-cfg::story::l_meet::obj} to "talk|lefty"
+	set {-cfg::story::l_meet::gps} to "lefty"
+	set {-cfg::story::l_meet::brief} to "New fish? Come sit with me in Hall B. Free advice."
+	set {-cfg::story::l_meet::talk::*} to "Nobody stays in here forever.", "Three ways past the fences: a keycard through the police station, C4 on the vehicle gate, or over the fence by the Gun Shop.", "Then the lot. The front gate opens from the gatehouse booth: a keycard gets you in, or punch its fuse box when the guards look away.", "Or skip the gate: there's a hole by the lot's west fence. Dig under it." and "First, get yourself sorted."
+	set {-cfg::story::l_meet::rewards::*} to "money|50"
+	set {-cfg::story::l_way::label} to "Pick your way out with Lefty"
+	set {-cfg::story::l_way::side} to "Pick your way out"
+	set {-cfg::story::l_way::obj} to "state|leftyway"
+	set {-cfg::story::l_way::gps} to "lefty"
+	set {-cfg::story::l_way::brief} to "So which way? Talk to me and pick one: I'll walk you through it. And do the odd job for the others in here: it's a head start."
+	set {-cfg::story::l_way::rewards::*} to "money|50"
+	# C4: the three parts (Lefty puts them together; already carrying a C4 counts), then the vehicle gate into the lot.
+	set {-cfg::story::l_c4::way} to "c4"
+	set {-cfg::story::l_c4::label} to "Bring Lefty the three C4 parts"
+	set {-cfg::story::l_c4::side} to "Bring him the three C4 parts"
+	set {-cfg::story::l_c4::obj} to "state|jailitem|c4"
+	# The nearest search spot whose part the player lacks, then Lefty (4.13 storyGpsSpots; he puts it together: jailjobs.sk).
+	set {-cfg::story::l_c4::gps} to "jailc4"
+	set {-cfg::story::l_c4::brief} to "Putty in the workshop, wires in the supply closet, a timer in the infirmary: hold right-click to search each. Bring me all three and I put it together."
+	set {-cfg::story::l_c4::done} to "Careful with that. The vehicle gate by the plaza: hold right-click on it to plant it, and you're in the lot."
+	set {-cfg::story::l_c4::rewards::*} to "money|100"
+	set {-cfg::story::l_c4lot::way} to "c4"
+	set {-cfg::story::l_c4lot::label} to "Blow the vehicle gate and get into the lot"
+	set {-cfg::story::l_c4lot::side} to "Blow the gate, into the lot"
+	set {-cfg::story::l_c4lot::obj} to "state|jaillot"
+	set {-cfg::story::l_c4lot::gps} to "jail:PLANT_GATE"
+	set {-cfg::story::l_c4lot::brief} to "The vehicle gate by the plaza: hold right-click on it with the C4 in hand. Five seconds, get clear, then through the hole before they rebuild it."
+	set {-cfg::story::l_c4lot::rewards::*} to "money|100"
+	# Keycard: a card (already carrying one counts), then through the police station into the lot.
+	set {-cfg::story::l_card::way} to "keycard"
+	set {-cfg::story::l_card::label} to "Get a keycard"
+	set {-cfg::story::l_card::obj} to "state|jailitem|keycard"
+	set {-cfg::story::l_card::gps} to "rusty"
+	set {-cfg::story::l_card::brief} to "Knock a guard down, or ask Rusty in B1: he trades for donuts."
+	set {-cfg::story::l_card::done} to "The police station's yard door, the Gun Shop and the gatehouse all open for it."
+	set {-cfg::story::l_card::rewards::*} to "money|100"
+	set {-cfg::story::l_police::way} to "keycard"
+	set {-cfg::story::l_police::label} to "Through the police station into the lot"
+	set {-cfg::story::l_police::side} to "Through the police station"
+	set {-cfg::story::l_police::obj} to "state|jaillot"
+	set {-cfg::story::l_police::gps} to "jail:POL_READER_N_OUT"
+	set {-cfg::story::l_police::brief} to "The station's yard door opens as your card walks up. Through the lobby, out the south door: that's the lot. The desk guard watches the doors."
+	set {-cfg::story::l_police::rewards::*} to "money|100"
+	# Parkour: the punch box by the gate between the Gun Shop and the police station, over the annex fence.
+	set {-cfg::story::l_parkour::way} to "parkour"
+	set {-cfg::story::l_parkour::label} to "Over the annex fence into the lot"
+	set {-cfg::story::l_parkour::side} to "Over the annex fence"
+	set {-cfg::story::l_parkour::obj} to "state|jaillot"
+	set {-cfg::story::l_parkour::gps} to "jail:PUNCH_STAND"
+	set {-cfg::story::l_parkour::brief} to "The box by the gate between the Gun Shop and the police station: punch it ten times when no guard's near, or show it a keycard. The gate slides open; the crates in the annex take you over the fence."
+	set {-cfg::story::l_parkour::rewards::*} to "money|100"
+	# Dig out: into the lot the keycard-free way (the parkour), then under the lot's west fence.
+	set {-cfg::story::l_diglot::way} to "dig"
+	set {-cfg::story::l_diglot::label} to "Get into the lot"
+	set {-cfg::story::l_diglot::side} to "Get into the lot"
+	set {-cfg::story::l_diglot::obj} to "state|jaillot"
+	set {-cfg::story::l_diglot::gps} to "jail:PUNCH_STAND"
+	set {-cfg::story::l_diglot::brief} to "First the lot. No card? The quiet way is the parkour: punch the box by the gate between the Gun Shop and the police station, then over the annex fence."
+	set {-cfg::story::l_diglot::rewards::*} to "money|100"
+	set {-cfg::story::l_out::way} to "c4|keycard|parkour"
+	set {-cfg::story::l_out::label} to "Out the front gate or over the lot's ladder"
+	set {-cfg::story::l_out::side} to "Out the gate or the ladder"
+	set {-cfg::story::l_out::obj} to "ev|escape|1"
+	# Two ways out of the lot (owner, 2026-10-22: "two waypoints to the gate control or the ladder"): the GPS takes the nearer.
+	set {-cfg::story::l_out::gps} to "jail:BOOTH_OUT,LADDER_IN"
+	set {-cfg::story::l_out::brief} to "That's everything I know. In the lot, open the front gate from the booth, or climb the ladder over the south fence, and go."
+	set {-cfg::story::l_out::done} to "Knew you had it in you. Mara runs things out there: find her."
+	set {-cfg::story::l_out::rewards::*} to "money|250" and "xp|50"
+	set {-cfg::story::l_dig::way} to "dig"
+	set {-cfg::story::l_dig::label} to "Dig out under the lot's west fence"
+	set {-cfg::story::l_dig::side} to "Dig out under the fence"
+	set {-cfg::story::l_dig::obj} to "ev|escape|1"
+	set {-cfg::story::l_dig::gps} to "jail:DUG_IN"
+	set {-cfg::story::l_dig::brief} to "West end of the lot, by the fence: down the ladder, hold right-click on the dirt under the fence, and out the other side before it caves in."
+	set {-cfg::story::l_dig::done} to "Knew you had it in you. Mara runs things out there: find her."
+	set {-cfg::story::l_dig::rewards::*} to "money|250" and "xp|50"
+	# Retired (2026-10-21): on the head start's checklist now. Kept for anyone saved on one (passed over).
+	loop "l_craft", "l_donut" and "l_shop":
+		set {-cfg::story::%loop-value%::retired} to true
+	set {-cfg::story::l_craft::label} to "Make a weapon with Sparks in the workshop"
+	set {-cfg::story::l_donut::label} to "Bring Lefty a donut from the cafeteria"
+	set {-cfg::story::l_shop::label} to "Visit the Gun Shop (your keycard opens it)"
+	set {-cfg::story::l_craft::obj} to "ev|jailcraft|1"
+	set {-cfg::story::l_donut::obj} to "ev|jaildonut|1"
+	set {-cfg::story::l_shop::obj} to "ev|jailshop|1"
+	# The head start (owner, 2026-10-21: "show the optional prison missions for a head start as a checklist (0/5)"): the
+	# inmates' odd jobs that help an escape, each ticked once for good (data jhead::<id>) when its progress event comes
+	# (jhead::<id>::ev, and ::detail when set), while a prisoner. Shown in Lefty's menu, /missions and /prison.
+	set {-cfg::jhead::ids::*} to "craft", "rusty", "stash", "tank" and "shop"
+	set {-cfg::jhead::craft::label} to "Make a weapon with Sparks"
+	set {-cfg::jhead::craft::ev} to "jailcraft"
+	set {-cfg::jhead::rusty::label} to "Trade Rusty a donut (B1)"
+	set {-cfg::jhead::rusty::ev} to "jailrusty"
+	set {-cfg::jhead::stash::label} to "Dig up Whisper's stash"
+	set {-cfg::jhead::stash::ev} to "jjob"
+	set {-cfg::jhead::stash::detail} to "stash"
+	set {-cfg::jhead::tank::label} to "Pull off Tank's distraction"
+	set {-cfg::jhead::tank::ev} to "jjob"
+	set {-cfg::jhead::tank::detail} to "distraction"
+	set {-cfg::jhead::shop::label} to "Take your weapons from the Gun Shop"
+	set {-cfg::jhead::shop::ev} to "jailshop"
+	# Rusty hands every new inmate the Combat Knife in the course (jailcourse.sk). c1_knife stays: its objective is
+	# state|weapon, so it completes silently for anyone holding a weapon, and players who start in the city (the switch
+	# off, data jail "off") still get the knife step. Its brief and c1_meet's stay as they are for them; only players who
+	# broke out hear this one (story.sk storyBrief, 4.13).
+	set {-cfg::story::c1_meet::brief-escaped} to "Heard you broke out. Nice. I've got work for someone with nerve: come see me at the Safehouse."
+	# ---------- Prison jobs (jailjobs.sk; ESCAPE-SPEC 6.4): PROPOSAL ----------
+	set {-cfg::jjob::ids::*} to "yardrun", "delivery", "stash" and "distraction"
+	set {-cfg::jjob::yardrun::giver} to "lefty"
+	set {-cfg::jjob::yardrun::name} to "Yard Run"
+	set {-cfg::jjob::yardrun::goal} to "Touch the 4 marks around the yard in order, in 90 s from the first"
+	set {-cfg::jjob::yardrun::pay} to 150
+	set {-cfg::jjob::yardrun::cooldown} to 10 minutes
+	set {-cfg::jjob::yardrun::time} to 90 seconds
+	set {-cfg::jjob::delivery::giver} to "whisper"
+	set {-cfg::jjob::delivery::name} to "Special Delivery"
+	set {-cfg::jjob::delivery::goal} to "Take a note to another inmate"
+	set {-cfg::jjob::delivery::pay} to 150
+	set {-cfg::jjob::delivery::cooldown} to 10 minutes
+	set {-cfg::jjob::delivery::time} to 3 minutes
+	set {-cfg::jjob::stash::giver} to "whisper"
+	set {-cfg::jjob::stash::name} to "The Stash"
+	set {-cfg::jjob::stash::goal} to "Find the stash in the yard and bring it back. Keep it out of the guards' sight"
+	set {-cfg::jjob::stash::item} to "keycard"
+	set {-cfg::jjob::stash::cooldown} to 15 minutes
+	set {-cfg::jjob::stash::time} to 5 minutes
+	set {-cfg::jjob::distraction::giver} to "tank"
+	set {-cfg::jjob::distraction::name} to "Distraction"
+	set {-cfg::jjob::distraction::goal} to "Get the guards after you, then lose them without getting caught"
+	set {-cfg::jjob::distraction::pay} to 200
+	set {-cfg::jjob::distraction::item} to "part"
+	set {-cfg::jjob::distraction::cooldown} to 15 minutes
+	set {-cfg::jjob::distraction::time} to 5 minutes
+	set {-cfg::jjob::donut::cooldown} to 10 minutes
+	set {-cfg::jjob::marks::*} to "RUN_1", "RUN_2", "RUN_3" and "RUN_4"
+	set {-cfg::jjob::stashes::*} to "STASH_1", "STASH_2", "STASH_3" and "STASH_4"
 	set {-cfg::loaded} to true
 
 # Reads a setting by key, e.g. cfg("bag::2::capacity"). Loads settings first if another script
@@ -2131,8 +2980,23 @@ function deleteData(p: offline player, key: text):
 function msg(p: player, text: text):
 	send colored "%cfg("prefix")%%{_text}%" to {_p}
 
+# Everyone but players on the prison's tutorial course (chatQuiet; owner, 2026-10-21: "while on the course, hide every
+# chat line not about the tutorial (tips, other players)"), and the console.
 function broadcastMsg(text: text):
-	broadcast colored "%cfg("prefix")%%{_text}%"
+	set {_m} to colored "%cfg("prefix")%%{_text}%"
+	loop all players:
+		if chatQuiet(loop-player) is false:
+			send {_m} to loop-player
+	send {_m} to console
+
+# A player on the prison's tutorial course (data jail "course" while the prison is on): no chat but the tutorial's
+# (other players' chat, tips, server announcements, join and death lines are left out; chat-extras.sk, join-quit.sk,
+# death.sk). Read straight from the data and the switch: core.sk never calls prison.sk.
+function chatQuiet(p: player) :: boolean:
+	if {-cfg::prison::enabled} is true:
+		if getData({_p}, "jail") is "course":
+			return true
+	return false
 
 # A text component (e.g. the chat message) as a string with § codes, keeping < and & as typed.
 # Putting it in a string ("%message%") gives MiniMessage text instead, where "<" becomes "\<".
@@ -2212,6 +3076,17 @@ function npcBusy() :: boolean:
 		if difference between {-npc::busy} and now < 3 seconds:
 			return true
 	return false
+
+# The dimension a console "execute in" needs for world w: the first world is minecraft:overworld (Paper's main world),
+# others minecraft:<name> (Multiverse's keys, e.g. minecraft:jailbreak). The first world listed is the main one, so the
+# first loop pass decides.
+function worldDim(w: world) :: text:
+	loop all worlds:
+		if loop-value is {_w}:
+			return "minecraft:overworld"
+		set {_d} to "minecraft:%{_w}%"
+		return {_d} in lower case
+	return "minecraft:overworld"
 
 function isStaff(p: player) :: boolean:
 	if {_p} has permission "donating.staff":

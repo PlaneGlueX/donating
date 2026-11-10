@@ -53,6 +53,7 @@ module.exports = async ({ check }) => {
     await cmd(`fill ${PLATFORM} glass`)
     a = await join(SHOOTER)
     b = await join(TARGET)
+    for (const n of [SHOOTER, TARGET]) { await cmd(`zzclear ${n}`); await cmd(`zzpassive ${n} off`); await cmd(`zzcombatend ${n}`) }
     await sleep(6500) // a new player can't be hurt until its client says it has loaded (bots never do)
     // Every health drop of the target, in order.
     let drops = []

@@ -54,6 +54,7 @@ module.exports = async ({ check }) => {
     await cmd(`forceload add ${CHUNKS}`)
     await cmd(`fill 3088 ${Y} 3088 3172 ${Y + 5} 3142 air`)
     await cmd(`fill 3088 ${Y - 1} 3088 3172 ${Y - 1} 3142 glass`)
+    await cmd('zzhitnodes stash')
     for (const [x, z] of NODES) nodes.push(((await cmd(`dhit node addat ${x} ${Y} ${z} Test_Street`)).match(/node (\d+) added/) || [])[1] || '')
     for (let i = 0; i < nodes.length; i++) await cmd(`dhit node link ${nodes[i]} ${nodes[(i + 1) % nodes.length]}`)
     await cmd(`dhit node link ${nodes[1]} ${nodes[4]}`)
@@ -75,7 +76,8 @@ module.exports = async ({ check }) => {
     }
     // Joining makes 2 online: the week's due windows open; close them (they stay used).
     await sleep(1500)
-    for (const t of ['easy', 'medium', 'hard']) await cmd(`dhit window ${t} close`)
+    // Also this week's rolled windows: a due one would open as soon as A holds a contract (A online = active).
+    for (const t of ['easy', 'medium', 'hard']) { await cmd(`dhit window ${t} close`); await cmd(`zzhitwin ${t} clear`) }
     await cmd(`dlevel set ${A} 15`)
     await cmd(`dlevel set ${B} 14`)
     check('street nodes and the Broker are placed', nodes.every(Boolean) && broker !== '', `${nodes} | ${broker}`)
@@ -323,9 +325,10 @@ module.exports = async ({ check }) => {
     // latest due window opens at once instead of waiting, and the older one is still used up.
     const others = Number(((await cmd('list')).match(/There are (\d+)/) || [])[1]) - 1
     await cmd('zzhitwin medium clear')
-    const nowU = Math.floor(Date.now() / 1000)
-    await cmd(`zzhitwin medium 1 ${nowU - 7200}`)
-    await cmd(`zzhitwin medium 2 ${nowU - 3600}`)
+    // Windows are kept in game seconds (hits.sk clockSecs = the clock's minutes x 60), not unix time.
+    const nowG = Number(((await cmd('zzclock')).match(/min=(\d+)/) || [])[1]) * 60
+    await cmd(`zzhitwin medium 1 ${nowG - 7200}`)
+    await cmd(`zzhitwin medium 2 ${nowG - 3600}`)
     await sleep(3200)
     const waiting = await week()
     await cmd(`dhit give ${B} medium`)
@@ -373,6 +376,7 @@ module.exports = async ({ check }) => {
     await rcon.cmd('zzweek off').catch(() => {})
     await rcon.cmd('dhit week reroll').catch(() => {}) // a full schedule again (windows already past stay used)
     for (const n of nodes) if (n) await rcon.cmd(`dhit node remove ${n}`).catch(() => {})
+    await rcon.cmd('zzhitnodes restore').catch(() => {})
     if (broker) await rcon.cmd(`dquest remove ${broker}`).catch(() => {})
     for (const bot of Object.values(bots)) await quit(bot).catch(() => {})
     await rcon.cmd(`fill 3088 ${Y - 1} 3088 3172 ${Y + 5} 3142 air`).catch(() => {})

@@ -6,7 +6,8 @@
 # and a first car job at the Scrap Yard (contracts.sk's starter job: the money for a bag), the Gym Bag, a store or a
 # heist, the sale, a knife (guns need level 5), a crate and level 5. The GPS leads the way at every step.
 # This file only greets them once (data "tutorial": "welcomed", then "done" with their first bag) and keeps /tutorial.
-#   /tutorial                          the first steps again
+#   /tutorial [confirm|stop]           the prison course: your step (confirm: back to it, or a replay after the course;
+#                                      stop: ends a replay, back to how you were before it: jailcourse.sk jcStop)
 #   /dtutorial <player> reset|done     staff (reset: the welcome again at the next join)
 
 function tutorialLog(text: text):
@@ -23,24 +24,35 @@ function tutorialStep(p: player) :: text:
 function tutorialNeedsBag(p: player) :: boolean:
 	return false
 
+# The whole game in four cards (owner, 2026-11-05: "make sure the player knows how to play"; kids don't read chat), the chat lines
+# for whoever wants them.
 function tutorialWelcome(p: player):
-	send title colored "&6&lWELCOME TO THE CITY" with subtitle colored "&7Mara gets new faces started: follow your GPS" to {_p} for 5 seconds
-	play sound "block.note_block.pling" with volume 0.7 to {_p}
 	tutorialSteps({_p})
+	set {_t::*} to "&6&lROB", "&c&lGET OUT ALIVE", "&a&lSELL IT", "&6&lFIND MARA" and "&b&lLONG WALK?"
+	# The way to Mara is 875 m on foot right after the escape, and the bikes stand 50 m from the gate (bikes.sk).
+	set {_s::*} to "&7Stores and heists are full of loot", "&7Die and your loot drops for anyone to grab", "&7At the base: money, levels, better gear", "&7Follow the orange trail" and "&7Right-click a bike at the shop by the gate"
+	set {_i} to 0
+	loop {_t::*}:
+		{_p} is online
+		add 1 to {_i}
+		send title colored loop-value with subtitle colored {_s::%{_i}%} to {_p} for 3 seconds with fade in 0 ticks and fade out 5 ticks
+		play sound "block.note_block.pling" with volume 0.8 and pitch (0.8 + {_i} * 0.2) to {_p}
+		play sound "block.note_block.bass" with volume 0.5 and pitch (0.8 + {_i} * 0.2) to {_p}
+		wait 3 seconds
 
 function tutorialSteps(p: player):
 	set {_start} to formatMoney(cfg("money::start"))
 	set {_hands} to formatMoney(cfg("bag::hands::capacity"))
-	msg({_p}, "&6New in town? &7You've got %{_start}% and nothing else. Here's how it starts:")
-	send colored "&7 1. &eMeet Mara &7at the Safehouse: the orange line on your phone (slot 9) and the dot above your hotbar lead there." to {_p}
-	send colored "&7 2. &eYour first job: &7steal a car for the Scrap Yard with her lockpick. It pays for a bag." to {_p}
-	send colored "&7 3. &eLoot &7goes in your &ebag &7(your hands carry %{_hands}% without one). It sells by itself at the base." to {_p}
-	send colored "&7 4. &eGuns need level 5. &7Once you have your bag, a knife does until then. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
+	msg({_p}, "&7You've got %{_start}%. &eMeet Mara &7at the Safehouse: follow the orange trail.")
+	send colored "&7 Your first job: &7steal a car for the Scrap Yard. It pays for a bag (your hands carry %{_hands}%)." to {_p}
+	send colored "&7 Loot sells by itself at the base. Guns need level 5. &f/missions &7shows what's next, &f/help &7the rest." to {_p}
 
 on join:
 	getData(player, "tutorial") is not set
 	setData(player, "tutorial", "welcomed")
 	tutorialLog("start %player% %uuid of player%")
+	# While the prison runs, the city's welcome waits for the first escape (prison.sk calls tutorialWelcome then).
+	jailOn() is false
 	# After the welcome title (join-quit.sk).
 	wait 5 seconds
 	player is online
@@ -54,11 +66,21 @@ every second:
 				setData(loop-player, "tutorial", "done")
 				tutorialLog("done %loop-player% %uuid of loop-player%")
 
-command /tutorial:
-	description: The first steps again.
+command /tutorial [<text>]:
+	description: Your tutorial step; /tutorial confirm takes you back to it (or replays it); /tutorial stop ends a replay.
 	executable by: players
 	trigger:
-		tutorialSteps(player)
+		# The prison course, also after it's done (owner, 2026-10-14: "/tutorial for people who want to go back to the
+		# tutorial even after they complete it (but they still keep their stats)"): jailcourse.sk jcTutorial. Never the
+		# city's welcome lines (tutorialSteps: the first join only). "stop" (owner, 2026-10-15: "have a /tutorial stop command
+		# if you already completed it before") ends a replay: jcTutorial passes it to jcStop.
+		if jailOn() is false:
+			msg(player, "&7The prison tutorial is closed right now.")
+			stop
+		set {_a} to ""
+		if arg-1 is set:
+			set {_a} to arg-1
+		jcTutorial(player, {_a})
 
 command /dtutorial <offline player> <text>:
 	permission: donating.staff

@@ -174,6 +174,14 @@ on death of player:
 			set {_lines} to "%{_lines}%;%loop-index%=%loop-value%"
 	delete {-bag::total::%victim%}
 	delete {-bag::shown::%victim%}
+	# For the cell's LOCKED UP title (prison.sk).
+	set {-jail::lost::%uuid of victim%} to {_sum}
+	delete {-jail::lefttext::%uuid of victim%}
+	set {_dh} to heistForDeath(victim)
+	if {_dh} is not "":
+		if heistIsStore({_dh}) is true:
+			if lootLeft({_dh}) > 0:
+				set {-jail::lefttext::%uuid of victim%} to "&7%formatMoney(lootLeft({_dh}))% still in the %heistName({_dh})%."
 	# Hot: hunted now (heists.sk releases the hunt later, at priority monitor), or carrying loot that was hot.
 	set {_hot} to 0
 	if {-heisthunt::%victim%} is set:
@@ -314,26 +322,17 @@ function duffelGrab(p: player, e: entity):
 		set {_v} to {_kv::2} parsed as number
 		if {_v} is set:
 			set {_got} to 0
-			# A store's loot is for new robbers: over its max level, it stays in the duffel.
-			set {_hp::*} to {_kv::1} split at "#"
-			set {_mx} to heistMaxLevel({_hp::1})
-			set {_over} to false
-			if {_mx} > 0:
-				if {_lvl} > {_mx}:
-					set {_over} to true
-					set {_keptmax} to {_mx}
-					add {_v} to {_kept}
-			if {_over} is false:
-				if {_took} < {_room}:
-					set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
-					add {_got} to {_took}
-					if {_got} > 0:
-						if {_hot} > {_now}:
-							set {_had} to getData({_p}, "hot::%{_kv::1}%")
-							if {_had} is not set:
-								setData({_p}, "hot::%{_kv::1}%", {_hot})
-							else if {_had} < {_hot}:
-								setData({_p}, "hot::%{_kv::1}%", {_hot})
+			# (A store's loot was for robbers up to its max level until 2026-10-21: the owner removed every maximum.)
+			if {_took} < {_room}:
+				set {_got} to bagAddTag({_p}, {_kv::1}, min({_v}, {_room} - {_took}))
+				add {_got} to {_took}
+				if {_got} > 0:
+					if {_hot} > {_now}:
+						set {_had} to getData({_p}, "hot::%{_kv::1}%")
+						if {_had} is not set:
+							setData({_p}, "hot::%{_kv::1}%", {_hot})
+						else if {_had} < {_hot}:
+							setData({_p}, "hot::%{_kv::1}%", {_hot})
 			if {_v} > {_got}:
 				set {_line} to "%{_kv::1}%=%{_v} - {_got}%"
 				if {_rest} is "":
@@ -341,8 +340,6 @@ function duffelGrab(p: player, e: entity):
 				else:
 					set {_rest} to "%{_rest}%;%{_line}%"
 	if {_took} <= 0:
-		if {_kept} > 0:
-			duffelTell({_p}, "&7Store loot is for new robbers (up to level %{_keptmax}%): it stays in the duffel.")
 		stop
 	set {_id} to itemId({_i})
 	if {_rest} is "":
@@ -444,6 +441,51 @@ function isBaseAt(l: location) :: boolean:
 	return false
 
 # Sells the bag, all but hot loot; returns the pay (0 when nothing sold). One call, no wait.
+# The sale's payoff is sound and visuals only (owner, 2026-11-05: no hype words). The money counts up with rising dings and
+# a bigger sale, or a new personal best, gets a longer count and firework bursts others nearby see and hear. No money here.
+function salePop(p: player):
+	# Above the head: from inside the burst the sparks cover the whole screen.
+	set {_l} to location of {_p} ~ vector(0, 3, 0)
+	draw 90 firework particles with offset vector(0, 0, 0) with an extra value of 0.28 at {_l}
+	draw 40 rgb(255, 205, 40) dust particles of size 1.5 with offset vector(1, 1, 1) at {_l}
+	play sound "entity.firework_rocket.blast" with volume 1 and pitch 1.1 at {_l}
+	play sound "entity.firework_rocket.twinkle" with volume 0.8 at {_l}
+
+function saleParty(p: player, amount: number, sub: text):
+	set {-salefx::%uuid of {_p}%} to now
+	set {_best} to getData({_p}, "sale-best")
+	if {_best} is not set:
+		set {_best} to 0
+	set {_tier} to 0
+	if {_amount} >= cfg("bag::huge-sale"):
+		set {_tier} to 2
+	else if {_amount} >= cfg("bag::big-sale"):
+		set {_tier} to 1
+	if {_amount} > {_best}:
+		setData({_p}, "sale-best", {_amount})
+		if {_tier} < 2:
+			add 1 to {_tier}
+	set {_steps} to 8 + {_tier} * 4
+	loop integers from 1 to {_steps}:
+		{_p} is online
+		send title colored "&a+%formatMoney(floor({_amount} * loop-value / {_steps}))%" with subtitle colored {_sub} to {_p} for 1 second with fade in 0 ticks and fade out 0 ticks
+		play sound "block.note_block.pling" with volume 0.7 and pitch (0.6 + 1.3 * loop-value / {_steps}) to {_p}
+		wait 2 ticks
+	{_p} is online
+	send title colored "&a&l+%formatMoney({_amount})%" with subtitle colored {_sub} to {_p} for 2 seconds with fade in 0 ticks and fade out 10 ticks
+	play sound "entity.player.levelup" with volume 0.7 and pitch 1.5 to {_p}
+	play sound "block.note_block.bell" with volume 0.8 and pitch 1.2 to {_p}
+	draw 25 happy villager particles with offset vector(0.6, 1, 0.6) at location of {_p}
+	{_tier} >= 1
+	salePop({_p})
+	{_tier} >= 2
+	play sound "ui.toast.challenge_complete" with volume 0.9 at location of {_p}
+	draw 80 totem of undying particles with offset vector(0.6, 1, 0.6) at location of {_p}
+	loop 2 times:
+		wait 6 ticks
+		{_p} is online
+		salePop({_p})
+
 function bagSell(p: player) :: number:
 	if {_p} is not alive:
 		return 0
@@ -535,16 +577,13 @@ function bagSell(p: player) :: number:
 	setData({_p}, "robberies", {_r} + {_hauls})
 	bagRefresh({_p})
 	bagLog("sell %name of {_p}% %uuid of {_p}% total=%{_t}% pay=%{_pay}% extra=%{_extra}% booster=%{_boost}% passive=%{_passive}% bounty=%{_bounty}% own=%{_own}% hot-kept=%{_heat}% lines=%{_lines}%")
-	set {_money} to formatMoney({_pay} + {_extra})
+	set {_sub} to "&7Balance: &f%formatMoney(balance of {_p})%"
 	if {_passive} is true:
 		set {_sub} to "&7passive: 75%% of %formatMoney({_t})%"
-	else if {_bounty} > 0:
-		set {_sub} to "&7%{_hauls}% haul(s) · bounty +%formatMoney({_bounty})%"
-	else:
-		set {_sub} to "&7%{_hauls}% haul(s)"
-	send title colored "&a+%{_money}%" with subtitle colored {_sub} to {_p} for 3 seconds
+	if {_bounty} > 0:
+		msg({_p}, "&cYour bounty went up %formatMoney({_bounty})%: &7whoever kills you collects it.")
+	saleParty({_p}, {_pay} + {_extra}, {_sub})
 	play sound "entity.experience_orb.pickup" with volume 1 to {_p}
-	play sound "block.note_block.bell" with volume 0.8 and pitch 1.2 to {_p}
 	loop {_by::*}:
 		msg({_p}, "&aSold %formatMoney(loop-value)% of loot from the %heistName(loop-index)%.")
 	if {_heat} > 0:

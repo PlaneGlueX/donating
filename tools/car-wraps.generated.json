@@ -546,5 +546,41 @@
  {
   "damage": 1436,
   "model": "minecraft:custom/wraps/motor_inferno"
+ },
+ {
+  "damage": 1437,
+  "model": "minecraft:custom/wraps/sedan_scrapper"
+ },
+ {
+  "damage": 1438,
+  "model": "minecraft:custom/wraps/sedan_sportief_scrapper"
+ },
+ {
+  "damage": 1439,
+  "model": "minecraft:custom/wraps/jeep_scrapper"
+ },
+ {
+  "damage": 1440,
+  "model": "minecraft:custom/wraps/sportief_scrapper"
+ },
+ {
+  "damage": 1441,
+  "model": "minecraft:custom/wraps/hotrod_scrapper"
+ },
+ {
+  "damage": 1442,
+  "model": "minecraft:custom/wraps/suv_scrapper"
+ },
+ {
+  "damage": 1443,
+  "model": "minecraft:custom/wraps/suv_cabrio_scrapper"
+ },
+ {
+  "damage": 1444,
+  "model": "minecraft:custom/wraps/racecar_scrapper"
+ },
+ {
+  "damage": 1445,
+  "model": "minecraft:custom/wraps/motor_scrapper"
  }
 ]

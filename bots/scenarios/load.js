@@ -30,9 +30,9 @@ function serverPid () {
 function liveHeap (pid) {
   execSync(`"${JCMD}" ${pid} GC.class_histogram`, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }) // a full GC first
   const info = execSync(`"${JCMD}" ${pid} GC.heap_info`, { encoding: 'utf8' })
-  const m = info.match(/total (\d+)K, used (\d+)K/)
+  const m = info.match(/heap\s+total.*?used (\d+)K/) // Java 25: "garbage-first heap total reserved 2097152K, committed 2097152K, used 566382K"
   const max = execSync(`"${JCMD}" ${pid} VM.flags`, { encoding: 'utf8' }).match(/MaxHeapSize=(\d+)/)
-  return { usedMB: m ? Math.round(+m[2] / 1024) : -1, maxMB: max ? Math.round(+max[1] / 1048576) : -1 }
+  return { usedMB: m ? Math.round(+m[1] / 1024) : -1, maxMB: max ? Math.round(+max[1] / 1048576) : -1 }
 }
 
 module.exports = async ({ check }) => {
