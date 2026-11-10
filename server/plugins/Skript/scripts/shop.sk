@@ -506,6 +506,12 @@ function openShop(p: player, kind: text):
 	set {-shop::kind::%{_p}%} to {_kind}
 	set {-shop::rows::%{_p}%} to {_rows}
 	set {-shop::tab::%{_p}%} to "loadout"
+	# A first visit opens on what's for sale, not on an empty loadout.
+	if {_kind} is "gun":
+		set {-shop::tab::%{_p}%} to "weapons"
+		loop {-cfg::shop::weapons::*}:
+			if getData({_p}, "wpn::%loop-value%") is true:
+				set {-shop::tab::%{_p}%} to "loadout"
 	set {-shop::gen::%{_p}%} to 0
 	renderShop({_p})
 	open {_gui} to {_p}

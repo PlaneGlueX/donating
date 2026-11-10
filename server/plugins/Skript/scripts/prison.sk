@@ -875,6 +875,9 @@ function jailEscape(p: player):
 		set {_m} to "other"
 		jailLog("escape-unknown %{_p}% %{_u}% at=%x-coordinate of {_l}%,%y-coordinate of {_l}%,%z-coordinate of {_l}%")
 	setData({_p}, "jail", "out")
+	if {-jail::lockedat::%{_u}%} is set:
+		jailLog("escape-time %{_u}% %difference between {-jail::lockedat::%{_u}%} and now%")
+		delete {-jail::lockedat::%{_u}%}
 	set {-jail::escaped::%{_u}%} to now
 	delete {-jail::mark::%{_u}%}
 	delete {-jail::lot::%{_u}%}
@@ -1194,7 +1197,20 @@ on respawn with priority highest:
 	set food level of player to 10
 	jailShieldOn(player)
 	if {_again} is true:
-		send title colored "&c&lLOCKED UP" with subtitle colored "&7You lost your bag and gear. Follow the trail out" to player for 4 seconds
+		set {_lost} to {-jail::lost::%{_u}%}
+		if {_lost} is set:
+			if {_lost} > 0:
+				set {_sub} to "&7Lost %formatMoney({_lost})% loot, your bag and gear. Follow the trail out"
+		if {_sub} is not set:
+			set {_sub} to "&7You lost your bag and gear. Follow the trail out"
+		send title colored "&c&lLOCKED UP" with subtitle colored {_sub} to player for 4 seconds
+		if {-jail::lefttext::%{_u}%} is set:
+			msg(player, {-jail::lefttext::%{_u}%})
+		if balance of player < cfg("bag::1::price"):
+			msg(player, "&7Hands carry %formatMoney(cfg("bag::hands::capacity"))%: rob, sell, rebuy.")
+		delete {-jail::lost::%{_u}%}
+		delete {-jail::lefttext::%{_u}%}
+		set {-jail::lockedat::%{_u}%} to now
 		play sound "block.iron_door.close" with volume 1 and pitch 0.8 to player
 
 # A death inside the walls anyway (staff /kill, the void, /suicide): the respawn downs them (their cell, the hostility

@@ -894,3 +894,22 @@ Recorded and seen in the client (2026-11-05, tools/audio-test.py, numbers in tes
 Cell respawn and store props (2026-11-05). Client: a city death woke in cell n89 at 91.5, 58, 51.5, "Your cell opens in 10s", LOCKED UP. Bots: prison-respawn (cell, door shut, opens after the wait), clerk (donut, gas and pawn throw only their own things).
 No wait after a death since (owner, same day): the door opens at once; prison-respawn checks it.
 Check by eye: the pie flies as a donut and the pork chop as a hot dog; each store's throws read at a glance.
+
+## 303. A fresh player from the cell to level 5, in the client (2026-11-05; docs/gps.md, docs/quests.md, docs/cars.md)
+Played on a wiped character: the course, escape, Mara, the car job, lockpick, chop shop, Bag Shop, a store, death, the cell, the way out, the sale, the knife, a crate. Good as it was: UNLOCKED, CAR DELIVERED with the crusher, MISSION PASSED, "Hold right-click", hands full of cash, the door hologram, the crate reveal, the WAY OUT bar.
+Fixed and seen in the client: the GPS trail on the prison's orange floor at midnight (white orbs; before, a few dark specks) and on the white floor; no "turn" on straight stretches while off-centre (walked the B1 halls, logged turn=none); a test pin to the Bag Shop keeper goes through the door; the five cards with "LONG WALK?"; the bike shop's sign and bikes from the road.
+Fixed and checked by bots: bikes (stale copies go, own two stay: the stack that ate clicks), story (shop mission's target is the keeper; c1_sell with an empty bag says "Rob a store first"), gpspaths (a step beside the first point says no turn).
+Check by eye, yours: are the orbs too much by day and in a car (64 blocks ahead, every 4)? Do the new menu titles fit? "Hit the clerk" while a clerk throws. The first store: a player who only holds right-click dies about when the register runs out (20 s vs 19 s): keep it hard, or a little more time?
+
+## 304. Patrols, Rising Store, Door Count (2026-11-06)
+Bots: patrols 8/8, prison-respawn 35/35, store 15/15. Not yet seen in the client:
+- [ ] A patrol walking the street looks right; POLICE title on being seen with loot; the blocks-to-lose count; shot at; a sale refused until lost.
+- [ ] Store bar turns yellow and red; the note isn't annoying; BAG FULL burst visible.
+- [ ] LOCKED UP subtitle fits on screen with a big loot number.
+
+## 305. Anti-cheat (GrimAC) and the chat filter (2026-11-10; docs/plugins.md, docs/skript.md)
+Owner: "mostly anticheat and lots of packet or chat spam", swear filter light. GrimAC 2.3.74 kicks only for Reach 15, Hitboxes 20, BadPackets 60 violations in 5 minutes; movement checks pull back only.
+Bots: chatfilter 7/7 (ordinary swearing passes, the same line again within 30 s refused, "you r3tard", "go k i l l yourself", "kys" and /msg kys blocked), cars 11/11 and bikes 11/11 with the bots exempt (zz-testkit.sk, local only).
+Client (2026-11-10, 2:45 AM): the owner's account walked, sprinted and jumped in the prison: no Grim flag.
+- [ ] Not yet in the client: driving a car, a bike, the Grappler, a knife hit at range, firing guns: look for "Grim »" alerts in chat (ops see them). A real player kicked by mistake: raise that check's number in plugins/GrimAC/punishments.yml.
+- [ ] Known filter limits: stretched letters ("fuuuck"-style) and look-alike Unicode letters pass; "k.y.s" passes (catching it would block "skyscraper").

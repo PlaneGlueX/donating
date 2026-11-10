@@ -39,6 +39,8 @@ module.exports = async ({ check }) => {
     await cmd(`zzjail ${A} give keycard`)
     await sleep(500)
     check('setup: a free bot in the city with a car job, a knife and a keycard in hotbar 6-8', (await dim(A)) === 'minecraft:overworld' && /job=street/.test(await cmd(`zzctstate ${A}`)) && /Combat_Knife/.test(await cmd(`zzwm ${A}`)) && /keycard:[5-7]x1/.test(field(await info(A), 'items')), `${await cmd(`zzctstate ${A}`)} ${await info(A)}`)
+    await cmd(`zzbagadd ${A} pawn#1 700`)
+    await cmd(`eco set ${A} 0`)
     let since = Date.now()
     await cmd(`minecraft:kill ${A}`)
     await until(async () => VET_CELLS.includes(field(await info(A), 'cell')), 8000)
@@ -50,6 +52,7 @@ module.exports = async ({ check }) => {
     check('...no wait: its door opens at once', await until(() => doorOpen(CELL_DOOR[cell0]), 3000, 200), await door(CELL_DOOR[cell0] || 'x'))
     check('...as an inmate (state in), "Locked up again"', field(s, 'state') === 'in' && said(a, /Locked up again/, since), s)
     check('...told with a title what happened', said(a, /LOCKED UP/, since))
+    check('...and what it cost: the loot in the subtitle, and the way back when broke', said(a, /Lost [$]700 loot/, since) && said(a, /Hands carry [$]1,000/, since), JSON.stringify(a.log.slice(-14).map(m => m.text)))
     // Lessons done: the GPS still shows a way out, and the sidebar says so (owner, 2026-11-05: a new player must know what to do).
     await cmd(`zzdatatext ${A} lefty done`)
     await until(async () => /label=Way_out/.test(await cmd(`dphone gps ${A}`)), 5000)

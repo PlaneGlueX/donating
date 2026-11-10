@@ -112,6 +112,9 @@ module.exports = async ({ check }) => {
     await until(async () => /Boss: Mara sent you\? Take my first job/.test(text(A, t)), 3000)
     check('the next mission\'s brief comes whole in chat, no ✉ notice (the first car job, from the Scrap Yard Boss), with Mara\'s lockpick', (await id(A)) === 'c1_wheels' && /Boss: Mara sent you\? Take my first job/.test(text(A, t)) && !/✉ Boss/.test(text(A, t)) && /\[lockpick:basic\]/.test(await cmd(`zzdump ${A}`)), `${await info(A)} ${text(A, t).slice(-200)}`)
     await set(A, 'c1_knife')
+    let gk = ''
+    await until(async () => { gk = await cmd(`dphone gps ${A}`); return /target=496.5,65.0,803.5/.test(gk) }, 3000)
+    check('a shop mission leads to the keeper at the counter, not the door of the shop',/target=496.5,65.0,803.5/.test(gk), gk)
     t = Date.now()
     await cmd(`dshop unlock ${A} Combat_Knife`)
     await until(async () => (await id(A)) !== 'c1_knife', 4000)
@@ -119,6 +122,10 @@ module.exports = async ({ check }) => {
     await until(async () => /MISSION PASSED/.test(text(A, t)), 3000)
     check('...with the MISSION PASSED title although it has no reward (and no "<none>")', /MISSION PASSED/.test(text(A, t)) && !/<none>/.test(text(A, t)), text(A, t).slice(0, 400))
     await set(A, 'c1_sell')
+    let g0 = ''
+    await until(async () => { g0 = await cmd(`dphone gps ${A}`); return /label=Rob_a_store_first/.test(g0) }, 3000)
+    const m0 = await papi(A, 'donating_mission')
+    check('the sale mission with an empty bag says to rob a store first, and leads to one (no "$0/$1")', /label=Rob_a_store_first/.test(g0) && /Rob a store first/.test(m0) && !/\$0/.test(m0), `${g0} | ${m0}`)
     const k0 = await cmd(`dcrate info ${A}`)
     t = Date.now()
     await ev(A, 'sell', 500, 'zh#3')

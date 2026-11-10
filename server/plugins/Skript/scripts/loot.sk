@@ -1673,7 +1673,7 @@ function lootQteOpen(p: player, h: text, n: text):
 	set {_c} to "%{_h}%::%{_n}%"
 	lootQteForget({_p})
 	closePhoneMap({_p})
-	set {_gui} to chest inventory with 3 rows named "&8Fix the drill"
+	set {_gui} to chest inventory with 3 rows named "&8Fix the drill: click on green"
 	set {-lootqte::%{_p}%} to {_c}
 	set {-lootqte::%{_p}%::p} to {_p}
 	set {-lootqte::%{_p}%::gui} to {_gui}

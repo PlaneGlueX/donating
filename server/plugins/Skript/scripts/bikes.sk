@@ -50,8 +50,9 @@ function bikeParked(n: text) :: boolean:
 	set {_b} to {-bike::box::%{_n}%}
 	if {_d} is set:
 		if {_b} is set:
-			if {_d} is valid:
-				if {_b} is valid:
+			# Alive, not valid: hidden with its chunk for now (not valid, yet it comes back), a new one would stack on it.
+			if {_d} is alive:
+				if {_b} is alive:
 					return true
 	return false
 
@@ -116,6 +117,17 @@ every 2 seconds:
 		if bikeWants({_n}) is true:
 			if bikeParked({_n}) is false:
 				bikePark({_n})
+			else:
+				# Copies a redraw couldn't reach (hidden with the chunk) only show up later, and they answer no click (found
+				# 2026-11-05: 19 deep on one spot, the bike "didn't work"): keep only this spot's own two, as contracts.sk does.
+				# 1.8: the display stands bay-lift above the spot, and the nearest spots are 2 apart.
+				set {_d} to {-bike::disp::%{_n}%}
+				set {_b} to {-bike::box::%{_n}%}
+				loop all entities in radius 1.8 of bikeSpot({_n}):
+					if scoreboard tags of loop-entity contain "donating_bike":
+						if loop-entity is not {_d}:
+							if loop-entity is not {_b}:
+								kill loop-entity
 		else if {-bike::disp::%{_n}%} is set:
 			bikeUnpark({_n})
 
@@ -171,7 +183,7 @@ function bikeClick(p: player, n: text):
 function bkQteOpen(p: player, n: text):
 	bkQteForget({_p})
 	closePhoneMap({_p})
-	set {_gui} to chest inventory with 3 rows named "&8Hotwire the bike"
+	set {_gui} to chest inventory with 3 rows named "&8Hotwire the bike: click green"
 	set {-bkqte::%{_p}%} to {_n}
 	set {-bkqte::%{_p}%::p} to {_p}
 	set {-bkqte::%{_p}%::gui} to {_gui}

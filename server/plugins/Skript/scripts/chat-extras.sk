@@ -35,6 +35,12 @@ on chat:
 			stop
 		delete {-chat::staff-mode::%player%}
 
+	# The chat filter (core.sk chat::filter-*): the line is never sent.
+	if chatBlocked(legacyText(message)) is true:
+		cancel event
+		chatFilterHit(player, legacyText(message))
+		stop
+
 	# Cooldown between messages (staff are exempt).
 	if isStaff(player) is false:
 		set {_cooldown} to cfg("chat::cooldown")
@@ -44,6 +50,15 @@ on chat:
 				msg(player, "&cSlow down! &7Wait a moment before chatting again.")
 				stop
 		set {-chat::last::%player%} to now
+		# The same line again (any case) within chat::repeat-window: refused.
+		set {_line} to legacyText(message) in lowercase
+		if {-chat::lastline::%player%} is {_line}:
+			if difference between {-chat::lastlineat::%player%} and now < cfg("chat::repeat-window"):
+				cancel event
+				msg(player, "&7You just said that.")
+				stop
+		set {-chat::lastline::%player%} to {_line}
+		set {-chat::lastlineat::%player%} to now
 
 	# @mentions: the name turns lime for everyone, and the mentioned player hears a ping.
 	set {_text} to legacyText(message)
@@ -162,3 +177,41 @@ every 1 minute:
 		stop
 	set {-tip::last} to now
 	sendTip()
+
+# ---------- The chat filter (2026-11-10) ----------
+# Lowercase, common letter swaps (0 o, 1 i, 3 e, 4 a, 5 s, @ a, $ s, ! i), then a whole-word match, then a match of the
+# parts on the letters alone ("f.u c k").
+# shortcut: no stretched letters ("fuuuck") or look-alike Unicode letters, upgrade to a filter plugin if players find ways round it.
+function chatBlocked(text: text) :: boolean:
+	set {_t} to {_text} in lowercase
+	regex replace "§." in {_t} with ""
+	replace all "0" with "o" in {_t}
+	replace all "1" with "i" in {_t}
+	replace all "3" with "e" in {_t}
+	replace all "4" with "a" in {_t}
+	replace all "5" with "s" in {_t}
+	replace all "@" with "a" in {_t}
+	replace all "$" with "s" in {_t}
+	replace all "!" with "i" in {_t}
+	set {_w} to cfg("chat::filter-words")
+	if {_t} matches ".*(^|[^a-z])(%{_w}%)([^a-z]|$).*":
+		return true
+	set {_l} to {_t}
+	regex replace "[^a-z]" in {_l} with ""
+	set {_p} to cfg("chat::filter-parts")
+	if {_l} matches ".*(%{_p}%).*":
+		return true
+	return false
+
+function chatFilterHit(p: player, text: text):
+	msg({_p}, "&7That word isn't allowed here.")
+	log "%name of {_p}% %uuid of {_p}% %{_text}%" to "chat-filter"
+
+# Private messages and /me go through the filter too (EssentialsX's commands and their aliases).
+on command:
+	sender is a player
+	set {_c} to command in lowercase
+	{_c} is "msg" or "tell" or "w" or "whisper" or "m" or "t" or "pm" or "emsg" or "etell" or "ewhisper" or "r" or "reply" or "er" or "mail" or "email" or "me" or "eme"
+	chatBlocked(full command) is true
+	cancel event
+	chatFilterHit(player, full command)

@@ -3,6 +3,7 @@
 Moved word for word from CLAUDE.md on 2026-11-03. Grep a heading, then read that part: don't read the whole file.
 
 ### Shops (shop.sk, built 2026-09-25)
+- The gun shop's first tab (2026-11-05, `openShop`): "weapons" when the player owns no weapon, else "loadout". A new player used to land on an empty Loadout page and thought the shop was empty.
 - Data: `wpn::<W>` (unlocked weapon), `loadout::<n>` + `::count` + `loadout::saved` (Save button), `bag-tier` / `bag-best`. Equipped weapons, loaded rounds, ammo and gear live only in the inventory (death.sk clears them).
 - Every purchase: check, charge (`chargeMoney` in core.sk: all or nothing, compares the balance before and after), grant, verify, refund if the grant failed, all in one call with no wait; logged to `plugins\Skript\logs\shop.log`.
 - One action per drawn screen: each click is handled a tick later and only if the screen generation is unchanged, so a same-tick double click buys once (tested). Clicks on the player's own inventory, number keys and double clicks do nothing; every click is cancelled, also for staff with the bypass.

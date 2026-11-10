@@ -115,6 +115,12 @@ module.exports = async ({ check }) => {
     await sleep(1600)
     check('the dust trail along the path: for the player only', particles[A] >= 4 && particles[B] === 0, `A=${particles[A]} B=${particles[B]}`)
 
+    // A step beside the way's first point: no path behind it yet, and being off-centre isn't a turn (2026-11-05).
+    await tp([7905.5, 180, 7912.5])
+    await sleep(700)
+    s = await gps()
+    check('a step beside the first point of the way says no "turn" (there is one from afar)',/turn=none/.test(s) && field(s, 'via').split(',')[0] === String(ID(1)), s)
+
     // In front of the stairs: "up" next.
     await tp([7928.5, 180, 7921.5])
     await until(async () => { s = await gps(); return /turn=up@/.test(s) }, 3000)

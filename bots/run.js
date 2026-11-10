@@ -17,12 +17,16 @@ async function main () {
     checks.push({ label, pass: Boolean(pass), detail })
   }
 
+  // Patrols would shoot any bot carrying loot on the street: on only for patrols.js, and back on for people afterwards.
+  const patrol = v => { try { require('child_process').execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, '..', 'tools', 'rcon.ps1'), `dpatrol ${v}`], { stdio: 'ignore' }) } catch (e) {} }
+  patrol(name === 'patrols' ? 'on' : 'off')
   let error = null
   try {
     await scenario({ check, args })
   } catch (err) {
     error = err.stack || String(err)
   }
+  patrol('on')
 
   const failed = checks.filter(c => !c.pass).length
   const report = JSON.stringify({ scenario: name, passed: checks.length - failed, failed, error, checks }, null, 2)

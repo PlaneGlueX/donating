@@ -82,6 +82,7 @@ final class Gps {
     private int[] footCost = {15, 10, 150}, carCost = {60, 10, 400}; // tenths per step onto OPEN, ROAD, BLOCKED
     private int maxCells = 262_144;
     private double leadMin = 16, leadMax = 40, trailMin = 24, trailMax = 64, ringRange = 48, carPinRadius = 14;
+    private static final int SPARK_TICKS = 10; // the trail is drawn every 10 ticks: each spark ends as the next starts
     private String pausedTag = "donating_gps_paused";
     private net.kyori.adventure.key.Key waypointStyle; // gps.style
     private final Map<String, Color> colors = new HashMap<>();
@@ -615,8 +616,11 @@ final class Gps {
         double toCorner = Math.hypot(jx - sx, jz - sz);
         if (j < t.walk.length - 1) {
             // The turn: from the way in to the way out over the next few cells.
-            int k = Math.min(t.walk.length - 1, j + Math.max(2, (int) Math.ceil(6.0 / r.cellBlocks)));
-            double ix = jx - sx, iz = jz - sz, ox = r.centerX(t.walk[k]) - jx, oz = r.centerZ(t.walk[k]) - jz;
+            int reach = Math.max(2, (int) Math.ceil(6.0 / r.cellBlocks));
+            int k = Math.min(t.walk.length - 1, j + reach), b = Math.max(0, j - reach);
+            // The way in along the way itself, not from the player: off-centre on a wide road is not a turn.
+            double ix = jx - (j > 0 ? r.centerX(t.walk[b]) : sx), iz = jz - (j > 0 ? r.centerZ(t.walk[b]) : sz);
+            double ox = r.centerX(t.walk[k]) - jx, oz = r.centerZ(t.walk[k]) - jz;
             double ang = Math.toDegrees(Math.atan2(ix * oz - iz * ox, ix * ox + iz * oz));
             if (Math.abs(ang) >= 30 && Math.hypot(ix, iz) > 0.5) {
                 t.turn = ang > 0 ? "right" : "left"; // x east, z south: a positive cross product turns clockwise
@@ -678,9 +682,13 @@ final class Gps {
                 t.turn = dy > 0 ? "up" : "down";
                 t.turnIn = toCorner;
             } else {
-                double ix = c[0] - sx, iz = c[2] - sz, ox = o[0] - c[0], oz = o[2] - c[2];
+                // The way in along the path, not from the player: off-centre in a wide corridor is not a turn.
+                int b = j - 1;
+                while (b > 0 && dist3(c[0], c[1], c[2], ln[b]) < 2) b--;
+                double ix = c[0] - (b >= 0 ? ln[b][0] : sx), iz = c[2] - (b >= 0 ? ln[b][2] : sz), ox = o[0] - c[0], oz = o[2] - c[2];
                 double ang = Math.toDegrees(Math.atan2(ix * oz - iz * ox, ix * ox + iz * oz));
-                if (Math.abs(ang) >= 30 && Math.hypot(ix, iz) > 0.5) {
+                // No path behind the corner (b < 0): the way in is the player's own, which only means something from a distance.
+                if (Math.abs(ang) >= 30 && Math.hypot(ix, iz) > (b >= 0 ? 0.5 : 6)) {
                     t.turn = ang > 0 ? "right" : "left";
                     t.turnIn = toCorner;
                 }
@@ -688,6 +696,16 @@ final class Gps {
         }
         double f = toCorner > lead ? lead / toCorner : 1;
         return new Location(t.world, sx + (c[0] - sx) * f, sy + (c[1] - sy) * f + 1, sz + (c[2] - sz) * f);
+    }
+
+    /** A spark running to (tx, ty, tz): full-bright in the way's color, where dust goes dark at night, and it shows the direction. */
+    private static void spark(Player p, World w, double x, double y, double z, double tx, double ty, double tz, Color c) {
+        p.spawnParticle(Particle.TRAIL, x, y, z, 1, 0, 0, 0, 0, new Particle.Trail(new Location(w, tx, ty, tz), c, SPARK_TICKS), true);
+    }
+
+    /** A white orb on every second dust: dust goes dark at night and indoors and an orange trail vanishes on an orange floor; these stay bright on anything. */
+    private static void orb(Player p, double x, double y, double z, double along) {
+        if ((int) along % 4 == 2) p.spawnParticle(Particle.END_ROD, x, y, z, 1, 0, 0, 0, 0, null, true);
     }
 
     /** Dust along a staff path at its own height (indoors, not on the roof). */
@@ -700,7 +718,9 @@ final class Gps {
                 if (next > len) return;
                 double u = (next - along) / seg, x = px + dx * u, z = pz + dz * u;
                 if (!w.isChunkLoaded((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4)) return;
-                p.spawnParticle(Particle.DUST, x, py + dy * u + 0.25, z, 1, 0, 0, 0, 0, dust, true);
+                double y = py + dy * u + 0.25;
+                p.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, dust, true);
+                orb(p, x, y, z, next);
                 next += 2;
             }
             along += seg;
@@ -807,6 +827,7 @@ final class Gps {
                 if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return;
                 double y = w.getHighestBlockYAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1.25;
                 p.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, dust, true);
+                orb(p, x, y, z, next);
                 next += 2;
             }
             along += seg;
@@ -830,6 +851,8 @@ final class Gps {
                 if (!w.isChunkLoaded(bx >> 4, bz >> 4)) continue;
                 double y = floors ? q[1] + 0.2 : w.getHighestBlockYAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1.2;
                 p.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, dust, true);
+                double b = a + 2 * Math.PI / n;
+                spark(p, w, x, y, z, q[0] + Math.cos(b) * t.radius, y, q[2] + Math.sin(b) * t.radius, dust.getColor());
             }
         }
     }

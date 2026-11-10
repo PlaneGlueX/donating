@@ -293,6 +293,7 @@ function clerkRemove(h: text, why: text):
 function clerkOnClose(h: text, why: text):
 	delete {-clerk::%{_h}%::weapon}
 	delete {-lootmult::%{_h}%}
+	delete {-clerk::told::%{_h}%::*}
 	if {_why} is "disable" or "delete":
 		clerkRemove({_h}, {_why})
 	else:
@@ -725,6 +726,10 @@ on projectile hit:
 			apply potion effect of slowness of tier 1 to {_v} for {_t}
 			hudBar({_v}, "&7That one hurt: slowed down", 2)
 		clerkLog("effect %{_h}% %name of {_v}%")
+	# Once a robbery, on the first throw that lands (kids don't read chat, and standing still is 20 s to the floor).
+	if {-clerk::told::%{_h}%::%uuid of {_v}%} is not set:
+		set {-clerk::told::%{_h}%::%uuid of {_v}%} to true
+		hudBar({_v}, "&eHit the clerk&7: they duck and stop throwing for a moment", 3)
 
 # ---------- Upkeep ----------
 

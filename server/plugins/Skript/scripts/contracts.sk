@@ -719,7 +719,7 @@ function ctQteOpen(p: player):
 	set {_t} to {-ctjob::%{_u}%}
 	ctQteForget({_p})
 	closePhoneMap({_p})
-	set {_gui} to chest inventory with 3 rows named "&8Pick the lock"
+	set {_gui} to chest inventory with 3 rows named "&8Pick the lock: click on green"
 	set {-ctqte::%{_p}%} to {_u}
 	set {-ctqte::%{_p}%::p} to {_p}
 	set {-ctqte::%{_p}%::gui} to {_gui}

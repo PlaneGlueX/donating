@@ -1952,3 +1952,9 @@ command /zzents <number> <number> <number>:
 			if loop-value > 1:
 				set {_dup} to "%{_dup}%%loop-index%=%loop-value%;"
 		send "ENTS %{_ents}% DUPES %{_dup}%"
+
+# Local only (zz-*.sk never go to Minehut): Mineflayer bots send movement Grim reads as a timer cheat, and Grim's pull-backs
+# then break their tests (bikes, cars: 2026-11-10). Everyone but the owner is exempt here; the owner's client stays checked.
+on join:
+	ownerIs(player) is false
+	execute console command "lp user %name of player% permission set grim.exempt true"

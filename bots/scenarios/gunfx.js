@@ -255,7 +255,8 @@ module.exports = async ({ check }) => {
       await sleep(600)
       const glints = { [NAME]: 0, FxBot2: 0 }
       const rod = bot.registry.particlesByName.end_rod.id
-      const count = (b, n) => b._client.on('world_particles', p => { if (p.particle && (p.particle.type === 'end_rod' || p.particle.type === rod || p.particle.particleId === rod)) glints[n]++ })
+      // At the holder's eye only: the GPS trail's white orbs are end rods too, down at the floor (2026-11-05).
+      const count = (b, n) => b._client.on('world_particles', p => { if (p.particle && (p.particle.type === 'end_rod' || p.particle.type === rod || p.particle.particleId === rod) && Math.abs(p.y - (bot.entity.position.y + 1.62)) < 0.6) glints[n]++ })
       count(bot, NAME)
       count(other, 'FxBot2')
       await rcon.cmd(`zzclear ${NAME}`)

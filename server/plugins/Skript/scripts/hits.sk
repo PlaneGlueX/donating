@@ -1156,7 +1156,7 @@ function hitDown(p: player):
 	set {_extra} to ""
 	if {_keys} is set:
 		crateAddKeys({_p}, "season", {_keys}, "hit")
-		set {_extra} to " &7· &f%{_keys}% Season key(s)"
+		set {_extra} to " &7· &f%{_keys}% Season %keyWord({_keys})%"
 	if {_t} is "hard":
 		set {_ht} to getData({_p}, "hit::hard-total")
 		if {_ht} is not set:

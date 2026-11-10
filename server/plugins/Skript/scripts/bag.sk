@@ -174,6 +174,14 @@ on death of player:
 			set {_lines} to "%{_lines}%;%loop-index%=%loop-value%"
 	delete {-bag::total::%victim%}
 	delete {-bag::shown::%victim%}
+	# For the cell's LOCKED UP title (prison.sk).
+	set {-jail::lost::%uuid of victim%} to {_sum}
+	delete {-jail::lefttext::%uuid of victim%}
+	set {_dh} to heistForDeath(victim)
+	if {_dh} is not "":
+		if heistIsStore({_dh}) is true:
+			if lootLeft({_dh}) > 0:
+				set {-jail::lefttext::%uuid of victim%} to "&7%formatMoney(lootLeft({_dh}))% still in the %heistName({_dh})%."
 	# Hot: hunted now (heists.sk releases the hunt later, at priority monitor), or carrying loot that was hot.
 	set {_hot} to 0
 	if {-heisthunt::%victim%} is set:

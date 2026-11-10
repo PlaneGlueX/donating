@@ -51,6 +51,7 @@ Every jar below is in `server\plugins\` locally (tools\fetch.ps1 re-downloads mi
 | MTVehicles (cars; downloaded by hand from SpigotMC) | `MTVehicles.jar` (2.5.9) |
 | DonatingPhone (ours) | `DonatingPhone.jar` |
 | Multiverse-Core (the prison's own world until launch) | `multiverse-core-5.8.1.jar` |
+| GrimAC (anti-cheat, 2026-11-10) | `grimac-bukkit-2.3.74.jar`, then after its first start `plugins/GrimAC/punishments.yml` (our kick lines) |
 
 Not spark (Paper has it built in). Not ViaBackwards: it's on the local server only, so the 1.21.11 test bots can join a 26.1 server. Paper's built-in spark runs a background profiler: locally (Windows) it froze the server for seconds (CLAUDE.md "Lag"); on Minehut (Linux, async-profiler) it's much cheaper, but if `/lag` shows spikes, upload `plugins/spark/config.json` with `"backgroundProfiler": false` (or `/lag fix` stops it until the next restart).
 
@@ -261,3 +262,9 @@ Check: `/forceload query` says none; the locator bar shows the same icons as bef
 Also upload `atm.sk`, `bag.sk`, `levels.sk`, `core.sk` (2026-11-05: ATM sweep, the sale's celebration). Nothing to run.
 
 Also upload `tutorial.sk`, `jailcourse.sk`, `prison.sk`, `story.sk`, `placeholders.sk`, `loot.sk`, `heists.sk`, `bag.sk`, `core.sk`, `clerk.sk` and `plugins/TAB/config.yml` (2026-11-05: a death respawns in a cell, each clerk throws what fits their store, teaching the game, the new sidebars, the sale without words). Restart once. Nothing to run.
+
+- Scripts, in one restart (2026-11-06): the new `patrols.sk`, and `core.sk` (patrol::*), `hud.sk`, `bag.sk`, `prison.sk`. No setup: patrols use the heists' existing cop spots and exits.
+
+## The anti-cheat and the chat filter (2026-11-10; PLAYTEST 305)
+- Upload `grimac-bukkit-2.3.74.jar`, start once, then upload `plugins/GrimAC/punishments.yml` and restart (or `grim reload`).
+- Scripts: `core.sk` (chat::filter-words, filter-parts, repeat-window), `chat-extras.sk` (the filter and the repeat block). The bots' Grim exemption is in `zz-testkit.sk`: never upload it.

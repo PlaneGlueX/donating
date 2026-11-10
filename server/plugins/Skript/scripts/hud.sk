@@ -144,7 +144,30 @@ function hudBoss(p: player):
 			if {_alarm} is not "none":
 				hudAlarmBar({_p}, {_h}, "&a%formatMoneyShort({_lootLeft})% &7left")
 				stop
-			hudBossSet({_p}, "&f%{_name}% &7· no clock · &a%formatMoneyShort({_lootLeft})% &7left", "white", min(1, {_lootLeft} / {_rolled}))
+			# The bar rises with the danger: d = max(1 - health/max, bag/capacity).
+			set {_danger} to max(1 - (health of {_p}) / (max health of {_p}), bagTotal({_p}) / max(1, bagCapacity({_p})))
+			set {_c} to "white"
+			if {_danger} >= 0.8:
+				set {_c} to "red"
+			else if {_danger} >= 0.5:
+				set {_c} to "yellow"
+			set {_was} to {-hud::bosslast::%{_p}%::color}
+			if {_c} is not {_was}:
+				if {_c} is "red":
+					play sound "block.note_block.bass" with volume 1 and pitch 0.7 to {_p}
+				else if {_c} is "yellow":
+					if {_was} is "white":
+						play sound "block.note_block.bass" with volume 0.7 and pitch 1.2 to {_p}
+			if bagRoom({_p}) <= 0:
+				if {_lootLeft} > 0:
+					if {-hud::bagfull::%{_p}%} is not set:
+						set {-hud::bagfull::%{_p}%} to true
+						draw 30 rgb(220, 30, 30) dust particles of size 1.4 with offset vector(0.6, 0.9, 0.6) at location of {_p}
+						play sound "block.anvil.land" with volume 0.5 and pitch 1.4 to {_p}
+					hudBossSet({_p}, "&c&l%bagFullWord({_p})%&r &7· &a%formatMoneyShort({_lootLeft})% &7left, you can't carry it", "red", min(1, {_lootLeft} / {_rolled}))
+					stop
+			delete {-hud::bagfull::%{_p}%}
+			hudBossSet({_p}, "&f%{_name}% &7· no clock · &a%formatMoneyShort({_lootLeft})% &7left", {_c}, min(1, {_lootLeft} / {_rolled}))
 			stop
 		set {_left} to heistSecondsLeft({_h})
 		set {_total} to max(1, heistEscape({_h}) / 1 second)

@@ -80,7 +80,7 @@ function jcPrompt(p: player, s: text):
 		set {_sub} to "&7Your cell opens in a moment"
 		set {_c} to "New inmates learn the ropes down here. Your cell opens in a moment."
 	else if {_s} is "sneak":
-		set {_sub} to "&7Follow the trail, hold &fShift&7 near him, take his keycard"
+		set {_sub} to "&7Follow the trail, hold &fShift&7, &fright-click&7 his keycard"
 		set {_c} to "Guards notice inmates who aren't sneaking. Follow the orange trail, hold Shift near him and take the keycard."
 	else if {_s} is "vent":
 		set {_sub} to "&7Right-click the vent's &cred reader"
@@ -175,7 +175,7 @@ function jcWay(p: player, s: text):
 function jcBar(p: player, s: text) :: text:
 	set {_t} to "Your cell opens in a moment"
 	if {_s} is "sneak":
-		set {_t} to "Sneak (&fShift&7) past the sleeping guard and take his keycard"
+		set {_t} to "Sneak (&fShift&7) past the guard, &fright-click&7 his keycard"
 	else if {_s} is "vent":
 		set {_t} to "Use the keycard on the vent's red reader"
 	else if {_s} is "crawl":

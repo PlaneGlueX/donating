@@ -1,0 +1,239 @@
+# patrols.sk: police patrols on the streets (owner, 2026-11-06: "scale it with the amount of active players").
+# N = min(patrol::cap, ceil(A / patrol::players-each)), A = players not AFK, not in the prison, not building. No active
+# player, no NPCs. A patrol is a normal cop (cops.sk copSetup; heist key "patrol", so difficulty 1 stats) that stands at a
+# heist's cop spot or exit 30-90 blocks from a player and walks towards players.
+# It goes after one kind of player only: someone carrying loot, on the street (not inside a heist, not in a safe zone),
+# that it can see within patrol::spot blocks. From then on they're combat-tagged (no safe zone, no logging out) until they
+# get patrol::lose blocks from every patrol, lose the loot or die. Nobody else is ever shot. Stores stay police-free.
+# Staff: /dpatrol info | on | off | want <A>. Bots: run.js switches patrols off around every scenario but patrols.js.
+
+function patrolWant(a: number) :: number:
+	if {_a} <= 0:
+		return 0
+	return min(cfg("patrol::cap"), ceil({_a} / cfg("patrol::players-each")))
+
+function patrolActive(p: player) :: boolean:
+	if isAfk({_p}) is true:
+		return false
+	if prisonIn({_p}) is true:
+		return false
+	if heistBuilder({_p}) is true:
+		return false
+	return true
+
+function patrolRelease(p: player, why: text):
+	delete {-patrol::chase::%uuid of {_p}%}
+	loop indices of {-cop::ids::patrol::*}:
+		copTarget(loop-value, {_p}, false)
+	copLog("patrol-release %name of {_p}% %uuid of {_p}% %{_why}%")
+
+function patrolChase(p: player):
+	set {-patrol::chase::%uuid of {_p}%} to {_p}
+	loop indices of {-cop::ids::patrol::*}:
+		copTarget(loop-value, {_p}, true)
+	tagCombat({_p}, "cop")
+	set {_r} to cfg("patrol::lose")
+	send title colored "&4&lPOLICE" with subtitle colored "&cThey saw your loot. Get %{_r}% blocks away" to {_p} for 3 seconds
+	play sound "block.bell.use" with volume 1 and pitch 0.7 to {_p}
+	copLog("patrol-chase %name of {_p}% %uuid of {_p}%")
+
+# A spot 30-90 blocks from the player: any heist's cop spots and exit, never in a heist or a safe zone.
+function patrolPost(p: player) :: location:
+	set {_at} to location of {_p}
+	loop {heists::*}:
+		set {_h} to loop-index
+		set {_w} to world({heist::%{_h}%::world})
+		if {_w} is world of {_p}:
+			clear {_try::*}
+			loop {heist::%{_h}%::cops::*}:
+				set {_c::*} to loop-value-2 split at " "
+				add location(({_c::1} parsed as number), ({_c::2} parsed as number), ({_c::3} parsed as number), {_w}) to {_try::*}
+			if {heist::%{_h}%::exit} is set:
+				add {heist::%{_h}%::exit} to {_try::*}
+			loop {_try::*}:
+				set {_d} to distance between loop-value-2 and {_at}
+				if {_d} >= 30:
+					if {_d} <= 90:
+						if heistAt(loop-value-2) is "":
+							if isSafeZone(loop-value-2) is false:
+								add loop-value-2 to {_out::*}
+	if size of {_out::*} > 0:
+		return random element out of {_out::*}
+	return location of {_p}
+
+# One cop at a time, as cops.sk's copSpawn (shared npcBusy); the caller checks npcBusy first.
+function patrolSpawn(p: player):
+	set {_l} to patrolPost({_p})
+	if distance between {_l} and {_p} < 30:
+		copLog("patrol no-post near %name of {_p}%")
+		stop
+	set {-npc::busy} to now
+	set {_x} to x-coordinate of {_l}
+	set {_y} to y-coordinate of {_l}
+	set {_z} to z-coordinate of {_l}
+	set {_name} to cfg("cop::name")
+	execute console command "npc create %{_name}% --at %{_x}%,%{_y}%,%{_z}%,%world of {_l}% --type PLAYER --trait sentinel --nameplate false"
+	set {_id} to ""
+	set {_tries} to 0
+	while {_id} is "":
+		loop all entities in radius 3 around {_l}:
+			if loop-entity has metadata "NPC":
+				if name of loop-entity is {_name}:
+					set {_raw} to metadata value "NPC-ID" of loop-entity
+					if {_raw} is set:
+						if {-cop::heist::%{_raw}%} is not set:
+							set {_id} to "%{_raw}%"
+		if {_id} is "":
+			add 1 to {_tries}
+			if {_tries} > 40:
+				delete {-npc::busy}
+				copLog("patrol spawn-failed at %{_x}% %{_y}% %{_z}%")
+				stop
+			wait 1 tick
+	set {cops::ids::%{_id}%} to "patrol"
+	set {-cop::heist::%{_id}%} to "patrol"
+	set {-cop::ids::patrol::%{_id}%} to true
+	delete {-npc::busy}
+	copSetup({_id}, "patrol")
+	loop {-patrol::chase::*}:
+		if loop-value is online:
+			copTarget({_id}, loop-value, true)
+	copLog("patrol-spawn id=%{_id}% at %floor({_x})% %floor({_y})% %floor({_z})%")
+
+every 3 seconds:
+	{-patrol::off} is not set
+	patrolTick()
+
+function patrolTick():
+	loop all players:
+		if patrolActive(loop-player) is true:
+			add loop-player to {_active::*}
+	set {_want} to patrolWant(size of {_active::*})
+	if {_want} is 0:
+		if copAlive("patrol") is 0:
+			stop
+	# Where the patrols are (tracked by Citizens id, cops.sk). Only with patrols out.
+	if copAlive("patrol") > 0:
+		loop all entities:
+			if loop-entity has metadata "NPC":
+				set {_raw} to metadata value "NPC-ID" of loop-entity
+				if {-cop::heist::%{_raw}%} is "patrol":
+					set {_at::%{_raw}%} to location of loop-entity
+					set {_e::%{_raw}%} to loop-entity
+	# Surplus, or nobody near (an unloaded chunk counts as nobody): removed, so a new one comes where the players are.
+	loop indices of {-cop::ids::patrol::*}:
+		set {_id} to loop-value
+		set {_near} to false
+		if {_at::%{_id}%} is set:
+			loop {_active::*}:
+				if world of loop-value-2 is world of {_at::%{_id}%}:
+					if distance between loop-value-2 and {_at::%{_id}%} <= cfg("patrol::far"):
+						set {_near} to true
+		if {_near} is false:
+			copRemove({_id}, "patrol-far")
+			delete {_at::%{_id}%}
+			delete {_e::%{_id}%}
+		else if copAlive("patrol") > {_want}:
+			copRemove({_id}, "patrol-surplus")
+			delete {_at::%{_id}%}
+			delete {_e::%{_id}%}
+	# Gone AFK, into the prison, offline: no longer chased.
+	loop {-patrol::chase::*}:
+		if loop-value is online:
+			if patrolActive(loop-value) is false:
+				patrolRelease(loop-value, "inactive")
+		else:
+			delete {-patrol::chase::%loop-index%}
+	set {_lose} to cfg("patrol::lose")
+	set {_spot} to cfg("patrol::spot")
+	loop {_active::*}:
+		set {_p} to loop-value
+		set {_d} to 9999
+		set {_by} to ""
+		loop indices of {_at::*}:
+			if world of {_p} is world of {_at::%loop-value-2%}:
+				set {_x} to distance between {_p} and {_at::%loop-value-2%}
+				if {_x} < {_d}:
+					set {_d} to {_x}
+					set {_by} to loop-value-2
+		if {-patrol::chase::%uuid of {_p}%} is set:
+			if bagTotal({_p}) <= 0:
+				patrolRelease({_p}, "no-loot")
+			else if {_d} > {_lose}:
+				patrolRelease({_p}, "lost")
+				hudBar({_p}, "&aYou lost the police.", 2)
+			else:
+				tagCombat({_p}, "cop")
+				hudBar({_p}, "&cPolice &7· &f%ceil({_lose} - {_d})% &7blocks to lose them", 3)
+		else if {_by} is not "":
+			if {_d} <= {_spot}:
+				if bagTotal({_p}) > 0:
+					if heistOf({_p}) is "":
+						if isSafeZone(location of {_p}) is false:
+							if {_e::%{_by}%} has line of sight to {_p}:
+								patrolChase({_p})
+	# Walk: every 6 s. Towards a chased or loot-carrying player, else strolling towards the nearest one.
+	add 1 to {-patrol::beat}
+	if mod({-patrol::beat}, 2) is 0:
+		loop indices of {_at::*}:
+			set {_id} to loop-value
+			set {_best} to 9999
+			delete {_to}
+			loop {_active::*}:
+				if world of loop-value-2 is world of {_at::%{_id}%}:
+					set {_x} to distance between loop-value-2 and {_at::%{_id}%}
+					if {_x} < {_best}:
+						set {_best} to {_x}
+						set {_to} to loop-value-2
+			if {_to} is set:
+				if {_best} > 12:
+					if {_best} <= 60:
+						set {_t} to location of {_to}
+						execute console command "npc pathto %floor(x-coordinate of {_t})% %floor(y-coordinate of {_t})% %floor(z-coordinate of {_t})% --margin 8 --id %{_id}%"
+	# Short of patrols: one more, near a random active player.
+	if copAlive("patrol") < {_want}:
+		if npcBusy() is false:
+			patrolSpawn(random element out of {_active::*})
+
+on death of player:
+	isNpc(victim) is false
+	{-patrol::chase::%uuid of victim%} is set
+	patrolRelease(victim, "died")
+
+on quit:
+	{-patrol::chase::%uuid of player%} is set
+	patrolRelease(player, "quit")
+
+command /dpatrol [<text>] [<number>]:
+	permission: donating.staff
+	permission message: &cStaff only.
+	trigger:
+		if arg-1 is "off":
+			set {-patrol::off} to true
+			loop {-patrol::chase::*}:
+				if loop-value is online:
+					patrolRelease(loop-value, "off")
+			delete {-patrol::chase::*}
+			copRemoveAll("patrol", "off")
+			send "PATROL off" to sender
+		else if arg-1 is "on":
+			delete {-patrol::off}
+			send "PATROL on" to sender
+		else if arg-1 is "want":
+			send "PATROL want=%patrolWant(arg-2)%" to sender
+		else:
+			set {_a} to 0
+			loop all players:
+				if patrolActive(loop-player) is true:
+					add 1 to {_a}
+			set {_c} to ""
+			loop {-patrol::chase::*}:
+				set {_c} to "%{_c}%%loop-value%,"
+			set {_where} to "none"
+			loop all entities:
+				if loop-entity has metadata "NPC":
+					set {_raw} to metadata value "NPC-ID" of loop-entity
+					if {-cop::heist::%{_raw}%} is "patrol":
+						set {_l} to location of loop-entity
+						set {_where} to "%floor(x-coordinate of {_l})%,%floor(y-coordinate of {_l})%,%floor(z-coordinate of {_l})%"
+			send "PATROL at=%{_where}% active=%{_a}% want=%patrolWant({_a})% alive=%copAlive("patrol")% chased=%{_c}%" to sender

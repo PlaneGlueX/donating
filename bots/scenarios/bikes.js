@@ -63,6 +63,13 @@ module.exports = async ({ check }) => {
     await until(async () => parked(), 6000)
     check('a parked bike appears at the spot (an item display at the bay lift, an interaction box)', parked(), `displays=${near('item_display', new Vec3(SPOT[0], Y + 1.69, SPOT[2])).length} box=${Boolean(box())}`)
 
+    // A copy that came back with its chunk answers no click (19 deep on one spot, found 2026-11-05): only the spot's own two stay.
+    await cmd(`summon minecraft:interaction ${SPOT[0]} ${Y} ${SPOT[2]} {Tags:["donating_bike"],width:1.6f,height:1.5f}`)
+    await cmd(`summon minecraft:item_display ${SPOT[0]} ${Y + 1.69} ${SPOT[2]} {Tags:["donating_bike"]}`)
+    await until(async () => near('interaction', new Vec3(...SPOT)).length === 2, 1500)
+    const cleaned = await until(async () => near('interaction', new Vec3(...SPOT)).length === 1 && parked(), 5000)
+    check('stale copies on a spot go within seconds, its own two stay', cleaned, `boxes=${near('interaction', new Vec3(...SPOT)).length} displays=${near('item_display', new Vec3(SPOT[0], Y + 1.69, SPOT[2])).length}`)
+
     // ---------- The alarm ----------
     let w = await clickBike()
     check('right-clicking it opens "Hotwire the bike"', w && /Hotwire the bike/.test(JSON.stringify(w.title)), JSON.stringify(w && w.title))

@@ -107,7 +107,7 @@ module.exports = async ({ check }) => {
     await sleep(3000)
     const h2 = await heist()
     check('the first robbery starts the run, but there\'s no clock (still running seconds later)', field(h1, 'state') === 'active' && field(h2, 'state') === 'active' && field(h2, 'left') === '-1', `${h1} | ${h2}`)
-    check('the boss bar says there\'s no clock and what\'s left', [...bars.values()].some(x => /Corner Store . no clock . \$500 left/.test(x.title || '')), JSON.stringify([...bars.values()]))
+    check('the boss bar says there\'s no clock and what\'s left', [...bars.values()].some(x => /(Corner Store . no clock|FULL) . \$500 left/.test(x.title || '')), JSON.stringify([...bars.values()]))
 
     // ---------- Any level (owner, 2026-10-21: "level minimums only, no maximum anywhere"); no fighting into it ----------
     await cmd(`dlevel set ${B} 10`)

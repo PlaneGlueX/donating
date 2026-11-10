@@ -31,6 +31,13 @@ function loadSettings():
 	set {-cfg::afk::after} to 5 minutes
 	set {-cfg::chat::cooldown} to 2 seconds # PROPOSAL
 	set {-cfg::chat::tip-interval} to 5 minutes # PROPOSAL
+	# Chat filter (chat-extras.sk chatBlocked, 2026-11-10; owner: "keep the swear word moderation light"): slurs, sexual
+	# words and "kys" only, ordinary swearing passes. Whole words, and parts
+	# found even with spaces or symbols between the letters. A blocked line is not sent; the sender is told, it is logged.
+	set {-cfg::chat::filter-words} to "nigga|nigger|niggas|faggot|fag|fags|retard|retarded|porn|rape|rapist|kys"
+	set {-cfg::chat::filter-parts} to "nigger|nigga|faggot|killyourself"
+	# The same line again within this long is refused (chat spam).
+	set {-cfg::chat::repeat-window} to 30 seconds
 	set {-cfg::combat::tag} to 15 seconds # PROPOSAL (combat-tag length isn't set yet)
 	set {-cfg::combat::player-hit-priority} to 5 seconds
 	# Commands a combat-tagged player can't use (combat-log.sk), without the slash.
@@ -106,6 +113,12 @@ function loadSettings():
 	set {-cfg::difficulty::0::alarm::assault-step} to 10
 	set {-cfg::difficulty::0::alarm::assault-max} to 60
 	set {-cfg::difficulty::0::alarm::heavy-from} to 99
+	# Street patrols (patrols.sk): N = min(cap, ceil(A / players-each)), A = active players.
+	set {-cfg::patrol::players-each} to 2
+	set {-cfg::patrol::cap} to 4
+	set {-cfg::patrol::spot} to 18
+	set {-cfg::patrol::lose} to 45
+	set {-cfg::patrol::far} to 120
 	set {-cfg::cop::name} to "Cop"
 	set {-cfg::cop::range} to 30
 	set {-cfg::cop::chase} to 120
@@ -697,6 +710,9 @@ function loadSettings():
 	set {-cfg::story::c1_sell::chapter} to 1
 	set {-cfg::story::c1_sell::label} to "Sell your loot at the base"
 	set {-cfg::story::c1_sell::obj} to "ev|sell|1"
+	# With loot the base route wins (story.sk questGps); after a death with an empty bag: back to a store, and says so.
+	set {-cfg::story::c1_sell::gps} to "heist:store"
+	set {-cfg::story::c1_sell::label-empty} to "Rob a store first: nothing to sell"
 	set {-cfg::story::c1_sell::brief} to "Loot's worth nothing in a bag. Take it to the base: your GPS knows the way."
 	set {-cfg::story::c1_sell::done} to "Cash in hand. Feels good, huh? Here's a crate key for your trouble."
 	set {-cfg::story::c1_sell::rewards::*} to "key|daily|1"

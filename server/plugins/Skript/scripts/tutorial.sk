@@ -28,8 +28,9 @@ function tutorialNeedsBag(p: player) :: boolean:
 # for whoever wants them.
 function tutorialWelcome(p: player):
 	tutorialSteps({_p})
-	set {_t::*} to "&6&lROB", "&c&lGET OUT ALIVE", "&a&lSELL IT" and "&6&lFIND MARA"
-	set {_s::*} to "&7Stores and heists are full of loot", "&7Die and your loot drops for anyone to grab", "&7At the base: money, levels, better gear" and "&7Follow the orange trail"
+	set {_t::*} to "&6&lROB", "&c&lGET OUT ALIVE", "&a&lSELL IT", "&6&lFIND MARA" and "&b&lLONG WALK?"
+	# The way to Mara is 875 m on foot right after the escape, and the bikes stand 50 m from the gate (bikes.sk).
+	set {_s::*} to "&7Stores and heists are full of loot", "&7Die and your loot drops for anyone to grab", "&7At the base: money, levels, better gear", "&7Follow the orange trail" and "&7Right-click a bike at the shop by the gate"
 	set {_i} to 0
 	loop {_t::*}:
 		{_p} is online

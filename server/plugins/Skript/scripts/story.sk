@@ -375,6 +375,9 @@ function storyProgText(p: player, id: text) :: text:
 	set {_a::*} to {_o} split at "|"
 	if {_a::1} is "ev":
 		if {_a::2} is "sell":
+			# "$0/$1" says nothing: any sale does it.
+			if storyNeed({_id}) <= 1:
+				return ""
 			return "&7%formatMoney({_prog})%/%formatMoney(storyNeed({_id}))%"
 	return "&7%{_prog}%/%storyNeed({_id})%"
 
@@ -652,7 +655,7 @@ function storyRewards(p: player, id: text) :: text:
 			set {_n} to {_a::3} parsed as number
 			crateAddKeys({_p}, {_a::2}, {_n}, "story:%{_id}%")
 			set {_cn} to crateColored({_a::2})
-			add "&f%{_n}% %{_cn}% key(s)" to {_got::*}
+			add "&f%{_n}% %{_cn}% %keyWord({_n})%" to {_got::*}
 		else if {_a::1} is "lockpick":
 			set {_t} to {_a::2}
 			set {_n} to {_a::3} parsed as number
@@ -934,6 +937,13 @@ on quit:
 
 # ---------- Showing it: the sidebar, the GPS, the boss bar ----------
 
+# A mission's label; story::<id>::label-empty instead while the bag holds nothing (a "sell" mission after a death).
+function storyLabel(p: player, id: text) :: text:
+	if {-cfg::story::%{_id}%::label-empty} is set:
+		if bagTotal({_p}) <= 0:
+			return "%{-cfg::story::%{_id}%::label-empty}%"
+	return "%{-cfg::story::%{_id}%::label}%"
+
 # The GPS target spots of a mission ("x,y,z;x,y,z", "" = none) in the player's world.
 function storyGpsSpots(p: player, id: text) :: text:
 	set {_g} to {-cfg::story::%{_id}%::gps}
@@ -1025,12 +1035,21 @@ function storyGpsSpots(p: player, id: text) :: text:
 			set {_s::*} to {_any::*}
 	else if {_g} starts with "poi:shop:":
 		set {_word} to subtext of {_g} from characters 10 to (length of {_g})
-		loop {poi::*}:
-			set {_a::*} to loop-value split at "|"
-			if {_a::1} is "shop":
-				if {_a::2} is {_w}:
-					if {_a::6} contains {_word}:
-						add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
+		# The shopkeeper, not the POI at the door: a new player saw "here" on the mat and "15m back" at the counter.
+		loop {shop::keepers::*}:
+			set {_title} to cfg("shop::title::%loop-value%")
+			if "%{_title}%" contains {_word}:
+				set {_kl} to {shop::keeper::%loop-index%::loc}
+				if {_kl} is set:
+					if "%world of {_kl}%" is {_w}:
+						add gpsSpot({_kl}) to {_s::*}
+		if size of {_s::*} is 0:
+			loop {poi::*}:
+				set {_a::*} to loop-value split at "|"
+				if {_a::1} is "shop":
+					if {_a::2} is {_w}:
+						if {_a::6} contains {_word}:
+							add "%{_a::3}%,%{_a::4}%,%{_a::5}%" to {_s::*}
 	else if {_g} starts with "heist":
 		set {_key} to storyKey(storyChainOf({_id}))
 		set {_f} to ""
@@ -1125,7 +1144,7 @@ function questTarget(p: player, key: text) :: boolean:
 		return false
 	set {-qt::%{_u}%::world} to "%world of {_p}%"
 	set {-qt::%{_u}%::spots} to {_spots}
-	set {-qt::%{_u}%::label} to {-cfg::story::%{_id}%::label}
+	set {-qt::%{_u}%::label} to storyLabel({_p}, {_id})
 	set {-qt::%{_u}%::radius} to 6
 	set {-qt::%{_u}%::by} to {_key}
 	set {-qt::%{_u}%::obj} to "%{_key}%:%{_id}%"
@@ -1244,7 +1263,7 @@ function storyLine(p: player, c: text) :: text:
 		set {_who} to {-cfg::chain::%{_c}%::from}
 		set {_step} to {-cfg::story::%{_id}%::side}
 		if {_step} is not set:
-			set {_step} to {-cfg::story::%{_id}%::label}
+			set {_step} to storyLabel({_p}, {_id})
 		set {_step} to questShort("%{_step}%", 34)
 		return "%{_col}%▶ %{_who}%: &f%{_step}% %storyProgText({_p}, {_id})%"
 	return ""
@@ -1311,7 +1330,7 @@ function storyHud(p: player) :: boolean:
 				if storyLive({_id}) is true:
 					set {_way} to gpsWay({_p})
 					set {_bar} to {-cfg::chain::%{_c}%::bar}
-					hudBossSet({_p}, "%{_bar}%&r &7· &f%{-cfg::story::%{_id}%::label}% %storyProgText({_p}, {_id})% %{_way}%", {-cfg::chain::%{_c}%::barcolor}, 1)
+					hudBossSet({_p}, "%{_bar}%&r &7· &f%storyLabel({_p}, {_id})% %storyProgText({_p}, {_id})% %{_way}%", {-cfg::chain::%{_c}%::barcolor}, 1)
 					return true
 	return false
 

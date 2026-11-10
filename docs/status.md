@@ -1,8 +1,16 @@
 # Status log, newest first
 
+## 2026-11-10: anti-cheat, chat filter, decisions list
+GrimAC 2.3.74 (kicks only clear cheats), a light chat filter and a repeat block (chat-extras.sk), DECISIONS.md (the owner's 12 launch decisions, 15 open questions), test heist zboard deleted. PLAYTEST 305. The Malakai voice (removed from ElevenLabs) is used by no character.
+
+## 2026-11-06: patrols, Rising Store, Door Count
+Built after the owner's review of the workflow ruling: patrols.sk, the store bar, the cell title (docs/heists.md). Not seen in the client yet: PLAYTEST 304. Later ideas from the ruling: Pistol in the Window, Close Call Receipt, Door Records, Rival Line.
+
+
 Moved word for word from CLAUDE.md on 2026-11-03. Grep a heading, then read that part: don't read the whole file.
 
 ## Status (2026-10-14): START HERE
+2026-11-05, night: a fresh account played from the cell to "Reach level 5" in the client (PLAYTEST 303). Fixed: a GPS trail you can see on any floor (white orbs), false "turn" texts, shop missions lead to the keeper, the sale mission with an empty bag, the gun shop's first tab, "key(s)", menu titles, a hint for the clerk's stun and the keycard, a fifth card about the bikes, and stacked bikes that answered no click. Uncommitted.
 2026-11-05: a death respawns in a cell with no wait, each store's clerk throws its own things (clerk::store-props); bots prison-respawn and clerk. Uncommitted.
 2026-11-05: hype words out of the sale (sound and fireworks only); teaching: GPS trail on the course, new-player sidebars, four cards after the escape, a Way out GPS after a death; PLAYTEST 302. Uncommitted. Next: look at the cards, LOCKED UP and a real first store on a fresh account in the client.
 2026-11-05: POIs became packets (no forced chunks), suite fixes, ATM sweep, new `reloads` scenario, the sale's celebration; PLAYTEST 301. Uncommitted. Next: full kid's-eye pass; streaks, near-miss and jackpot ideas need the owner's OK on money.

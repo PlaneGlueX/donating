@@ -90,7 +90,7 @@ Moved word for word from CLAUDE.md on 2026-11-03. Grep a heading, then read that
 Phase 1 (core, inventory, heists, PvP):
 1. core.sk: shared settings (options block with all numbers), money formatting, player data, helper functions
 2. join-quit.sk: join/quit messages with rank prefix, first join, /help (server-list text goes in the Minehut dashboard, see Config notes)
-3. chat-extras.sk: chat cooldown, @mention highlight (lime) + sound, staff chat, /broadcast, rotating tips
+3. chat-extras.sk: chat filter (2026-11-10, kept light by the owner: slurs, sexual words and "kys" only, letter swaps and spaced letters caught; blocked lines go to logs/chat-filter; /msg and /me too), the same line again within 30 s refused, chat cooldown, @mention highlight (lime) + sound, staff chat, /broadcast, rotating tips
 4. afk.sk: 5-minute AFK detection (refresh on every move/chat/command), /afk; AFK players earn nothing
 5. inventory.sk: the fixed inventory layout above; blocks every way items move (number keys, shift-click, drag, swap-hand, drop, death drops); runs after WeaponMechanics
 6. phone.sk (built 2026-09-24, controls reworked 2026-09-25 for the phone plugin): right-click toggles the big map, F opens the apps menu: stats, passive toggle (pvp.sk rules), how to play, close; garage and bounties are "coming soon" placeholders for garage.sk / bounty.sk.
