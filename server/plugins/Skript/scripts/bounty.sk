@@ -139,7 +139,8 @@ on join:
 
 # ---------- Placing bounties ----------
 
-command /bounty [<offline player>] [<number>]:
+# <text>, not <offline player>: an unknown name made Paper ask Mojang on the main thread (a freeze per command, audit 2026-11-10).
+command /bounty [<text>] [<number>]:
 	trigger:
 		if arg-1 is not set:
 			showBounties(player)
@@ -148,7 +149,12 @@ command /bounty [<offline player>] [<number>]:
 			set {_min} to formatMoney(cfg("bounty::min-placed"))
 			msg(player, "&7Place a bounty: /bounty <player> <amount> (at least %{_min}%).")
 			stop
-		placeBounty(player, arg-1, arg-2)
+		# The server's own name cache only, never a lookup.
+		set {_t} to offlineplayer(arg-1, false)
+		if {_t} is not set:
+			msg(player, "&cNobody called %arg-1% has played here.")
+			stop
+		placeBounty(player, {_t}, arg-2)
 
 # "" when the player may post a bounty here: next to the Broker, or anywhere while no Broker stands in their world.
 function bountyPostBlock(p: player) :: text:

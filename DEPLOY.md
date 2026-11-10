@@ -268,3 +268,7 @@ Also upload `tutorial.sk`, `jailcourse.sk`, `prison.sk`, `story.sk`, `placeholde
 ## The anti-cheat and the chat filter (2026-11-10; PLAYTEST 305)
 - Upload `grimac-bukkit-2.3.74.jar`, start once, then upload `plugins/GrimAC/punishments.yml` and restart (or `grim reload`).
 - Scripts: `core.sk` (chat::filter-words, filter-parts, repeat-window), `chat-extras.sk` (the filter and the repeat block). The bots' Grim exemption is in `zz-testkit.sk`: never upload it.
+
+## Scooters and skateboards (2026-11-10; PLAYTEST 306)
+- Upload together, in one restart: `plugins/MTVehicles/vehicles.yml` (the Scooter and Skateboard families), the pack (two new models) with its new URL in the dashboard, the scripts `core.sk`, `bikes.sk`, `fuel.sk`.
+- Then the spot lines (console): `dbike spotat world 312.5 65 401.5 0 scooter`, `dbike spotat world 317.5 65 401.5 0 skateboard`, `dbike spotat world 322.5 65 401.5 0 skateboard`, `dbike spotat world 607.5 65 360.5 90 scooter`, `dbike spotat world 609.5 65 360.5 90 skateboard`, `dbike spotat world 565.5 65 294.5 90 scooter`, `dbike spotat world 565.5 65 306.5 90 skateboard`, `dbike spotat world 875.5 60 290.5 90 scooter`, `dbike spotat world 878.5 60 290.5 90 skateboard` (or `/dbike dump` on the local server prints them).

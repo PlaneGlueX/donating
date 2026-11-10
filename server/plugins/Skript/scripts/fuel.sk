@@ -555,7 +555,7 @@ function fuelDriverTick(p: player):
 		if {-fuel::warned::%{_u}%} is not "%{_plate}%:empty":
 			set {-fuel::warned::%{_u}%} to "%{_plate}%:empty"
 			if fuelModel({_plate}) is "bike":
-				msg({_p}, "&cThe bike is out of fuel.")
+				msg({_p}, "&cThe %bikeNameOf({_plate})% is out of fuel.")
 			else if carModelOf({_plate}) is not "":
 				msg({_p}, "&cOut of fuel. &7A pump, or &f/garage&7: send it back and refuel it there.")
 			else:

@@ -779,6 +779,7 @@ function jailCatch(p: player, why: text):
 		if difference between {-jail::catching::%{_u}%} and now < 3 seconds:
 			stop
 	set {-jail::catching::%{_u}%} to now
+	set {-jail::catchwhy::%{_u}%} to {_why}
 	if jailState({_p}) is "course":
 		set {_cp} to {-jail::checkpoint::%{_u}%}
 		if {_cp} is not set:
@@ -795,10 +796,11 @@ function jailCatch(p: player, why: text):
 	delete {-jail::stun::%{_u}%}
 	delete {-jail::mark::%{_u}%}
 	delete {-jail::lot::%{_u}%}
-	delete {-jail::gunmag::%{_u}%::*}
 	jailModsOff({_p})
 	set {_armed} to false
 	if {_why} is not "stuck":
+		# Not on a stuck: it strips nothing, so the yard gun's free magazine stays used (audit 2026-11-10).
+		delete {-jail::gunmag::%{_u}%::*}
 		jailStrip({_p})
 		# Equipped weapons and consumables (hotbar 1-5) go too, like a death; they stay unlocked (owner, 2026-10-14: "getting
 		# arrested in prison takes away your weapons too"). With a keycard, the yard's Gun Shop gives back the weapons you own;
@@ -1131,6 +1133,11 @@ on quit with priority lowest:
 		if {-jail::hostile::%{_u}%} is set:
 			setData(player, "jail-quit-hostile", true)
 			jailLog("quit-hostile %player% %{_u}%")
+		# A logout in the 1 s between an arrest and the trip to the cell (hostility is already cleared): caught again on join.
+		else if jailCatching(player) is true:
+			if {-jail::catchwhy::%{_u}%} is not "stuck":
+				setData(player, "jail-quit-hostile", true)
+				jailLog("quit-catching %player% %{_u}%")
 	jailCellFree(player)
 	# The join rules replace what's lost. Kept: the escape mark, the lot flag and the knockout cooldowns (a relog in the
 	# lot keeps the method; a relog doesn't reset a cooldown).
@@ -1144,6 +1151,7 @@ on quit with priority lowest:
 	delete {-jail::checkpoint::%{_u}%}
 	delete {-jail::shield::%{_u}%}
 	delete {-jail::catching::%{_u}%}
+	delete {-jail::catchwhy::%{_u}%}
 	delete {-jail::punch::%{_u}%::*}
 	delete {-jail::act::%{_u}%::*}
 	delete {-jail::hold::%player%}

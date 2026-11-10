@@ -843,7 +843,13 @@ function casinoWheelPay(p: player):
 		set {_n} to {_val} parsed as number
 		chipsSet({_p}, chipsOf({_p}) + {_n})
 		# The wheel's chips can't be cashed out for a day: it isn't a free daily wage.
-		setData({_p}, "chips-locked", {_n})
+		# A lock still running adds up (audit 2026-11-10: a new spin used to unlock the last win early).
+		set {_lock} to {_n}
+		set {_was} to getData({_p}, "chips-locked-at")
+		if {_was} is set:
+			if difference between now and {_was} < 24 hours:
+				add getData({_p}, "chips-locked") to {_lock}
+		setData({_p}, "chips-locked", {_lock})
 		setData({_p}, "chips-locked-at", now)
 		casinoStat({_p}, "wheel", 0, {_n})
 		casinoStatus({_p}, "&a+%{_n}% chips")
