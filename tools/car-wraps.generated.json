@@ -582,5 +582,13 @@
  {
   "damage": 1445,
   "model": "minecraft:custom/wraps/motor_scrapper"
+ },
+ {
+  "damage": 1446,
+  "model": "minecraft:custom/donating/scooter"
+ },
+ {
+  "damage": 1447,
+  "model": "minecraft:custom/donating/skateboard"
  }
 ]

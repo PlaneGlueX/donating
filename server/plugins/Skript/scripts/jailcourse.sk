@@ -592,6 +592,13 @@ function jcTutorial(p: player, arg: text):
 	if {_arg} is "stop":
 		jcStop({_p})
 		stop
+	# confirm moves the player between worlds and saves a replay: once every 5 s (spam = chunk loads and saves, audit 2026-11-10).
+	if {_arg} is "confirm":
+		if {-jc::confirmat::%uuid of {_p}%} is set:
+			if difference between {-jc::confirmat::%uuid of {_p}%} and now < 5 seconds:
+				msg({_p}, "&7Wait a moment before that again.")
+				stop
+		set {-jc::confirmat::%uuid of {_p}%} to now
 	if {_arg} is not "confirm":
 		if {_st} is "course":
 			set {_bar} to jcBar({_p}, jcStepOf({_p}))

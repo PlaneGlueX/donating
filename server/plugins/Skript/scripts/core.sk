@@ -396,6 +396,24 @@ function loadSettings():
 	set {-cfg::bike::abandon} to 60 seconds
 	set {-cfg::bike::max-ride} to 20 minutes
 	set {-cfg::bike::respawn} to 120 seconds
+	# Scooters and skateboards (owner, 2026-11-10: "low level scooters and skateboards outside the prison. use this same
+	# logic for some other spawn places (same way jailbreak uses the default camaro)"): free rides parked at the bike lots,
+	# slower than a bike. A spot's kind: /dbike spotat ... <kind>. bike::<kind>::<key> overrides the bike's bike::<key>.
+	# look = the MTVehicles variant "uuid=itemDamage" (tools/car-wraps.json families, models: tools/make-small-rides.js).
+	# qte-hits 0 = no hotwiring (a skateboard has no wires). fuel false = no tank.
+	set {-cfg::bike::kinds} to "bike|scooter|skateboard"
+	set {-cfg::bike::bike::name} to "bike"
+	set {-cfg::bike::bike::fuel} to true
+	set {-cfg::bike::scooter::name} to "scooter"
+	set {-cfg::bike::scooter::look} to "V47P1Z=1446"
+	set {-cfg::bike::scooter::stats} to "0.48|0.011|9" # PROPOSAL
+	set {-cfg::bike::scooter::qte-hits} to 2
+	set {-cfg::bike::scooter::fuel} to true
+	set {-cfg::bike::skateboard::name} to "skateboard"
+	set {-cfg::bike::skateboard::look} to "5BZ1X4=1447"
+	set {-cfg::bike::skateboard::stats} to "0.4|0.009|10" # PROPOSAL
+	set {-cfg::bike::skateboard::qte-hits} to 0
+	set {-cfg::bike::skateboard::fuel} to false
 	# The City Garage (citygarage.sk, PROPOSAL): sites are safe-zone regions whose id starts with region-prefix; a car
 	# comes out there every takeout-cooldown (Valet anywhere every car::call-cooldown) and goes back if nobody gets in
 	# within pickup-idle; driving within return-radius of a return spot parks it. A car standing unused waits while its

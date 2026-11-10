@@ -721,6 +721,56 @@ voertuigen:
         itemDamage: 1442
         uuid: W1QT9Y
         price: 9000.0
+  - name: "Scooter"
+    # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the scooter): change it there.
+    vehicleType: CAR
+    skinItem: DIAMOND_HOE
+    itemDamage: 1446
+    benzineEnabled: true
+    kofferbakEnabled: false
+    hornEnabled: true
+    maxHealth: 120.0
+    acceleratieSpeed: 0.011
+    maxSpeed: 0.5
+    brakingSpeed: 0.03
+    aftrekkenSpeed: 0.005
+    rotateSpeed: 9
+    maxSpeedBackwards: 0.35
+    seats:
+      - x: 0.1
+        y: -1.3
+        z: 0.0
+    cars:
+      - name: "Scooter Street"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1446
+        uuid: V47P1Z
+        price: 500.0
+  - name: "Skateboard"
+    # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the skateboard): change it there.
+    vehicleType: CAR
+    skinItem: DIAMOND_HOE
+    itemDamage: 1447
+    benzineEnabled: true
+    kofferbakEnabled: false
+    hornEnabled: true
+    maxHealth: 80.0
+    acceleratieSpeed: 0.009
+    maxSpeed: 0.4
+    brakingSpeed: 0.03
+    aftrekkenSpeed: 0.005
+    rotateSpeed: 10
+    maxSpeedBackwards: 0.35
+    seats:
+      - x: 0.0
+        y: -1.45
+        z: 0.0
+    cars:
+      - name: "Skateboard Street"
+        SkinItem: DIAMOND_HOE
+        itemDamage: 1447
+        uuid: 5BZ1X4
+        price: 300.0
   - name: "SUV Cabrio"
     # Donating: made by tools/make-car-wraps.js from tools/car-wraps.json (the riviera): change it there.
     vehicleType: CAR

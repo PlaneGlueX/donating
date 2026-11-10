@@ -38,6 +38,11 @@ on chat:
 	# The chat filter (core.sk chat::filter-*): the line is never sent.
 	if chatBlocked(legacyText(message)) is true:
 		cancel event
+		# Under the chat cooldown too, or blocked lines would be a way round it (and fill the log).
+		if {-chat::last::%player%} is set:
+			if difference between {-chat::last::%player%} and now < cfg("chat::cooldown"):
+				stop
+		set {-chat::last::%player%} to now
 		chatFilterHit(player, legacyText(message))
 		stop
 
